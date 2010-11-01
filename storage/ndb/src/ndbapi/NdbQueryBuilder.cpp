@@ -2029,7 +2029,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
         const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
         // Set type and length in words of key pattern field. 
         serializedDef.append(QueryPattern::data(wordCount));
-        serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
+        serializedDef.appendBytes(constOp.getAddr(),constOp.getSizeInBytes());
         break;
       }
       case NdbQueryOperandImpl::Param:
@@ -2140,7 +2140,8 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
             const Uint32 wordCount =  AttributeHeader::getDataSize(constOp.getSizeInBytes());
             // Set type and length in words of key pattern field. 
             serializedDef.append(QueryPattern::data(wordCount));
-            serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
+            serializedDef.appendBytes(constOp.getAddr(),
+                                      constOp.getSizeInBytes());
             break;
           }
           case NdbQueryOperandImpl::Param:
@@ -2212,7 +2213,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundValue(
       // Constant is then appended as AttributeHeader + const-value
       serializedDef.append(QueryPattern::data(1+ah.getDataSize()));
       serializedDef.append(ah.m_value);
-      serializedDef.append(constOp.getAddr(),constOp.getSizeInBytes());
+      serializedDef.appendBytes(constOp.getAddr(),constOp.getSizeInBytes());
       break;
     }
     case NdbQueryOperandImpl::Param:
