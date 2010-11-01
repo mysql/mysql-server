@@ -3277,6 +3277,7 @@ btr_estimate_n_rows_in_range_on_level(
 		    || btr_page_get_level_low(page) != level) {
 
 			/* The page got reused for something else */
+			mtr_commit(&mtr);
 			goto inexact;
 		}
 
