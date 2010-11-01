@@ -790,7 +790,6 @@ private:
                                                Uint32 *ppartition_id);
   int pk_unique_index_read_key_pushed(uint idx, 
                                       const uchar *key,
-                                      NdbOperation::LockMode lm,
                                       Uint32 *ppartition_id);
 
   int read_multi_range_fetch_next();
