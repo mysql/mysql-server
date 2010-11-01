@@ -3248,7 +3248,7 @@ btr_estimate_n_rows_in_range_on_level(
 	performance with this code which is just an estimation. If we read
 	this many pages before reaching slot2->page_no then we estimate the
 	average from the pages scanned so far */
-	#define N_PAGES_READ_LIMIT	10
+#	define N_PAGES_READ_LIMIT	10
 
 	page_no = slot1->page_no;
 	level = slot1->page_level;
@@ -3277,6 +3277,7 @@ btr_estimate_n_rows_in_range_on_level(
 		    || btr_page_get_level_low(page) != level) {
 
 			/* The page got reused for something else */
+			mtr_commit(&mtr);
 			goto inexact;
 		}
 
