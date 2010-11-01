@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4;
+set @mrr_buffer_size_save= @@mrr_buffer_size;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=aria;
 create table t1(a int);
@@ -292,6 +293,35 @@ NULL	9	0
 NULL	9	0
 drop table t1, t2;
 set storage_engine= @save_storage_engine;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+# 
+# Crash in quick_range_seq_next() in maria-5.3-dsmrr-cpk with join_cache_level = {8,1}
+# 
+set @save_join_cache_level= @@join_cache_level;
+SET SESSION join_cache_level = 8;
+CREATE TABLE `t1` (
+`col_int_key` int(11) DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+`col_varchar_nokey` varchar(1) DEFAULT NULL,
+KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t1` VALUES (6,'2005-10-07 00:00:00','e','e');
+INSERT INTO `t1` VALUES (51,'2000-07-15 05:00:34','f','f');
+CREATE TABLE `t2` (
+`col_int_key` int(11) DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+`col_varchar_nokey` varchar(1) DEFAULT NULL,
+KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t2` VALUES (2,'2004-10-11 18:13:16','w','w');
+INSERT INTO `t2` VALUES (2,'1900-01-01 00:00:00','d','d');
+SELECT table2 .`col_datetime_key`
+FROM t2 JOIN ( t1 table2 JOIN t2 table3 ON table3 .`col_varchar_key` < table2 .`col_varchar_key` ) ON table3 .`col_varchar_nokey` ;
+col_datetime_key
+drop table t1, t2;
+set join_cache_level=@save_join_cache_level;
 CREATE TABLE t1(
 pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx (v, i)

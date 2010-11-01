@@ -1,0 +1,13 @@
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+--enable_warnings
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=aria;
+
+--source include/mrr_tests.inc 
+
+set storage_engine= @save_storage_engine;
+

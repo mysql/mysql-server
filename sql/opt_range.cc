@@ -1119,7 +1119,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 }
 
 
-SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
+SQL_SELECT::SQL_SELECT() :quick(0),cond(0),pre_idx_push_select_cond(NULL),free_cond(0)
 {
   quick_keys.clear_all(); needed_reg.clear_all();
   my_b_clear(&file);
@@ -8006,6 +8006,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 
   quick->mrr_buf_size= thd->variables.mrr_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, (uint)records,
+                                         uint(-1), 
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;

@@ -651,6 +651,9 @@ int JOIN_CACHE_BKA::init()
 
   use_emb_key= check_emb_key_usage();
 
+  if (use_emb_key)
+    mrr_mode|= HA_MRR_MATERIALIZED_KEYS;
+
   create_remaining_fields(FALSE);
 
   set_constants();
@@ -2386,8 +2389,8 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
   */ 
   if (!file->inited)
     file->ha_index_init(join_tab->ref.key, 1);
-  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
-					  mrr_mode, &mrr_buff)))
+  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges, 
+                                          mrr_mode, &mrr_buff)))
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   
   return rc;
@@ -2626,6 +2629,8 @@ int JOIN_CACHE_BKA_UNIQUE::init()
     for ( ; copy < copy_end; copy++)
       data_fields_offset+= copy->length;
   } 
+
+  mrr_mode|= HA_MRR_MATERIALIZED_KEYS;
 
   DBUG_RETURN(rc);
 }

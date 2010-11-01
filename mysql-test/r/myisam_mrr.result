@@ -413,4 +413,52 @@ explain select * from t1 where a < 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Using MRR
 set optimizer_switch=@save_optimizer_switch;
+# 
+# BUG#629684: Unreachable code in multi_range_read.cc in maria-5.3-dsmrr-cpk
+#
+delete from t0 where a > 2;
+insert into t0 values (NULL),(NULL);
+insert into t1 values (NULL, 1234), (NULL, 5678);
+set @save_join_cache_level=@@join_cache_level;
+set @@join_cache_level=6;
+explain 
+select * from t0, t1 where t0.a<=>t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ref	a	a	5	test.t0.a	1	Using index condition(BKA); Using join buffer
+select * from t0, t1 where t0.a<=>t1.a;
+a	a	b
+0	0	0
+1	1	1
+2	2	2
+NULL	NULL	1234
+NULL	NULL	1234
+NULL	NULL	5678
+NULL	NULL	5678
+set @@join_cache_level=@save_join_cache_level;
 drop table t0, t1;
+#
+# BUG#625841: Assertion `!table || (!table->read_set || bitmap_is_set
+#             (table->read_set, field_index))' on REPLACE ... SELECT with MRR
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+key1 varchar(10),
+col1 char(255), col2 char(255),
+col3 char(244), col4 char(255),
+key(key1)
+);
+create table t2 like t1;
+insert into t1
+select
+1000+A.a+100*B.a + 10*C.a,
+'col1val', 'col2val',
+'col3val', 'col4val'
+from t0 A, t0 B, t0 C;
+REPLACE INTO t2(col2,col3,col4)
+SELECT col2,col3,col4
+FROM t1
+WHERE `key1` LIKE CONCAT( LEFT( '1' , 7 ) , '%' )
+ORDER BY col1 LIMIT 7;
+drop table t0, t1, t2;

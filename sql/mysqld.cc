@@ -345,6 +345,7 @@ static const char *optimizer_switch_names[]=
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
+  "mrr_sort_keys",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -366,6 +367,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
   sizeof("subquery_cache") - 1,
+  sizeof("mrr_sort_keys") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -464,7 +466,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
-                                        "subquery_cache=on"
+                                        "subquery_cache=on,"
+                                        "mrr_sort_keys=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";
 #else

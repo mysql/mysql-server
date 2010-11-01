@@ -571,12 +571,13 @@ protected:
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 512
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN 1024
 #define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<11)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<12)
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<12)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<12)
 #  define OPTIMIZER_SWITCH_LAST (1<<13)
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<13)
+#  define OPTIMIZER_SWITCH_LAST (1<<14)
 #endif
 
 #ifdef DBUG_OFF 
@@ -592,7 +593,8 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS)
 #else
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -606,7 +608,8 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS)
 #endif
 
 /*
