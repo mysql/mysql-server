@@ -104,6 +104,10 @@ private:
     SubscriptionRecord(AttrOrderBuffer::DataBufferPool & aop):
       attributeOrder(aop)
     {}
+    enum RequestFlags {
+      RF_NO_DISK = 0x2
+    };
+    Uint32 m_flags;
     RequestType requestType;
     BlockReference userReference; // For user
     Uint32 connectionPtr; // For user

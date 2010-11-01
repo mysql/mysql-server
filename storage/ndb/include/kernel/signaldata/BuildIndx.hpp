@@ -49,6 +49,7 @@ public:
 
   enum RequestFlag {
     RF_BUILD_OFFLINE = 1 << 3 // NOTE check Dbdict.hpp::RequestFlag & BuildIndx
+    ,RF_NO_DISK      = 1 << 5
   };
 
   STATIC_CONST( SignalLength = 9 );

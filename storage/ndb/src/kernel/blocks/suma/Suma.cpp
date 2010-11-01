@@ -1996,7 +1996,8 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_subscriptionPtrI = subPtr.i;
   syncPtr.p->ptrI               = syncPtr.i;
   syncPtr.p->m_error            = 0;
-  
+  syncPtr.p->m_requestInfo      = req->requestInfo;
+
   {
     jam();
     syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
@@ -2410,6 +2411,10 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
   ScanFragReq::setAttrLen(req->requestInfo, attrLen);
+  if (m_requestInfo & SubSyncReq::NoDisk)
+  {
+    ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
+  }
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;

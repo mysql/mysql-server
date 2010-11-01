@@ -512,6 +512,11 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
   subRec->prepareId = RNIL;
+  subRec->m_flags = 0;
+  if (buildIndxReq->getRequestFlag() & BuildIndxReq::RF_NO_DISK)
+  {
+    subRec->m_flags |= SubscriptionRecord::RF_NO_DISK;
+  }
 
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
@@ -818,6 +823,12 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->subscriptionId = subRec->subscriptionId;
   subSyncReq->subscriptionKey = subRec->subscriptionKey;
   subSyncReq->part = SubscriptionData::TableData;
+  subSyncReq->requestInfo = 0;
+  if (subRecPtr.p->m_flags & SubscriptionRecord::RF_NO_DISK)
+  {
+    jam();
+    subSyncReq->requestInfo |= SubSyncReq::NoDisk;
+  }
 
   subRecPtr.p->expectedConf = 1;
 
