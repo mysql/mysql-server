@@ -29,14 +29,12 @@
 
 class Ndb;
 struct NdbError;
-class NdbOperation;
 class NdbParamOperand;
 class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
 class NdbTransaction;
 class NdbRecord;
-class NdbScanFilter;
 class NdbInterpretedCode;
 
 /** Opaque implementation classes*/
@@ -439,11 +437,20 @@ public:
 //NdbQueryParamValue(Int32 val);
 //NdbQueryParamValue(Int64 val);
 
-  // Get parameter value with required typeconversion to fit format
-  // expected by paramOp
-  int getValue(const class NdbParamOperandImpl& paramOp,
-               const void*& addr, Uint32& len,
-               bool& is_null) const;
+  /**
+   * Serialize value into a seuqence of words suitable to be sent to the data
+   * nodes.
+   * @param column Specifies the format that the value should be serialized 
+   * into.
+   * @param dst Seralized data are appended to this.
+   * @param len Length of serialized data (in number of bytes).
+   * @param isNull Will be set to true iff this is a NULL value.
+   * @return 0 if ok, otherwise an error code. 
+   */
+  int serializeValue(const class NdbColumnImpl& column,
+                     class Uint32Buffer& dst,
+                     Uint32& len,
+                     bool& isNull) const;
 
 private:
   int m_type;

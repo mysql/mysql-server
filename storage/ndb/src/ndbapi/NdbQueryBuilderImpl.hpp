@@ -105,7 +105,8 @@ public:
     m_array(m_local),
     m_avail(initSize),
     m_size(0),
-    m_memoryExhausted(false)
+    m_memoryExhausted(false),
+    m_bytesLeft(0)
   {}
 
   ~Uint32Buffer() {
@@ -174,6 +175,7 @@ public:
   /** append 'src' word to end of this buffer
    */
   void append(const Uint32 src) {
+    m_bytesLeft = 0;
     if (likely(m_size < m_avail)) {
       m_array[m_size++] = src;
     } else {
@@ -187,6 +189,7 @@ public:
    */
   void append(const Uint32Buffer& src) {
     assert (!src.isMemoryExhausted());
+    m_bytesLeft = 0;
     Uint32 len = src.getSize();
     if (likely(len > 0)) {
       Uint32* dst = alloc(len);
@@ -199,19 +202,27 @@ public:
   /** append 'src' *bytes* to end of this buffer
    *  Zero pad possibly odd bytes in last Uint32 word
    */
-  void append(const void* src, Uint32 len) {
+  void appendBytes(const void* src, Uint32 len) {
     if (likely(len > 0)) {
       Uint32 wordCount = 
-        static_cast<Uint32>((len + sizeof(Uint32)-1) / sizeof(Uint32));
+        static_cast<Uint32>((len + sizeof(Uint32)-1 - m_bytesLeft) 
+                            / sizeof(Uint32));
       Uint32* dst = alloc(wordCount);
       if (likely(dst!=NULL)) {
-        // Make sure that any trailing bytes in the last word are zero.
-        dst[wordCount-1] = 0;
         // Copy src 
-        memcpy(dst, src, len);
+        Uint8* const start = reinterpret_cast<Uint8*>(dst) - m_bytesLeft;
+        memcpy(start, src, len);
+        m_bytesLeft = (m_bytesLeft - len) % sizeof(Uint32);
+        // Make sure that any trailing bytes in the last word are zero.
+        bzero(start + len, m_bytesLeft);
       }
     }
   }
+
+  /** Skip remaining bytes in m_array[m_size-1], so that a subsequent
+   * appendBytes() starts at a word boundary.*/
+  void skipRestOfWord()
+  { m_bytesLeft = 0; }
 
   Uint32* addr(Uint32 idx=0) {
     return (likely(!m_memoryExhausted && m_size>idx)) ?&m_array[idx] :NULL;
@@ -246,6 +257,8 @@ private:
   Uint32  m_avail;           // Available buffer space
   Uint32  m_size;            // Actuall size <= m_avail
   bool m_memoryExhausted;
+  /** Number of remaining bytes (0-3) in m_array[m_size-1].*/
+  Uint32 m_bytesLeft;
 };
 
 
