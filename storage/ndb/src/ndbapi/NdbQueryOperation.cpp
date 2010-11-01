@@ -299,23 +299,33 @@ public:
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
-  /** This method is used for marking a result stream to tell that it (or its 
-   * closest scan decendant stream) is holding the last batch of a sub scan, 
-   * meaning that it is the last batch of the scan that was instantiated from 
-   * the current batch of its parent operation.*/
+  /** 
+   * This method is only used for result streams of scan operations. It is
+   * used for marking a stream as holding the last batch of a sub scan. 
+   * This means that it is the last batch of the scan that was instantiated 
+   * from the current batch of its parent operation.
+   */
   void setSubScanComplete(bool complete)
-  { m_subScanComplete = complete; }
+  { 
+    assert(m_operation.getQueryOperationDef().isScanOperation());
+    m_subScanComplete = complete; 
+  }
 
-  /** This method returns true if this result stream (or its closest scan 
-   * descendant) holds the last batch of a sub scan, meaning that it is the
-   * last batch of the scan that was instantiated from the current batch
-   * of its parent operation.*/
+  /** 
+   * This method is only relevant for result streams of scan operations. It 
+   * returns true if this result stream holds the last batch of a sub scan
+   * This means that it is the last batch of the scan that was instantiated 
+   * from the current batch of its parent operation.
+   */
   bool isSubScanComplete() const
-  { return m_subScanComplete; }
+  { 
+    assert(m_operation.getQueryOperationDef().isScanOperation());
+    return m_subScanComplete; 
+  }
 
-  /** Variant of isSubScanComplete() above which check that this resultstream
-   * and all its descendants has consumed all batches of rows instantiated 
-   * from its parent operation(s). */
+  /** Variant of isSubScanComplete() above which checks that this resultstream
+   * and all its descendants have consumed all batches of rows instantiated 
+   * from their parent operation(s). */
   bool isAllSubScansComplete() const;
 
   /** For debugging.*/
@@ -352,10 +362,12 @@ private:
   /** Tuple id of the current tuple, or 'tupleNotFound' if Iter_notStarted or Iter_finished. */
   Uint16 m_currentRow;
   
-  /** This field is used for marking a result stream to tell that it (or its 
-   * closest scan decendant stream) is holding the last batch of a sub scan, 
-   * meaning that it is the last batch of the scan that was instantiated from 
-   * the current batch of its parent operation.*/
+  /** 
+   * This field is only used for result streams of scan operations. If set,
+   * it indicates that the stream is holding the last batch of a sub scan. 
+   * This means that it is the last batch of the scan that was instantiated 
+   * from the current batch of its parent operation.
+   */
   bool m_subScanComplete;
 
   /**
@@ -512,10 +524,12 @@ NdbResultStream::clearTupleSet()
 bool
 NdbResultStream::isAllSubScansComplete() const
 { 
-  if (!m_subScanComplete)
+  if (m_operation.getQueryOperationDef().isScanOperation() && 
+      !m_subScanComplete)
     return false;
 
-  for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations(); childNo++)
+  for (Uint32 childNo = 0; childNo < m_operation.getNoOfChildOperations(); 
+       childNo++)
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     const NdbResultStream& childStream = child.getResultStream(getRootFragNo());
@@ -2513,11 +2527,13 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
     if (!op.getQueryOperationDef().hasScanDescendant() &&
         op.getQueryOperationDef().isScanOperation())
     {
-      // Find first ancestor that is not finished.
+      // Find first scan ancestor that is not finished.
       const NdbQueryOperationImpl* ancestor = &op;
-      while (ancestor!=NULL && 
-             ancestor->getResultStream(emptyFrag.getFragNo())
-             .isSubScanComplete())
+      while (ancestor != NULL && 
+             (!ancestor->getQueryOperationDef().isScanOperation() ||
+              ancestor->getResultStream(emptyFrag.getFragNo())
+              .isSubScanComplete())
+              )
       {
         ancestor = ancestor->getParentOperation();
       }
@@ -4453,28 +4469,21 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
    */
   for (Uint32 opNo = 0; opNo < queryDef.getNoOfOperations(); opNo++)
   {
+    const NdbQueryOperationImpl& op = m_queryImpl.getQueryOperation(opNo);
     /* Find the node number seen by the SPJ block. Since a unique index
      * operation will have two distincts nodes in the tree used by the
      * SPJ block, this number may be different from 'opNo'.*/
-    const Uint32 internalOpNo = 
-      queryDef.getQueryOperation(opNo).getQueryOperationId();
+    const Uint32 internalOpNo = op.getQueryOperationDef().getQueryOperationId();
     assert(internalOpNo >= opNo);
-    if (((nodeMask >> internalOpNo) & 1) == 1)
+    const bool maskSet = ((nodeMask >> internalOpNo) & 1) == 1;
+
+    if (op.getQueryOperationDef().isScanOperation())
     {
-      NdbQueryOperationImpl* ancestor = &m_queryImpl.getQueryOperation(opNo);
-      assert(ancestor->getQueryOperationDef().isScanOperation());
-      do
-      {
-        // Mark this scan and its lookup ancestors as not complete.
-        assert(ancestor->getQueryOperationDef().getQueryOperationIx() <= opNo);
-        ancestor->getResultStream(rootFrag.getFragNo()).setSubScanComplete(false);
-        ancestor = ancestor->getParentOperation();
-      } while (ancestor != NULL && 
-               !ancestor->getQueryOperationDef().isScanOperation());
+      rootFrag.getResultStream(opNo).setSubScanComplete(!maskSet);
     }
     else
     {
-      rootFrag.getResultStream(opNo).setSubScanComplete(true);
+      assert(!maskSet);
     }
   }
 #ifndef NDEBUG
