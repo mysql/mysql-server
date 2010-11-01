@@ -632,45 +632,6 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
-  Prints the given event in base64 format.
-
-  The header is printed to the head cache and the body is printed to
-  the body cache of the print_event_info structure.  This allows all
-  base64 events corresponding to the same statement to be joined into
-  one BINLOG statement.
-
-  @param[in] ev Log_event to print.
-  @param[in,out] result_file FILE to which the output will be written.
-  @param[in,out] print_event_info Parameters and context state
-  determining how to print.
-
-  @retval ERROR_STOP An error occurred - the program should terminate.
-  @retval OK_CONTINUE No error, the program should continue.
-*/
-static Exit_status
-write_event_header_and_base64(Log_event *ev, FILE *result_file,
-                              PRINT_EVENT_INFO *print_event_info)
-{
-  IO_CACHE *head= &print_event_info->head_cache;
-  IO_CACHE *body= &print_event_info->body_cache;
-  DBUG_ENTER("write_event_header_and_base64");
-
-  /* Write header and base64 output to cache */
-  ev->print_header(head, print_event_info, FALSE);
-  ev->print_base64(body, print_event_info, FALSE);
-
-  /* Read data from cache and write to result file */
-  if (copy_event_cache_to_file_and_reinit(head, result_file) ||
-      copy_event_cache_to_file_and_reinit(body, result_file))
-  {
-    error("Error writing event to file.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-  DBUG_RETURN(OK_CONTINUE);
-}
-
-
-/**
   Print the given event, and either delete it or delegate the deletion
   to someone else.
 
