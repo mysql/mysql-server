@@ -265,6 +265,7 @@ struct SubSyncReq {
     LM_Exclusive = 0x1
     ,Reorg = 0x2
     ,NoDisk = 0x4
+    ,TupOrder = 0x8
   };
 
   SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
