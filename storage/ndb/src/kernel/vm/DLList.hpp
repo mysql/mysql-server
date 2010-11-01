@@ -35,7 +35,13 @@ public:
   struct HeadPOD {
     Uint32 firstItem;
     inline bool isEmpty() const { return firstItem == RNIL; }
-    inline void init () { firstItem = RNIL; in_use = false;}
+    inline void init () { 
+      firstItem = RNIL; 
+#ifdef VM_TRACE
+      in_use = false;
+#endif
+    }
+
 #ifdef VM_TRACE
     bool in_use;
 #endif
