@@ -343,7 +343,11 @@ int Gcalc_scan_iterator::insert_top_point()
     m_slice0= sp1;
   }
   else
+  {
     m_event1= scev_single_point;
+    sp0->horiz_dir= 0;
+    sp0->dx_dy= 0.0;
+  }
 
   /* First we need to find the place to insert.
      Binary search could probably make things faster here,
