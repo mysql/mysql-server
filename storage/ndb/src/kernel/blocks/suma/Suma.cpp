@@ -2723,6 +2723,11 @@ Suma::SyncRecord::nextScan(Signal* signal)
     ScanFragReq::setReorgFlag(req->requestInfo, ScanFragReq::REORG_MOVED);
   }
 
+  if (m_requestInfo & SubSyncReq::TupOrder)
+  {
+    ScanFragReq::setTupScanFlag(req->requestInfo, 1);
+  }
+
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
   req->schemaVersion = tabPtr.p->m_schemaVersion;
   req->transId1 = 0;

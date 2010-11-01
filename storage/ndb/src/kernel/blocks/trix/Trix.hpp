@@ -109,6 +109,7 @@ private:
     enum RequestFlags {
       RF_WAIT_GCP = 0x1
       ,RF_NO_DISK = 0x2
+      ,RF_TUP_ORDER = 0x4
     };
     Uint32 m_flags;
     RequestType requestType;
