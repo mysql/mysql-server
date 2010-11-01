@@ -31,9 +31,7 @@ Created 8/22/1994 Heikki Tuuri
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
-#ifdef UNIV_SYNC_DEBUG
-# include "btr0sea.h"
-#endif /* UNIV_SYNC_DEBUG */
+#include "btr0sea.h"
 #include "page0page.h"
 
 /*************************************************************//**
@@ -127,7 +125,8 @@ ha_clear(
 /*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
-is inserted.
+is inserted. If btr_search_enabled is set to FALSE, we will only allow
+updating existing nodes, but no new node is allowed to be added.
 @return	TRUE if succeed, FALSE if no more memory could be allocated */
 UNIV_INTERN
 ibool
@@ -174,6 +173,7 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
+			ut_ad(!btr_search_fully_disabled);
 # endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
@@ -184,6 +184,13 @@ ha_insert_for_fold_func(
 		}
 
 		prev_node = prev_node->next;
+	}
+
+	/* We are in the process of disabling hash index, do not add
+	new chain node */
+	if (!btr_search_enabled) {
+		ut_ad(!btr_search_fully_disabled);
+		return(TRUE);
 	}
 
 	/* We have to allocate a new chain node */
@@ -347,6 +354,7 @@ ha_remove_all_nodes_to_page(
 #endif
 }
 
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
@@ -393,6 +401,7 @@ ha_validate(
 
 	return(ok);
 }
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /*************************************************************//**
 Prints info of a hash table. */

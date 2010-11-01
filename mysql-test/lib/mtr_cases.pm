@@ -252,15 +252,11 @@ sub collect_one_suite
     }
     else
     {
-      $suitedir= my_find_dir($::basedir,
-			     ["mysql-test/suite",
-			      "mysql-test",
-			      "share/mysql-test/suite",
-			      "share/mysql-test",
-			      "share/mysql/mysql-test/suite",
-			      "share/mysql/mysql-test",
+      $suitedir= my_find_dir($suitedir,
+			     ["suite",
+			      ".",
 			      # Look in storage engine specific suite dirs
-			      "storage/*/mysql-test-suites"
+			      "../storage/*/mysql-test-suites"
 			     ],
 			     [$suite]);
     }
@@ -573,7 +569,7 @@ sub optimize_cases {
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=

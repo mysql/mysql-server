@@ -1300,6 +1300,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <table>
         table_ident table_ident_nodb references xid
+        table_ident_opt_wild
 
 %type <simple_string>
         remember_name remember_end opt_ident opt_db text_or_password
@@ -3886,17 +3887,26 @@ create2a:
           create3 {}
         |  opt_partitioning
            create_select ')'
-           { Select->set_braces(1);}
+           {
+             Select->set_braces(1);
+             Lex->create_select_start_with_brace= TRUE;
+           }
            union_opt {}
         ;
 
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
-          { Select->set_braces(0);}
+          {
+            Select->set_braces(0);
+            Lex->create_select_start_with_brace= FALSE;
+          }
           union_clause {}
         | opt_duplicate opt_as '(' create_select ')'
-          { Select->set_braces(1);}
+          {
+            Select->set_braces(1);
+            Lex->create_select_start_with_brace= TRUE;
+          }
           union_opt {}
         ;
 
@@ -4521,6 +4531,19 @@ create_select:
             lex->current_select->table_list.save_and_clear(&lex->save_list);
             mysql_init_select(lex);
             lex->current_select->parsing_place= SELECT_LIST;
+
+            if (lex->sql_command == SQLCOM_CREATE_TABLE &&
+                (lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS))
+            {
+              Lex_input_stream *lip= YYLIP;
+
+              if (lex->spcont)
+                lex->create_select_pos= lip->get_tok_start() -
+                  lex->sphead->m_tmp_query;
+              else
+                lex->create_select_pos= lip->get_tok_start() - lip->get_buf();
+              lex->create_select_in_comment= (lip->in_comment == DISCARD_COMMENT);
+            }
           }
           select_options select_item_list
           {
@@ -9621,7 +9644,7 @@ table_alias_ref_list:
         ;
 
 table_alias_ref:
-          table_ident
+          table_ident_opt_wild
           {
             if (!Select->add_table_to_list(YYTHD, $1, NULL,
                                            TL_OPTION_UPDATING | TL_OPTION_ALIAS,
@@ -11391,6 +11414,21 @@ table_ident:
           {
             /* For Delphi */
             $$= new Table_ident($2);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        ;
+
+table_ident_opt_wild:
+          ident opt_wild
+          {
+            $$= new Table_ident($1);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+        | ident '.' ident opt_wild
+          {
+            $$= new Table_ident(YYTHD, $1,$3,0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

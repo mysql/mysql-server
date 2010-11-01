@@ -2660,7 +2660,9 @@ public:
 
 
 class select_insert :public select_result_interceptor {
- public:
+protected:
+  virtual int write_to_binlog(bool is_trans, int errcode);
+public:
   TABLE_LIST *table_list;
   TABLE *table;
   List<Item> *fields;
@@ -2696,6 +2698,8 @@ class select_create: public select_insert {
   MYSQL_LOCK *m_lock;
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
+
+  virtual int write_to_binlog(bool is_trans, int errcode);
 public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
@@ -2711,7 +2715,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  int binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count, int errcode);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();

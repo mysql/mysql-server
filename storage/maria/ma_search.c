@@ -116,8 +116,9 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
   MARIA_PAGE page;
   MARIA_PINNED_PAGE *page_link;
   DBUG_ENTER("_ma_search");
-  DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
-                      (ulong) pos, nextflag, (ulong) info->cur_row.lastpos));
+  DBUG_PRINT("enter",("page: %lu  nextflag: %u  lastpos: %lu",
+                      (ulong) (pos / info->s->block_size),
+                      nextflag, (ulong) info->cur_row.lastpos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, key););
 
   if (pos == HA_OFFSET_ERROR)

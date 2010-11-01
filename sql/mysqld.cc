@@ -196,6 +196,9 @@ typedef fp_except fp_except_t;
 # endif
 #endif
 
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream);
+
 inline void setup_fpu()
 {
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
@@ -790,7 +793,7 @@ bool mysqld_embedded=1;
 static my_bool plugins_are_initialized= FALSE;
 
 #ifndef DBUG_OFF
-static const char* default_dbug_option;
+static const char* default_dbug_option, *current_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
@@ -3964,14 +3967,15 @@ static int init_server_components()
       opt_error_log= 1;				// Too long file name
     else
     {
+      my_bool res;
 #ifndef EMBEDDED_LIBRARY
-      if (freopen(log_error_file, "a+", stdout))
+      res= reopen_fstreams(log_error_file, stdout, stderr);
+#else
+      res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      {
-        if (!(freopen(log_error_file, "a+", stderr)))
-          sql_print_warning("Couldn't reopen stderr");
+
+      if (!res)
         setbuf(stderr, NULL);
-      }
     }
   }
 
@@ -4623,11 +4627,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifdef __WIN__
   if (!opt_console)
   {
-    if (!freopen(log_error_file,"a+",stdout) ||
-        !freopen(log_error_file,"a+",stderr))
-    {
-      sql_print_warning("Couldn't reopen stdout or stderr");
-    }
+    if (reopen_fstreams(log_error_file, stdout, stderr))
+      unireg_abort(1);
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
@@ -6125,8 +6126,8 @@ struct my_option my_long_options[] =
    &max_system_variables.wt_timeout_long,
    0, GET_ULONG, REQUIRED_ARG, 50000000, 0, ULONG_MAX, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", '#', "Debug log.", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Debug log.", &current_dbug_option,
+   &current_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-crc-break", OPT_DEBUG_CRC,
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    &opt_my_crc_dbug_check, &opt_my_crc_dbug_check,
@@ -6454,7 +6455,7 @@ each time the SQL thread starts.",
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
+   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -7931,6 +7932,7 @@ SHOW_VAR status_vars[]= {
   {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_warm",          (char*) offsetof(KEY_CACHE, warm_blocks), SHOW_KEY_CACHE_LONG},
   {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read), SHOW_KEY_CACHE_LONGLONG},
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
@@ -8263,6 +8265,7 @@ static int mysql_init_variables(void)
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 			     "d:t:i:o,/tmp/mysqld.trace");
+  current_dbug_option= default_dbug_option;
 #endif
   opt_error_log= IF_WIN(1,0);
 #ifdef COMMUNITY_SERVER

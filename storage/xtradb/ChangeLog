@@ -1,3 +1,58 @@
+2010-08-24	The InnoDB Team
+
+	* handler/ha_innodb.c, dict/dict0dict.c:
+	Fix Bug #55832 selects crash too easily when innodb_force_recovery>3
+
+2010-08-03	The InnoDB Team
+
+	* include/dict0dict.h, include/dict0dict.ic, row/row0mysql.c:
+	Fix bug #54678, InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
+
+2010-08-03	The InnoDB Team
+
+	* dict/dict0load.c, handler/ha_innodb.cc, include/db0err.h,
+	include/dict0load.h, include/dict0mem.h, include/que0que.h,
+	row/row0merge.c, row/row0mysql.c:
+	Fix Bug#54582 stack overflow when opening many tables linked
+	with foreign keys at once
+
+2010-08-03	The InnoDB Team
+
+	* include/ut0mem.h, ut/ut0mem.c:
+	Fix Bug #55627 segv in ut_free pars_lexer_close innobase_shutdown
+	innodb-use-sys-malloc=0
+
+2010-08-01	The InnoDB Team
+
+	* handler/ha_innodb.cc
+	Fix Bug #55382 Assignment with SELECT expressions takes unexpected
+	S locks in READ COMMITTED
+>>>>>>> MERGE-SOURCE
+
+2010-07-27	The InnoDB Team
+
+	* include/mem0pool.h, mem/mem0mem.c, mem/mem0pool.c, srv/srv0start.c:
+	Fix Bug#55581 shutdown with innodb-use-sys-malloc=0: assert
+	mutex->magic_n == MUTEX_MAGIC_N.
+
+2010-06-30	The InnoDB Team
+
+	* btr/btr0sea.c, ha/ha0ha.c, handler/ha_innodb.cc, include/btr0sea.h:
+	Fix Bug#54311 Crash on CHECK PARTITION after concurrent LOAD DATA
+	and adaptive_hash_index=OFF
+
+2010-06-29	The InnoDB Team
+	* row/row0row.c, row/row0undo.c, row/row0upd.c:
+	Fix Bug#54408 txn rollback after recovery: row0umod.c:673
+	dict_table_get_format(index->table)
+
+2010-06-29	The InnoDB Team
+
+	* btr/btr0cur.c, include/btr0cur.h,
+	include/row0mysql.h, row/row0merge.c, row/row0sel.c:
+	Fix Bug#54358 READ UNCOMMITTED access failure of off-page DYNAMIC
+	or COMPRESSED columns
+
 2010-06-24	The InnoDB Team
 
 	* handler/ha_innodb.cc:

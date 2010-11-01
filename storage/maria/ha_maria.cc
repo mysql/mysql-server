@@ -1043,13 +1043,13 @@ int ha_maria::write_row(uchar * buf)
 
 int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
 {
-  if (!file)
-    return HA_ADMIN_INTERNAL_ERROR;
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
   const char *old_proc_info= thd_proc_info(thd, "Checking table");
   TRN *old_trn= file->trn;
+
+  if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
 
   maria_chk_init(&param);
   param.thd= thd;
@@ -1144,8 +1144,11 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
 int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
 {
   int error= 0;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MARIA_SHARE *share= file->s;
+
+  if (!&param)
+    return HA_ADMIN_INTERNAL_ERROR;
 
   maria_chk_init(&param);
   param.thd= thd;
@@ -1281,7 +1284,10 @@ int ha_maria::backup(THD * thd, HA_CHECK_OPT *check_opt)
 
 err:
   {
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "backup";
@@ -1297,10 +1303,10 @@ err:
 int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   ha_rows start_records;
 
-  if (!file)
+  if (!file || !&param)
     return HA_ADMIN_INTERNAL_ERROR;
 
   maria_chk_init(&param);
@@ -1352,11 +1358,11 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
 int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   TRN *old_trn;
   MARIA_SHARE *share= file->s;
 
-  if (!file)
+  if (!file || !&param)
     return HA_ADMIN_INTERNAL_ERROR;
 
   old_trn= file->trn;
@@ -1382,9 +1388,9 @@ int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
 int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
 
-  if (!file)
+  if (!file || !&param)
     return HA_ADMIN_INTERNAL_ERROR;
 
   maria_chk_init(&param);
@@ -1623,7 +1629,10 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "assign_to_keycache";
@@ -1684,7 +1693,10 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
       errmsg= buf;
     }
 
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     maria_chk_init(&param);
     param.thd= thd;
     param.op_name= "preload_keys";
@@ -1792,8 +1804,12 @@ int ha_maria::enable_indexes(uint mode)
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
     THD *thd= current_thd;
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     const char *save_proc_info= thd_proc_info(thd, "Creating index");
+
     maria_chk_init(&param);
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
@@ -3275,6 +3291,8 @@ static int ha_maria_init(void *p)
   /*  We can only test for sub paths if my_symlink.c is using realpath */
   maria_test_invalid_symlink= test_if_data_home_dir;
 #endif
+  if (res)
+    maria_hton= 0;
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 

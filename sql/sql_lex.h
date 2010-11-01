@@ -1816,6 +1816,23 @@ typedef struct st_lex : public Query_tables_list
   */
   bool protect_against_global_read_lock;
 
+  /*
+    The following three variables are used in 'CREATE TABLE IF NOT EXISTS ...
+    SELECT' statement. They are used to binlog the statement.
+
+    create_select_start_with_brace will be set if there is a '(' before
+    the first SELECT clause
+
+    create_select_pos records the relative position of the SELECT clause
+    in the whole statement.
+
+    create_select_in_comment will be set if SELECT keyword is in conditional
+    comment.
+   */
+  bool create_select_start_with_brace;
+  uint create_select_pos;
+  bool create_select_in_comment;
+
   st_lex();
 
   virtual ~st_lex()

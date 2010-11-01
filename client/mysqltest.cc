@@ -202,6 +202,8 @@ static int replace(DYNAMIC_STRING *ds_str,
                    const char *search_str, ulong search_len,
                    const char *replace_str, ulong replace_len);
 
+static uint opt_protocol=0;
+
 DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
@@ -607,14 +609,14 @@ public:
     lines++;
 
     int show_offset= 0;
-    char buf[256];
+    char buf[256+1];                   /* + zero termination for DBUG_PRINT */
     size_t bytes;
     bool found_bof= false;
 
     /* Search backward in file until "lines" newline has been found */
     while (lines && !found_bof)
     {
-      show_offset-= sizeof(buf);
+      show_offset-= sizeof(buf)-1;
       while(fseek(m_file, show_offset, SEEK_END) != 0 && show_offset < 0)
       {
         found_bof= true;
@@ -622,13 +624,17 @@ public:
         show_offset++;
       }
 
-      if ((bytes= fread(buf, 1, sizeof(buf), m_file)) <= 0)
+      if ((bytes= fread(buf, 1, sizeof(buf)-1, m_file)) <= 0)
       {
-        fprintf(stderr, "Failed to read from '%s', errno: %d\n",
-                m_file_name, errno);
+	// ferror=0 will happen here if no queries executed yet
+	if (ferror(m_file))
+	  fprintf(stderr,
+	          "Failed to read from '%s', errno: %d, feof:%d, ferror:%d\n",
+	          m_file_name, errno, feof(m_file), ferror(m_file));
         DBUG_VOID_RETURN;
       }
 
+      IF_DBUG(buf[bytes]= '\0';)
       DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
                           (unsigned long)bytes, buf));
 
@@ -673,8 +679,8 @@ public:
       }
     }
 
-    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      if (fwrite(buf, 1, bytes, stderr))
+    while ((bytes= fread(buf, 1, sizeof(buf)-1, m_file)) > 0)
+      if (bytes != fwrite(buf, 1, bytes, stderr))
         die("Failed to write to '%s', errno: %d",
             m_file_name, errno);
 
@@ -1105,8 +1111,9 @@ void handle_command_error(struct st_command *command, uint error,
                           sys_errno));
       DBUG_VOID_RETURN;
     }
-    die("command \"%.*s\" failed with wrong error: %u, errno: %d",
-        command->first_word_len, command->query, error, sys_errno);
+    if (command->expected_errors.count > 0)
+      die("command \"%.*s\" failed with wrong error: %u, errno: %d",
+          command->first_word_len, command->query, error, sys_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1377,14 +1384,14 @@ void log_msg(const char *fmt, ...)
 
 */
 
-void cat_file(DYNAMIC_STRING* ds, const char* filename)
+int cat_file(DYNAMIC_STRING* ds, const char* filename)
 {
   int fd;
   size_t len;
   char buff[512];
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open file '%s'", filename);
+    return 1;
   while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
@@ -1408,6 +1415,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
     dynstr_append_mem(ds, start, p-start);
   }
   my_close(fd, MYF(0));
+  return 0;
 }
 
 
@@ -2422,6 +2430,9 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     if ((vp= var_get(p, p_end, 0, 0)))
       var_copy(v, vp);
 
+    /* Apparently it is not safe to assume null-terminated string */
+    v->str_val[v->str_val_len]= 0;
+
     /* Make sure there was just a $variable and nothing else */
     const char* end= *p_end + 1;
     if (end < expected_end)
@@ -2768,8 +2779,9 @@ void do_exec(struct st_command *command)
     else
     {
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed with wrong error: %d",
-          command->first_argument, status);
+      if (command->expected_errors.count > 0)
+        die("command \"%s\" failed with wrong error: %d",
+            command->first_argument, status);
     }
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
@@ -2915,6 +2927,41 @@ void do_system(struct st_command *command)
 
 /*
   SYNOPSIS
+  set_wild_chars
+  set  true to set * etc. as wild char, false to reset
+
+  DESCRIPTION
+  Auxiliary function to set "our" wild chars before calling wild_compare
+  This is needed because the default values are changed to SQL syntax
+  in mysqltest_embedded.
+*/
+
+void set_wild_chars (my_bool set)
+{
+  static char old_many= 0, old_one, old_prefix;
+
+  if (set) 
+  {
+    if (wild_many == '*') return; // No need
+    old_many= wild_many;
+    old_one= wild_one;
+    old_prefix= wild_prefix;
+    wild_many= '*';
+    wild_one= '?';
+    wild_prefix= 0;
+  }
+  else 
+  {
+    if (! old_many) return;	// Was not set
+    wild_many= old_many;
+    wild_one= old_one;
+    wild_prefix= old_prefix;
+  }
+}
+
+
+/*
+  SYNOPSIS
   do_remove_file
   command	called command
 
@@ -2990,6 +3037,10 @@ void do_remove_files_wildcard(struct st_command *command)
   dir_separator[0]= FN_LIBCHAR;
   dir_separator[1]= 0;
   dynstr_append(&ds_file_to_remove, dir_separator);
+  
+  /* Set default wild chars for wild_compare, is changed in embedded mode */
+  set_wild_chars(1);
+  
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
     file= dir_info->dir_entry + i;
@@ -3010,6 +3061,7 @@ void do_remove_files_wildcard(struct st_command *command)
     if (error)
       break;
   }
+  set_wild_chars(0);
   my_dirend(dir_info);
 
 end:
@@ -3255,6 +3307,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
   /* Note that my_dir sorts the list if not given any flags */
   if (!(dir_info= my_dir(ds_dirname->str, MYF(0))))
     DBUG_RETURN(1);
+  set_wild_chars(1);
   for (i= 0; i < (uint) dir_info->number_off_files; i++)
   {
     file= dir_info->dir_entry + i;
@@ -3268,6 +3321,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
+  set_wild_chars(0);
   my_dirend(dir_info);
   DBUG_RETURN(0);
 }
@@ -3550,6 +3604,7 @@ void do_append_file(struct st_command *command)
 
 void do_cat_file(struct st_command *command)
 {
+  int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
     { "filename", ARG_STRING, TRUE, &ds_filename, "File to read from" }
@@ -3564,8 +3619,8 @@ void do_cat_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Reading from, file: %s", ds_filename.str));
 
-  cat_file(&ds_res, ds_filename.str);
-
+  error= cat_file(&ds_res, ds_filename.str);
+  handle_command_error(command, error, my_errno);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
@@ -3829,8 +3884,9 @@ void do_perl(struct st_command *command)
     }
     error= pclose(res_file);
 
-    /* Remove the temporary file */
-    my_delete(temp_file_path, MYF(MY_WME));
+    /* Remove the temporary file, but keep it if perl failed */
+    if (!error)
+      my_delete(temp_file_path, MYF(MY_WME));
 
     handle_command_error(command, WEXITSTATUS(error), my_errno);
   }
@@ -4973,7 +5029,7 @@ int connect_n_handle_errors(struct st_command *command,
   ds= &ds_res;
 
   /* Only log if an error is expected */
-  if (!command->abort_on_error &&
+  if (command->expected_errors.count > 0 &&
       !disable_query_log)
   {
     /*
@@ -5219,10 +5275,12 @@ void do_connect(struct st_command *command)
 #ifdef __WIN__
   if (con_pipe)
   {
-    uint protocol= MYSQL_PROTOCOL_PIPE;
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+    opt_protocol= MYSQL_PROTOCOL_PIPE;
   }
 #endif
+
+  if (opt_protocol)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -5394,8 +5452,20 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   /* Define inner block */
   cur_block++;
   cur_block->cmd= cmd;
-  cur_block->ok= (v.int_val ? TRUE : FALSE);
+  if (v.int_val)
+  {
+    cur_block->ok= TRUE;
+  } else
+  /* Any non-empty string which does not begin with 0 is also TRUE */
+  {
+    p= v.str_val;
+    /* First skip any leading white space or unary -+ */
+    while (*p && ((my_isspace(charset_info, *p) || *p == '-' || *p == '+')))
+      p++;
 
+    cur_block->ok= (*p && *p != '0') ? TRUE : FALSE;
+  }
+  
   if (not_expr)
     cur_block->ok = !cur_block->ok;
 
@@ -5944,6 +6014,8 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -6083,7 +6155,7 @@ void read_embedded_server_arguments(const char *name)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
   switch(optid) {
@@ -6172,6 +6244,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case OPT_MYSQL_PROTOCOL:
+#ifndef EMBEDDED_LIBRARY
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
+#endif
+    break;
   case '?':
     usage();
     exit(0);
@@ -7650,9 +7728,6 @@ void get_command_type(struct st_command* command)
          sizeof(saved_expected_errors));
   DBUG_PRINT("info", ("There are %d expected errors",
                       command->expected_errors.count));
-  command->abort_on_error= (command->expected_errors.count == 0 &&
-                            abort_on_error);
-
   DBUG_VOID_RETURN;
 }
 
@@ -7939,6 +8014,9 @@ int main(int argc, char **argv)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
+  if (opt_protocol)
+    mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+
 #ifdef HAVE_OPENSSL
 
   if (opt_use_ssl)
@@ -7998,6 +8076,10 @@ int main(int argc, char **argv)
       command->type= Q_COMMENT;
     }
 
+    /* (Re-)set abort_on_error for this command */
+    command->abort_on_error= (command->expected_errors.count == 0 &&
+                              abort_on_error);
+    
     /* delimiter needs to be executed so we can continue to parse */
     ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
     /*
@@ -8374,16 +8456,6 @@ int main(int argc, char **argv)
 	/* Check that the output from test is equal to result file */
 	check_result();
       }
-    }
-    else
-    {
-      /*
-        No result_file_name specified, the result
-        has been printed to stdout, exit with error
-        unless script has called "exit" to indicate success
-      */
-      if (abort_flag == 0)
-        die("Exit with failure! Call 'exit' in script to return with sucess");
     }
   }
   else

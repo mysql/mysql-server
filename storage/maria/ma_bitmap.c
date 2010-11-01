@@ -1016,7 +1016,7 @@ static my_bool allocate_tail(MARIA_FILE_BITMAP *bitmap, uint size,
   DBUG_PRINT("enter", ("size: %u", size));
 
   LINT_INIT(best_pos);
-  DBUG_ASSERT(size <= FULL_PAGE_SIZE(bitmap->block_size));
+  DBUG_ASSERT(size <= MAX_TAIL_SIZE(bitmap->block_size));
 
   for (; data < end; data += 6)
   {
@@ -1732,7 +1732,7 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
   row_length= find_where_to_split_row(share, row, extents_length,
                                       max_page_size);
 
-  full_page_size= FULL_PAGE_SIZE(share->block_size);
+  full_page_size= MAX_TAIL_SIZE(share->block_size);
   position= 0;
   if (head_length - row_length <= full_page_size)
     position= ELEMENTS_RESERVED_FOR_MAIN_PART -2;    /* Only head and tail */

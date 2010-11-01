@@ -26,7 +26,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			decimal.h errmsg.h my_global.h my_valgrind.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
+			m_ctype.h my_attribute.h my_compiler.h \
+			$(HEADERS_GEN_CONFIGURE) \
 			$(HEADERS_GEN_MAKE)
 
 noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
@@ -40,7 +41,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
                         atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-                        wqueue.h waiting_threads.h my_compiler.h
+                        wqueue.h waiting_threads.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 

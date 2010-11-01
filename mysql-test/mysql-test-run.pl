@@ -191,8 +191,8 @@ our $opt_client_debugger;
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
 
-our $opt_experimental;
-our $experimental_test_cases;
+our @opt_experimentals;
+our $experimental_test_cases= [];
 
 my $baseport;
 # $opt_build_thread may later be set from $opt_port_base
@@ -222,8 +222,10 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_start_exit;
 my $start_only;
 my $opt_wait_all;
+my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 1;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
@@ -375,6 +377,12 @@ sub main {
     mtr_report("Using parallel: $opt_parallel");
   }
 
+  if ($opt_parallel > 1 && $opt_start_exit) {
+    mtr_warning("Parallel and --start-and-exit cannot be combined\n" .
+               "Setting parallel to 1");
+    $opt_parallel= 1;
+  }
+
   # Create server socket on any free port
   my $server = new IO::Socket::INET
     (
@@ -414,6 +422,8 @@ sub main {
 
   my ($prefix, $fail, $completed, $extra_warnings)=
     run_test_server($server, $tests, $opt_parallel);
+
+  exit(0) if $opt_start_exit;
 
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
@@ -902,7 +912,7 @@ sub command_line_setup {
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
-             'experimental=s'           => \$opt_experimental,
+             'experimental=s'           => \@opt_experimentals,
 	     'skip-im'                  => \&ignore_option,
              'staging-run'              => \$opt_staging_run,
 
@@ -982,7 +992,9 @@ sub command_line_setup {
              'verbose-restart'          => \&report_option,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
+             'start-and-exit'           => \$opt_start_exit,
              'start'                    => \$opt_start,
+	     'user-args'                => \$opt_user_args,
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
 	     'repeat=i'                 => \$opt_repeat,
@@ -1088,43 +1100,47 @@ sub command_line_setup {
     mtr_print_thick_line('#');
   }
 
-  if ( $opt_experimental )
+  if ( @opt_experimentals )
   {
     # $^O on Windows considered not generic enough
     my $plat= (IS_WINDOWS) ? 'windows' : $^O;
 
-    # read the list of experimental test cases from the file specified on
+    # read the list of experimental test cases from the files specified on
     # the command line
-    open(FILE, "<", $opt_experimental) or mtr_error("Can't read experimental file: $opt_experimental");
-    mtr_report("Using experimental file: $opt_experimental");
     $experimental_test_cases = [];
-    while(<FILE>) {
-      chomp;
-      # remove comments (# foo) at the beginning of the line, or after a 
-      # blank at the end of the line
-      s/( +|^)#.*$//;
-      # If @ platform specifier given, use this entry only if it contains
-      # @<platform> or @!<xxx> where xxx != platform
-      if (/\@.*/)
-      {
-	next if (/\@!$plat/);
-	next unless (/\@$plat/ or /\@!/);
-	# Then remove @ and everything after it
-	s/\@.*$//;
+    foreach my $exp_file (@opt_experimentals)
+    {
+      open(FILE, "<", $exp_file)
+	or mtr_error("Can't read experimental file: $exp_file");
+      mtr_report("Using experimental file: $exp_file");
+      while(<FILE>) {
+	chomp;
+	# remove comments (# foo) at the beginning of the line, or after a 
+	# blank at the end of the line
+	s/( +|^)#.*$//;
+	# If @ platform specifier given, use this entry only if it contains
+	# @<platform> or @!<xxx> where xxx != platform
+	if (/\@.*/)
+	{
+	  next if (/\@!$plat/);
+	  next unless (/\@$plat/ or /\@!/);
+	  # Then remove @ and everything after it
+	  s/\@.*$//;
+	}
+	# remove whitespace
+	s/^ +//;              
+	s/ +$//;
+	# if nothing left, don't need to remember this line
+	if ( $_ eq "" ) {
+	  next;
+	}
+	# remember what is left as the name of another test case that should be
+	# treated as experimental
+	print " - $_\n";
+	push @$experimental_test_cases, $_;
       }
-      # remove whitespace
-      s/^ +//;              
-      s/ +$//;
-      # if nothing left, don't need to remember this line
-      if ( $_ eq "" ) {
-        next;
-      }
-      # remember what is left as the name of another test case that should be
-      # treated as experimental
-      print " - $_\n";
-      push @$experimental_test_cases, $_;
+      close FILE;
     }
-    close FILE;
   }
 
   foreach my $arg ( @ARGV )
@@ -1398,7 +1414,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Modified behavior with --start options
   # --------------------------------------------------------------------------
-  if ($opt_start or $opt_start_dirty) {
+  if ($opt_start or $opt_start_dirty or $opt_start_exit) {
     collect_option ('quick-collect', 1);
     $start_only= 1;
   }
@@ -1411,12 +1427,23 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Check use of user-args
+  # --------------------------------------------------------------------------
+
+  if ($opt_user_args) {
+    mtr_error("--user-args only valid with --start options")
+      unless $start_only;
+    mtr_error("--user-args cannot be combined with named suites or tests")
+      if $opt_suites || @opt_cases;
+  }
+
+  # --------------------------------------------------------------------------
   # Check use of wait-all
   # --------------------------------------------------------------------------
 
   if ($opt_wait_all && ! $start_only)
   {
-    mtr_error("--wait-all can only be used with --start or --start-dirty");
+    mtr_error("--wait-all can only be used with --start options");
   }
 
   # --------------------------------------------------------------------------
@@ -2987,6 +3014,7 @@ sub default_mysqld {
   my $config= My::ConfigFactory->new_config
     ( {
        basedir         => $basedir,
+       testdir         => $glob_mysql_test_dir,
        template_path   => "include/default_my.cnf",
        vardir          => $opt_vardir,
        tmpdir          => $opt_tmpdir,
@@ -3262,7 +3290,8 @@ sub check_testcase($$)
   my %started;
   foreach my $mysqld ( mysqlds() )
   {
-    if ( defined $mysqld->{'proc'} )
+    # Skip if server has been restarted with additional options
+    if ( defined $mysqld->{'proc'} && ! exists $mysqld->{'restart_opts'} )
     {
       my $proc= start_check_testcase($tinfo, $mode, $mysqld);
       $started{$proc->pid()}= $proc;
@@ -3712,6 +3741,7 @@ sub run_testcase ($$) {
       $config= My::ConfigFactory->new_config
 	( {
 	   basedir         => $basedir,
+	   testdir         => $glob_mysql_test_dir,
 	   template_path   => $tinfo->{template_path},
 	   extra_template_path => $tinfo->{extra_template_path},
 	   vardir          => $opt_vardir,
@@ -3755,6 +3785,11 @@ sub run_testcase ($$) {
     # Write start of testcase to log
     mark_log($path_current_testlog, $tinfo);
 
+    # Make sure the safe_process also exits from now on
+    if ($opt_start_exit) {
+      My::SafeProcess->start_exit();
+    }
+
     if (start_servers($tinfo))
     {
       report_failure_and_restart($tinfo);
@@ -3778,6 +3813,18 @@ sub run_testcase ($$) {
     {
       mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
 	      "  " . $mysqld->value('socket'));
+    }
+    if ( $opt_start_exit )
+    {
+      mtr_print("Server(s) started, not waiting for them to finish");
+      if (IS_WINDOWS)
+      {
+	POSIX::_exit(0);	# exit hangs here in ActiveState Perl
+      }
+      else
+      {
+	exit(0);
+      }
     }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
@@ -4497,6 +4544,16 @@ sub check_expected_crash_and_restart {
 	  next;
 	}
 
+	# If last line begins "restart:", the rest of the line is read as
+        # extra command line options to add to the restarted mysqld.
+        # Anything other than 'wait' or 'restart:' (with a colon) will
+        # result in a restart with original mysqld options.
+	if ($last_line =~ /restart:(.+)/) {
+	  my @rest_opt= split(' ', $1);
+	  $mysqld->{'restart_opts'}= \@rest_opt;
+	} else {
+	  delete $mysqld->{'restart_opts'};
+	}
 	unlink($expect_file);
 
 	# Start server with same settings as last time
@@ -4735,7 +4792,7 @@ sub mysqld_arguments ($$$) {
 
   mtr_add_arg($args, "%s--disable-sync-frm");
 
-  if (!using_extern() and $mysql_version_id >= 50106 )
+  if (!using_extern() and $mysql_version_id >= 50106 && !$opt_user_args)
   {
     # Turn on logging to file and tables
     mtr_add_arg($args, "%s--log-output=table,file");
@@ -4773,7 +4830,7 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
-  if ( !$found_skip_core )
+  if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
@@ -4781,7 +4838,7 @@ sub mysqld_arguments ($$$) {
   # Enable the debug sync facility, set default wait timeout.
   # Facility stays disabled if timeout value is zero.
   mtr_add_arg($args, "--loose-debug-sync-timeout=%s",
-              $opt_debug_sync_timeout);
+              $opt_debug_sync_timeout) unless $opt_user_args;
 
   return $args;
 }
@@ -4813,7 +4870,13 @@ sub mysqld_start ($$) {
   }
 
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-  mysqld_arguments($args,$mysqld,$extra_opts);
+
+  # Add any additional options from an in-test restart
+  my @all_opts= @$extra_opts;
+  if (exists $mysqld->{'restart_opts'}) {
+    push (@all_opts, @{$mysqld->{'restart_opts'}});
+  }
+  mysqld_arguments($args,$mysqld,\@all_opts);
 
   if ( $opt_debug )
   {
@@ -5006,7 +5069,10 @@ sub server_need_restart {
     my $extra_opts= get_extra_opts($server, $tinfo);
     my $started_opts= $server->{'started_opts'};
 
-    if (!My::Options::same($started_opts, $extra_opts) )
+    # Also, always restart if server had been restarted with additional
+    # options within test.
+    if (!My::Options::same($started_opts, $extra_opts) ||
+        exists $server->{'restart_opts'})
     {
       my $use_dynamic_option_switch= 0;
       if (!$use_dynamic_option_switch)
@@ -5075,6 +5141,9 @@ sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
 sub get_extra_opts {
+  # No extra options if --user-args
+  return \@opt_extra_mysqld_opt if $opt_user_args;
+
   my ($mysqld, $tinfo)= @_;
 
   my $opts=
@@ -5769,8 +5838,13 @@ Misc options
                         startup settings for the first specified test case
                         Example:
                          $0 --start alias &
+  start-and-exit        Same as --start, but mysql-test-run terminates and
+                        leaves just the server running
   start-dirty           Only start the servers (without initialization) for
                         the first specified test case
+  user-args             In combination with start* and no test name, drops
+                        arguments to mysqld except those speficied with
+                        --mysqld (if any)
   wait-all              If --start or --start-dirty option is used, wait for all
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers

@@ -2090,7 +2090,21 @@ handler *handler::clone(MEM_ROOT *mem_root)
   return new_handler;
 }
 
-
+double handler::keyread_time(uint index, uint ranges, ha_rows rows)
+{
+  /*
+    It is assumed that we will read trough the whole key range and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read. This model does not take into account clustered indexes -
+    engines that support that (e.g. InnoDB) may want to overwrite this method.
+  */
+  double keys_per_block= (stats.block_size/2.0/
+                          (table->key_info[index].key_length +
+                           ref_length) + 1);
+  return (rows + keys_per_block - 1)/ keys_per_block;
+}
 
 void handler::ha_statistic_increment(ulong SSV::*offset) const
 {

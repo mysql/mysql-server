@@ -799,9 +799,12 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MYISAM_SHARE* share = file->s;
   const char *old_proc_info=thd->proc_info;
+
+  if (!&param)
+    return HA_ADMIN_INTERNAL_ERROR;
 
   thd_proc_info(thd, "Checking table");
   myisamchk_init(&param);
@@ -891,8 +894,11 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 {
   int error=0;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MYISAM_SHARE* share = file->s;
+
+  if (!&param)
+    return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1021,7 +1027,9 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
     myisamchk_init(&param);
     param.thd=        thd;
     param.op_name=    "backup";
@@ -1037,10 +1045,10 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   ha_rows start_records;
 
-  if (!file) return HA_ADMIN_INTERNAL_ERROR;
+  if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1088,8 +1096,9 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  if (!file) return HA_ADMIN_INTERNAL_ERROR;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+
+  if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1283,7 +1292,10 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "assign_to_keycache";
@@ -1347,7 +1359,9 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "preload_keys";
@@ -1457,8 +1471,12 @@ int ha_myisam::enable_indexes(uint mode)
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
     THD *thd=current_thd;
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
     const char *save_proc_info=thd->proc_info;
+
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     thd_proc_info(thd, "Creating index");
     myisamchk_init(&param);
     param.op_name= "recreating_index";

@@ -167,7 +167,8 @@ enum en_key_op
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
   KEY_OP_COMPACT_PAGE,	/* Compact key page */
   KEY_OP_MAX_PAGELENGTH, /* Set page to max page length */
-  KEY_OP_DEBUG		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG,		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG_2	/* Entry for pagelengths */
 };
 
 enum en_key_debug
@@ -178,18 +179,21 @@ enum en_key_debug
   KEY_OP_DEBUG_FATHER_CHANGED_1,	/* 3 */
   KEY_OP_DEBUG_FATHER_CHANGED_2,	/* 4 */
   KEY_OP_DEBUG_LOG_SPLIT,		/* 5 */
-  KEY_OP_DEBUG_LOG_ADD,			/* 6 */
-  KEY_OP_DEBUG_LOG_PREFIX_1,		/* 7 */
-  KEY_OP_DEBUG_LOG_PREFIX_2,		/* 8 */
-  KEY_OP_DEBUG_LOG_PREFIX_3,		/* 9 */
-  KEY_OP_DEBUG_LOG_PREFIX_4,		/* 10 */
-  KEY_OP_DEBUG_LOG_PREFIX_5,		/* 11 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_1,	/* 12 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_2,	/* 13 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_3,	/* 14 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_RT,	/* 15 */
-  KEY_OP_DEBUG_LOG_DEL_PREFIX,		/* 16 */
-  KEY_OP_DEBUG_LOG_MIDDLE		/* 17 */
+  KEY_OP_DEBUG_LOG_ADD_1,		/* 6 */
+  KEY_OP_DEBUG_LOG_ADD_2,		/* 7 */
+  KEY_OP_DEBUG_LOG_ADD_3,		/* 8 */
+  KEY_OP_DEBUG_LOG_ADD_4,		/* 9 */
+  KEY_OP_DEBUG_LOG_PREFIX_1,		/* 10 */
+  KEY_OP_DEBUG_LOG_PREFIX_2,		/* 11 */
+  KEY_OP_DEBUG_LOG_PREFIX_3,		/* 12 */
+  KEY_OP_DEBUG_LOG_PREFIX_4,		/* 13 */
+  KEY_OP_DEBUG_LOG_PREFIX_5,		/* 14 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_1,	/* 15 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_2,	/* 16 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_3,	/* 17 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_RT,	/* 18 */
+  KEY_OP_DEBUG_LOG_DEL_PREFIX,		/* 19 */
+  KEY_OP_DEBUG_LOG_MIDDLE		/* 20 */
 };
 
 

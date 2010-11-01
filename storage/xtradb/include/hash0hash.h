@@ -363,13 +363,13 @@ do {\
 		NODE_TYPE*	node2222;\
 \
 		if ((TABLE)->array[i2222].node) \
-			(TABLE)->array[i2222].node = (void*)((char*)(TABLE)->array[i2222].node	\
+			(TABLE)->array[i2222].node = (void*)((byte*)(TABLE)->array[i2222].node \
 			+ (((TABLE)->array[i2222].node > (void*)FADDR)?FOFFSET:BOFFSET));\
 		node2222 = HASH_GET_FIRST((TABLE), i2222);\
 \
 		while (node2222) {\
 			if (node2222->PTR_NAME) \
-				node2222->PTR_NAME = (void*)((char*)node2222->PTR_NAME \
+				node2222->PTR_NAME = (void*)((byte*)(node2222->PTR_NAME) \
 				+ ((((void*)node2222->PTR_NAME) > (void*)FADDR)?FOFFSET:BOFFSET));\
 \
 			node2222 = node2222->PTR_NAME;\
