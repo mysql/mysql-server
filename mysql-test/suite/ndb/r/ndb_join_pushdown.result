@@ -4076,6 +4076,14 @@ a	b	c	a	b	c	a	b	c
 NULL	NULL	NULL	aa	bb	x	NULL	NULL	NULL
 aa	bb	x	bb	cc	x	bb	cc	x
 bb	cc	x	cc	dd	x	cc	dd	x
+explain select * from tc as x1, tc as x2 where x1.b=x2.a for update;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	uk1	NULL	NULL	NULL	3	
+1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	
+explain select * from tc as x1, tc as x2 where x1.b=x2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x1	ALL	uk1	NULL	NULL	NULL	3	Parent of 2 pushed join@1
+1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	Child of pushed join@1
 drop table tc;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) AS val 
@@ -4109,13 +4117,13 @@ LOCAL+REMOTE READS_SENT
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2008
+2010
 pruned_scan_count
 7
 sorted_scan_count
 7
 pushed_queries_defined
-345
+346
 pushed_queries_dropped
 11
 pushed_queries_executed

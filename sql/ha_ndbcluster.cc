@@ -841,6 +841,7 @@ ndb_pushed_builder_ctx::init_pushability()
       EXPLAIN_NO_PUSH("Table '%s' not in Cluster engine, not pushable", table->alias);
       continue;
     }
+
     m_tables[i].m_maybe_pushable= static_cast<ha_ndbcluster*>(table->file)->get_pushability();
   }
 
@@ -1685,6 +1686,18 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
   DBUG_RETURN(0);
 } // ha_ndbcluster::make_pushed_join()
 
+/*
+  Map from thr_lock_type to NdbOperation::LockMode
+*/
+static inline
+NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
+{
+  if (type >= TL_WRITE_ALLOW_WRITE)
+    return NdbOperation::LM_Exclusive;
+  if (type ==  TL_READ_WITH_SHARED_LOCKS)
+    return NdbOperation::LM_Read;
+  return NdbOperation::LM_CommittedRead;
+}
 
 //ndb_pushed_builder_ctx::enum_pushability
 int
@@ -1704,6 +1717,26 @@ ha_ndbcluster::get_pushability() const
                      table->alias);
     return 0;
   }
+
+  // Pushed operations may not set locks.
+  const NdbOperation::LockMode lockMode= get_ndb_lock_mode(m_lock.type);
+  switch (lockMode)
+  {
+  case NdbOperation::LM_Read:
+  case NdbOperation::LM_Exclusive:
+    EXPLAIN_NO_PUSH("Table '%s' is not pushable, "
+                    "lock modes other than 'read committed' not implemented",
+                    table->alias);
+    return 0;
+        
+  case NdbOperation::LM_CommittedRead:
+    break;
+      
+  default: // Other lock modes not used by handler.
+    assert(false);
+    return 0;
+  }
+
   return (ndb_pushed_builder_ctx::PUSHABLE_AS_CHILD | 
           ndb_pushed_builder_ctx::PUSHABLE_AS_PARENT);
 } // ha_ndbcluster::get_pushability()
@@ -1833,8 +1866,9 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
     DBUG_ASSERT (idx==MAX_KEY);
     if (needSorted)
     {
-      DBUG_PRINT("info", ("TableScan access not not be provied as sorted result. ", 
-                          "Therefore, join cannot be pushed."));
+      DBUG_PRINT("info", 
+                 ("TableScan access not not be provied as sorted result. " 
+                  "Therefore, join cannot be pushed."));
       return FALSE;
     }
     break;
@@ -1974,19 +2008,6 @@ ha_ndbcluster::is_parent_of_pushed_join() const
     return 0;
   else
     return m_pushed_join->get_operation_count();
-}
-
-/*
-  Map from thr_lock_type to NdbOperation::LockMode
-*/
-static inline
-NdbOperation::LockMode get_ndb_lock_mode(enum thr_lock_type type)
-{
-  if (type >= TL_WRITE_ALLOW_WRITE)
-    return NdbOperation::LM_Exclusive;
-  if (type ==  TL_READ_WITH_SHARED_LOCKS)
-    return NdbOperation::LM_Read;
-  return NdbOperation::LM_CommittedRead;
 }
 
 bool
@@ -4385,7 +4406,8 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess, table->s->primary_key))
   {
     // Is parent of pushed join
-    const int error= pk_unique_index_read_key_pushed(table->s->primary_key, key, lm,
+    DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
+    const int error= pk_unique_index_read_key_pushed(table->s->primary_key, key,
                                                      (m_user_defined_partitioning ?
                                                      part_id : NULL));
     if (unlikely(error))
@@ -4798,7 +4820,8 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
 
   if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess, active_index))
   {
-    const int error= pk_unique_index_read_key_pushed(active_index, key, lm, NULL);
+    DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
+    const int error= pk_unique_index_read_key_pushed(active_index, key, NULL);
     if (unlikely(error))
       DBUG_RETURN(error);
 
@@ -5190,7 +5213,6 @@ extern void sql_print_information(const char *format, ...);
 int
 ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, 
                                                const uchar *key, 
-                                               NdbOperation::LockMode lm,
                                                Uint32 *ppartition_id)
 {
   DBUG_ENTER("pk_unique_index_read_key_pushed");
@@ -14217,9 +14239,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           !m_pushed_join->get_query_def().isScanQuery())
       {
         DBUG_ASSERT(false);  // Incomplete code, should not be executed
+        DBUG_ASSERT(lm == NdbOperation::LM_CommittedRead);
         const int error= pk_unique_index_read_key_pushed(active_index,
                                                          r->start_key.key,
-                                                         lm, ppartitionId);
+                                                         ppartitionId);
         if (unlikely(error))
           DBUG_RETURN(error);
       }

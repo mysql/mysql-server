@@ -2905,6 +2905,14 @@ select * from tc as x1
   right outer join tc as x2 on x1.b=x2.a   
   left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
 
+####
+# Test that 'select ... for update' is not pushed, since this requires locking.
+####
+
+explain select * from tc as x1, tc as x2 where x1.b=x2.a for update;
+
+explain select * from tc as x1, tc as x2 where x1.b=x2.a;
+
 drop table tc;
 
 ########################################
