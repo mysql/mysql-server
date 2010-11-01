@@ -737,12 +737,10 @@ struct handlerton
      cannot invoke code that relies on thread local storage, in particular it
      cannot call my_error().
 
-     When prepare_ordered() is called, the transaction coordinator has already
-     decided to commit (not rollback) the transaction. So prepare_ordered()
-     cannot cause a rollback by returning an error, all possible errors must
-     be handled in prepare() (the prepare_ordered() method returns void). In
-     case of some fatal error, a record of the error must be made internally
-     by the engine and returned from commit() later.
+     prepare_ordered() cannot cause a rollback by returning an error, all
+     possible errors must be handled in prepare() (the prepare_ordered()
+     method returns void). In case of some fatal error, a record of the error
+     must be made internally by the engine and returned from commit() later.
 
      Note that for user-level XA SQL commands, no consistent ordering among
      prepare_ordered() and commit_ordered() is guaranteed (as that would

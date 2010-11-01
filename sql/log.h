@@ -330,7 +330,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
-
   pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
