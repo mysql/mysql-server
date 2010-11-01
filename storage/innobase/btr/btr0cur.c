@@ -3365,7 +3365,9 @@ btr_store_big_rec_extern_fields(
 	page_t*	page;
 	ulint	space_id;
 	page_t*	prev_page;
+#ifdef UNIV_SYNC_DEBUG
 	page_t*	rec_page;
+#endif /* UNIV_SYNC_DEBUG */
 	ulint	prev_page_no;
 	ulint	hint_page_no;
 	ulint	i;
@@ -3460,9 +3462,12 @@ btr_store_big_rec_extern_fields(
 
 			extern_len -= store_len;
 
-			rec_page = buf_page_get(space_id,
-						buf_frame_get_page_no(data),
-						RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			rec_page =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(space_id,
+				     buf_frame_get_page_no(data),
+				     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -3536,10 +3541,11 @@ btr_free_externally_stored_field(
 					X-latch to the index tree */
 {
 	page_t*	page;
+#ifdef UNIV_SYNC_DEBUG
 	page_t*	rec_page;
+#endif /* UNIV_SYNC_DEBUG */
 	ulint	space_id;
 	ulint	page_no;
-	ulint	offset;
 	ulint	extern_len;
 	ulint	next_page_no;
 	ulint	part_len;
@@ -3556,9 +3562,12 @@ btr_free_externally_stored_field(
 	for (;;) {
 		mtr_start(&mtr);
 
-		rec_page = buf_page_get(buf_frame_get_space_id(data),
-					buf_frame_get_page_no(data),
-					RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		rec_page =
+#endif /* UNIV_SYNC_DEBUG */
+		buf_page_get(buf_frame_get_space_id(data),
+			     buf_frame_get_page_no(data),
+			     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -3568,8 +3577,6 @@ btr_free_externally_stored_field(
 		page_no = mach_read_from_4(data + local_len
 					   + BTR_EXTERN_PAGE_NO);
 
-		offset = mach_read_from_4(data + local_len
-					  + BTR_EXTERN_OFFSET);
 		extern_len = mach_read_from_4(data + local_len
 					      + BTR_EXTERN_LEN + 4);
 

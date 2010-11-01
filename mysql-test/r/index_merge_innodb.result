@@ -581,3 +581,21 @@ WHERE
 `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
 `TESTID`='' AND `UCCHECK`='';
 drop table t1;
+#
+# Bug#50402 Optimizer producing wrong results when using Index Merge on InnoDB
+#
+CREATE TABLE t1 (f1 INT, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (f1 INT, f2 INT, f3 char(1),
+PRIMARY KEY (f1), KEY (f2), KEY (f3) );
+INSERT INTO t2 VALUES (1, 1, 'h'), (2, 3, 'h'), (3, 2, ''), (4, 2, '');
+SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+f1
+2
+EXPLAIN SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
+2	DEPENDENT SUBQUERY	t2	index_merge	f2,f3	f3,f2	2,5	NULL	1	Using intersect(f3,f2); Using where; Using index
+DROP TABLE t1,t2;
