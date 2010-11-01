@@ -656,7 +656,7 @@ os_event_wait_time_low(
 						os_event_reset(). */
 
 {
-	ibool		timed_out;
+	ibool		timed_out = FALSE;
 	ib_int64_t	old_signal_count;
 
 #ifdef __WIN__
