@@ -13328,7 +13328,10 @@ Dbdict::buildIndex_buildTrix(Signal* signal, OpBuildIndexPtr opPtr)
   req->setUserRef(reference());
   req->setConnectionPtr(opPtr.p->key);
   req->setRequestType(BuildIndxReq::RT_TRIX);
-  req->addRequestFlag(opPtr.p->m_requestFlag);
+  /* All indexed columns must be in memory currently */
+  Uint32 requestFlags = opPtr.p->m_requestFlag;
+  requestFlags |= BuildIndxReq::RF_NO_DISK;
+  req->addRequestFlag(requestFlags);
   req->setBuildId(0);   // not yet..
   req->setBuildKey(0);  // ..in use
   req->setIndexType(indexPtr.p->tableType);

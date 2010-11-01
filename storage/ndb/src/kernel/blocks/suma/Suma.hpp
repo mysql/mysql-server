@@ -163,6 +163,8 @@ public:
 
     Uint32 m_subscriptionPtrI;
     Uint32 m_error;
+    Uint32 m_requestInfo;
+
     Uint32 m_currentTable;
     TableList m_tableList;    // Tables to sync
     TableList::DataBufferIterator m_tableList_it;
