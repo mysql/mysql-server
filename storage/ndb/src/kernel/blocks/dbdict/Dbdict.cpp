@@ -545,15 +545,15 @@ void Dbdict::packTableIntoPages(Signal* signal)
   const Uint32 type= signal->theData[2];
   const Uint32 pageId= signal->theData[3];
 
-  {
-    Uint32 transId = c_retrieveRecord.schemaTransId;
-    GetTabInfoReq req_copy;
-    req_copy.senderRef = c_retrieveRecord.blockRef;
-    req_copy.senderData = c_retrieveRecord.m_senderData;
-    req_copy.schemaTransId = c_retrieveRecord.schemaTransId;
-    req_copy.requestType = c_retrieveRecord.requestType;
-    req_copy.tableId = tableId;
+  Uint32 transId = c_retrieveRecord.schemaTransId;
+  GetTabInfoReq req_copy;
+  req_copy.senderRef = c_retrieveRecord.blockRef;
+  req_copy.senderData = c_retrieveRecord.m_senderData;
+  req_copy.schemaTransId = c_retrieveRecord.schemaTransId;
+  req_copy.requestType = c_retrieveRecord.requestType;
+  req_copy.tableId = tableId;
 
+  {
     SchemaFile::TableEntry *objEntry = 0;
     if(tableId != RNIL)
     {
@@ -610,6 +610,15 @@ void Dbdict::packTableIntoPages(Signal* signal)
     jam();
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
+    if (tablePtr.p->m_obj_ptr_i == RNIL)
+    {
+      jam();
+      sendGET_TABINFOREF(signal, &req_copy,
+                         GetTabInfoRef::TableNotDefined, __LINE__);
+      initRetrieveRecord(0, 0, 0);
+      return;
+    }
+
     packTableIntoPages(w, tablePtr, signal);
     if (unlikely(signal->theData[0] != 0))
     {
@@ -7089,6 +7098,7 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   {
     jam();
     release_object(tablePtr.p->m_obj_ptr_i);
+    tablePtr.p->m_obj_ptr_i = RNIL;
   }
   else
   {
