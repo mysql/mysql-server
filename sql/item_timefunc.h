@@ -361,6 +361,7 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_length_and_dec()
   {
+    maybe_null= TRUE;
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
