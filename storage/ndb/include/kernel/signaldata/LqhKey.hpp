@@ -543,6 +543,14 @@ LqhKeyReq::getNrCopyFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NR_COPY_SHIFT) & 1;
 }
 
+inline
+Uint32
+table_version_major_lqhkeyreq(Uint32 x)
+{
+  // LQHKEYREQ only contains 16-bit schema version...
+  return x & 0xFFFF;
+}
+
 class LqhKeyConf {
   /**
    * Reciver(s)
