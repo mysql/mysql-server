@@ -29,6 +29,10 @@ struct CopyDataReq
     // AlterTableCopy
   };
 
+  enum Flags {
+    TupOrder = 1
+  };
+
   union {
     Uint32 clientRef;
     Uint32 senderRef;

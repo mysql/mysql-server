@@ -13733,6 +13733,7 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 cnt =0;
   Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  bool tabHasDiskCols = false;
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
@@ -13747,8 +13748,20 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
     for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
     {
       if (!AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
+      {
         tmp[cnt++] = attrPtr.p->attributeId;
+
+        if (AttributeDescriptor::getDiskBased(attrPtr.p->attributeDescriptor))
+          tabHasDiskCols = true;
+      }
     }
+  }
+  
+  /* Request Tup-ordered copy when we have disk columns for efficiency */
+  if (tabHasDiskCols)
+  {
+    jam();
+    req->requestInfo |= CopyDataReq::TupOrder;
   }
   
   LinearSectionPtr ls_ptr[3];
@@ -13821,6 +13834,7 @@ Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 cnt =0;
   Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  bool tabHasDiskCols = false;
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
@@ -13831,7 +13845,19 @@ Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
     {
       if (AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
         tmp[cnt++] = attrPtr.p->attributeId;
+      else
+      {
+        if (AttributeDescriptor::getDiskBased(attrPtr.p->attributeDescriptor))
+          tabHasDiskCols = true;
+      }
     }
+  }
+
+  /* Request Tup-ordered delete when we have disk columns for efficiency */
+  if (tabHasDiskCols)
+  {
+    jam();
+    req->requestInfo |= CopyDataReq::TupOrder;
   }
 
   LinearSectionPtr ls_ptr[3];

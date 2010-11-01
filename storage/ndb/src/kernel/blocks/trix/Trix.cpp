@@ -957,6 +957,12 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
     jam();
     subSyncReq->requestInfo |= SubSyncReq::NoDisk;
   }
+
+  if (subRec->m_flags & SubscriptionRecord::RF_TUP_ORDER)
+  {
+    jam();
+    subSyncReq->requestInfo |= SubSyncReq::TupOrder;
+  }
   
   if (subRec->requestType == REORG_COPY)
   {
@@ -1403,6 +1409,12 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   default:
     jamLine(req->requestType);
     ndbrequire(false);
+  }
+
+  if (req->requestInfo & CopyDataReq::TupOrder)
+  {
+    jam();
+    subRec->m_flags |= SubscriptionRecord::RF_TUP_ORDER;
   }
 
   // Get column order segments
