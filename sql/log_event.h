@@ -649,9 +649,8 @@ class Relay_log_info;
 enum enum_base64_output_mode {
   BASE64_OUTPUT_NEVER= 0,
   BASE64_OUTPUT_AUTO= 1,
-  BASE64_OUTPUT_ALWAYS= 2,
-  BASE64_OUTPUT_UNSPEC= 3,
-  BASE64_OUTPUT_DECODE_ROWS= 4,
+  BASE64_OUTPUT_UNSPEC= 2,
+  BASE64_OUTPUT_DECODE_ROWS= 3,
   /* insert new output modes here */
   BASE64_OUTPUT_MODE_COUNT
 };
