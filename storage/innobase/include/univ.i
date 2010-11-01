@@ -308,6 +308,10 @@ number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
 
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
