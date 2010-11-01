@@ -13355,6 +13355,9 @@ Dbdict:: buildIndex_toLocalBuild(Signal* signal, SchemaOpPtr op_ptr)
   req->indexType = indexPtr.p->tableType;
   req->parallelism = impl_req->parallelism;
 
+  /* All indexed columns must be in memory currently */
+  req->requestType |= BuildIndxImplReq::RF_NO_DISK;
+
   Callback c = {
     safe_cast(&Dbdict::buildIndex_fromLocalBuild),
     op_ptr.p->op_key

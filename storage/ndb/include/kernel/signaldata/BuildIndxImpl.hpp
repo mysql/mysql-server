@@ -22,6 +22,7 @@ struct BuildIndxImplReq
 {
   enum RequestFlag {
     RF_BUILD_OFFLINE = 1 << 8
+    ,RF_NO_DISK      = 1 << 9         /* Indexed columns are not on disk */
   };
 
   STATIC_CONST( SignalLength = 10 );
