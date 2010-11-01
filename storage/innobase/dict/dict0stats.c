@@ -2352,7 +2352,7 @@ dict_stats_delete_index_stats(
 				is returned */
 	ulint		errstr_sz)/*!< in: size of the errstr buffer */
 {
-	char		database_name[1024];
+	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name;
 	pars_info_t*	pinfo;
 	ulint		ret;
@@ -2455,7 +2455,7 @@ dict_stats_delete_table_stats(
 					if != DB_SUCCESS is returned */
 	ulint		errstr_sz)	/*!< in: size of errstr buffer */
 {
-	char		database_name[1024];
+	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name_strip; /* without leading db name */
 	trx_t*		trx;
 	pars_info_t*	pinfo;
