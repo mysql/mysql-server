@@ -1706,7 +1706,7 @@ NdbEventImpl::setTable(NdbTableImpl *tableImpl)
 {
   DBUG_ENTER("NdbEventImpl::setTable");
   DBUG_PRINT("info", ("this: %p  tableImpl: %p", this, tableImpl));
-  DBUG_ASSERT(tableImpl->m_status != NdbDictionary::Object::Invalid);
+
   if (!m_tableImpl) 
     m_tableImpl = new NdbTableImpl();
   // Copy table, since event might be accessed from different threads

@@ -3316,6 +3316,66 @@ runBug56579(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  Ndb* pNdb = GETNDB(step);
+
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  NdbDictionary::Table tab = * ctx->getTab();
+
+  sleep(5);
+
+  while (loops --)
+  {
+    if (pDict->dropTable(tab.getName()) != 0)
+    {
+      return NDBT_FAILED;
+    }
+
+    if (pDict->createTable(tab) != 0)
+    {
+      return NDBT_FAILED;
+    }
+
+    sleep(1);
+  }
+
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runBug57886_subscribe_unsunscribe(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb;
+  Ndb_cluster_connection *pCC;
+  if (cc(&pCC, &pNdb))
+  {
+    // too few api slots...
+    return NDBT_OK;
+  }
+
+  NdbDictionary::Table tab = * ctx->getTab();
+
+  while (!ctx->isTestStopped())
+  {
+    createEvent(pNdb, tab, false, false);
+
+    NdbEventOperation* op = createEventOperation(pNdb, tab, 0);
+    if (op)
+    {
+      pNdb->dropEventOperation(op);
+    }
+    dropEvent(pNdb, tab);
+  }
+
+  delete pNdb;
+  delete pCC;
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -3543,6 +3603,11 @@ TESTCASE("Bug56579", "")
   INITIALIZER(runCreateEvent);
   STEP(runBug56579);
   FINALIZER(runDropEvent);
+}
+TESTCASE("Bug57886", "")
+{
+  STEP(runBug57886_create_drop);
+  STEPS(runBug57886_subscribe_unsunscribe, 5);
 }
 NDBT_TESTSUITE_END(test_event);
 
