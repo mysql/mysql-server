@@ -35,6 +35,7 @@
 #include <signal.h>
 #include <my_dir.h>
 #include "log_event.h"
+#include "log_event_old.h"
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
@@ -730,7 +731,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       goto end;
     }
     if (!short_form)
-      fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
+      my_b_printf(&print_event_info->head_cache,
+                  "# at %s\n",llstr(pos,ll_buff));
 
     if (!opt_hexdump)
       print_event_info->hexdump_from= 0; /* Disabled */
@@ -897,10 +899,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
-    case ROWS_QUERY_LOG_EVENT:
-      if (verbose >= 2)
-        ev->print(result_file, print_event_info);
-      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
@@ -911,6 +909,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       }
     }
+    case ROWS_QUERY_LOG_EVENT:
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
@@ -918,47 +917,60 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
     {
-      if (ev_type != TABLE_MAP_EVENT)
+      bool stmt_end= FALSE;
+      Table_map_log_event *ignored_map= NULL;
+      if (ev_type == WRITE_ROWS_EVENT ||
+          ev_type == DELETE_ROWS_EVENT ||
+          ev_type == UPDATE_ROWS_EVENT)
       {
-        Rows_log_event *e= (Rows_log_event*) ev;
-        Table_map_log_event *ignored_map= 
-          print_event_info->m_table_map_ignored.get_table(e->get_table_id());
-        bool skip_event= (ignored_map != NULL);
-
-        /* 
-           end of statement check:
-             i) destroy/free ignored maps
-            ii) if skip event, flush cache now
-         */
-        if (e->get_flags(Rows_log_event::STMT_END_F))
-        {
-          /* 
-            Now is safe to clear ignored map (clear_tables will also
-            delete original table map events stored in the map).
-          */
-          if (print_event_info->m_table_map_ignored.count() > 0)
-            print_event_info->m_table_map_ignored.clear_tables();
-
-          /* 
-             One needs to take into account an event that gets
-             filtered but was last event in the statement. If this is
-             the case, previous rows events that were written into
-             IO_CACHEs still need to be copied from cache to
-             result_file (as it would happen in ev->print(...) if
-             event was not skipped).
-          */
-          if (skip_event)
-          {
-            if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-                copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
-              goto err;
-          }
-        }
-
-        /* skip the event check */
-        if (skip_event)
-          goto end;
+        Rows_log_event *new_ev= (Rows_log_event*) ev;
+        if (new_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
       }
+      else if (ev_type == PRE_GA_WRITE_ROWS_EVENT ||
+               ev_type == PRE_GA_DELETE_ROWS_EVENT ||
+               ev_type == PRE_GA_UPDATE_ROWS_EVENT)
+      {
+        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
+        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
+      }
+
+      bool skip_event= (ignored_map != NULL);
+      /*
+        end of statement check:
+           i) destroy/free ignored maps
+          ii) if skip event, flush cache now
+      */
+      if (stmt_end)
+      {
+        /*
+          Now is safe to clear ignored map (clear_tables will also
+          delete original table map events stored in the map).
+        */
+        if (print_event_info->m_table_map_ignored.count() > 0)
+          print_event_info->m_table_map_ignored.clear_tables();
+
+        /*
+           One needs to take into account an event that gets
+           filtered but was last event in the statement. If this is
+           the case, previous rows events that were written into
+           IO_CACHEs still need to be copied from cache to
+           result_file (as it would happen in ev->print(...) if
+           event was not skipped).
+        */
+        if (skip_event)
+          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+            goto err;
+      }
+
+      /* skip the event check */
+      if (skip_event)
+        goto end;
+
       /*
         These events must be printed in base64 format, if printed.
         base64 format requires a FD event to be safe, so if no FD
@@ -981,11 +993,25 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                 type_str);
         goto err;
       }
-      /* FALL THROUGH */
+
+      ev->print(result_file, print_event_info);
+      /* Flush head and body cache to result_file */
+      if (stmt_end)
+      {
+        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+          goto err;
+        goto end;
+      }
+      break;
     }
     default:
       ev->print(result_file, print_event_info);
     }
+    /* Flush head cache to result_file for every event */
+    if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                            result_file))
+      goto err;
   }
 
   goto end;
@@ -1472,6 +1498,15 @@ static Exit_status dump_log_entries(const char* logname)
 
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
+
+  if (my_b_tell(&print_event_info.body_cache))
+    warning("The range of printed events ends with a row event or "
+            "a table map event that does not have the STMT_END_F "
+            "flag set. This might be because the last statement "
+            "was not fully written to the log, or because you are "
+            "using a --stop-position or --stop-datetime that refers "
+            "to an event in the middle of a statement. The event(s) "
+            "from the partial statement have not been written to output.");
 
   /* Set delimiter back to semicolon */
   if (!raw_mode)
