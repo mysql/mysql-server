@@ -26557,16 +26557,19 @@ Dbdict::trans_log(SchemaTransPtr trans_ptr)
   jamLine(entry->m_tableState);
   switch(trans_ptr.p->m_state){
   case SchemaTrans::TS_STARTED:
-  case SchemaTrans::TS_STARTING:
+  case SchemaTrans::TS_STARTING:{
     jam();
+    Uint32 version = entry->m_tableVersion;
+    Uint32 new_version = create_obj_inc_schema_version(version);
     entry->init();
     entry->m_tableState = SchemaFile::SF_STARTED;
-    entry->m_tableVersion = rand();
+    entry->m_tableVersion = new_version;
     entry->m_tableType = DictTabInfo::SchemaTransaction;
     entry->m_info_words = 0;
     entry->m_gcp = 0;
     entry->m_transId = trans_ptr.p->m_transId;
     break;
+  }
   case SchemaTrans::TS_FLUSH_PREPARE:
     jam();
     ndbrequire(entry->m_tableState == SchemaFile::SF_STARTED);
