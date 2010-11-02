@@ -1016,7 +1016,11 @@ static my_bool allocate_tail(MARIA_FILE_BITMAP *bitmap, uint size,
   DBUG_PRINT("enter", ("size: %u", size));
 
   LINT_INIT(best_pos);
-  DBUG_ASSERT(size <= MAX_TAIL_SIZE(bitmap->block_size));
+  /*
+    We have to add DIR_ENTRY_SIZE here as this is not part of the data size
+    See call to allocate_tail() in find_tail().
+  */
+  DBUG_ASSERT(size <= MAX_TAIL_SIZE(bitmap->block_size) + DIR_ENTRY_SIZE);
 
   for (; data < end; data += 6)
   {

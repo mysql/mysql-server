@@ -1116,7 +1116,7 @@ init_again:
 			if (shm_info->buf_pool_backup.LRU_old)
 				shm_info->buf_pool_backup.LRU_old =
 					(buf_page_t*)((byte*)(shm_info->buf_pool_backup.LRU_old)
-						+ (((void*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
+						+ (((byte*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
 						  ? logi_offset : blocks_offset));
 
 			UT_LIST_OFFSET(unzip_LRU, buf_block_t, shm_info->buf_pool_backup.unzip_LRU,

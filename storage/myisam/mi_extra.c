@@ -390,6 +390,11 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     share->is_log_table= TRUE;
     pthread_mutex_unlock(&share->intern_lock);
     break;
+  case HA_EXTRA_DETACH_CHILD: /* When used with MERGE tables */
+    info->open_flag&=     ~HA_OPEN_MERGE_TABLE;
+    info->lock.priority&= ~THR_LOCK_MERGE_PRIV;
+    break;
+    
   case HA_EXTRA_KEY_CACHE:
   case HA_EXTRA_NO_KEY_CACHE:
   default:

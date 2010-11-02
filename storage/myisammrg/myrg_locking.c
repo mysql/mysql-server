@@ -27,15 +27,8 @@ int myrg_lock_database(MYRG_INFO *info, int lock_type)
   error=0;
   for (file=info->open_tables ; file != info->end_table ; file++) 
   {
-#ifdef __WIN__
-    /*
-      Make sure this table is marked as owned by a merge table.
-      The semaphore is never released as long as table remains
-      in memory. This should be refactored into a more generic
-      approach (observer pattern)
-     */
-    (file->table)->owned_by_merge = TRUE;
-#endif
+    DBUG_ASSERT(file->table->open_flag & HA_OPEN_MERGE_TABLE);
+
     if ((new_error=mi_lock_database(file->table,lock_type)))
     {
       error=new_error;

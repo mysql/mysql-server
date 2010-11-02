@@ -274,7 +274,9 @@ struct st_myisam_info
   */
   ulong packed_length, blob_length;     /* Length of found, packed record */
   int dfile;                            /* The datafile */
+  uint open_flag;                       /* Parameters for open */
   uint opt_flag;                        /* Optim. for space/speed */
+  uint once_flags;                      /* For MYISAMMRG */
   uint update;                          /* If file changed since open */
   int lastinx;                          /* Last used index */
   uint lastkey_length;                  /* Length of key in lastkey */
@@ -300,10 +302,6 @@ struct st_myisam_info
   my_bool page_changed;
   /* If info->buff has to be reread for rnext */
   my_bool buff_used;
-  my_bool once_flags;                   /* For MYISAMMRG */
-#ifdef __WIN__
-  my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
-#endif
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
@@ -712,6 +710,7 @@ void mi_update_status(void *param);
 void mi_restore_status(void *param);
 void mi_copy_status(void *to, void *from);
 my_bool mi_check_status(void *param);
+void mi_fix_status(MI_INFO *org_table, MI_INFO *new_table);
 void mi_disable_non_unique_index(MI_INFO *info, ha_rows rows);
 
 extern MI_INFO *test_if_reopen(char *filename);

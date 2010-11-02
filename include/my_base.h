@@ -50,6 +50,7 @@
 #define HA_OPEN_COPY			256     /* Open copy (for repair) */
 /* Internal temp table, used for temporary results */
 #define HA_OPEN_INTERNAL_TABLE          512
+#define HA_OPEN_MERGE_TABLE		1024
 
 /* The following is parameter to ha_rkey() how to use key */
 
@@ -196,6 +197,7 @@ enum ha_extra_function {
   */
   HA_EXTRA_ATTACH_CHILDREN,
   HA_EXTRA_DETACH_CHILDREN,
+  HA_EXTRA_DETACH_CHILD,
   /* Inform handler we will force a close as part of flush */
   HA_EXTRA_PREPARE_FOR_FORCED_CLOSE
 };

@@ -1989,7 +1989,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern ulong slave_exec_mode_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
-extern my_bool opt_secure_auth;
+extern my_bool opt_secure_auth, debug_assert_if_crashed_table;
 extern char* opt_secure_file_priv;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern my_bool sp_automatic_privileges, opt_noacl;

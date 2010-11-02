@@ -678,7 +678,6 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
     }
     else /* not HA_FULLTEXT, normal HA_NOSAME key */
     {
-      DBUG_PRINT("warning", ("Duplicate key"));
       /*
         TODO
         When the index will support true versioning - with multiple
@@ -696,6 +695,12 @@ static int w_search(register MARIA_HA *info, uint32 comp_flag, MARIA_KEY *key,
       info->dup_key_trid= _ma_trid_from_key(&tmp_key);
       info->dup_key_pos= dup_key_pos;
       my_errno= HA_ERR_FOUND_DUPP_KEY;
+      DBUG_PRINT("warning",
+                 ("Duplicate key. dup_key_trid: %lu  pos %lu  visible: %d",
+                  (ulong) info->dup_key_trid,
+                  (ulong) info->dup_key_pos,
+                  info->trn ? trnman_can_read_from(info->trn,
+                                                   info->dup_key_trid) : 2));
       goto err;
     }
   }

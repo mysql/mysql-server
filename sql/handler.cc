@@ -2631,8 +2631,18 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
     - table->s->path
     - table->alias
 */
+
+#ifndef DBUG_OFF
+#define SET_FATAL_ERROR fatal_error=1
+#else
+#define SET_FATAL_ERROR
+#endif
+
 void handler::print_error(int error, myf errflag)
 {
+#ifndef DBUG_OFF
+  bool fatal_error= 0;
+#endif
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
@@ -2650,6 +2660,13 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
   case HA_ERR_END_OF_FILE:
+    /*
+      This errors is not not normally fatal (for example for reads). However
+      if you get it during an update or delete, then its fatal.
+      As the user is calling print_error() (which is not done on read), we
+      assume something when wrong with the update or delete.
+    */
+    SET_FATAL_ERROR;
     textno=ER_KEY_NOT_FOUND;
     break;
   case HA_ERR_WRONG_MRG_TABLE_DEF:
@@ -2701,21 +2718,26 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_UNIQUE;
     break;
   case HA_ERR_RECORD_CHANGED:
+    SET_FATAL_ERROR;
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:
+    SET_FATAL_ERROR;
     textno=ER_NOT_KEYFILE;
     break;
   case HA_ERR_WRONG_IN_RECORD:
+    SET_FATAL_ERROR;
     textno= ER_CRASHED_ON_USAGE;
     break;
   case HA_ERR_CRASHED_ON_USAGE:
+    SET_FATAL_ERROR;
     textno=ER_CRASHED_ON_USAGE;
     break;
   case HA_ERR_NOT_A_TABLE:
     textno= error;
     break;
   case HA_ERR_CRASHED_ON_REPAIR:
+    SET_FATAL_ERROR;
     textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
@@ -2814,7 +2836,10 @@ void handler::print_error(int error, myf errflag)
 	if (temporary)
 	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
 	else
+        {
+          SET_FATAL_ERROR;
 	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+        }
       }
       else
 	my_error(ER_GET_ERRNO,errflag,error);
@@ -2822,6 +2847,7 @@ void handler::print_error(int error, myf errflag)
     }
   }
   my_error(textno, errflag, table_share->table_name.str, error);
+  DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;
 }
 

@@ -216,7 +216,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
-		       dir ? dir->str : "(null)",
+		       dir ? dir->str : "",
                        file_name->str, (ulong) base));
 
   if (dir)

@@ -498,9 +498,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     thd->in_lock_tables= 1;
     if (reopen_tables(thd, 1, 1))
     {
-      /* To be safe remove this table from the set of LOCKED TABLES */
-      unlink_open_table(thd, tables->table, FALSE);
-
       /*
         Ignore reopen_tables errors for now. It's better not leave master/slave
         in a inconsistent state.

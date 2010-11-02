@@ -7999,6 +7999,8 @@ bool parse_sql(THD *thd,
                Object_creation_ctx *creation_ctx)
 {
   bool mysql_parse_status;
+  DBUG_ENTER("parse_sql");
+
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
   /* Backup creation context. */
@@ -8032,7 +8034,7 @@ bool parse_sql(THD *thd,
 
   /* That's it. */
 
-  return mysql_parse_status || thd->is_fatal_error;
+  DBUG_RETURN(mysql_parse_status || thd->is_fatal_error);
 }
 
 /**

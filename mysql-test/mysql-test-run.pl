@@ -4284,6 +4284,7 @@ sub extract_warning_lines ($) {
      qr/Slave SQL thread retried transaction/,
      qr/Slave \(additional info\)/,
      qr/Incorrect information in file/,
+     qr/Incorrect key file for table .*crashed.*/,
      qr/Slave I\/O: Get master SERVER_ID failed with error:.*/,
      qr/Slave I\/O: Get master clock failed with error:.*/,
      qr/Slave I\/O: Get master COLLATION_SERVER failed with error:.*/,

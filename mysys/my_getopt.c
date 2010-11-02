@@ -614,7 +614,6 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0;
-  int pos;
 
   if (value && argument)
   {
