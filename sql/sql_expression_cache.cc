@@ -114,10 +114,8 @@ void Expression_cache_tmptable::init()
   field_counter=1;
 
   if (cache_table->alloc_keys(1) ||
-      (cache_table->add_tmp_key(0, items.elements - 1,
-                                &field_enumerator,
-                                (uchar*)&field_counter,
-                                TRUE) < 0) ||
+      cache_table->add_tmp_key(0, items.elements - 1, &field_enumerator,
+                                (uchar*)&field_counter, TRUE) ||
       ref.tmp_table_index_lookup_init(table_thd, cache_table->key_info, it,
                                       TRUE))
   {
