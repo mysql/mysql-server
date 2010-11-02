@@ -478,7 +478,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS proxy_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_Host char(16) binary DEFAULT '' NOT NULL, Proxied_User char(60) binary DEFAULT '' NOT NULL, With_Grant BOOL DEFAULT 0 NOT NULL, PRIMARY KEY Host (Host,User,Proxied_Host,Proxied_User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
+CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
--- Remember for later if proxy_priv table already existed
-set @had_proxy_priv_table= @@warning_count != 0;
+-- Remember for later if proxies_priv table already existed
+set @had_proxies_priv_table= @@warning_count != 0;
