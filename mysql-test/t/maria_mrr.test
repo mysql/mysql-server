@@ -51,7 +51,3 @@ EXPLAIN
   WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
 
 DROP TABLE t1,t2,t3;
-
-
-
-
