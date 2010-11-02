@@ -465,6 +465,8 @@ void end_thr_alarm(my_bool free_structures)
 void thr_alarm_kill(my_thread_id thread_id)
 {
   uint i;
+  DBUG_ENTER("thr_alarm_kill");
+
   if (alarm_aborted)
     return;
   pthread_mutex_lock(&LOCK_alarm);
@@ -475,6 +477,7 @@ void thr_alarm_kill(my_thread_id thread_id)
     ALARM *element= (ALARM*) queue_element(&alarm_queue,i);
     if (element->thread_id == thread_id)
     {
+      DBUG_PRINT("info", ("found thread; Killing it"));
       element->expire_time= 0;
       queue_replace(&alarm_queue, i);
       reschedule_alarms();
@@ -482,6 +485,7 @@ void thr_alarm_kill(my_thread_id thread_id)
     }
   }
   pthread_mutex_unlock(&LOCK_alarm);
+  DBUG_VOID_RETURN;
 }
 
 

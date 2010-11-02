@@ -3017,7 +3017,7 @@ create_result_table(THD *thd_arg, List<Item> *column_types,
 
   col_stat= (Column_statistics*) table->in_use->alloc(table->s->fields *
                                                       sizeof(Column_statistics));
-  if (!stat)
+  if (!col_stat)
     return TRUE;
 
   reset();

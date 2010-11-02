@@ -4827,7 +4827,8 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   DBUG_ASSERT(cur_keyid == keys_count);
 
   /* Populate the indexes with data from the temporary table. */
-  tmp_table->file->ha_rnd_init(1);
+  if (tmp_table->file->ha_rnd_init_with_error(1))
+    return TRUE;
   tmp_table->file->extra_opt(HA_EXTRA_CACHE,
                              current_thd->variables.read_buff_size);
   tmp_table->null_row= 0;
@@ -5008,7 +5009,11 @@ bool subselect_rowid_merge_engine::partial_match()
   DBUG_ASSERT(!pq.elements);
 
   /* All data accesses during execution are via handler::ha_rnd_pos() */
-  tmp_table->file->ha_rnd_init(0);
+  if (tmp_table->file->ha_rnd_init_with_error(0))
+  {
+    res= FALSE;
+    goto end;
+  }
 
   /* Check if there is a match for the columns of the only non-NULL key. */
   if (non_null_key && !non_null_key->lookup())
@@ -5175,7 +5180,12 @@ bool subselect_table_scan_engine::partial_match()
   int error;
   bool res;
 
-  tmp_table->file->ha_rnd_init(1);
+  if (tmp_table->file->ha_rnd_init_with_error(1))
+  {
+    res= FALSE;
+    goto end;
+  }
+
   tmp_table->file->extra_opt(HA_EXTRA_CACHE,
                              current_thd->variables.read_buff_size);
   /*

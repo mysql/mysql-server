@@ -4103,7 +4103,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
   }
   else
   {
-    char option_buff[350],*ptr;
+    char option_buff[350];
     String str(option_buff,sizeof(option_buff), system_charset_info);
     TABLE *show_table= tables->table;
     TABLE_SHARE *share= show_table->s;
