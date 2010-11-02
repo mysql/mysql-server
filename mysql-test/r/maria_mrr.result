@@ -383,7 +383,7 @@ SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
 WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	i	4	NULL	2	Using index
-1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index; Using join buffer
+1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	ALL	PRIMARY,vi	NULL	NULL	NULL	3	Range checked for each record (index map: 0x5)
 SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
 WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
