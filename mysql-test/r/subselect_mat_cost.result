@@ -3769,3 +3769,54 @@ drop procedure delete_materialization_data;
 drop procedure set_all_columns_not_null;
 drop procedure set_all_columns_nullable;
 drop table t1, t2, t1_1024, t2_1024;
+#
+# LP BUG#643424 valgrind warning in choose_subquery_plan()
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2));
+INSERT INTO t1 VALUES (1,NULL,2);
+INSERT INTO t1 VALUES (2,7,9);
+INSERT INTO t1 VALUES (9,NULL,8);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2));
+INSERT INTO t2 VALUES (1,1,7);
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+SELECT pk FROM t1 WHERE (c2, c1) IN (SELECT c2, c2 FROM t2);
+pk
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#
+# LP BUG#652727 Crash in create_ref_for_key()
+#
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+PRIMARY KEY (pk));
+INSERT INTO t2 VALUES (10,7);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (17,NULL);
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (19,NULL);
+CREATE TABLE t3 (c2 int(11) DEFAULT NULL, KEY c2 (c2));
+INSERT INTO t3 VALUES (1);
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+SELECT c2
+FROM t3
+WHERE (2, 6) IN (SELECT t1.c1, t1.c1 FROM t1 STRAIGHT_JOIN t2 ON t2.pk = t1.pk);
+c2
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;

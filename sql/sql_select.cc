@@ -229,8 +229,6 @@ static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
-void get_partial_join_cost(JOIN *join, uint idx, double *read_time_arg,
-                           double *record_count_arg);
 static uint make_join_orderinfo(JOIN *join);
 static int
 join_read_record_no_init(JOIN_TAB *tab);
@@ -5422,40 +5420,43 @@ greedy_search(JOIN      *join,
 }
 
 
-/*
-  Calculate a cost of given partial join order
+/**
+  Calculate a cost of given partial join order in join->positions.
  
-  SYNOPSIS
-    get_partial_join_cost()
-      join               IN    Join to use. join->positions holds the
-                               partial join order
-      idx                IN    # tables in the partial join order
-      read_time_arg      OUT   Store read time here 
-      record_count_arg   OUT   Store record count here
+  @param n_tables[in]      # tables in the partial join order after the last
+                           constant table
+  @param read_time_arg[out]    store read time here 
+  @param record_count_arg[out] store record count here
 
-  DESCRIPTION
-
-    This is needed for semi-join materialization code. The idea is that 
-    we detect sj-materialization after we've put all sj-inner tables into
-    the join prefix
+  @note
+    When used by semi-join materialization code the idea is that we
+    detect sj-materialization after we've put all sj-inner tables into
+    the join prefix.
 
       prefix-tables semi-join-inner-tables  tN
                                              ^--we're here
 
     and we'll need to get the cost of prefix-tables prefix again.
+
+    When used with non-flattened subqueries, the method computes the
+    total cost of query plan.
+
+  @returns
+    read_time_arg and record_count_arg contain the computed cost.
 */
 
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg)
+void JOIN::get_partial_join_cost(uint n_tables,
+                                 double *read_time_arg, double *record_count_arg)
 {
   double record_count= 1;
   double read_time= 0.0;
-  for (uint i= join->const_tables; i < n_tables + join->const_tables ; i++)
+
+  for (uint i= const_tables; i < n_tables; i++)
   {
-    if (join->best_positions[i].records_read)
+    if (best_positions[i].records_read)
     {
-      record_count *= join->best_positions[i].records_read;
-      read_time += join->best_positions[i].read_time;
+      record_count *= best_positions[i].records_read;
+      read_time += best_positions[i].read_time;
     }
   }
   *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
@@ -19331,12 +19332,12 @@ void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
   4. Re-sort and re-filter the JOIN::keyuse array with the newly added
      KEYUSE elements. 
  
-  @retval 0  OK
-  @retval 1  memory allocation error
+  @retval REOPT_NEW_PLAN  there is a new plan.
+  @retval REOPT_OLD_PLAN  no new improved plan was produced, use the old one.
+  @retval REOPT_ERROR     an irrecovarable error occured during reoptimization.
 */
 
-int JOIN::reoptimize(Item *added_where, table_map join_tables,
-                     POSITION *save_best_positions)
+JOIN::enum_reopt_result JOIN::reoptimize(Item *added_where, table_map join_tables)
 {
   DYNAMIC_ARRAY added_keyuse;
   SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */
@@ -19346,25 +19347,18 @@ int JOIN::reoptimize(Item *added_where, table_map join_tables,
                           ~outer_join, select_lex, &sargables))
   {
     delete_dynamic(&added_keyuse);
-    return 1;
+    return REOPT_ERROR;
   }
 
   if (!added_keyuse.elements)
-  {
-    /* No need to optimize if no new access methods were discovered. */
-    if (save_best_positions)
-      memcpy((uchar*) best_positions, (uchar*) save_best_positions,
-             sizeof(POSITION) * (tables + 1));
-    delete_dynamic(&added_keyuse);
-    return 0;
-  }
+    return REOPT_OLD_PLAN;
 
   /* Add the new access methods to the keyuse array. */
   if (!keyuse.buffer &&
       my_init_dynamic_array(&keyuse, sizeof(KEYUSE), 20, 64))
   {
     delete_dynamic(&added_keyuse);
-    return 1;
+    return REOPT_ERROR;
   }
   allocate_dynamic(&keyuse, keyuse.elements + added_keyuse.elements);
   memcpy(keyuse.buffer + keyuse.elements * keyuse.size_of_element,
@@ -19374,14 +19368,14 @@ int JOIN::reoptimize(Item *added_where, table_map join_tables,
   delete_dynamic(&added_keyuse);
 
   if (sort_and_filter_keyuse(&keyuse))
-    return 1;
+    return REOPT_ERROR;
   optimize_keyuse(this, &keyuse);
 
   /* Re-run the join optimizer to compute a new query plan. */
   if (choose_plan(this, join_tables))
-    return 1;
+    return REOPT_ERROR;
 
-  return 0;
+  return REOPT_NEW_PLAN;
 }
 
 /**

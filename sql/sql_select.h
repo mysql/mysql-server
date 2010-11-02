@@ -1374,9 +1374,16 @@ private:
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 
 protected:
+  /* Results of reoptimizing a JOIN via JOIN::reoptimize(). */
+  enum enum_reopt_result {
+    REOPT_NEW_PLAN, /* there is a new reoptimized plan */
+    REOPT_OLD_PLAN, /* no new improved plan can be found, use the old one */
+    REOPT_ERROR,    /* an irrecovarable error occured during reoptimization */
+    REOPT_NONE      /* not yet reoptimized */
+  };
+
   /* Support for plan reoptimization with rewritten conditions. */
-  int reoptimize(Item *added_where, table_map join_tables,
-                 POSITION *save_best_positions);
+  enum_reopt_result reoptimize(Item *added_where, table_map join_tables);
   int save_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
                       KEYUSE **save_join_tab_keyuse,
                       key_map *save_join_tab_checked_keys);
@@ -1762,6 +1769,9 @@ public:
   }
   bool setup_subquery_caches();
   bool choose_subquery_plan(table_map join_tables);
+  void get_partial_join_cost(uint n_tables,
+                             double *read_time_arg, double *record_count_arg);
+
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -1993,8 +2003,6 @@ inline Item * and_items(Item* cond, Item *item)
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 bool choose_plan(JOIN *join,table_map join_tables);
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg);
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,

@@ -1204,8 +1204,8 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
         sjm->tables= n_tables;
         sjm->is_used= FALSE;
         double subjoin_out_rows, subjoin_read_time;
-        get_partial_join_cost(join, n_tables,
-                              &subjoin_read_time, &subjoin_out_rows);
+        join->get_partial_join_cost(n_tables + join->const_tables,
+                                    &subjoin_read_time, &subjoin_out_rows);
 
         sjm->materialization_cost.convert_from_cost(subjoin_read_time);
         sjm->rows= subjoin_out_rows;
@@ -3615,16 +3615,14 @@ bool JOIN::optimize_unflattened_subqueries()
 */
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
-{
-  /* The original QEP of the subquery. */
+{  /* The original QEP of the subquery. */
   DYNAMIC_ARRAY save_keyuse; /* Copy of the JOIN::keyuse array. */
   POSITION save_best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
   /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
   KEYUSE *save_join_tab_keyuse[MAX_TABLES];
   /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
   key_map save_join_tab_checked_keys[MAX_TABLES];
-
-  bool in_exists_reoptimized= false;
+  enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 
   if (select_lex->master_unit()->item &&
@@ -3667,8 +3665,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     double in_exists_strategy_cost;
 
     if (outer_join)
-      get_partial_join_cost(outer_join, outer_join->tables,
-                            &outer_read_time, &outer_record_count);
+      outer_join->get_partial_join_cost(outer_join->tables,
+                                        &outer_read_time, &outer_record_count);
     else
     {
       /*
@@ -3679,8 +3677,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       outer_record_count= 1;  /* TODO */
     }
 
-    get_partial_join_cost(inner_join, inner_join->tables,
-                          &inner_read_time_1, &inner_record_count_1);
+    inner_join->get_partial_join_cost(inner_join->tables,
+                                      &inner_read_time_1, &inner_record_count_1);
 
     if (in_to_exists_where && const_tables != tables)
     {
@@ -3689,13 +3687,17 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         conditions.
       */
       if (save_query_plan(&save_keyuse, save_best_positions,
-                          save_join_tab_keyuse, save_join_tab_checked_keys) ||
-          reoptimize(in_to_exists_where, join_tables, save_best_positions))
+                          save_join_tab_keyuse, save_join_tab_checked_keys))
         return TRUE;
-      in_exists_reoptimized= true;
+      reopt_result= reoptimize(in_to_exists_where, join_tables);
+      if (reopt_result == REOPT_OLD_PLAN)
+        restore_query_plan(&save_keyuse, save_best_positions,
+                           save_join_tab_keyuse, save_join_tab_checked_keys);
+      else if (reopt_result == REOPT_ERROR)
+        return TRUE;
 
-      get_partial_join_cost(inner_join, inner_join->tables,
-                            &inner_read_time_2, &inner_record_count_2);
+      inner_join->get_partial_join_cost(inner_join->tables,
+                                        &inner_read_time_2, &inner_record_count_2);
     }
     else
     {
@@ -3765,8 +3767,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
 
   if (in_subs->in_strategy & SUBS_MATERIALIZATION)
   {
-    /* Restore orginal query plan used for materialization. */
-    if (in_exists_reoptimized)
+    /* Restore the original query plan used for materialization. */
+    if (reopt_result == REOPT_NEW_PLAN)
       restore_query_plan(&save_keyuse, save_best_positions,
                          save_join_tab_keyuse, save_join_tab_checked_keys);
 
@@ -3792,14 +3794,11 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   }
   else if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
   {
-    /* Keep the new query plan with injected conditions, delete the old one. */
-    if (save_keyuse.elements)
-    {
-      DBUG_ASSERT(in_exists_reoptimized);
+    /* Keep the new query plan with injected conditions, delete the old plan. */
+    if (reopt_result == REOPT_NEW_PLAN)
       delete_dynamic(&save_keyuse);
-    }
 
-    if (!in_exists_reoptimized && in_to_exists_where && const_tables != tables)
+    if (reopt_result == REOPT_NONE && in_to_exists_where && const_tables != tables)
     {
       /*
         The subquery was not reoptimized either because the user allowed only the
@@ -3811,7 +3810,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         join_tab[i].keyuse= NULL;
         join_tab[i].checked_keys.clear_all();
       }
-      if (reoptimize(in_to_exists_where, join_tables, NULL))
+      if ((reopt_result= reoptimize(in_to_exists_where, join_tables)) ==
+          REOPT_ERROR)
         return TRUE;
     }
 
