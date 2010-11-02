@@ -137,10 +137,6 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
- --engine-condition-pushdown 
- Push supported query conditions to the storage engine.
- Deprecated, use --optimizer-switch instead.
- (Defaults to on; use --skip-engine-condition-pushdown to disable.)
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -222,8 +218,6 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- -l, --log[=name]    Log connections and queries to file (deprecated option,
- use --general-log/--general-log-file instead).
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -254,12 +248,6 @@ The following options may be given as the first argument:
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
- --log-slow-queries[=name] 
- Log slow queries to a table or log file. Defaults logging
- to table mysql.slow_log or hostname-slow.log if
- --log-output=file is used. Must be enabled to activate
- other slow log options. Deprecated option, use
- --slow-query-log/--slow-query-log-file instead.
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
@@ -390,8 +378,6 @@ The following options may be given as the first argument:
  Enable old-style user limits (before 5.0.3, user
  resources were counted per each user+host vs. per
  account).
- --one-thread        (Deprecated): Only use one thread (for debugging under
- Linux). Use thread-handling=no-threads instead.
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
@@ -623,10 +609,6 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
- --skip-thread-priority 
- Don't give threads different priorities. This option is
- deprecated because it has no effect; the implied behavior
- is already the default.
  --slave-compressed-protocol 
  Use compression on master/slave protocol
  --slave-exec-mode=name 
@@ -776,7 +758,6 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
-engine-condition-pushdown TRUE
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE

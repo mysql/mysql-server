@@ -780,10 +780,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 168 shift/reduce conflicts.
+  Currently there are 167 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 168
+%expect 167
 
 /*
    Comments for TOKENS.
@@ -6903,10 +6903,6 @@ opt_to:
         | AS {}
         ;
 
-/*
-  SLAVE START and SLAVE STOP are deprecated. We keep them for compatibility.
-*/
-
 slave:
           START_SYM SLAVE slave_thread_opts
           {
@@ -6925,24 +6921,6 @@ slave:
             lex->sql_command = SQLCOM_SLAVE_STOP;
             lex->type = 0;
             /* If you change this code don't forget to update SLAVE STOP too */
-          }
-        | SLAVE START_SYM slave_thread_opts
-          {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_SLAVE_START;
-            lex->type = 0;
-            /* We'll use mi structure for UNTIL options */
-            lex->mi.set_unspecified();
-            /* If you change this code don't forget to update START SLAVE too */
-          }
-          slave_until
-          {}
-        | SLAVE STOP_SYM slave_thread_opts
-          {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_SLAVE_STOP;
-            lex->type = 0;
-            /* If you change this code don't forget to update STOP SLAVE too */
           }
         ;
 
@@ -12750,7 +12728,6 @@ keyword_sp:
         | NVARCHAR_SYM             {}
         | OFFSET_SYM               {}
         | OLD_PASSWORD             {}
-        | ONE_SHOT_SYM             {}
         | ONE_SYM                  {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
@@ -12985,7 +12962,6 @@ option_type:
 
 option_type2:
           /* empty */ { $$= OPT_DEFAULT; }
-        | ONE_SHOT_SYM { Lex->one_shot_set= 1; $$= OPT_SESSION; }
         ;
 
 opt_var_type:

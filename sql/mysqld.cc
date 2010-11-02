@@ -4044,13 +4044,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
   plugins_are_initialized= TRUE;  /* Don't separate from init function */
 
-  have_csv= plugin_status(STRING_WITH_LEN("csv"),
-                          MYSQL_STORAGE_ENGINE_PLUGIN);
-  have_ndbcluster= plugin_status(STRING_WITH_LEN("ndbcluster"),
-                                 MYSQL_STORAGE_ENGINE_PLUGIN);
-  have_partitioning= plugin_status(STRING_WITH_LEN("partition"),
-                                   MYSQL_STORAGE_ENGINE_PLUGIN);
-
   /* we do want to exit if there are any other unknown options */
   if (remaining_argc > 1)
   {
@@ -5935,9 +5928,6 @@ struct my_option my_long_options[]=
    "Set the language used for the month names and the days of the week.",
    &lc_time_names_name, &lc_time_names_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"log", 'l', "Log connections and queries to file (deprecated option, use "
-   "--general-log/--general-log-file instead).", &opt_logname, &opt_logname,
-   0, GET_STR_ALLOC, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
    "Log update queries in binary format. Optional (but strongly recommended "
    "to avoid replication problems if server's hostname changes) argument "
@@ -5963,13 +5953,6 @@ struct my_option my_long_options[]=
   "Log slow statements executed by slave thread to the slow log if it is open.",
   &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-queries", OPT_SLOW_QUERY_LOG,
-   "Log slow queries to a table or log file. Defaults logging to table "
-   "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-   "Must be enabled to activate other slow log options. "
-   "Deprecated option, use --slow-query-log/--slow-query-log-file instead.",
-   &opt_slow_logname, &opt_slow_logname, 0, GET_STR_ALLOC, OPT_ARG,
-   0, 0, 0, 0, 0, 0},
   {"log-tc", 0,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled).",
@@ -5999,10 +5982,6 @@ struct my_option my_long_options[]=
 #endif /* HAVE_REPLICATION */
   {"memlock", 0, "Lock mysqld in memory.", &locked_in_memory,
    &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"one-thread", OPT_ONE_THREAD,
-   "(Deprecated): Only use one thread (for debugging under Linux). Use "
-   "thread-handling=no-threads instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"old-style-user-limits", 0,
    "Enable old-style user limits (before 5.0.3, user resources were counted "
    "per each user+host vs. per account).",
@@ -6092,10 +6071,6 @@ struct my_option my_long_options[]=
   {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
    "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"skip-thread-priority", OPT_SKIP_PRIOR,
-   "Don't give threads different priorities. This option is deprecated "
-   "because it has no effect; the implied behavior is already the default.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"sporadic-binlog-dump-fail", 0,
    "Option used by mysql-test for debugging and testing of replication.",
@@ -7026,10 +7001,6 @@ mysqld_get_one_option(int optid,
     if (default_collation_name == compiled_default_collation_name)
       default_collation_name= 0;
     break;
-  case 'l':
-    WARN_DEPRECATED(NULL, "--log", "'--general-log'/'--general-log-file'");
-    opt_log=1;
-    break;
   case 'h':
     strmake(mysql_real_data_home,argument, sizeof(mysql_real_data_home)-1);
     /* Correct pointer set by my_getopt (for embedded library) */
@@ -7164,10 +7135,6 @@ mysqld_get_one_option(int optid,
     break;
   }
 #endif /* HAVE_REPLICATION */
-  case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, "--log-slow-queries", "'--slow-query-log'/'--slow-query-log-file'");
-    opt_slow_log= 1;
-    break;
   case (int) OPT_MASTER_RETRY_COUNT:
     WARN_DEPRECATED(NULL, "--master-retry-count", "'CHANGE MASTER TO master_retry_count = <num>'");
     break;
@@ -7188,12 +7155,6 @@ mysqld_get_one_option(int optid,
     delay_key_write_options= DELAY_KEY_WRITE_NONE;
     myisam_recover_options= HA_RECOVER_DEFAULT;
     ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
-    break;
-  case (int) OPT_SKIP_PRIOR:
-    opt_specialflag|= SPECIAL_NO_PRIOR;
-    sql_print_warning("The --skip-thread-priority startup option is deprecated "
-                      "and will be removed in MySQL 7.0. This option has no effect "
-                      "as the implied behavior is already the default.");
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -7239,9 +7200,6 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
-    break;
-  case OPT_ONE_THREAD:
-    thread_handling= SCHEDULER_ONE_THREAD_PER_CONNECTION;
     break;
   case OPT_LOWER_CASE_TABLE_NAMES:
     lower_case_table_names_used= 1;

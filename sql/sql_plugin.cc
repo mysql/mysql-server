@@ -1100,11 +1100,6 @@ err:
   mysql_mutex_lock(&LOCK_plugin);
   plugin->state= state;
 
-  /* maintain the obsolete @@have_innodb variable */
-  if (!my_strcasecmp(&my_charset_latin1, plugin->name.str, "InnoDB"))
-    have_innodb= state & PLUGIN_IS_READY ? SHOW_OPTION_YES
-                                         : SHOW_OPTION_DISABLED;
-
   DBUG_RETURN(ret);
 }
 
