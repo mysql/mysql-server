@@ -1,13 +1,13 @@
 2010-10-24	The InnoDB Team
 
 	* row/row0mysql.c
-	Fix Bug #57700 Latching order violation in
+	Fix Bug#57700 Latching order violation in
 	row_truncate_table_for_mysql()
 
 2010-10-20	The InnoDB Team
 
 	* dict/dict0load.c
-	Fix Bug #57616 Sig 11 in dict_load_table() when failed to load
+	Fix Bug#57616 Sig 11 in dict_load_table() when failed to load
 	index or foreign key
 
 2010-10-19	The InnoDB Team
@@ -17,7 +17,7 @@
 	include/ibuf0ibuf.h, include/row0mysql.h,
 	row/row0mysql.c, row/row0sel.c,
 	innodb_bug56680.test, innodb_bug56680.result:
-	Fix Bug #56680 InnoDB may return wrong results from a
+	Fix Bug#56680 InnoDB may return wrong results from a
 	case-insensitive covering index
 
 2010-10-18	The InnoDB Team
@@ -61,7 +61,7 @@
 2010-08-03	The InnoDB Team
 
 	* include/dict0dict.h, include/dict0dict.ic, row/row0mysql.c:
-	Fix bug #54678, InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
+	Fix Bug#54678 InnoDB, TRUNCATE, ALTER, I_S SELECT, crash or deadlock
 
 2010-08-03	The InnoDB Team
 
@@ -135,7 +135,7 @@
 
 	* dict/dict0load.c, fil/fil0fil.c:
 	Fix Bug#54658: InnoDB: Warning: allocated tablespace %lu,
-	old maximum was 0 (introduced in Bug #53578 fix)
+	old maximum was 0 (introduced in Bug#53578 fix)
 
 2010-06-16	The InnoDB Team
 
