@@ -610,7 +610,7 @@ FieldKey	LongVal	StringVal
 1	2	1
 EXPLAIN SELECT * FROM t1 ignore index (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	StringField	StringField	38	NULL	4	Using index condition; Using filesort
+1	SIMPLE	t1	range	StringField	StringField	38	NULL	4	Using where; Using filesort
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 FieldKey	LongVal	StringVal
 3	1	2
