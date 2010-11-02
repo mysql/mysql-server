@@ -1240,6 +1240,17 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
+      /* Corrupt the event for Dump thread*/
+      DBUG_EXECUTE_IF("corrupt_read_log_event",
+	uchar *debug_event_buf_c = (uchar*) packet->ptr() + ev_offset;
+        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+        {
+          int debug_cor_pos = rand() % (data_len + sizeof(buf) - BINLOG_CHECKSUM_LEN);
+          debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
+          DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
+          DBUG_SET("-d,corrupt_read_log_event");
+	}
+      );                                                                                           
       /*
         CRC verification of the Dump thread
       */
@@ -1425,7 +1436,17 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   */
   alg= (event_type != FORMAT_DESCRIPTION_EVENT) ?
     description_event->checksum_alg : get_checksum_alg(buf, event_len);
-   
+  // Emulate the corruption during reading an event
+  DBUG_EXECUTE_IF("corrupt_read_log_event_char",
+    if (event_type != FORMAT_DESCRIPTION_EVENT)
+    {
+      char *debug_event_buf_c = (char *)buf;
+      int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
+      debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
+      DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event(char*,...): byte on position %d", debug_cor_pos));
+      DBUG_SET("-d,corrupt_read_log_event_char");
+    }
+  );                                                 
   if (crc_check &&
       event_checksum_test((uchar *) buf, event_len, alg))
   {
