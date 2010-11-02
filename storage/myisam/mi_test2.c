@@ -812,6 +812,8 @@ end:
   mi_panic(HA_PANIC_CLOSE);			/* Should close log */
   if (!silent)
   {
+    KEY_CACHE_STATISTICS stats;
+    
     printf("\nFollowing test have been made:\n");
     printf("Write records: %d\nUpdate records: %d\nSame-key-read: %d\nDelete records: %d\n", write_count,update,dupp_keys,opt_delete);
     if (rec_pointer_size)
@@ -834,6 +836,7 @@ end:
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
+    get_key_cache_statistics(dflt_key_cache, 0, &stats);
     printf("key cache status: \n\
 blocks used:%10lu\n\
 not flushed:%10lu\n\
@@ -841,12 +844,12 @@ w_requests: %10lu\n\
 writes:     %10lu\n\
 r_requests: %10lu\n\
 reads:      %10lu\n",
-           dflt_key_cache->blocks_used,
-           dflt_key_cache->global_blocks_changed,
-           (ulong) dflt_key_cache->global_cache_w_requests,
-           (ulong) dflt_key_cache->global_cache_write,
-           (ulong) dflt_key_cache->global_cache_r_requests,
-           (ulong) dflt_key_cache->global_cache_read);
+           (ulong) stats.blocks_used,
+           (ulong) stats.blocks_changed,
+           (ulong) stats.write_requests,
+           (ulong) stats.writes,
+           (ulong) stats.read_requests,
+           (ulong) stats.reads);
   }
   end_key_cache(dflt_key_cache,1);
   if (blob_buffer)

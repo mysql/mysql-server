@@ -46,6 +46,7 @@ typedef struct st_key_cache_statistics
   ulonglong blocks_used;    /* maximum number of used blocks/buffers         */ 
   ulonglong blocks_unused;  /* number of currently unused blocks             */
   ulonglong blocks_changed; /* number of currently dirty blocks              */
+  ulonglong blocks_warm;    /* number of blocks in warm sub-chain            */
   ulonglong read_requests;  /* number of read requests (read hits)           */
   ulonglong reads;        /* number of actual reads from files into buffers  */
   ulonglong write_requests; /* number of write requests (write hits)         */
@@ -107,9 +108,6 @@ typedef
   void   (*GET_KEY_CACHE_STATISTICS)
            (void *keycache_cb, uint partition_no, 
             KEY_CACHE_STATISTICS *key_cache_stats); 
-typedef
-  ulonglong (*GET_KEY_CACHE_STAT_VALUE)
-              (void *keycache_cb, uint var_no); 
 
 /*
   An object of the type KEY_CACHE_FUNCS contains pointers to all functions
@@ -134,7 +132,6 @@ typedef struct st_key_cache_funcs
   RESET_KEY_CACHE_COUNTERS reset_counters; 
   END_KEY_CACHE            end;
   GET_KEY_CACHE_STATISTICS get_stats; 
-  GET_KEY_CACHE_STAT_VALUE get_stat_val;
 } KEY_CACHE_FUNCS;
 
 
@@ -153,13 +150,6 @@ typedef struct st_key_cache
   my_bool in_init;		 /* Set to 1 in MySQL during init/resize     */
   uint partitions;               /* actual number of partitions              */
   size_t key_cache_mem_size;     /* specified size of the cache memory       */
-  ulong blocks_used;           /* maximum number of concurrently used blocks */
-  ulong blocks_unused;           /* number of currently unused blocks        */
-  ulong global_blocks_changed;	 /* number of currently dirty blocks         */
-  ulonglong global_cache_w_requests;/* number of write requests (write hits) */
-  ulonglong global_cache_write;     /* number of writes from cache to files  */
-  ulonglong global_cache_r_requests;/* number of read requests (read hits)   */
-  ulonglong global_cache_read;      /* number of reads from files to cache   */
 } KEY_CACHE;
 
 
@@ -193,7 +183,6 @@ extern void end_key_cache(KEY_CACHE *keycache, my_bool cleanup);
 extern void get_key_cache_statistics(KEY_CACHE *keycache,
                                      uint partition_no, 
                                      KEY_CACHE_STATISTICS *key_cache_stats);
-extern ulonglong get_key_cache_stat_value(KEY_CACHE *keycache, uint var_no);
 
 /* Functions to handle multiple key caches */
 extern my_bool multi_keycache_init(void);

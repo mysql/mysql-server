@@ -7988,6 +7988,46 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL */
 
+static int show_default_keycache(THD *thd, SHOW_VAR *var, char *buff)
+{
+  struct st_data {
+    KEY_CACHE_STATISTICS stats;
+    SHOW_VAR var[8];
+  } *data;
+  SHOW_VAR *v;
+
+  data=(st_data *)buff;
+  v= data->var;
+
+  var->type= SHOW_ARRAY;
+  var->value= (char*)v;
+
+  get_key_cache_statistics(dflt_key_cache, 0, &data->stats);
+
+#define set_one_keycache_var(X,Y)       \
+  v->name= X;                           \
+  v->type= SHOW_LONGLONG;               \
+  v->value= (char*)&data->stats.Y;      \
+  v++;
+
+  set_one_keycache_var("blocks_not_flushed", blocks_changed);
+  set_one_keycache_var("blocks_unused",      blocks_unused);
+  set_one_keycache_var("blocks_used",        blocks_used);
+  set_one_keycache_var("blocks_warm",        blocks_warm);
+  set_one_keycache_var("read_requests",      read_requests);
+  set_one_keycache_var("reads",              reads);
+  set_one_keycache_var("write_requests",     write_requests);
+  set_one_keycache_var("writes",             writes);
+
+  v->name= 0;
+
+  DBUG_ASSERT((char*)(v+1) <= buff + SHOW_VAR_FUNC_BUFF_SIZE);
+
+#undef set_one_keycache_var
+
+  return 0;
+}
+
 
 /*
   Variables shown by SHOW STATUS in alphabetical order
@@ -8030,13 +8070,7 @@ SHOW_VAR status_vars[]= {
   {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
   {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
-  {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
-  {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
-  {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
-  {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
+  {"Key",                      (char*) &show_default_keycache, SHOW_FUNC},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},

@@ -407,7 +407,7 @@ let $rows = 1;
 --source suite/vcol/inc/vcol_supported_sql_funcs.inc
 
 --echo # LIKE
-let $cols = a varchar(10), b bool as (a like 'H%o');
+let $cols = a varchar(10), b bool as (a like 'H%!o' escape '!');
 let $values1 = 'Hello',default;
 let $values2 = 'MySQL',default;
 let $rows = 2;
