@@ -254,6 +254,8 @@ trx_purge_add_update_undo_to_history(
 
 		trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
 
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_USED);
+
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
 					   MLOG_4BYTES, mtr);
 		ut_ad(undo->size == flst_get_len(
