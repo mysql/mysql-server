@@ -282,8 +282,20 @@ scan_it_again:
   DBUG_RETURN(result);
 }
 
+/****************************************************************************
+ * Mrr_*_reader classes (building blocks for DS-MRR)
+ ***************************************************************************/
 
-/***** Mrr_*_reader classes **************************************************/
+int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
+                                  void *seq_init_param, uint n_ranges,
+                                  uint mode, Buffer_manager *buf_manager_arg)
+{
+  HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
+  h= h_arg;
+  res= 0;
+  return h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
+                                           mode, &no_buffer);
+}
 
 int Mrr_simple_index_reader::get_next(char **range_info)
 {
@@ -297,44 +309,35 @@ int Mrr_simple_index_reader::get_next(char **range_info)
   return res;
 }
 
-int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
-                                  void *seq_init_param, uint n_ranges,
-                                  uint mode, Buffer_manager *buf_manager_arg)
-{
-  HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
-  h= h_arg;
-  res= 0;
-  return h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                           mode, &no_buffer);
-}
 
 /**
-  DS-MRR/CPK: multi_range_read_next() function
-  
-  @param range_info  OUT  identifier of range that the returned record belongs to
+  @brief Get next index record
+
+  @param range_info  OUT identifier of range that the returned record belongs to
   
   @note
-    This function walks over key buffer and does index reads, i.e. it produces
-    {current_record, range_id} pairs.
-
-    The function has the same call contract like multi_range_read_next()'s.
-
     We actually iterate over nested sequences:
-    - a disjoint sequence of index ranges
-      - each range has multiple records
-        - each record goes into multiple identical ranges.
+    - an ordered sequence of groups of identical keys
+      - each key group has key value, which has multiple matching records 
+        - thus, each record matches all members of the key group
 
   @retval 0                   OK, next record was successfully read
   @retval HA_ERR_END_OF_FILE  End of records
   @retval Other               Some other error
 */
 
-int Mrr_ordered_index_reader::get_next(char **range_info_arg)
+int Mrr_ordered_index_reader::get_next(char **range_info)
 {
   DBUG_ENTER("Mrr_ordered_index_reader::get_next");
   
-  if (!know_key_tuple_params) /* We're in startup phase */
+  if (!know_key_tuple_params)
+  {
+    /* 
+      We're at the very start, haven't filled the buffer or even know what
+      will be there. Force the caller to call refill_buffer():
+    */
     DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   while (1)
   {
@@ -374,24 +377,21 @@ int Mrr_ordered_index_reader::get_next(char **range_info_arg)
     /* Go get another (record, range_id) combination */
   } /* while */
 
-  memcpy(range_info_arg, cur_range_info, sizeof(void*));
+  memcpy(range_info, cur_range_info, sizeof(void*));
   DBUG_RETURN(0);
 }
 
 
 /**
-  DS-MRR/CPK: Fill the buffer with (lookup_tuple, range_id) pairs and sort
-  
-  Enumerate the input range (=key) sequence, fill the key buffer with 
-  (lookup_key, range_id) pairs and sort it.
-
-  When this function returns, either
-   - key buffer is non-empty, or
-   - key buffer is empty and source range sequence is exhausted
-  
+  Fill the buffer with (lookup_tuple, range_id) pairs and sort
+ 
   @note
-    dsmrr_eof is set to indicate whether we've exhausted the list of ranges 
-    we're scanning.
+    We don't know lookup_tuple before we get the first key from
+    mrr_funcs.get_next(). Not knowing tuple length means we can't setup the
+    key buffer (in particular, which part of the buffer space it should occupy
+    when we have both key and rowid buffers).  This problem is solved by having 
+    know_key_tuple_params variabe, and buf_manager, which we ask to set/reset
+    buffers for us.
 */
 
 int Mrr_ordered_index_reader::refill_buffer()
@@ -521,7 +521,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
   if (index_reader_exhausted)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  while ((res= refill2() == HA_ERR_END_OF_FILE))
+  while ((res= refill_from_key_buffer() == HA_ERR_END_OF_FILE))
   {
     if ((res= index_reader->refill_buffer()))
     {
@@ -534,13 +534,23 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
 }
 
 
-/* This one refills without calling index_reader->refill_buffer(). */
-int Mrr_ordered_rndpos_reader::refill2()
+void Mrr_index_reader::position()
+{
+  h->position(h->get_table()->record[0]);
+}
+
+
+/* 
+  @brief Try to refill the rowid buffer without calling
+  index_reader->refill_buffer(). 
+*/
+
+int Mrr_ordered_rndpos_reader::refill_from_key_buffer()
 {
   char *range_info;
   uchar **range_info_ptr= (uchar**)&range_info;
   int res;
-  DBUG_ENTER("Mrr_ordered_rndpos_reader::refill2");
+  DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_from_key_buffer");
 
   DBUG_ASSERT(rowid_buffer->is_empty());
   index_rowid= index_reader->get_rowid_ptr();
@@ -559,7 +569,7 @@ int Mrr_ordered_rndpos_reader::refill2()
       break;
 
     /* Put rowid, or {rowid, range_id} pair into the buffer */
-    index_reader->h->position(index_reader->h->get_table()->record[0]);
+    index_reader->position();
 
     rowid_buffer->write();
   }
@@ -574,10 +584,12 @@ int Mrr_ordered_rndpos_reader::refill2()
 }
 
 
-/**
-  DS-MRR implementation: multi_range_read_next() function.
+/*
+  Get the next record+range_id using ordered array of rowid+range_id pairds
 
-  Calling convention is like multi_range_read_next() has.
+  @note
+    Since we have sorted rowids, we try not to make multiple rnd_pos() calls
+    with the same rowid value.
 */
 
 int Mrr_ordered_rndpos_reader::get_next(char **range_info)
@@ -658,11 +670,8 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 }
 
 
-/************ Mrr_*_reader classes end ***************************************/
-
-
 /****************************************************************************
- * DS-MRR implementation 
+ * Top-level DS-MRR implementation functions (the ones called by storage engine)
  ***************************************************************************/
 
 /**

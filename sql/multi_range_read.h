@@ -122,7 +122,7 @@ public:
 
 
 /* 
-  DS-MRR execution strategy abstraction.
+  Mrr_reader - DS-MRR execution strategy abstraction
 
   A reader produces ([index]_record, range_info) pairs, and requires periodic
   refill operations.
@@ -142,27 +142,33 @@ class Mrr_reader
 public:
   virtual int get_next(char **range_info) = 0;
   virtual int refill_buffer() = 0;
-  
   virtual ~Mrr_reader() {}; /* just to remove compiler warning */
 };
 
 
-/* A common base for strategies that do index scans and produce index tuples */
+/* 
+  A common base for readers that do index scans and produce index tuples 
+*/
+
 class Mrr_index_reader : public Mrr_reader
 {
+protected:
+  handler *h; /* Handler object to use */
 public:
-  handler *h;
-
   virtual int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
                    void *seq_init_param, uint n_ranges,
                    uint mode, Buffer_manager *buf_manager_arg) = 0;
+
+  /* Get pointer to place where every get_next() call will put rowid */
   virtual uchar *get_rowid_ptr()= 0;
+  /* Get the rowid (call this after get_next() call) */
+  void position();
   virtual bool skip_record(char *range_id, uchar *rowid)=0;
 };
 
 
 /*
-  A "bypass" strategy that uses default MRR implementation (i.e.
+  A "bypass" reader that uses default MRR implementation (i.e.
   handler::multi_range_read_XXX() calls) to produce rows.
 */
 
@@ -184,9 +190,8 @@ public:
 };
 
 
-
 /* 
-  A strategy that sorts index lookup keys before scanning the index
+  A reader that sorts the key values before it makes the index lookups.
 */
 
 class Mrr_ordered_index_reader : public Mrr_index_reader
@@ -238,7 +243,10 @@ private:
 };
 
 
-/* MRR strategy that fetches rowids */
+/* 
+  A reader that gets rowids from an Mrr_index_reader, and then sorts them 
+  before getting full records with handler->rndpos() calls.
+*/
 
 class Mrr_ordered_rndpos_reader : public Mrr_reader 
 {
@@ -266,10 +274,11 @@ private:
   uchar *rowid;
   uchar *rowids_range_id;
 
-  int refill2();
+  int refill_from_key_buffer();
 };
 
 
+/* A place where one can get readers without having to alloc them on the heap */
 class Mrr_reader_factory
 {
 public:
