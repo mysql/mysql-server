@@ -1,3 +1,9 @@
+2010-11-02	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#57799 READ UNCOMMITTED access failure of off-page
+	DYNAMIC or COMPRESSED columns again
+
 2010-10-24	The InnoDB Team
 
 	* row/row0mysql.c
