@@ -1,1 +1,0 @@
---skip-slave-start --relay-log-info-repository=FILE
