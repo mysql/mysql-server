@@ -54,6 +54,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n BackupDDL T1
 
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug57650 T1
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic
