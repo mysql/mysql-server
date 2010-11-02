@@ -1,0 +1,29 @@
+# ticket 895 is a query optimization problem with the primary key
+
+#--source include/have_tokudb.inc
+SET STORAGE_ENGINE = 'tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+connection default;
+show processlist;
+flush logs;
+show processlist;
+
+connection conn1;
+set tokudb_checkpoint_lock=1;
+
+connection default;
+--send flush logs;
+
+connection conn1;
+--sleep 2
+show processlist;
+set tokudb_checkpoint_lock=0;
+
+connection default;
+--reap
+disconnect conn1;
+
+# Final cleanup.
