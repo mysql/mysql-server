@@ -8915,7 +8915,7 @@ ha_innobase::get_foreign_key_list(
 
 	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
 	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
