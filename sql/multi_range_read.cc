@@ -283,7 +283,7 @@ scan_it_again:
 }
 
 
-/***** MRR_impl classes ****************************************************/
+/***** Mrr_*_reader classes **************************************************/
 
 int Mrr_simple_index_reader::get_next(char **range_info)
 {
@@ -355,24 +355,8 @@ int Mrr_ordered_index_reader::get_next(char **range_info_arg)
       {
         if (key_buffer->is_empty())
         {
-          /*if (auto_refill)
-          {
-            int res;
-            if ((res= refill_buffer()))
-              DBUG_RETURN(res);
-            if (key_buffer->is_empty())
-            {
-              index_scan_eof= TRUE;
-              DBUG_RETURN(HA_ERR_END_OF_FILE);
-            }
-          }
-          else
-          */
-          {
-            /* Buffer refills are managed by somebody else for us */
-            index_scan_eof= TRUE;
-            DBUG_RETURN(HA_ERR_END_OF_FILE);
-          }
+          index_scan_eof= TRUE;
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
       }
       scanning_key_val_iter= TRUE;
@@ -427,23 +411,7 @@ int Mrr_ordered_index_reader::refill_buffer()
                               is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
                               sizeof(uchar*));
   }
-#if 0
 
-  if (know_key_tuple_params)
-  {
-    if (do_rndpos_scan && rowid_buffer.is_empty())
-    {
-      /*
-        We're using two buffers and both of them are empty now. Restore the
-        original sizes
-      */
-      rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
-      key_buffer= &backward_key_buf;
-      key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
-    }
-  }
-  is all of the ifdef-ed stuff is handled above?
-#endif
   while ((!know_key_tuple_params || key_buffer->can_write()) && 
          !(res= mrr_funcs.next(mrr_iter, &cur_range)))
   {
@@ -478,7 +446,7 @@ int Mrr_ordered_index_reader::refill_buffer()
     key_buffer->write();
   }
 
-  no_more_keys= test(res);
+  bool no_more_keys= test(res);
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
                      (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp_reverse : 
@@ -521,15 +489,8 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
   h= h_arg;
   index_reader= index_reader_arg;
   rowid_buffer= buf;
-  is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
-  //rowid_buff_elem_size= h->ref_length;
-  //if (!(mode & HA_MRR_NO_ASSOCIATION))
-  //  rowid_buff_elem_size += sizeof(char*);
-
+  is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
   index_reader_exhausted= FALSE;
-  ///int res= index_reader->refill_buffer();
-  ///if (res && res!=HA_ERR_END_OF_FILE)
-  ///  return res;
   return 0;
 }
 
@@ -551,7 +512,6 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
                  properly ordered
   @retval other  Error
 */
-
 
 int Mrr_ordered_rndpos_reader::refill_buffer()
 {
@@ -651,31 +611,6 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 
   while (1)
   {
-#if 0      
-    if (rowid_buffer->is_empty()) /* We're out of rowids */
-    {
-      /* First, finish off the sorted keys we have */ 
-      if (!index_reader->eof())
-      {
-        res= refill_buffer();
-        if (res && res != HA_ERR_END_OF_FILE)
-          return res;
-      }
-
-      if (rowid_buffer->is_empty())
-      {
-        /*
-          Ok neither index_reader nor us have any records. Refill index
-          reader, then refill us.
-        */
-        // TODO: if key buffer is empty, too, redistribute the buffer space.
-        if ((res= index_reader->refill_buffer()) ||
-            (res= refill_buffer()))
-          return res;
-      }
-    }
-#endif
-   
     last_identical_rowid= NULL;
 
     /* Return eof if there are no rowids in the buffer after re-fill attempt */
@@ -723,9 +658,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 }
 
 
-
-
-/************ MRR_impl classes end *********************************************/
+/************ Mrr_*_reader classes end ***************************************/
 
 
 /****************************************************************************
@@ -768,7 +701,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if ((mode & HA_MRR_USE_DEFAULT_IMPL) || (mode & HA_MRR_SORTED))
   {
     DBUG_ASSERT(h->inited == handler::INDEX);
-    Mrr_simple_index_reader *s= &strategy_factory.simple_index_reader;
+    Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
     res= s->init(h, seq_funcs, seq_init_param, n_ranges, mode, this);
     strategy= s;
     DBUG_RETURN(res);
@@ -785,10 +718,10 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if ((mode & HA_MRR_SINGLE_POINT) &&
       optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS))
   {
-    index_strategy= ordered_idx_reader= &strategy_factory.ordered_index_reader;
+    index_strategy= ordered_idx_reader= &reader_factory.ordered_index_reader;
   }
   else
-    index_strategy= &strategy_factory.simple_index_reader;
+    index_strategy= &reader_factory.simple_index_reader;
 
   strategy= index_strategy;
   /*
@@ -806,7 +739,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   Mrr_ordered_rndpos_reader *disk_strategy= NULL;
   if (!(keyno == table->s->primary_key && h_idx->primary_key_is_clustered()))
   {
-    strategy= disk_strategy= &strategy_factory.ordered_rndpos_reader;
+    strategy= disk_strategy= &reader_factory.ordered_rndpos_reader;
   }
 
   if (is_mrr_assoc)
@@ -817,8 +750,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   
   if (strategy == index_strategy)
   {
-    ///if (ordered_idx_reader)
-    //  ordered_idx_reader->auto_refill= TRUE;
     /* Index strategy serves it all. We don't need two handlers, etc */
     /* Give the buffer to index strategy */
     if ((res= index_strategy->init(h, seq_funcs, seq_init_param, n_ranges,
@@ -836,9 +767,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 
     if ((res= setup_two_handlers()))
       DBUG_RETURN(res);
-
-    ///if (ordered_idx_reader)
-    ///  ordered_idx_reader->auto_refill= FALSE;
 
     if ((res= index_strategy->init(h2, seq_funcs, seq_init_param, n_ranges, 
                                    mode, this)) || 
@@ -959,8 +887,8 @@ int DsMrr_impl::setup_two_handlers()
       goto error;
   }
   DBUG_RETURN(0);
+
 error:
-  //close_second_handler(); -- caller does that
   DBUG_RETURN(res);
 }
 
@@ -1131,6 +1059,7 @@ void DsMrr_impl::reset_buffer_sizes()
   }
 }
 
+
 /**
   Take unused space from the key buffer and give it to the rowid buffer
 */
@@ -1143,14 +1072,9 @@ void DsMrr_impl::reallocate_buffer_space()
 }
 
 
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
 bool Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 {
   int res;
-  //h= h_arg;
-  //param= param_arg;
   owner= owner_arg;
 
   identical_key_it.init(owner->key_buffer);
