@@ -185,7 +185,11 @@ private:
   enum_monotonicity_info m_part_func_monotonicity_info;
 public:
   handler *clone(MEM_ROOT *mem_root);
+#ifndef MCP_BUG56438
   virtual void set_part_info(partition_info *part_info, bool early)
+#else
+  virtual void set_part_info(partition_info *part_info)
+#endif
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();
@@ -604,9 +608,12 @@ public:
     underlying handlers must have the same implementation for it to work.
   */
   virtual uint8 table_cache_type();
+  virtual ha_rows records();
+
+#ifndef MCP_BUG56438
   /* Calculate hash value for PARTITION BY KEY tables.  */
   uint32 calculate_key_hash_value(Field **field_array);
-  virtual ha_rows records();
+#endif
 
   /*
     -------------------------------------------------------------------------
