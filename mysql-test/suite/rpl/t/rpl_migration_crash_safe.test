@@ -39,7 +39,6 @@
 --source include/master-slave.inc
 --source include/not_embedded.inc
 --source include/not_valgrind.inc
---source include/have_debug.inc
 --source include/not_relay_log_info_table.inc
 
 --connection slave
@@ -121,7 +120,6 @@ if (`SELECT $got_slave <> $exp_slave`)
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
 }
-file_exists $MYSQLD_DATADIR/master.info;
 file_exists $MYSQLD_DATADIR/relay-log.info;
 
 ########################################################################################
