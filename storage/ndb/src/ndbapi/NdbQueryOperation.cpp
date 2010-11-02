@@ -3659,11 +3659,6 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
   return 0;
 } // NdbQueryOperationImpl::serializeProject
 
-static int
-formatAttr(const NdbColumnImpl* column,
-           const void* &value, Uint32& len,
-           char* buffer, Uint32 buflen);
-
 int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues)
 {
   if (unlikely(paramValues == NULL))

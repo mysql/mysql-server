@@ -302,7 +302,12 @@ namespace SPJSanityTest{
     Vector<Operation*> m_children;
     const NdbQueryOperationDef* m_operationDef;
     // For now, only setResultRowRef() style result retrieval is tested.
-    const Row* m_resultPtr;
+    union
+    {
+      const Row* m_resultPtr;
+      // Use union to avoid strict-aliasing problems.
+      const char* m_resultCharPtr;
+    };
     // Corresponds to NdbQueryOperationDef operation numbering
     Uint32 m_operationId;
     // Number among siblings.
@@ -614,8 +619,7 @@ namespace SPJSanityTest{
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
     queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(m_resultPtr),
+                             m_resultCharPtr,
                              NULL);
   }
 
@@ -701,8 +705,7 @@ namespace SPJSanityTest{
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
     queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(m_resultPtr),
+                             m_resultCharPtr,
                              NULL);
   }
 
@@ -761,8 +764,7 @@ namespace SPJSanityTest{
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
     queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(m_resultPtr),
+                             m_resultCharPtr,
                              NULL);
     if(m_lessThanRow!=-1){
       NdbInterpretedCode code(queryOp->getQueryOperationDef().getTable());
@@ -862,8 +864,7 @@ namespace SPJSanityTest{
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
     queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                             //*ptr,
-                             reinterpret_cast<const char*&>(m_resultPtr),
+                             m_resultCharPtr,
                              NULL);
   }
 

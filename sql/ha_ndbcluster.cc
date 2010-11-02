@@ -1863,7 +1863,7 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
     break;
 
   case NdbQueryOperationDef::TableScan:
-    DBUG_ASSERT (idx==MAX_KEY);
+    DBUG_ASSERT (idx==0);
     if (needSorted)
     {
       DBUG_PRINT("info", 
