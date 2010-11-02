@@ -479,16 +479,17 @@ int Mrr_ordered_index_reader::refill_buffer()
   }
 
   no_more_keys= test(res);
+  scanning_key_val_iter= FALSE;
+  index_scan_eof= FALSE;
+
+  if (no_more_keys && (!know_key_tuple_params || key_buffer->is_empty()))
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
                      (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp_reverse : 
                      (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp, 
                    (void*)this);
-  
-  scanning_key_val_iter= FALSE;
-  index_scan_eof= FALSE; 
-
-  DBUG_RETURN((no_more_keys && key_buffer->is_empty())? HA_ERR_END_OF_FILE:0);
+  DBUG_RETURN(0);
 }
 
 

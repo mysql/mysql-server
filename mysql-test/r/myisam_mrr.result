@@ -425,7 +425,7 @@ explain
 select * from t0, t1 where t0.a<=>t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t1	ref	a	a	5	test.t0.a	1	Using index condition(BKA); Using join buffer
+1	SIMPLE	t1	ref	a	a	5	test.t0.a	1	Using index condition(BKA); Using join buffer (flat, BKA join)
 select * from t0, t1 where t0.a<=>t1.a;
 a	a	b
 0	0	0
