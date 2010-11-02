@@ -4,9 +4,9 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
 INSERT INTO t1 VALUES(0);
 SET SESSION debug='+d,fail_binlog_write_1';
 INSERT INTO t1 VALUES(1);
-ERROR HY000: Error writing file 'master-bin' (errno: 22)
+ERROR HY000: Error writing file 'master-bin' (errno: 28)
 INSERT INTO t1 VALUES(2);
-ERROR HY000: Error writing file 'master-bin' (errno: 22)
+ERROR HY000: Error writing file 'master-bin' (errno: 28)
 SET SESSION debug='';
 INSERT INTO t1 VALUES(3);
 SELECT * FROM t1;

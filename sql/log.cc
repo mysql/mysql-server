@@ -4772,7 +4772,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache)
     }
 
     /* Write data to the binary log file */
-    DBUG_EXECUTE_IF("fail_binlog_write_1", return ER_ERROR_ON_WRITE;);
+    DBUG_EXECUTE_IF("fail_binlog_write_1",
+                    errno= 28; return ER_ERROR_ON_WRITE;);
     if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
     cache->read_pos=cache->read_end;		// Mark buffer used up
