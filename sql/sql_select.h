@@ -1979,8 +1979,7 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
-                                double *reopt_rec_count, double *reopt_cost,
-                                double *sj_inner_fanout);
+                                double *outer_rec_count, double *reopt_cost);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 bool test_if_ref(COND *root_cond, 

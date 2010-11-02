@@ -10333,8 +10333,6 @@ static void restore_prev_nj_state(JOIN_TAB *last)
                               table
       reopt_rec_count     OUT New output record count
       reopt_cost          OUT New join prefix cost
-      sj_inner_fanout     OUT Fanout in the [first_tab; last_tab] range that
-                              is produced by semi-join-inner tables.
 
   DESCRIPTION
     Given a join prefix [0; ... first_tab], change the access to the tables
@@ -10351,10 +10349,9 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
-                                double *reopt_rec_count, double *reopt_cost,
-                                double *sj_inner_fanout)
+                                double *outer_rec_count, double *reopt_cost)
 {
-  double cost, rec_count, inner_fanout= 1.0;
+  double cost, rec_count;
   table_map reopt_remaining_tables= last_remaining_tables;
   uint i;
 
@@ -10369,6 +10366,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     rec_count= 1;
   }
 
+  *outer_rec_count= rec_count;
   for (i= first_tab; i <= last_tab; i++)
     reopt_remaining_tables |= join->positions[i].table->table->map;
 
@@ -10394,13 +10392,10 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     rec_count *= pos.records_read;
     cost += pos.read_time;
 
-    if (rs->emb_sj_nest)
-      inner_fanout *= pos.records_read;
+    if (!rs->emb_sj_nest)
+      *outer_rec_count *= pos.records_read;
   }
-
-  *reopt_rec_count= rec_count;
   *reopt_cost= cost;
-  *sj_inner_fanout= inner_fanout;
 }
 
 
