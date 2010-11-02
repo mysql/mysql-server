@@ -318,12 +318,13 @@ public:
    */
   struct BackupFile {
     BackupFile(Backup & backup, ArrayPool<Page32> & pp) 
-      : operation(backup),  pages(pp) {}
+      : operation(backup),  pages(pp) { m_retry_count = 0; }
     
     Uint32 backupPtr; // Pointer to backup record
     Uint32 tableId;
     Uint32 fragmentNo;
     Uint32 filePointer;
+    Uint32 m_retry_count;
     Uint32 errorCode;
     BackupFormat::FileType fileType;
     OperationRecord operation;
@@ -611,6 +612,13 @@ public:
   void createAttributeMask(TablePtr tab, Bitmask<MAXNROFATTRIBUTESINWORDS>&);
   void sendStartBackup(Signal*, BackupRecordPtr, TablePtr);
   void sendAlterTrig(Signal*, BackupRecordPtr ptr);
+
+  void sendScanFragReq(Signal*,
+                       BackupRecordPtr,
+                       BackupFilePtr,
+                       TablePtr,
+                       FragmentPtr,
+                       Uint32 delay);
 
   void sendDropTrig(Signal*, BackupRecordPtr ptr);
   void sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr);
