@@ -51,7 +51,6 @@ typedef struct st_queue {
 #define queue_top(queue) ((queue)->root[1])
 #define queue_element(queue,index) ((queue)->root[index])
 #define queue_end(queue) ((queue)->root[(queue)->elements])
-#define queue_replace(queue, idx) _downheap(queue, idx, (queue)->root[idx])
 #define queue_replace_top(queue) _downheap(queue, 1, (queue)->root[1])
 #define queue_set_cmp_arg(queue, set_arg) (queue)->first_cmp_arg= set_arg
 #define queue_set_max_at_top(queue, set_arg) \
@@ -72,6 +71,8 @@ void delete_queue(QUEUE *queue);
 void queue_insert(QUEUE *queue,uchar *element);
 int queue_insert_safe(QUEUE *queue, uchar *element);
 uchar *queue_remove(QUEUE *queue,uint idx);
+void queue_replace(QUEUE *queue,uint idx);
+
 #define queue_remove_all(queue) { (queue)->elements= 0; }
 #define queue_is_full(queue) (queue->elements == queue->max_elements)
 void _downheap(QUEUE *queue, uint idx, uchar *element);

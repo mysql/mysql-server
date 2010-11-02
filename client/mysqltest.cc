@@ -610,14 +610,14 @@ public:
     lines++;
 
     int show_offset= 0;
-    char buf[256];
+    char buf[256+1];                   /* + zero termination for DBUG_PRINT */
     size_t bytes;
     bool found_bof= false;
 
     /* Search backward in file until "lines" newline has been found */
     while (lines && !found_bof)
     {
-      show_offset-= sizeof(buf);
+      show_offset-= sizeof(buf)-1;
       while(fseek(m_file, show_offset, SEEK_END) != 0 && show_offset < 0)
       {
         found_bof= true;
@@ -625,7 +625,7 @@ public:
         show_offset++;
       }
 
-      if ((bytes= fread(buf, 1, sizeof(buf), m_file)) <= 0)
+      if ((bytes= fread(buf, 1, sizeof(buf)-1, m_file)) <= 0)
       {
 	// ferror=0 will happen here if no queries executed yet
 	if (ferror(m_file))
@@ -635,6 +635,7 @@ public:
         DBUG_VOID_RETURN;
       }
 
+      IF_DBUG(buf[bytes]= '\0';)
       DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
                           (unsigned long)bytes, buf));
 
@@ -679,8 +680,8 @@ public:
       }
     }
 
-    while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
-      if (fwrite(buf, 1, bytes, stderr))
+    while ((bytes= fread(buf, 1, sizeof(buf)-1, m_file)) > 0)
+      if (bytes != fwrite(buf, 1, bytes, stderr))
         die("Failed to write to '%s', errno: %d",
             m_file_name, errno);
 
@@ -722,6 +723,10 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 
 #ifdef EMBEDDED_LIBRARY
+
+/* workaround for MySQL BUG#57491 */
+#undef MY_WME
+#define MY_WME 0
 
 /* attributes of the query thread */
 pthread_attr_t cn_thd_attrib;

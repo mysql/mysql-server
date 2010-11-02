@@ -280,6 +280,9 @@ uchar *queue_remove(register QUEUE *queue, uint idx)
     queue	Queue to use
     idx         Index of element to change
     element     Element to store at 'idx'
+
+  NOTE
+    This only works if element is >= all elements <= start_idx
 */
 
 void _downheap(register QUEUE *queue, uint start_idx, uchar *element)
@@ -352,4 +355,23 @@ void queue_fix(QUEUE *queue)
   uint i;
   for (i= queue->elements >> 1; i > 0; i--)
     _downheap(queue, i, queue_element(queue, i));
+}
+
+
+/*
+  Change element at fixed position
+
+  SYNOPSIS
+    queue_replace()
+    queue	Queue to use
+    idx         Index of element to change
+    element     Element to store at 'idx'
+*/
+
+void queue_replace(QUEUE *queue, uint idx)
+{
+  uchar *element= queue->root[idx];
+  DBUG_ASSERT(idx >= 1 && idx <= queue->elements);
+  queue_remove(queue, idx);
+  queue_insert(queue, element);
 }

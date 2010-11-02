@@ -2066,12 +2066,15 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr;
+  bool save_view_prepare_mode= thd->lex->view_prepare_mode;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
 
   /* Parsing of partitioning information from .frm needs thd->lex set up. */
   DBUG_ASSERT(thd->lex->is_lex_started);
+
+  thd->lex->view_prepare_mode= FALSE; // not a view
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2404,6 +2407,7 @@ partititon_err:
                                HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
+  thd->lex->view_prepare_mode= save_view_prepare_mode;
   DBUG_RETURN (0);
 
  err:
@@ -2416,6 +2420,7 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
+  thd->lex->view_prepare_mode= save_view_prepare_mode;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
   my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN (error);

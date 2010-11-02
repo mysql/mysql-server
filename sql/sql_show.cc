@@ -2292,34 +2292,6 @@ void remove_status_vars(SHOW_VAR *list)
 
 
 
-static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
-{
-  uint var_no;
-  if (ofs == offsetof(KEY_CACHE, blocks_used) ||
-      ofs == offsetof(KEY_CACHE, blocks_unused) ||
-      ofs == offsetof(KEY_CACHE, global_blocks_changed))
-  {
-    var_no= (ofs-offsetof(KEY_CACHE, blocks_used))/sizeof(ulong);
-    *(ulong *)((char *) key_cache + ofs)=
-      (ulong) get_key_cache_stat_value(key_cache, var_no);
-    return;
-  }
-
-  if (ofs == offsetof(KEY_CACHE, global_cache_r_requests) ||
-      ofs == offsetof(KEY_CACHE, global_cache_read) ||
-      ofs == offsetof(KEY_CACHE, global_cache_w_requests) ||
-      ofs == offsetof(KEY_CACHE, global_cache_write))
-  {
-    var_no= NUM_LONG_KEY_CACHE_STAT_VARIABLES +
-            (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
-             sizeof(ulonglong);
-    *(ulonglong *)((char *) key_cache + ofs)=
-      get_key_cache_stat_value(key_cache, var_no);
-    return;
-  }
-}
-
-
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
@@ -2451,16 +2423,6 @@ static bool show_status_array(THD *thd, const char *wild,
           end= strend(pos);
           break;
         }
-        case SHOW_KEY_CACHE_LONG:
-          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
-          value= (char*) dflt_key_cache + (ulong)value;
-          end= int10_to_str(*(long*) value, buff, 10);
-          break;
-        case SHOW_KEY_CACHE_LONGLONG:
-          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
-          value= (char*) dflt_key_cache + (ulong)value;
-	  end= longlong10_to_str(*(longlong*) value, buff, 10);
-	  break;
         case SHOW_UNDEF:
           break;                                        // Return empty string
         case SHOW_SYS:                                  // Cannot happen
@@ -4103,7 +4065,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
   }
   else
   {
-    char option_buff[350],*ptr;
+    char option_buff[350];
     String str(option_buff,sizeof(option_buff), system_charset_info);
     TABLE *show_table= tables->table;
     TABLE_SHARE *share= show_table->s;

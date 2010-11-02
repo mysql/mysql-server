@@ -4906,66 +4906,12 @@ void get_simple_key_cache_statistics(SIMPLE_KEY_CACHE_CB *keycache,
   keycache_stats->blocks_used= keycache->blocks_used;
   keycache_stats->blocks_unused= keycache->blocks_unused;
   keycache_stats->blocks_changed= keycache->global_blocks_changed;
+  keycache_stats->blocks_warm= keycache->warm_blocks;
   keycache_stats->read_requests= keycache->global_cache_r_requests;
   keycache_stats->reads= keycache->global_cache_read;
   keycache_stats->write_requests= keycache->global_cache_w_requests;
   keycache_stats->writes= keycache->global_cache_write;
   DBUG_VOID_RETURN;  
-}
-
-
-/* 
-  Offsets of the statistical values in the control block for a simple key cache
-  The first NO_LONG_KEY_CACHE_STAT_VARIABLES=3 are of the ulong type  while the
-  remaining are of the ulonglong type.
- */
-static size_t simple_key_cache_stat_var_offsets[]=
-{
-  offsetof(SIMPLE_KEY_CACHE_CB, blocks_used),
-  offsetof(SIMPLE_KEY_CACHE_CB, blocks_unused),
-  offsetof(SIMPLE_KEY_CACHE_CB, global_blocks_changed),
-  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_w_requests),
-  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_write),
-  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_r_requests),
-  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_read)
-};
-
-
-/*
-  Get the value of a statistical variable for a simple key cache
-
-  SYNOPSIS
-    get_simple_key_cache_stat_value()
-    keycache            pointer to the control block of a simple key cache
-    var_no              the ordered number of a statistical variable 
-
-  DESCRIPTION
-    This function is the implementation of the get_simple_key_cache_stat_value
-    interface function that is employed by simple (non-partitioned) key caches.
-    The function takes the parameter keycache as a pointer to the
-    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
-    cache. This function returns the value of the statistical variable var_no
-    for this key cache. The variables are numbered starting from 0 to 6.
-
-  RETURN
-    The value of the specified statistical variable 
-
-*/
-
-static
-ulonglong get_simple_key_cache_stat_value(SIMPLE_KEY_CACHE_CB *keycache,
-                                          uint var_no)
-{
-  size_t var_ofs= simple_key_cache_stat_var_offsets[var_no];
-  ulonglong res= 0;
-  DBUG_ENTER("get_simple_key_cache_stat_value");
-
-  if (var_no < 3)
-    res= (ulonglong) (*(long *) ((char *) keycache + var_ofs));
-  else
-    res= *(ulonglong *) ((char *) keycache + var_ofs);
-  
-  DBUG_RETURN(res);
 }
 
 
@@ -4990,7 +4936,6 @@ static KEY_CACHE_FUNCS simple_key_cache_funcs =
   (RESET_KEY_CACHE_COUNTERS) reset_simple_key_cache_counters, 
   (END_KEY_CACHE) end_simple_key_cache, 
   (GET_KEY_CACHE_STATISTICS) get_simple_key_cache_statistics,
-  (GET_KEY_CACHE_STAT_VALUE) get_simple_key_cache_stat_value
 };
 
 
@@ -5853,6 +5798,7 @@ get_partitioned_key_cache_statistics(PARTITIONED_KEY_CACHE_CB *keycache,
     keycache_stats->blocks_used+= partition->blocks_used;
     keycache_stats->blocks_unused+= partition->blocks_unused;
     keycache_stats->blocks_changed+= partition->global_blocks_changed;
+    keycache_stats->blocks_warm+= partition->warm_blocks;
     keycache_stats->read_requests+= partition->global_cache_r_requests;
     keycache_stats->reads+= partition->global_cache_read;
     keycache_stats->write_requests+= partition->global_cache_w_requests;
@@ -5860,61 +5806,6 @@ get_partitioned_key_cache_statistics(PARTITIONED_KEY_CACHE_CB *keycache,
   }
   DBUG_VOID_RETURN;  
 }
-
-/*
-  Get the value of a statistical variable for a partitioned key cache
-
-  SYNOPSIS
-    get_partitioned_key_cache_stat_value()
-    keycache            pointer to the control block of a partitioned key cache
-    var_no              the ordered number of a statistical variable 
-
-  DESCRIPTION
-    This function is the implementation of the get_key_cache_stat_value
-    interface function that is employed by partitioned key caches.
-    The function takes the parameter keycache as a pointer to the
-    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
-    partitioned key cache.
-    This function returns the value of the statistical variable var_no
-    for this key cache. The variables are numbered starting from 0 to 6.
-    The returned value is calculated as the sum of the values of the
-    statistical variable with number var_no for all simple key caches that
-    comprise the partitioned key cache.
-
-  RETURN
-    The value of the specified statistical variable 
-*/
-
-static
-ulonglong
-get_partitioned_key_cache_stat_value(PARTITIONED_KEY_CACHE_CB *keycache,
-                                     uint var_no)
-{
-  uint i;
-  uint partitions= keycache->partitions;
-  size_t var_ofs= simple_key_cache_stat_var_offsets[var_no];
-  ulonglong res= 0;
-  DBUG_ENTER("get_partitioned_key_cache_stat_value");
-
-  if (var_no < NUM_LONG_KEY_CACHE_STAT_VARIABLES)
-  {
-    for (i = 0; i < partitions; i++)
-    {
-      SIMPLE_KEY_CACHE_CB *partition= keycache->partition_array[i];
-      res+= (ulonglong) (*(long *) ((char *) partition + var_ofs));
-    }
-  }
-  else
-  {
-    for (i = 0; i < partitions; i++)
-    {
-      SIMPLE_KEY_CACHE_CB *partition= keycache->partition_array[i];
-      res+= *(ulonglong *) ((char *) partition + var_ofs);
-    }
-  }
-  DBUG_RETURN(res);
-}
-
 
 /* 
   The array of pointers to the key cache interface functions used by 
@@ -5938,7 +5829,6 @@ static KEY_CACHE_FUNCS partitioned_key_cache_funcs =
   (RESET_KEY_CACHE_COUNTERS) reset_partitioned_key_cache_counters, 
   (END_KEY_CACHE) end_partitioned_key_cache, 
   (GET_KEY_CACHE_STATISTICS) get_partitioned_key_cache_statistics,
-  (GET_KEY_CACHE_STAT_VALUE) get_partitioned_key_cache_stat_value
 };
 
 
@@ -6246,8 +6136,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                                            block_length, return_buffer);
  
   /* We can't use mutex here as the key cache may not be initialized */
-  keycache->global_cache_r_requests++;
-  keycache->global_cache_read++;
 
   if (my_pread(file, (uchar*) buff, length, filepos, MYF(MY_NABP)))
     return (uchar *) 0;
@@ -6356,8 +6244,6 @@ int key_cache_write(KEY_CACHE *keycache,
                                             block_length, force_write);
   
   /* We can't use mutex here as the key cache may not be initialized */
-  keycache->global_cache_w_requests++;
-  keycache->global_cache_write++;
   if (my_pwrite(file, buff, length, filepos, MYF(MY_NABP | MY_WAIT_IF_FULL)))
     return 1;
 
@@ -6473,49 +6359,6 @@ void get_key_cache_statistics(KEY_CACHE *keycache, uint partition_no,
                                          partition_no, key_cache_stats);
   }
 }
-
-
-/*
-  Get the value of a statistical variable for a key cache
-
-  SYNOPSIS
-    get_key_cache_stat_value()
-    keycache            pointer to the key cache to get statistics for
-    var_no              the ordered number of a statistical variable 
-
-  DESCRIPTION
-    This function returns the value of the statistical variable var_no for
-    the key cache keycache. The variables are numbered starting from 0 to 6.
-
-  RETURN
-    The value of the specified statistical variable.
-
-  NOTES 
-    Currently for any key cache the function can return values for the
-    following 7 statistical variables:
-  
-    Name             Number
-    
-    blocks_used        0
-    blocks_unused      1
-    blocks_changed     2
-    read_requests      3
-    reads              4
-    write_requests     5
-    writes             6
-*/
-
-ulonglong get_key_cache_stat_value(KEY_CACHE *keycache, uint var_no)
-{
-  if (keycache->key_cache_inited)
-  {    
-    return keycache->interface_funcs->get_stat_val(keycache->keycache_cb,
-                                                   var_no);
-  }
-  else
-    return 0;
-}
-  
 
 /*
   Repartition a key cache
