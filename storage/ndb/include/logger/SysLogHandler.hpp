@@ -21,8 +21,6 @@
 
 #include "LogHandler.hpp"
 
-#include <syslog.h>
-
 /**
  * Logs messages to syslog. The default identity is 'NDB'. 
  * See 'man 3 syslog'. 
