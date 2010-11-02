@@ -4333,7 +4333,19 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   // will have to refine the clause.
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
               BINLOG_CHECKSUM_ALG_UNDEF);
-
+              
+  // Emulate the network corruption
+  DBUG_EXECUTE_IF("corrupt_queue_event",
+    if (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+    {
+      char *debug_event_buf_c = (char*) buf;
+      int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
+      debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
+      DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
+      DBUG_SET("-d,corrupt_queue_event");
+    }
+  );
+                                              
   if (event_checksum_test((uchar *) buf, event_len, checksum_alg))
   {
     error= ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE;

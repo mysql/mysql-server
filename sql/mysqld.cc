@@ -4572,6 +4572,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
+  srand(time(NULL)); 
 #endif
 
   /*
