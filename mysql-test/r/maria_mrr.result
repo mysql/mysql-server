@@ -335,3 +335,110 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY,idx	NULL	NULL	NULL	16	Using where; Using join buffer
 1	SIMPLE	t3	ref	PRIMARY,idx	idx	3	test.t2.v	2	Using index condition; Using where
 DROP TABLE t1,t2,t3;
+#
+# Bug #669420: MRR for Range checked for each record
+#
+CREATE TABLE t1 (
+pk int NOT NULL PRIMARY KEY,
+j int NOT NULL,
+i int NOT NULL,
+v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+INDEX i (i),
+INDEX vi (v,i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES (10,3,8,'v'),(11,3,8,'f');
+CREATE TABLE t2 (
+pk int NOT NULL PRIMARY KEY,
+j int  NOT NULL,
+i int  NOT NULL,
+v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+INDEX i (i),
+INDEX vi (v,i)
+) ENGINE=ARIA;
+INSERT INTO t2 VALUES (10,9,3,'i'),(11,101,186,'x'),(12,0,1,'g');
+SET SESSION join_cache_level=0;
+EXPLAIN 
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i	4	NULL	2	Using index
+1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index
+1	SIMPLE	t3	ALL	PRIMARY,vi	NULL	NULL	NULL	3	Range checked for each record (index map: 0x5)
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+i	i	v	pk	v
+8	1	g	10	i
+8	1	g	11	x
+8	1	g	12	g
+8	3	i	10	i
+8	3	i	11	x
+8	1	g	10	i
+8	1	g	11	x
+8	1	g	12	g
+8	3	i	10	i
+8	3	i	11	x
+SET SESSION join_cache_level=1;
+EXPLAIN 
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	i	4	NULL	2	Using index
+1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index; Using join buffer
+1	SIMPLE	t3	ALL	PRIMARY,vi	NULL	NULL	NULL	3	Range checked for each record (index map: 0x5)
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+i	i	v	pk	v
+8	3	i	10	i
+8	3	i	11	x
+8	3	i	10	i
+8	3	i	11	x
+8	1	g	10	i
+8	1	g	11	x
+8	1	g	12	g
+8	1	g	10	i
+8	1	g	11	x
+8	1	g	12	g
+SET SESSION join_cache_level=DEFAULT;
+DROP TABLE t1,t2;
+CREATE TABLE t1 (
+pk int NOT NULL PRIMARY KEY,
+j int NOT NULL,
+i int NOT NULL,
+v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+INDEX i (i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES 
+(10,3,8,'v'),(11,3,8,'f'),(12,3,5,'v'),(13,2,8,'s'),(14,1,8,'a'),
+(15,0,6,'p'),(16,8,7,'z'),(17,5,2,'a'),(18,9,5,'h'),(19,5,7,'h'),
+(20,4,2,'v'),(21,2,9,'v'),(22,33,142,'b'),(23,5,3,'y'),(24,1,0,'v'),
+(25,9,3,'m'),(26,1,5,'z'),(27,3,9,'n'),(28,8,1,'d'),(29,231,107,'a');
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	
+1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Range checked for each record (index map: 0x3)
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
+f
+142
+142
+107
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	Using temporary; Using filesort
+1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Range checked for each record (index map: 0x3)
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
+f
+107
+142
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Using temporary; Using filesort
+1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	Using where
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
+f
+107
+SET SESSION join_cache_level=DEFAULT;
+DROP TABLE t1;
