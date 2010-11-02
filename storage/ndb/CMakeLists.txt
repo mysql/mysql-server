@@ -20,6 +20,9 @@ ENDIF()
 
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
+IF(WITH_NDB_TEST)
+  MESSAGE(STATUS "Building NDB test programs")
+ENDIF()
 
 SET(WITH_NDB_PORT "" CACHE INTEGER
   "Default port used by NDB Cluster management server")
