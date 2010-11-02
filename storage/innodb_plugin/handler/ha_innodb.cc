@@ -7343,6 +7343,7 @@ ha_innobase::estimate_rows_upper_bound(void)
 	dict_index_t*	index;
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
+	ulint		stat_n_leaf_pages;
 
 	DBUG_ENTER("estimate_rows_upper_bound");
 
@@ -7362,10 +7363,12 @@ ha_innobase::estimate_rows_upper_bound(void)
 
 	index = dict_table_get_first_index(prebuilt->table);
 
-	ut_a(index->stat_n_leaf_pages > 0);
+	stat_n_leaf_pages = index->stat_n_leaf_pages;
+
+	ut_a(stat_n_leaf_pages > 0);
 
 	local_data_file_length =
-		((ulonglong) index->stat_n_leaf_pages) * UNIV_PAGE_SIZE;
+		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE;
 
 
 	/* Calculate a minimum length for a clustered index record and from
@@ -7564,7 +7567,9 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table);
+			dict_update_statistics(ib_table,
+					       FALSE /* update even if stats
+						     are initialized */);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -7583,6 +7588,9 @@ ha_innobase::info_low(
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {
+
+		dict_table_stats_lock(ib_table, RW_S_LATCH);
+
 		n_rows = ib_table->stat_n_rows;
 
 		/* Because we do not protect stat_n_rows by any mutex in a
@@ -7631,6 +7639,8 @@ ha_innobase::info_low(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
+
+		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
@@ -7708,6 +7718,8 @@ ha_innobase::info_low(
 					table->s->keys);
 		}
 
+		dict_table_stats_lock(ib_table, RW_S_LATCH);
+
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
 			/* We could get index quickly through internal
@@ -7745,8 +7757,6 @@ ha_innobase::info_low(
 					break;
 				}
 
-				dict_index_stat_mutex_enter(index);
-
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -7754,8 +7764,6 @@ ha_innobase::info_low(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
-
-				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -7773,6 +7781,8 @@ ha_innobase::info_low(
 				  (ulong) rec_per_key;
 			}
 		}
+
+		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
