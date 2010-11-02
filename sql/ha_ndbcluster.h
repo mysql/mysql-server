@@ -702,7 +702,7 @@ private:
   bool check_index_fields_not_null(KEY *key_info);
 
   bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
-                         uint idx= MAX_KEY,
+                         uint idx= 0,
 			 bool rootSorted= false) const;
   bool check_is_pushed() const;
   int create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
