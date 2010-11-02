@@ -403,6 +403,32 @@ ORDER BY f1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#52660 - "Perf. regr. using ICP for MyISAM on range queries on 
+--echo #              an index containing TEXT"
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 SELECT A.a + 10*(B.a) FROM t1 A, t1 B;
+
+CREATE TABLE t3 (
+  c1 TINYTEXT NOT NULL,
+  i1 INT NOT NULL,
+  KEY (c1(6),i1)
+);
+
+INSERT INTO t3 SELECT CONCAT('c-',1000+t2.a,'=w'), 1 FROM t2;
+
+let query=SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
 --echo # Bug#57372 "Multi-table updates and deletes fail when running with ICP 
 --echo #            against InnoDB"
 --echo #
