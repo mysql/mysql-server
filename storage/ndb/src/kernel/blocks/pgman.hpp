@@ -424,12 +424,32 @@ private:
 
   // runtime sizes and statistics
   struct Stats {
-    Stats();
+    Stats() :
+      m_num_pages(0),
+      m_num_hot_pages(0),
+      m_current_io_waits(0),
+      m_page_hits(0),
+      m_page_faults(0),
+      m_pages_written(0),
+      m_pages_written_lcp(0),
+      m_pages_read(0),
+      m_log_waits(0),
+      m_page_requests_direct_return(0),
+      m_page_requests_wait_q(0),
+      m_page_requests_wait_io(0)
+    {}
     Uint32 m_num_pages;         // current number of cache pages
     Uint32 m_num_hot_pages;
     Uint32 m_current_io_waits;
     Uint64 m_page_hits;
     Uint64 m_page_faults;
+    Uint64 m_pages_written;
+    Uint64 m_pages_written_lcp;
+    Uint64 m_pages_read;
+    Uint64 m_log_waits; // wait for undo WAL to flush the log recs
+    Uint64 m_page_requests_direct_return;
+    Uint64 m_page_requests_wait_q;
+    Uint64 m_page_requests_wait_io;
   } m_stats;
 
   enum CallbackIndex {
@@ -458,6 +478,8 @@ protected:
   void execDUMP_STATE_ORD(Signal* signal);
 
   void execDATA_FILE_ORD(Signal*);
+
+  void execDBINFO_SCANREQ(Signal*);
 
 private:
   static Uint32 get_sublist_no(Page_state state);
