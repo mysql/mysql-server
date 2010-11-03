@@ -356,7 +356,7 @@ lock_wait_suspend_thread(
 	incomplete transactions that are being rolled back after crash
 	recovery) will use the global value of
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
-	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+	lock_wait_timeout = trx_lock_wait_timeout_get(trx);
 
 	if (lock_wait_timeout < 100000000
 	    && wait_time > (double) lock_wait_timeout) {
@@ -423,7 +423,7 @@ lock_wait_check_and_cancel(
 
 	trx_mutex_enter(trx);
 
-	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+	lock_wait_timeout = trx_lock_wait_timeout_get(trx);
 
 	if (trx_is_interrupted(trx)
 	    || (lock_wait_timeout < 100000000

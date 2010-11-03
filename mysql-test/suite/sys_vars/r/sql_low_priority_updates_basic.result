@@ -8,14 +8,24 @@ SELECT @global_start_value;
 0
 '#--------------------FN_DYNVARS_159_01------------------------#'
 SET @@session.sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SET @@session.sql_low_priority_updates = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET @@global.sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SET @@global.sql_low_priority_updates = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 '#---------------------FN_DYNVARS_159_02-------------------------#'
 SET sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@sql_low_priority_updates;
 @@sql_low_priority_updates
 1
@@ -26,27 +36,39 @@ ERROR 42S02: Unknown table 'local' in field list
 SELECT global.sql_low_priority_updates;
 ERROR 42S02: Unknown table 'global' in field list
 SET session sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET global sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 0
 '#--------------------FN_DYNVARS_159_03------------------------#'
 SET @@session.sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET @@session.sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 1
 SET @@global.sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 0
 SET @@global.sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 1
@@ -85,11 +107,17 @@ SET @@global.sql_low_priority_updates = ÓFF;
 ERROR 42000: Variable 'sql_low_priority_updates' can't be set to the value of 'ÓFF'
 '#-------------------FN_DYNVARS_159_05----------------------------#'
 SET @@global.sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SET @@session.sql_low_priority_updates = 1;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates AS res_is_0;
 res_is_0
 0
 SET @@global.sql_low_priority_updates = 0;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates AS res_is_1;
 res_is_1
 1
@@ -123,43 +151,63 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_159_08-------------------------#'
 SET @@session.sql_low_priority_updates = OFF;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET @@session.sql_low_priority_updates = ON;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 1
 SET @@global.sql_low_priority_updates = OFF;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 0
 SET @@global.sql_low_priority_updates = ON;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 1
 '#---------------------FN_DYNVARS_159_09----------------------#'
 SET @@session.sql_low_priority_updates = TRUE;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 1
 SET @@session.sql_low_priority_updates = FALSE;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET @@global.sql_low_priority_updates = TRUE;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 1
 SET @@global.sql_low_priority_updates = FALSE;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 0
 SET @@session.sql_low_priority_updates = @session_start_value;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@session.sql_low_priority_updates;
 @@session.sql_low_priority_updates
 0
 SET @@global.sql_low_priority_updates = @global_start_value;
+Warnings:
+Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 SELECT @@global.sql_low_priority_updates;
 @@global.sql_low_priority_updates
 0

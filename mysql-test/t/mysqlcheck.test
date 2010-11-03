@@ -217,8 +217,13 @@ create table `#mysql50#t1-1` (a int);
 show tables like 't1-1';
 drop table `t1-1`;
 
---echo End of 5.1 tests
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlcheck --protcol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_CHECK --protocol=tcp --bind-address=127.0.0.1 --databases test
 
+--echo End of 5.1 tests
 
 --echo #
 --echo # Bug #35269: mysqlcheck behaves different depending on order of parameters

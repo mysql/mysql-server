@@ -305,7 +305,7 @@ CREATE TABLE t2 (primary key (a)) engine=innodb select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 DROP TABLE if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 INSERT INTO t1 values (3,3);
 CREATE TEMPORARY TABLE t2 (primary key (a)) engine=innodb select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -314,7 +314,7 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb;
 INSERT INTO t1 VALUES (4,4);
 CREATE TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;

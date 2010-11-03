@@ -18,7 +18,7 @@
                                              // mysql_exchange_partition
 #include "sql_alter.h"
 
-bool Alter_table_statement::execute(THD *thd)
+bool Sql_cmd_alter_table::execute(THD *thd)
 {
   LEX *lex= thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
@@ -38,7 +38,7 @@ bool Alter_table_statement::execute(THD *thd)
   ulong priv_needed= ALTER_ACL;
   bool result;
 
-  DBUG_ENTER("Alter_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_alter_table::execute");
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(TRUE);

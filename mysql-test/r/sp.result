@@ -3272,9 +3272,9 @@ Warnings:
 Note	1051	Unknown table 'test.tv'
 DROP TABLE IF EXISTS tt1,tt2,tt3|
 Warnings:
-Note	1051	Unknown table 'tt1'
-Note	1051	Unknown table 'tt2'
-Note	1051	Unknown table 'tt3'
+Note	1051	Unknown table 'test.tt1'
+Note	1051	Unknown table 'test.tt2'
+Note	1051	Unknown table 'test.tt3'
 CREATE TABLE tt1 (a1 int, a2 int, a3 int, data varchar(10))|
 CREATE TABLE tt2 (a2 int, data2 varchar(10))|
 CREATE TABLE tt3 (a3 int, data3 varchar(10))|
@@ -6525,19 +6525,19 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index

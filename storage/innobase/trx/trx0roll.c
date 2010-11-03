@@ -491,9 +491,9 @@ trx_rollback_active(
 		(ullint) trx->id,
 		(ulong) rows_to_undo, unit);
 
-	trx->mysql_thread_id = os_thread_get_curr_id();
+	trx->mysql_thread_id = 0;
 
-	trx->mysql_process_no = os_proc_get_number();
+	trx->mysql_process_no = 0;
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
 		row_mysql_lock_data_dictionary(trx);

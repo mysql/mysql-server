@@ -196,7 +196,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
+ ("Slave: Unknown table 'test.t1' Error_code: 1051"),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -207,7 +207,7 @@ INSERT INTO global_suppressions VALUES
  ("The path specified for the variable .* is not a directory or cannot be written:"),
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
+ ("Slave: Unknown table 'test.t1' Error_code: 1051"),
 
  /* Messages from valgrind */
  ("==[0-9]*== Memcheck,"),

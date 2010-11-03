@@ -65,6 +65,19 @@ The following options may be given as the first argument:
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-row-image=name 
+ Controls whether rows should be logged in 'FULL',
+ 'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all
+ columns in the before and after image are logged.
+ 'NOBLOB', means that mysqld avoids logging blob columns
+ whenever possible (eg, blob column was not changed or is
+ not part of primary key). 'MINIMAL', means that a PK
+ equivalent (PK columns or full row if there is no PK in
+ the table) is logged in the before image, and only
+ changed columns are logged in the after image. (Default:
+ FULL).
+ --binlog-rows-query-log-events 
+ Allow writing of Rows_query_log events into binary log.
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -199,7 +212,7 @@ The following options may be given as the first argument:
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
  --lc-messages=name  Set the language used for the error messages.
- -L, --lc-messages-dir=name 
+ --lc-messages-dir=name 
  Directory where error messages are
  --lc-time-names=name 
  Set the language used for the month names and the days of
@@ -269,9 +282,13 @@ The following options may be given as the first argument:
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
  master's binlogs.
+ --master-info-repository=name 
+ Defines the type of the repository for the master
+ information.
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
- master before giving up.
+ master before giving up. Deprecated option, use 'CHANGE
+ MASTER TO master_retry_count = <num>' instead.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
@@ -381,6 +398,10 @@ The following options may be given as the first argument:
  value is 0 then mysqld will reserve max_connections*5 or
  max_connections + table_cache*2 (whichever is larger)
  number of file descriptors
+ --optimizer-join-cache-level=# 
+ Controls what join operations can be executed with join
+ buffers. Odd numbers are used for plain join buffers
+ while even numbers are used for linked buffers
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -433,6 +454,8 @@ The following options may be given as the first argument:
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads.
+ --performance-schema-setup-actors-size=# 
+ Maximum number of rows in SETUP_ACTORS.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -487,6 +510,9 @@ The following options may be given as the first argument:
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
+ --relay-log-info-repository=name 
+ Defines the type of the repository for the relay log
+ information.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -726,6 +752,8 @@ binlog-cache-size 32768
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
+binlog-row-image FULL
+binlog-rows-query-log-events FALSE
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
@@ -799,6 +827,7 @@ long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
+master-info-repository FILE
 master-retry-count 86400
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
@@ -840,6 +869,7 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
+optimizer-join-cache-level 1
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
@@ -859,6 +889,7 @@ performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
+performance-schema-setup-actors-size 100
 plugin-load (No default value)
 port 3306
 port-open-timeout 0
@@ -878,6 +909,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
+relay-log-info-repository FILE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0

@@ -417,6 +417,23 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE SETUP_ACTORS
+--
+
+SET @l1="CREATE TABLE performance_schema.SETUP_ACTORS(";
+SET @l2="HOST CHAR(60) collate utf8_bin default '%' not null,";
+SET @l3="USER CHAR(16) collate utf8_bin default '%' not null,";
+SET @l4="ROLE CHAR(16) collate utf8_bin default '%' not null";
+SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE SETUP_CONSUMERS
 --
 
@@ -465,8 +482,19 @@ DROP PREPARE stmt;
 
 SET @cmd="CREATE TABLE performance_schema.THREADS("
   "THREAD_ID INTEGER not null,"
-  "ID INTEGER not null,"
-  "NAME VARCHAR(64) not null"
+  "NAME VARCHAR(128) not null,"
+  "TYPE VARCHAR(10) not null,"
+  "PROCESSLIST_ID INTEGER,"
+  "PROCESSLIST_USER VARCHAR(16),"
+  "PROCESSLIST_HOST VARCHAR(60),"
+  "PROCESSLIST_DB VARCHAR(64),"
+  "PROCESSLIST_COMMAND VARCHAR(16),"
+  "PROCESSLIST_TIME BIGINT,"
+  "PROCESSLIST_STATE VARCHAR(64),"
+  "PROCESSLIST_INFO LONGTEXT,"
+  "PARENT_THREAD_ID INTEGER,"
+  "ROLE VARCHAR(64),"
+  "INSTRUMENTED ENUM ('YES', 'NO') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

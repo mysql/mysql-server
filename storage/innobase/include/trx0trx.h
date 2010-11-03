@@ -338,6 +338,15 @@ trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
 
+/** Transactions that aren't started by the MySQL server don't set
+the trx_t::mysql_thd field. For such transactions we set the lock
+wait timeout to 0 instead of the user configured value that comes
+from innodb_lock_wait_timeout via trx_t::mysql_thd. */
+#define trx_lock_wait_timeout_get(trx)					\
+	((trx)->mysql_thd != NULL					\
+	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
+	 : 0)
+
 typedef struct trx_lock_struct trx_lock_t;
 
 /*******************************************************************//**
@@ -579,11 +588,6 @@ struct trx_struct{
 					survive over a transaction commit, if
 					it is a stored procedure with a COMMIT
 					WORK statement, for instance */
-	que_t*		graph_before_signal_handling;
-					/*!< value of graph when signal handling
-					for this trx started: this is used to
-					return control to the original query
-					graph for error processing */
 	mem_heap_t*	global_read_view_heap;
 					/*!< memory heap for the global read
 					view */
