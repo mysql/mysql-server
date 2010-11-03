@@ -1,0 +1,31 @@
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+SET binlog_format = 'mixed';
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE TABLE t2 (b INT PRIMARY KEY) ENGINE=pbxt;
+BEGIN;
+# verify that binlog is on
+SELECT @@log_bin;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+COMMIT;
+select * from t1;
+select * from t2;
+
+# Test 2-phase commit when we disable binlogging.
+SET sql_log_bin = 0;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (4);
+COMMIT;
+select * from t1 order by a;
+select * from t2 order by b;
+
+drop table t1, t2;
+drop database pbxt;
+
