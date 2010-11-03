@@ -87,7 +87,10 @@ trx_set_detailed_error_from_file(
 }
 
 /****************************************************************//**
-Creates and initializes a transaction object. */
+Creates and initializes a transaction object. It must be explicitly
+started with trx_start_if_not_started() before using it. The default
+isolation level is TRX_ISO_REPEATABLE_READ.
+@return transaction instance, should never be NULL */
 static
 trx_t*
 trx_create(void)
@@ -102,7 +105,6 @@ trx_create(void)
 	trx->magic_n = TRX_MAGIC_N;
 
 	trx->state = TRX_STATE_NOT_STARTED;
-	trx->start_time = ut_time();
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
@@ -132,7 +134,7 @@ trx_create(void)
 
 	trx->op_info = "";
 
-	/* Remember to free the vector explicitly. */
+	/* Remember to free the vector explicitly in trx_free(). */
 	trx->autoinc_locks = ib_vector_create(
 		mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 4), 4);
 
@@ -621,7 +623,7 @@ trx_assign_rseg(void)
 }
 
 /****************************************************************//**
-Starts a new transaction. */
+Starts a new transaction it must not already be active. */
 static
 void
 trx_start_low(
