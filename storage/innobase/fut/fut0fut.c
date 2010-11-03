@@ -2737,6 +2737,7 @@ fts_write_node(
 {
 	pars_info_t*	info;
 	ulint		error;
+	ib_uint32_t	doc_count;
 	ib_time_t	start_time;
 	doc_id_t	last_doc_id;
 	doc_id_t	first_doc_id;
@@ -2762,8 +2763,9 @@ fts_write_node(
 	ut_a(node->last_doc_id >= node->first_doc_id);
 
 	/* Convert to "storage" byte order. */
+	mach_write_to_4((byte*) &doc_count, node->doc_count);
 	pars_info_bind_int4_literal(info, "doc_count",
-				    (const ib_uint32_t*) &node->doc_count);
+				    (const ib_uint32_t*) &doc_count);
 
 	/* Set copy_name to FALSE since it's a static. */
 	pars_info_bind_literal(
