@@ -64,7 +64,7 @@ extern "C" {
 #pragma pack(push, 1)
 #endif
 struct __attribute__ ((__packed__)) leafentry {
-    uint8_t  attributes;
+    uint8_t  type;
     uint32_t keylen;
     union {
         struct __attribute__ ((__packed__)) leafentry_clean {
@@ -88,14 +88,14 @@ struct __attribute__ ((__packed__)) leafentry {
 
 enum { LE_CLEAN = 0, LE_MVCC = 1 };
 #define LE_CLEAN_MEMSIZE(keylen, vallen)                         \
-    (sizeof(((LEAFENTRY)NULL)->attributes)      /* num_uxrs */   \
+    (sizeof(((LEAFENTRY)NULL)->type)      /* num_uxrs */   \
     +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */     \
     +sizeof(((LEAFENTRY)NULL)->u.clean.vallen)  /* vallen */     \
     +keylen                                     /* actual key */ \
     +vallen)                                    /* actual val */
 
 #define LE_MVCC_COMMITTED_HEADER_MEMSIZE                          \
-    (sizeof(((LEAFENTRY)NULL)->attributes)      /* num_uxrs */    \
+    (sizeof(((LEAFENTRY)NULL)->type)      /* num_uxrs */    \
     +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */      \
     +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_cxrs) /* committed */   \
     +sizeof(((LEAFENTRY)NULL)->u.mvcc.num_pxrs) /* provisional */ \

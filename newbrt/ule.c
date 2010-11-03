@@ -376,66 +376,6 @@ static void ule_optimize(ULE ule, XIDS xids) {
 // and of the unpacked leafentry.  It is the only layer that understands the
 // structure of leafentry.  It has no knowledge of any other data structures.
 //
-// There are two formats for a packed leaf entry, indicated by the number of 
-// transaction records:
-// 
-// No uncommitted transactions: 
-//  num = 1  (one byte)
-//  keylen   (4 bytes)
-//  vallen   (4 bytes)
-//  key      (keylen bytes)
-//  val      (vallen bytes)
-// 
-// At least one uncommitted transaction (maybe a committed value as well):
-// 
-//  num > 1
-//  keylen
-//  vallen of innermost insert
-//  type of innermost transaction record
-//  xid of outermost uncommitted transaction 
-//  key
-//  val of innermost insert
-//  records excluding extracted data above
-//   first (innermost) record is missing the type (above)
-//   innermost insert record is missing the vallen and val
-//   outermost uncommitted record is missing xid
-//   outermost record (always committed) is missing xid (implied 0)
-//    default record:
-//      type = XR_INSERT  or  type = XR_PLACEHOLDER or XR_DELETE
-//      xid                   xid
-//      vallen
-//      val
-//     
-//
-
-#if 0
-#if TOKU_WINDOWS
-#pragma pack(push, 1)
-#endif
-//TODO: #1125 Add tests to verify ALL offsets (to verify we used 'pack' right).
-//            May need to add extra __attribute__((__packed__)) attributes within the definition
-struct __attribute__ ((__packed__)) leafentry {
-    u_int8_t  num_xrs;
-    u_int32_t keylen;
-    u_int32_t innermost_inserted_vallen;
-    union {
-        struct leafentry_committed {
-            u_int8_t key_val[0];     //Actual key, then actual val
-        } comm;
-        struct leafentry_provisional {
-            u_int8_t innermost_type;
-            TXNID    xid_outermost_uncommitted;
-            u_int8_t key_val_xrs[];  //Actual key,
-                                     //then actual innermost inserted val,
-                                     //then transaction records.
-        } prov;
-    } u;
-};
-#if TOKU_WINDOWS
-#pragma pack(pop)
-#endif
-#endif
-
 
 //
 // required for every le_unpack that is done
@@ -454,10 +394,10 @@ void
 le_unpack(ULE ule, LEAFENTRY le) {
     //Read the keylen
     ule->keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
     uint8_t *p;
     uint32_t i;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN: {
             ule->uxrs = ule->uxrs_static; //Static version is always enough.
             ule->num_cuxrs = 1;
@@ -672,7 +612,7 @@ found_insert:;
     //Type specific data
     if (ule->num_cuxrs == 1 && ule->num_puxrs == 0) {
         //Pack a 'clean leafentry' (no uncommitted transactions, only one committed value)
-        new_leafentry->attributes = LE_CLEAN;
+        new_leafentry->type = LE_CLEAN;
 
         uint32_t vallen = ule->uxrs[0].vallen;
         //Store vallen
@@ -690,7 +630,7 @@ found_insert:;
     else {
         uint32_t i;
         //Pack an 'mvcc leafentry'
-        new_leafentry->attributes = LE_MVCC;
+        new_leafentry->type = LE_MVCC;
 
         new_leafentry->u.mvcc.num_cxrs = toku_htod32(ule->num_cuxrs);
         new_leafentry->u.mvcc.num_pxrs = ule->num_puxrs;
@@ -802,14 +742,14 @@ le_memsize_from_ule (ULE ule) {
     if (ule->num_cuxrs == 1 && ule->num_puxrs == 0) {
         UXR committed = ule->uxrs;
         invariant(uxr_is_insert(committed));
-        rval = 1                    //attributes
+        rval = 1                    //type
               +4                    //keylen
               +4                    //vallen
               +ule->keylen          //actual key
               +committed->vallen;   //actual val
     }
     else {
-        rval = 1                    //attributes
+        rval = 1                    //type
               +4                    //num_cuxrs
               +1                    //num_puxrs
               +4                    //keylen
@@ -848,10 +788,10 @@ leafentry_memsize (LEAFENTRY le) {
     size_t rval = 0;
 
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
 
     uint8_t *p;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN: {
             uint32_t vallen = toku_dtoh32(le->u.clean.vallen);
             rval = LE_CLEAN_MEMSIZE(keylen, vallen);
@@ -959,7 +899,7 @@ le_clean_xids(LEAFENTRY le,
     ule_cleanup(&ule);
 #endif
 
-    invariant(le->attributes != LE_CLEAN);
+    invariant(le->type != LE_CLEAN);
     uint32_t keylen;
     uint32_t vallen;
     void *keyp = le_key_and_len(le, &keylen);
@@ -967,7 +907,7 @@ le_clean_xids(LEAFENTRY le,
     invariant(valp);
     
     //le->keylen unchanged
-    le->attributes = LE_CLEAN;
+    le->type = LE_CLEAN;
     le->u.clean.vallen = toku_htod32(vallen);
     memmove(le->u.clean.key_val, keyp, keylen);
     memmove(le->u.clean.key_val + keylen, valp, vallen);
@@ -984,9 +924,9 @@ le_clean_xids(LEAFENTRY le,
 
 uint32_t
 le_num_xids(LEAFENTRY le) {
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
     uint32_t rval;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             rval = 0;
             break;
@@ -1012,9 +952,9 @@ le_num_xids(LEAFENTRY le) {
 int le_latest_is_del(LEAFENTRY le) {
     int rval;
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
     uint8_t *p;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN: {
             rval = 0;
             break;
@@ -1088,11 +1028,11 @@ le_latest_keylen (LEAFENTRY le) {
 void*
 le_latest_val_and_len (LEAFENTRY le, u_int32_t *len) {
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
     void *valp;
 
     uint8_t *p;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             *len = toku_dtoh32(le->u.clean.vallen);
             valp = le->u.clean.key_val + keylen;
@@ -1168,9 +1108,9 @@ u_int32_t
 le_latest_vallen (LEAFENTRY le) {
     u_int32_t rval;
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
     uint8_t *p;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             rval = toku_dtoh32(le->u.clean.vallen);
             break;
@@ -1219,10 +1159,10 @@ le_latest_vallen (LEAFENTRY le) {
 void*
 le_key_and_len (LEAFENTRY le, u_int32_t *len) {
     *len = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
 
     void *keyp;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             keyp = le->u.clean.key_val;
             break;
@@ -1252,10 +1192,10 @@ le_key_and_len (LEAFENTRY le, u_int32_t *len) {
 //WILL BE DELETED can be slow
 void*
 le_key (LEAFENTRY le) {
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
 
     void *rval;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             rval = le->u.clean.key_val;
             break;
@@ -1294,10 +1234,10 @@ le_outermost_uncommitted_xid (LEAFENTRY le) {
     uint64_t rval = TXNID_NONE;
 
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t  attributes = le->attributes;
+    uint8_t  type = le->type;
 
     uint8_t *p;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN:
             break;
         case LE_MVCC:;
@@ -1784,10 +1724,10 @@ le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_emptyp, TOKUTX
 #endif
 
     //Read the keylen
-    uint8_t attributes = le->attributes;
+    uint8_t type = le->type;
     int r;
     BOOL is_empty = FALSE;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN: {
             r = 0;
 #if ULE_DEBUG
@@ -1848,11 +1788,11 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *val
 
     //Read the keylen
     uint32_t keylen = toku_dtoh32(le->keylen);
-    uint8_t attributes = le->attributes;
+    uint8_t type = le->type;
     int r;
     uint32_t vallen = 0;
     void *valp = NULL;
-    switch (attributes) {
+    switch (type) {
         case LE_CLEAN: {
             vallen = toku_dtoh32(le->u.clean.vallen);
             valp   = le->u.clean.key_val + keylen;
@@ -1945,7 +1885,7 @@ le_clean(uint8_t *key, uint32_t keylen,
          void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
          struct dbuf *d) {
     struct leafentry le = {
-        .attributes = LE_CLEAN,
+        .type = LE_CLEAN,
         .keylen     = toku_htod32(keylen),
         .u.clean = {
             vallen = toku_htod32(vallen)
@@ -1965,7 +1905,7 @@ le_committed_mvcc(uint8_t *key, uint32_t keylen,
                   void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
                   struct dbuf *d) {
     struct leafentry le = {
-        .attributes = LE_MVCC,
+        .type = LE_MVCC,
         .keylen     = toku_htod32(keylen),
         .u.mvcc = {
             .num_cxrs = toku_htod32(2), //TXNID_NONE and xid each have committed xrs
