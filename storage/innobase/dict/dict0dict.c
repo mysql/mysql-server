@@ -91,9 +91,18 @@ UNIV_INTERN mysql_pfs_key_t	dict_foreign_err_mutex_key;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-/** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
-#define DICT_INDEX_STAT_MUTEX_SIZE	32
-mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+/** array of rw locks protecting
+dict_table_t::stat_initialized
+dict_table_t::stat_n_rows (*)
+dict_table_t::stat_clustered_index_size
+dict_table_t::stat_sum_of_other_index_sizes
+dict_table_t::stat_modified_counter (*)
+dict_table_t::indexes*::stat_n_diff_key_vals[]
+dict_table_t::indexes*::stat_index_size
+dict_table_t::indexes*::stat_n_leaf_pages
+(*) those are not always protected for performance reasons */
+#define DICT_TABLE_STATS_LATCHES_SIZE	64
+static rw_lock_t	dict_table_stats_latches[DICT_TABLE_STATS_LATCHES_SIZE];
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
@@ -254,43 +263,65 @@ dict_mutex_exit_for_mysql(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
-/** Get the mutex that protects index->stat_n_diff_key_vals[] */
-#define GET_INDEX_STAT_MUTEX(index) \
-	(&dict_index_stat_mutex[ut_fold_ull(index->id) \
-				% DICT_INDEX_STAT_MUTEX_SIZE])
+/** Get the latch that protects the stats of a given table */
+#define GET_TABLE_STATS_LATCH(table) \
+	(&dict_table_stats_latches[ut_fold_ull(table->id) \
+				   % DICT_TABLE_STATS_LATCHES_SIZE])
 
 /**********************************************************************//**
-Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
-index->id is used to pick the right mutex and it should not change
-before dict_index_stat_mutex_exit() is called on this index. */
+Lock the appropriate latch to protect a given table's statistics.
+table->id is used to pick the corresponding latch from a global array of
+latches. */
 UNIV_INTERN
 void
-dict_index_stat_mutex_enter(
-/*========================*/
-	const dict_index_t*	index)	/*!< in: index */
+dict_table_stats_lock(
+/*==================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode)	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 {
-	ut_ad(index != NULL);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(index->cached);
-	ut_ad(!index->to_be_dropped);
+	ut_ad(table != NULL);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	mutex_enter(GET_INDEX_STAT_MUTEX(index));
+	switch (latch_mode) {
+	case RW_S_LATCH:
+		rw_lock_s_lock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_X_LATCH:
+		rw_lock_x_lock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_NO_LATCH:
+		/* fall through */
+	default:
+		ut_error;
+	}
 }
 
 /**********************************************************************//**
-Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+Unlock the latch that has been locked by dict_table_stats_lock() */
 UNIV_INTERN
 void
-dict_index_stat_mutex_exit(
-/*=======================*/
-	const dict_index_t*	index)	/*!< in: index */
+dict_table_stats_unlock(
+/*====================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			latch_mode)	/*!< in: RW_S_LATCH or
+						RW_X_LATCH */
 {
-	ut_ad(index != NULL);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-	ut_ad(index->cached);
-	ut_ad(!index->to_be_dropped);
+	ut_ad(table != NULL);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	mutex_exit(GET_INDEX_STAT_MUTEX(index));
+	switch (latch_mode) {
+	case RW_S_LATCH:
+		rw_lock_s_unlock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_X_LATCH:
+		rw_lock_x_unlock(GET_TABLE_STATS_LATCH(table));
+		break;
+	case RW_NO_LATCH:
+		/* fall through */
+	default:
+		ut_error;
+	}
 }
 
 /********************************************************************//**
@@ -682,9 +713,9 @@ dict_init(void)
 	mutex_create(dict_foreign_err_mutex_key,
 		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
-	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_create(PFS_NOT_INSTRUMENTED,
-			     &dict_index_stat_mutex[i], SYNC_INDEX_TREE);
+	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
+		rw_lock_create(PFS_NOT_INSTRUMENTED,
+			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
 
@@ -715,12 +746,11 @@ dict_table_get(
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table != NULL) {
-		if (!table->stat_initialized) {
-			/* If table->ibd_file_missing == TRUE, this will
-			print an error message and return without doing
-			anything. */
-			dict_update_statistics(table);
-		}
+		/* If table->ibd_file_missing == TRUE, this will
+		print an error message and return without doing
+		anything. */
+		dict_update_statistics(table, TRUE /* only update stats
+				       if they have not been initialized */);
 	}
 
 	return(table);
@@ -4201,6 +4231,10 @@ void
 dict_update_statistics_low(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
+	ibool		only_calc_if_missing_stats,/*!< in: only
+					update/recalc the stats if they have
+					not been initialized yet, otherwise
+					do nothing */
 	ibool		has_dict_mutex __attribute__((unused)))
 					/*!< in: TRUE if the caller has the
 					dictionary mutex */
@@ -4231,6 +4265,12 @@ dict_update_statistics_low(
 		return;
 	}
 
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	if (only_calc_if_missing_stats && table->stat_initialized) {
+		dict_table_stats_unlock(table, RW_X_LATCH);
+		return;
+	}
 
 	do {
 		if (UNIV_LIKELY
@@ -4276,12 +4316,8 @@ dict_update_statistics_low(
 
 	index = dict_table_get_first_index(table);
 
-	dict_index_stat_mutex_enter(index);
-
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index)];
-
-	dict_index_stat_mutex_exit(index);
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -4291,6 +4327,8 @@ dict_update_statistics_low(
 	table->stat_initialized = TRUE;
 
 	table->stat_modified_counter = 0;
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
 }
 
 /*********************************************************************//**
@@ -4300,9 +4338,13 @@ UNIV_INTERN
 void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table)	/*!< in/out: table */
+	dict_table_t*	table,	/*!< in/out: table */
+	ibool		only_calc_if_missing_stats)/*!< in: only
+					update/recalc the stats if they have
+					not been initialized yet, otherwise
+					do nothing */
 {
-	dict_update_statistics_low(table, FALSE);
+	dict_update_statistics_low(table, only_calc_if_missing_stats, FALSE);
 }
 
 /**********************************************************************//**
@@ -4382,7 +4424,11 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table, TRUE);
+	dict_update_statistics_low(table,
+				   FALSE /* update even if initialized */,
+				   TRUE /* we have the dict mutex */);
+
+	dict_table_stats_lock(table, RW_S_LATCH);
 
 	fprintf(stderr,
 		"--------------------------------------\n"
@@ -4409,6 +4455,8 @@ dict_table_print_low(
 		dict_index_print_low(index);
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
+
+	dict_table_stats_unlock(table, RW_S_LATCH);
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
@@ -4458,16 +4506,12 @@ dict_index_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_index_stat_mutex_enter(index);
-
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
 			index->n_user_defined_cols];
 	} else {
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
-
-	dict_index_stat_mutex_exit(index);
 
 	fprintf(stderr,
 		"  INDEX: name %s, id %llu, fields %lu/%lu,"
@@ -4955,8 +4999,8 @@ dict_close(void)
 	mem_free(dict_sys);
 	dict_sys = NULL;
 
-	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_free(&dict_index_stat_mutex[i]);
+	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
+		rw_lock_free(&dict_table_stats_latches[i]);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */

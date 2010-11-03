@@ -346,7 +346,11 @@ dict_process_sys_tables_rec(
 
 		/* Update statistics if DICT_TABLE_UPDATE_STATS
 		is set */
-		dict_update_statistics_low(*table, TRUE);
+		dict_update_statistics_low(*table,
+					   FALSE /* update even if
+						 initialized */,
+					   TRUE /* we have the dict
+						mutex */);
 	}
 
 	return(NULL);
