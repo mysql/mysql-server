@@ -121,7 +121,7 @@ walk_tree(const char *fname, int n) {
         assert((int) toku_htonl(i) == ii);
         
         LEAFENTRY le = (LEAFENTRY) val.data;
-        assert(le->attributes == LE_MVCC);
+        assert(le->type == LE_MVCC);
     }
     assert(i == n);
 
