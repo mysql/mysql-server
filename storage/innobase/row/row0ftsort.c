@@ -603,16 +603,32 @@ row_merge_write_fts_word(
 	fts_table_t*	fts_table)	/*!< in: fts aux table instance */
 {
 	ulint	selected;
-	ulint	error;
+	ulint	ret = DB_SUCCESS;	
 
 	selected = fts_select_index(*word->text.utf8);
 	fts_table->suffix = fts_get_suffix(selected);
 
-	error = fts_write_node(trx,
-			       &ins_graph[selected],
-			       fts_table, &word->text, fts_node);
+	/* Pop out each fts_node in word->nodes write them to auxiliary table */
+	while(ib_vector_size(word->nodes) > 0) {
+		ulint	error;	
+		fts_node_t* fts_node = ib_vector_pop(word->nodes);
 
-	return(error);
+		error = fts_write_node(trx, &ins_graph[selected],
+				       fts_table, &word->text,
+				       fts_node);
+
+		if (error != DB_SUCCESS) {
+			fprintf(stderr, "InnoDB: failed to write"
+				" word %s to FTS auxiliary index"
+				" table\n", word->text.utf8);
+			ret = error;
+		}
+
+		ut_free(fts_node->ilist);
+		fts_node->ilist = NULL;
+	}
+
+	return(ret);
 }
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
