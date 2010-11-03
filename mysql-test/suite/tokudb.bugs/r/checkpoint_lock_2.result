@@ -1,44 +1,44 @@
 SET STORAGE_ENGINE = 'tokudb';
 # Establish connection conn1 (user = root)
 # should see nothing
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Query	0	NULL	show processlist
-21	root	localhost:53549	test	Sleep	0		NULL
-22	root	localhost:53550	test	Sleep	0		NULL
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Sleep	0		NULL
+test	Sleep	0		NULL
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
 flush logs;
 # should see nothing
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Query	0	NULL	show processlist
-21	root	localhost:53549	test	Sleep	0		NULL
-22	root	localhost:53550	test	Sleep	0		NULL
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Sleep	0		NULL
+test	Sleep	0		NULL
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
 set session tokudb_checkpoint_lock=1;
 flush logs;;
 # should see a flush logs
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Query	2	NULL	flush logs
-21	root	localhost:53549	test	Sleep	2		NULL
-22	root	localhost:53550	test	Query	0	NULL	show processlist
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
+test	Sleep	2		NULL
+test	Query	2	NULL	flush logs
 set session tokudb_checkpoint_lock=1;
 # should still see a flush logs
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Query	2	NULL	flush logs
-21	root	localhost:53549	test	Sleep	2		NULL
-22	root	localhost:53550	test	Query	0	NULL	show processlist
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
+test	Sleep	2		NULL
+test	Query	2	NULL	flush logs
 set session tokudb_checkpoint_lock=0;
 # should still see a flush logs
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Query	4	NULL	flush logs
-21	root	localhost:53549	test	Query	0	NULL	show processlist
-22	root	localhost:53550	test	Sleep	2		NULL
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Sleep	2		NULL
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
+test	Query	4	NULL	flush logs
 set session tokudb_checkpoint_lock=0;
 # should see nothing
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-20	root	localhost:53548	test	Sleep	6		NULL
-21	root	localhost:53549	test	Sleep	2		NULL
-22	root	localhost:53550	test	Query	0	NULL	show processlist
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
+test	Sleep	2		NULL
+test	Sleep	6		NULL

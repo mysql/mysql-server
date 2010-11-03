@@ -1,18 +1,18 @@
 SET STORAGE_ENGINE = 'tokudb';
 # Establish connection conn1 (user = root)
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-23	root	localhost:53551	test	Query	0	NULL	show processlist
-24	root	localhost:53552	test	Sleep	0		NULL
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Sleep	0		NULL
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
 flush logs;
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-23	root	localhost:53551	test	Query	0	NULL	show processlist
-24	root	localhost:53552	test	Sleep	0		NULL
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Sleep	0		NULL
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
 set tokudb_checkpoint_lock=1;
 flush logs;;
-show processlist;
-Id	User	Host	db	Command	Time	State	Info
-23	root	localhost:53551	test	Query	2	NULL	flush logs
-24	root	localhost:53552	test	Query	0	NULL	show processlist
+select DB, command, time, state, info from information_schema.processlist;
+DB	command	time	state	info
+test	Query	0	executing	select DB, command, time, state, info from information_schema.processlist
+test	Query	2	NULL	flush logs
 set tokudb_checkpoint_lock=0;
