@@ -139,4 +139,13 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
+# wl#5567 - exercise table...
+#   only node_id is guranteed to be same...
+#   (unless we change cluster config for test)
+# but this will anyway pull results from datanode...
+#
+--sorted_result
+select distinct node_id
+from ndbinfo.diskpagebuffer;
+
 --source ndbinfo_drop.inc
