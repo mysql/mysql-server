@@ -3207,18 +3207,20 @@ loop:
 
 			switch (active_thd) {
 			case SRV_NONE:
-				ut_error;
+				break;
 			case SRV_WORKER:
 				thread_type = "worker threads";
-				break;
+				goto print;
 			case SRV_MASTER:
 				thread_type = "master threads";
-				break;
+				goto print;
 			case SRV_PURGE:
 				thread_type = "purge thread";
-				break;
+				goto print;
 			}
 
+			ut_error;
+print:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Waiting for %s "
 				" to be suspended\n", thread_type);
