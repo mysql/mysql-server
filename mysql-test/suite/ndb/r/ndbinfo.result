@@ -232,3 +232,9 @@ ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
 
+select distinct node_id
+from ndbinfo.diskpagebuffer;
+node_id
+1
+2
+
