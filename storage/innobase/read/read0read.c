@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -589,7 +589,8 @@ read_cursor_view_create_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->state == TRX_STATE_ACTIVE || trx->state == TRX_STATE_PREPARED) {
+		if (trx->state == TRX_STATE_ACTIVE
+		    || trx->state == TRX_STATE_PREPARED) {
 
 			ut_a(n_trx < view->n_trx_ids);
 
