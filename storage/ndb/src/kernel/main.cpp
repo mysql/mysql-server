@@ -142,9 +142,9 @@ real_main(int argc, char** argv)
 
   // Save the original program name and arguments for angel
   const char* progname = argv[0];
-  BaseString original_args;
+  Vector<BaseString> original_args;
   for (int i = 0; i < argc; i++)
-    original_args.appfmt("%s ", argv[i]);
+    original_args.push_back(argv[i]);
 
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,

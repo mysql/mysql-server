@@ -158,7 +158,9 @@ public:
   partition_element *curr_part_elem;
   partition_element *current_partition;
 
+#ifndef MCP_BUG56438
   TABLE *table;
+#endif
   /*
     These key_map's are used for Partitioning to enable quick decisions
     on whether we can derive more information about which partition to

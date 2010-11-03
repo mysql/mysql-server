@@ -601,6 +601,11 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->m_rows_processed = 0;
   subRec->m_flags = SubscriptionRecord::RF_WAIT_GCP; // Todo make configurable
   subRec->m_gci = 0;
+  if (buildIndxReq->requestType & BuildIndxImplReq::RF_NO_DISK)
+  {
+    subRec->m_flags |= SubscriptionRecord::RF_NO_DISK;
+  }
+
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
   if (noOfSections > 0) {
@@ -947,6 +952,18 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->requestInfo = 0;
   subSyncReq->fragCount = subRec->fragCount;
 
+  if (subRec->m_flags & SubscriptionRecord::RF_NO_DISK)
+  {
+    jam();
+    subSyncReq->requestInfo |= SubSyncReq::NoDisk;
+  }
+
+  if (subRec->m_flags & SubscriptionRecord::RF_TUP_ORDER)
+  {
+    jam();
+    subSyncReq->requestInfo |= SubSyncReq::TupOrder;
+  }
+  
   if (subRec->requestType == REORG_COPY)
   {
     jam();
@@ -1392,6 +1409,12 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   default:
     jamLine(req->requestType);
     ndbrequire(false);
+  }
+
+  if (req->requestInfo & CopyDataReq::TupOrder)
+  {
+    jam();
+    subRec->m_flags |= SubscriptionRecord::RF_TUP_ORDER;
   }
 
   // Get column order segments

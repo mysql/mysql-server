@@ -4588,8 +4588,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     return;
   }//if
   ptrAss(tabptr, tablerec);
-  if(table_version_major(tabptr.p->schemaVersion) != 
-     table_version_major(schemaVersion)){
+  if(table_version_major_lqhkeyreq(tabptr.p->schemaVersion) != 
+     table_version_major_lqhkeyreq(schemaVersion)){
     LQHKEY_abort(signal, 5);
     return;
   }

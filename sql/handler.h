@@ -1606,8 +1606,10 @@ public:
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                           uint part_id);
+#ifndef MCP_BUG56438
   virtual uint32 calculate_key_hash_value(Field **field_array)
   { DBUG_ASSERT(0); return 0; }
+#endif
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
@@ -1736,9 +1738,11 @@ public:
     *no_parts= 0;
     return 0;
   }
-  virtual void set_part_info(partition_info *part_info,
-                             bool early)
-  {return;}
+#ifndef MCP_BUG56438
+  virtual void set_part_info(partition_info *part_info, bool early) {return;}
+#else
+  virtual void set_part_info(partition_info *part_info) {return;}
+#endif
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 

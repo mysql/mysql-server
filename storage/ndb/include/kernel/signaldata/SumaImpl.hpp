@@ -264,6 +264,8 @@ struct SubSyncReq {
   enum {
     LM_Exclusive = 0x1
     ,Reorg = 0x2
+    ,NoDisk = 0x4
+    ,TupOrder = 0x8
   };
 
   SECTION( ATTRIBUTE_LIST = 0); // Used when doing SingelTableScan  
@@ -445,6 +447,7 @@ struct SubRemoveRef {
     Busy = 701,
     NoSuchSubscription = 1407,
     Locked = 1411,
+    Defining = 1418,
     AlreadyDropped = 1419
     ,NotStarted = 1428
   };

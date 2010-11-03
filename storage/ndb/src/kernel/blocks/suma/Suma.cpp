@@ -1329,6 +1329,75 @@ Suma::execSIGNAL_DROPPED_REP(Signal* signal){
  * Dump state
  *
  */
+static
+const char*
+cstr(Suma::Subscription::State s)
+{
+  switch(s){
+  case Suma::Subscription::UNDEFINED:
+    return "undefined";
+  case Suma::Subscription::DEFINED:
+    return "defined";
+  case Suma::Subscription::DEFINING:
+    return "defining";
+  }
+  return "<unknown>";
+}
+
+static
+const char*
+cstr(Suma::Subscription::TriggerState s)
+{
+  switch(s){
+  case Suma::Subscription::T_UNDEFINED:
+    return "undefined";
+  case Suma::Subscription::T_CREATING:
+    return "creating";
+  case Suma::Subscription::T_DEFINED:
+    return "defined";
+  case Suma::Subscription::T_DROPPING:
+    return "dropping";
+  case Suma::Subscription::T_ERROR:
+    return "error";
+  }
+  return "<uknown>";
+}
+
+static
+const char*
+cstr(Suma::Subscription::Options s)
+{
+  static char buf[256];
+  buf[0] = 0;
+  strcat(buf, "[");
+  if (s & Suma::Subscription::REPORT_ALL)
+    strcat(buf, " reportall");
+  if (s & Suma::Subscription::REPORT_SUBSCRIBE)
+    strcat(buf, " reportsubscribe");
+  if (s & Suma::Subscription::MARKED_DROPPED)
+    strcat(buf, " dropped");
+  if (s & Suma::Subscription::NO_REPORT_DDL)
+    strcat(buf, " noreportddl");
+  strcat(buf, " ]");
+  return buf;
+}
+
+static
+const char*
+cstr(Suma::Table::State s)
+{
+  switch(s){
+  case Suma::Table::UNDEFINED:
+    return "undefined";
+  case Suma::Table::DEFINING:
+    return "defining";
+  case Suma::Table::DEFINED:
+    return "defined";
+  case Suma::Table::DROPPED:
+    return "dropped";
+  }
+  return "<unknown>";
+}
 
 void
 Suma::execDUMP_STATE_ORD(Signal* signal){
@@ -1550,6 +1619,111 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
       }
       infoEvent("Table %u #subscribers %u", it.curr.p->m_tableId, cnt);
       c_tables.next(it);
+    }
+
+    signal->theData[0] = tCase;
+    signal->theData[1] = it.bucket;
+    sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
+    return;
+  }
+
+  if (tCase == 8012)
+  {
+    jam();
+    Uint32 bucket = signal->theData[1];
+    KeyTable<Subscription>::Iterator it;
+    if (signal->getLength() == 1)
+    {
+      jam();
+      bucket = 0;
+      infoEvent("-- Starting dump of subscribers --");
+    }
+
+    c_subscriptions.next(bucket, it);
+    const Uint32 RT_BREAK = 16;
+    for(Uint32 i = 0; i<RT_BREAK || it.bucket == bucket; i++)
+    {
+      jam();
+      if(it.curr.i == RNIL)
+      {
+        jam();
+        infoEvent("-- Ending dump of subscribers --");
+        return;
+      }
+
+      Ptr<Subscription> subPtr = it.curr;
+      Ptr<Table> tabPtr;
+      c_tablePool.getPtr(tabPtr, subPtr.p->m_table_ptrI);
+      infoEvent("Subcription %u id: 0x%.8x key: 0x%.8x state: %s",
+                subPtr.i,
+                subPtr.p->m_subscriptionId,
+                subPtr.p->m_subscriptionKey,
+                cstr(subPtr.p->m_state));
+      infoEvent("  trigger state: %s options: %s",
+                cstr(subPtr.p->m_trigger_state),
+                cstr((Suma::Subscription::Options)subPtr.p->m_options));
+      infoEvent("  tablePtr: %u tableId: %u schemaVersion: 0x%.8x state: %s",
+                tabPtr.i,
+                subPtr.p->m_tableId,
+                tabPtr.p->m_schemaVersion,
+                cstr(tabPtr.p->m_state));
+      {
+        Ptr<Subscriber> ptr;
+        LocalDLList<Subscriber> list(c_subscriberPool,
+                                     subPtr.p->m_subscribers);
+        for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
+        {
+          jam();
+          infoEvent("  Subscriber [ %x %u %u ]",
+                    ptr.p->m_senderRef,
+                    ptr.p->m_senderData,
+                    subPtr.i);
+        }
+      }
+
+      {
+        Ptr<SubOpRecord> ptr;
+        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+                                          subPtr.p->m_create_req);
+
+        for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
+        {
+          jam();
+          infoEvent("  create [ %x %u ]",
+                    ptr.p->m_senderRef,
+                    ptr.p->m_senderData);
+        }
+      }
+
+      {
+        Ptr<SubOpRecord> ptr;
+        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+                                          subPtr.p->m_start_req);
+
+        for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
+        {
+          jam();
+          infoEvent("  start [ %x %u ]",
+                    ptr.p->m_senderRef,
+                    ptr.p->m_senderData);
+        }
+      }
+
+      {
+        Ptr<SubOpRecord> ptr;
+        LocalDLFifoList<SubOpRecord> list(c_subOpPool,
+                                          subPtr.p->m_stop_req);
+
+        for (list.first(ptr); !ptr.isNull(); list.next(ptr), i++)
+        {
+          jam();
+          infoEvent("  stop [ %u %x %u ]",
+                    ptr.p->m_opType,
+                    ptr.p->m_senderRef,
+                    ptr.p->m_senderData);
+        }
+      }
+      c_subscriptions.next(it);
     }
 
     signal->theData[0] = tCase;
@@ -2308,6 +2482,12 @@ Suma::execGET_TABINFOREF(Signal* signal){
     jam();
     ndbrequire(false);
   }
+  if (tabPtr.p->m_state == Table::DROPPED)
+  {
+    jam();
+    do_resend_request = 0;
+  }
+
   if (do_resend_request)
   {
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
@@ -2321,7 +2501,12 @@ Suma::execGET_TABINFOREF(Signal* signal){
                         30, GetTabInfoReq::SignalLength);
     return;
   }
+  get_tabinfo_ref_release(signal, tabPtr);
+}
 
+void
+Suma::get_tabinfo_ref_release(Signal* signal, Ptr<Table> tabPtr)
+{
   LocalDLList<Subscription> subList(c_subscriptionPool,
                                     tabPtr.p->m_subscriptions);
   Ptr<Subscription> subPtr;
@@ -2330,6 +2515,8 @@ Suma::execGET_TABINFOREF(Signal* signal){
   {
     jam();
     Ptr<SubOpRecord> ptr;
+    ndbassert(subPtr.p->m_start_req.isEmpty());
+    ndbassert(subPtr.p->m_stop_req.isEmpty());
     LocalDLFifoList<SubOpRecord> list(c_subOpPool, subPtr.p->m_create_req);
     for (list.first(ptr); !ptr.isNull(); )
     {
@@ -2371,6 +2558,13 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
   releaseSections(handle);
+
+  if (tabPtr.p->m_state == Table::DROPPED)
+  {
+    jam();
+    get_tabinfo_ref_release(signal, tabPtr);
+    return;
+  }
 
   tabPtr.p->m_state = Table::DEFINED;
 
@@ -2512,6 +2706,11 @@ Suma::SyncRecord::nextScan(Signal* signal)
   ScanFragReq::setLockMode(req->requestInfo, 0);
   ScanFragReq::setHoldLockFlag(req->requestInfo, 1);
   ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
+  if (m_requestInfo & SubSyncReq::NoDisk)
+  {
+    ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
+  }
+  
   if (m_requestInfo & SubSyncReq::LM_Exclusive)
   {
     ScanFragReq::setLockMode(req->requestInfo, 1);
@@ -2522,6 +2721,11 @@ Suma::SyncRecord::nextScan(Signal* signal)
   if (m_requestInfo & SubSyncReq::Reorg)
   {
     ScanFragReq::setReorgFlag(req->requestInfo, ScanFragReq::REORG_MOVED);
+  }
+
+  if (m_requestInfo & SubSyncReq::TupOrder)
+  {
+    ScanFragReq::setTupScanFlag(req->requestInfo, 1);
   }
 
   req->fragmentNoKeyLen = fd.m_fragDesc.m_fragmentNo;
@@ -3036,19 +3240,6 @@ Suma::execCREATE_TRIG_IMPL_REF(Signal* signal)
      * Wait for more
      */
     return;
-  }
-
-  for (Uint32 i = 0; i<3; i++)
-  {
-    jam();
-    if (subPtr.p->m_triggers[i] == ILLEGAL_TRIGGER_ID)
-    {
-      jam();
-      /**
-       * Wait for more
-       */
-      return;
-    }
   }
 
   subPtr.p->m_trigger_state = Subscription::T_ERROR;
@@ -4603,9 +4794,64 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   }
 
   DBUG_PRINT("info",("drop table id: %d[i=%u]", tableId, tabPtr.i));
-
+  const Table::State old_state = tabPtr.p->m_state;
   tabPtr.p->m_state = Table::DROPPED;
   c_tables.remove(tabPtr);
+
+  if (senderRef != 0)
+  {
+    jam();
+
+    // dict coordinator sends info to API
+
+    const Uint64 gci = get_current_gci(signal);
+    SubTableData * data = (SubTableData*)signal->getDataPtrSend();
+    data->gci_hi         = Uint32(gci >> 32);
+    data->gci_lo         = Uint32(gci);
+    data->tableId        = tableId;
+    data->requestInfo    = 0;
+    SubTableData::setOperation(data->requestInfo,
+                               NdbDictionary::Event::_TE_DROP);
+    SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
+
+    Ptr<Subscription> subPtr;
+    LocalDLList<Subscription> subList(c_subscriptionPool,
+                                      tabPtr.p->m_subscriptions);
+
+    for (subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
+    {
+      jam();
+      if(subPtr.p->m_subscriptionType != SubCreateReq::TableEvent)
+      {
+        jam();
+        continue;
+        //continue in for-loop if the table is not part of
+        //the subscription. Otherwise, send data to subscriber.
+      }
+
+      if (subPtr.p->m_options & Subscription::NO_REPORT_DDL)
+      {
+        jam();
+        continue;
+      }
+
+      Ptr<Subscriber> ptr;
+      LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
+      for(list.first(ptr); !ptr.isNull(); list.next(ptr))
+      {
+        jam();
+        data->senderData= ptr.p->m_senderData;
+        sendSignal(ptr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
+                   SubTableData::SignalLength, JBB);
+      }
+    }
+  }
+
+  if (old_state == Table::DEFINING)
+  {
+    jam();
+    return;
+  }
 
   if (tabPtr.p->m_subscriptions.isEmpty())
   {
@@ -4614,52 +4860,27 @@ Suma::execDROP_TAB_CONF(Signal *signal)
     c_tablePool.release(tabPtr);
     return;
   }
-
-  if (senderRef == 0)
+  else
   {
-    jam();
-    return;
-  }
-  // dict coordinator sends info to API
-
-  const Uint64 gci = get_current_gci(signal);
-  SubTableData * data = (SubTableData*)signal->getDataPtrSend();
-  data->gci_hi         = Uint32(gci >> 32);
-  data->gci_lo         = Uint32(gci);
-  data->tableId        = tableId;
-  data->requestInfo    = 0;
-  SubTableData::setOperation(data->requestInfo,NdbDictionary::Event::_TE_DROP);
-  SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
-  
-  Ptr<Subscription> subPtr;
-  LocalDLList<Subscription> subList(c_subscriptionPool,
-                                    tabPtr.p->m_subscriptions);
-
-  for (subList.first(subPtr); !subPtr.isNull(); subList.next(subPtr))
-  {
-    jam();
-    if(subPtr.p->m_subscriptionType != SubCreateReq::TableEvent)
+    /**
+     * check_release_subscription create a subList...
+     *   weirdness below is to make sure that it's not created twice
+     */
+    Ptr<Subscription> subPtr;
     {
-      jam();
-      continue;
-      //continue in for-loop if the table is not part of
-      //the subscription. Otherwise, send data to subscriber.
+      LocalDLList<Subscription> subList(c_subscriptionPool,
+                                        tabPtr.p->m_subscriptions);
+      subList.first(subPtr);
     }
-
-    if (subPtr.p->m_options & Subscription::NO_REPORT_DDL)
+    while (!subPtr.isNull())
     {
-      jam();
-      continue;
-    }
-
-    Ptr<Subscriber> ptr;
-    LocalDLList<Subscriber> list(c_subscriberPool, subPtr.p->m_subscribers);
-    for(list.first(ptr); !ptr.isNull(); list.next(ptr))
-    {
-      jam();
-      data->senderData= ptr.p->m_senderData;
-      sendSignal(ptr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                 SubTableData::SignalLength, JBB);
+      Ptr<Subscription> tmp = subPtr;
+      {
+        LocalDLList<Subscription> subList(c_subscriptionPool,
+                                          tabPtr.p->m_subscriptions);
+        subList.next(subPtr);
+      }
+      check_release_subscription(signal, tmp);
     }
   }
 }
@@ -4898,9 +5119,11 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
   switch(subPtr.p->m_state){
   case Subscription::UNDEFINED:
     jam();
+    ndbrequire(false);
   case Subscription::DEFINING:
     jam();
-    ndbrequire(false);
+    sendSubRemoveRef(signal, req, SubRemoveRef::Defining);
+    return;
   case Subscription::DEFINED:
     if (subPtr.p->m_options & Subscription::MARKED_DROPPED)
     {

@@ -6102,7 +6102,7 @@ uint8 ha_partition::table_cache_type()
   DBUG_RETURN(m_file[0]->table_cache_type());
 }
 
-
+#ifndef MCP_BUG56438
 /*
   Calculate hash value for KEY partitioning using an array of fields.
 
@@ -6130,7 +6130,7 @@ uint32 ha_partition::calculate_key_hash_value(Field **field_array)
   } while (*(++field_array));
   return (uint32) nr1;
 }
-
+#endif
 
 /****************************************************************************
                 MODULE print messages
