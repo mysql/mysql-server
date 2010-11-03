@@ -79,7 +79,7 @@ can still remove old versions from the bottom of the stack. */
    -------------------------------------------------------------------
 latches?
 -------
-The contention of the kernel mutex should be minimized. When a transaction
+The contention of the trx_sys_t:::lock should be minimized. When a transaction
 does its first insert or modify in an index, an undo log is assigned for it.
 Then we must have an x-latch to the rollback segment header.
 	When the transaction does more modifys or rolls back, the undo log is
@@ -897,7 +897,6 @@ trx_undo_add_page(
 	ibool		success;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
 
 	rseg = trx->rseg;
@@ -972,7 +971,6 @@ trx_undo_free_page(
 	ulint		zip_size;
 
 	ut_a(hdr_page_no != page_no);
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	zip_size = rseg->zip_size;
@@ -1222,8 +1220,6 @@ trx_undo_seg_free(
 	do {
 
 		mtr_start(&mtr);
-
-		ut_ad(!mutex_own(&kernel_mutex));
 
 		mutex_enter(&(rseg->mutex));
 
@@ -1769,9 +1765,7 @@ trx_undo_assign_undo(
 
 	mtr_start(&mtr);
 
-	ut_ad(!mutex_own(&kernel_mutex));
-
-	mutex_enter(&(rseg->mutex));
+	mutex_enter(&rseg->mutex);
 
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
@@ -1819,9 +1813,6 @@ trx_undo_set_state_at_finish(
 	trx_upagef_t*	page_hdr;
 	page_t*		undo_page;
 	ulint		state;
-
-	ut_ad(undo);
-	ut_ad(mtr);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
@@ -1938,8 +1929,7 @@ trx_undo_update_cleanup(
 
 		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
-		ut_ad(undo->state == TRX_UNDO_TO_PURGE
-		      || undo->state == TRX_UNDO_TO_FREE);
+		ut_ad(undo->state == TRX_UNDO_TO_PURGE);
 
 		trx_undo_mem_free(undo);
 	}

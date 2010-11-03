@@ -702,7 +702,9 @@ buddy_nonfree:
 		bpage->list pointers. */
 		for (c = (char*) buf + (BUF_BUDDY_LOW << i);
 		     c-- > (char*) buf; ) {
-			*c = ~*c ^ i;
+			/* We can live with possible loss of data here due
+			to conversion from ulint to char. */
+			*c = (char) (~*c ^ i);
 		}
 	} else {
 		/* Fill large blocks with a constant pattern. */
