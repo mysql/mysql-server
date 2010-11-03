@@ -1719,7 +1719,20 @@ ule_verify_xids(ULE ule, uint32_t interesting, TXNID *xids) {
 }
 #endif
 
-//Leafentry iterators
+//
+// Iterates over "possible" TXNIDs in a leafentry's stack, until one is accepted by 'f'. If the value 
+// associated with the accepted TXNID is not an insert, then set *is_emptyp to TRUE, otherwise FALSE
+// The "possible" TXNIDs are:
+//   if provisionals exist, then the first possible TXNID is the outermost provisional.
+//   The next possible TXNIDs are the committed TXNIDs, from most recently committed to T_0.
+// If provisionals exist, and the outermost provisional is accepted by 'f', 
+// the associated value checked is the innermost provisional's value.
+// Parameters:
+//    le - leafentry to iterate over
+//    f - callback function that checks if a TXNID in le is accepted, and its associated value should be examined.
+//    is_emptyp - output parameter that returns answer
+//    context - parameter for f
+//
 int
 le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_emptyp, TOKUTXN context) {
 #if ULE_DEBUG
@@ -1783,6 +1796,21 @@ cleanup:
     return r;
 }
 
+//
+// Iterates over "possible" TXNIDs in a leafentry's stack, until one is accepted by 'f'. Set
+// valpp and vallenp to value and length associated with accepted TXNID
+// The "possible" TXNIDs are:
+//   if provisionals exist, then the first possible TXNID is the outermost provisional.
+//   The next possible TXNIDs are the committed TXNIDs, from most recently committed to T_0.
+// If provisionals exist, and the outermost provisional is accepted by 'f', 
+// the associated length value is the innermost provisional's length and value.
+// Parameters:
+//    le - leafentry to iterate over
+//    f - callback function that checks if a TXNID in le is accepted, and its associated value should be examined.
+//    valpp - output parameter that returns pointer to value
+//    vallenp - output parameter that returns length of value
+//    context - parameter for f
+//
 int
 le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context) {
 #if ULE_DEBUG
