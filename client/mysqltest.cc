@@ -1254,15 +1254,6 @@ void die(const char *fmt, ...)
   DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
-  /*
-    Protect against dying twice
-    first time 'die' is called, try to write log files
-    second time, just exit
-  */
-  if (dying)
-    cleanup_and_exit(1);
-  dying= 1;
-
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
@@ -1280,6 +1271,15 @@ void die(const char *fmt, ...)
     fprintf(stderr, "unknown error");
   fprintf(stderr, "\n");
   fflush(stderr);
+
+  /*
+    Protect against dying twice
+    first time 'die' is called, try to write log files
+    second time, just exit
+  */
+  if (dying)
+    cleanup_and_exit(1);
+  dying= 1;
 
   log_file.show_tail(opt_tail_lines);
 

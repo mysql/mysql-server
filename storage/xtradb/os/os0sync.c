@@ -31,6 +31,9 @@ Created 9/6/1995 Heikki Tuuri
 
 #ifdef __WIN__
 #include <windows.h>
+#else
+#include <sys/time.h>
+#include <time.h>
 #endif
 
 #include "ut0mem.h"
@@ -407,14 +410,14 @@ os_event_wait_low(
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded. In Unix the timeout is always infinite.
+a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint
 os_event_wait_time(
 /*===============*/
 	os_event_t	event,	/*!< in: event to wait */
-	ulint		time)	/*!< in: timeout in microseconds, or
+	ulint		wtime)	/*!< in: timeout in microseconds, or
 				OS_SYNC_INFINITE_TIME */
 {
 #ifdef __WIN__
@@ -422,8 +425,8 @@ os_event_wait_time(
 
 	ut_a(event);
 
-	if (time != OS_SYNC_INFINITE_TIME) {
-		err = WaitForSingleObject(event->handle, (DWORD) time / 1000);
+	if (wtime != OS_SYNC_INFINITE_TIME) {
+		err = WaitForSingleObject(event->handle, (DWORD) wtime / 1000);
 	} else {
 		err = WaitForSingleObject(event->handle, INFINITE);
 	}
@@ -439,13 +442,47 @@ os_event_wait_time(
 		return(1000000); /* dummy value to eliminate compiler warn. */
 	}
 #else
-	UT_NOT_USED(time);
+	int	err;
+	int	ret = 0;
+	ulint	tmp;
+	ib_int64_t	old_count;
+	struct timeval tv_start;
+	struct timespec timeout;
 
-	/* In Posix this is just an ordinary, infinite wait */
+	if (wtime == OS_SYNC_INFINITE_TIME) {
+		os_event_wait(event);
+		return 0;
+	}
 
-	os_event_wait(event);
+	/* Compute the absolute point in time at which to time out. */
+	gettimeofday(&tv_start, NULL);
+	tmp = tv_start.tv_usec + wtime;
+	timeout.tv_sec = tv_start.tv_sec + (tmp / 1000000);
+	timeout.tv_nsec = (tmp % 1000000) * 1000;
 
-	return(0);
+	os_fast_mutex_lock(&(event->os_mutex));
+	old_count = event->signal_count;
+
+	for (;;) {
+		if (event->is_set == TRUE || event->signal_count != old_count)
+			break;
+
+		err = pthread_cond_timedwait(&(event->cond_var),
+					     &(event->os_mutex), &timeout);
+		if (err == ETIMEDOUT) {
+			ret = OS_SYNC_TIME_EXCEEDED;
+			break;
+		}
+	}
+
+	os_fast_mutex_unlock(&(event->os_mutex));
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+
+		os_thread_exit(NULL);
+	}
+
+	return ret;
 #endif
 }
 

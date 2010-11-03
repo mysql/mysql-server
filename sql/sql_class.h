@@ -1211,6 +1211,13 @@ public:
     return m_total_warn_count;
   }
 
+  /* Used to count any warnings pushed after calling set_ok_status(). */
+  void increment_warning()
+  {
+    if (m_status != DA_EMPTY)
+      m_total_warn_count++;
+  }
+
   Diagnostics_area() { reset_diagnostics_area(); }
 
 private:
