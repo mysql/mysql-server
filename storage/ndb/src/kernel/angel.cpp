@@ -432,6 +432,37 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
 #endif
 }
 
+/*
+  retry failed spawn after sleep until fork suceeds or
+  max number of retries occurs
+*/
+
+static pid_t
+retry_spawn_process(const char* progname, const Vector<BaseString>& args)
+{
+  const unsigned max_retries = 10;
+  unsigned retry_counter = 0;
+  while(true)
+  {
+    pid_t pid = spawn_process(progname, args);
+    if (pid == -1)
+    {
+      if (retry_counter++ == max_retries)
+      {
+        g_eventLogger->error("Angel failed to spawn %d times, giving up",
+                             retry_counter);
+        angel_exit(1);
+      }
+
+      g_eventLogger->warning("Angel failed to spawn, sleep and retry");
+
+      NdbSleep_SecSleep(1);
+      continue;
+    }
+    return pid;
+  }
+}
+
 static Uint32 stop_on_error;
 static Uint32 config_max_start_fail_retries;
 static Uint32 config_restart_delay_secs; 
@@ -625,9 +656,13 @@ angel_run(const char* progname,
     one_arg.assfmt("--nostart=%d", no_start);
     args.push_back(one_arg);
 
-    pid_t child = spawn_process(progname, args);
-    if (child == -1)
+    pid_t child = retry_spawn_process(progname, args);
+    if (child <= 0)
+    {
+      // safety, retry_spawn_process returns valid child or give up
+      g_eventLogger->error("retry_spawn_process, child: %d", child);
       angel_exit(1);
+    }
 
     /**
      * Parent
