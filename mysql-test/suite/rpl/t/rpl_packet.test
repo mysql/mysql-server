@@ -94,6 +94,7 @@ let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 # event, However there is no Last_IO_Error report.
 #
 let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $last_io_error= `SELECT SUBSTRING("$last_io_error" FROM 17)`;
 eval SELECT "$last_io_error" AS Last_IO_Error;
 
 #
@@ -117,6 +118,7 @@ connection slave;
 let $slave_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
 --echo Slave_IO_Running = $slave_io_running (expect No)
 let $last_io_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
+let $last_io_error= `SELECT SUBSTRING("$last_io_error" FROM 17)`;
 eval SELECT "$last_io_error" AS Last_IO_Error;
 
 # Remove the bad binlog and clear error status on slave.

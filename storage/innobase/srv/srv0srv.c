@@ -367,8 +367,13 @@ UNIV_INTERN ulint	srv_fast_shutdown	= 0;
 UNIV_INTERN ibool	srv_innodb_status	= FALSE;
 
 /* When estimating number of different key values in an index, sample
-this many index pages */
-UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
+this many index pages, there are 2 ways to calculate statistics:
+* persistent stats that are calculated by ANALYZE TABLE and saved
+  in the innodb database.
+* quick transient stats, that are used if persistent stats for the given
+  table/index are not found in the innodb database */
+UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
+UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -487,17 +492,22 @@ intervals. Following macros define thresholds for these conditions. */
 #define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
 
 /** Acquire the system_mutex. */
-#define srv_sys_mutex_enter() do {		\
-	mutex_enter(&srv_sys->mutex);		\
+#define srv_sys_mutex_enter() do {			\
+	mutex_enter(&srv_sys->mutex);			\
 } while (0)
 
 /** Test if the system mutex is owned. */
 #define srv_sys_mutex_own() mutex_own(&srv_sys->mutex)
 
 /** Release the system mutex. */
-#define srv_sys_mutex_exit() do {		\
-	mutex_exit(&srv_sys->mutex);		\
+#define srv_sys_mutex_exit() do {			\
+	mutex_exit(&srv_sys->mutex);			\
 } while (0)
+
+#define fetch_lock_wait_timeout(trx)			\
+	((trx)->lock.allowed_to_wait				\
+	 ? thd_lock_wait_timeout((trx)->mysql_thd)	\
+	 : 0)
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM

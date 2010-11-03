@@ -218,7 +218,12 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_AIO_DEBUG				/* prints info about
 						submitted and reaped AIO
 						requests to the log. */
+#define UNIV_STATS_DEBUG			/* prints various stats
+						related debug info from
+						dict0stats.c */
 #endif
+
+#define UNIV_DEBUG
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
@@ -305,6 +310,10 @@ number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
 
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -359,6 +368,9 @@ typedef unsigned long long int	ullint;
 
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
+
+/* The 'undefined' value for a ib_uint64_t */
+#define UINT64_UNDEFINED	((ib_uint64_t)(-1))
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF

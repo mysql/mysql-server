@@ -15,7 +15,7 @@
 
 
 /*
-  Functions to autenticate and handle reqests for a connection
+  Functions to authenticate and handle requests for a connection
 */
 
 #include "my_global.h"
@@ -635,7 +635,7 @@ void prepare_new_connection_state(THD* thd)
     TODO: refactor this to avoid code duplication there
   */
   thd->proc_info= 0;
-  thd->command= COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   thd->set_time();
   thd->init_for_queries();
 

@@ -1317,6 +1317,38 @@ SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 DROP TABLE t1;
 End of 5.1 tests
 #
+# BUG#43578 "MyISAM&Maria gives wrong rows with range access
+# ORDER BY DESC on date index"
+#
+CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
+INDEX idx2(c2));
+SET TIMESTAMP=1235553613;
+INSERT INTO t1 VALUES(NOW(),NOW(),3),
+(ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
+(ADDTIME(NOW(),'2 01:01:01'),ADDTIME(NOW(),'2 01:01:01'),5),
+(ADDTIME(NOW(),'3 01:01:01'),ADDTIME(NOW(),'3 01:01:01'),6);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+Note	1265	Data truncated for column 'c2' at row 1
+Note	1265	Data truncated for column 'c1' at row 2
+Note	1265	Data truncated for column 'c2' at row 2
+Note	1265	Data truncated for column 'c1' at row 3
+Note	1265	Data truncated for column 'c2' at row 3
+Note	1265	Data truncated for column 'c1' at row 4
+Note	1265	Data truncated for column 'c2' at row 4
+SELECT * FROM t1;
+c1	c2	c3
+2009-02-25	2009-02-25	3
+2009-02-26	2009-02-26	4
+2009-02-27	2009-02-27	5
+2009-02-28	2009-02-28	6
+SELECT * FROM t1 WHERE c1 > ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
+c1	c2	c3
+2009-02-28	2009-02-28	6
+2009-02-27	2009-02-27	5
+drop table t1;
+End of 5.5 tests
+#
 # Bug#57039: constant subtime expression returns incorrect result.
 #
 CREATE TABLE t1 (`date_date` datetime NOT NULL);
@@ -1326,4 +1358,3 @@ date_date
 SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
 date_date
 DROP TABLE t1;
-#

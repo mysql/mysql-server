@@ -4,17 +4,27 @@ SELECT @session_start_value;
 0
 '#--------------------FN_DYNVARS_154_01------------------------#'
 SET @@session.sql_big_tables = 0;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SET @@session.sql_big_tables = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 SET @@session.sql_big_tables = 1;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SET @@session.sql_big_tables = DEFAULT;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 '#---------------------FN_DYNVARS_154_02-------------------------#'
 SET sql_big_tables = 1;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@sql_big_tables;
 @@sql_big_tables
 1
@@ -23,15 +33,21 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT local.sql_big_tables;
 ERROR 42S02: Unknown table 'local' in field list
 SET session sql_big_tables = 0;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 '#--------------------FN_DYNVARS_154_03------------------------#'
 SET @@session.sql_big_tables = 0;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 SET @@session.sql_big_tables = 1;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 1
@@ -58,10 +74,14 @@ SET @@session.sql_big_tables = NO;
 ERROR 42000: Variable 'sql_big_tables' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_154_05----------------------------#'
 SET @@global.sql_big_tables = 1-@@global.sql_big_tables;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@global.sql_big_tables;
 @@global.sql_big_tables
 1
 SET @@global.sql_big_tables = 1-@@global.sql_big_tables;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@global.sql_big_tables;
 @@global.sql_big_tables
 0
@@ -87,23 +107,33 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_154_08-------------------------#'
 SET @@session.sql_big_tables = OFF;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 SET @@session.sql_big_tables = ON;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 1
 '#---------------------FN_DYNVARS_154_09----------------------#'
 SET @@session.sql_big_tables = TRUE;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 1
 SET @@session.sql_big_tables = FALSE;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0
 SET @@session.sql_big_tables = @session_start_value;
+Warnings:
+Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 SELECT @@session.sql_big_tables;
 @@session.sql_big_tables
 0

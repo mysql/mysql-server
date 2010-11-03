@@ -7957,46 +7957,6 @@ bool setup_tables_and_check_access(THD *thd,
 
 
 /*
-   Create a key_map from a list of index names
-
-   SYNOPSIS
-     get_key_map_from_key_list()
-     map		key_map to fill in
-     table		Table
-     index_list		List of index names
-
-   RETURN
-     0	ok;  In this case *map will includes the choosed index
-     1	error
-*/
-
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list)
-{
-  List_iterator_fast<String> it(*index_list);
-  String *name;
-  uint pos;
-
-  map->clear_all();
-  while ((name=it++))
-  {
-    if (table->s->keynames.type_names == 0 ||
-        (pos= find_type(&table->s->keynames, name->ptr(),
-                        name->length(), 1)) <=
-        0)
-    {
-      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->pos_in_table_list->alias);
-      map->set_all();
-      return 1;
-    }
-    map->set_bit(pos-1);
-  }
-  return 0;
-}
-
-
-/*
   Drops in all fields instead of current '*' field
 
   SYNOPSIS
@@ -8219,7 +8179,17 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+  {
+    String tbl_name;
+    if (db_name)
+    {
+      tbl_name.append(String(db_name,system_charset_info));
+      tbl_name.append('.');
+    }
+    tbl_name.append(String(table_name,system_charset_info));
+
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+  }
 
   DBUG_RETURN(TRUE);
 }
@@ -8244,10 +8214,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 */
 
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                COND **conds)
+                Item **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
@@ -8274,6 +8245,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
+  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
   if (*conds)
   {
     thd->where="where clause";
@@ -8281,6 +8253,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8296,6 +8269,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
+        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
         if ((!embedded->on_expr->fixed &&
             embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
@@ -8320,6 +8294,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       }
     }
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {

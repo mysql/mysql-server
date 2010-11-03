@@ -110,6 +110,7 @@ let $diff_table_2=slave:test.t1;
 source include/diff_tables.inc;
 
 # CLEAN UP
+connection master;
 DROP TABLE t1;
 DROP PROCEDURE p;
 sync_slave_with_master;

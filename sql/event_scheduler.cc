@@ -397,7 +397,7 @@ Event_scheduler::start()
   }
   pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_SCHEDULER;
-  new_thd->command= COM_DAEMON;
+  new_thd->set_command(COM_DAEMON);
 
   /*
     We should run the event scheduler thread under the super-user privileges.

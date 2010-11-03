@@ -22,10 +22,10 @@ VARIABLE_NAME	VARIABLE_VALUE
 SQL_MAX_JOIN_SIZE	18446744073709551615
 set global sql_max_join_size=10;
 Warnings:
-Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@sql_max_join_size' is deprecated and will be removed in a future release. Please use @@max_join_size instead
 set session sql_max_join_size=20;
 Warnings:
-Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@sql_max_join_size' is deprecated and will be removed in a future release. Please use @@max_join_size instead
 select @@global.sql_max_join_size;
 @@global.sql_max_join_size
 10
@@ -55,19 +55,19 @@ select @@sql_big_selects;
 0
 set sql_max_join_size=cast(-1 as unsigned int);
 Warnings:
-Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@sql_max_join_size' is deprecated and will be removed in a future release. Please use @@max_join_size instead
 select @@sql_big_selects;
 @@sql_big_selects
 1
 set sql_max_join_size=100;
 Warnings:
-Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@sql_max_join_size' is deprecated and will be removed in a future release. Please use @@max_join_size instead
 select @@sql_big_selects;
 @@sql_big_selects
 0
 SET @@global.sql_max_join_size = @start_global_value;
 Warnings:
-Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@sql_max_join_size' is deprecated and will be removed in a future release. Please use @@max_join_size instead
 SELECT @@global.sql_max_join_size;
 @@global.sql_max_join_size
 18446744073709551615

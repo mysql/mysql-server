@@ -754,18 +754,6 @@ public:
     Is the storage engine capable of handling bit fields?
     (MyISAM, NDB)
 
-    HA_NEED_READ_RANGE_BUFFER:
-    Is Read Multi-Range supported => need multi read range buffer
-    This parameter specifies whether a buffer for read multi range
-    is needed by the handler. Whether the handler supports this
-    feature or not is dependent of whether the handler implements
-    read_multi_range* calls or not. The only handler currently
-    supporting this feature is NDB so the partition handler need
-    not handle this call. There are methods in handler.cc that will
-    transfer those calls into index_read and other calls in the
-    index scan module.
-    (NDB)
-
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION:
     Does the storage engine need a PK for position?
     (InnoDB)
@@ -848,7 +836,11 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    return m_file[0]->index_flags(inx, part, all_parts);
+    /* 
+      TODO: sergefp: Support Index Condition Pushdown in this table handler.
+    */
+    return m_file[0]->index_flags(inx, part, all_parts) &
+           ~HA_DO_INDEX_COND_PUSHDOWN;
   }
 
   /**

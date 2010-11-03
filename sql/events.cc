@@ -744,7 +744,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 int
-Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
+Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
 {
   char *db= NULL;
   int ret;

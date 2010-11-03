@@ -950,7 +950,7 @@ Creates a commit command node struct.
 UNIV_INTERN
 commit_node_t*
 trx_commit_node_create(
-/*===============*/
+/*===================*/
 	mem_heap_t*	heap)	/*!< in: mem heap where created */
 {
 	commit_node_t*	node;

@@ -5,20 +5,20 @@ SELECT @start_value;
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.log_slow_queries = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries = 0;
 @@global.log_slow_queries = 0
 1
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.log_slow_queries = ON;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 1
 SET @@global.log_slow_queries = OFF;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 0
@@ -61,7 +61,7 @@ IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 '#---------------------FN_DYNVARS_004_06----------------------#'
 SET @@global.log_slow_queries = 0;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 0
@@ -72,7 +72,7 @@ IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 1
 SET @@global.log_slow_queries = 1;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 1
@@ -84,7 +84,7 @@ IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 '#---------------------FN_DYNVARS_004_07----------------------#'
 SET @@global.log_slow_queries = TRUE;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 1
@@ -95,7 +95,7 @@ IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 1
 SET @@global.log_slow_queries = FALSE;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 0
@@ -107,7 +107,7 @@ IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE
 '#---------------------FN_DYNVARS_004_08----------------------#'
 SET @@global.log_slow_queries = ON;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@log_slow_queries = @@global.log_slow_queries;
 @@log_slow_queries = @@global.log_slow_queries
 1
@@ -126,7 +126,7 @@ SELECT log_slow_queries = @@session.log_slow_queries;
 ERROR 42S22: Unknown column 'log_slow_queries' in 'field list'
 SET @@global.log_slow_queries = @start_value;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SELECT @@global.log_slow_queries;
 @@global.log_slow_queries
 1

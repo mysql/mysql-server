@@ -90,6 +90,7 @@ static char *shared_memory_base_name= 0;
 #endif
 static char* user = 0;
 static char* pass = 0;
+static char *opt_bind_addr = NULL;
 static char *charset= 0;
 
 static uint verbose= 0;
@@ -896,6 +897,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	my_free(fname);
       break;
     }
+    case ROWS_QUERY_LOG_EVENT:
+      if (verbose >= 2)
+        ev->print(result_file, print_event_info);
+      break;
     case TABLE_MAP_EVENT:
     {
       Table_map_log_event *map= ((Table_map_log_event *)ev);
@@ -1021,6 +1026,9 @@ static struct my_option my_long_options[] =
    "argument, 'always' is used.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -1413,6 +1421,8 @@ static Exit_status safe_connect()
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -1621,9 +1631,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
   for (;;)
   {
-    const char *error_msg;
-    Log_event *UNINIT_VAR(ev);
-    Log_event_type type;
+    const char *error_msg= NULL;
+    Log_event *ev= NULL;
+    Log_event_type type= UNKNOWN_EVENT;
 
     len= cli_safe_read(mysql);
     if (len == packet_error)

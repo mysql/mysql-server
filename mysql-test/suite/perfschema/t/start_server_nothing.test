@@ -42,4 +42,5 @@ select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
 select * from performance_schema.MUTEX_INSTANCES;
 select * from performance_schema.THREADS;
 select * from performance_schema.RWLOCK_INSTANCES;
+select * from performance_schema.THREADS;
 
