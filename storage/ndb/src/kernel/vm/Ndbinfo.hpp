@@ -46,7 +46,8 @@ public:
     LOGBUFFERS_TABLEID =         6,
     RESOURCES_TABLEID =          7,
     COUNTERS_TABLEID =           8,
-    NODES_TABLEID =              9
+    NODES_TABLEID =              9,
+    DISKPAGEBUFFER_TABLEID =     10
   };
 
   struct Table {

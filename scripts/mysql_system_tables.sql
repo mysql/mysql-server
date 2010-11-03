@@ -156,6 +156,16 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS ndbinfo.diskpagebuffer','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS ndbinfo.diskpagebufferusage','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old lookup tables in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS ndbinfo.blocks','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -277,6 +287,17 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$diskpagebuffer
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$diskpagebuffer`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$diskpagebuffer` (`node_id` INT UNSIGNED,`block_instance` INT UNSIGNED,`pages_written` BIGINT UNSIGNED COMMENT "Pages written to disk",`pages_written_lcp` BIGINT UNSIGNED COMMENT "Pages written by local checkpoint",`pages_read` BIGINT UNSIGNED COMMENT "Pages read from disk",`log_waits` BIGINT UNSIGNED COMMENT "Page writes waiting for log to be written to disk",`page_requests_direct_return` BIGINT UNSIGNED COMMENT "Page in buffer and no requests waiting for it",`page_requests_wait_queue` BIGINT UNSIGNED COMMENT "Page in buffer, but some requests are already waiting for it",`page_requests_wait_io` BIGINT UNSIGNED COMMENT "Page not in buffer, waiting to be read from disk") COMMENT="disk page buffer info" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.blocks
 SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`blocks` (block_number INT UNSIGNED PRIMARY KEY, block_name VARCHAR(512))','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -341,3 +362,14 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.diskpagebuffer
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE SQL SECURITY INVOKER VIEW `ndbinfo`.`diskpagebuffer` AS SELECT node_id, block_instance, pages_written, pages_written_lcp, pages_read, log_waits, page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io FROM ndbinfo.ndb$diskpagebuffer','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.diskpagebufferusage
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE SQL SECURITY INVOKER VIEW `ndbinfo`.`diskpagebufferusage` AS SELECT node_id,   SUM(pages_written) AS pages_written,   SUM(pages_written_lcp) AS pages_written_LCP,   SUM(pages_read) AS pages_read,   SUM(log_waits) AS log_waits,   (SUM(page_requests_direct_return) +    SUM(page_requests_wait_queue) +    SUM(page_requests_wait_io)   ) AS `page_requests_total =`,   SUM(page_requests_direct_return) AS `(PR_direct_return`,   SUM(page_requests_wait_queue) AS ` + PR_wait_queue`,   SUM(page_requests_wait_io)  AS ` + PR_wait_IO)` FROM ndbinfo.ndb$diskpagebuffer GROUP BY node_id','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
