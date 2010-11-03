@@ -338,6 +338,12 @@ trx_list_get_min_trx_id(void)
 
 /****************************************************************//**
 Checks if a transaction with the given id is active.
+IMPORTANT ASSUMPTION:
+	It is assumed that this function is only used for the purpose of
+	determining if locks need to be created for the input transaction.
+	So if innobase_release_locks_early global option is set, and if
+	the transaction is already in prepared state, this returns FALSE,
+	as locks are no longer needed for the transaction.
 @return	TRUE if active */
 UNIV_INLINE
 ibool
@@ -366,7 +372,8 @@ trx_is_active(
 
 	trx = trx_get_on_id(trx_id);
 	if (trx && (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED)) {
+		    || (trx->conc_state == TRX_PREPARED &&
+			!innobase_release_locks_early))) {
 
 		return(TRUE);
 	}
