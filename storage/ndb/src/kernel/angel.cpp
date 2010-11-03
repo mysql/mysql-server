@@ -384,7 +384,7 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
     g_eventLogger->error(" progname: '%s'", progname);
     char** argp = argv;
     while(*argp)
-      g_eventLogger->error("argv[%u]: '%s'", i, *argp++);
+      g_eventLogger->error("argv: '%s'", *argp++);
 
     free_argv(argv);
     return -1;
