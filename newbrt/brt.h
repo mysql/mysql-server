@@ -74,7 +74,9 @@ int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_vali
 int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
 int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));
 int toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
+int toku_brt_log_put (TOKUTXN txn, BRT brt, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
 int toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) __attribute__ ((warn_unused_result));
+int toku_brt_log_del (TOKUTXN txn, BRT brt, const DBT *key) __attribute__ ((warn_unused_result));
 
 // Effect: Delete a key from a brt
 // Returns 0 if successful
