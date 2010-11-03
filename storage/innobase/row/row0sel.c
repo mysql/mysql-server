@@ -983,7 +983,7 @@ sel_set_rec_lock(
 
 	trx = thr_get_trx(thr);
 
-	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+	if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
 		if (buf_LRU_buf_pool_running_out()) {
 
 			return(DB_LOCK_TABLE_FULL);
@@ -2047,7 +2047,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr));
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -2980,7 +2980,9 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
+			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
@@ -3481,7 +3483,8 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
@@ -3535,7 +3538,9 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
+		rw_lock_s_unlock(&trx_sys->lock);
 		fputc('\n', stderr);
 	}
 #endif
@@ -3803,9 +3808,12 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
-	ut_ad(prebuilt->sql_stat_start || trx->conc_state == TRX_ACTIVE);
-	ut_ad(trx->conc_state == TRX_NOT_STARTED
-	      || trx->conc_state == TRX_ACTIVE);
+	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
+
+	/* FIXME: These are now protected by the lock mutex, we can't
+	just add assertions will-nilly.  */
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED || trx->state == TRX_STATE_ACTIVE);
+
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
 	      || trx->read_view);
@@ -4282,37 +4290,36 @@ no_gap_lock:
 				goto lock_wait_or_error;
 			}
 
-			mutex_enter(&kernel_mutex);
-			if (trx->was_chosen_as_deadlock_victim) {
-				mutex_exit(&kernel_mutex);
-				err = DB_DEADLOCK;
+			/* Check whether it was a deadlock or not, if not
+			a deadlock and the transaction had to wait then
+			release the lock it is waiting on. */
 
-				goto lock_wait_or_error;
-			}
-			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
-				lock_cancel_waiting_and_release(
-					trx->wait_lock);
-				mutex_exit(&kernel_mutex);
+			err = lock_trx_handle_wait(trx);
 
-				if (old_vers == NULL) {
-					/* The row was not yet committed */
-
-					goto next_rec;
-				}
-
-				did_semi_consistent_read = TRUE;
-				rec = old_vers;
-			} else {
-				mutex_exit(&kernel_mutex);
-
+			if (err == DB_SUCCESS) {
 				/* The lock was granted while we were
 				searching for the last committed version.
 				Do a normal locking read. */
 
-				offsets = rec_get_offsets(rec, index, offsets,
-							  ULINT_UNDEFINED,
-							  &heap);
+				offsets = rec_get_offsets(
+					rec, index, offsets, ULINT_UNDEFINED,
+					&heap);
+				break;
+			} else if (err == DB_DEADLOCK) {
+				goto lock_wait_or_error;
+ 			} else {
+				ut_a(err == DB_LOCK_WAIT);
+				err = DB_SUCCESS;
 			}
+
+			if (old_vers == NULL) {
+				/* The row was not yet committed */
+
+				goto next_rec;
+			}
+
+			did_semi_consistent_read = TRUE;
+			rec = old_vers;
 			break;
 		default:
 
@@ -4860,18 +4867,16 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	mutex_enter(&kernel_mutex);
-
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started_low(trx);
+	trx_start_if_not_started(trx);
 
 	/* If there are locks on the table or some trx has invalidated the
 	cache up to our trx id, then ret = FALSE.
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
 
-	if (UT_LIST_GET_LEN(table->locks) == 0
+	if (lock_table_get_n_locks(table) == 0
 	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
@@ -4884,11 +4889,10 @@ row_search_check_if_query_cache_permitted(
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
+
 			trx->global_read_view = trx->read_view;
 		}
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	dict_table_close(table, FALSE);
 

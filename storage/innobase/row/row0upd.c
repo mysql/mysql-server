@@ -1520,7 +1520,9 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
@@ -2141,7 +2143,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 
