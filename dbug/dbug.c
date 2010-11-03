@@ -1826,8 +1826,8 @@ FILE *_db_fp_(void)
 
 BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
-  get_code_state_if_not_set_or_return FALSE;
   int match= strict ? INCLUDE : INCLUDE|MATCHED;
+  get_code_state_if_not_set_or_return FALSE;
 
   return (DEBUGGING && DoTrace(cs) & DO_TRACE &&
           InList(cs->stack->keywords, keyword, strict) & match);
