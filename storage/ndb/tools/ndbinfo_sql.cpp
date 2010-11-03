@@ -160,23 +160,7 @@ struct view {
      "pages_written, pages_written_lcp, pages_read, log_waits, "
      "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
      "FROM <NDBINFO_DB>.<TABLE_PREFIX>diskpagebuffer"
-   },
-   { "diskpagebufferusage",
-     "SELECT node_id, "
-     "  SUM(pages_written) AS pages_written, "
-     "  SUM(pages_written_lcp) AS pages_written_LCP, "
-     "  SUM(pages_read) AS pages_read, "
-     "  SUM(log_waits) AS log_waits, "
-     "  (SUM(page_requests_direct_return) + "
-     "   SUM(page_requests_wait_queue) + "
-     "   SUM(page_requests_wait_io) "
-     "  ) AS `page_requests_total =`, "
-     "  SUM(page_requests_direct_return) AS `(PR_direct_return`, "
-     "  SUM(page_requests_wait_queue) AS ` + PR_wait_queue`, "
-     "  SUM(page_requests_wait_io)  AS ` + PR_wait_IO)` "
-     "FROM <NDBINFO_DB>.<TABLE_PREFIX>diskpagebuffer "
-     "GROUP BY node_id"
-  }
+   }
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);
