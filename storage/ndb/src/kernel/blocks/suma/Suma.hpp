@@ -412,6 +412,7 @@ public:
   void check_remove_queue(Signal*, Ptr<Subscription>,
                           Ptr<SubOpRecord>,bool,bool);
   void check_release_subscription(Signal* signal, Ptr<Subscription>);
+  void get_tabinfo_ref_release(Signal*, Ptr<Table>);
 
   /**
    * Public interface

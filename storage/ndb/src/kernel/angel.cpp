@@ -317,8 +317,36 @@ kill(pid_t pid, int sig)
 
 extern int real_main(int, char**);
 
+
+static
+char** create_argv(const Vector<BaseString>& args)
+{
+  char **argv = (char **)malloc(sizeof(char*) * (args.size() + 1));
+  if(argv == NULL)
+    return NULL;
+
+  for(unsigned i = 0; i < args.size(); i++)
+    argv[i] = strdup(args[i].c_str());
+  argv[args.size()] = NULL;
+  return argv;
+}
+
+
+static
+void free_argv(char** argv)
+{
+  char** argp = argv;
+  while(*argp)
+  {
+    free((void*)*argp);
+    argp++;
+  }
+  free((void*)argv);
+}
+
+
 static pid_t
-spawn_process(const char* progname, const BaseString& args)
+spawn_process(const char* progname, const Vector<BaseString>& args)
 {
 #ifdef _WIN32
   // Get full path name of this executeble
@@ -337,7 +365,7 @@ spawn_process(const char* progname, const BaseString& args)
   }
 #endif
 
-  char** argv = BaseString::argify(progname, args.c_str());
+  char** argv = create_argv(args);
   if (!argv)
   {
     g_eventLogger->error("spawn_process: Failed to create argv, errno: %d",
@@ -352,8 +380,16 @@ spawn_process(const char* progname, const BaseString& args)
   {
     g_eventLogger->error("spawn_process: Failed to spawn process, errno: %d",
                          errno);
+    // Print the _spawnv arguments to aid debugging
+    g_eventLogger->error(" progname: '%s'", progname);
+    char** argp = argv;
+    while(*argp)
+      g_eventLogger->error("argv: '%s'", *argp++);
+
+    free_argv(argv);
     return -1;
   }
+  free_argv(argv);
 
   // Convert the handle returned from spawnv_ to a pid
   DWORD pid = GetProcessId((HANDLE)spawn_handle);
@@ -371,11 +407,13 @@ spawn_process(const char* progname, const BaseString& args)
   if (pid == -1)
   {
     g_eventLogger->error("Failed to fork, errno: %d", errno);
+    free_argv(argv);
     return -1;
   }
 
   if (pid)
   {
+    free_argv(argv);
     // Parent
     return pid;
   }
@@ -392,6 +430,37 @@ spawn_process(const char* progname, const BaseString& args)
   exit(1);
   return -1; // Never reached
 #endif
+}
+
+/*
+  retry failed spawn after sleep until fork suceeds or
+  max number of retries occurs
+*/
+
+static pid_t
+retry_spawn_process(const char* progname, const Vector<BaseString>& args)
+{
+  const unsigned max_retries = 10;
+  unsigned retry_counter = 0;
+  while(true)
+  {
+    pid_t pid = spawn_process(progname, args);
+    if (pid == -1)
+    {
+      if (retry_counter++ == max_retries)
+      {
+        g_eventLogger->error("Angel failed to spawn %d times, giving up",
+                             retry_counter);
+        angel_exit(1);
+      }
+
+      g_eventLogger->warning("Angel failed to spawn, sleep and retry");
+
+      NdbSleep_SecSleep(1);
+      continue;
+    }
+    return pid;
+  }
 }
 
 static Uint32 stop_on_error;
@@ -468,7 +537,7 @@ bool stop_child = false;
 
 void
 angel_run(const char* progname,
-          const BaseString& original_args,
+          const Vector<BaseString>& original_args,
           const char* connect_str,
           int force_nodeid,
           const char* bind_address,
@@ -568,21 +637,32 @@ angel_run(const char* progname,
     // Build the args used to start ndbd by appending
     // the arguments that may have changed at the end
     // of original argument list
-    BaseString args(original_args);
+    BaseString one_arg;
+    Vector<BaseString> args;
+    args = original_args;
 
     // Pass fd number of the pipe which ndbd should use
     // for sending extra status to angel
-    args.appfmt(" --report-fd=%d", fds[1]);
+    one_arg.assfmt("--report-fd=%d", fds[1]);
+    args.push_back(one_arg);
 
     // The nodeid which has been allocated by angel
-    args.appfmt(" --allocated-nodeid=%d", nodeid);
+    one_arg.assfmt("--allocated-nodeid=%d", nodeid);
+    args.push_back(one_arg);
 
-    args.appfmt(" --initial=%d", initial);
-    args.appfmt(" --nostart=%d", no_start);
+    one_arg.assfmt("--initial=%d", initial);
+    args.push_back(one_arg);
 
-    pid_t child = spawn_process(progname, args);
-    if (child == -1)
+    one_arg.assfmt("--nostart=%d", no_start);
+    args.push_back(one_arg);
+
+    pid_t child = retry_spawn_process(progname, args);
+    if (child <= 0)
+    {
+      // safety, retry_spawn_process returns valid child or give up
+      g_eventLogger->error("retry_spawn_process, child: %d", child);
       angel_exit(1);
+    }
 
     /**
      * Parent

@@ -4069,7 +4069,19 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
    */
   fragPtr.p->scanning = 1;
   filePtr.p->fragmentNo = fragPtr.p->fragmentId;
-  
+  filePtr.p->m_retry_count = 0;
+
+  sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
+}
+
+void
+Backup::sendScanFragReq(Signal* signal,
+                        Ptr<BackupRecord> ptr,
+                        Ptr<BackupFile> filePtr,
+                        Ptr<Table> tabPtr,
+                        Ptr<Fragment> fragPtr,
+                        Uint32 delay)
+{
   /**
    * Start scan
    */
@@ -4079,7 +4091,6 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     Table & table = * tabPtr.p;
     ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
     const Uint32 parallelism = 16;
-    const Uint32 attrLen = 5 + table.attrInfoLen;
 
     req->senderData = filePtr.i;
     req->resultRef = reference();
@@ -4123,8 +4134,21 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     LinearSectionPtr ptr[3];
     ptr[0].p = attrInfo;
     ptr[0].sz = 5 + table.attrInfoLen;
-    sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal,
-               ScanFragReq::SignalLength, JBB, ptr, 1);
+    if (delay == 0)
+    {
+      jam();
+      sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal,
+                 ScanFragReq::SignalLength, JBB, ptr, 1);
+    }
+    else
+    {
+      jam();
+      SectionHandle handle(this);
+      ndbrequire(import(handle.m_ptr[0], ptr[0].p, ptr[0].sz));
+      handle.m_cnt = 1;
+      sendSignalWithDelay(lqhRef, GSN_SCAN_FRAGREQ, signal,
+                          delay, ScanFragReq::SignalLength, &handle);
+    }
   }
 }
 
@@ -4323,11 +4347,54 @@ Backup::execSCAN_FRAGREF(Signal* signal)
   const Uint32 filePtrI = ref->senderData;
   BackupFilePtr filePtr LINT_SET_PTR;
   c_backupFilePool.getPtr(filePtr, filePtrI);
-  
-  filePtr.p->errorCode = ref->errorCode;
-  filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
-  
-  backupFragmentRef(signal, filePtr);
+
+  Uint32 errCode = ref->errorCode;
+  if (filePtr.p->errorCode == 0)
+  {
+    // check for transient errors
+    switch(errCode){
+    case ScanFragRef::ZSCAN_BOOK_ACC_OP_ERROR:
+    case ScanFragRef::NO_TC_CONNECT_ERROR:
+    case ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR:
+      jam();
+      break;
+    default:
+      jam();
+      filePtr.p->errorCode = errCode;
+    }
+  }
+
+  if (filePtr.p->errorCode == 0)
+  {
+    jam();
+    filePtr.p->m_retry_count++;
+    if (filePtr.p->m_retry_count == 10)
+    {
+      jam();
+      filePtr.p->errorCode = errCode;
+    }
+  }
+
+  if (filePtr.p->errorCode != 0)
+  {
+    jam();
+    filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_SCAN_THREAD;
+    backupFragmentRef(signal, filePtr);
+  }
+  else
+  {
+    jam();
+
+    // retry
+
+    BackupRecordPtr ptr;
+    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    TablePtr tabPtr;
+    ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
+    FragmentPtr fragPtr;
+    tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
+    sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 100);
+  }
 }
 
 void

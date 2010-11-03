@@ -3246,6 +3246,16 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
   ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
+
+  if (apiNodePtr.p->phase == ZFAIL_CLOSING)
+  {
+    jam();
+    /**
+     * This node is pending CLOSE_COM_CONF
+     *   ignore API_REGREQ
+     */
+    return;
+  }
   
 #if 0
   ndbout_c("Qmgr::execAPI_REGREQ: Recd API_REGREQ (NodeId=%d)", apiNodePtr.i);

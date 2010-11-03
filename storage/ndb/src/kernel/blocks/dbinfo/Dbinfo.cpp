@@ -28,8 +28,9 @@
 #include <debugger/DebuggerNames.hpp>
 #endif
 
-Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL, TRIX, 
-                           DBTUX, DBDICT, CMVMI, DBLQH, LGMAN, DBSPJ, 0};
+Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
+                           TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN,
+                           PGMAN, DBSPJ, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx)
