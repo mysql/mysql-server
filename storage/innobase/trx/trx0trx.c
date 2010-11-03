@@ -621,7 +621,7 @@ trx_assign_rseg(void)
 }
 
 /****************************************************************//**
-Starts a new transaction. It releases the trx_mutex. */
+Starts a new transaction. */
 static
 void
 trx_start_low(
