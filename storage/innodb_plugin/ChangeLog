@@ -1,5 +1,13 @@
 2010-11-02	The InnoDB Team
 
+	* btr/btr0cur.c, dict/dict0dict.c, dict/dict0load.c,
+	handler/ha_innodb.cc, include/dict0dict.h, row/row0mysql.c,
+	innodb_bug53046.result, innodb_bug53046.test:
+	Fix Bug#53046 dict_update_statistics_low can still be run
+	concurrently on same table
+
+2010-11-02	The InnoDB Team
+
 	* row/row0sel.c:
 	Fix Bug#57799 READ UNCOMMITTED access failure of off-page
 	DYNAMIC or COMPRESSED columns again
