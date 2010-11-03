@@ -560,8 +560,8 @@ struct dict_table_struct{
 				whether a transaction has locked the AUTOINC
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
-				avoid acquiring the kernel mutex and scanning
-				the vector in trx_t.
+				avoid acquiring the lock_sys_t::mutex and
+			       	scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -585,7 +585,7 @@ struct dict_table_struct{
 				/*!< This counter is used to track the number
 				of granted and pending autoinc locks on this
 				table. This value is set after acquiring the
-				kernel mutex but we peek the contents to
+				lock_sys_t::mutex but we peek the contents to
 				determine whether other transactions have
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the

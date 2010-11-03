@@ -1499,13 +1499,15 @@ dict_stats_save(
 	lint */
 	now = (lint) ut_time();
 
-	mutex_enter(&kernel_mutex);
-	trx = trx_create(trx_dummy_sess);
-	mutex_exit(&kernel_mutex);
+	trx = trx_allocate_for_background();
 
-	trx->op_info = "";
+	/* Use 'read-uncommitted' so that the SELECTs we execute
+	do not get blocked in case some user has locked the rows we
+	are SELECTing */
+
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-	trx_start(trx, ULINT_UNDEFINED);
+
+	trx_start_if_not_started(trx);
 
 	pinfo = pars_info_create();
 
@@ -1672,9 +1674,7 @@ end_rollback:
 
 end_free:
 
-	mutex_enter(&kernel_mutex);
-	trx_free(trx);
-	mutex_exit(&kernel_mutex);
+	trx_free_for_background(trx);
 
 	return(ret);
 }
@@ -2012,16 +2012,15 @@ dict_stats_fetch_from_ps(
 
 	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
 
-	mutex_enter(&kernel_mutex);
-	trx = trx_create(trx_dummy_sess);
-	mutex_exit(&kernel_mutex);
+	trx = trx_allocate_for_background();
 
-	trx->op_info = "";
 	/* Use 'read-uncommitted' so that the SELECTs we execute
 	do not get blocked in case some user has locked the rows we
 	are SELECTing */
+
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-	trx_start(trx, ULINT_UNDEFINED);
+
+	trx_start_if_not_started(trx);
 
 	pinfo = pars_info_create();
 
@@ -2111,9 +2110,7 @@ dict_stats_fetch_from_ps(
 
 	trx_commit_for_mysql(trx);
 
-	mutex_enter(&kernel_mutex);
-	trx_free(trx);
-	mutex_exit(&kernel_mutex);
+	trx_free_for_background(trx);
 
 	return(ret);
 }
@@ -2356,8 +2353,8 @@ dict_stats_delete_index_stats(
 	const char*	table_name;
 	pars_info_t*	pinfo;
 	ulint		ret;
-	ibool		allowed_to_wait_orig;
 	dict_stats_t*	dict_stats;
+	void*		mysql_thd = trx->mysql_thd;
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
@@ -2391,8 +2388,11 @@ dict_stats_delete_index_stats(
 
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
 
-	allowed_to_wait_orig = trx->allowed_to_wait;
-	trx->allowed_to_wait = FALSE;
+	/* Force lock wait timeout to be instantaneous because the incoming
+	transaction was created via MySQL. */
+
+	mysql_thd = trx->mysql_thd;
+	trx->mysql_thd = NULL;
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_INDEX_STATS () IS\n"
@@ -2405,7 +2405,7 @@ dict_stats_delete_index_stats(
 			   TRUE,
 			   trx);
 
-	trx->allowed_to_wait = allowed_to_wait_orig;
+	trx->mysql_thd = mysql_thd;
 
 	/* pinfo is freed by que_eval_sql() */
 
@@ -2478,14 +2478,15 @@ dict_stats_delete_table_stats(
 
 	/* Create a new private trx */
 
-	mutex_enter(&kernel_mutex);
-	trx = trx_create(trx_dummy_sess);
-	mutex_exit(&kernel_mutex);
+	trx = trx_allocate_for_background();
 
-	trx->op_info = "";
+	/* Use 'read-uncommitted' so that the SELECTs we execute
+	do not get blocked in case some user has locked the rows we
+	are SELECTing */
+
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-	trx->allowed_to_wait = FALSE;
-	trx_start(trx, ULINT_UNDEFINED);
+
+	trx_start_if_not_started(trx);
 
 	/* Increment table reference count to prevent the tables from
 	being DROPped just before que_eval_sql(). */
@@ -2565,9 +2566,7 @@ commit_and_return:
 
 	trx_commit_for_mysql(trx);
 
-	mutex_enter(&kernel_mutex);
-	trx_free(trx);
-	mutex_exit(&kernel_mutex);
+	trx_free_for_background(trx);
 
 	return(ret);
 }

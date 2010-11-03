@@ -48,6 +48,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
+#include "srv0start.h"
 
 
 #define FSP_HEADER_OFFSET	FIL_PAGE_DATA	/* Offset of the space header
@@ -2267,9 +2268,6 @@ fseg_create_general(
 		header = byte_offset + buf_block_get_frame(block);
 	}
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-
 	mtr_x_lock(latch, mtr);
 
 	if (rw_lock_get_x_lock_count(latch) == 1) {
@@ -2425,9 +2423,6 @@ fseg_n_reserved_pages(
 	space = page_get_space_id(page_align(header));
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
-
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 
@@ -2841,9 +2836,6 @@ fseg_alloc_free_page_general(
 
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-
 	mtr_x_lock(latch, mtr);
 
 	if (rw_lock_get_x_lock_count(latch) == 1) {
@@ -2992,9 +2984,6 @@ fsp_reserve_free_extents(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-
 	mtr_x_lock(latch, mtr);
 
 	space_header = fsp_get_space_header(space, zip_size, mtr);
@@ -3095,14 +3084,62 @@ fsp_get_available_space_in_free_extents(
 	rw_lock_t*	latch;
 	mtr_t		mtr;
 
-	ut_ad(!mutex_own(&kernel_mutex));
+	/* The convoluted mutex acquire is to overcome latching order
+	issues: The problem is that the fil_mutex is at a lower level
+	than the tablespace latch and the buffer pool mutex. We have to
+	first prevent any operations on the file system by acquiring the
+	dictionary mutex. Then acquire the tablespace latch to obey the
+	latching order and then release the dictionary mutex. That way we
+	ensure that the tablespace instance can't be freed while we are
+	examining its contents (see fil_space_free()).
+
+	However, there is one further complication, we release the fil_mutex
+	when we need to invalidate the the pages in the buffer pool and we
+	reacquire the fil_mutex when deleting and freeing the tablespace
+	instance in fil0fil.c. Here we need to account for that situation
+	too. */
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* At this stage there is no guarantee that the tablespace even
+	exists in the cache. */
+
+	if (fil_tablespace_deleted_or_being_deleted_in_mem(space, -1)) {
+
+		mutex_exit(&dict_sys->mutex);
+
+		return(ULLINT_UNDEFINED);
+	}
 
 	mtr_start(&mtr);
 
 	latch = fil_space_get_latch(space, &flags);
+
+	/* This should ensure that the tablespace instance can't be freed
+	by another thread. However, the tablespace pages can still be freed
+	from the buffer pool. We need to check for that again. */
+
 	zip_size = dict_table_flags_to_zip_size(flags);
 
 	mtr_x_lock(latch, &mtr);
+
+	mutex_exit(&dict_sys->mutex);
+
+	/* At this point it is possible for the tablespace to be deleted and
+	its pages removed from the buffer pool. We need to check for that
+	situation. However, the tablespace instance can't be deleted because
+	our latching above should ensure that. */
+
+	if (fil_tablespace_is_being_deleted(space)) {
+
+		mtr_commit(&mtr);
+
+		return(ULLINT_UNDEFINED);
+	}
+
+	/* From here on even if the user has dropped the tablespace, the
+	pages _must_ still exist in the buffer pool and the tablespace
+	instance _must_ be in the file system hash table. */
 
 	space_header = fsp_get_space_header(space, zip_size, &mtr);
 
@@ -3376,9 +3413,6 @@ fseg_free_page(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-
 	mtr_x_lock(latch, mtr);
 
 	seg_inode = fseg_inode_get(seg_header, space, zip_size, mtr);
@@ -3494,9 +3528,6 @@ fseg_free_step(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
-
 	mtr_x_lock(latch, mtr);
 
 	descr = xdes_get_descriptor(space, zip_size, header_page, mtr);
@@ -3577,9 +3608,6 @@ fseg_free_step_not_header(
 
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
-
-	ut_ad(!mutex_own(&kernel_mutex)
-	      || mtr_memo_contains(mtr, latch, MTR_MEMO_X_LOCK));
 
 	mtr_x_lock(latch, mtr);
 

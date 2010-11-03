@@ -58,9 +58,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
 #include "srv0mon.h"
 #include "srv0start.h"
-#ifdef UNIV_DEBUG
 #include "lock0lock.h"
-#endif /* UNIV_DEBUG */
 #include "dict0priv.h"
 
 #include <ctype.h>
@@ -1031,19 +1029,9 @@ dict_table_can_be_evicted(
 		a window where the table->n_ref_count can be zero but
 		the table instance is in "use". */
 
-		mutex_enter(&kernel_mutex);
-
-		if (UT_LIST_GET_LEN(table->locks) != 0
-		    || table->n_rec_locks != 0) {
-
-			mutex_exit(&kernel_mutex);
-
+		if (lock_table_has_locks(table)) {
 			return(FALSE);
 		}
-
-		ut_ad(lock_table_has_locks(table) == NULL);
-
-		mutex_exit(&kernel_mutex);
 
 		for (index = dict_table_get_first_index(table);
 		     index != NULL;
