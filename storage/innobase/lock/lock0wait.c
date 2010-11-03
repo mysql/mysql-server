@@ -93,6 +93,13 @@ lock_wait_table_release_slot(
 	ut_ad(slot >= lock_sys->waiting_threads);
 	ut_ad(slot < upper);
 
+	/* Note: When we reserve the slot we use the trx_t::mutex to update
+	the slot values to change the state to reserve. Here we are using the
+	lock mutex to change the state of the slot to free. This is by design,
+	because when we query the slot state we always hold both the lock and
+	trx_t::mutex. To reduce contention on the lock mutex when reserving the
+	slot we avoid acquiring the lock mutex. */
+
 	lock_mutex_enter();
 
 	slot->thr->slot = NULL;
@@ -383,6 +390,11 @@ lock_wait_release_thread_if_suspended(
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(thr_get_trx(thr)));
 
+	/* We own both the lock mutex and the trx_t::mutex but not the
+	lock wait mutex. This is OK because other threads will see the state
+       	of this mutex as being in use and no other thread can change the state
+       	of the slot to free unless that thread also owns the lock mutex. */
+
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
 		trx_t*	trx = thr_get_trx(thr);
 
@@ -510,6 +522,11 @@ lock_wait_timeout_thread(
 		for (slot = lock_sys->waiting_threads;
 		     slot < lock_sys->last_slot;
 		     ++slot) {
+
+			/* We are doing a read without the lock mutex
+			and/or the trx mutex. This is OK because a slot
+		       	can't be freed or reserved without the lock wait
+		       	mutex. */
 
 			if (slot->in_use) {
 				lock_wait_check_and_cancel(slot);
