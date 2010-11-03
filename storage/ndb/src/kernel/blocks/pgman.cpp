@@ -72,6 +72,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
 
   addRecSignal(GSN_DATA_FILE_ORD, &Pgman::execDATA_FILE_ORD);
   addRecSignal(GSN_RELEASE_PAGES_REQ, &Pgman::execRELEASE_PAGES_REQ);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Pgman::execDBINFO_SCANREQ);
   
   // loop status
   m_stats_loop_on = false;
@@ -184,15 +185,6 @@ Pgman::Param::Param() :
   m_stats_loop_delay(1000),
   m_cleanup_loop_delay(200),
   m_lcp_loop_delay(0)
-{
-}
-
-Pgman::Stats::Stats() :
-  m_num_pages(0),
-  m_num_hot_pages(0),
-  m_current_io_waits(0),
-  m_page_hits(0),
-  m_page_faults(0)
 {
 }
 
@@ -1448,6 +1440,7 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
   
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
+  m_stats.m_pages_read++;
 
   ptr.p->m_last_lcp = m_last_lcp_complete;
   do_busy_loop(signal, true);
@@ -1490,6 +1483,7 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr)
   else
   {
     ndbrequire(ret == 0);
+    m_stats.m_log_waits++;
     state |= Page_entry::LOGSYNC;
   }
   set_page_state(ptr, state);
@@ -1542,6 +1536,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     state &= ~ Page_entry::LCP;
     ndbrequire(m_lcp_outstanding);
     m_lcp_outstanding--;
+    m_stats.m_pages_written_lcp++;
     if (ptr.p->m_copy_page_i != RNIL)
     {
       jam();
@@ -1551,6 +1546,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
       do_busy_loop(signal, true);
       return;
     }
+  }
+  else
+  {
+    m_stats.m_pages_written++;
   }
   
   set_page_state(ptr, state);
@@ -1715,6 +1714,7 @@ Pgman::get_page_no_lirs(Signal* signal, Ptr<Page_entry> ptr, Page_request page_r
       ! (req_flags & Page_request::UNLOCK_PAGE))
   {
     ptr.p->m_state |= (req_flags & DIRTY_FLAGS ? Page_entry::DIRTY : 0);
+    m_stats.m_page_requests_direct_return++;
     if (ptr.p->m_copy_page_i != RNIL)
     {
       D("<get_page: immediate copy_page");
@@ -1747,6 +1747,7 @@ Pgman::get_page_no_lirs(Signal* signal, Ptr<Page_entry> ptr, Page_request page_r
       D("<get_page: immediate");
 
       ndbrequire(ptr.p->m_real_page_i != RNIL);
+      m_stats.m_page_requests_direct_return++;
       return ptr.p->m_real_page_i;
     }
   }
@@ -1757,6 +1758,12 @@ Pgman::get_page_no_lirs(Signal* signal, Ptr<Page_entry> ptr, Page_request page_r
   }
 
   // queue the request
+
+  if ((state & Page_entry::MAPPED) && ! (state & Page_entry::PAGEOUT))
+    m_stats.m_page_requests_wait_q++;
+  else
+    m_stats.m_page_requests_wait_io++;
+
   Ptr<Pgman::Page_request> req_ptr;
   {
     Local_page_request_list req_list(m_page_request_pool, ptr.p->m_requests);
@@ -2779,4 +2786,37 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
   {
     SET_ERROR_INSERT_VALUE(11009);
   }
+}
+
+void
+Pgman::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    reinterpret_cast<const Ndbinfo::ScanCursor*>(DbinfoScan::getCursorPtr(&req));
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+  switch(req.tableId) {
+  case Ndbinfo::DISKPAGEBUFFER_TABLEID:
+  {
+    jam();
+    BlockNumber bn = blockToMain(number());
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(instance());   // block instance
+    row.write_uint64(m_stats.m_pages_written);
+    row.write_uint64(m_stats.m_pages_written_lcp);
+    row.write_uint64(m_stats.m_pages_read);
+    row.write_uint64(m_stats.m_log_waits);
+    row.write_uint64(m_stats.m_page_requests_direct_return);
+    row.write_uint64(m_stats.m_page_requests_wait_q);
+    row.write_uint64(m_stats.m_page_requests_wait_io);
+
+    ndbinfo_send_row(signal, req, row, rl);
+  }
+  default:
+    break;
+  }
+  ndbinfo_send_scan_conf(signal, req, rl);
 }

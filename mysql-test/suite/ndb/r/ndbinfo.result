@@ -35,9 +35,10 @@ table_id	table_name	comment
 7	resources	resources usage (a.k.a superpool)
 8	counters	monotonic counters
 9	nodes	node status
+10	diskpagebuffer	disk page buffer info
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-10
+11
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -47,11 +48,12 @@ table_id	table_name	comment
 7	resources	resources usage (a.k.a superpool)
 8	counters	monotonic counters
 9	nodes	node status
+10	diskpagebuffer	disk page buffer info
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-100
+121
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -66,6 +68,7 @@ SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
 1	columns
 8	counters
+10	diskpagebuffer
 6	logbuffers
 5	logspaces
 9	nodes
@@ -119,6 +122,7 @@ table_id
 7
 8
 9
+10
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
