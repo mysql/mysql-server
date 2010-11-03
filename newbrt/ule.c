@@ -585,8 +585,11 @@ le_pack(ULE ule,                            // data to be packed into new leafen
     invariant(ule->uxrs[0].xid == TXNID_NONE);
     int rval;
     {
-        //If there are no 'insert' entries, return NO leafentry.
-        //uxrs[ule->num_cuxrs-1] is outermost (committed)
+        // The unpacked leafentry may contain no inserts anywhere on its stack.
+        // If so, then there IS no leafentry to pack, we should return NULL
+        // So, first we check the stack to see if there is any insert. If not,
+        // Then we can return NULL and exit the function, otherwise, we goto
+        // found_insert, and proceed with packing the leafentry
         uint32_t i;
         for (i = 0; i < ule->num_cuxrs + ule->num_puxrs; i++) {
             if (uxr_is_insert(&ule->uxrs[i])) {
@@ -607,6 +610,7 @@ found_insert:;
     //Universal data
     new_leafentry->keylen  = toku_htod32(ule->keylen);
 
+    //p always points to first unused byte after leafentry we are packing
     u_int8_t *p;
     invariant(ule->num_cuxrs>0);
     //Type specific data

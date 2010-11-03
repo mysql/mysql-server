@@ -5,29 +5,8 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
-/* In the past, leaves simply contained key-value pairs.
- * In this implementatoin, leaf values are more complex
- * They can contain a committed value:
- *   - Which can be "not-present",
- *   - Or a key-value pair.
- * They can contain a provisional value, which depends on whether a particular transaction commits or aborts.
- *   - A not-present value
- *   - Or a key-value pair.
- *   - Or there can be no provisional value at all (that is, the value doesn't depend on the transaction.)
- * Note that if both the provisional value and the committed value are not-present, then there is simply no entry in the leaf.
- * So let's enumerate the possibilities:
- *     committed pair                                 A committed pair unaffected by any incomplete transaction.
- *     committed pair and provisional pair            A committed pair to provisionally be replaced by a new pair.
- *     committed pair and provisional delete          A committed pair that will be deleted
- *     provisional pair                               No committed pair, but if a provisional pair to add.
- *
- * In the case of a committed pair and a provisional pair, the key is the same in both cases.  The value can be different.
- *
- * For DUPSORT databases, the key-value pair is everything, so we need only represent the key-value pair once.  So the cases are
- *    committed pair
- *    committed pair provisionally deleted
- *    provisional pair
- * The case of a committed pair and a provisional pair can be represented by a committed pair, since it doesn't matter whether the transction aborts or commits, the value is the same.
+/*
+ * Header file for Leafentries
  */
 
 #include <toku_portability.h>
@@ -63,6 +42,12 @@ extern "C" {
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif
+
+//
+// enum of possible values for LEAFENTRY->type field
+//
+enum { LE_CLEAN = 0, LE_MVCC = 1 };
+
 struct __attribute__ ((__packed__)) leafentry {
     uint8_t  type;
     uint32_t keylen;
@@ -70,23 +55,22 @@ struct __attribute__ ((__packed__)) leafentry {
         struct __attribute__ ((__packed__)) leafentry_clean {
             uint32_t vallen;
             uint8_t  key_val[0];     //Actual key, then actual val
-        } clean;
+        } clean; // For the case where LEAFENTRY->type is LE_CLEAN
         struct __attribute__ ((__packed__)) leafentry_mvcc {
-            uint32_t num_cxrs;
-            uint8_t  num_pxrs;
+            uint32_t num_cxrs; // number of committed uxrs
+            uint8_t  num_pxrs; // number of provisional uxrs
             u_int8_t key_xrs[0]; //Actual key,
                                  //then interesting TXNIDs
                                  //then interesting lengths (type bit is MSB of length)
                                  //then interesting data
                                  //then other transaction records
-        } mvcc;
+        } mvcc; // For the case where LEAFENTRY->type is LE_MVCC
     } u;
 };
 #if TOKU_WINDOWS
 #pragma pack(pop)
 #endif
 
-enum { LE_CLEAN = 0, LE_MVCC = 1 };
 #define LE_CLEAN_MEMSIZE(keylen, vallen)                         \
     (sizeof(((LEAFENTRY)NULL)->type)      /* num_uxrs */   \
     +sizeof(((LEAFENTRY)NULL)->keylen)          /* keylen */     \
@@ -173,16 +157,16 @@ le_clean(uint8_t *key, uint32_t keylen,
 
 
 
-  //Callback contract:
-  //  Returns:
-  //      0:  Ignore this entry and go on to next one.
-  //      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
-  //      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
-  typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
+//Callback contract:
+//  Returns:
+//      0:  Ignore this entry and go on to next one.
+//      TOKUDB_ACCEPT: Quit early, accept this transaction record and return appropriate data
+//      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r
+typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 
-  int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
+int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
 
-  int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
+int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
 
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
