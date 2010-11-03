@@ -599,7 +599,7 @@ trx_assign_rseg(void)
 	trx_rseg_t*	rseg;
 
 	/* This breaks true round robin but that should be OK.
-	Our aim is to reduce the contention of the trx sys mutex.  */
+	Our aim is to reduce the contention of the trx_sys_t::lock.  */
 	i = trx_sys->latest_rseg;
 	i %= TRX_SYS_N_RSEGS;
 
