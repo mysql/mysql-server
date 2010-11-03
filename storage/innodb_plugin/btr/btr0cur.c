@@ -953,7 +953,7 @@ btr_cur_ins_lock_and_undo(
 				not zero, the parameters index and thr
 				should be specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
+	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ibool*		inherit)/*!< out: TRUE if the inserted new record maybe
@@ -3794,7 +3794,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or error */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
 btr_store_big_rec_extern_fields(
