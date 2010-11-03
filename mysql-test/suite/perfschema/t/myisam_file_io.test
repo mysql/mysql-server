@@ -20,14 +20,14 @@
 
 # Setup
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/file/myisam/%";
 
-update performance_schema.SETUP_CONSUMERS
+update performance_schema.setup_consumers
   set enabled='YES';
 
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 
 # Reset lost counters to a known state
 flush status;
@@ -51,7 +51,7 @@ select event_name,
   left(source, locate(":", source)) as short_source,
   operation, number_of_bytes,
   substring(object_name, locate("no_index_tab", object_name)) as short_name
-  from performance_schema.EVENTS_WAITS_HISTORY_LONG
+  from performance_schema.events_waits_history_long
   where operation not like "tell"
   order by thread_id, event_id;
 
@@ -60,7 +60,7 @@ show status like 'performance_schema_%';
 
 # Cleanup
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
 
 drop table test.no_index_tab;
 
