@@ -360,6 +360,9 @@ typedef unsigned long long int	ullint;
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
 
+/* THe 'undefined' value for ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
+
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint
