@@ -87,6 +87,6 @@ use test;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 
 --source suite/parts/inc/part_exch_drop_tabs.inc
-#--rmdir $data_dir_path
-#--rmdir $idx_dir_path
+--rmdir $data_dir_path
+--rmdir $idx_dir_path
 
