@@ -246,7 +246,7 @@ typedef struct st_maria_file_bitmap
   uint used_size;                      /* Size of bitmap head that is not 0 */
   my_bool changed;                     /* 1 if page needs to be written */
   my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
-  my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
+  uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 

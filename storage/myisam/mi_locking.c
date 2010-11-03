@@ -246,7 +246,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
        a crash on windows if the table is renamed and 
        later on referenced by the merge table.
      */
-    if ((info->open_flags & HA_OPEN_MERGE_TABLE) && (info->s)->kfile < 0)
+    if ((info->open_flag & HA_OPEN_MERGE_TABLE) && (info->s)->kfile < 0)
     {
       error = HA_ERR_NO_SUCH_TABLE;
     }

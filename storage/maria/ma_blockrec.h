@@ -217,6 +217,8 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
 void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc);
+void _ma_bitmap_lock(MARIA_SHARE *share);
+void _ma_bitmap_unlock(MARIA_SHARE *share);
 void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
                                         MARIA_SHARE *share);
 #ifndef DBUG_OFF

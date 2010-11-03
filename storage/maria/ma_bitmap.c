@@ -227,7 +227,8 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
     The +1 is to add the bitmap page, as this doesn't have to be covered
   */
   bitmap->pages_covered= aligned_bit_blocks * 16 + 1;
-  bitmap->flush_all_requested= bitmap->non_flushable= 0;
+  bitmap->flush_all_requested= 0;
+  bitmap->non_flushable= 0;
 
   /* Update size for bits */
   /* TODO; Make this dependent of the row size */
@@ -311,8 +312,8 @@ my_bool _ma_bitmap_flush(MARIA_SHARE *share)
     pthread_mutex_lock(&share->bitmap.bitmap_lock);
     if (share->bitmap.changed)
     {
-      share->bitmap.changed= 0;
       res= write_changed_bitmap(share, &share->bitmap);
+      share->bitmap.changed= 0;
     }
     pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   }
@@ -355,7 +356,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   pthread_mutex_lock(&bitmap->bitmap_lock);
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
-    bitmap->flush_all_requested= TRUE;
+    bitmap->flush_all_requested++;
 #ifndef WRONG_BITMAP_FLUSH
     while (bitmap->non_flushable > 0)
     {
@@ -363,6 +364,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
     }
 #endif
+    DBUG_ASSERT(bitmap->flush_all_requested == 1);
     /*
       Bitmap is in a flushable state: its contents in memory are reflected by
       log records (complete REDO-UNDO groups) and all bitmap pages are
@@ -391,7 +393,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
         PCFLUSH_PINNED_AND_ERROR)
       res= TRUE;
     bitmap->changed_not_flushed= FALSE;
-    bitmap->flush_all_requested= FALSE;
+    bitmap->flush_all_requested--;
     /*
       Some well-behaved threads may be waiting for flush_all_requested to
       become false, wake them up.
@@ -401,6 +403,70 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   }
   pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(res);
+}
+
+
+/**
+   @brief Lock bitmap from being used by another thread
+
+   @fn _ma_bitmap_lock()
+   @param  share               Table's share
+
+   @notes
+   This is a temporary solution for allowing someone to delete an inserted
+   duplicate-key row while someone else is doing concurrent inserts.
+   This is ok for now as duplicate key errors are not that common.
+
+   In the future we will add locks for row-pages to ensure two threads doesn't
+   work at the same time on the same page.
+*/
+
+void _ma_bitmap_lock(MARIA_SHARE *share)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  DBUG_ENTER("_ma_bitmap_lock");
+
+  if (!share->now_transactional)
+    DBUG_VOID_RETURN;
+
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  bitmap->flush_all_requested++;
+  while (bitmap->non_flushable)
+  {
+    DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
+    pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
+  }
+  /*
+    Ensure that _ma_bitmap_flush_all() and _ma_bitmap_lock() are blocked.
+    ma_bitmap_flushable() is blocked thanks to 'flush_all_requested'.
+  */
+  bitmap->non_flushable= 1;
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  DBUG_VOID_RETURN;
+}
+  
+/**
+   @brief Unlock bitmap after _ma_bitmap_lock()
+
+   @fn _ma_bitmap_unlock()
+   @param  share               Table's share
+*/
+
+void _ma_bitmap_unlock(MARIA_SHARE *share)
+{
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  DBUG_ENTER("_ma_bitmap_unlock");
+
+  if (!share->now_transactional)
+    DBUG_VOID_RETURN;
+  DBUG_ASSERT(bitmap->flush_all_requested > 0 && bitmap->non_flushable == 1);
+
+  pthread_mutex_lock(&bitmap->bitmap_lock);
+  bitmap->flush_all_requested--;
+  bitmap->non_flushable= 0;
+  pthread_mutex_unlock(&bitmap->bitmap_lock);
+  pthread_cond_broadcast(&bitmap->bitmap_cond);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -633,11 +699,12 @@ static void _ma_print_bitmap_changes(MARIA_FILE_BITMAP *bitmap)
 {
   uchar *pos, *end, *org_pos;
   ulong page;
+  DBUG_ENTER("_ma_print_bitmap_changes");
 
   end= bitmap->map + bitmap->used_size;
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE,"\nBitmap page changes at page %lu\n",
-          (ulong) bitmap->page);
+  fprintf(DBUG_FILE,"\nBitmap page changes at page: %lu  bitmap: 0x%lx\n",
+          (ulong) bitmap->page, (long) bitmap->map);
 
   page= (ulong) bitmap->page+1;
   for (pos= bitmap->map, org_pos= bitmap->map + bitmap->block_size ;
@@ -666,6 +733,7 @@ static void _ma_print_bitmap_changes(MARIA_FILE_BITMAP *bitmap)
   fputc('\n', DBUG_FILE);
   DBUG_UNLOCK_FILE;
   memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -877,6 +945,7 @@ static void fill_block(MARIA_FILE_BITMAP *bitmap,
 {
   uint page, offset, tmp;
   uchar *data;
+  DBUG_ENTER("fill_block");
 
   /* For each 6 bytes we have 6*8/3= 16 patterns */
   page= ((uint) (best_data - bitmap->map)) / 6 * 16 + best_pos;
@@ -902,6 +971,7 @@ static void fill_block(MARIA_FILE_BITMAP *bitmap,
   int2store(data, tmp);
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1514,6 +1584,8 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
   MARIA_BITMAP_BLOCK *block;
   uchar *data;
   uint offset, tmp, offset_page;
+  DBUG_ENTER("use_head");
+
   DBUG_ASSERT(page % bitmap->pages_covered);
 
   block= dynamic_element(&info->bitmap_blocks, block_position,
@@ -1536,6 +1608,7 @@ static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
   int2store(data, tmp);
   bitmap->changed= 1;
   DBUG_EXECUTE("bitmap", _ma_print_bitmap_changes(bitmap););
+  DBUG_VOID_RETURN;
 }
 
 

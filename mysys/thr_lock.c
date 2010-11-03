@@ -406,6 +406,7 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data, void *param)
   data->owner= 0;                               /* no owner yet */
   data->status_param=param;
   data->cond=0;
+  data->priority= 0;
 }
 
 

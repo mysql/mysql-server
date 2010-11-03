@@ -4280,7 +4280,6 @@ void detach_merge_children(TABLE *table, bool clear_refs)
 {
   TABLE_LIST *child_l;
   TABLE *parent= table->child_l ? table : table->parent;
-  bool first_detach;
   DBUG_ENTER("detach_merge_children");
   /*
     Either table->child_l or table->parent must be set. Parent must have
