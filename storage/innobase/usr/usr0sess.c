@@ -41,9 +41,7 @@ sess_open(void)
 {
 	sess_t*	sess;
 
-	ut_ad(mutex_own(&kernel_mutex));
-
-	sess = mem_alloc(sizeof(sess_t));
+	sess = mem_zalloc(sizeof(*sess));
 
 	sess->state = SESS_ACTIVE;
 
@@ -62,8 +60,6 @@ sess_close(
 /*=======*/
 	sess_t*	sess)	/*!< in, own: session object */
 {
-	ut_ad(!mutex_own(&kernel_mutex));
-
 	ut_a(UT_LIST_GET_LEN(sess->graphs) == 0);
 
 	trx_free_for_background(sess->trx);

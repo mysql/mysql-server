@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.innodb_bug57904 : bug#57904 2010-11-03 Sunny Result file broken.

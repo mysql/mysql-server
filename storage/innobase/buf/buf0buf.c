@@ -1265,8 +1265,8 @@ buf_pool_init_instance(
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}
 
-	/* 3. Initialize LRU fields
-	--------------------------- */
+	buf_pool->watch = mem_zalloc(
+		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
 
 	/* All fields are initialized by mem_zalloc(). */
 
@@ -1286,6 +1286,9 @@ buf_pool_free_instance(
 {
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
+
+	mem_free(buf_pool->watch);
+	buf_pool->watch = NULL;
 
 	chunks = buf_pool->chunks;
 	chunk = chunks + buf_pool->n_chunks;
@@ -3543,7 +3546,7 @@ buf_page_get_known_nowait(
 /*******************************************************************//**
 Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the kernel mutex.
+Suitable for using when holding the lock_sys_t::mutex.
 @return	pointer to a page or NULL */
 UNIV_INTERN
 const buf_block_t*
