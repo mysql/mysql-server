@@ -338,10 +338,13 @@ trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
 
-/** Transactions that aren't started by the MySQL server don't set
+/*******************************************************************//**
+Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
 wait timeout to 0 instead of the user configured value that comes
-from innodb_lock_wait_timeout via trx_t::mysql_thd. */
+from innodb_lock_wait_timeout via trx_t::mysql_thd.
+@param trx	transaction
+@return		lock wait timeout in seconds */
 #define trx_lock_wait_timeout_get(trx)					\
 	((trx)->mysql_thd != NULL					\
 	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
