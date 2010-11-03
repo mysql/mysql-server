@@ -7441,6 +7441,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       join                join for which the check is performed
       options             options of the join
       no_jbuf_after       don't use join buffering after table with this number
+      prev_tab            previous join table
       icp_other_tables_ok OUT TRUE if condition pushdown supports
                           other tables presence
       idx_cond_fact_out   OUT TRUE if condition pushed to the index is factored
@@ -7568,6 +7569,7 @@ static
 uint check_join_cache_usage(JOIN_TAB *tab,
                             JOIN *join, ulonglong options,
                             uint no_jbuf_after,
+                            JOIN_TAB *prev_tab,
                             bool *icp_other_tables_ok,
                             bool *idx_cond_fact_out)
 {
@@ -7587,7 +7589,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   *icp_other_tables_ok= TRUE;
   *idx_cond_fact_out= TRUE;
-  if (cache_level == 0 || i == join->const_tables)
+  if (cache_level == 0 || i == join->const_tables || !prev_tab)
     return 0;
 
   if (options & SELECT_NO_JOIN_CACHE)
@@ -7633,7 +7635,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (tab->first_sj_inner_tab && tab->first_sj_inner_tab != tab &&
       !tab->first_sj_inner_tab->use_join_cache)
     goto no_join_cache;
-  if (!tab[-1].use_join_cache)
+  if (!prev_tab->use_join_cache)
   {
     /* 
       Check whether table tab and the previous one belong to the same nest of
@@ -7655,7 +7657,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   }       
 
   if (!force_unlinked_cache)
-    prev_cache= tab[-1].cache;
+    prev_cache= prev_tab->cache;
 
   switch (tab->type) {
   case JT_ALL:
@@ -7807,6 +7809,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         return TRUE; /* purecov: inspected */
       tab->sorted= TRUE;
     }
+
+    /*
+     SJ-Materialization
+    */
+    if (!(i >= first_sjm_table && i < last_sjm_table))
+      tab->first_sjm_sibling= NULL;
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
       /* This is a start of semi-join nest */
@@ -7819,9 +7827,45 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
       if (setup_sj_materialization(tab))
         return TRUE;
+      for (uint j= first_sjm_table; j != last_sjm_table; j++)
+        join->join_tab[j].first_sjm_sibling= join->join_tab + first_sjm_table;
     }
     table->status=STATUS_NO_RECORD;
     pick_table_access_method (tab);
+
+    /*
+      This loop currently can be executed only once as the function 
+      check_join_cache_usage does not change the value of tab->type.
+      It won't be true for the future code.
+    */    
+    for ( ;  ; )
+    {
+      enum join_type tab_type= tab->type; 
+      switch (tab->type) {
+      case JT_SYSTEM:
+      case JT_CONST:
+      case JT_EQ_REF:
+      case JT_REF:
+      case JT_REF_OR_NULL:
+      case JT_ALL:
+        if ((jcl= check_join_cache_usage(tab, join, options,
+                                         no_jbuf_after,
+                                         i == last_sjm_table ?
+					   join->join_tab+first_sjm_table :
+                                           tab-1, 
+                                         &icp_other_tables_ok,
+                                         &idx_cond_fact_out)))
+        {
+          tab->use_join_cache= TRUE;
+          tab[-1].next_select=sub_select_cache;
+        }
+        break;
+      default:
+       ;
+      }
+      if (tab->type == tab_type)
+        break;
+    }
 
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join 
@@ -7829,13 +7873,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       /* Only happens with outer joins */
       tab->read_first_record= tab->type == JT_SYSTEM ?
                                 join_read_system :join_read_const;
-      if ((jcl= check_join_cache_usage(tab, join, options,
-                                       no_jbuf_after, &icp_other_tables_ok,
-                                       &idx_cond_fact_out)))
-      {
-        tab->use_join_cache= TRUE;
-        tab[-1].next_select=sub_select_cache;
-      }
       if (table->covering_keys.is_set(tab->ref.key) &&
           !table->no_keyread)
       {
@@ -7849,13 +7886,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_EQ_REF:
       tab->read_record.unlock_row= join_read_key_unlock_row;
       /* fall through */
-      if ((jcl= check_join_cache_usage(tab, join, options,
-                                       no_jbuf_after, &icp_other_tables_ok,
-                                       &idx_cond_fact_out)))
-      {
-        tab->use_join_cache= TRUE;
-        tab[-1].next_select=sub_select_cache;
-      }
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
       {
@@ -7875,13 +7905,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       delete tab->quick;
       tab->quick=0;
-      if ((jcl= check_join_cache_usage(tab, join, options,
-                                       no_jbuf_after, &icp_other_tables_ok,
-                                       &idx_cond_fact_out)))
-      {
-        tab->use_join_cache= TRUE;
-        tab[-1].next_select=sub_select_cache;
-      }
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->enable_keyread();
@@ -7896,12 +7919,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         Also don't use cache if this is the first table in semi-join
           materialization nest.
       */
-      if (check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                 &icp_other_tables_ok, &idx_cond_fact_out))
-      {
-        tab->use_join_cache= TRUE;
-        tab[-1].next_select=sub_select_cache;
-      }
       /* These init changes read_record */
       if (tab->use_quick == 2)
       {
@@ -9563,6 +9580,11 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     Item_equal *upper= item_field->find_item_equal(upper_levels);
     Item_field *item= item_field;
     TABLE_LIST *field_sjm= embedding_sjm(item_field);
+    if (!field_sjm)
+    { 
+      current_sjm= NULL;
+      current_sjm_head= NULL;
+    }      
 
     /* 
       Check if "item_field=head" equality is already guaranteed to be true 
@@ -10629,7 +10651,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     {
       /* Find the best access method that would not use join buffering */
       best_access_path(join, rs, reopt_remaining_tables, i, 
-                       test(i < no_jbuf_before), rec_count,
+                       TRUE, rec_count,
                        &pos, &loose_scan_pos);
     }
     else 

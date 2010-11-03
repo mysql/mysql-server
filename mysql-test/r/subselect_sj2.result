@@ -52,7 +52,8 @@ insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	10	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t3)
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1

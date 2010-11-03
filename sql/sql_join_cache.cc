@@ -137,7 +137,44 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
   *descr_ptr= copy_ptr;
   return len;
 }
-    
+
+/* 
+  Get the next table whose records are stored in the join buffer of this cache
+
+  SYNOPSIS
+    get_next_table()
+      tab     the table for which the next table is to be returned
+
+  DESCRIPTION
+    For a given table whose records are stored in this cache the function
+    returns the next such table if there is any.
+    The function takes into account that the tables whose records are
+    are stored in the same cache now can interleave with tables from
+    materialized semijoin subqueries.
+
+  TODO
+    This function should be modified/simplified after the new code for
+     materialized semijoins is merged.
+
+  RETURN
+    The next join table whose records are stored in the buffer of this cache
+    if such table exists, 0 - otherwise
+*/
+
+JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
+{
+  
+  if (++tab == join_tab)
+    return NULL;
+  if (join_tab->first_sjm_sibling)
+    return tab;
+  uint i= tab-join->join_tab;
+  while (sj_is_materialize_strategy(join->best_positions[i].sj_strategy) &&
+         i < join->tables)
+    i+= join->best_positions[i].n_sj_tables;
+  return join->join_tab+i < join_tab ? join->join_tab+i : NULL; 
+}
+
 
 /* 
   Determine different counters of fields associated with a record in the cache  
@@ -159,7 +196,9 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
 void JOIN_CACHE::calc_record_fields()
 {
   JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                               join->join_tab+join->const_tables;
+                                (join_tab->first_sjm_sibling ?
+			         join_tab->first_sjm_sibling :
+			         join->join_tab+join->const_tables);
   tables= join_tab-tab;
 
   fields= 0;
@@ -169,7 +208,7 @@ void JOIN_CACHE::calc_record_fields()
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  for ( ; tab < join_tab ; tab++)
+  for ( ; tab ; tab= get_next_table(tab))
   {	    
     tab->calc_used_field_length(FALSE);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
@@ -222,7 +261,8 @@ void JOIN_CACHE::collect_info_on_key_args()
   cache= this;
   do
   {
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (tab= cache->join_tab-cache->tables; tab ;
+         tab= cache->get_next_table(tab))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -338,7 +378,7 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     TABLE *table= tab->table;
 
@@ -425,7 +465,8 @@ void JOIN_CACHE::create_key_arg_fields()
   while (ext_key_arg_cnt)
   {
     cache= cache->prev_cache;
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (tab= cache->join_tab-cache->tables; tab;
+         tab= cache->get_next_table(tab))
     { 
       CACHE_FIELD *copy_end;
       MY_BITMAP *key_read_set= &tab->table->tmp_set;
@@ -475,7 +516,7 @@ void JOIN_CACHE::create_key_arg_fields()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= join_tab-tables; tab < join_tab ; tab++)
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
                                                  &data_field_count, &copy,
@@ -531,7 +572,7 @@ void JOIN_CACHE:: create_remaining_fields()
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -1341,6 +1382,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   end_pos= pos= cp;
   *is_full= last_record;
 
+  last_written_is_null_compl= 0;   
   if (!join_tab->first_unmatched && join_tab->on_precond)
   { 
     join_tab->found= 0;
@@ -1351,8 +1393,6 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
       last_written_is_null_compl= 1;
     }
   } 
-  else
-    last_written_is_null_compl= 0;   
       
   return (uint) (cp-init_pos);
 }

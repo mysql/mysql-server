@@ -306,6 +306,8 @@ typedef struct st_join_table {
   */
   uint sj_strategy;
 
+  struct st_join_table *first_sjm_sibling;
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -1035,6 +1037,8 @@ public:
     buff= 0;
   }   
   
+  JOIN_TAB *get_next_table(JOIN_TAB *tab);
+
   friend class JOIN_CACHE_HASHED;
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
