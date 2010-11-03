@@ -19,7 +19,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_BINARY_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys
-                    ${CMAKE_SOURCE_DIR}/zlib
+                    ${ZLIB_INCLUDE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
@@ -55,7 +55,7 @@ ADD_LIBRARY(ndbgeneral STATIC
 	    SparseBitmask.cpp
             require.c
 )
-TARGET_LINK_LIBRARIES(ndbgeneral zlib mysys ws2_32)
+TARGET_LINK_LIBRARIES(ndbgeneral ${ZLIB_LIBRARY} mysys)
 
 ADD_EXECUTABLE(BaseString-t BaseString.cpp)
 SET_TARGET_PROPERTIES(BaseString-t
