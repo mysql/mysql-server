@@ -127,7 +127,7 @@ IF(WITH_NDBMTD)
 
 ENDIF()
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.cmake
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)
 
 # Define HAVE_NDB_CONFIG_H to make ndb_global.h include the
