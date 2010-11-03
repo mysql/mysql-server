@@ -4296,10 +4296,6 @@ brt_cursor_update(BRT_CURSOR brtcursor) {
 
 //
 // Returns true if the value that is to be read is empty.
-// If is_read_committed is false, then it checks the innermost value
-// (and is the equivalent of le_latest_is_del)
-// If is_read_committed is true, then for live transactions, it checks the committed
-// value in le. For committed transactions, it checks the innermost value
 //
 static inline int 
 is_le_val_empty(LEAFENTRY le, BRT_CURSOR brtcursor) {
