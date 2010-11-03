@@ -156,6 +156,8 @@ trx_purge_sys_create(
 
 	purge_sys->trx = purge_sys->sess->trx;
 
+	ut_a(purge_sys->trx->sess == purge_sys->sess);
+
 	trx_mutex_enter(purge_sys->trx);
 
 	/* A purge transaction is not a real transaction, we use a transaction

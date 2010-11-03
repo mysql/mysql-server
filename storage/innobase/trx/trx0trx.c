@@ -87,17 +87,13 @@ trx_set_detailed_error_from_file(
 }
 
 /****************************************************************//**
-Creates and initializes a transaction object.
-@return	own: the transaction */
-UNIV_INTERN
+Creates and initializes a transaction object. */
+static
 trx_t*
-trx_create(
-/*=======*/
-	sess_t*	sess)	/*!< in: session */
+trx_create(void)
+/*============*/
 {
 	trx_t*	trx;
-
-	ut_ad(sess);
 
 	trx = mem_zalloc(sizeof(*trx));
 
@@ -122,8 +118,6 @@ trx_create(
 	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->error_state = DB_SUCCESS;
-
-	trx->sess = sess;
 
 	trx->lock.que_state = TRX_QUE_RUNNING;
 
@@ -153,7 +147,12 @@ trx_t*
 trx_allocate_for_background(void)
 /*=============================*/
 {
-	return(trx_create(trx_dummy_sess));
+	trx_t*	trx;
+
+	trx = trx_create();
+	trx->sess = trx_dummy_sess;
+
+	return(trx);
 }
 
 /********************************************************************//**
@@ -374,7 +373,7 @@ trx_resurrect_insert(
 {
 	trx_t*		trx;
 
-	trx = trx_create(trx_dummy_sess);
+	trx = trx_allocate_for_background();
 
 	trx->rseg = rseg;
 	trx->xid = undo->xid;
@@ -570,7 +569,7 @@ trx_lists_init_at_db_start(void)
 			trx = trx_get_on_id(undo->trx_id);
 
 			if (trx == NULL) {
-				trx = trx_create(trx_dummy_sess);
+				trx = trx_allocate_for_background();
 				trx_created = TRUE;
 			} else {
 				trx_created = FALSE;

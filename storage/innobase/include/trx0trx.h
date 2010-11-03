@@ -77,15 +77,6 @@ const dict_index_t*
 trx_get_error_info(
 /*===============*/
 	const trx_t*	trx);	/*!< in: trx object */
-/****************************************************************//**
-Creates and initializes a transaction object.
-@return	own: the transaction */
-UNIV_INTERN
-trx_t*
-trx_create(
-/*=======*/
-	sess_t*	sess)	/*!< in: session */
-	__attribute__((nonnull));
 /********************************************************************//**
 Creates a transaction object for MySQL.
 @return	own: transaction object */

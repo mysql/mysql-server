@@ -45,7 +45,8 @@ sess_open(void)
 
 	sess->state = SESS_ACTIVE;
 
-	sess->trx = trx_create(sess);
+	sess->trx = trx_allocate_for_background();
+	sess->trx->sess = sess;
 
 	UT_LIST_INIT(sess->graphs);
 
