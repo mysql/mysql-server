@@ -9,10 +9,12 @@ connect (conn2,localhost,root,,);
 
 connection default;
 --echo # should see nothing
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 flush logs;
 --echo # should see nothing
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 
 connection conn1;
 set session tokudb_checkpoint_lock=1;
@@ -23,22 +25,26 @@ connection default;
 connection conn2;
 --sleep 2
 --echo # should see a flush logs
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 set session tokudb_checkpoint_lock=1;
 --echo # should still see a flush logs
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 
 connection conn1;
 --sleep 2
 set session tokudb_checkpoint_lock=0;
 --echo # should still see a flush logs
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 
 connection conn2;
 set session tokudb_checkpoint_lock=0;
 --sleep 2
 --echo # should see nothing
-show processlist;
+select DB, command, time, state, info from information_schema.processlist;
+
 
 connection default;
 --reap
