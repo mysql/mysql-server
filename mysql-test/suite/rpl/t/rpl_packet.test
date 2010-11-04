@@ -200,7 +200,7 @@ INSERT INTO t1 VALUES (REPEAT('a', 2048));
 --replace_regex /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /mapped to number [0-9]*/mapped to number #/
 exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file 2> $MYSQLD_TMPDIR/warning.txt
  | grep 'end_log_pos'
- | tail -n 1;
+ | tail -1;
 --cat_file $MYSQLD_TMPDIR/warning.txt
 --remove_file $MYSQLD_TMPDIR/warning.txt
 
