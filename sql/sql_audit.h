@@ -41,7 +41,7 @@ static inline uint make_user_name(THD *thd, char *buf)
 {
   Security_context *sctx= thd->security_ctx;
   return strxnmov(buf, MAX_USER_HOST_SIZE,
-                  sctx->priv_user ? sctx->priv_user : "", "[",
+                  sctx->priv_user[0] ? sctx->priv_user : "", "[",
                   sctx->user ? sctx->user : "", "] @ ",
                   sctx->host ? sctx->host : "", " [",
                   sctx->ip ? sctx->ip : "", "]", NullS) - buf;

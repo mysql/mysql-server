@@ -147,6 +147,6 @@ alter table mysql.proc drop column type;
 # The below statement should not cause assertion failure.
 drop database mysqltest;
 Warnings:
-Error	1695	Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
+Error	1701	Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 # Restore mysql.proc.
 drop table mysql.proc;

@@ -538,6 +538,14 @@ struct mysql_row_templ_struct {
 					Innobase record in the current index;
 					not defined if template_type is
 					ROW_MYSQL_WHOLE_ROW */
+	ulint	clust_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the clustered index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
+	ulint	icp_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the current index;
+					not defined unless
+					index condition pushdown is used */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL
@@ -575,8 +583,6 @@ struct mysql_row_templ_struct {
 
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
-
-typedef uint (*index_cond_func_t)(void *param);
 
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
@@ -774,14 +780,15 @@ struct row_prebuilt_struct {
 					store it here so that we can return
 					it to MySQL */
 	/*----------------------*/
+	void*		idx_cond;	/*!< In ICP, pointer to a ha_innobase,
+					passed to innobase_index_cond().
+					NULL if index condition pushdown is
+					not used. */
+	ulint		idx_cond_n_cols;/*!< Number of fields in idx_cond_cols.
+					0 if and only if idx_cond == NULL. */
+	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
-	index_cond_func_t idx_cond_func;/* Index Condition Pushdown function,
-					or NULL if there is none set */
-	void*		idx_cond_func_arg; /* ICP function  argument */
-	ulint		n_index_fields;	/* Number of fields at the start of
-					mysql_template. Valid only when using
-					ICP. */
 };
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687

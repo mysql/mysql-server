@@ -245,14 +245,14 @@ lock tables mysql.slow_log READ;
 ERROR HY000: You can't use locks with log tables.
 set global general_log='OFF';
 set global slow_query_log='OFF';
-set @save_storage_engine= @@session.storage_engine;
-set storage_engine= MEMORY;
+set @save_storage_engine= @@session.default_storage_engine;
+set default_storage_engine= MEMORY;
 alter table mysql.slow_log engine=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 alter table mysql.slow_log engine=memory;
 ERROR HY000: This storage engine cannot be used for log tables"
-set storage_engine= @save_storage_engine;
+set default_storage_engine= @save_storage_engine;
 drop table mysql.slow_log;
 drop table mysql.general_log;
 drop table mysql.general_log;

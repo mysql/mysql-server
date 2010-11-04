@@ -33,6 +33,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -262,7 +263,9 @@ static my_bool check_have_innodb(MYSQL *conn)
   int rc;
   my_bool result;
 
-  rc= mysql_query(conn, "show variables like 'have_innodb'");
+  rc= mysql_query(conn, 
+                  "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
+                  "AS `TRUE` FROM information_schema.engines WHERE engine = 'innodb'");
   myquery(rc);
   res= mysql_use_result(conn);
   DIE_UNLESS(res);
@@ -270,7 +273,7 @@ static my_bool check_have_innodb(MYSQL *conn)
   row= mysql_fetch_row(res);
   DIE_UNLESS(row);
 
-  result= strcmp(row[1], "YES") == 0;
+  result= strcmp(row[1], "1") == 0;
   mysql_free_result(res);
   return result;
 }

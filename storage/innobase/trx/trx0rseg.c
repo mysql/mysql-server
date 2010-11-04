@@ -33,6 +33,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "fut0lst.h"
 #include "srv0srv.h"
 #include "trx0purge.h"
+#include "srv0mon.h"
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register rseg_mutex_key with performance schema */
@@ -152,6 +153,8 @@ trx_rseg_mem_free(
 		undo = UT_LIST_GET_NEXT(undo_list, undo);
 		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, prev_undo);
 
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
+
 		trx_undo_mem_free(prev_undo);
 	}
 
@@ -162,6 +165,8 @@ trx_rseg_mem_free(
 
 		undo = UT_LIST_GET_NEXT(undo_list, undo);
 		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, prev_undo);
+
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 
 		trx_undo_mem_free(prev_undo);
 	}
