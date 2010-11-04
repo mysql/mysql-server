@@ -57,6 +57,30 @@ SHOW BINLOG EVENTS;
 SET @max_allowed_packet_1= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_2= @@session.max_allowed_packet;
+START SLAVE;
+DROP TABLE t1;
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+4096
+select @@global.net_buffer_length;
+@@global.net_buffer_length
+4096
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1024
+select @@global.net_buffer_length;
+@@global.net_buffer_length
+1024
+CREATE TABLE t1 (a TEXT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (REPEAT('a', 2048));
+# 1153 = ER_NET_PACKET_TOO_LARGE
+Last_IO_Error = Got a packet bigger than 'max_allowed_packet' bytes
+# Now Read_Master_Log_Pos is as following:
+Read_Master_Log_Pos	424
+# Test the Table_map_log_event is displayed at Read_Master_Log_Pos by MYSQLBINLOG
+Last event in relay log:
+#server id #  end_log_pos 424 	Table_map: `test`.`t1` mapped to number #
+WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
 ==== clean up ====
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;

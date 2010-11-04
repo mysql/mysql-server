@@ -106,7 +106,11 @@ trx_create(
 	trx->is_purge = 0;
 	trx->is_recovered = 0;
 	trx->conc_state = TRX_NOT_STARTED;
-	trx->start_time = time(NULL);
+
+	trx->is_registered = 0;
+	trx->owns_prepare_mutex = 0;
+
+	trx->start_time = ut_time();
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
@@ -125,7 +129,6 @@ trx_create(
 	trx->table_id = 0;
 
 	trx->mysql_thd = NULL;
-	trx->active_trans = 0;
 	trx->duplicates = 0;
 
 	trx->n_mysql_tables_in_use = 0;
@@ -160,6 +163,7 @@ trx_create(
 	trx->graph = NULL;
 
 	trx->wait_lock = NULL;
+	trx->allowed_to_wait = TRUE;
 	trx->was_chosen_as_deadlock_victim = FALSE;
 	UT_LIST_INIT(trx->wait_thrs);
 
@@ -754,8 +758,7 @@ trx_commit_off_kernel(
 		mutex_enter(&(rseg->mutex));
 
 		if (trx->insert_undo != NULL) {
-			trx_undo_set_state_at_finish(
-				rseg, trx, trx->insert_undo, &mtr);
+			trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
 		}
 
 		undo = trx->update_undo;
@@ -770,7 +773,7 @@ trx_commit_off_kernel(
 			transaction commit for this transaction. */
 
 			update_hdr_page = trx_undo_set_state_at_finish(
-				rseg, trx, undo, &mtr);
+				undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
@@ -1805,7 +1808,6 @@ trx_prepare_off_kernel(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	page_t*		update_hdr_page;
 	trx_rseg_t*	rseg;
 	ib_uint64_t	lsn		= 0;
 	mtr_t		mtr;
@@ -1838,7 +1840,7 @@ trx_prepare_off_kernel(
 		}
 
 		if (trx->update_undo) {
-			update_hdr_page = trx_undo_set_state_at_prepare(
+			trx_undo_set_state_at_prepare(
 				trx, trx->update_undo, &mtr);
 		}
 

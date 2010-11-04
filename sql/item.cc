@@ -1805,8 +1805,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->is_stmt_prepare() ? thd->activate_stmt_arena_if_needed(&backup)
-                                : NULL;
+  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -1876,11 +1875,12 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
-    /*
-      We do not check conv->fixed, because Item_func_conv_charset which can
-      be return by safe_charset_converter can't be fixed at creation
-    */
-    conv->fix_fields(thd, arg);
+
+    if (conv->fix_fields(thd, arg))
+    {
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);
@@ -7490,9 +7490,11 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
   case DECIMAL_RESULT:
     return new Item_cache_decimal();
   case STRING_RESULT:
-    if (item->field_type() == MYSQL_TYPE_DATE ||
-        item->field_type() == MYSQL_TYPE_DATETIME ||
-        item->field_type() == MYSQL_TYPE_TIME)
+    /* Not all functions that return DATE/TIME are actually DATE/TIME funcs. */
+    if ((item->field_type() == MYSQL_TYPE_DATE ||
+         item->field_type() == MYSQL_TYPE_DATETIME ||
+         item->field_type() == MYSQL_TYPE_TIME) &&
+        (const_cast<Item*>(item))->result_as_longlong())
       return new Item_cache_datetime(item->field_type());
     return new Item_cache_str(item);
   case ROW_RESULT:

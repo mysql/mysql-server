@@ -3343,13 +3343,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -3364,6 +3359,18 @@ JOIN::destroy()
   delete_dynamic(&keyuse);
   delete procedure;
   DBUG_RETURN(error);
+}
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
 }
 
 
@@ -3753,7 +3760,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf);
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  {}
   tl->next_leaf= subq_lex->leaf_tables;
   last_leaf= tl;
 
@@ -3762,7 +3770,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local);
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  {}
   tl->next_local= subq_lex->leaf_tables;
 
   /* A theory: no need to re-connect the next_global chain */
@@ -4351,7 +4360,8 @@ bool pull_out_semijoin_tables(JOIN *join)
       {
         List_iterator<TABLE_LIST> li(*upper_join_list);
         /* Find the sj_nest in the list. */
-        while (sj_nest != li++);
+        while (sj_nest != li++)
+        {}
         li.remove();
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
@@ -13314,7 +13324,6 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   }
     
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   /* 
     Flatten nested joins that can be flattened.
     no ON expression and not a semi-join => can be flattened.
@@ -13322,6 +13331,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (table->sj_on_expr && !in_sj)
     {
@@ -21161,6 +21171,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*

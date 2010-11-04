@@ -2875,20 +2875,23 @@ subselect_single_select_engine::save_join_if_explain()
   if (thd->lex->describe &&                              // 1
       !select_lex->uncacheable &&                        // 2
       !(join->select_options & SELECT_DESCRIBE) &&       // 3
-      join->need_tmp &&                                  // 4
-      item->const_item())                                // 5
+      join->need_tmp)                                    // 4
   {
-    /*
-      Save this JOIN to join->tmp_join since the original layout will
-      be replaced when JOIN::exec() calls make_simple_join() due to
-      need_tmp==TRUE. The original layout is needed so we can describe
-      the query. No need to do this if uncacheable != 0 since in this
-      case the JOIN has already been saved during JOIN::optimize()
-    */
-    select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-    select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-    if (join->init_save_join_tab())
-      return TRUE;
+    item->update_used_tables();
+    if (item->const_item())                              // 5
+    {
+      /*
+        Save this JOIN to join->tmp_join since the original layout will
+        be replaced when JOIN::exec() calls make_simple_join() due to
+        need_tmp==TRUE. The original layout is needed so we can describe
+        the query. No need to do this if uncacheable != 0 since in this
+        case the JOIN has already been saved during JOIN::optimize()
+      */
+      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+      if (join->init_save_join_tab())
+        return TRUE;
+    }
   }
   return FALSE;
 }

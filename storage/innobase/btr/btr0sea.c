@@ -1055,6 +1055,15 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
+	/* Do a dirty check on btr_search_fully_disabled and
+	block->is_hashed, return if AHI is disabled. This is
+	to avoid acquiring shared btr_search_latch for performance
+	consideration. If either condition is not satisfied
+	continue to acquire btr_search_latch before checking again */
+	if (btr_search_fully_disabled && (!block->is_hashed)) {
+		return;
+	}
+
 retry:
 	rw_lock_s_lock(&btr_search_latch);
 	page = block->frame;
@@ -1512,7 +1521,6 @@ btr_search_update_hash_on_delete(
 	rec_t*		rec;
 	ulint		fold;
 	index_id_t	index_id;
-	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
@@ -1545,7 +1553,7 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
+	ha_search_and_delete_if_found(table, fold, rec);
 
 	rw_lock_x_unlock(&btr_search_latch);
 }
@@ -1630,12 +1638,6 @@ btr_search_update_hash_on_insert(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	table = btr_search_sys->hash_index;
-
-	btr_search_check_free_space_in_heap();
-
-	rec = btr_cur_get_rec(cursor);
-
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1646,6 +1648,12 @@ btr_search_update_hash_on_insert(
 
 		return;
 	}
+
+	table = btr_search_sys->hash_index;
+
+	btr_search_check_free_space_in_heap();
+
+	rec = btr_cur_get_rec(cursor);
 
 	ut_a(block->index == cursor->index);
 	ut_a(!dict_index_is_ibuf(cursor->index));
