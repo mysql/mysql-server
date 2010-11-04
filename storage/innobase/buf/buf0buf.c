@@ -1322,9 +1322,6 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
-	/* We create an extra buffer pool instance, this instance is used
-	for flushing the flush lists, to keep track of n_flush for all
-	the buffer pools and also used as a waiting object during flushing. */
 	buf_pool_ptr = mem_zalloc(n_instances * sizeof *buf_pool_ptr);
 
 	for (i = 0; i < n_instances; i++) {
