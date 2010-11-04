@@ -166,7 +166,7 @@ SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
 
 SET NAMES utf8 COLLATE utf8_latvian_ci ;
 --error ER_DATA_OUT_OF_RANGE
-SELECT UPDATEXML(-73 * -2465717823867977728,@@global.slave_net_timeout,null);
+SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
 
 --echo #
 --echo # End Bug#57882
