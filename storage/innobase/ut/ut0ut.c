@@ -693,6 +693,8 @@ ut_strerr(
 		return("Lock structs have exhausted the buffer pool");
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return("Foreign key activated with duplicate keys");
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		return("Foreign key cascade delete/update exceeds max depth");
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		return("Too many concurrent transactions");
 	case DB_UNSUPPORTED:

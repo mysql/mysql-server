@@ -354,8 +354,6 @@ B	Test 3.5.8.5-case	00191	0000000016	C=one
 C	Test 3.5.8.5-case	00200	0000000001	C=one
 Insert into tb3 (f120, f122, f136)
 values ('d', 'Test 3.5.8.5-case', 152);
-Warnings:
-Warning	1265	Data truncated for column 'f120' at row 1
 select f120, f122, f136, f144, @test_var
 from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 f120	f122	f136	f144	@test_var
@@ -365,8 +363,6 @@ B	Test 3.5.8.5-case	00191	0000000016	1*0000099999
 C	Test 3.5.8.5-case	00200	0000000001	1*0000099999
 Insert into tb3 (f120, f122, f136, f144)
 values ('e', 'Test 3.5.8.5-case', 200, 8);
-Warnings:
-Warning	1265	Data truncated for column 'f120' at row 1
 select f120, f122, f136, f144, @test_var
 from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 f120	f122	f136	f144	@test_var
