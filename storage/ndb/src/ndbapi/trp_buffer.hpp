@@ -19,6 +19,7 @@
 #define trp_buffer_hpp
 
 #include <ndb_global.h>
+#include <ndb_socket.h> // struct iovec
 
 struct TFPage
 {
@@ -128,7 +129,7 @@ public:
   TFPool();
   ~TFPool();
 
-  bool init(Uint64 total_memory);
+  bool init(size_t total_memory);
 
   TFPage* try_alloc(Uint32 N); // Return linked list of most N pages
   Uint32 try_alloc(struct iovec tmp[], Uint32 cnt);
