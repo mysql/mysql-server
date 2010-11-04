@@ -19,6 +19,7 @@
 #define trp_buffer_hpp
 
 #include <ndb_global.h>
+#include <ndb_socket.h> // struct iovec
 
 struct TFPage
 {
