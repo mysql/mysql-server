@@ -3687,7 +3687,7 @@ int ha_tokudb::key_cmp(uint keynr, const uchar * old_row, const uchar * new_row)
 //
 int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     TOKUDB_DBUG_ENTER("update_row");
-    DBT prim_key, key, old_prim_key, row, prim_row;
+    DBT prim_key, old_prim_key, row, prim_row;
     int error;
     bool primary_key_changed;
     bool has_null;
@@ -3707,9 +3707,8 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     bzero((void *) &prim_key, sizeof(prim_key));
     bzero((void *) &old_prim_key, sizeof(old_prim_key));
     bzero((void *) &prim_row, sizeof(prim_row));
-    bzero((void *) &key, sizeof(key));
-    bzero((void *) &key_dbts, sizeof(key));
-    bzero((void *) &rec_dbts, sizeof(key));
+    bzero((void *) &key_dbts, sizeof(key_dbts));
+    bzero((void *) &rec_dbts, sizeof(rec_dbts));
 
 
     statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
