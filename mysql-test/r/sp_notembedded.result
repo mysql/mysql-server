@@ -9,9 +9,11 @@ end|
 call bug4902()|
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call bug4902()|
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop procedure bug4902|
 drop procedure if exists bug4902_2|
 create procedure bug4902_2()
@@ -206,9 +208,11 @@ create procedure 15298_2 () sql security definer show grants;
 call 15298_1();
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call 15298_2();
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;
 drop procedure 15298_2;
@@ -245,6 +249,8 @@ max_updates, max_connections, max_user_connections)
 VALUES('%', 'mysqltest_1', password(''), 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
 'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
 '', '', '', '0', '0', '0', '0');
+Warnings:
+Warning	1364	Field 'authentication_string' doesn't have a default value
 FLUSH PRIVILEGES;
 CREATE PROCEDURE p1(i INT) BEGIN END;
 DROP PROCEDURE p1;

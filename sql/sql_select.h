@@ -1959,6 +1959,7 @@ private:
   */
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
+  void cleanup_item_list(List<Item> &items) const;
 };
 
 

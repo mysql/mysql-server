@@ -7,7 +7,7 @@
 ##
 
 set sql_mode=no_engine_substitution;
-eval set storage_engine = $engine_type;
+eval set default_storage_engine = $engine_type;
 set autocommit=1;
 
 --disable_warnings

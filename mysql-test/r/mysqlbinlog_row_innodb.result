@@ -2360,8 +2360,8 @@ SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -2453,8 +2453,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -2546,10 +2546,10 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -2722,8 +2722,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -2895,8 +2895,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -3068,8 +3068,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -3241,8 +3241,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -3414,8 +3414,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -3507,8 +3507,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -3600,8 +3600,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -3693,8 +3693,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -3898,8 +3898,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -3955,8 +3955,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -4030,8 +4030,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -4283,8 +4283,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -4340,8 +4340,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
@@ -4397,8 +4397,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
@@ -4454,16 +4454,16 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
-# at #
-# at #
-# at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -4636,16 +4636,16 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
-# at #
-# at #
-# at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -4826,8 +4826,8 @@ SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
