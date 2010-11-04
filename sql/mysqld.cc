@@ -656,7 +656,8 @@ static my_bool opt_do_pstack;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
-static char *opt_update_logname, *opt_binlog_index_name;
+static char *opt_update_logname;
+char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 /** Initial command line arguments (count), after load_defaults().*/
 static int defaults_argc;
@@ -3080,6 +3081,34 @@ static inline char *make_default_log_name(char *buff,const char* log_ext)
   return make_log_name(buff, default_logfile_name, log_ext);
 }
 
+/**
+  Create a replication file name or base for file names.
+
+  @param[in] opt Value of option, or NULL
+  @param[in] def Default value if option value is not set.
+  @param[in] ext Extension to use for the path
+
+  @returns Pointer to string containing the full file path, or NULL if
+  it was not possible to create the path.
+ */
+static inline const char *
+rpl_make_log_name(const char *opt,
+                  const char *def,
+                  const char *ext)
+{
+  DBUG_ENTER("rpl_make_log_name");
+  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
+  char buff[FN_REFLEN];
+  const char *base= opt ? opt : def;
+  unsigned int options=
+    MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
+  if (fn_format(buff, base, mysql_real_data_home_ptr, ext, options))
+    DBUG_RETURN(strdup(buff));
+  else
+    DBUG_RETURN(NULL);
+}
+
+
 static int init_common_variables()
 {
   char buff[FN_REFLEN];
@@ -3147,6 +3176,7 @@ static int init_common_variables()
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
+  
   /*
     The default-storage-engine entry in my_long_options should have a
     non-null default value. It was earlier intialized as
@@ -3864,6 +3894,45 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       unireg_abort(1);
     }
   }
+
+  if (opt_bin_log)
+  {
+    log_bin_basename=
+      rpl_make_log_name(opt_bin_logname, pidfile_name,
+                        opt_bin_logname ? "" : "-bin");
+    log_bin_index=
+      rpl_make_log_name(opt_binlog_index_name, log_bin_basename, ".index");
+    if (log_bin_basename == NULL || log_bin_index == NULL)
+    {
+      sql_print_error("Unable to create replication path names:"
+                      " out of memory or path names too long"
+                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+      unireg_abort(1);
+    }
+  }
+
+#ifndef EMBEDDED_LIBRARY
+  DBUG_PRINT("debug",
+             ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
+              opt_bin_logname, opt_relay_logname, pidfile_name));
+  if (opt_relay_logname)
+  {
+    relay_log_basename=
+      rpl_make_log_name(opt_relay_logname, pidfile_name,
+                        opt_relay_logname ? "" : "-relay-bin");
+    relay_log_index=
+      rpl_make_log_name(opt_relaylog_index_name, relay_log_basename, ".index");
+    if (relay_log_basename == NULL || relay_log_index == NULL)
+    {
+      sql_print_error("Unable to create replication path names:"
+                      " out of memory or path names too long"
+                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+      unireg_abort(1);
+    }
+  }
+#endif /* !EMBEDDED_LIBRARY */
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
@@ -5778,8 +5847,12 @@ struct my_option my_long_options[]=
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,
-   "File that holds the names for last binary log files.",
+   "File that holds the names for binary log files.",
    &opt_binlog_index_name, &opt_binlog_index_name, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"relay-log-index", 0,
+   "File that holds the names for relay log files.",
+   &opt_relaylog_index_name, &opt_relaylog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
    &myisam_log_filename, &myisam_log_filename, 0, GET_STR,

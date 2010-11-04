@@ -75,6 +75,9 @@ Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
+const char *relay_log_index= 0;
+const char *relay_log_basename= 0;
+
 /*
   When slave thread exits, we need to remember the temporary tables so we
   can re-use them on slave start.

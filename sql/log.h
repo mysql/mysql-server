@@ -31,6 +31,9 @@ bool ending_single_stmt_trans(THD* thd, const bool all);
 bool trans_has_updated_non_trans_table(const THD* thd);
 bool stmt_has_updated_non_trans_table(const THD* thd);
 
+extern const char *log_bin_index;
+extern const char *log_bin_basename;
+
 /*
   Transaction Coordinator log - a base abstract class
   for two different implementations
