@@ -8533,7 +8533,7 @@ get_foreign_key_info(
 
 	/* Referenced (parent) table name */
 	ptr = dict_remove_db_name(foreign->referenced_table_name);
-	len = filename_to_tablename(ptr, name_buff, sizeof(name));
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
 	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
 
 	/* Dependent (child) database name */
