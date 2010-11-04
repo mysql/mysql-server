@@ -1,0 +1,8 @@
+SET @old_innodb_file_per_table=@@innodb_file_per_table;
+SET GLOBAL innodb_file_per_table=0;
+create table bug56947(a int not null) engine = innodb;
+CREATE TABLE `bug56947#1`(a int) ENGINE=InnoDB;
+alter table bug56947 add unique index (a);
+ERROR HY000: Table 'test.bug56947#1' already exists
+drop table `bug56947#1`;
+drop table bug56947;
