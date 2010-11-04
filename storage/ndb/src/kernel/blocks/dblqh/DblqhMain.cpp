@@ -4187,7 +4187,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     ref->transId1= transid1;
     ref->transId2= transid2;
     ref->errorCode= ZGET_ATTRINBUF_ERROR;
-
+    
     sendSignal(signal->senderBlockRef(), GSN_SCAN_FRAGREF, signal,
                ScanFragRef::SignalLength, JBB);
     break;
@@ -4217,15 +4217,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
 
-#ifdef UNUSED
-  ndbout << "LQH: Received LQHKEYREQ from TC instance" 
-	 << refToInstance(lqhKeyReq->tcBlockref) 
-	 << " hashValue=" << lqhKeyReq->hashValue
-         << " transId1=" << lqhKeyReq-> transId1
-         << " transId2=" << lqhKeyReq-> transId2
-	 << " handle.m_cnt=" << handle.m_cnt
-	 << endl;
-#endif /*UNUSED*/
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
     if (unlikely(!all.isclear() &&
@@ -4541,8 +4532,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
   else if(op == ZINSERT)
   {
-    ndbassert(refToBlock(senderRef) == DBTC || 
-	      refToBlock(senderRef) == DBSPJ);
+    ndbassert(refToBlock(senderRef) == DBTC);
   }
   
   if ((LqhKeyReq::FixedSignalLength + nextPos + TreclenAiLqhkey) != 
