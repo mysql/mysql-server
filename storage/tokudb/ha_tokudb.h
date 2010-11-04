@@ -112,6 +112,14 @@ typedef enum {
 } TABLE_LOCK_TYPE;
 
 int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx);
+int generate_row_for_del(
+    DB *dest_db, 
+    DB *src_db,
+    DBT *dest_key,
+    const DBT *src_key, 
+    const DBT *src_val,
+    void *extra
+    );
 int generate_row_for_put(
     DB *dest_db, 
     DB *src_db,
@@ -177,6 +185,7 @@ private:
     DBT mult_key_dbt[MAX_KEY + 1];
     DBT mult_rec_dbt[MAX_KEY + 1];
     u_int32_t mult_put_flags[MAX_KEY + 1];
+    u_int32_t mult_del_flags[MAX_KEY + 1];
     u_int32_t mult_dbt_flags[MAX_KEY + 1];
     
     ulong alloced_mult_rec_buff_length;

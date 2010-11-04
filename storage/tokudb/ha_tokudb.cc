@@ -994,14 +994,16 @@ cleanup:
     return error;
 }
 
-int generate_row_for_put(
+
+inline int tokudb_generate_row(
     DB *dest_db, 
     DB *src_db,
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
     const DBT *src_val,
-    void *extra
+    void *extra,
+    bool pack_val
     ) 
 {
     int error;
@@ -1019,19 +1021,23 @@ int generate_row_for_put(
     
     if (is_key_pk(row_desc, desc_size)) {
         assert(dest_key->flags != DB_DBT_USERMEM);
-        assert(dest_val->flags != DB_DBT_USERMEM);
         if (dest_key->flags == DB_DBT_REALLOC && dest_key->data != NULL) {
             free(dest_key->data);
         }
-        if (dest_val->flags == DB_DBT_REALLOC && dest_val->data != NULL) {
-            free(dest_val->data);
+        if (pack_val) {
+            assert(dest_val->flags != DB_DBT_USERMEM);
+            if (dest_val->flags == DB_DBT_REALLOC && dest_val->data != NULL) {
+                free(dest_val->data);
+            }
         }
         dest_key->data = src_key->data;
         dest_key->size = src_key->size;
         dest_key->flags = 0;
-        dest_val->data = src_val->data;
-        dest_val->size = src_val->size;
-        dest_val->flags = 0;
+        if (pack_val) {
+            dest_val->data = src_val->data;
+            dest_val->size = src_val->size;
+            dest_val->flags = 0;
+        }
         error = 0;
         goto cleanup;
     }
@@ -1077,41 +1083,85 @@ int generate_row_for_put(
     row_desc += desc_size;
     desc_size = (*(u_int32_t *)row_desc) - 4;
     row_desc += 4;
-    if (!is_key_clustering(row_desc, desc_size)) {
-        dest_val->size = 0;
-    }
-    else {
-        uchar* buff = NULL;
-        if (dest_val->flags == DB_DBT_USERMEM) {
-            buff = (uchar *)dest_val->data;
-        }
-        else if (dest_val->flags == DB_DBT_REALLOC){
-            if (dest_val->ulen < src_val->size) {
-                void* old_ptr = dest_val->data;
-                void* new_ptr = NULL;
-                new_ptr = realloc(old_ptr, src_val->size);
-                assert(new_ptr);
-                dest_val->data = new_ptr;
-                dest_val->ulen = src_val->size;
-            }
-            buff = (uchar *)dest_val->data;
-            assert(buff != NULL);
+    if (pack_val) {
+        if (!is_key_clustering(row_desc, desc_size)) {
+            dest_val->size = 0;
         }
         else {
-            assert(false);
+            uchar* buff = NULL;
+            if (dest_val->flags == DB_DBT_USERMEM) {
+                buff = (uchar *)dest_val->data;
+            }
+            else if (dest_val->flags == DB_DBT_REALLOC){
+                if (dest_val->ulen < src_val->size) {
+                    void* old_ptr = dest_val->data;
+                    void* new_ptr = NULL;
+                    new_ptr = realloc(old_ptr, src_val->size);
+                    assert(new_ptr);
+                    dest_val->data = new_ptr;
+                    dest_val->ulen = src_val->size;
+                }
+                buff = (uchar *)dest_val->data;
+                assert(buff != NULL);
+            }
+            else {
+                assert(false);
+            }
+            dest_val->size = pack_clustering_val_from_desc(
+                buff,
+                row_desc,
+                desc_size,
+                src_val
+                );
+            assert(dest_val->ulen >= dest_val->size);
         }
-        dest_val->size = pack_clustering_val_from_desc(
-            buff,
-            row_desc,
-            desc_size,
-            src_val
-            );
-        assert(dest_val->ulen >= dest_val->size);
     }
-
     error = 0;
 cleanup:
     return error;
+}
+
+int generate_row_for_del(
+    DB *dest_db, 
+    DB *src_db,
+    DBT *dest_key,
+    const DBT *src_key, 
+    const DBT *src_val,
+    void *extra)
+{
+    return tokudb_generate_row(
+        dest_db,
+        src_db,
+        dest_key,
+        NULL,
+        src_key,
+        src_val,
+        extra,
+        false
+        );
+}
+
+
+int generate_row_for_put(
+    DB *dest_db, 
+    DB *src_db,
+    DBT *dest_key, 
+    DBT *dest_val,
+    const DBT *src_key, 
+    const DBT *src_val,
+    void *extra
+    ) 
+{
+    return tokudb_generate_row(
+        dest_db,
+        src_db,
+        dest_key,
+        dest_val,
+        src_key,
+        src_val,
+        extra,
+        true
+        );
 }
 
 
@@ -1152,6 +1202,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     lock.type = TL_IGNORE;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
         mult_put_flags[i] = DB_YESOVERWRITE;
+        mult_del_flags[i] = DB_DELETE_ANY;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
     }
 }
@@ -3864,30 +3915,6 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 }
 
 //
-// Delete all keys for new_record
-// Parameters:
-//      [in]    trans - transaction to be used for the delete
-//      [in]    record - row in MySQL format. Must delete all keys for this row
-//      [in]    prim_key - key for record in primary table
-//      [in]    keys - array that states if a key is set, and hence needs 
-//                  removal
-// Returns:
-//      0 on success
-//      error otherwise
-//
-int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key) {
-    int result = 0;
-    for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
-        int new_error = remove_key(trans, keynr, record, prim_key);
-        if (new_error) {
-            result = new_error;     // Return last error
-            break;          // Let rollback correct things
-        }
-    }
-    return result;
-}
-
-//
 // Deletes a row in the table, called when handling a DELETE query
 // Parameters:
 //      [in]    record - row to be deleted, in MySQL format
@@ -3898,22 +3925,41 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * prim_key)
 int ha_tokudb::delete_row(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_row");
     int error = ENOSYS;
-    DBT prim_key;
-    key_map keys = table_share->keys_in_use;
+    DBT row, prim_key;
     bool has_null;
     THD* thd = ha_thd();
+    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
 
     statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
 
     create_dbt_key_from_table(&prim_key, primary_key, key_buff, record, &has_null);
-    if (hidden_primary_key) {
-        keys.set_bit(primary_key);
+    if (table_share->blob_fields) {
+        if (fix_rec_buff_for_blob(max_row_length(record))) {
+            error = HA_ERR_OUT_OF_MEM;
+            goto cleanup;
+        }
     }
-    /* Subtransactions may be used in order to retry the delete in
-       case we get a DB_LOCK_DEADLOCK error. */
-    DB_TXN *sub_trans = transaction;
-    error = remove_keys(sub_trans, record, &prim_key);
+    if ((error = pack_row(&row, (const uchar *) record, primary_key))){
+        goto cleanup;
+    }
+    lockretryN(wait_lock_time){
+        error = db_env->del_multiple(
+            db_env, 
+            NULL, 
+            transaction, 
+            &prim_key, 
+            &row,
+            curr_num_DBs, 
+            share->key_file, 
+            mult_key_dbt,
+            mult_del_flags, 
+            NULL
+            );
+        lockretry_wait;
+    }
+
     if (error) {
         DBUG_PRINT("error", ("Got error %d", error));
     }
@@ -3922,6 +3968,7 @@ int ha_tokudb::delete_row(const uchar * record) {
         trx->stmt_progress.deleted++;
         track_progress(thd);
     }
+cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
