@@ -9,6 +9,9 @@
 # BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
 
 # max-out size db name 
+# The grep | tail stuff below fails on windows.
+--source include/not_windows.inc
+
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
