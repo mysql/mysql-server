@@ -439,7 +439,7 @@ public :
     read= false;
   }
 
-  Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz)
   {
     if (likely(!read))
     {
@@ -483,7 +483,7 @@ public :
     currentSignal= firstSignal;
   }
 
-  Uint32* getNextWords(Uint32& sz);
+  const Uint32* getNextWords(Uint32& sz);
 };
 
 /*

@@ -63,7 +63,8 @@ libndbapi_la_SOURCES = \
 	NdbInfoScanOperation.cpp \
         ndb_internal.cpp \
 	trp_client.cpp \
-        trp_node.cpp
+        trp_node.cpp \
+	trp_buffer.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

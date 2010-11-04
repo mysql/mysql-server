@@ -177,7 +177,7 @@ SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
 struct GenericSectionIterator {
   virtual ~GenericSectionIterator() {};
   virtual void reset()=0;
-  virtual Uint32* getNextWords(Uint32& sz)=0;
+  virtual const Uint32* getNextWords(Uint32& sz)=0;
 };
 
 struct GenericSectionPtr {
