@@ -34,19 +34,31 @@ public:
   /**
    * List head
    */
-  struct Head 
+  struct HeadPOD
   {
-    Head();
     Uint32 firstItem;
     Uint32 lastItem;
 
 #ifdef VM_TRACE
     bool in_use;
 #endif
-
+    void init();
     inline bool isEmpty() const { return firstItem == RNIL;}
   };
   
+  struct Head : public HeadPOD
+  {
+    Head() { this->init();}
+
+    Head& operator=(const HeadPOD& src) {
+      this->firstItem = src.firstItem;
+      this->lastItem = src.lastItem;
+#ifdef VM_TRACE
+      this->in_use = src.in_use;
+#endif
+      return *this;
+    }
+  };
   SLFifoListImpl(P & thePool);
   
   bool seizeFirst(Ptr<T> &);
@@ -59,7 +71,8 @@ public:
   void addLast(Ptr<T> &);
   
   void removeFirst(Ptr<T> &);
-  
+  void remove() { head.init(); }
+
   /**
    *  Update i & p value according to <b>i</b>
    */
@@ -114,7 +127,7 @@ template <typename P, typename T, typename U = T>
 class LocalSLFifoListImpl : public SLFifoListImpl<P,T,U> 
 {
 public:
-  LocalSLFifoListImpl(P & thePool, typename SLFifoListImpl<P,T,U>::Head &_src)
+  LocalSLFifoListImpl(P & thePool, typename SLFifoListImpl<P,T,U>::HeadPOD&_src)
     : SLFifoListImpl<P,T,U>(thePool), src(_src)
   {
     this->head = src;
@@ -131,7 +144,7 @@ public:
     src = this->head;
   }
 private:
-  typename SLFifoListImpl<P,T,U>::Head & src;
+  typename SLFifoListImpl<P,T,U>::HeadPOD & src;
 };
 
 template <typename P, typename T, typename U>
@@ -143,12 +156,13 @@ SLFifoListImpl<P,T,U>::SLFifoListImpl(P & _pool):
 
 template <typename P, typename T, typename U>
 inline
-SLFifoListImpl<P,T,U>::Head::Head()
+void
+SLFifoListImpl<P,T,U>::HeadPOD::init()
 {
-  firstItem = RNIL;
-  lastItem = RNIL;
+  this->firstItem = RNIL;
+  this->lastItem = RNIL;
 #ifdef VM_TRACE
-  in_use = false;
+  this->in_use = false;
 #endif
 }
 

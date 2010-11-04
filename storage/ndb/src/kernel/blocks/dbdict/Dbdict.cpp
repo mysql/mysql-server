@@ -6176,6 +6176,17 @@ Dbdict::createTab_local(Signal* signal,
     KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
     new (desc) KeyDescriptor();
 
+    if (tabPtr.p->primaryTableId == RNIL)
+    {
+      jam();
+      desc->primaryTableId = createTabPtr.p->m_request.tableId;
+    }
+    else
+    {
+      jam();
+      desc->primaryTableId = tabPtr.p->primaryTableId;
+    }
+
     Uint32 key = 0;
     Ptr<AttributeRecord> attrPtr;
     LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
