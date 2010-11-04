@@ -3938,12 +3938,12 @@ static int init_server_components()
     unireg_abort(1);
   }
 
-  /* initialize delegates for extension observers */
+  /*
+    initialize delegates for extension observers, errors have already
+    been reported in the function
+  */
   if (delegates_init())
-  {
-    sql_print_error("Initialize extension delegates failed");
     unireg_abort(1);
-  }
 
   /* need to configure logging before initializing storage engines */
   if (opt_log_slave_updates && !opt_bin_log)

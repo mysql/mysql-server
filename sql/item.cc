@@ -1875,11 +1875,12 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
-    /*
-      We do not check conv->fixed, because Item_func_conv_charset which can
-      be return by safe_charset_converter can't be fixed at creation
-    */
-    conv->fix_fields(thd, arg);
+
+    if (conv->fix_fields(thd, arg))
+    {
+      res= TRUE;
+      break; // we cannot return here, we need to restore "arena".
+    }
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);
