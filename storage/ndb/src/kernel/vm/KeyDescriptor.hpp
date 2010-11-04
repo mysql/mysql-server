@@ -26,9 +26,11 @@
 struct KeyDescriptor
 {
   KeyDescriptor () { 
+    primaryTableId = RNIL;
     noOfKeyAttr = hasCharAttr = noOfDistrKeys = noOfVarKeys = 0; 
   }
   
+  Uint32 primaryTableId;
   Uint8 noOfKeyAttr;
   Uint8 hasCharAttr;
   Uint8 noOfDistrKeys;
