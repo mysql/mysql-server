@@ -476,7 +476,7 @@ typedef struct st_maria_block_scan
 {
   uchar *bitmap_buff, *bitmap_pos, *bitmap_end, *page_buff;
   uchar *dir, *dir_end;
-  pgcache_page_no_t bitmap_page;
+  pgcache_page_no_t bitmap_page, max_page;
   ulonglong bits;
   uint number_of_rows, bit_pos;
   MARIA_RECORD_POS row_base_page;

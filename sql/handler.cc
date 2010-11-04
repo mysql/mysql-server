@@ -1094,6 +1094,12 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  /* Just a random warning to test warnings pushed during autocommit. */
+  DBUG_EXECUTE_IF("warn_during_ha_commit_trans",
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK)););
+
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
