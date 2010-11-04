@@ -59,4 +59,5 @@ ADD_LIBRARY(ndbapi STATIC
             NdbInfoScanOperation.cpp
             ndb_internal.cpp
 	    trp_client.cpp
-            trp_node.cpp)
+            trp_node.cpp
+	    trp_buffer.cpp)

@@ -87,7 +87,7 @@ public :
     currentPos= firstDataPtr;
   }
 
-  Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz)
   {
     /* In first TCKEY/INDXREQ, data is at offset depending
      * on whether it's KEYINFO or ATTRINFO
