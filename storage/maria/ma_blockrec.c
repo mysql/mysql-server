@@ -2823,6 +2823,10 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  /*
+    If this is a redo entry (ie, undo_lsn != LSN_ERROR) then we should have
+    written exactly head_length bytes (same as original record).
+  */
   DBUG_ASSERT(undo_lsn == LSN_ERROR || head_length == row_pos->length);
   int2store(row_pos->dir + 2, head_length);
   /* update empty space at start of block */
@@ -3588,7 +3592,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_write_abort_block_record");
 
-  _ma_bitmap_flushable(info, 1);
+  _ma_bitmap_lock(share);  /* Lock bitmap from other insert threads */
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
                           ma_recordpos_to_dir_entry(info->cur_row.lastpos), 1,
@@ -3626,7 +3630,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_flushable(info, -1);
+  _ma_bitmap_unlock(share);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -7161,6 +7165,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
     header+= HA_CHECKSUM_STORE_SIZE;
   }
   length_on_head_page= uint2korr(header);
+  set_if_bigger(length_on_head_page, share->base.min_block_length);
   header+= 2;
   extent_count= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;

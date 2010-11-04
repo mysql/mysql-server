@@ -1876,7 +1876,7 @@ void check_result()
     if (access(reject_file, W_OK) == 0)
     {
       /* Result file directory is writable, save reject file there */
-      fn_format(reject_file, result_file_name, NULL,
+      fn_format(reject_file, result_file_name, "",
                 ".reject", MY_REPLACE_EXT);
     }
     else

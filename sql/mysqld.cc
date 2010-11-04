@@ -467,7 +467,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 /* Global variables */
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log;
+my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table;
 my_bool opt_userstat_running;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
@@ -6011,7 +6011,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE,
+  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_DEBUG_ASSERT_IF_CRASHED_TABLE, OPT_OLD_MODE,
   OPT_TEST_IGNORE_WRONG_OPTIONS, OPT_TEST_RESTART,
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
@@ -6181,6 +6181,10 @@ struct my_option my_long_options[] =
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
   {"debug-flush", OPT_DEBUG_FLUSH, "Default debug log with flush after write",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-assert-if-crashed-table", OPT_DEBUG_ASSERT_IF_CRASHED_TABLE,
+   "Do an assert in handler::print_error() if we get a crashed table",
+   &debug_assert_if_crashed_table, &debug_assert_if_crashed_table,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
    "Set the default character set (deprecated option, use --character-set-server instead).",
