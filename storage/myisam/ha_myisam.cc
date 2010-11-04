@@ -1843,6 +1843,18 @@ int ha_myisam::delete_all_rows()
   return mi_delete_all_rows(file);
 }
 
+
+/*
+  Intended to support partitioning.
+  Allows a particular partition to be truncated.
+*/
+
+int ha_myisam::truncate()
+{
+  int error= delete_all_rows();
+  return error ? error : reset_auto_increment(0);
+}
+
 int ha_myisam::reset_auto_increment(ulonglong value)
 {
   file->s->state.auto_increment= value;

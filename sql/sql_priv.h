@@ -29,25 +29,21 @@
 #ifndef MYSQL_CLIENT
 
 /*
-  Generates a warning that a feature is deprecated. After a specified
-  version asserts that the feature is removed.
+  Generates a warning that a feature is deprecated. 
 
   Using it as
 
-  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+  WARN_DEPRECATED(thd, "BAD", "'GOOD'");
 
   Will result in a warning
  
-  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
-   use 'GOOD' instead"
+  "The syntax 'BAD' is deprecated and will be removed in a
+   future release. Please use 'GOOD' instead"
 
    Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-   Note that the version is TWO numbers, separated with a comma
-   (two macro arguments, that is)
 */
-#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+#define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
-    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
     if (((THD *) Thd) != NULL)                                              \
       push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
                         ER_WARN_DEPRECATED_SYNTAX,                          \

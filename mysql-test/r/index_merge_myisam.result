@@ -1,5 +1,5 @@
 #---------------- Index merge test 1 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t0, t1, t2, t3, t4;
 create table t0
 (
@@ -581,7 +581,7 @@ SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
 End of 5.0 tests
 #---------------- ROR-index_merge tests -----------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t0,t1,t2;
 create table t1
 (
@@ -831,7 +831,7 @@ SELECT * FROM t1;
 c1	c2	c3
 DROP TABLE t1,t2;
 #---------------- Index merge test 2 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1,t2;
 create table t1
 (
@@ -1156,8 +1156,63 @@ key1	key2	key3
 38	38	38
 39	39	39
 drop table t1;
+#
+# Bug#56423: Different count with SELECT and CREATE SELECT queries
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+d INT,
+PRIMARY KEY (a),
+KEY (c),
+KEY bd (b,d)
+);
+INSERT INTO t1 VALUES
+(1, 0, 1, 0),
+(2, 1, 1, 1),
+(3, 1, 1, 1),
+(4, 0, 1, 1);
+EXPLAIN
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c,bd	bd	10	const,const	2	Using where
+CREATE TABLE t2 ( a INT )
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+SELECT * FROM t2;
+a
+2
+3
+DROP TABLE t1, t2;
+CREATE TABLE t1( a INT, b INT, KEY(a), KEY(b) );
+INSERT INTO t1 VALUES (1, 2), (1, 2), (1, 2), (1, 2);
+SELECT * FROM t1 FORCE INDEX(a, b) WHERE a = 1 AND b = 2;
+a	b
+1	2
+1	2
+1	2
+1	2
+DROP TABLE t1;
+# Code coverage of fix.
+CREATE TABLE t1 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 (b) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+SELECT * FROM t1;
+a	b
+1	2
+CREATE TABLE t2 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1) );
+INSERT INTO t2 (b) VALUES ('a');
+UPDATE t2 SET b = 'b' WHERE a = 1;
+SELECT * FROM t2;
+a	b
+1	b
+DROP TABLE t1, t2;
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1;
 create table t1 (
 pk int primary key,
@@ -1295,7 +1350,7 @@ pk	key1	key2	filler	filler2
 1	1	1	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t1;
 create table t1
 (

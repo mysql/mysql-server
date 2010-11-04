@@ -285,10 +285,10 @@ if (`SELECT $CRC_ARG_type = 7`) {
 }
 
 ######## execute! ########
-if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
+if ($CRC_RET_stmt_sidef) {
   --echo
   --echo Invoking $CRC_RET_desc.
-  if (`SELECT '$CRC_create' != ''`) {
+  if ($CRC_create) {
     --eval $CRC_create
   }
 
@@ -366,7 +366,7 @@ if (`SELECT '$CRC_RET_stmt_sidef' != ''`) {
 
 # Invoke created object, discarding the return value. This should not
 # give any warning.
-if (`SELECT '$CRC_RET_sel_retval' != ''`) {
+if ($CRC_RET_sel_retval) {
   --echo * Invoke statement so that return value is dicarded: expect no warning.
   --disable_result_log
   --eval $CRC_RET_sel_retval

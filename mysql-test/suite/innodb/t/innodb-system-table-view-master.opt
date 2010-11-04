@@ -1,3 +1,0 @@
---default-storage-engine=MyISAM
---innodb-strict-mode=0
---innodb-file-per-table=0

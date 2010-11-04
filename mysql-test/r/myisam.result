@@ -1079,6 +1079,8 @@ length(c1)	c1
 DROP TABLE t1;
 End of 4.1 tests
 set storage_engine=MyISAM;
+Warnings:
+Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1675,6 +1677,8 @@ drop table t1;
 create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
 set storage_engine=MyISAM;
+Warnings:
+Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
 create table t1 (a int);
