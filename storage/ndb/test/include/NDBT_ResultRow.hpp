@@ -43,6 +43,8 @@ public:
   bool operator!=(const NDBT_ResultRow& other) const { 
     return ! (*this == other);
   }
+
+  const NdbDictionary::Table& getTable() const { return m_table;}
   
 private:
   int cols;

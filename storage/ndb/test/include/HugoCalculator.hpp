@@ -44,6 +44,8 @@ public:
   int getUpdatesValue(NDBT_ResultRow* const pRow) const;
   int isIdCol(int colId) { return m_idCol == colId; };
   int isUpdateCol(int colId){ return m_updatesCol == colId; };
+
+  const NdbDictionary::Table& getTable() const { return m_tab;}
 private:
   const NdbDictionary::Table& m_tab;
   int m_idCol;
