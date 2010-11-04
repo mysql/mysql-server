@@ -76,6 +76,7 @@ public:
 
   void decProperty(const char *);
   void incProperty(const char *);
+  Uint32 casProperty(const char *, Uint32 oldValue, Uint32 newValue);
 
   // Communicate with other tests
   void stopTest();
