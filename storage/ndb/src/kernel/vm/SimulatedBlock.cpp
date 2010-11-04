@@ -571,7 +571,7 @@ SimulatedBlock::sendSignal(BlockReference ref,
                                                &signal->theData[0], recNode,
                                                (LinearSectionPtr*)0);
 #endif
-
+    
     if (unlikely(! (ss == SEND_OK ||
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
