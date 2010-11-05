@@ -209,11 +209,11 @@ class binlog_cache_data
 {
 public:
   binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
-  incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE)
-  {
-    cache_log.end_of_file= max_binlog_cache_size;
-  }
-
+  incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE),
+  saved_max_binlog_cache_size(0), ptr_binlog_cache_use(0),
+  ptr_binlog_cache_disk_use(0)
+  { }
+  
   ~binlog_cache_data()
   {
     DBUG_ASSERT(empty());
@@ -262,10 +262,9 @@ public:
     changes_to_non_trans_temp_table_flag= FALSE;
     incident= FALSE;
     before_stmt_pos= MY_OFF_T_UNDEF;
-    cache_log.end_of_file= max_binlog_cache_size;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
-      which may increase disk_write. This breaks the "disk_writes"' use by the
+      which may increase disk_writes. This breaks the disk_writes use by the
       binary log which aims to compute the ratio between in-memory cache usage
       and disk cache usage. To avoid this undesirable behavior, we reset the
       variable after truncating the cache.
@@ -301,6 +300,36 @@ public:
       before_stmt_pos= MY_OFF_T_UNDEF;
   }
 
+  void set_binlog_cache_info(ulong param_max_binlog_cache_size,
+                             ulong *param_ptr_binlog_cache_use,
+                             ulong *param_ptr_binlog_cache_disk_use)
+  {
+    /*
+      The assertions guarantee that the set_binlog_cache_info is
+      called just once and information passed as parameters are
+      never zero.
+
+      This is done while calling the constructor binlog_cache_mngr.
+      We cannot set informaton in the constructor binlog_cache_data
+      because the space for binlog_cache_mngr is allocated through
+      a placement new.
+
+      In the future, we can refactor this and change it to avoid
+      the set_binlog_info. 
+    */
+    DBUG_ASSERT(saved_max_binlog_cache_size == 0 &&
+                param_max_binlog_cache_size != 0 &&
+                ptr_binlog_cache_use == 0 &&
+                param_ptr_binlog_cache_use != 0 &&
+                ptr_binlog_cache_disk_use == 0 &&
+                param_ptr_binlog_cache_disk_use != 0);
+
+    saved_max_binlog_cache_size= param_max_binlog_cache_size;
+    ptr_binlog_cache_use= param_ptr_binlog_cache_use;
+    ptr_binlog_cache_disk_use= param_ptr_binlog_cache_disk_use;
+    cache_log.end_of_file= saved_max_binlog_cache_size;
+  }
+
   /*
     Cache to store data before copying it to the binary log.
   */
@@ -332,19 +361,37 @@ private:
 
   /**
     This function computes binlog cache and disk usage.
-
-    @param cache_data  Pointer to the cache where data is
-                       stored.
   */
   void compute_statistics()
   {
     if (!empty())
     {
-      statistic_increment(binlog_cache_use, &LOCK_status);
+      statistic_increment(*ptr_binlog_cache_use, &LOCK_status);
       if (cache_log.disk_writes != 0)
-        statistic_increment(binlog_cache_disk_use, &LOCK_status);
+        statistic_increment(*ptr_binlog_cache_disk_use, &LOCK_status);
     }
   }
+
+  /*
+    Stores the values of maximum size of the cache allowed when this cache
+    is configured. This corresponds to either
+      . max_binlog_cache_size or max_binlog_stmt_cache_size.
+  */
+  ulong saved_max_binlog_cache_size;
+
+  /*
+    Stores a pointer to the status variable that keeps track of the in-memory 
+    cache usage. This corresponds to either
+      . binlog_cache_use or binlog_stmt_cache_use.
+  */
+  ulong *ptr_binlog_cache_use;
+
+  /*
+    Stores a pointer to the status variable that keeps track of the disk
+    cache usage. This corresponds to either
+      . binlog_cache_disk_use or binlog_stmt_cache_disk_use.
+  */
+  ulong *ptr_binlog_cache_disk_use;
 
   /*
     It truncates the cache to a certain position. This includes deleting the
@@ -359,7 +406,7 @@ private:
       set_pending(0);
     }
     reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
-    cache_log.end_of_file= max_binlog_cache_size;
+    cache_log.end_of_file= saved_max_binlog_cache_size;
   }
  
   binlog_cache_data& operator=(const binlog_cache_data& info);
@@ -368,7 +415,20 @@ private:
 
 class binlog_cache_mngr {
 public:
-  binlog_cache_mngr() {}
+  binlog_cache_mngr(ulong param_max_binlog_stmt_cache_size,
+                    ulong param_max_binlog_cache_size,
+                    ulong *param_ptr_binlog_stmt_cache_use,
+                    ulong *param_ptr_binlog_stmt_cache_disk_use,
+                    ulong *param_ptr_binlog_cache_use,
+                    ulong *param_ptr_binlog_cache_disk_use)
+  {
+     stmt_cache.set_binlog_cache_info(param_max_binlog_stmt_cache_size,
+                                      param_ptr_binlog_stmt_cache_use,
+                                      param_ptr_binlog_stmt_cache_disk_use);
+     trx_cache.set_binlog_cache_info(param_max_binlog_cache_size,
+                                     param_ptr_binlog_cache_use,
+                                     param_ptr_binlog_cache_disk_use);
+  }
 
   void reset_cache(binlog_cache_data* cache_data)
   {
@@ -1877,7 +1937,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
-void MYSQL_BIN_LOG::set_write_error(THD *thd)
+void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::set_write_error");
 
@@ -1887,9 +1947,20 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd)
     DBUG_VOID_RETURN;
 
   if (my_errno == EFBIG)
-    my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(MY_WME));
+  {
+    if (is_transactional)
+    {
+      my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(MY_WME));
+    }
+    else
+    {
+      my_message(ER_STMT_CACHE_FULL, ER(ER_STMT_CACHE_FULL), MYF(MY_WME));
+    }
+  }
   else
+  {
     my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), name, errno);
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1906,6 +1977,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   switch (thd->stmt_da->sql_errno())
   {
     case ER_TRANS_CACHE_FULL:
+    case ER_STMT_CACHE_FULL:
     case ER_ERROR_ON_WRITE:
     case ER_BINLOG_LOGGING_IMPOSSIBLE:
       checked= TRUE;
@@ -4398,7 +4470,7 @@ int THD::binlog_setup_trx_data()
   cache_mngr= (binlog_cache_mngr*) my_malloc(sizeof(binlog_cache_mngr), MYF(MY_ZEROFILL));
   if (!cache_mngr ||
       open_cached_file(&cache_mngr->stmt_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)) ||
+                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)) ||
       open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
@@ -4407,8 +4479,13 @@ int THD::binlog_setup_trx_data()
   }
   thd_set_ha_data(this, binlog_hton, cache_mngr);
 
-  cache_mngr= new (thd_get_ha_data(this, binlog_hton)) binlog_cache_mngr;
-
+  cache_mngr= new (thd_get_ha_data(this, binlog_hton))
+              binlog_cache_mngr(max_binlog_stmt_cache_size,
+                                max_binlog_cache_size,
+                                &binlog_stmt_cache_use,
+                                &binlog_stmt_cache_disk_use,
+                                &binlog_cache_use,
+                                &binlog_cache_disk_use);
   DBUG_RETURN(0);
 }
 
@@ -4660,7 +4737,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     */
     if (pending->write(file))
     {
-      set_write_error(thd);
+      set_write_error(thd, is_transactional);
       if (check_write_error(thd) && cache_data &&
           stmt_has_updated_non_trans_table(thd))
         cache_data->set_incident();
@@ -4685,6 +4762,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   bool error= 1;
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
   binlog_cache_data *cache_data= 0;
+  bool is_trans_cache= FALSE;
 
   if (thd->binlog_evt_union.do_union)
   {
@@ -4745,7 +4823,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_cache_mngr *const cache_mngr=
         (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-      bool is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
+      is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
 
@@ -4851,7 +4929,7 @@ unlock:
 
     if (error)
     {
-      set_write_error(thd);
+      set_write_error(thd, is_trans_cache);
       if (check_write_error(thd) && cache_data &&
           stmt_has_updated_non_trans_table(thd))
         cache_data->set_incident();
