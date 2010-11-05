@@ -4403,15 +4403,17 @@ void st_table::prepare_for_position()
 {
   DBUG_ENTER("st_table::prepare_for_position");
   
-  if (s->primary_key < MAX_KEY)
+#ifndef MCP_BUG58017
+  if ((file->ha_table_flags() & (HA_PRIMARY_KEY_IN_READ_INDEX |
+                                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION)) &&
+#else
+  if ((file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
+#endif
+      s->primary_key < MAX_KEY)
   {
-    if (file->ha_table_flags() & (HA_PRIMARY_KEY_IN_READ_INDEX |
-                                  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
-    {
-      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-      /* signal change */
-      file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
-    }
+    mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+    /* signal change */
+    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   }
   DBUG_VOID_RETURN;
 }
