@@ -92,7 +92,7 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
     FALSE	Ok
 */
 
-my_bool insert_dynamic(DYNAMIC_ARRAY *array, uchar* element)
+my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element)
 {
   uchar* buffer;
   if (array->elements == array->max_element)
@@ -196,7 +196,7 @@ uchar *pop_dynamic(DYNAMIC_ARRAY *array)
     FALSE	Ok
 */
 
-my_bool set_dynamic(DYNAMIC_ARRAY *array, uchar* element, uint idx)
+my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element, uint idx)
 {
   if (idx >= array->elements)
   {

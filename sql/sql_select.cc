@@ -5886,7 +5886,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard=     key_field->cond_guard;
           keyuse.sj_pred_no=     key_field->sj_pred_no;
-          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+          if (insert_dynamic(keyuse_array, &keyuse))
             return TRUE;
 	}
       }
@@ -5959,7 +5959,7 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
   keyuse.optimize= 0;
   keyuse.keypart_map= 0;
   keyuse.sj_pred_no= UINT_MAX;
-  return insert_dynamic(keyuse_array,(uchar*) &keyuse);
+  return insert_dynamic(keyuse_array, &keyuse);
 }
 
 
@@ -6202,7 +6202,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  (qsort_cmp) sort_keyuse);
 
     bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
-    if (insert_dynamic(keyuse,(uchar*) &key_end))
+    if (insert_dynamic(keyuse, &key_end))
       return TRUE;
 
     use=save_pos=dynamic_element(keyuse,0,KEYUSE*);
@@ -6238,7 +6238,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       save_pos++;
     }
     i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    (void) set_dynamic(keyuse,(uchar*) &key_end,i);
+    (void) set_dynamic(keyuse, &key_end, i);
     keyuse->elements=i;
   }
   DBUG_EXECUTE("opt", print_keyuse_array(keyuse););
