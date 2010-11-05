@@ -290,6 +290,10 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);				/* purecov: inspected */
   }
 
+  /* Apply the IN=>EXISTS transformation to all subqueries and optimize them. */
+  if (select_lex->optimize_unflattened_subqueries())
+    DBUG_RETURN(TRUE);
+
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(1);

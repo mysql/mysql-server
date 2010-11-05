@@ -948,6 +948,8 @@ public:
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
   virtual bool enumerate_field_refs_processor(uchar *arg) { return 0; }
   virtual bool mark_as_eliminated_processor(uchar *arg) { return 0; }
+  virtual bool eliminate_subselect_processor(uchar *arg) { return 0; }
+  virtual bool set_fake_select_as_master_processor(uchar *arg) { return 0; }
 
   /* To call bool function for all arguments */
   struct bool_func_call_args

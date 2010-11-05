@@ -1369,8 +1369,30 @@ inline bool sj_is_materialize_strategy(uint strategy)
 
 class JOIN :public Sql_alloc
 {
+private:
   JOIN(const JOIN &rhs);                        /**< not implemented */
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
+
+protected:
+  /* Results of reoptimizing a JOIN via JOIN::reoptimize(). */
+  enum enum_reopt_result {
+    REOPT_NEW_PLAN, /* there is a new reoptimized plan */
+    REOPT_OLD_PLAN, /* no new improved plan can be found, use the old one */
+    REOPT_ERROR,    /* an irrecovarable error occured during reoptimization */
+    REOPT_NONE      /* not yet reoptimized */
+  };
+
+  /* Support for plan reoptimization with rewritten conditions. */
+  enum_reopt_result reoptimize(Item *added_where, table_map join_tables);
+  int save_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
+                      KEYUSE **save_join_tab_keyuse,
+                      key_map *save_join_tab_checked_keys);
+  void restore_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
+                      KEYUSE **save_join_tab_keyuse,
+                      key_map *save_join_tab_checked_keys);
+  /* Choose a subquery plan for a table-less subquery. */
+  bool choose_tableless_subquery_plan();
+
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
@@ -1581,8 +1603,15 @@ public:
   
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
+  bool initialized; ///< flag to avoid double init_execution calls
 
   Array<Item_in_subselect> sj_subselects;
+  /*
+    Additional WHERE and HAVING predicates to be considered for IN=>EXISTS
+    subquery transformation of a JOIN object.
+  */
+  Item *in_to_exists_where;
+  Item *in_to_exists_having;
 
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
@@ -1657,6 +1686,7 @@ public:
     ref_pointer_array_size= 0;
     zero_result_cause= 0;
     optimized= 0;
+    initialized= 0;
     cond_equal= 0;
     having_equal= 0;
     group_optimized_away= 0;
@@ -1672,6 +1702,8 @@ public:
 
     no_const_tables= FALSE;
     first_select= sub_select;
+    in_to_exists_where= NULL;
+    in_to_exists_having= NULL;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,
@@ -1680,12 +1712,13 @@ public:
 	      SELECT_LEX_UNIT *unit);
   int optimize();
   int reinit();
+  int init_execution();
   void exec();
   int destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
-  bool setup_subquery_materialization();
+  bool optimize_unflattened_subqueries();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
@@ -1745,6 +1778,10 @@ public:
               NULL : join_tab+const_tables;
   }
   bool setup_subquery_caches();
+  bool choose_subquery_plan(table_map join_tables);
+  void get_partial_join_cost(uint n_tables,
+                             double *read_time_arg, double *record_count_arg);
+
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
@@ -1977,8 +2014,6 @@ inline Item * and_items(Item* cond, Item *item)
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 bool choose_plan(JOIN *join,table_map join_tables);
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg);
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
