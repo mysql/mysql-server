@@ -72,26 +72,26 @@ row_merge_create_fts_sort_index(
 	/* The second field is on the Doc ID. To reduce the
 	sort record size, we use 4 bytes field instead of Doc ID's
 	8 byte fields. */
-        field = dict_index_get_nth_field(new_index, 1);
-        field->name = NULL;
-        field->prefix_len = 0;
-        field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
-        field->col->mtype = DATA_INT;
-        field->col->len = FTS_DOC_ID_LEN;
-        field->fixed_len = FTS_DOC_ID_LEN;
-        field->col->prtype = DATA_NOT_NULL;
+	field = dict_index_get_nth_field(new_index, 1);
+	field->name = NULL;
+	field->prefix_len = 0;
+	field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
+	field->col->mtype = DATA_INT;
+	field->col->len = FTS_DOC_ID_LEN;
+	field->fixed_len = FTS_DOC_ID_LEN;
+	field->col->prtype = DATA_NOT_NULL;
 
-        /* The third field is on the word's Position in original doc */
-        field = dict_index_get_nth_field(new_index, 2);
-        field->name = NULL;
-        field->prefix_len = 0;
-        field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
-        field->col->mtype = DATA_INT;
-        field->col->len = 4 ;
-        field->fixed_len = 4;
-        field->col->prtype = DATA_NOT_NULL;
+	/* The third field is on the word's Position in original doc */
+	field = dict_index_get_nth_field(new_index, 2);
+	field->name = NULL;
+	field->prefix_len = 0;
+	field->col = mem_heap_alloc(index->heap, sizeof(dict_col_t));
+	field->col->mtype = DATA_INT;
+	field->col->len = 4 ;
+	field->fixed_len = 4;
+	field->col->prtype = DATA_NOT_NULL;
 
-        return(new_index);
+	return(new_index);
 }
 /*********************************************************************//**
 Initialize FTS parallel sort structures.
@@ -112,14 +112,14 @@ row_fts_psort_info_init(
 {
 	ulint			i;
 	ulint			j;
-	fts_psort_common_t*     common_info = NULL;
+	fts_psort_common_t*	common_info = NULL;
 	ulint			block_size = 3 * sizeof(row_merge_block_t);
 	fts_psort_info_t*	psort_info = NULL;
 	fts_psort_info_t*	merge_info;
 	os_event_t		sort_event;
 
 	*psort = psort_info = mem_alloc(
-		FTS_PARALLEL_DEGREE * sizeof *psort_info);
+		 FTS_PARALLEL_DEGREE * sizeof *psort_info);
 
 	sort_event = os_event_create(NULL);
 
@@ -141,6 +141,7 @@ row_fts_psort_info_init(
 		UT_LIST_INIT(psort_info[j].fts_doc_list);
 
 		for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
+
 			psort_info[j].merge_file[i] = mem_alloc(
 				sizeof(merge_file_t));
 
@@ -168,9 +169,11 @@ row_fts_psort_info_init(
 
 	/* Initialize merge_info structures parallel merge and insert
 	into auxiliary FTS tables (FTS_INDEX_TABLE) */
-	*merge = merge_info = mem_alloc(FTS_NUM_AUX_INDEX * sizeof *merge_info);
+	*merge = merge_info = mem_alloc(FTS_NUM_AUX_INDEX
+					* sizeof *merge_info);
 
 	for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
+
 		merge_info[j].child_status = 0;
 		merge_info[j].state = 0;
 		merge_info[j].psort_common = common_info;
@@ -249,10 +252,10 @@ row_merge_fts_doc_tokenize(
 	ulint*		rows_added,	/*!< in/out: num rows added */
 	merge_file_t**	merge_file)	/*!< in/out: merge file to fill */
 {
-        ulint           i;
-        ulint           inc;
-	fts_string_t    str;
-	byte            str_buf[FTS_MAX_UTF8_WORD_LEN + 1];
+	ulint		i;
+	ulint		inc;
+	fts_string_t	str;
+	byte		str_buf[FTS_MAX_UTF8_WORD_LEN + 1];
 	dfield_t*	field;
 	ulint		data_size[FTS_NUM_AUX_INDEX];
 	ulint		len;
@@ -281,7 +284,7 @@ row_merge_fts_doc_tokenize(
 
 	/* Tokenize the data and add each word string, its corresponding
 	doc id and position to sort buffer */
-        for (i = 0; i < doc.text.len; i += inc) {
+	for (i = 0; i < doc.text.len; i += inc) {
 		doc_id_t	write_doc_id;
 		ib_uint32_t	position;
 		ulint           offset = 0;
@@ -291,7 +294,7 @@ row_merge_fts_doc_tokenize(
 			doc.text.utf8 + i,
 			doc.text.utf8 + doc.text.len, &str, &offset);
 
-                ut_a(inc > 0);
+		ut_a(inc > 0);
 
 		/* Ignore string len smaller thane FTS_MIN_TOKEN_SIZE */
 		if (str.len < FTS_MIN_TOKEN_SIZE) {
@@ -362,7 +365,7 @@ row_merge_fts_doc_tokenize(
 
 		/* Increment the number of tuples */
 		n_tuple[idx]++;
-        }
+	}
 
 	ut_ad(data_size < sizeof(row_merge_block_t));
 
@@ -495,7 +498,7 @@ exit:
 			buf[i] = row_merge_buf_empty(buf[i]);
 			rows_added[i] = 0;
 		}
-        }
+	}
 
 	DEBUG_FTS_SORT_PRINT("FTS SORT: start merge sort\n");
 
@@ -955,7 +958,9 @@ row_fts_merge_insert(
 	tuple_heap = mem_heap_create(1000);
 
 	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
-		num = 1 + REC_OFFS_HEADER_SIZE + dict_index_get_n_fields(index);
+
+		num = 1 + REC_OFFS_HEADER_SIZE
+			+ dict_index_get_n_fields(index);
 		offsets[i] = mem_heap_alloc(graph_heap,
 					    num * sizeof *offsets[i]);
 		offsets[i][0] = num;

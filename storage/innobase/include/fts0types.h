@@ -18,10 +18,10 @@ Created 2007-03-27 Sunny Bains
 /* Types (aliases) used within FTS. */
 typedef struct fts_que_struct fts_que_t;
 typedef struct fts_node_struct fts_node_t;
-typedef	struct fts_word_struct fts_word_t;
+typedef struct fts_word_struct fts_word_t;
 typedef struct fts_fetch_struct fts_fetch_t;
 typedef struct fts_update_struct fts_update_t;
-typedef	struct fts_get_doc_struct fts_get_doc_t;
+typedef struct fts_get_doc_struct fts_get_doc_t;
 typedef struct fts_utf8_str_struct fts_utf8_str_t;
 typedef struct fts_doc_stats_struct fts_doc_stats_t;
 typedef struct fts_tokenizer_word_struct fts_tokenizer_word_t;

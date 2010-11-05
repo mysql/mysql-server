@@ -159,8 +159,8 @@ UNIV_INTERN
 ibool
 fts_add_fetch_document(
 /*===================*/
-        void*   row,                            /* in: sel_node_t* */
-        void*   user_arg);                       /* in: fts_doc_t* */
+	void*		row,		/* in: sel_node_t* */
+	void*		user_arg);	/* in: fts_doc_t* */
 /********************************************************************
 Write out a single word's data as new entry/entries in the INDEX table. */
 
@@ -178,7 +178,7 @@ UNIV_INTERN
 void
 fts_tokenize_document(
 /*==================*/
-        fts_doc_t*      doc,		/*!< in/out: document to
+	fts_doc_t*	doc,		/*!< in/out: document to
 					tokenize */
 	fts_doc_t*	result);	/*!< out: if provided, save
 					result tokens here */
@@ -588,9 +588,9 @@ UNIV_INTERN
 void
 fts_cache_node_add_positions(
 /*=========================*/
-        fts_cache_t*    cache,                  /* in: cache */
-        fts_node_t*     node,                   /* in: word node */
-        doc_id_t        doc_id,                 /* in: doc id */
-        ib_vector_t*    positions);              /* in: fts_token_t::positions */
+	fts_cache_t*	cache,		/* in: cache */
+	fts_node_t*	node,		/* in: word node */
+	doc_id_t	doc_id,		/* in: doc id */
+	ib_vector_t*	positions);	/* in: fts_token_t::positions */
 
 #endif /* INNOBASE_FTS0PRIV_H */

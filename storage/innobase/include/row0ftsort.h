@@ -44,7 +44,7 @@ typedef struct fts_doc_item     fts_doc_item_t;
 struct fts_doc_item {
 	const dfield_t*	field;		/*!< field contains document string */
 	doc_id_t	doc_id;		/*!< document ID */
-	UT_LIST_NODE_T(fts_doc_item_t)  doc_list;
+	UT_LIST_NODE_T(fts_doc_item_t)	doc_list;
 					/*!< list of doc items */
 };
 
@@ -74,15 +74,15 @@ struct fts_psort_common_struct {
 typedef struct fts_psort_common_struct	fts_psort_common_t;
 
 struct fts_psort_info_struct {
-        ulint                   psort_id;	/*!< Parallel sort ID */
-        row_merge_buf_t*        merge_buf[FTS_NUM_AUX_INDEX];
+	ulint			psort_id;	/*!< Parallel sort ID */
+	row_merge_buf_t*	merge_buf[FTS_NUM_AUX_INDEX];
 						/*!< sort buffer */
-        merge_file_t*           merge_file[FTS_NUM_AUX_INDEX];
+	merge_file_t*		merge_file[FTS_NUM_AUX_INDEX];
 						/*!< sort file */
-        row_merge_block_t*      merge_block[FTS_NUM_AUX_INDEX];
+	row_merge_block_t*	merge_block[FTS_NUM_AUX_INDEX];
 						/*!< buffer to write to file */
-        ulint                   child_status;	/*!< child thread status */
-        ulint                   state;		/*!< child thread state */
+	ulint			child_status;	/*!< child thread status */
+	ulint			state;		/*!< child thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
 };
@@ -146,7 +146,7 @@ UNIV_INTERN
 void
 row_fts_psort_info_destroy(
 /*=======================*/
-        fts_psort_info_t*	psort_info,	/*!< parallel sort info */
+	fts_psort_info_t*	psort_info,	/*!< parallel sort info */
 	fts_psort_info_t*	merge_info);	/*!< parallel merge info */
 /********************************************************************//**
 Free up merge buffers when merge sort is done */
@@ -154,7 +154,7 @@ UNIV_INTERN
 void
 row_fts_free_pll_merge_buf(
 /*=======================*/
-        fts_psort_info_t*	psort_info);	/*!< in: parallel sort info */
+	fts_psort_info_t*	psort_info);	/*!< in: parallel sort info */
 /******************************************************//**
 Tokenize incoming text data and add to the sort buffer.
 FIXME: Consider run out of buffer in the middle of string parsing.
@@ -167,9 +167,9 @@ row_merge_fts_doc_tokenize(
 	const dfield_t*		dfield,		/*!< in: Field contain doc
 						to be parsed */
 	doc_id_t		doc_id,		/*!< in: document ID */
-	ulint*			init_pos,       /*!< in/out: doc start
+	ulint*			init_pos,	/*!< in/out: doc start
 						position */
-	ulint*			buf_used,       /*!< in/out: sort buffer used */
+	ulint*			buf_used,	/*!< in/out: sort buffer used */
 	ulint*			rows_added,	/*!< in/out: num rows added */
 	merge_file_t**		merge_file);	/*!< in/out: merge file to
 						fill */
@@ -196,7 +196,7 @@ UNIV_INTERN
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
-        void*		arg);		/*!< in: psort_info for the thread */
+	void*		arg);		/*!< in: psort_info for the thread */
 /*********************************************************************//**
 Start the parallel tokenization and parallel merge sort */
 UNIV_INTERN
@@ -218,8 +218,8 @@ UNIV_INTERN
 void
 row_fts_start_parallel_merge(
 /*=========================*/
-        fts_psort_info_t* merge_info,	/*!< in: parallel sort info */
-        fts_psort_info_t* psort_info);	/*!< in: parallel merge info */
+	fts_psort_info_t* merge_info,	/*!< in: parallel sort info */
+	fts_psort_info_t* psort_info);	/*!< in: parallel merge info */
 /********************************************************************//**
 Insert processed FTS data to the auxillary tables.
 @return DB_SUCCESS if insertion runs fine */

@@ -1980,7 +1980,7 @@ fts_query_search_phrase(
 
 			if (found) {
 				fts_query_process_doc_id(query,
-                                                         match->doc_id, 0);
+							 match->doc_id, 0);
 			}
 		}
 	}
@@ -2338,10 +2338,10 @@ fts_ast_visit_sub_exp(
 	/* Save current result set */
 	parent_doc_ids = query->doc_ids;
 
-        /* Create new result set to store the sub-expression result. We
+	/* Create new result set to store the sub-expression result. We
 	will merge this result set with the parent after processing. */
-        query->doc_ids = rbt_create(
-                sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
+	query->doc_ids = rbt_create(sizeof(fts_ranking_t),
+				    fts_ranking_doc_id_cmp);
 
 	/* Reset the query start flag because the sub-expression result
 	set is independent of any previous results. The state flag
@@ -3235,8 +3235,8 @@ fts_expand_query(
 	dict_index_t*	index,		/*!< in: FTS index to search */
 	fts_query_t*	query)		/*!< in: FTS query instance */
 {
-        const ib_rbt_node_t*    node;
-        const ib_rbt_node_t*    token_node;
+	const ib_rbt_node_t*	node;
+	const ib_rbt_node_t*	token_node;
 	fts_doc_t		result_doc;
 	ulint			error = DB_SUCCESS;
 
@@ -3255,15 +3255,16 @@ fts_expand_query(
 	fts_print_doc_id(query->doc_ids);
 #endif
 
-        for (node = rbt_first(query->doc_ids);
-             node;
-             node = rbt_next(query->doc_ids, node)) {
-                fts_ranking_t*	ranking;
+	for (node = rbt_first(query->doc_ids);
+	     node;
+	     node = rbt_next(query->doc_ids, node)) {
+
+		fts_ranking_t*	ranking;
 		fts_doc_t	doc;
 		const ib_rbt_node_t*	node_word;
 
 		fts_doc_init(&doc);
-                ranking = rbt_value(fts_ranking_t, node);
+		ranking = rbt_value(fts_ranking_t, node);
 
 		/* Fetch the documents with the doc_id from the
 		result of first seach pass. Since we do not
@@ -3291,7 +3292,7 @@ fts_expand_query(
 			/* The word must exist in the doc we found */
 			if (!ret) {
 				fprintf(stderr, " InnoDB: Error: Did not "
-                                        "find word %s in doc %ld for query "
+					"find word %s in doc %ld for query "
 					"expansion search.\n", str.utf8,
 					(ulint)ranking->doc_id);
 			}
