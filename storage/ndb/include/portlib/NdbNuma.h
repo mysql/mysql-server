@@ -15,5 +15,33 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#cmakedefine HAVE_POSIX_MEMALIGN 1
+#ifndef ndb_numa_h
+#define ndb_numa_h
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+/**
+ * Set memory policy that memory allocation should be performed
+ *   using interleaving over all numa-nodes
+ *
+ * NOTE: Not thread safe
+ */
+int NdbNuma_setInterleaved();
+
+#if TODO
+/**
+ * Set memory policy that memory allocation should be performed
+ *   using interleaving over numa-nodes corresponding to cpu's
+ *
+ * NOTE: Not thread safe
+ */
+int NdbNuma_setInterleavedOnCpus(unsigned cpu[], unsigned len);
+#endif
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif

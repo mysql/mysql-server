@@ -40,6 +40,9 @@ ENDIF()
 
 OPTION(WITH_NDB_TEST
   "Include the NDB Cluster ndbapi test programs" OFF)
+IF(WITH_NDB_TEST)
+  MESSAGE(STATUS "Building NDB test programs")
+ENDIF()
 
 SET(WITH_NDB_PORT "" CACHE INTEGER
   "Default port used by NDB Cluster management server")
@@ -51,9 +54,6 @@ ENDIF()
 
 OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
-
-OPTION(WITH_NDBMTD
-  "Dont build the MySQL Cluster multithreadded data node" ON)
 
 # Use same compiler defines as MySQL Server for debug compile
 SET(CMAKE_CXX_FLAGS_DEBUG

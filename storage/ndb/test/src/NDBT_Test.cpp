@@ -158,6 +158,21 @@ NDBT_Context::incProperty(const char * name){
   NdbMutex_Unlock(propertyMutexPtr);
 }
 
+Uint32
+NDBT_Context::casProperty(const char * name, Uint32 oldValue, Uint32 newValue)
+{
+  NdbMutex_Lock(propertyMutexPtr);
+  Uint32 val = 0;
+  props.get(name, &val);
+  if (val == oldValue)
+  {
+    props.put(name, newValue, true);
+    NdbCondition_Broadcast(propertyCondPtr);
+  }
+  NdbMutex_Unlock(propertyMutexPtr);
+  return val;
+}
+
 void  NDBT_Context::setProperty(const char* _name, const char* _val){ 
   NdbMutex_Lock(propertyMutexPtr);
   const bool b = props.put(_name, _val, true);

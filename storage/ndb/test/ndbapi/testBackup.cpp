@@ -649,6 +649,22 @@ int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runBug57650(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbRestarter res;
+
+  int node0 = res.getNode(NdbRestarter::NS_RANDOM);
+  res.insertErrorInNode(node0, 5057);
+
+  unsigned backupId = 0;
+  if (backup.start(backupId) == -1)
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -777,6 +793,10 @@ TESTCASE("FailSlave",
   INITIALIZER(setSlave);
   STEP(runFail);
 
+}
+TESTCASE("Bug57650", "")
+{
+  INITIALIZER(runBug57650);
 }
 NDBT_TESTSUITE_END(testBackup);
 

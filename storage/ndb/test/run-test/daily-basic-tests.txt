@@ -54,6 +54,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n BackupDDL T1
 
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug57650 T1
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic
@@ -1480,6 +1484,10 @@ max-time: 1200
 cmd: test_event
 args: -n Bug56579 T1
 
+max-time: 1200
+cmd: test_event
+args: -n Bug57886 T1
+
 max-time: 3600
 cmd: testNodeRestart
 args: -n Bug44952 T1
@@ -1487,6 +1495,10 @@ args: -n Bug44952 T1
 max-time: 600
 cmd: testNodeRestart
 args: -n Bug56044 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug57767 T2
 
 max-time: 300
 cmd: testSystemRestart

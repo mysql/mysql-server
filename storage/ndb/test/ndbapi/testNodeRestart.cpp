@@ -3980,6 +3980,31 @@ runBug56044(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBug57767(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  int node0 = res.getNode(NdbRestarter::NS_RANDOM);
+  int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
+  ndbout_c("%u %u", node0, node1);
+
+  res.restartOneDbNode(node0, false, true, true);
+  res.waitNodesNoStart(&node0, 1);
+  res.insertErrorInNode(node0, 1000);
+
+  HugoTransactions hugoTrans(*ctx->getTab());
+  hugoTrans.scanUpdateRecords(GETNDB(step), 0);
+
+  res.insertErrorInNode(node1, 5060);
+  res.startNodes(&node0, 1);
+  res.waitClusterStarted();
+  return NDBT_OK;
+}
+
+int
 runBug57522(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
@@ -4619,6 +4644,11 @@ TESTCASE("MixReadUnlockRestart",
 TESTCASE("Bug56044", "")
 {
   INITIALIZER(runBug56044);
+}
+TESTCASE("Bug57767", "")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBug57767)
 }
 TESTCASE("Bug57522", "")
 {

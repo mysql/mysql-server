@@ -330,6 +330,11 @@ protected:
   
   class SectionSegmentPool& getSectionSegmentPool();
   void release(SegmentedSectionPtr & ptr);
+  void release(SegmentedSectionPtrPOD & ptr) {
+    SegmentedSectionPtr tmp(ptr);
+    release(tmp);
+    ptr.setNull();
+  }
   void releaseSection(Uint32 firstSegmentIVal);
   void releaseSections(struct SectionHandle&);
 
@@ -1241,11 +1246,11 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
     b = b->getInstance(instanceNo);
   ndbassert(b != 0);
   ndbassert(givenInstanceNo != ZNIL || b->getThreadId() == getThreadId());
+  signal->header.theSendersBlockRef = reference();
 #ifdef VM_TRACE
   if(globalData.testOn){
     signal->header.theVerId_signalNumber = gsn;
     signal->header.theReceiversBlockNumber = numberToBlock(block, instanceNo);
-    signal->header.theSendersBlockRef = reference();
     globalSignalLoggers.executeDirect(signal->header,
 				      0,        // in
 				      &signal->theData[0],
