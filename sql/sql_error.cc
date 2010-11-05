@@ -159,6 +159,8 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   }
   thd->warn_count[(uint) level]++;
   thd->total_warn_count++;
+  /* Make sure we also count warnings pushed after calling set_ok_status(). */
+  thd->main_da.increment_warning();
   DBUG_RETURN(err);
 }
 

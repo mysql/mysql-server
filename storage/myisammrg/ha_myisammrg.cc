@@ -86,8 +86,6 @@
 
   On parent open the storage engine structures are allocated and initialized.
   They stay with the open table until its final close.
-
-
 */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -1070,6 +1068,8 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
        open_table != file->end_table ;
        open_table++)
   {
+    open_table->table->lock.priority|= THR_LOCK_MERGE_PRIV;
+
     *(to++)= &open_table->table->lock;
     if (lock_type != TL_IGNORE && open_table->table->lock.type == TL_UNLOCK)
       open_table->table->lock.type=lock_type;
