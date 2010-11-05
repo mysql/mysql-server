@@ -236,7 +236,6 @@ struct sql_ex_info
 #define QUERY_HEADER_LEN     (QUERY_HEADER_MINIMAL_LEN + 2)
 #define STOP_HEADER_LEN      0
 #define LOAD_HEADER_LEN      (4 + 4 + 4 + 1 +1 + 4)
-#define SLAVE_HEADER_LEN     0
 #define START_V3_HEADER_LEN     (2 + ST_SERVER_VER_LEN + 4)
 #define ROTATE_HEADER_LEN    8 // this is FROZEN (the Rotate post-header is frozen)
 #define INTVAR_HEADER_LEN      0
@@ -560,7 +559,7 @@ enum Log_event_type
   ROTATE_EVENT= 4,
   INTVAR_EVENT= 5,
   LOAD_EVENT= 6,
-  SLAVE_EVENT= 7,
+  SLAVE_EVENT= 7,  /* Unused. Slave_log_event code has been removed. (15th Oct. 2010) */
   CREATE_FILE_EVENT= 8,
   APPEND_BLOCK_EVENT= 9,
   EXEC_LOAD_EVENT= 10,
@@ -1795,95 +1794,6 @@ public:        /* !!! Public in this patch to allow old usage */
       !strncasecmp(query, "ROLLBACK", 8);
   }
 };
-
-
-#ifdef HAVE_REPLICATION
-
-/**
-  @class Slave_log_event
-
-  Note that this class is currently not used at all; no code writes a
-  @c Slave_log_event.  So it's not a problem if this code is not
-  maintained.
-
-  @section Slave_log_event_binary_format Binary Format
-
-  This event type has no Post-Header. The Body has the following
-  four components.
-
-  <table>
-  <caption>Body for Slave_log_event</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-
-  <tr>
-    <td>master_pos</td>
-    <td>8 byte integer</td>
-    <td>???TODO
-    </td>
-  </tr>
-
-  <tr>
-    <td>master_port</td>
-    <td>2 byte integer</td>
-    <td>???TODO</td>
-  </tr>
-
-  <tr>
-    <td>master_host</td>
-    <td>null-terminated string</td>
-    <td>???TODO</td>
-  </tr>
-
-  <tr>
-    <td>master_log</td>
-    <td>null-terminated string</td>
-    <td>???TODO</td>
-  </tr>
-  </table>
-*/
-class Slave_log_event: public Log_event
-{
-protected:
-  char* mem_pool;
-  void init_from_mem_pool(int data_size);
-public:
-  my_off_t master_pos;
-  char* master_host;
-  char* master_log;
-  int master_host_len;
-  int master_log_len;
-  uint16 master_port;
-
-#ifdef MYSQL_SERVER
-  Slave_log_event(THD* thd_arg, Relay_log_info* rli);
-  void pack_info(Protocol* protocol);
-#else
-  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
-#endif
-
-  Slave_log_event(const char* buf,
-                  uint event_len,
-                  const Format_description_log_event *description_event);
-  ~Slave_log_event();
-  int get_data_size();
-  bool is_valid() const { return master_host != 0; }
-  Log_event_type get_type_code() { return SLAVE_EVENT; }
-#ifdef MYSQL_SERVER
-  bool write(IO_CACHE* file);
-#endif
-
-private:
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual int do_apply_event(Relay_log_info const* rli);
-#endif
-};
-
-#endif /* HAVE_REPLICATION */
 
 
 /**
