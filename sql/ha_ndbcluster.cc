@@ -258,10 +258,12 @@ static uint ndbcluster_partition_flags()
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
+#ifndef NDB_WITHOUT_ONLINE_ALTER
 static uint ndbcluster_alter_partition_flags()
 {
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
+#endif
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
@@ -8732,28 +8734,6 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   Constructor for the NDB Cluster table handler .
 */
 
-/*
-  Normal flags for binlogging is that ndb has HA_HAS_OWN_BINLOGGING
-  and preferes HA_BINLOG_ROW_CAPABLE
-  Other flags are set under certain circumstaces in table_flags()
-*/
-#define HA_NDBCLUSTER_TABLE_FLAGS \
-                HA_REC_NOT_IN_SEQ | \
-                HA_NULL_IN_KEY | \
-                HA_AUTO_PART_KEY | \
-                HA_NO_PREFIX_CHAR_KEYS | \
-                HA_NEED_READ_RANGE_BUFFER | \
-                HA_CAN_GEOMETRY | \
-                HA_CAN_BIT_FIELD | \
-                HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \
-                HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | \
-                HA_PARTIAL_COLUMN_READ | \
-                HA_HAS_OWN_BINLOGGING | \
-                HA_BINLOG_ROW_CAPABLE | \
-                HA_HAS_RECORDS | \
-                HA_ONLINE_ALTER
-
-
 ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   handler(hton, table_arg),
   m_thd_ndb(NULL),
@@ -8762,7 +8742,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
   m_table_info(NULL),
-  m_table_flags(HA_NDBCLUSTER_TABLE_FLAGS),
   m_share(0),
   m_key_fields(NULL),
   m_part_info(NULL),
@@ -10134,8 +10113,12 @@ static int ndbcluster_init(void *p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
+#ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
       ndbcluster_alter_partition_flags;             /* Alter table flags */
+#else
+    /* Should install alter_table_flags */
+#endif
     h->fill_files_table= ndbcluster_fill_files_table;
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
@@ -10480,7 +10463,25 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
 ulonglong ha_ndbcluster::table_flags(void) const
 {
   THD *thd= current_thd;
-  ulonglong f= m_table_flags;
+  ulonglong f=
+    HA_REC_NOT_IN_SEQ |
+    HA_NULL_IN_KEY |
+    HA_AUTO_PART_KEY |
+    HA_NO_PREFIX_CHAR_KEYS |
+    HA_NEED_READ_RANGE_BUFFER |
+    HA_CAN_GEOMETRY |
+    HA_CAN_BIT_FIELD |
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
+    HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
+    HA_PARTIAL_COLUMN_READ |
+    HA_HAS_OWN_BINLOGGING |
+    HA_BINLOG_ROW_CAPABLE |
+    HA_HAS_RECORDS |
+#ifndef NDB_WITHOUT_ONLINE_ALTER
+    HA_ONLINE_ALTER |
+#endif
+    0;
+
   /*
     To allow for logging of ndb tables during stmt based logging;
     flag cabablity, but also turn off flag for OWN_BINLOGGING
@@ -10489,6 +10490,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
   return f;
 }
+
 const char * ha_ndbcluster::table_type() const 
 {
   return("NDBCLUSTER");
@@ -13000,7 +13002,8 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
-
+#ifndef NDB_WITHOUT_ONLINE_ALTER
+static
 HA_ALTER_FLAGS supported_alter_operations()
 {
   HA_ALTER_FLAGS alter_flags;
@@ -13650,7 +13653,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   alter_info->data= 0;
   DBUG_RETURN(0);
 }
-
+#endif
 
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
