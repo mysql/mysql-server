@@ -152,7 +152,7 @@ public:
   bool execTCKEYCONF();
 
   /** Process SCAN_TABCONF w/ EndOfData which is a 'Close Scan Reply'. */
-  void execCLOSE_SCAN_REP(bool isClosed);
+  void execCLOSE_SCAN_REP(int errorCode, bool needClose);
 
   /** Determines if query has completed and may be garbage collected
    *  A query is not considder complete until the client has 
@@ -199,24 +199,30 @@ public:
   { return m_rootFragCount; }
 
 private:
-  /** Possible return values from NdbQuery::awaitMoreResults. Integer values
-   * matches those returned from PoolGuard::waitScan().
+  /** Possible return values from NdbQueryImpl::awaitMoreResults. Integer values
+   * matches those returned from PoolGuard::wait_scan().
    */
   enum FetchResult{
-    FetchResult_otherError = -4,
+    FetchResult_gotError = -4,  // There is an error avail in 'm_error.code'
     FetchResult_sendFail = -3,
     FetchResult_nodeFail = -2,
     FetchResult_timeOut = -1,
     FetchResult_ok = 0,
-    FetchResult_scanComplete = 1
+    FetchResult_noMoreData = 1
   };
 
-  /** A stack of NdbRootFragment pointers. */
-  class FragStack{
+  /** A stack of NdbRootFragment pointers.
+   *  NdbRootFragments which are 'BatchComplete' are pushed on this stack by 
+   *  the receiver thread, and later pop'ed into the application thread when 
+   *  it need more results to process.
+   *  Due to this shared usage, the PollGuard mutex must be set before 
+   *  accessing SharedFragStack.
+   */
+  class SharedFragStack{
   public:
-    explicit FragStack();
+    explicit SharedFragStack();
 
-    ~FragStack() {
+    ~SharedFragStack() {
       delete[] m_array;
     }
 
@@ -238,16 +244,21 @@ private:
       m_current = -1;
     }
 
+    /** Possible error received from TC / datanodes. */
+    int m_errorCode;
+
   private:
     /** Capacity of stack.*/
     int m_capacity;
+
     /** Index of current top of stack.*/
     int m_current;
     NdbRootFragment** m_array;
+
     // No copying.
-    FragStack(const FragStack&);
-    FragStack& operator=(const FragStack&);
-  }; // class FragStack
+    SharedFragStack(const SharedFragStack&);
+    SharedFragStack& operator=(const SharedFragStack&);
+  }; // class SharedFragStack
 
   class OrderedFragSet{
   public:
@@ -389,7 +400,7 @@ private:
   /** Root frgaments that have received a complete batch. Shared between 
    *  application thread and receiving thread. Access should be mutex protected.
    */
-  FragStack m_fullFrags;
+  SharedFragStack m_fullFrags;  // BEWARE: protect with PollGuard mutex
 
   /** Number of root fragments for which confirmation for the final batch 
    * (with tcPtrI=RNIL) has been received. Observe that even if 
@@ -448,13 +459,23 @@ private:
   /** Navigate to the next result from the root operation. */
   NdbQuery::NextResultOutcome nextRootResult(bool fetchAllowed, bool forceSend);
 
-  /** Get more scan results, ask datanodes for the next batch if necessary.*/
-  FetchResult awaitMoreResults(bool forceSend);
-
   /** Send SCAN_NEXTREQ signal to fetch another batch from a scan query
    * @return 0 if send succeeded, -1 otherwise.
    */
   int sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend);
+
+  /** Wait for more scan results which already has been REQuested to arrive.
+   * @return 0 if some rows did arrive, a negative value if there are errors (in m_error.code),
+   * and 1 of there are no more rows to receive.
+   */
+  FetchResult awaitMoreResults(bool forceSend);
+
+  /** Check if we have received an error from TC, or datanodes.
+   * @return 'true' if an error is pending, 'false' otherwise.
+   */
+  bool hasReceivedError();                                   // Need mutex lock
+
+  void setFetchTerminated(int aErrorCode, bool needClose);   // Need mutex lock
 
   /** Close cursor on TC */
   int closeTcCursor(bool forceSend);
@@ -481,9 +502,6 @@ private:
    *  @return True if batch is complete.
    */
   bool incrementPendingFrags(int increment);
-
-  /** Check if batch is complete (no outstanding messages).*/
-  bool isBatchComplete() const;
 
   /** A complete batch has been received for a given root fragment
    *  Update whatever required before the appl. is allowed to navigate the result.
