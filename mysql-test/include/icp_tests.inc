@@ -402,3 +402,92 @@ ORDER BY f1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#52660 - "Perf. regr. using ICP for MyISAM on range queries on 
+--echo #              an index containing TEXT"
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 SELECT A.a + 10*(B.a) FROM t1 A, t1 B;
+
+CREATE TABLE t3 (
+  c1 TINYTEXT NOT NULL,
+  i1 INT NOT NULL,
+  KEY (c1(6),i1)
+);
+
+INSERT INTO t3 SELECT CONCAT('c-',1000+t2.a,'=w'), 1 FROM t2;
+
+let query=SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#57372 "Multi-table updates and deletes fail when running with ICP 
+--echo #            against InnoDB"
+--echo #
+
+CREATE TABLE t1 (
+  a INT KEY, 
+  b INT
+) ENGINE = INNODB;
+
+CREATE TABLE t2 (
+  a INT KEY, 
+  b INT
+) ENGINE = INNODB;
+
+INSERT INTO t1 VALUES (1, 101), (2, 102), (3, 103), (4, 104), (5, 105);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+
+UPDATE t1, t2 
+SET t1.a = t1.a + 100, t2.b = t1.a + 10 
+WHERE t1.a BETWEEN 2 AND 4 AND t2.a = t1.b - 100;
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#52605 - "Adding LIMIT 1 clause to query with complex range 
+--echo #              predicate causes wrong results"
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY k1 (c1)
+);
+
+INSERT INTO t1 VALUES (1,NULL);
+INSERT INTO t1 VALUES (2,6);
+INSERT INTO t1 VALUES (3,NULL);
+INSERT INTO t1 VALUES (4,6);
+INSERT INTO t1 VALUES (5,NULL);
+INSERT INTO t1 VALUES (6,NULL);
+INSERT INTO t1 VALUES (7,9);
+INSERT INTO t1 VALUES (8,0);
+
+SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+EXPLAIN SELECT pk, c1
+FROM t1  
+WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
+ORDER BY c1
+LIMIT 1;
+
+DROP TABLE t1;
