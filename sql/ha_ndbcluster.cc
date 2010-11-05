@@ -7209,6 +7209,7 @@ static int create_ndb_column(THD *thd,
   else
     col.setAutoIncrement(FALSE);
  
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
   default:
@@ -7240,6 +7241,7 @@ static int create_ndb_column(THD *thd,
       dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
     break;
   }
+#endif
   DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
                       (dynamic) ? "dynamic" : "static"));
   if (type == NDBCOL::StorageTypeDisk)
@@ -7250,6 +7252,8 @@ static int create_ndb_column(THD *thd,
                           field->field_name));
       dynamic= false;
     }
+
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -7259,6 +7263,7 @@ static int create_ndb_column(THD *thd,
                           "column will become FIXED",
                           field->field_name);
     }
+#endif
   }
 
   switch (create_info->row_type) {
@@ -7292,7 +7297,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("update_create_info");
   THD *thd= current_thd;
-  TABLE_SHARE *share= table->s;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
 
@@ -7336,6 +7340,8 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
+  TABLE_SHARE *share= table->s;
   if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
   {
      DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
@@ -7373,6 +7379,7 @@ err:
        my_errno= ndb_to_mysql_error(&ndberr);
     }
   }
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -7644,6 +7651,7 @@ int ha_ndbcluster::create(const char *name,
     KEY_PART_INFO *end= key_part + key_info->key_parts;
     for (; key_part != end; key_part++)
     {
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -7656,6 +7664,7 @@ int ha_ndbcluster::create(const char *name,
         result= HA_ERR_UNSUPPORTED;
         goto abort_return;
       }
+#endif
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
     }
@@ -8105,6 +8114,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   for (; key_part != end; key_part++) 
   {
     Field *field= key_part->field;
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (field->field_storage_type() == HA_SM_DISK)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -8116,6 +8126,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
                           "STORAGE DISK is not supported");
       DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
+#endif
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
@@ -8839,28 +8850,12 @@ ha_ndbcluster::~ha_ndbcluster()
 void
 ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
-  THD *thd= table->in_use;
-  bool write_query= (thd->lex->sql_command == SQLCOM_UPDATE ||
-                     thd->lex->sql_command == SQLCOM_DELETE);
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("enter", ("read_set: 0x%lx  write_set: 0x%lx",
              (long) table->read_set->bitmap[0],
              (long) table->write_set->bitmap[0]));
   if (sig_type & HA_COMPLETE_TABLE_READ_BITMAP)
     bitmap_copy(&m_save_read_set, table->read_set);
-  if (!write_query || (sig_type & HA_COMPLETE_TABLE_READ_BITMAP))
-  {
-    /*
-      We need to make sure we always read all of the primary key.
-      Otherwise we cannot support position() and rnd_pos().
-  
-      Alternatively, we could just set a flag, and in the reader methods set
-      the extra bits as required if the flag is set, followed by clearing the
-      flag.  This to save doing the work of setting bits twice or more.
-      On the other hand this is quite fast in itself.
-    */
-    bitmap_union(table->read_set, m_pk_bitmap_p);
-  }
   DBUG_VOID_RETURN;
 }
 
