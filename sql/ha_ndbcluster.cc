@@ -8850,28 +8850,12 @@ ha_ndbcluster::~ha_ndbcluster()
 void
 ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
-  THD *thd= table->in_use;
-  bool write_query= (thd->lex->sql_command == SQLCOM_UPDATE ||
-                     thd->lex->sql_command == SQLCOM_DELETE);
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("enter", ("read_set: 0x%lx  write_set: 0x%lx",
              (long) table->read_set->bitmap[0],
              (long) table->write_set->bitmap[0]));
   if (sig_type & HA_COMPLETE_TABLE_READ_BITMAP)
     bitmap_copy(&m_save_read_set, table->read_set);
-  if (!write_query || (sig_type & HA_COMPLETE_TABLE_READ_BITMAP))
-  {
-    /*
-      We need to make sure we always read all of the primary key.
-      Otherwise we cannot support position() and rnd_pos().
-  
-      Alternatively, we could just set a flag, and in the reader methods set
-      the extra bits as required if the flag is set, followed by clearing the
-      flag.  This to save doing the work of setting bits twice or more.
-      On the other hand this is quite fast in itself.
-    */
-    bitmap_union(table->read_set, m_pk_bitmap_p);
-  }
   DBUG_VOID_RETURN;
 }
 
