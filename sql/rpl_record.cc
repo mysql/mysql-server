@@ -324,6 +324,13 @@ unpack_row(Relay_log_info const *rli,
                              f->field_name, metadata,
                              (ulong) old_pack_ptr, (ulong) pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
+
+        /*
+          The raw size of the field, as calculated in calc_field_size,
+          should match the one reported by Field_*::unpack.
+         */
+        DBUG_ASSERT(tabledef->calc_field_size(i, (uchar *) old_pack_ptr) == 
+                    (pack_ptr - old_pack_ptr));
       }
 
       /*
