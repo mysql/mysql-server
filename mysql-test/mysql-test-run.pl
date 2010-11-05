@@ -4463,7 +4463,13 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  my @defaults = grep(/^--defaults-file=/, @$extra_opts);
+  if (@defaults > 0) {
+    mtr_add_arg($args, pop(@defaults))
+  }
+  else {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
@@ -4499,6 +4505,9 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
+    # Skip --defaults-file option since it's handled above.
+    next if $arg =~ /^--defaults-file/;
+
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
     {
