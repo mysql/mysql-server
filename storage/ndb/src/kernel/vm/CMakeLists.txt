@@ -51,7 +51,7 @@ ADD_LIBRARY(ndbsched STATIC
     dummy_nonmt.cpp
 )
 
-IF(BUILD_NDBMTD)
+IF(NDB_BUILD_NDBMTD)
   ADD_LIBRARY(ndbsched_mt STATIC
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp

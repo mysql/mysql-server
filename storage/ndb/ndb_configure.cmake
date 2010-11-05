@@ -123,7 +123,7 @@ IF(WITH_NDBMTD)
     read_barrier_depends();
     return a;
   }"
-  BUILD_NDBMTD)
+  NDB_BUILD_NDBMTD)
 
 ENDIF()
 
