@@ -161,6 +161,10 @@ resolved */
 # define UNIV_PFS_THREAD
 #endif /* HAVE_PSI_INTERFACE */
 
+#ifdef __WIN__
+# define YY_NO_UNISTD_H
+#endif /* __WIN__ */
+
 /*			DEBUG VERSION CONTROL
 			===================== */
 

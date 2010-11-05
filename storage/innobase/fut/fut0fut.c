@@ -869,7 +869,7 @@ fts_cache_node_add_positions(
 	ut_ad(doc_id > node->last_doc_id);
 
 	/* Calculate the space required to store the ilist. */
-	doc_id_delta = doc_id - node->last_doc_id;
+	doc_id_delta = (ulint)(doc_id - node->last_doc_id);
 	enc_len = fts_get_encoded_len(doc_id_delta);
 
 	last_pos = 0;
@@ -902,7 +902,7 @@ fts_cache_node_add_positions(
 		} else if (new_size < 48) {
 			new_size = 48;
 		} else {
-			new_size *= 1.2;
+			new_size = (ulint)(1.2 * new_size);
 		}
 
 		ilist = ut_malloc(new_size);

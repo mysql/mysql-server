@@ -266,7 +266,7 @@ float
 fts_retrieve_ranking(
 /*=================*/
 	fts_result_t*	result,		/* in: FTS result structure */
-        int		doc_id);	/* in: the interested document
+	doc_id_t	doc_id);	/* in: the interested document
 					doc_id */
 
 /********************************************************************

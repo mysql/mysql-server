@@ -93,7 +93,7 @@ fts_trx_row_doc_id_cmp(
 	const fts_trx_row_t*	tr1 = (const fts_trx_row_t*) p1;
 	const fts_trx_row_t*	tr2 = (const fts_trx_row_t*) p2;
 
-	return(tr1->doc_id - tr2->doc_id);
+	return((int)(tr1->doc_id - tr2->doc_id));
 }
 
 /********************************************************************
@@ -112,7 +112,7 @@ fts_ranking_doc_id_cmp(
 	const fts_ranking_t*	rk1 = (const fts_ranking_t*) p1;
 	const fts_ranking_t*	rk2 = (const fts_ranking_t*) p2;
 
-	return(rk1->doc_id - rk2->doc_id);
+	return((int)(rk1->doc_id - rk2->doc_id));
 }
 
 /********************************************************************
@@ -131,7 +131,7 @@ fts_update_doc_id_cmp(
 	const fts_update_t*	up1 = (const fts_update_t*) p1;
 	const fts_update_t*	up2 = (const fts_update_t*) p2;
 
-	return(up1->doc_id - up2->doc_id);
+	return((int)(up1->doc_id - up2->doc_id));
 }
 
 /********************************************************************
@@ -299,12 +299,11 @@ get1:
 		/* The code positions U+D800 to U+DFFF (UTF-16 surrogate pairs)
 		and U+FFFE and U+FFFF cannot occur in valid UTF-8. */
 
-		if (UNIV_UNLIKELY
-		    ((ch >= 0xD800 && ch <= 0xDFFF)
+		if ( (ch >= 0xD800 && ch <= 0xDFFF)
 #ifdef UNIV_DEBUG
 		     || ch < min_ch
 #endif /* UNIV_DEBUG */
-		     || ch == 0xFFFE || ch == 0xFFFF)) {
+		     || ch == 0xFFFE || ch == 0xFFFF) {
 
 			ch = UTF8_ERROR;
 		}

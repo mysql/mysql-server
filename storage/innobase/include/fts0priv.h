@@ -434,18 +434,6 @@ fts_config_get_ulint(
 	const char*	name,		/* in: param name */
 	ulint*		int_value);	/* out: value */
 /********************************************************************
-Set an ulint value in the config table. */
-
-ulint
-fts_config_set_index_ulint(
-/*=======================*/
-					/* out: DB_SUCCESS if all OK
-					else error code */
-	trx_t*		trx,		/* in: transaction */
-	dict_index_t*	index,		/* in: FTS index */
-	const char*	name,		/* in: param name */
-	ulint		int_value);	/* in: value */
-/********************************************************************
 Search cache for word. */
 
 const ib_vector_t*

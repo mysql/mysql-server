@@ -310,7 +310,7 @@ fts_freq_doc_id_cmp(
 	const fts_doc_freq_t*	fq1 = (const fts_doc_freq_t*) p1;
 	const fts_doc_freq_t*	fq2 = (const fts_doc_freq_t*) p2;
 
-	return(fq1->doc_id - fq2->doc_id);
+	return((int) (fq1->doc_id - fq2->doc_id));
 }
 
 #if 0
@@ -661,9 +661,9 @@ fts_query_change_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		ranking->rank += (downgrade)
-					? RANK_DOWNGRADE
-					: RANK_UPGRADE;
+		ranking->rank += (fts_rank_t)((downgrade)
+						? RANK_DOWNGRADE
+						: RANK_UPGRADE);
 	}
 	return;
 }
@@ -2800,7 +2800,7 @@ float
 fts_retrieve_ranking(
 /*=================*/
 	fts_result_t*	result,	/* in: FTS result structure */
-	int		doc_id)	/* in: doc_id of the item to retrieve */
+	doc_id_t	doc_id)	/* in: doc_id of the item to retrieve */
 {
 	ib_rbt_bound_t		parent;
 	fts_ranking_t		new_ranking;

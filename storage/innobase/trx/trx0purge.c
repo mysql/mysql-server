@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0thread.h"
 #include "srv0mon.h"
+#include "mtr0log.h"
 
 /** The global data structure coordinating a purge */
 UNIV_INTERN trx_purge_t*	purge_sys = NULL;

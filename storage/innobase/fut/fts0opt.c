@@ -1606,7 +1606,7 @@ fts_optimize_set_index_end_time(
 	ulint		error;
 
 	error = fts_config_set_index_ulint(
-		trx, index, FTS_OPTIMIZE_END_TIME, end_time);
+		trx, index, FTS_OPTIMIZE_END_TIME, (ulint) end_time);
 
 	return(error);
 }

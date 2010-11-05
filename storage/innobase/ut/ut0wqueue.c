@@ -133,8 +133,8 @@ ib_wqueue_timedwait(
 	ib_list_node_t*	node = NULL;
 
 	for (;;) {
-		ulint	error;
-		ulint	sig_count;
+		ulint		error;
+		ib_int64_t	sig_count;
 
 		mutex_enter(&wq->mutex);
 
@@ -151,7 +151,8 @@ ib_wqueue_timedwait(
 
 		mutex_exit(&wq->mutex);
 
-		error = os_event_wait_time(wq->event, wait_in_usecs, sig_count);
+		error = os_event_wait_time(wq->event, (ulint) wait_in_usecs,
+					   sig_count);
 
 		if (error == OS_SYNC_TIME_EXCEEDED) {
 			break;

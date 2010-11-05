@@ -245,6 +245,39 @@ cmp_rec_rec(
 	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index);	/*!< in: data dictionary index */
 
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_prefix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_substr(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
+/*****************************************************************
+This function is used to compare two dfields where at least the first
+has its data type field set. */
+UNIV_INLINE
+int
+cmp_dfield_dfield_like_suffix(
+/*==========================*/
+				/* out: 1, 0, -1, if dfield1 is greater, equal,
+				less than dfield2, respectively */
+	dfield_t*	dfield1,/* in: data field; must have type field set */
+	dfield_t*	dfield2);/* in: data field */
 
 #ifndef UNIV_NONINL
 #include "rem0cmp.ic"

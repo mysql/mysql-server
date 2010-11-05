@@ -97,6 +97,15 @@ ib_vector_resize(
 	ib_vector_t*	vec);		/* in/out: vector */
 
 /********************************************************************
+Test whether a vector is empty or not.
+@return TRUE if empty */
+UNIV_INLINE
+ibool
+ib_vector_is_empty(
+/*===============*/
+	const ib_vector_t*	vec);    /*!< in: vector */
+
+/********************************************************************
 Get the n'th element. */
 UNIV_INLINE
 void*
