@@ -2072,8 +2072,8 @@ int multi_update::do_updates()
 err:
   {
     thd->fatal_error();
-    prepare_record_for_error_message(local_error, table);
-    table->file->print_error(local_error,MYF(0));
+    prepare_record_for_error_message(local_error, err_table);
+    err_table->file->print_error(local_error,MYF(0));
   }
 
 err2:
