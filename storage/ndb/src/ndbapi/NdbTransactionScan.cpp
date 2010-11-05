@@ -55,8 +55,7 @@ NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
 
     } else {
       assert (m_scanningQuery);
-      m_scanningQuery->execCLOSE_SCAN_REP(ref->closeNeeded);
-      m_scanningQuery->setErrorCode(ref->errorCode);
+      m_scanningQuery->execCLOSE_SCAN_REP(ref->errorCode, ref->closeNeeded);
       if(!ref->closeNeeded){
         return 0;
       }
@@ -100,7 +99,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
         theScanningOp->execCLOSE_SCAN_REP();
       } else {
         assert (m_scanningQuery);
-        m_scanningQuery->execCLOSE_SCAN_REP(false);
+        m_scanningQuery->execCLOSE_SCAN_REP(0, false);
       }
       return 1; // -> Finished
     }
