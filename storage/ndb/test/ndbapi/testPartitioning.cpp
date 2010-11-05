@@ -958,15 +958,22 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
 
     if (usePrimary)
     {
-      /* Scanning the primary index, set bound on the pk */
-      int& dKeyVal= *((int*) NdbDictionary::getValuePtr(idxRecord,
-                                                        boundBuf,
-                                                        tab->getColumn(DistTabDKeyCol)->getAttrId()));
-      int& pKey2Val= *((int*) NdbDictionary::getValuePtr(idxRecord,
-                                                         boundBuf,
-                                                         tab->getColumn(DistTabPKey2Col)->getAttrId()));
-      dKeyVal= partValue;
-      pKey2Val= r;
+      {
+        int dKeyVal= partValue;
+        int pKey2Val= r;
+        /* Scanning the primary index, set bound on the pk */
+        memcpy(NdbDictionary::getValuePtr(idxRecord,
+                                          boundBuf,
+                                          tab->getColumn(DistTabDKeyCol)->getAttrId()),
+               &dKeyVal,
+               sizeof(dKeyVal));
+        memcpy(NdbDictionary::getValuePtr(idxRecord,
+                                          boundBuf,
+                                          tab->getColumn(DistTabPKey2Col)->getAttrId()),
+               &pKey2Val,
+               sizeof(pKey2Val));
+        
+      }
 
       NdbIndexScanOperation::IndexBound ib;
       ib.low_key= boundBuf;
@@ -999,10 +1006,14 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
     {
       Uint32 resultValAttrId= tab->getColumn(DistTabResultCol)->getAttrId();
       /* Scanning the secondary index, set bound on the result */
-      int& resultVal= *((int*) NdbDictionary::getValuePtr(idxRecord,
-                                                          boundBuf,
-                                                          resultValAttrId));
-      resultVal= r*r;
+      {
+        int resultVal= r*r;
+        memcpy(NdbDictionary::getValuePtr(idxRecord,
+                                          boundBuf,
+                                          resultValAttrId),
+               &resultVal,
+               sizeof(resultVal));
+      }
 
       NdbDictionary::setNull(idxRecord,
                              boundBuf,
@@ -1104,15 +1115,23 @@ dist_scan_body(Ndb* pNdb, int records, int parts, PartInfo* partInfo, bool usePr
     
     while ((rc= pInfo.op->nextResult(&resultPtr, true, true)) == 0)
     {
-      int& dKeyVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
-                                                        resultPtr,
-                                                        tab->getColumn(DistTabDKeyCol)->getAttrId()));
-      int& pKey2Val= *((int*) NdbDictionary::getValuePtr(tabRecord,
-                                                         resultPtr,
-                                                         tab->getColumn(DistTabPKey2Col)->getAttrId()));
-      int& resultVal= *((int*) NdbDictionary::getValuePtr(tabRecord,
-                                                          resultPtr,
-                                                          tab->getColumn(DistTabResultCol)->getAttrId()));
+      int dKeyVal;
+      memcpy(&dKeyVal, NdbDictionary::getValuePtr(tabRecord,
+                                                  resultPtr,
+                                                  tab->getColumn(DistTabDKeyCol)->getAttrId()),
+             sizeof(dKeyVal));
+
+      int pKey2Val;
+      memcpy(&pKey2Val, NdbDictionary::getValuePtr(tabRecord,
+                                                   resultPtr,
+                                                   tab->getColumn(DistTabPKey2Col)->getAttrId()),
+             sizeof(pKey2Val));
+
+      int resultVal;
+      memcpy(&resultVal, NdbDictionary::getValuePtr(tabRecord,
+                                                    resultPtr,
+                                                    tab->getColumn(DistTabResultCol)->getAttrId()),
+             sizeof(resultVal));
       
       if ((dKeyVal != pInfo.dKeyVal) ||
           (resultVal != (pKey2Val * pKey2Val)))

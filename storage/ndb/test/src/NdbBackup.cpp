@@ -49,6 +49,7 @@ NdbBackup::clearOldBackups()
 
   int retCode = 0;
 
+#ifndef _WIN32
   for(size_t i = 0; i < ndbNodes.size(); i++)
   {
     int nodeId = ndbNodes[i].node_id;
@@ -73,6 +74,7 @@ NdbBackup::clearOldBackups()
     if (res && retCode == 0)
       retCode = res;
   }
+#endif
 
   return retCode;
 }
