@@ -53,7 +53,7 @@ public:
 
   bool append(Elem &el)
   {
-    return (insert_dynamic(&array, (uchar*)&el));
+    return (insert_dynamic(&array, &el));
   }
 
   int elements()

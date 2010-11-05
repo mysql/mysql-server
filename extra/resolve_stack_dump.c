@@ -230,7 +230,7 @@ static void init_sym_table()
     SYM_ENTRY se;
     if (init_sym_entry(&se, buf))
       continue;
-    if (insert_dynamic(&sym_table, (uchar*)&se))
+    if (insert_dynamic(&sym_table, &se))
       die("insert_dynamic() failed - looks like we are out of memory");
   }
 
