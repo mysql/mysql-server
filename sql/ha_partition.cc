@@ -91,7 +91,6 @@ static int partition_initialize(void *p)
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
   partition_hton->alter_partition_flags= alter_partition_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   //partition_hton->alter_table_flags= alter_table_flags; marty
   partition_hton->flags= HTON_NOT_USER_SELECTABLE |
                          HTON_HIDDEN |
