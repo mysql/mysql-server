@@ -403,7 +403,7 @@ fts_parallel_tokenization(
 	fts_doc_item_t*		doc_item = NULL;
 	fts_doc_item_t*		prev_doc_item = NULL;
 	row_merge_buf_t**	buf;
-	ulint			n_row_added;
+	ulint			n_row_added = 0;
 	merge_file_t**		merge_file;
 	row_merge_block_t**	block;
 	ulint			init_pos = 0;

@@ -51,9 +51,6 @@
 #define FTS_TERM 260
 #define FTS_NUMB 261
 
-
-
-
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
 #line 33 "fts0pars.y"

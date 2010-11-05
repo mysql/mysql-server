@@ -210,7 +210,7 @@ fts_config_set_value(
 	que_t*		graph;
 	ulint		error;
 	undo_no_t	undo_no;
-	ulint		n_rows_updated;
+	undo_no_t	n_rows_updated;
 	ulint		name_len = strlen(name);
 
 	info = pars_info_create();

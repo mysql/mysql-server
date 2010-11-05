@@ -32,6 +32,7 @@ Created 12/29/1997 Heikki Tuuri
 
 #include "data0data.h"
 #include "row0sel.h"
+#include "rem0cmp.h"
 
 /** The RND function seed */
 static ulint	eval_rnd	= 128367121;

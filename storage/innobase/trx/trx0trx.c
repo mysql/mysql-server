@@ -44,6 +44,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
+#include "ut0vec.h"
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;

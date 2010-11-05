@@ -1209,7 +1209,7 @@ row_merge_read_clustered_index(
 	dict_index_t*		fts_index = NULL;/* FTS index */
 	doc_id_t		doc_id = 0;
 	ibool			add_doc_id = FALSE;
-	os_event_t		fts_parallel_sort_event;
+	os_event_t		fts_parallel_sort_event = NULL;
 
 	trx->op_info = "reading clustered index";
 
