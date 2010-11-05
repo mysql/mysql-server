@@ -2286,5 +2286,34 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #669382: hash join using a ref with constant key parts 
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES
+  (9), (11), (7), (8), (4), (1), (12), (3), (5);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+CREATE TABLE t2 (a int, b int, c int, INDEX idx (a,b));
+INSERT INTO t2 VALUES
+  (8, 80, 800), (1, 10, 100), (1, 11, 101), (3, 30, 300),
+  (1, 12, 102), (8, 81, 801), (7, 70, 700), (12, 120, 1200),
+  (8, 82, 802), (1, 13, 103), (1, 14, 104), (3, 31, 301),
+  (1, 15, 105), (8, 83, 803), (7, 71, 701);
+
+SET SESSION join_cache_level = 4;
+SET SESSION join_buffer_size = 192;
+
+EXPLAIN
+SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99; 
+SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99; 
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

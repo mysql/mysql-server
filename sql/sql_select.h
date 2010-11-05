@@ -1134,11 +1134,6 @@ private:
   uint size_of_key_ofs;
 
   /* 
-    Length of a key value.
-    It is assumed that all key values have the same length.
-  */
-  uint key_length;
-  /* 
     Length of the key entry in the hash table.
     A key entry either contains the key value, or it contains a reference
     to the key value if use_emb_key flag is set for the cache.
@@ -1163,6 +1158,14 @@ private:
   void cleanup_hash_table();
   
 protected:
+
+  /* 
+    Length of a key value.
+    It is assumed that all key values have the same length.
+  */
+  uint key_length;
+  /* Buffer to store key values for probing */
+  uchar *key_buff;
 
   /* Number of key entries in the hash table (number of distinct keys) */
   uint key_entries;

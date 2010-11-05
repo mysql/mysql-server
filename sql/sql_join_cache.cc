@@ -2500,6 +2500,9 @@ int JOIN_CACHE_HASHED::init()
   if ((rc= JOIN_CACHE::init()))
     DBUG_RETURN (rc);
 
+  if (!(key_buff= (uchar*) sql_alloc(key_length)))
+    DBUG_RETURN(1);
+
   /* Take into account a reference to the next record in the key chain */
   pack_length+= get_size_of_rec_offset(); 
   pack_length_with_blob_ptrs+= get_size_of_rec_offset();
@@ -3300,9 +3303,9 @@ uchar *JOIN_CACHE_BNLH::get_matching_chain_by_join_key()
   TABLE_REF *ref= &join_tab->ref;
   KEY *keyinfo= table->key_info+ref->key;
   /* Build the join key value out of the record in the record buffer */
-  key_copy(ref->key_buff, table->record[0], keyinfo, ref->key_length);
+  key_copy(key_buff, table->record[0], keyinfo, key_length);
   /* Look for this key in the join buffer */
-  if (!key_search(ref->key_buff, ref->key_length, &key_ref_ptr))
+  if (!key_search(key_buff, key_length, &key_ref_ptr))
     return 0;
   return key_ref_ptr+get_size_of_key_offset();
 }
