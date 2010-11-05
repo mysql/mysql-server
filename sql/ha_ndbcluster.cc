@@ -7297,7 +7297,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("update_create_info");
   THD *thd= current_thd;
-  TABLE_SHARE *share= table->s;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
 
@@ -7341,6 +7340,8 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
+  TABLE_SHARE *share= table->s;
   if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
   {
      DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
@@ -7378,6 +7379,7 @@ err:
        my_errno= ndb_to_mysql_error(&ndberr);
     }
   }
+#endif
 
   DBUG_VOID_RETURN;
 }
