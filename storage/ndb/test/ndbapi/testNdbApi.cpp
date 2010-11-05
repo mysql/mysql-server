@@ -2108,9 +2108,10 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
       memset(attrRowBuf, 0, sizeOfTabRec);
       
       Uint32 pkVal= 0;
-      pkVal= *(Uint32*) NdbDictionary::getValuePtr(tabRec,
-                                                   keyRowBuf,
-                                                   0);
+      memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
+                                                keyRowBuf,
+                                                0),
+             sizeof(pkVal));
 
       trans= pNdb->startTransaction();
       op= trans->readTuple(tabRec,
