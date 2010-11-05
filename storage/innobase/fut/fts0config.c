@@ -93,7 +93,8 @@ fts_config_get_value(
 	*value->utf8 = '\0';
 	ut_a(value->len > 0);
 
-	pars_info_bind_function(info, "my_func", fts_config_fetch_value, value);
+	pars_info_bind_function(info, "my_func", fts_config_fetch_value,
+				value);
 
 	/* The len field of value must be set to the max bytes that
 	it can hold. On a successful read, the len field will be set
