@@ -2558,7 +2558,7 @@ INSERT INTO t1 VALUES (0);
 SET SQL_MODE='STRICT_ALL_TABLES';
 CREATE TABLE t2 
 SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
-ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 1
+ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
 DROP TABLE t1;
 SET SQL_MODE=DEFAULT;
 #
