@@ -5317,8 +5317,7 @@ sub gdb_arguments {
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "end\n");
   }
 
   if ( $opt_manual_gdb )

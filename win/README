@@ -10,7 +10,8 @@ or ealier.
 
 The Windows build system uses a tool named CMake to generate build files for
 a variety of project systems.  This tool is combined with a set of jscript
-files to enable building of MySQL for Windows directly out of a bk clone.
+files to enable building of MySQL for Windows directly out of a bzr clone.
+For relevant information, please refer to http://forge.mysql.com/wiki/CMake
 The steps required are below.
 
 Step 1:
@@ -41,56 +42,67 @@ before you start the build)
 
 Step 4
 ------
-Clone your bk tree to any location you like.
+One of the nice CMake features is "out-of-source" build support, which 
+means not building in the source directory, but in dedicated build 
+directory. This keeps the source directory clean and allows for more than 
+single build tree for the same source tree (e.g debug and release, 32 and 
+64 bit etc). We'll create subdirectory "bld" in the source directory for 
+this purpose. Clone your bzr tree to any location you like.
 
 Step 5
 ------
-From the root of your installation directory, execute the command:
+From the root of your installation directory use cmake . -L to see the 
+various configuration parameters.
 
-win\configure <options>
-
-The options right now are:
-
-    WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
-    WITH_PARTITION_STORAGE_ENGINE
-    WITH_ARCHIVE_STORAGE_ENGINE
-    WITH_BLACKHOLE_STORAGE_ENGINE
-    WITH_EXAMPLE_STORAGE_ENGINE
-    WITH_FEDERATED_STORAGE_ENGINE
-    __NT__                               Enable named pipe support
-    WITHOUT_ATOMICS                      Do not use atomic instructions
-    MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
-    COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
-    MYSQL_TCP_PORT=<port>                Server port, default 3306
-    CYBOZU                               Default character set is UTF8
-    EMBED_MANIFESTS                      Embed custom manifests into final exes, otherwise VS
-                                         default will be used. (Note - This option should only be
-                                         used by MySQL AB.)
-    WITH_EMBEDDED_SERVER                 Configure solution to produce libmysqld.dll
-                                         and the static mysqlserver.lib 
-                                
 So the command line could look like:
 
-win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
+cmake .. -G "target" -DWITH_INNOBASE_STORAGE_ENGINE=1
+
+The recommended way of configuring would be to use -DBUILD_CONFIG=mysql_release
+to build binaries exactly the same as the official MySQL releases. 
 
 Step 6
 ------
 
-From the root of your installation directory/bk clone, execute one of
-the batch files to generate the type of project files you desire.
+From the root of your installation directory/bzr clone, you can
+use cmake to compile the sources.  Use cmake --help when necessary.
+Before you start building the sources, please remove the old build area
+created from an earlier run and start afresh.
 
-For Visual Studio 8 (or Visual C++ 2005 express edition), do win\build-vs8.
-For Visual Studio 7.1, do win\build-vs71.
+C:\> del bld 
+C:\> md bld 
+C:\> cd  bld 
+C:\> cmake .. -G "target name" -DBUILD_CONFIG=mysql_release
 
-We will support building with nmake in the near future.
 
+For Example:
+To generate the Win64 project files using Visual Studio 9, you would run
+cmake .. -G "Visual Studio 9 2008 Win64" 
+
+Other target names supported using CMake 2.6 patch 4 are:
+
+  Visual Studio 7              "Visual Studio 7 .NET 2003"
+  Visual Studio 8              "Visual Studio 8 2005"
+  Visual Studio 8 (64 bit)     "Visual Studio 8 2005 Win64"
+  Visual Studio 9              "Visual Studio 9 2008"
+  Visual Studio 9 (64 bit)     "Visual Studio 9 2008 Win64"
+
+For generating project files using Visual Studio 10, you need CMake 2.8
+or higher and corresponding target names are
+  Visual Studio 10              "Visual Studio 10" 
+  Visual Studio 10 (64 bit)     "Visual Studio 10 Win64" 
+ 
 Step 7
 ------
-From the root of your bk clone, start your build.
+From the root of your bzr clone, start your build.
 
 For Visual Studio, execute mysql.sln.  This will start the IDE
 and you can click the build solution menu option.
 
+Alternatively, you could start the build from command line as follows
+
+devenv mysql.sln /build relwithdebinfo
+ 
 Current issues
 --------------
 1. After changing configuration (eg. adding or removing a storage engine), it
