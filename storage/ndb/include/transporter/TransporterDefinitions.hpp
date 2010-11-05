@@ -132,6 +132,17 @@ struct LinearSectionPtr {
   Uint32 * p;
 };
 
+struct SegmentedSectionPtrPOD
+{
+  Uint32 sz;
+  Uint32 i;
+  struct SectionSegment * p;
+
+  void setNull() { p = 0;}
+  bool isNull() const { return p == 0;}
+  inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
+};
+
 struct SegmentedSectionPtr {
   Uint32 sz;
   Uint32 i;
@@ -142,9 +153,23 @@ struct SegmentedSectionPtr {
                       struct SectionSegment *p_arg)
     :sz(sz_arg), i(i_arg), p(p_arg)
   {}
+  SegmentedSectionPtr(const SegmentedSectionPtrPOD & src)
+    :sz(src.sz), i(src.i), p(src.p)
+  {}
+
   void setNull() { p = 0;}
   bool isNull() const { return p == 0;}
 };
+
+inline
+SegmentedSectionPtrPOD&
+SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
+{
+  this->i = src.i;
+  this->p = src.p;
+  this->sz = src.sz;
+  return *this;
+}
 
 /* Abstract interface for iterating over
  * words in a section
@@ -152,7 +177,7 @@ struct SegmentedSectionPtr {
 struct GenericSectionIterator {
   virtual ~GenericSectionIterator() {};
   virtual void reset()=0;
-  virtual Uint32* getNextWords(Uint32& sz)=0;
+  virtual const Uint32* getNextWords(Uint32& sz)=0;
 };
 
 struct GenericSectionPtr {

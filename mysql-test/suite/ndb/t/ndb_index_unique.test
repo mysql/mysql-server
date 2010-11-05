@@ -389,4 +389,48 @@ enable_query_log;
 
 drop table t1, t2;
 
+# bug#57827 : Don't load dd columns when building unique index
+# Build a unique index in a table with DD columns to give
+# some coverage of the scenario
+#
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 8M
+UNDO_BUFFER_SIZE = 1M engine=ndb;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 32M
+ENGINE NDB;
+
+use test;
+
+create table t1 (pk int primary key, un int, data varchar(500) storage disk) tablespace ts1 engine=ndb;
+
+insert into t1 values 
+        (1,1,repeat('B', 500)),
+        (2,2,repeat('B', 500)),
+        (3,3,repeat('B', 500)),
+        (4,4,repeat('B', 500)),
+        (5,5,repeat('B', 500)),
+        (6,6,repeat('B', 500)),
+        (7,7,repeat('B', 500)),
+        (8,8,repeat('B', 500)),
+        (9,9,repeat('B', 500)),
+        (10,10,repeat('B', 500)),
+        (11,11,repeat('B', 500)),
+        (12,12,repeat('B', 500)),
+        (13,13,repeat('B', 500)),
+        (14,14,repeat('B', 500)),
+        (15,15,repeat('B', 500));
+
+alter table t1 add unique(un);
+
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+
 # end of tests

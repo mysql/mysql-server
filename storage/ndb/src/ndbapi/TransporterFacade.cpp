@@ -945,7 +945,7 @@ private :
   Uint32 rangeStart;                    /* Sub range start in underlying */
   Uint32 rangeLen;                      /* Sub range len in underlying */
   Uint32 rangeRemain;                   /* Remaining words in underlying */
-  Uint32* lastReadPtr;                  /* Ptr to last chunk obtained from
+  const Uint32* lastReadPtr;            /* Ptr to last chunk obtained from
                                          * underlying */
   Uint32 lastReadPtrLen;                /* Remaining words in last chunk
                                          * obtained from underlying */
@@ -1078,10 +1078,10 @@ public:
    * (GenericSectionIterator)
    * Get ptr and size of next contiguous words in subrange
    */
-  Uint32* getNextWords(Uint32& sz)
+  const Uint32* getNextWords(Uint32& sz)
   {
     assert(checkInvariants());
-    Uint32* currPtr= NULL;
+    const Uint32* currPtr= NULL;
 
     if (rangeRemain)
     {
@@ -1759,7 +1759,7 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
   return ss;
 }
 
-Uint32*
+const Uint32*
 SignalSectionIterator::getNextWords(Uint32& sz)
 {
   if (likely(currentSignal != NULL))
@@ -1788,7 +1788,7 @@ verifyIteratorContents(GenericSectionIterator& gsi, int dataWords, int bias)
 
   while (pos < dataWords)
   {
-    Uint32* readPtr=NULL;
+    const Uint32* readPtr=NULL;
     Uint32 len= 0;
 
     readPtr= gsi.getNextWords(len);

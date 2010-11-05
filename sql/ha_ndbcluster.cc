@@ -258,10 +258,12 @@ static uint ndbcluster_partition_flags()
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
+#ifndef NDB_WITHOUT_ONLINE_ALTER
 static uint ndbcluster_alter_partition_flags()
 {
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
+#endif
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
@@ -7207,6 +7209,7 @@ static int create_ndb_column(THD *thd,
   else
     col.setAutoIncrement(FALSE);
  
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
   default:
@@ -7238,6 +7241,7 @@ static int create_ndb_column(THD *thd,
       dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
     break;
   }
+#endif
   DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
                       (dynamic) ? "dynamic" : "static"));
   if (type == NDBCOL::StorageTypeDisk)
@@ -7248,6 +7252,8 @@ static int create_ndb_column(THD *thd,
                           field->field_name));
       dynamic= false;
     }
+
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -7257,6 +7263,7 @@ static int create_ndb_column(THD *thd,
                           "column will become FIXED",
                           field->field_name);
     }
+#endif
   }
 
   switch (create_info->row_type) {
@@ -7290,7 +7297,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
   DBUG_ENTER("update_create_info");
   THD *thd= current_thd;
-  TABLE_SHARE *share= table->s;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
 
@@ -7334,6 +7340,8 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
+  TABLE_SHARE *share= table->s;
   if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
   {
      DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
@@ -7371,6 +7379,7 @@ err:
        my_errno= ndb_to_mysql_error(&ndberr);
     }
   }
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -7642,6 +7651,7 @@ int ha_ndbcluster::create(const char *name,
     KEY_PART_INFO *end= key_part + key_info->key_parts;
     for (; key_part != end; key_part++)
     {
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -7654,6 +7664,7 @@ int ha_ndbcluster::create(const char *name,
         result= HA_ERR_UNSUPPORTED;
         goto abort_return;
       }
+#endif
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
     }
@@ -8103,6 +8114,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   for (; key_part != end; key_part++) 
   {
     Field *field= key_part->field;
+#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (field->field_storage_type() == HA_SM_DISK)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -8114,6 +8126,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
                           "STORAGE DISK is not supported");
       DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
+#endif
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
@@ -8732,28 +8745,6 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   Constructor for the NDB Cluster table handler .
 */
 
-/*
-  Normal flags for binlogging is that ndb has HA_HAS_OWN_BINLOGGING
-  and preferes HA_BINLOG_ROW_CAPABLE
-  Other flags are set under certain circumstaces in table_flags()
-*/
-#define HA_NDBCLUSTER_TABLE_FLAGS \
-                HA_REC_NOT_IN_SEQ | \
-                HA_NULL_IN_KEY | \
-                HA_AUTO_PART_KEY | \
-                HA_NO_PREFIX_CHAR_KEYS | \
-                HA_NEED_READ_RANGE_BUFFER | \
-                HA_CAN_GEOMETRY | \
-                HA_CAN_BIT_FIELD | \
-                HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \
-                HA_PRIMARY_KEY_REQUIRED_FOR_DELETE | \
-                HA_PARTIAL_COLUMN_READ | \
-                HA_HAS_OWN_BINLOGGING | \
-                HA_BINLOG_ROW_CAPABLE | \
-                HA_HAS_RECORDS | \
-                HA_ONLINE_ALTER
-
-
 ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   handler(hton, table_arg),
   m_thd_ndb(NULL),
@@ -8762,7 +8753,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
   m_table_info(NULL),
-  m_table_flags(HA_NDBCLUSTER_TABLE_FLAGS),
   m_share(0),
   m_key_fields(NULL),
   m_part_info(NULL),
@@ -8860,28 +8850,12 @@ ha_ndbcluster::~ha_ndbcluster()
 void
 ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
-  THD *thd= table->in_use;
-  bool write_query= (thd->lex->sql_command == SQLCOM_UPDATE ||
-                     thd->lex->sql_command == SQLCOM_DELETE);
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("enter", ("read_set: 0x%lx  write_set: 0x%lx",
              (long) table->read_set->bitmap[0],
              (long) table->write_set->bitmap[0]));
   if (sig_type & HA_COMPLETE_TABLE_READ_BITMAP)
     bitmap_copy(&m_save_read_set, table->read_set);
-  if (!write_query || (sig_type & HA_COMPLETE_TABLE_READ_BITMAP))
-  {
-    /*
-      We need to make sure we always read all of the primary key.
-      Otherwise we cannot support position() and rnd_pos().
-  
-      Alternatively, we could just set a flag, and in the reader methods set
-      the extra bits as required if the flag is set, followed by clearing the
-      flag.  This to save doing the work of setting bits twice or more.
-      On the other hand this is quite fast in itself.
-    */
-    bitmap_union(table->read_set, m_pk_bitmap_p);
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -10134,8 +10108,12 @@ static int ndbcluster_init(void *p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
+#ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
       ndbcluster_alter_partition_flags;             /* Alter table flags */
+#else
+    /* Should install alter_table_flags */
+#endif
     h->fill_files_table= ndbcluster_fill_files_table;
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
@@ -10480,7 +10458,25 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
 ulonglong ha_ndbcluster::table_flags(void) const
 {
   THD *thd= current_thd;
-  ulonglong f= m_table_flags;
+  ulonglong f=
+    HA_REC_NOT_IN_SEQ |
+    HA_NULL_IN_KEY |
+    HA_AUTO_PART_KEY |
+    HA_NO_PREFIX_CHAR_KEYS |
+    HA_NEED_READ_RANGE_BUFFER |
+    HA_CAN_GEOMETRY |
+    HA_CAN_BIT_FIELD |
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
+    HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
+    HA_PARTIAL_COLUMN_READ |
+    HA_HAS_OWN_BINLOGGING |
+    HA_BINLOG_ROW_CAPABLE |
+    HA_HAS_RECORDS |
+#ifndef NDB_WITHOUT_ONLINE_ALTER
+    HA_ONLINE_ALTER |
+#endif
+    0;
+
   /*
     To allow for logging of ndb tables during stmt based logging;
     flag cabablity, but also turn off flag for OWN_BINLOGGING
@@ -10489,6 +10485,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
   return f;
 }
+
 const char * ha_ndbcluster::table_type() const 
 {
   return("NDBCLUSTER");
@@ -13000,7 +12997,8 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
-
+#ifndef NDB_WITHOUT_ONLINE_ALTER
+static
 HA_ALTER_FLAGS supported_alter_operations()
 {
   HA_ALTER_FLAGS alter_flags;
@@ -13650,7 +13648,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   alter_info->data= 0;
   DBUG_RETURN(0);
 }
-
+#endif
 
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)

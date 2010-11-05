@@ -154,7 +154,13 @@ struct view {
     "WHERE block_number IN (248, 254) AND "
     "  (pool_name = \"Index memory\" OR pool_name = \"Data memory\") "
     "GROUP BY node_id, memory_type"
-  }
+  },
+   { "diskpagebuffer",
+     "SELECT node_id, block_instance, "
+     "pages_written, pages_written_lcp, pages_read, log_waits, "
+     "page_requests_direct_return, page_requests_wait_queue, page_requests_wait_io "
+     "FROM <NDBINFO_DB>.<TABLE_PREFIX>diskpagebuffer"
+   }
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);

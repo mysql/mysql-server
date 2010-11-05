@@ -62,6 +62,10 @@ public:
   // Free but allocated DD extent space
   STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
 
+  STATIC_CONST( FLUSH_AI = 0xFFEA );
+  STATIC_CONST( CORR_FACTOR32 = 0xFFE9 ); // excluding root-frag
+  STATIC_CONST( CORR_FACTOR64 = 0xFFE8 ); // including root-frag
+
   /**
    * Optimize pseudo column and optimization options
    */
@@ -103,7 +107,8 @@ public:
 
   static Uint32 getByteSize(Uint32);
   static Uint32 getDataSize(Uint32);
-  
+  static Uint32 getAttributeId(Uint32 id);
+
 public:
   AttributeHeader(Uint32 = 0);
   AttributeHeader(Uint32 anAttributeId, Uint32 aByteSize);
@@ -255,6 +260,13 @@ inline
 Uint32
 AttributeHeader::getDataSize(Uint32 m_value){
   return (((m_value & 0xFFFF) + 3) >> 2);
+}
+
+inline
+Uint32
+AttributeHeader::getAttributeId(Uint32 m_value)
+{
+  return m_value >> 16;
 }
 
 #endif

@@ -28,6 +28,7 @@
 #include <CpcClient.hpp>
 #include <Properties.hpp>
 #include <mysql.h>
+#include <my_dir.h>
 
 enum ErrorCodes 
 {

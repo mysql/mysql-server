@@ -153,6 +153,22 @@ DECLARE_NDBINFO_TABLE(NODES,4) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(DISKPAGEBUFFER, 9) =
+{ { "diskpagebuffer", 9, 0, "disk page buffer info" },
+  {
+    {"node_id",                     Ndbinfo::Number, ""},
+    {"block_instance",              Ndbinfo::Number, ""},
+
+    {"pages_written",               Ndbinfo::Number64, "Pages written to disk"},
+    {"pages_written_lcp",           Ndbinfo::Number64, "Pages written by local checkpoint"},
+    {"pages_read",                  Ndbinfo::Number64, "Pages read from disk"},
+    {"log_waits",                   Ndbinfo::Number64, "Page writes waiting for log to be written to disk"},
+    {"page_requests_direct_return", Ndbinfo::Number64, "Page in buffer and no requests waiting for it"},
+    {"page_requests_wait_queue",    Ndbinfo::Number64, "Page in buffer, but some requests are already waiting for it"},
+    {"page_requests_wait_io",       Ndbinfo::Number64, "Page not in buffer, waiting to be read from disk"},
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -171,7 +187,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(LOGBUFFERS),
   DBINFOTBL(RESOURCES),
   DBINFOTBL(COUNTERS),
-  DBINFOTBL(NODES)
+  DBINFOTBL(NODES),
+  DBINFOTBL(DISKPAGEBUFFER)
 };
 
 static int no_ndbinfo_tables =

@@ -545,15 +545,15 @@ void Dbdict::packTableIntoPages(Signal* signal)
   const Uint32 type= signal->theData[2];
   const Uint32 pageId= signal->theData[3];
 
-  {
-    Uint32 transId = c_retrieveRecord.schemaTransId;
-    GetTabInfoReq req_copy;
-    req_copy.senderRef = c_retrieveRecord.blockRef;
-    req_copy.senderData = c_retrieveRecord.m_senderData;
-    req_copy.schemaTransId = c_retrieveRecord.schemaTransId;
-    req_copy.requestType = c_retrieveRecord.requestType;
-    req_copy.tableId = tableId;
+  Uint32 transId = c_retrieveRecord.schemaTransId;
+  GetTabInfoReq req_copy;
+  req_copy.senderRef = c_retrieveRecord.blockRef;
+  req_copy.senderData = c_retrieveRecord.m_senderData;
+  req_copy.schemaTransId = c_retrieveRecord.schemaTransId;
+  req_copy.requestType = c_retrieveRecord.requestType;
+  req_copy.tableId = tableId;
 
+  {
     SchemaFile::TableEntry *objEntry = 0;
     if(tableId != RNIL)
     {
@@ -610,6 +610,15 @@ void Dbdict::packTableIntoPages(Signal* signal)
     jam();
     TableRecordPtr tablePtr;
     c_tableRecordPool.getPtr(tablePtr, tableId);
+    if (tablePtr.p->m_obj_ptr_i == RNIL)
+    {
+      jam();
+      sendGET_TABINFOREF(signal, &req_copy,
+                         GetTabInfoRef::TableNotDefined, __LINE__);
+      initRetrieveRecord(0, 0, 0);
+      return;
+    }
+
     packTableIntoPages(w, tablePtr, signal);
     if (unlikely(signal->theData[0] != 0))
     {
@@ -6167,6 +6176,17 @@ Dbdict::createTab_local(Signal* signal,
     KeyDescriptor* desc= g_key_descriptor_pool.getPtr(tabPtr.i);
     new (desc) KeyDescriptor();
 
+    if (tabPtr.p->primaryTableId == RNIL)
+    {
+      jam();
+      desc->primaryTableId = createTabPtr.p->m_request.tableId;
+    }
+    else
+    {
+      jam();
+      desc->primaryTableId = tabPtr.p->primaryTableId;
+    }
+
     Uint32 key = 0;
     Ptr<AttributeRecord> attrPtr;
     LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool,
@@ -7089,6 +7109,7 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
   {
     jam();
     release_object(tablePtr.p->m_obj_ptr_i);
+    tablePtr.p->m_obj_ptr_i = RNIL;
   }
   else
   {
@@ -13345,6 +13366,9 @@ Dbdict:: buildIndex_toLocalBuild(Signal* signal, SchemaOpPtr op_ptr)
   req->indexType = indexPtr.p->tableType;
   req->parallelism = impl_req->parallelism;
 
+  /* All indexed columns must be in memory currently */
+  req->requestType |= BuildIndxImplReq::RF_NO_DISK;
+
   Callback c = {
     safe_cast(&Dbdict::buildIndex_fromLocalBuild),
     op_ptr.p->op_key
@@ -13720,6 +13744,7 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 cnt =0;
   Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  bool tabHasDiskCols = false;
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
@@ -13734,8 +13759,20 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
     for (alist.first(attrPtr); !attrPtr.isNull(); alist.next(attrPtr))
     {
       if (!AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
+      {
         tmp[cnt++] = attrPtr.p->attributeId;
+
+        if (AttributeDescriptor::getDiskBased(attrPtr.p->attributeDescriptor))
+          tabHasDiskCols = true;
+      }
     }
+  }
+  
+  /* Request Tup-ordered copy when we have disk columns for efficiency */
+  if (tabHasDiskCols)
+  {
+    jam();
+    req->requestInfo |= CopyDataReq::TupOrder;
   }
   
   LinearSectionPtr ls_ptr[3];
@@ -13808,6 +13845,7 @@ Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
 
   Uint32 cnt =0;
   Uint32 tmp[MAX_ATTRIBUTES_IN_TABLE];
+  bool tabHasDiskCols = false;
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, impl_req->srcTableId);
   {
@@ -13818,7 +13856,19 @@ Dbdict::copyData_complete(Signal* signal, SchemaOpPtr op_ptr)
     {
       if (AttributeDescriptor::getPrimaryKey(attrPtr.p->attributeDescriptor))
         tmp[cnt++] = attrPtr.p->attributeId;
+      else
+      {
+        if (AttributeDescriptor::getDiskBased(attrPtr.p->attributeDescriptor))
+          tabHasDiskCols = true;
+      }
     }
+  }
+
+  /* Request Tup-ordered delete when we have disk columns for efficiency */
+  if (tabHasDiskCols)
+  {
+    jam();
+    req->requestInfo |= CopyDataReq::TupOrder;
   }
 
   LinearSectionPtr ls_ptr[3];
@@ -26518,16 +26568,19 @@ Dbdict::trans_log(SchemaTransPtr trans_ptr)
   jamLine(entry->m_tableState);
   switch(trans_ptr.p->m_state){
   case SchemaTrans::TS_STARTED:
-  case SchemaTrans::TS_STARTING:
+  case SchemaTrans::TS_STARTING:{
     jam();
+    Uint32 version = entry->m_tableVersion;
+    Uint32 new_version = create_obj_inc_schema_version(version);
     entry->init();
     entry->m_tableState = SchemaFile::SF_STARTED;
-    entry->m_tableVersion = rand();
+    entry->m_tableVersion = new_version;
     entry->m_tableType = DictTabInfo::SchemaTransaction;
     entry->m_info_words = 0;
     entry->m_gcp = 0;
     entry->m_transId = trans_ptr.p->m_transId;
     break;
+  }
   case SchemaTrans::TS_FLUSH_PREPARE:
     jam();
     ndbrequire(entry->m_tableState == SchemaFile::SF_STARTED);
