@@ -23,12 +23,12 @@ if (`select locate('index_condition_pushdown', @@optimizer_switch) > 0`)
 }
 --enable_query_log
 
-set @save_storage_engine= @@storage_engine;
-set storage_engine=InnoDB;
+set @save_storage_engine= @@default_storage_engine;
+set default_storage_engine=InnoDB;
 
 --source include/mrr_tests.inc 
 --source include/mrr_innodb_tests.inc
 
-set storage_engine= @save_storage_engine;
+set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
 
