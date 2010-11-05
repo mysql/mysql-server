@@ -269,3 +269,56 @@ WHERE (2, 6) IN (SELECT t1.c1, t1.c1 FROM t1 STRAIGHT_JOIN t2 ON t2.pk = t1.pk);
 
 set session optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
+
+
+--echo #
+--echo # LP BUG#641245 Crash in Item_equal::contains
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t1 VALUES (10,7,8,'v','v');
+INSERT INTO t1 VALUES (11,1,9,'r','r');
+INSERT INTO t1 VALUES (12,5,9,'a','a');
+
+create table t1a like t1;
+insert into t1a select * from t1;
+
+create table t1b like t1;
+insert into t1b select * from t1;
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t2 VALUES (1,NULL,2,'w','w');
+INSERT INTO t2 VALUES (2,7,9,'m','m');
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+
+let $query=
+SELECT pk
+FROM t1
+WHERE c1 IN
+      (SELECT t1a.c1
+       FROM (t1b JOIN t2 ON t2.c3 = t1b.c4) LEFT JOIN
+            t1a ON (t1a.c2 = t1b.pk AND 2)
+       WHERE t1.pk) ;
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1, t1a, t1b, t2;
