@@ -49,6 +49,5 @@ TARGET_LINK_LIBRARIES(MgmConfig-t
                       ndbconf
                       ndblogger
                       ndbgeneral
-                      ndbportlib
-                      wsock32)
+                      ndbportlib)
 

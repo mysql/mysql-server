@@ -17,11 +17,7 @@ LINK_LIBRARIES(ndbNDBT
                ndbclient
                dbug
                mysys
-               strings
-               ${NDB_SCI_LIBS})
-IF(WIN32)
-LINK_LIBRARIES(wsock32)
-ENDIF(WIN32)
+               strings)
 
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}

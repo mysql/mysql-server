@@ -15,7 +15,7 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/zlib
+INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
 )
