@@ -50,16 +50,16 @@ INSERT INTO slow(slow, general, master_heartbeat_period, ignore_server_ids) VALU
 INSERT INTO slow(slow, general, master_heartbeat_period) VALUES (1,2,3), (5,6,7);
 INSERT INTO slow(slow, general) VALUES (1,2), (5,6);
 INSERT INTO slow(slow) VALUES (1), (5);
-SELECT slow, general, master_heartbeat_period, slow FROM slow ORDER BY slow;
-slow	general	master_heartbeat_period	slow
-1	2	3	1
-1	2	3	1
-1	2	NULL	1
-1	NULL	NULL	1
-5	6	7	5
-5	6	7	5
-5	6	NULL	5
-5	NULL	NULL	5
+SELECT slow, general, master_heartbeat_period, ignore_server_ids FROM slow ORDER BY slow;
+slow	general	master_heartbeat_period	ignore_server_ids
+1	2	3	4
+1	2	3	NULL
+1	2	NULL	NULL
+1	NULL	NULL	NULL
+5	6	7	8
+5	6	7	NULL
+5	6	NULL	NULL
+5	NULL	NULL	NULL
 SELECT slow, general, master_heartbeat_period FROM slow ORDER BY slow;
 slow	general	master_heartbeat_period
 1	2	3
@@ -96,16 +96,16 @@ INSERT INTO general(slow, general, master_heartbeat_period, ignore_server_ids) V
 INSERT INTO general(slow, general, master_heartbeat_period) VALUES (1,2,3), (5,6,7);
 INSERT INTO general(slow, general) VALUES (1,2), (5,6);
 INSERT INTO general(slow) VALUES (1), (5);
-SELECT slow, general, master_heartbeat_period, slow FROM general ORDER BY slow;
-slow	general	master_heartbeat_period	slow
-1	2	3	1
-1	2	3	1
-1	2	NULL	1
-1	NULL	NULL	1
-5	6	7	5
-5	6	7	5
-5	6	NULL	5
-5	NULL	NULL	5
+SELECT slow, general, master_heartbeat_period, ignore_server_ids FROM general ORDER BY slow;
+slow	general	master_heartbeat_period	ignore_server_ids
+1	2	3	4
+1	2	3	NULL
+1	2	NULL	NULL
+1	NULL	NULL	NULL
+5	6	7	8
+5	6	7	NULL
+5	6	NULL	NULL
+5	NULL	NULL	NULL
 SELECT slow, general, master_heartbeat_period FROM general ORDER BY slow;
 slow	general	master_heartbeat_period
 1	2	3
@@ -142,16 +142,16 @@ INSERT INTO master_heartbeat_period(slow, general, master_heartbeat_period, igno
 INSERT INTO master_heartbeat_period(slow, general, master_heartbeat_period) VALUES (1,2,3), (5,6,7);
 INSERT INTO master_heartbeat_period(slow, general) VALUES (1,2), (5,6);
 INSERT INTO master_heartbeat_period(slow) VALUES (1), (5);
-SELECT slow, general, master_heartbeat_period, slow FROM master_heartbeat_period ORDER BY slow;
-slow	general	master_heartbeat_period	slow
-1	2	3	1
-1	2	3	1
-1	2	NULL	1
-1	NULL	NULL	1
-5	6	7	5
-5	6	7	5
-5	6	NULL	5
-5	NULL	NULL	5
+SELECT slow, general, master_heartbeat_period, ignore_server_ids FROM master_heartbeat_period ORDER BY slow;
+slow	general	master_heartbeat_period	ignore_server_ids
+1	2	3	4
+1	2	3	NULL
+1	2	NULL	NULL
+1	NULL	NULL	NULL
+5	6	7	8
+5	6	7	NULL
+5	6	NULL	NULL
+5	NULL	NULL	NULL
 SELECT slow, general, master_heartbeat_period FROM master_heartbeat_period ORDER BY slow;
 slow	general	master_heartbeat_period
 1	2	3
@@ -188,16 +188,16 @@ INSERT INTO ignore_server_ids(slow, general, master_heartbeat_period, ignore_ser
 INSERT INTO ignore_server_ids(slow, general, master_heartbeat_period) VALUES (1,2,3), (5,6,7);
 INSERT INTO ignore_server_ids(slow, general) VALUES (1,2), (5,6);
 INSERT INTO ignore_server_ids(slow) VALUES (1), (5);
-SELECT slow, general, master_heartbeat_period, slow FROM ignore_server_ids ORDER BY slow;
-slow	general	master_heartbeat_period	slow
-1	2	3	1
-1	2	3	1
-1	2	NULL	1
-1	NULL	NULL	1
-5	6	7	5
-5	6	7	5
-5	6	NULL	5
-5	NULL	NULL	5
+SELECT slow, general, master_heartbeat_period, ignore_server_ids FROM ignore_server_ids ORDER BY slow;
+slow	general	master_heartbeat_period	ignore_server_ids
+1	2	3	4
+1	2	3	NULL
+1	2	NULL	NULL
+1	NULL	NULL	NULL
+5	6	7	8
+5	6	7	NULL
+5	6	NULL	NULL
+5	NULL	NULL	NULL
 SELECT slow, general, master_heartbeat_period FROM ignore_server_ids ORDER BY slow;
 slow	general	master_heartbeat_period
 1	2	3
