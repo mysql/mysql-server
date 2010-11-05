@@ -33,7 +33,7 @@ typedef struct LS_STRUCT_NAME
   LS_LIST_ITEM *list1;
   int list_len;
   int return_point;
-};
+} LS_STRUCT_NAME;
 
 LS_SCOPE LS_LIST_ITEM* LS_NAME(LS_COMPARE_FUNC_DECL LS_LIST_ITEM *list, int list_len)
 {
