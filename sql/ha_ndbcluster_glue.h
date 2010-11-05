@@ -76,6 +76,9 @@ enum column_format_type {
   COLUMN_FORMAT_TYPE_DYNAMIC=   2
 };
 
+/* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
+#define NDB_WITHOUT_TABLESPACE_IN_FRM
+
 #endif
 
 
