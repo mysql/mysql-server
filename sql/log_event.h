@@ -3528,6 +3528,13 @@ private:
 class Rows_log_event : public Log_event
 {
 public:
+  enum row_lookup_mode {
+       ROW_LOOKUP_NOT_NEEDED= 0,
+       ROW_LOOKUP_INDEX_SCAN= 1,
+       ROW_LOOKUP_TABLE_SCAN= 2,
+       ROW_LOOKUP_HASH_SCAN= 3,
+  };
+
   /**
      Enumeration of the errors that can be returned.
    */
@@ -3703,6 +3710,7 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+  HASH        m_hash;
   /*
     Bitmap for columns available in the after image, if present. These
     fields are only available for Update_rows events. Observe that the
@@ -3810,6 +3818,13 @@ private:
       
   */
   virtual int do_exec_row(const Relay_log_info *const rli) = 0;
+
+  int hash_row(Relay_log_info const *rli);
+  int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+  int do_apply_row(Relay_log_info const *rli);
+  int do_index_scan_and_update(Relay_log_info const *rli);
+  int do_hash_scan_and_update(Relay_log_info const *rli);
+  int do_table_scan_and_update(Relay_log_info const *rli);
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;

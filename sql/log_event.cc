@@ -7556,6 +7556,920 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+
+
+/**
+  Checks if any of the columns in the given table is
+  signaled in the bitmap.
+
+  For each column in the given table checks if it is
+  signaled in the bitmap. This is most useful when deciding
+  whether a before image (BI) can be used or not for
+  searching a row. If no column is signaled, then the
+  image cannot be used for searching a record (regardless
+  of using position(), index scan or table scan). Here is
+  an example:
+
+  MASTER> SET @@binlog_row_image='MINIMAL';
+  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
+  SLAVE> CREATE TABLE t1 (a int, b int);
+  MASTER> INSERT INTO t1 VALUES (1,2,3);
+  MASTER> UPDATE t1 SET a=2 WHERE b=2;
+
+  For the update statement only the PK (column c) is
+  logged in the before image (BI). As such, given that
+  the slave has no column c, it will not be able to
+  find the row, because BI has no values for the columns
+  the slave knows about (column a and b).
+
+  @param table   the table reference on the slave.
+  @param cols the bitmap signaling columns available in
+                 the BI.
+
+  @return TRUE if BI contains usable colums for searching,
+          FALSE otherwise.
+*/
+static
+my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
+{
+
+  int nfields_set= 0;
+  for (Field **ptr=table->field ;
+       *ptr && ((*ptr)->field_index < cols->n_bits);
+       ptr++)
+  {
+    if (bitmap_is_set(cols, (*ptr)->field_index))
+      nfields_set++;
+  }
+
+  return (nfields_set != 0);
+}
+
+/**
+  Checks if the fields in the given key are signaled in
+  the bitmap.
+
+  Validates whether the before image is usable for the
+  given key. It can be the case that the before image
+  does not contain values for the key (eg, master was
+  using 'minimal' option for image logging and slave has
+  different index structure on the table). Here is an
+  example:
+
+  MASTER> SET @@binlog_row_image='MINIMAL';
+  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
+  SLAVE> CREATE TABLE t1 (a int, b int, c int, key(a,c));
+  MASTER> INSERT INTO t1 VALUES (1,2,3);
+  MASTER> UPDATE t1 SET a=2 WHERE b=2;
+
+  When finding the row on the slave, one cannot use the
+  index (a,c) to search for the row, because there is only
+  data in the before image for column c. This function
+  checks the fields needed for a given key and searches
+  the bitmap to see if all the fields required are
+  signaled.
+
+  @param keyinfo  reference to key.
+  @param cols     the bitmap signaling which columns
+                  have available data.
+
+  @return TRUE if all fields are signaled in the bitmap
+          for the given key, FALSE otherwise.
+*/
+static
+my_bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
+{
+  for (uint i=0 ; i < keyinfo->key_parts ;i++)
+  {
+    uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+    if (fieldnr >= cols->n_bits ||
+        !bitmap_is_set(cols, fieldnr))
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
+/**
+  Searches the table for a given key that can be used
+  according to the existing values, ie, columns set
+  in the bitmap.
+
+  The caller can specify which type of key to find by
+  setting the following flags in the key_type parameter:
+
+    - PRI_KEY_FLAG
+      Returns the primary key.
+
+    - UNIQUE_KEY_FLAG
+      Returns a unique key (flagged with HA_NOSAME)
+
+    - MULTIPLE_KEY_FLAG
+      Returns a key that is not unique (flagged with HA_NOSAME
+      and without HA_NULL_PART_KEY) nor PK.
+
+  The above flags can be used together, in which case, the
+  search is conducted in the above listed order. Eg, the
+  following flag:
+
+    (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG)
+
+  means that a primary key is returned if it is suitable. If
+  not then the unique keys are searched. If no unique key is
+  suitable, then the keys are searched. Finally, if no key
+  is suitable, MAX_KEY is returned.
+
+  @param table    reference to the table.
+  @param bi_cols  a bitmap that filters out columns that should
+                  not be considered while searching the key.
+                  Columns that should be considered are set.
+  @param key_type the type of key to search for.
+
+  @return MAX_KEY if no key, according to the key_type specified
+          is suitable. Returns the key otherwise.
+
+*/
+static
+uint
+search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
+{
+  KEY *keyinfo;
+  uint res= MAX_KEY;
+  uint key;
+
+  if (key_type & PRI_KEY_FLAG && (table->s->primary_key < MAX_KEY))
+  {
+    keyinfo= table->s->key_info + (uint) table->s->primary_key;
+    if (are_all_columns_signaled_for_key(keyinfo, bi_cols))
+      return table->s->primary_key;
+  }
+
+  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
+  {
+    for (key=0,keyinfo= table->key_info ;
+         (key < table->s->keys) && (res == MAX_KEY);
+         key++,keyinfo++)
+    {
+      /*
+        - Unique keys cannot be disabled, thence we skip the check.
+        - Skip unique keys with nullable parts
+        - Skip primary keys
+      */
+      if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
+          (key == table->s->primary_key))
+        continue;
+      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ?
+           key : MAX_KEY;
+
+      if (res < MAX_KEY)
+        return res;
+    }
+  }
+
+  if (key_type & MULTIPLE_KEY_FLAG && table->s->keys)
+  {
+    for (key=0,keyinfo= table->key_info ;
+         (key < table->s->keys) && (res == MAX_KEY);
+         key++,keyinfo++)
+    {
+      /*
+        - Skip innactive keys
+        - Skip unique keys without nullable parts
+        - Skip primary keys
+      */
+      if (!(table->s->keys_in_use.is_set(key)) ||
+          ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
+          (key == table->s->primary_key))
+        continue;
+
+      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ?
+           key : MAX_KEY;
+
+      if (res < MAX_KEY)
+        return res;
+    }
+  }
+
+  return res;
+}
+
+static uint decide_row_lookup_method(TABLE* table, MY_BITMAP *cols, uint event_type)
+{
+  uint res= Rows_log_event::ROW_LOOKUP_NOT_NEEDED;
+  if (event_type == WRITE_ROWS_EVENT)
+    return res;
+
+  uint key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+
+  /* No index */
+  if (key_index == MAX_KEY /* TODO: || key_index > number of keys in the table */)
+    // TODO: change so that it takes into account the slave_exec_mode flag
+    //res= slave_exec_mode & TABLE_SCAN ? TABLE_SCAN : HASH_SCAN;
+    res= Rows_log_event::ROW_LOOKUP_HASH_SCAN;
+
+  else
+    // TODO: change so that it takes into account the slave_exec_mode flag
+    //res= slave_exec_mode & INDEX_SEARCH ? INDEX_SEARCH : HASH_SCAN;
+    res= Rows_log_event::ROW_LOOKUP_INDEX_SCAN;
+
+  return res;
+}
+
+/*
+  Compares table->record[0] and table->record[1]
+
+  Returns TRUE if different.
+*/
+static bool record_compare(TABLE *table, MY_BITMAP *cols)
+{
+  /*
+    Need to set the X bit and the filler bits in both records since
+    there are engines that do not set it correctly.
+
+    In addition, since MyISAM checks that one hasn't tampered with the
+    record, it is necessary to restore the old bytes into the record
+    after doing the comparison.
+
+    TODO[record format ndb]: Remove it once NDB returns correct
+    records. Check that the other engines also return correct records.
+   */
+
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
+
+  bool result= FALSE;
+  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
+
+  if (table->s->null_bytes > 0)
+  {
+    for (int i = 0 ; i < 2 ; ++i)
+    {
+      /*
+        If we have an X bit then we need to take care of it.
+      */
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      {
+        saved_x[i]= table->record[i][0];
+        table->record[i][0]|= 1U;
+      }
+
+      /*
+         If (last_null_bit_pos == 0 && null_bytes > 1), then:
+
+         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits
+
+         Ie, the entire byte is used.
+      */
+      if (table->s->last_null_bit_pos > 0)
+      {
+        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+        table->record[i][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
+    }
+  }
+
+  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
+      bitmap_is_set_all(cols))
+  {
+    result= cmp_record(table,record[1]);
+    goto record_compare_exit;
+  }
+
+  /* Compare null bits */
+  if (bitmap_is_set_all(cols) &&
+      memcmp(table->null_flags,
+       table->null_flags+table->s->rec_buff_length,
+       table->s->null_bytes))
+  {
+    result= TRUE;       // Diff in NULL value
+    goto record_compare_exit;
+  }
+
+  /* Compare updated fields */
+  for (Field **ptr=table->field ;
+       *ptr && ((*ptr)->field_index < cols->n_bits);
+       ptr++)
+  {
+    if (bitmap_is_set(cols, (*ptr)->field_index))
+    {
+      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      {
+        result= TRUE;
+        goto record_compare_exit;
+      }
+    }
+  }
+
+record_compare_exit:
+  /*
+    Restore the saved bytes.
+
+    TODO[record format ndb]: Remove this code once NDB returns the
+    correct record format.
+  */
+  if (table->s->null_bytes > 0)
+  {
+    for (int i = 0 ; i < 2 ; ++i)
+    {
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+        table->record[i][0]= saved_x[i];
+
+      if (table->s->last_null_bit_pos)
+        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+    }
+  }
+
+  return result;
+}
+
+
+struct row_entry
+{
+  uchar *key;
+  uint length;
+  const uchar *m_curr_row;
+} typedef row_entry;
+
+extern "C" uchar *rows_log_event_get_key(const uchar *record, size_t *length,
+                          my_bool not_used __attribute__((unused)))
+{
+  DBUG_ENTER("get_key");
+
+  row_entry *entry=(row_entry *) record;
+  *length= entry->length;
+
+  DBUG_RETURN((uchar*) entry->key);
+}
+
+static void rows_log_event_free_entry(row_entry *entry)
+{
+  DBUG_ENTER("free_entry");
+  my_free(entry->key);
+  my_free(entry);
+  DBUG_VOID_RETURN;
+}
+
+int Rows_log_event::hash_row(Relay_log_info const *rli)
+{
+  int error= 0;
+
+  if ((error= unpack_current_row(rli, &m_cols)))
+    goto err;
+  else
+  {
+    // TODO: remove blobs
+
+    row_entry *entry= (row_entry*)malloc(sizeof(row_entry));
+    entry->key= (uchar*) malloc(m_table->s->reclength);
+    memcpy(entry->key, m_table->record[0], m_table->s->reclength);
+    entry->length= m_table->s->reclength;
+    entry->m_curr_row=m_curr_row;
+    my_hash_insert(&m_hash, (uchar*)entry);
+
+
+    if (get_type_code() == UPDATE_ROWS_EVENT)
+    {
+      /*
+        This is the situation after locating BI:
+
+        ===|=== before image ====|=== after image ===|===
+           ^                     ^
+           m_curr_row            m_curr_row_end
+
+         We need to skip the AI as well, before moving on to the
+         next row.
+       */
+      m_curr_row=m_curr_row_end;
+      error= unpack_current_row(rli, &m_cols_ai);
+    }
+
+    m_curr_row=m_curr_row_end;
+  }
+
+err:
+  return error;
+}
+
+int Rows_log_event::handle_idempotent_errors(Relay_log_info const *rli, int *err)
+{
+  int error= *err;
+  if (error)
+  {
+    int actual_error= convert_handler_error(error, thd, m_table);
+    bool idempotent_error= (idempotent_error_code(error) &&
+                           (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+    bool ignored_error= (idempotent_error == 0 ?
+                         ignored_error_code(actual_error) : 0);
+
+    if (idempotent_error || ignored_error)
+    {
+      if (global_system_variables.log_warnings)
+        slave_rows_error_report(WARNING_LEVEL, error, rli, thd, m_table,
+                                get_type_str(),
+                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                                (ulong) log_pos);
+      clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+      *err= 0;
+      if (idempotent_error == 0)
+        return true;
+    }
+  }
+
+  return false;
+}
+
+int Rows_log_event::do_apply_row(Relay_log_info const *rli)
+{
+   int error= 0;
+
+   /* in_use can have been set to NULL in close_tables_for_reopen */
+   THD* old_thd= m_table->in_use;
+   if (!m_table->in_use)
+     m_table->in_use= thd;
+
+   error= do_exec_row(rli);
+
+   DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+   DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+
+   m_table->in_use = old_thd;
+
+   if (handle_idempotent_errors(rli, &error))
+     return error;
+
+   /*
+    If m_curr_row_end  was not set during event execution (e.g., because
+    of errors) we can't proceed to the next row. If the error is transient
+    (i.e., error==0 at this point) we must call unpack_current_row() to set
+    m_curr_row_end.
+   */
+
+   DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
+                       (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+
+   if (!m_curr_row_end && !error)
+     error= unpack_current_row(rli, &m_cols);
+
+   // at this moment m_curr_row_end should be set
+   DBUG_ASSERT(error || m_curr_row_end != NULL);
+   DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
+   DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
+
+   m_curr_row= m_curr_row_end;
+
+   if (error == 0 && !m_table->file->has_transactions())
+     thd->transaction.all.modified_non_trans_table=
+       thd->transaction.stmt.modified_non_trans_table= TRUE;
+
+   return error;
+}
+
+
+int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
+{
+  DBUG_ENTER("Rows_log_event::do_index_scan_and_update");
+  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+
+  TABLE *table= m_table;
+  int error= 0;
+  KEY *keyinfo;
+  uint key;
+
+  /*
+    rpl_row_tabledefs.test specifies that
+    if the extra field on the slave does not have a default value
+    and this is okay with Delete or Update events.
+    Todo: fix wl3228 hld that requires defauls for all types of events
+  */
+
+  prepare_record(table, &m_cols, FALSE);
+  error= unpack_current_row(rli, &m_cols);
+
+  // Temporary fix to find out why it fails [/Matz]
+  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
+
+  if (!is_any_column_signaled_for_table(table, &m_cols))
+  {
+    error= HA_ERR_END_OF_FILE;
+    goto err;
+  }
+
+#ifndef DBUG_OFF
+  DBUG_PRINT("info",("looking for the following record"));
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+#endif
+
+  if ((key= search_key_in_table(table, &m_cols, PRI_KEY_FLAG)) >= MAX_KEY)
+    /* we dont have a PK, or PK is not usable with BI values */
+    goto INDEX_SCAN;
+
+  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
+  {
+    /*
+      Use a more efficient method to fetch the record given by
+      table->record[0] if the engine allows it.  We first compute a
+      row reference using the position() member function (it will be
+      stored in table->file->ref) and the use rnd_pos() to position
+      the "cursor" (i.e., record[0] in this case) at the correct row.
+
+      TODO: Add a check that the correct record has been fetched by
+      comparing with the original record. Take into account that the
+      record on the master and slave can be of different
+      length. Something along these lines should work:
+
+      ADD>>>  store_record(table,record[1]);
+              int error= table->file->rnd_pos(table->record[0], table->file->ref);
+      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
+                                 table->s->reclength) == 0);
+
+    */
+    DBUG_PRINT("info",("locating record using primary key (position)"));
+    int error;
+    if (table->file->inited && (error= table->file->ha_index_end()))
+      DBUG_RETURN(error);
+    if ((error= table->file->ha_rnd_init(FALSE)))
+      DBUG_RETURN(error);
+
+    error= table->file->rnd_pos_by_record(table->record[0]);
+
+    table->file->ha_rnd_end();
+    if (error)
+    {
+      DBUG_PRINT("info",("rnd_pos returns error %d",error));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
+      table->file->print_error(error, MYF(0));
+    }
+    DBUG_RETURN(error);
+  }
+
+  // We can't use position() - try other methods.
+
+INDEX_SCAN:
+
+  /*
+    Save copy of the record in table->record[1]. It might be needed
+    later if linear search is used to find exact match.
+   */
+  store_record(table,record[1]);
+
+  if ((key= search_key_in_table(table, &m_cols,
+                                (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG)))
+       >= MAX_KEY)
+    /* we dont have a key, or no key is suitable for the BI values */
+  {
+    error= HA_ERR_KEY_NOT_FOUND;
+    goto err;
+  }
+
+  {
+    keyinfo= table->key_info + key;
+
+
+    DBUG_PRINT("info",("locating record using primary key (index_read)"));
+
+    /* The key'th key is active and usable: search the table using the index */
+    if (!table->file->inited && (error= table->file->ha_index_init(key, FALSE)))
+    {
+      DBUG_PRINT("info",("ha_index_init returns error %d",error));
+      table->file->print_error(error, MYF(0));
+      goto err;
+    }
+
+    /* Fill key data for the row */
+
+    DBUG_ASSERT(m_key);
+    key_copy(m_key, table->record[0], keyinfo, 0);
+
+    /*
+      Don't print debug messages when running valgrind since they can
+      trigger false warnings.
+     */
+#ifndef HAVE_purify
+    DBUG_DUMP("key data", m_key, keyinfo->key_length);
+#endif
+
+    /*
+      We need to set the null bytes to ensure that the filler bit are
+      all set when returning.  There are storage engines that just set
+      the necessary bits on the bytes and don't set the filler bits
+      correctly.
+    */
+    if (table->s->null_bytes > 0)
+      table->record[0][table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+
+    if ((error= table->file->ha_index_read_map(table->record[0], m_key,
+                                               HA_WHOLE_KEY,
+                                               HA_READ_KEY_EXACT)))
+    {
+      DBUG_PRINT("info",("no record matching the key found in the table"));
+      if (error == HA_ERR_RECORD_DELETED)
+        error= HA_ERR_KEY_NOT_FOUND;
+      table->file->print_error(error, MYF(0));
+      table->file->ha_index_end();
+      goto err;
+    }
+
+  /*
+    Don't print debug messages when running valgrind since they can
+    trigger false warnings.
+   */
+#ifndef HAVE_purify
+    DBUG_PRINT("info",("found first matching record"));
+    DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+#endif
+    /*
+      Below is a minor "optimization".  If the key (i.e., key number
+      0) has the HA_NOSAME flag set, we know that we have found the
+      correct record (since there can be no duplicates); otherwise, we
+      have to compare the record with the one found to see if it is
+      the correct one.
+
+      CAVEAT! This behaviour is essential for the replication of,
+      e.g., the mysql.proc table since the correct record *shall* be
+      found using the primary key *only*.  There shall be no
+      comparison of non-PK columns to decide if the correct record is
+      found.  I can see no scenario where it would be incorrect to
+      chose the row to change only using a PK or an UNNI.
+    */
+    if (keyinfo->flags & HA_NOSAME || key == table->s->primary_key)
+    {
+      /* Unique does not have non nullable part */
+      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
+      {
+        table->file->ha_index_end();
+        goto record_found;
+      }
+      else
+      {
+        KEY *keyinfo= table->key_info;
+        /*
+          Unique has nullable part. We need to check if there is any field in the
+          BI image that is null and part of UNNI.
+        */
+        bool null_found= FALSE;
+        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        {
+          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
+          Field **f= table->field+fieldnr;
+          null_found= (*f)->is_null();
+        }
+
+        if (!null_found)
+        {
+          table->file->ha_index_end();
+          goto record_found;
+        }
+
+        /* else fall through to index scan */
+      }
+    }
+
+    /*
+      In case key is not unique, we still have to iterate over records found
+      and find the one which is identical to the row given. A copy of the
+      record we are looking for is stored in record[1].
+     */
+    DBUG_PRINT("info",("non-unique index, scanning it to find matching record"));
+
+    while (record_compare(table, &m_cols))
+    {
+      /*
+        We need to set the null bytes to ensure that the filler bit
+        are all set when returning.  There are storage engines that
+        just set the necessary bits on the bytes and don't set the
+        filler bits correctly.
+
+        TODO[record format ndb]: Remove this code once NDB returns the
+        correct record format.
+      */
+      if (table->s->null_bytes > 0)
+      {
+        table->record[0][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
+
+      while ((error= table->file->ha_index_next(table->record[0])))
+      {
+        /* We just skip records that has already been deleted */
+        if (error == HA_ERR_RECORD_DELETED)
+          continue;
+        DBUG_PRINT("info",("no record matching the given row found"));
+        table->file->print_error(error, MYF(0));
+        table->file->ha_index_end();
+        goto err;
+      }
+    }
+
+    /*
+      Have to restart the scan to be able to fetch the next row.
+    */
+    table->file->ha_index_end();
+  }
+
+record_found:
+  error= do_apply_row(rli);
+
+err:
+  table->default_column_bitmaps();
+  DBUG_RETURN(error);
+
+}
+
+int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
+{
+  int error= 0;
+
+  DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
+
+  if ((error= hash_row(rli)))
+    goto err;
+
+  /**
+    Last row hashed.
+
+    Now do the table scan and update according to the hash table
+    matches.
+   */
+  if (m_curr_row == m_rows_end)
+  {
+
+    TABLE* table= m_table;
+    MY_BITMAP* read_set= &m_cols;
+
+    if ((error= table->file->ha_rnd_init(1)))
+    {
+      DBUG_PRINT("info",("error initializing table scan"
+          " (ha_rnd_init returns %d)",error));
+      table->file->print_error(error, MYF(0));
+      goto err;
+    }
+
+    /* Continue until we find the right record or reached the end of the table */
+    do
+    {
+      error= table->file->ha_rnd_next(table->record[0]);
+
+      // TODO: remove blobs from record got from the engine
+
+      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      switch (error) {
+        case 0:
+        {
+          bool found_in_hash= false;
+          HASH_SEARCH_STATE state;
+          /* save a copy from the record got from the engine. */
+          store_record(table, record[1]);
+
+          /**
+             This is only needed because records are hashed without blobs, so
+             we may have false positives.
+           */
+          row_entry *entry= (row_entry *) my_hash_first(&m_hash, table->record[0], table->s->reclength, &state);
+          while (entry)
+          {
+            /**
+               unpack again the full record to table->record[0]. Now, both
+               table->record[0] and table->record[1] have the same contents.
+             */
+            m_curr_row= entry->m_curr_row;
+            if ((error= unpack_current_row(rli, &m_cols)))
+              goto close_table_and_err;
+
+            /*
+              compare the row_entry with row taking into account
+              blobs, if there is any. If there is a match do the
+              operation and remove the entry from the hash table.
+            */
+            if (!record_compare(table, read_set))
+            {
+              found_in_hash= true;
+
+              my_hash_delete(&m_hash, (uchar *)entry);
+              break;
+            }
+
+            // find next
+            entry= (row_entry *)my_hash_next(&m_hash, table->record[0], table->s->reclength,  &state);
+          }
+
+          if (found_in_hash)
+            if ((error= do_apply_row(rli)))
+              goto err;
+        }
+        break;
+
+          /*
+            If the record was deleted, we pick the next one without doing
+            any comparisons.
+          */
+        case HA_ERR_RECORD_DELETED:
+          break;
+
+        case HA_ERR_END_OF_FILE: // to make it clear
+        default:
+          DBUG_PRINT("info", ("Failed to get next record"
+              " (ha_rnd_next returns %d)",error));
+          goto close_table_and_err;
+      }
+    }
+
+    while ((m_hash.records > 0) && (!error || (error == HA_ERR_RECORD_DELETED)));
+  }
+
+err:
+  DBUG_RETURN(error);
+
+close_table_and_err:
+  m_table->file->print_error(error, MYF(0));
+  m_table->file->ha_rnd_end();
+  DBUG_RETURN (error);
+
+}
+
+int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
+{
+  int error= 0;
+  DBUG_ENTER("Rows_log_event::do_table_scan_and_update");
+  DBUG_ASSERT(m_curr_row != m_rows_end);
+  DBUG_PRINT("info",("locating record using table scan (ha_rnd_next)"));
+
+  int restart_count= 0; // Number of times scanning has restarted from top
+
+  /* We don't have a key: search the table using ha_rnd_next() */
+  if ((error= m_table->file->ha_rnd_init(1)))
+  {
+    DBUG_PRINT("info",("error initializing table scan"
+                       " (ha_rnd_init returns %d)",error));
+    m_table->file->print_error(error, MYF(0));
+    goto err;
+  }
+
+  /* Continue until we find the right record or have made a full loop */
+  do
+  {
+  restart_ha_rnd_next:
+    error= m_table->file->ha_rnd_next(m_table->record[0]);
+
+    DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+    switch (error) {
+
+    case 0:
+      break;
+
+    /*
+      If the record was deleted, we pick the next one without doing
+      any comparisons.
+    */
+    case HA_ERR_RECORD_DELETED:
+      goto restart_ha_rnd_next;
+
+    case HA_ERR_END_OF_FILE:
+      if (++restart_count < 2)
+        m_table->file->ha_rnd_init(1);
+      break;
+
+    default:
+      DBUG_PRINT("info", ("Failed to get next record"
+                          " (ha_rnd_next returns %d)",error));
+      m_table->file->print_error(error, MYF(0));
+      m_table->file->ha_rnd_end();
+      goto err;
+    }
+  }
+  while (restart_count < 2 && record_compare(m_table, &m_cols));
+
+  /*
+    Note: above record_compare will take into accout all record fields
+    which might be incorrect in case a partial row was given in the event
+   */
+
+  /*
+    Have to restart the scan to be able to fetch the next row.
+  */
+  if (restart_count == 2)
+    DBUG_PRINT("info", ("Record not found"));
+  else
+    DBUG_DUMP("record found", m_table->record[0], m_table->s->reclength);
+  m_table->file->ha_rnd_end();
+
+  DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+
+  /* If the row was found, apply it */
+  if (!error)
+  {
+    DBUG_ASSERT(restart_count < 2);
+    error= do_apply_row(rli);
+  }
+
+err:
+  m_table->default_column_bitmaps();
+  DBUG_RETURN(error);
+
+}
+
 int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
@@ -7725,7 +8639,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (table)
   {
-    bool transactional_table= table->file->has_transactions();
     /*
       table == NULL means that this table should not be replicated
       (this was set up by Table_map_log_event::do_apply_event()
@@ -7782,75 +8695,66 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
 
     this->slave_exec_mode= slave_exec_mode_options; // fix the mode
+    // Do event specific preparations
 
-    // Do event specific preparations 
     error= do_before_row_operations(rli);
 
-    // row processing loop
+    /**
+       Check if update contains only values in AI for columns that do
+       not exist on the slave. If it does, we can just unpack the rows
+       and return (do nothing on the local table).
 
-    while (error == 0)
+       NOTE: We do the following optimization and check only if there
+       are usable values on the AI and disregard the fact that there
+       might be usable values in the BI. In practice this means that
+       the slave will not go through find_row (since we have nothing
+       on the record to update, why go looking for it?).
+
+       If we wanted find_row to run anyway, we could move this
+       check after find_row, but then we would have to face the fact
+       that the slave might stop without finding the proper record
+       (because it might have incomplete BI), even though there were
+       no values in AI.
+
+       On the other hand, if AI has usable values but BI has not,
+       then find_row will return an error (and the error is then
+       propagated as it was already).
+     */
+    if (get_type_code() != UPDATE_ROWS_EVENT ||
+        is_any_column_signaled_for_table(table, &m_cols_ai))
     {
-      /* in_use can have been set to NULL in close_tables_for_reopen */
-      THD* old_thd= table->in_use;
-      if (!table->in_use)
-        table->in_use= thd;
+      uint row_lookup_method= decide_row_lookup_method(table, &m_cols, get_type_code());
 
-      error= do_exec_row(rli);
-
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
-      DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
-
-      table->in_use = old_thd;
-
-      if (error)
+      // row processing loop
+      while (!error && (m_curr_row != m_rows_end))
       {
-        int actual_error= convert_handler_error(error, thd, table);
-        bool idempotent_error= (idempotent_error_code(error) &&
-                               (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
-        bool ignored_error= (idempotent_error == 0 ?
-                             ignored_error_code(actual_error) : 0);
-
-        if (idempotent_error || ignored_error)
+        switch (row_lookup_method)
         {
-          if (global_system_variables.log_warnings)
-            slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
-                                    get_type_str(),
-                                    const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                                    (ulong) log_pos);
-          clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-          error= 0;
-          if (idempotent_error == 0)
+          case ROW_LOOKUP_HASH_SCAN:
+            /**
+               scan the table and for each entry in the table, if
+               it exists in the hash, execute the row.
+             */
+            error= do_hash_scan_and_update(rli);
+           break;
+
+          case ROW_LOOKUP_INDEX_SCAN:
+            error= do_index_scan_and_update(rli);
+            break;
+
+          case ROW_LOOKUP_TABLE_SCAN:
+            error= do_table_scan_and_update(rli);
+            break;
+
+          case ROW_LOOKUP_NOT_NEEDED:
+            DBUG_ASSERT(get_type_code() == WRITE_ROWS_EVENT);
+
+            /* No need to scan for rows, just apply it */
+            error= do_apply_row(rli);
             break;
         }
       }
-
-      /*
-       If m_curr_row_end  was not set during event execution (e.g., because
-       of errors) we can't proceed to the next row. If the error is transient
-       (i.e., error==0 at this point) we must call unpack_current_row() to set 
-       m_curr_row_end.
-      */ 
-   
-      DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
-                          (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
-
-      if (!m_curr_row_end && !error)
-        error= unpack_current_row(rli, &m_cols);
-  
-      // at this moment m_curr_row_end should be set
-      DBUG_ASSERT(error || m_curr_row_end != NULL); 
-      DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
-      DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
-  
-      m_curr_row= m_curr_row_end;
- 
-      if (error == 0 && !transactional_table)
-        thd->transaction.all.modified_non_trans_table=
-          thd->transaction.stmt.modified_non_trans_table= TRUE;
-
-      if (m_curr_row == m_rows_end)
-        break;
-    } // row processing loop
+    }
 
     {/**
          The following failure injecion works in cooperation with tests 
@@ -9004,12 +9908,12 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       
       case 0:
         break;
-        
-      default:    
+
+      default:
         DBUG_PRINT("info",("ha_update_row() returns error %d",error));
         table->file->print_error(error, MYF(0));
       }
-      
+
       goto error;
     }
     else
@@ -9061,657 +9965,6 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 **************************************************************************/
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-/*
-  Compares table->record[0] and table->record[1]
-
-  Returns TRUE if different.
-*/
-static bool record_compare(TABLE *table, MY_BITMAP *cols)
-{
-  /*
-    Need to set the X bit and the filler bits in both records since
-    there are engines that do not set it correctly.
-
-    In addition, since MyISAM checks that one hasn't tampered with the
-    record, it is necessary to restore the old bytes into the record
-    after doing the comparison.
-
-    TODO[record format ndb]: Remove it once NDB returns correct
-    records. Check that the other engines also return correct records.
-   */
-
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-  DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
-
-  bool result= FALSE;
-  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
-
-  if (table->s->null_bytes > 0)
-  {
-    for (int i = 0 ; i < 2 ; ++i)
-    {
-      /* 
-        If we have an X bit then we need to take care of it.
-      */
-      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
-      {
-        saved_x[i]= table->record[i][0];
-        table->record[i][0]|= 1U;
-      }
-
-      /*
-         If (last_null_bit_pos == 0 && null_bytes > 1), then:
-
-         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits 
-
-         Ie, the entire byte is used.
-      */
-      if (table->s->last_null_bit_pos > 0)
-      {
-        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
-        table->record[i][table->s->null_bytes - 1]|=
-          256U - (1U << table->s->last_null_bit_pos);
-      }
-    }
-  }
-
-  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
-      bitmap_is_set_all(cols))
-  {
-    result= cmp_record(table,record[1]);
-    goto record_compare_exit;
-  }
-
-  /* Compare null bits */
-  if (bitmap_is_set_all(cols) &&
-      memcmp(table->null_flags,
-	     table->null_flags+table->s->rec_buff_length,
-	     table->s->null_bytes))
-  {
-    result= TRUE;				// Diff in NULL value
-    goto record_compare_exit;
-  }
-
-  /* Compare updated fields */
-  for (Field **ptr=table->field ; 
-       *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++)
-  {
-    if (bitmap_is_set(cols, (*ptr)->field_index))
-    {
-      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
-      {
-        result= TRUE;
-        goto record_compare_exit;
-      }
-    }
-  }
-
-record_compare_exit:
-  /*
-    Restore the saved bytes.
-
-    TODO[record format ndb]: Remove this code once NDB returns the
-    correct record format.
-  */
-  if (table->s->null_bytes > 0)
-  {
-    for (int i = 0 ; i < 2 ; ++i)
-    {
-      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
-        table->record[i][0]= saved_x[i];
-
-      if (table->s->last_null_bit_pos)
-        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
-    }
-  }
-
-  return result;
-}
-
-
-/**
-  Checks if any of the columns in the given table is
-  signaled in the bitmap.
-
-  For each column in the given table checks if it is
-  signaled in the bitmap. This is most useful when deciding
-  whether a before image (BI) can be used or not for 
-  searching a row. If no column is signaled, then the 
-  image cannot be used for searching a record (regardless 
-  of using position(), index scan or table scan). Here is 
-  an example:
-
-  MASTER> SET @@binlog_row_image='MINIMAL';
-  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
-  SLAVE> CREATE TABLE t1 (a int, b int);
-  MASTER> INSERT INTO t1 VALUES (1,2,3);
-  MASTER> UPDATE t1 SET a=2 WHERE b=2;
-
-  For the update statement only the PK (column c) is 
-  logged in the before image (BI). As such, given that 
-  the slave has no column c, it will not be able to 
-  find the row, because BI has no values for the columns
-  the slave knows about (column a and b).
-
-  @param table   the table reference on the slave.
-  @param cols the bitmap signaling columns available in 
-                 the BI.
-
-  @return TRUE if BI contains usable colums for searching, 
-          FALSE otherwise.
-*/
-static
-my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
-{
-
-  int nfields_set= 0;
-  for (Field **ptr=table->field ; 
-       *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++)
-  {
-    if (bitmap_is_set(cols, (*ptr)->field_index))
-      nfields_set++;
-  }
-
-  return (nfields_set != 0);
-}
-
-/**
-  Checks if the fields in the given key are signaled in
-  the bitmap.
-
-  Validates whether the before image is usable for the
-  given key. It can be the case that the before image
-  does not contain values for the key (eg, master was
-  using 'minimal' option for image logging and slave has
-  different index structure on the table). Here is an
-  example:
-
-  MASTER> SET @@binlog_row_image='MINIMAL';
-  MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
-  SLAVE> CREATE TABLE t1 (a int, b int, c int, key(a,c));
-  MASTER> INSERT INTO t1 VALUES (1,2,3);
-  MASTER> UPDATE t1 SET a=2 WHERE b=2;
-
-  When finding the row on the slave, one cannot use the
-  index (a,c) to search for the row, because there is only
-  data in the before image for column c. This function
-  checks the fields needed for a given key and searches
-  the bitmap to see if all the fields required are 
-  signaled.
-  
-  @param keyinfo  reference to key.
-  @param cols     the bitmap signaling which columns 
-                  have available data.
-
-  @return TRUE if all fields are signaled in the bitmap 
-          for the given key, FALSE otherwise.
-*/
-static
-my_bool are_all_columns_signaled_for_key(KEY *keyinfo, MY_BITMAP *cols)
-{
-  for (uint i=0 ; i < keyinfo->key_parts ;i++)
-  {
-    uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
-    if (fieldnr >= cols->n_bits || 
-        !bitmap_is_set(cols, fieldnr))
-      return FALSE;
-  }
- 
-  return TRUE;
-}
-
-/**
-  Searches the table for a given key that can be used
-  according to the existing values, ie, columns set
-  in the bitmap.
-
-  The caller can specify which type of key to find by
-  setting the following flags in the key_type parameter:
-
-    - PRI_KEY_FLAG
-      Returns the primary key.
-
-    - UNIQUE_KEY_FLAG
-      Returns a unique key (flagged with HA_NOSAME)
-
-    - MULTIPLE_KEY_FLAG
-      Returns a key that is not unique (flagged with HA_NOSAME 
-      and without HA_NULL_PART_KEY) nor PK.
-
-  The above flags can be used together, in which case, the
-  search is conducted in the above listed order. Eg, the 
-  following flag:
-
-    (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG)
-
-  means that a primary key is returned if it is suitable. If
-  not then the unique keys are searched. If no unique key is
-  suitable, then the keys are searched. Finally, if no key
-  is suitable, MAX_KEY is returned.
-
-  @param table    reference to the table.
-  @param bi_cols  a bitmap that filters out columns that should
-                  not be considered while searching the key. 
-                  Columns that should be considered are set.
-  @param key_type the type of key to search for.
-
-  @return MAX_KEY if no key, according to the key_type specified
-          is suitable. Returns the key otherwise.
-
-*/
-static
-uint
-search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
-{
-  KEY *keyinfo;
-  uint res= MAX_KEY;
-  uint key;
-
-  if (key_type & PRI_KEY_FLAG && (table->s->primary_key < MAX_KEY))
-  {
-    keyinfo= table->s->key_info + (uint) table->s->primary_key;
-    if (are_all_columns_signaled_for_key(keyinfo, bi_cols)) 
-      return table->s->primary_key;
-  }
-
-  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
-  {
-    for (key=0,keyinfo= table->key_info ; 
-         (key < table->s->keys) && (res == MAX_KEY);
-         key++,keyinfo++)
-    {
-      /*
-        - Unique keys cannot be disabled, thence we skip the check.
-        - Skip unique keys with nullable parts
-        - Skip primary keys
-      */
-      if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
-          (key == table->s->primary_key))
-        continue;
-      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
-           key : MAX_KEY;
-
-      if (res < MAX_KEY)
-        return res;
-    }
-  }
-
-  if (key_type & MULTIPLE_KEY_FLAG && table->s->keys)
-  {
-    for (key=0,keyinfo= table->key_info ; 
-         (key < table->s->keys) && (res == MAX_KEY);
-         key++,keyinfo++)
-    {
-      /*
-        - Skip innactive keys
-        - Skip unique keys without nullable parts
-        - Skip primary keys
-      */
-      if (!(table->s->keys_in_use.is_set(key)) ||
-          ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
-          (key == table->s->primary_key))
-        continue;
-
-      res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ? 
-           key : MAX_KEY;
-
-      if (res < MAX_KEY)
-        return res;
-    }
-  }
-
-  return res;
-}
-
-
-/**
-  Locate the current row in event's table.
-
-  The current row is pointed by @c m_curr_row. Member @c m_width tells how many 
-  columns are there in the row (this can be differnet from the number of columns 
-  in the table). It is assumed that event's table is already open and pointed 
-  by @c m_table.
-
-  If a corresponding record is found in the table it is stored in 
-  @c m_table->record[0]. Note that when record is located based on a primary 
-  key, it is possible that the record found differs from the row being located.
-
-  If no key is specified or table does not have keys, a table scan is used to 
-  find the row. In that case the row should be complete and contain values for
-  all columns. However, it can still be shorter than the table, i.e. the table 
-  can contain extra columns not present in the row. It is also possible that 
-  the table has fewer columns than the row being located. 
-
-  @returns Error code on failure, 0 on success. 
-  
-  @post In case of success @c m_table->record[0] contains the record found. 
-  Also, the internal "cursor" of the table is positioned at the record found.
-
-  @note If the engine allows random access of the records, a combination of
-  @c position() and @c rnd_pos() will be used. 
- */
-
-
-int Rows_log_event::find_row(const Relay_log_info *rli)
-{
-  DBUG_ENTER("Rows_log_event::find_row");
-
-  DBUG_ASSERT(m_table && m_table->in_use != NULL);
-
-  TABLE *table= m_table;
-  int error= 0;
-  KEY *keyinfo;
-  uint key;
-
-  /*
-    rpl_row_tabledefs.test specifies that
-    if the extra field on the slave does not have a default value
-    and this is okay with Delete or Update events.
-    Todo: fix wl3228 hld that requires defauls for all types of events
-  */
-  
-  prepare_record(table, &m_cols, FALSE);
-  error= unpack_current_row(rli, &m_cols);
-
-  // Temporary fix to find out why it fails [/Matz]
-  memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
-
-  if (!is_any_column_signaled_for_table(table, &m_cols))
-  {
-    error= HA_ERR_END_OF_FILE;
-    goto err;
-  }
-
-#ifndef DBUG_OFF
-  DBUG_PRINT("info",("looking for the following record"));
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
-
-  if ((key= search_key_in_table(table, &m_cols, PRI_KEY_FLAG)) >= MAX_KEY)
-    /* we dont have a PK, or PK is not usable with BI values */
-    goto INDEX_SCAN;
-
-  if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
-  {
-    /*
-      Use a more efficient method to fetch the record given by
-      table->record[0] if the engine allows it.  We first compute a
-      row reference using the position() member function (it will be
-      stored in table->file->ref) and the use rnd_pos() to position
-      the "cursor" (i.e., record[0] in this case) at the correct row.
-
-      TODO: Add a check that the correct record has been fetched by
-      comparing with the original record. Take into account that the
-      record on the master and slave can be of different
-      length. Something along these lines should work:
-
-      ADD>>>  store_record(table,record[1]);
-              int error= table->file->rnd_pos(table->record[0], table->file->ref);
-      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
-                                 table->s->reclength) == 0);
-
-    */
-    DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error;
-    if (table->file->inited && (error= table->file->ha_index_end()))
-      DBUG_RETURN(error);
-    if ((error= table->file->ha_rnd_init(FALSE)))
-      DBUG_RETURN(error);
-
-    error= table->file->rnd_pos_by_record(table->record[0]);
-
-    table->file->ha_rnd_end();
-    if (error)
-    {
-      DBUG_PRINT("info",("rnd_pos returns error %d",error));
-      if (error == HA_ERR_RECORD_DELETED)
-        error= HA_ERR_KEY_NOT_FOUND;
-      table->file->print_error(error, MYF(0));
-    }
-    DBUG_RETURN(error);
-  }
-
-  // We can't use position() - try other methods.
-  
-INDEX_SCAN:
-
-  /*
-    Save copy of the record in table->record[1]. It might be needed 
-    later if linear search is used to find exact match.
-   */ 
-  store_record(table,record[1]);    
-
-  if ((key= search_key_in_table(table, &m_cols, 
-                                (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))) 
-       >= MAX_KEY)
-    /* we dont have a key, or no key is suitable for the BI values */
-    goto TABLE_SCAN; 
-
-  {
-    keyinfo= table->key_info + key;
-
-
-    DBUG_PRINT("info",("locating record using primary key (index_read)"));
-
-    /* The key'th key is active and usable: search the table using the index */
-    if (!table->file->inited && (error= table->file->ha_index_init(key, FALSE)))
-    {
-      DBUG_PRINT("info",("ha_index_init returns error %d",error));
-      table->file->print_error(error, MYF(0));
-      goto err;
-    }
-
-    /* Fill key data for the row */
-
-    DBUG_ASSERT(m_key);
-    key_copy(m_key, table->record[0], keyinfo, 0);
-
-    /*
-      Don't print debug messages when running valgrind since they can
-      trigger false warnings.
-     */
-#ifndef HAVE_purify
-    DBUG_DUMP("key data", m_key, keyinfo->key_length);
-#endif
-
-    /*
-      We need to set the null bytes to ensure that the filler bit are
-      all set when returning.  There are storage engines that just set
-      the necessary bits on the bytes and don't set the filler bits
-      correctly.
-    */
-    if (table->s->null_bytes > 0)
-      table->record[0][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
-
-    if ((error= table->file->ha_index_read_map(table->record[0], m_key,
-                                               HA_WHOLE_KEY,
-                                               HA_READ_KEY_EXACT)))
-    {
-      DBUG_PRINT("info",("no record matching the key found in the table"));
-      if (error == HA_ERR_RECORD_DELETED)
-        error= HA_ERR_KEY_NOT_FOUND;
-      table->file->print_error(error, MYF(0));
-      table->file->ha_index_end();
-      goto err;
-    }
-
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
-#ifndef HAVE_purify
-    DBUG_PRINT("info",("found first matching record")); 
-    DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-#endif
-    /*
-      Below is a minor "optimization".  If the key (i.e., key number
-      0) has the HA_NOSAME flag set, we know that we have found the
-      correct record (since there can be no duplicates); otherwise, we
-      have to compare the record with the one found to see if it is
-      the correct one.
-
-      CAVEAT! This behaviour is essential for the replication of,
-      e.g., the mysql.proc table since the correct record *shall* be
-      found using the primary key *only*.  There shall be no
-      comparison of non-PK columns to decide if the correct record is
-      found.  I can see no scenario where it would be incorrect to
-      chose the row to change only using a PK or an UNNI.
-    */
-    if (keyinfo->flags & HA_NOSAME || key == table->s->primary_key)
-    {
-      /* Unique does not have non nullable part */
-      if (!(table->key_info->flags & (HA_NULL_PART_KEY)))
-      {
-        table->file->ha_index_end();
-        goto ok;
-      }
-      else
-      {
-        KEY *keyinfo= table->key_info;
-        /*
-          Unique has nullable part. We need to check if there is any field in the
-          BI image that is null and part of UNNI.
-        */
-        bool null_found= FALSE;
-        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
-        {
-          uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
-          Field **f= table->field+fieldnr;
-          null_found= (*f)->is_null();
-        }
-
-        if (!null_found)
-        {
-          table->file->ha_index_end();
-          goto ok;
-        }
-
-        /* else fall through to index scan */
-      }
-    }
-
-    /*
-      In case key is not unique, we still have to iterate over records found
-      and find the one which is identical to the row given. A copy of the 
-      record we are looking for is stored in record[1].
-     */ 
-    DBUG_PRINT("info",("non-unique index, scanning it to find matching record")); 
-
-    while (record_compare(table, &m_cols))
-    {
-      /*
-        We need to set the null bytes to ensure that the filler bit
-        are all set when returning.  There are storage engines that
-        just set the necessary bits on the bytes and don't set the
-        filler bits correctly.
-
-        TODO[record format ndb]: Remove this code once NDB returns the
-        correct record format.
-      */
-      if (table->s->null_bytes > 0)
-      {
-        table->record[0][table->s->null_bytes - 1]|=
-          256U - (1U << table->s->last_null_bit_pos);
-      }
-
-      while ((error= table->file->ha_index_next(table->record[0])))
-      {
-        /* We just skip records that has already been deleted */
-        if (error == HA_ERR_RECORD_DELETED)
-          continue;
-        DBUG_PRINT("info",("no record matching the given row found"));
-        table->file->print_error(error, MYF(0));
-        table->file->ha_index_end();
-        goto err;
-      }
-    }
-
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    table->file->ha_index_end();
-    goto ok;
-  }
-
-TABLE_SCAN:
-
-  /* All that we can do now is rely on a table scan */
-  {
-    DBUG_PRINT("info",("locating record using table scan (ha_rnd_next)"));
-
-    int restart_count= 0; // Number of times scanning has restarted from top
-
-    /* We don't have a key: search the table using ha_rnd_next() */
-    if ((error= table->file->ha_rnd_init(1)))
-    {
-      DBUG_PRINT("info",("error initializing table scan"
-                         " (ha_rnd_init returns %d)",error));
-      table->file->print_error(error, MYF(0));
-      goto err;
-    }
-
-    /* Continue until we find the right record or have made a full loop */
-    do
-    {
-  restart_ha_rnd_next:
-      error= table->file->ha_rnd_next(table->record[0]);
-
-      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
-      switch (error) {
-
-      case 0:
-        break;
-
-      /*
-        If the record was deleted, we pick the next one without doing
-        any comparisons.
-      */
-      case HA_ERR_RECORD_DELETED:
-        goto restart_ha_rnd_next;
-
-      case HA_ERR_END_OF_FILE:
-        if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
-        break;
-
-      default:
-        DBUG_PRINT("info", ("Failed to get next record"
-                            " (ha_rnd_next returns %d)",error));
-        table->file->print_error(error, MYF(0));
-        table->file->ha_rnd_end();
-        goto err;
-      }
-    }
-    while (restart_count < 2 && record_compare(table, &m_cols));
-    
-    /* 
-      Note: above record_compare will take into accout all record fields 
-      which might be incorrect in case a partial row was given in the event
-     */
-
-    /*
-      Have to restart the scan to be able to fetch the next row.
-    */
-    if (restart_count == 2)
-      DBUG_PRINT("info", ("Record not found"));
-    else
-      DBUG_DUMP("record found", table->record[0], table->s->reclength);
-    table->file->ha_rnd_end();
-
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
-    goto err;
-  }
-ok:
-  table->default_column_bitmaps();
-  DBUG_RETURN(0);
-
-err:
-  table->default_column_bitmaps();
-  DBUG_RETURN(error);
-}
 
 #endif
 
@@ -9753,6 +10006,17 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
       return HA_ERR_OUT_OF_MEM;
   }
 
+  /* we will be using a hash to lookup rows, initialize it */
+  if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+    my_hash_init(&m_hash,
+        &my_charset_bin,            /* the charater set information */
+        16 /* FIXME */,             /* growth size */
+        0,                          /* key offset */
+        0,                          /* key length */
+        rows_log_event_get_key,     /* get function pointer */
+        (my_hash_free_key) rows_log_event_free_entry,  /* freefunction pointer */
+        MYF(0));                    /* flags */
+
   return 0;
 }
 
@@ -9765,6 +10029,11 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   my_free(m_key);
   m_key= NULL;
 
+  /* we don't need the hash anymore, free it */
+  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN) &&
+      my_hash_inited(&m_hash))
+    my_hash_free(&m_hash);
+
   return error;
 }
 
@@ -9773,16 +10042,11 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   int error;
   DBUG_ASSERT(m_table != NULL);
 
-  if (!(error= find_row(rli))) 
-  { 
+  /* m_table->record[0] contains the BI */
+  m_table->mark_columns_per_binlog_row_image();
+  error= m_table->file->ha_delete_row(m_table->record[1]);
+  m_table->default_column_bitmaps();
 
-    m_table->mark_columns_per_binlog_row_image();
-    /*
-      Delete the record found, located in record[0]
-    */
-    error= m_table->file->ha_delete_row(m_table->record[0]);
-    m_table->default_column_bitmaps();
-  }
   return error;
 }
 
@@ -9868,6 +10132,16 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
+  if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+    my_hash_init(&m_hash,
+        &my_charset_bin,            /* the charater set information */
+        16 /* FIXME */,             /* growth size */
+        0,                          /* key offset */
+        0,                          /* key length */
+        rows_log_event_get_key,     /* get function pointer */
+        (my_hash_free_key) rows_log_event_free_entry,  /* freefunction pointer */
+        MYF(0));                    /* flags */
+
   return 0;
 }
 
@@ -9880,6 +10154,11 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   my_free(m_key); // Free for multi_malloc
   m_key= NULL;
 
+  /* we don't need the hash anymore, free it */
+  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN) &&
+      my_hash_inited(&m_hash))
+    my_hash_free(&m_hash);
+
   return error;
 }
 
@@ -9888,53 +10167,6 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
   int error= 0;
-
-  /**
-     Check if update contains only values in AI for columns that do 
-     not exist on the slave. If it does, we can just unpack the rows 
-     and return (do nothing on the local table).
-
-     NOTE: We do the following optimization and check only if there 
-     are usable values on the AI and disregard the fact that there 
-     might be usable values in the BI. In practice this means that 
-     the slave will not go through find_row (since we have nothing
-     on the record to update, why go looking for it?).
-
-     If we wanted find_row to run anyway, we could move this
-     check after find_row, but then we would have to face the fact
-     that the slave might stop without finding the proper record 
-     (because it might have incomplete BI), even though there were
-     no values in AI.
-
-     On the other hand, if AI has usable values but BI has not,
-     then find_row will return an error (and the error is then
-     propagated as it was already).
-   */
-  if (!is_any_column_signaled_for_table(m_table, &m_cols_ai))
-  {
-    /* 
-      Read and discard images, because:
-      1. AI does not contain any useful values to replay;
-      2. BI is irrelevant if there is nothing useful in AI.
-    */
-    error = unpack_current_row(rli, &m_cols);
-    m_curr_row= m_curr_row_end;
-    error = error | unpack_current_row(rli, &m_cols_ai);
-
-    return error;
-  }
-
-  error= find_row(rli); 
-  if (error)
-  {
-    /*
-      We need to read the second image in the event of error to be
-      able to skip to the next pair of updates
-    */
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols_ai);
-    return error;
-  }
 
   /*
     This is the situation after locating BI:
