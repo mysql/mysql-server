@@ -695,7 +695,6 @@ struct TABLE_SHARE
   void (*ha_part_data_destroy)(HA_DATA_PARTITION *);
 #endif
 
-
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;
 

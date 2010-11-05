@@ -3105,3 +3105,6 @@ libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
 sql/.empty
 mysys/thr_lock
+libmysqld/sql_admin.cc
+libmysqld/sql_alter.cc
+libmysqld/sql_partition_admin.cc

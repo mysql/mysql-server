@@ -1345,6 +1345,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free(buffer); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1371,13 +1372,10 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+  if (buffer)
     my_free(buffer);
-    error=1;
-  }
   List_iterator<XML_TAG> xmlit(taglist);
   XML_TAG *t;
   while ((t= xmlit++))

@@ -1954,7 +1954,6 @@ btr_cur_optimistic_update(
 	page_t*		page;
 	page_zip_des_t*	page_zip;
 	rec_t*		rec;
-	rec_t*		orig_rec;
 	ulint		max_size;
 	ulint		new_rec_size;
 	ulint		old_rec_size;
@@ -1968,7 +1967,7 @@ btr_cur_optimistic_update(
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
-	orig_rec = rec = btr_cur_get_rec(cursor);
+	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -3761,9 +3760,10 @@ btr_cur_set_ownership_of_extern_field(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
@@ -3777,13 +3777,14 @@ btr_cur_mark_extern_inherited_fields(
 	ulint	n;
 	ulint	j;
 	ulint	i;
+	ibool	change_ownership = FALSE;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 
 	if (!rec_offs_any_extern(offsets)) {
 
-		return;
+		return(FALSE);
 	}
 
 	n = rec_offs_n_fields(offsets);
@@ -3806,10 +3807,14 @@ btr_cur_mark_extern_inherited_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
+
+			change_ownership = TRUE;
 updated:
 			;
 		}
 	}
+
+	return(change_ownership);
 }
 
 /*******************************************************************//**
@@ -4557,12 +4562,17 @@ btr_free_externally_stored_field(
 	}
 
 	for (;;) {
+#ifdef UNIV_SYNC_DEBUG
 		buf_block_t*	rec_block;
+#endif /* UNIV_SYNC_DEBUG */
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
 
-		rec_block = buf_page_get(page_get_space_id(
+#ifdef UNIV_SYNC_DEBUG
+		rec_block =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(page_get_space_id(
 						 page_align(field_ref)),
 					 rec_zip_size,
 					 page_get_page_no(
