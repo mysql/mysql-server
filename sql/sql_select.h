@@ -394,6 +394,7 @@ typedef struct st_join_table {
   }
   double get_partial_join_cardinality() { return partial_join_cardinality; }
   bool hash_join_is_possible();
+  int make_scan_filter();
 } JOIN_TAB;
 
 
@@ -1038,7 +1039,7 @@ public:
   }   
   
   JOIN_TAB *get_next_table(JOIN_TAB *tab);
-
+  
   friend class JOIN_CACHE_HASHED;
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
