@@ -3516,6 +3516,7 @@ Dbspj::computePartitionHash(Signal* signal,
   Uint64 _space[MAX_KEY_SIZE_IN_LONG_WORDS];
   Uint64 *tmp64 = _space;
   Uint32 *tmp32 = (Uint32*)tmp64;
+  Uint32 sz = ptr.sz;
   copy(tmp32, ptr);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
@@ -3543,9 +3544,10 @@ Dbspj::computePartitionHash(Signal* signal,
       }
     }
     tmp64 = (Uint64*)dst;
+    sz = dstPos;
   }
 
-  md5_hash(dst.hashInfo, tmp64, ptr.sz);
+  md5_hash(dst.hashInfo, tmp64, sz);
   return 0;
 }
 

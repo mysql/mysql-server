@@ -4085,6 +4085,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	x1	ALL	uk1	NULL	NULL	NULL	3	Parent of 2 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	Child of pushed join@1
 drop table tc;
+create table t1 (
+a varchar(16) not null,
+b int not null,
+c varchar(16) not null,
+d int not null,
+primary key (a,b)
+) engine ndb partition by key (a);
+insert into t1  values ('aaa', 1, 'aaa', 1);
+explain
+select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	q1	ref	PRIMARY	PRIMARY	18	const	10	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	q2	ref	PRIMARY	PRIMARY	18	test.q1.c	1	Child of pushed join@1
+select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
+a	b	c	d	a	b	c	d
+aaa	1	aaa	1	aaa	1	aaa	1
+drop table t1;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) AS val 
 from ndbinfo.counters 
@@ -4101,11 +4118,11 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
 LOCAL_TABLE_SCANS_SENT	196
-PRUNED_RANGE_SCANS_RECEIVED	16
-RANGE_SCANS_RECEIVED	209
+PRUNED_RANGE_SCANS_RECEIVED	17
+RANGE_SCANS_RECEIVED	210
 READS_NOT_FOUND	405
 READS_RECEIVED	61
-SCAN_ROWS_RETURNED	63867
+SCAN_ROWS_RETURNED	63869
 TABLE_SCANS_RECEIVED	196
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
@@ -4117,15 +4134,15 @@ LOCAL+REMOTE READS_SENT
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2010
+2013
 pruned_scan_count
-7
+8
 sorted_scan_count
 7
 pushed_queries_defined
-346
+348
 pushed_queries_dropped
 11
 pushed_queries_executed
-267
+268
 set ndb_join_pushdown = @save_ndb_join_pushdown;
