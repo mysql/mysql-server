@@ -179,12 +179,14 @@ static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(Item *cond,table_map table,
-				 table_map used_table,
-                                 bool exclude_expensive_cond);
+                                 table_map used_table,
+                                 bool exclude_expensive_cond,
+                                 bool retain_ref_cond);
 static COND *make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                                            table_map tables,
                                            table_map used_table,
-                                           bool exclude_expensive_cond);
+                                           bool exclude_expensive_cond,
+                                           bool retain_ref_cond);
 
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
@@ -927,7 +929,7 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, FALSE);
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, FALSE, FALSE);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
@@ -2254,7 +2256,7 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 (table_map)0, FALSE);
+						 (table_map)0, FALSE, FALSE);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -2277,7 +2279,7 @@ JOIN::exec()
                                          QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
-						   ~used_tables, FALSE);
+						   ~used_tables, FALSE, FALSE);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
                                          "having after sort",
                                          QT_ORDINARY););
@@ -5979,6 +5981,46 @@ bool JOIN_TAB::hash_join_is_possible()
 }
 
 
+/* 
+  @brief
+  Extract pushdown conditions for a table scan
+
+  @details
+  This functions extracts pushdown conditions usable when this table is scanned.
+  The conditions are extracted either from WHERE or from ON expressions.
+  The conditions are attached to the field cache_select of this table.
+
+  @note 
+  Currently the extracted conditions are used only by BNL and BNLH join.
+  algorithms.
+ 
+  @retval  0   on success
+           1   otherwise
+*/ 
+
+int JOIN_TAB::make_scan_filter()
+{
+  COND *tmp;
+  DBUG_ENTER("make_join_select");
+
+  Item *cond= is_last_inner_table() ?
+                *get_first_inner_table()->on_expr_ref : join->conds;
+
+  if (cond &&
+      (tmp=make_cond_for_table(cond, join->const_table_map | table->map,
+			       table->map, FALSE, TRUE)))
+  {
+     DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
+     if (!(cache_select=
+          (SQL_SELECT*) join->thd->memdup((uchar*) select, sizeof(SQL_SELECT))))
+	DBUG_RETURN(1);
+     cache_select->cond= tmp;
+     cache_select->read_tables=join->const_table_map;
+  }
+  DBUG_RETURN(0);
+}
+
+
 static uint
 cache_record_length(JOIN *join,uint idx)
 {
@@ -6751,7 +6793,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         COND *const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
-                              (table_map) 0, TRUE);
+                              (table_map) 0, TRUE, FALSE);
         /* Add conditions added by add_not_null_conds(). */
         for (uint i= 0 ; i < join->const_tables ; i++)
           add_cond_and_fix(&const_cond, join->join_tab[i].select_cond);
@@ -6765,7 +6807,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             JOIN_TAB *cond_tab= tab->first_inner;
             COND *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
-                                         (  table_map) 0, FALSE);
+					   (table_map) 0, FALSE, FALSE);
             if (!tmp)
               continue;
             tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -6853,7 +6895,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
       tmp= NULL;
       if (cond)
-        tmp= make_cond_for_table(cond, used_tables, current_map, FALSE);
+        tmp= make_cond_for_table(cond, used_tables, current_map, FALSE, FALSE);
       /* Add conditions added by add_not_null_conds(). */
       if (tab->select_cond)
         add_cond_and_fix(&tmp, tab->select_cond);
@@ -6912,7 +6954,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, FALSE);
+              make_cond_for_table(tmp, current_map, current_map, FALSE, FALSE);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -7037,19 +7079,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (i != join->const_tables && tab->use_quick != 2 &&
               !tab->first_inner)
 	  {					/* Read with cache */
-	    if (cond &&
-                (tmp=make_cond_for_table(cond,
-					 join->const_table_map |
-					 current_map,
-					 current_map, FALSE)))
-	    {
-              DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
-	      tab->cache_select=(SQL_SELECT*)
-		thd->memdup((uchar*) sel, sizeof(SQL_SELECT));
-	      tab->cache_select->cond=tmp;
-	      tab->cache_select->read_tables=join->const_table_map;
-	    }
-	  }
+            if (tab->make_scan_filter())
+              DBUG_RETURN(1);
+          }
 	}
       }
       
@@ -7071,7 +7103,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           JOIN_TAB *cond_tab= join_tab->first_inner;
           COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
                                          join->const_table_map,
-                                         (table_map) 0, FALSE);
+                                         (table_map) 0, FALSE, FALSE);
           if (!tmp)
             continue;
           tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -7106,7 +7138,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           current_map= tab->table->map;
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
-                                              current_map, FALSE);
+                                              current_map, FALSE, FALSE);
           add_cond_and_fix(&tmp_cond, tab->on_precond);
           if (tmp_cond)
           {
@@ -7686,7 +7718,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if ((cache_level <=4 && !no_hashed_cache) || no_bka_cache ||
 	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6))
     {
-      if (!tab->hash_join_is_possible())
+      if (!tab->hash_join_is_possible() ||
+          tab->make_scan_filter())
         goto no_join_cache;
       if (cache_level == 3)
         prev_cache= 0;
@@ -14874,6 +14907,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       used_table   Table that we're extracting the condition for (may 
                    also include PSEUDO_TABLE_BITS
       exclude_expensive_cond  Do not push expensive conditions
+      retain_ref_cond         Retain ref conditions
 
   DESCRIPTION
     Extract the condition that can be checked after reading the table
@@ -14899,16 +14933,18 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 
 static Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
-                    bool exclude_expensive_cond)
+                    bool exclude_expensive_cond, bool retain_ref_cond)
 {
   return make_cond_for_table_from_pred(cond, cond, tables, used_table,
-                                       exclude_expensive_cond);
+                                       exclude_expensive_cond,
+                                       retain_ref_cond);
 }
                
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
-                              bool exclude_expensive_cond)
+                              bool exclude_expensive_cond,
+                              bool retain_ref_cond)
 
 {
   if (used_table && !(cond->used_tables() & used_table) &&
@@ -14939,7 +14975,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       {
 	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
                                                 tables, used_table,
-                                                exclude_expensive_cond);
+                                                exclude_expensive_cond,
+                                                retain_ref_cond);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -14971,7 +15008,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       {
 	Item *fix=make_cond_for_table_from_pred(root_cond, item,
                                                 tables, 0L,
-                                                exclude_expensive_cond);
+                                                exclude_expensive_cond,
+                                                retain_ref_cond);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -14992,7 +15030,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
     table_count times, we mark each item that we have examined with the result
     of the test
   */
-  if (cond->marker == 3 || (cond->used_tables() & ~tables) ||
+  if ((cond->marker == 3 && !retain_ref_cond) || 
+      (cond->used_tables() & ~tables) ||
       /*
         When extracting constant conditions, treat expensive conditions as
         non-constant, so that they are not evaluated at optimization time.
@@ -15007,13 +15046,13 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   {
     Item *left_item=	((Item_func*) cond)->arguments()[0]->real_item();
     Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
-    if (left_item->type() == Item::FIELD_ITEM &&
+    if (left_item->type() == Item::FIELD_ITEM && !retain_ref_cond &&
 	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
       cond->marker=3;			// Checked when read
       return (COND*) 0;
     }
-    if (right_item->type() == Item::FIELD_ITEM &&
+    if (right_item->type() == Item::FIELD_ITEM && !retain_ref_cond &&
 	test_if_ref(root_cond, (Item_field*) right_item,left_item))
     {
       cond->marker=3;			// Checked when read
@@ -16198,7 +16237,7 @@ static bool fix_having(JOIN *join, Item **having)
 
   DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
   Item* sort_table_cond=make_cond_for_table(*having, used_tables, used_tables,
-                                            FALSE);
+                                            FALSE, FALSE);
   if (sort_table_cond)
   {
     if (!table->select)
@@ -16216,7 +16255,8 @@ static bool fix_having(JOIN *join, Item **having)
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having",
                                      QT_ORDINARY););
-    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables, FALSE);
+    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables,
+                                 FALSE, FALSE);
     DBUG_EXECUTE("where",
                  print_where(*having,"having after make_cond", QT_ORDINARY););
   }
