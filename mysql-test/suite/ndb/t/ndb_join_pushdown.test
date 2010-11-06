@@ -2915,6 +2915,23 @@ explain select * from tc as x1, tc as x2 where x1.b=x2.a;
 
 drop table tc;
 
+###
+# prune with xfrm set incorrect keylen
+#
+create table t1 (
+  a varchar(16) not null,
+  b int not null,
+  c varchar(16) not null,
+  d int not null,
+  primary key (a,b)
+) engine ndb partition by key (a);
+
+insert into t1  values ('aaa', 1, 'aaa', 1);
+explain
+select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
+select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
+drop table t1;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 
