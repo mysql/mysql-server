@@ -356,7 +356,7 @@ unpack_row(Relay_log_info const *rli,
           should match the one reported by Field_*::unpack.
          */
         DBUG_ASSERT(tabledef->calc_field_size(i, (uchar *) old_pack_ptr) == 
-                    (pack_ptr - old_pack_ptr));
+                    (uint32) (pack_ptr - old_pack_ptr));
       }
 
       /*
