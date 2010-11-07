@@ -217,6 +217,8 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
 void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc);
+void _ma_bitmap_lock(MARIA_SHARE *share);
+void _ma_bitmap_unlock(MARIA_SHARE *share);
 void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
                                         MARIA_SHARE *share);
 #ifndef DBUG_OFF
@@ -281,7 +283,8 @@ my_bool write_hook_for_commit(enum translog_record_type type,
                               TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                               void *hook_arg);
 void _ma_block_get_status(void *param, my_bool concurrent_insert);
-void _ma_block_get_status_no_versioning(void *param, my_bool concurrent_ins);
+my_bool _ma_block_start_trans(void* param);
+my_bool _ma_block_start_trans_no_versioning(void *param);
 void _ma_block_update_status(void *param);
 void _ma_block_restore_status(void *param);
 my_bool _ma_block_check_status(void *param);

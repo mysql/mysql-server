@@ -211,7 +211,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
   for (;;)
   {
     if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS,
-                                   &write_lock_used)))
+                                   &write_lock_used)) ||
+        ! sql_lock->table_count)
       break;
 
     if (global_read_lock && write_lock_used &&
@@ -257,8 +258,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
 
     thd_proc_info(thd, "System lock");
     DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
-    if (sql_lock->table_count && lock_external(thd, sql_lock->table,
-                                               sql_lock->table_count))
+    if (lock_external(thd, sql_lock->table, sql_lock->table_count))
     {
       /* Clear the lock type of all lock data to avoid reusage. */
       reset_lock_data(sql_lock);
@@ -279,8 +279,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
                                                      thd->lock_id)];
     if (rc > 1)                                 /* a timeout or a deadlock */
     {
-      if (sql_lock->table_count)
-        VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
+      VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
       my_error(rc, MYF(0));
       my_free((uchar*) sql_lock,MYF(0));
       sql_lock= 0;
@@ -388,7 +387,7 @@ void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
   if (sql_lock->table_count)
     VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
   if (sql_lock->lock_count)
-    thr_multi_unlock(sql_lock->locks,sql_lock->lock_count);
+    thr_multi_unlock(sql_lock->locks,sql_lock->lock_count, 0);
   my_free((uchar*) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -418,25 +417,8 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
   uint i,found;
   DBUG_ENTER("mysql_unlock_read_tables");
 
-  /* Move all write locks first */
-  THR_LOCK_DATA **lock=sql_lock->locks;
-  for (i=found=0 ; i < sql_lock->lock_count ; i++)
-  {
-    if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
-    {
-      swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
-      lock++;
-      found++;
-    }
-  }
-  /* unlock the read locked tables */
-  if (i != found)
-  {
-    thr_multi_unlock(lock,i-found);
-    sql_lock->lock_count= found;
-  }
+  /* Call external lock for all tables to be unlocked */
 
-  /* Then do the same for the external locks */
   /* Move all write locked tables first */
   TABLE **table=sql_lock->table;
   for (i=found=0 ; i < sql_lock->table_count ; i++)
@@ -455,6 +437,27 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock)
     VOID(unlock_external(thd,table,i-found));
     sql_lock->table_count=found;
   }
+
+  /* Call thr_unlock() for all tables to be unlocked */
+
+  /* Move all write locks first */
+  THR_LOCK_DATA **lock=sql_lock->locks;
+  for (i=found=0 ; i < sql_lock->lock_count ; i++)
+  {
+    if (sql_lock->locks[i]->type >= TL_WRITE_ALLOW_READ)
+    {
+      swap_variables(THR_LOCK_DATA *, *lock, sql_lock->locks[i]);
+      lock++;
+      found++;
+    }
+  }
+  /* unlock the read locked tables */
+  if (i != found)
+  {
+    thr_multi_unlock(lock, i-found, 0);
+    sql_lock->lock_count= found;
+  }
+
   /* Fix the lock positions in TABLE */
   table= sql_lock->table;
   found= 0;
@@ -582,8 +585,21 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
   if ((locked= get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK,
                              &write_lock_used)))
   {
-    for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
+    if (table->children_attached)
+    {
+      /*
+        Don't abort locks for underlying tables just because merge table
+        is deleted. Doing would cause anyone accessing these tables to
+        spin in open_table/close_table forever until lock is released.
+      */
+      thr_multi_unlock(locked->locks, locked->lock_count,
+                       THR_UNLOCK_UPDATE_STATUS);
+    }
+    else
+    {
+      for (uint i=0; i < locked->lock_count; i++)
+        thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
+    }
     my_free((uchar*) locked,MYF(0));
   }
   DBUG_VOID_RETURN;
@@ -624,21 +640,36 @@ bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
 }
 
 
+/**
+  Merge two thr_lock:s
+  mysql_lock_merge()
+
+  @param a	Original locks
+  @param b	New locks
+
+  @retval	New lock structure that contains a and b
+
+  @note
+  a and b are freed with my_free()
+*/
+
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 {
   MYSQL_LOCK *sql_lock;
   TABLE **table, **end_table;
   DBUG_ENTER("mysql_lock_merge");
+  DBUG_PRINT("enter", ("a->lock_count: %u  b->lock_count: %u",
+                       a->lock_count, b->lock_count));
 
   if (!(sql_lock= (MYSQL_LOCK*)
 	my_malloc(sizeof(*sql_lock)+
-		  sizeof(THR_LOCK_DATA*)*(a->lock_count+b->lock_count)+
+		  sizeof(THR_LOCK_DATA*)*((a->lock_count+b->lock_count)*2) +
 		  sizeof(TABLE*)*(a->table_count+b->table_count),MYF(MY_WME))))
     DBUG_RETURN(0);				// Fatal error
   sql_lock->lock_count=a->lock_count+b->lock_count;
   sql_lock->table_count=a->table_count+b->table_count;
   sql_lock->locks=(THR_LOCK_DATA**) (sql_lock+1);
-  sql_lock->table=(TABLE**) (sql_lock->locks+sql_lock->lock_count);
+  sql_lock->table=(TABLE**) (sql_lock->locks+sql_lock->lock_count*2);
   memcpy(sql_lock->locks,a->locks,a->lock_count*sizeof(*a->locks));
   memcpy(sql_lock->locks+a->lock_count,b->locks,
 	 b->lock_count*sizeof(*b->locks));
@@ -658,6 +689,18 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
     (*table)->lock_position+=   a->table_count;
     (*table)->lock_data_start+= a->lock_count;
   }
+
+  /*
+    Ensure that locks of the same tables share same data structures if we
+    reopen a table that is already open. This can happen for example with
+    MERGE tables.
+  */
+
+  /* Copy the lock data array. thr_merge_lock() reorders its content */
+  memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
+         sql_lock->lock_count * sizeof(*sql_lock->locks));
+  thr_merge_locks(sql_lock->locks + sql_lock->lock_count,
+                  a->lock_count, b->lock_count);
 
   /* Delete old, not needed locks */
   my_free((uchar*) a,MYF(0));
@@ -832,7 +875,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 
   /*
     Allocating twice the number of pointers for lock data for use in
-    thr_mulit_lock(). This function reorders the lock data, but cannot
+    thr_multi_lock(). This function reorders the lock data, but cannot
     update the table values. So the second part of the array is copied
     from the first part immediately before calling thr_multi_lock().
   */
@@ -1062,11 +1105,13 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list, bool check_in_use)
 
 void unlock_table_name(THD *thd, TABLE_LIST *table_list)
 {
+  DBUG_ENTER("unlock_table_name");
   if (table_list->table)
   {
     hash_delete(&open_cache, (uchar*) table_list->table);
     broadcast_refresh();
   }
+  DBUG_VOID_RETURN;
 }
 
 

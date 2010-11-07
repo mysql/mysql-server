@@ -189,7 +189,7 @@ os_event_wait_low(
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or
-a timeout is exceeded. In Unix the timeout is always infinite.
+a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 UNIV_INTERN
 ulint

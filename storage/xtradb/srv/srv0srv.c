@@ -704,6 +704,8 @@ UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
+UNIV_INTERN os_event_t	srv_purge_thread_event;
+
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
@@ -1009,6 +1011,7 @@ srv_init(void)
 	}
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
+	srv_purge_thread_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -3337,9 +3340,10 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		sleep_ms = 10;
+		os_event_reset(srv_purge_thread_event);
 	}
 
-	os_thread_sleep( sleep_ms * 1000 );
+	os_event_wait_time(srv_purge_thread_event, sleep_ms * 1000);
 
 	history_len = trx_sys->rseg_history_len;
 	if (history_len > 1000)

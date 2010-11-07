@@ -63,7 +63,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       {
 	count= --share->w_locks;
         if (share->lock.update_status)
-          (*share->lock.update_status)(info);
+          _ma_update_status_with_lock(info);
       }
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks)

@@ -408,7 +408,7 @@ ALTER TABLE t1_will_crash CHECK PARTITION p6;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	Size of datafile is: 868       Should be: 604
 test.t1_will_crash	check	error	Record-count is not ok; is 8   Should be: 7
-test.t1_will_crash	check	warning	Found 10 key parts. Should be: 7
+test.t1_will_crash	check	warning	Found 10 parts. Should be: 7
 test.t1_will_crash	check	error	Partition p6 returned error
 test.t1_will_crash	check	error	Corrupt
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
