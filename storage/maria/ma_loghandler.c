@@ -2500,10 +2500,7 @@ my_bool translog_prev_buffer_flush_wait(struct st_translog_buffer *buffer)
       pthread_cond_wait(&buffer->prev_sent_to_disk_cond, &buffer->mutex);
       if (buffer->file != file || buffer->offset != offset ||
           buffer->ver != ver)
-      {
-        translog_buffer_unlock(buffer);
         DBUG_RETURN(1); /* some the thread flushed the buffer already */
-      }
     } while(buffer->prev_buffer_offset != buffer->prev_sent_to_disk);
   }
   DBUG_RETURN(0);

@@ -1211,7 +1211,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
       {			/* Change temp file to org file */
         VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-                                       MYF(0));
+                                       0, MYF(0));
         if (_ma_open_datafile(info,info->s, NullS, -1))
           error=1;
         param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1349,11 +1349,9 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
+                                     param->backup_time,
                                      ((param->testflag & T_BACKUP_DATA) ?
                                       MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
-    if (param->out_flag & O_NEW_INDEX)
-      error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,
-                                     MYF(0));
   }
   if (opt_transaction_logging &&
       share->base.born_transactional && !error &&
@@ -1457,7 +1455,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     printf("UUID:                %s\n", buff);
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      strmov(buff, share->state.changed & STATE_CRASHED_ON_REPAIR ?
+             "crashed on repair" : "crashed");
     else
     {
       if (share->state.open_count)

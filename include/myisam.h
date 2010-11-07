@@ -295,6 +295,8 @@ extern int mi_is_changed(struct st_myisam_info *info);
 extern int mi_delete_all_rows(struct st_myisam_info *info);
 extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
+extern int mi_make_backup_of_index(struct st_myisam_info *info,
+                                   time_t backup_time, myf flags);
 
 #define MEMMAP_EXTRA_MARGIN     7       /* Write this as a suffix for mmap file */
 /* this is used to pass to mysql_myisamchk_table */
@@ -390,7 +392,8 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
 int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
-		      const char * new_ext, uint raid_chunks,
+		      const char * new_ext, time_t backup_time,
+                      uint raid_chunks,
 		      myf myflags);
 int lock_file(HA_CHECK *param, File file, my_off_t start, int lock_type,
 	      const char *filetype, const char *filename);

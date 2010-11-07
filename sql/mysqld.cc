@@ -6456,7 +6456,7 @@ each time the SQL thread starts.",
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
+   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, BACKUP_ALL, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -7503,7 +7503,11 @@ thread is in the relay logs.",
    1024, 0},
   {"thread_handling", OPT_THREAD_HANDLING,
    "Define threads usage for handling queries: "
-   "one-thread-per-connection or no-threads.",
+   "one-thread-per-connection"
+#if HAVE_POOL_OF_THREADS == 1
+  ", pool-of-threads"
+#endif
+   "or no-threads.",
    &opt_thread_handling, &opt_thread_handling,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,

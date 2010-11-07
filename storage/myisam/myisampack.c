@@ -720,7 +720,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
             VOID(my_delete(new_name,MYF(MY_WME)));
         }
 	else
-	  error=my_redel(org_name,new_name,MYF(MY_WME | MY_COPYTIME));
+	  error=my_redel(org_name, new_name, 0, MYF(MY_WME | MY_COPYTIME));
       }
       if (! error)
 	error=save_state(isam_file,mrg,new_length,glob_crc);
