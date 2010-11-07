@@ -2431,6 +2431,15 @@ class store_key_field: public store_key
     TABLE *table= copy_field.to_field->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
+
+    /* 
+      It looks like the next statement is needed only for a simplified
+      hash function over key values used now in BNLH join.
+      When the implementation of this function will be replaced for a proper
+      full version this statement probably should be removed.
+    */  
+    bzero(copy_field.to_ptr,copy_field.to_length);
+
     copy_field.do_copy(&copy_field);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null();
@@ -2464,6 +2473,15 @@ public:
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
     int res= FALSE;
+
+    /* 
+      It looks like the next statement is needed only for a simplified
+      hash function over key values used now in BNLH join.
+      When the implementation of this function will be replaced for a proper
+      full version this statement probably should be removed.
+    */  
+    to_field->reset();
+
     if (use_value)
       item->save_val(to_field);
     else

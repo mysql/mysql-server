@@ -2315,5 +2315,48 @@ SET SESSION join_buffer_size = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #671901: hash join using a ref to a varchar field
+--echo #
+
+CREATE TABLE t1 (
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  i int  DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+ ('k',8), ('abcdefjh',-575340544), ('f',77), ('because', 2), ('f',-517472256),
+ ('abcdefjhj',5), ('z',7);
+
+CREATE TABLE t2 (
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  i int DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t2 VALUES
+  ('did',5), ('was',-1631322112), ('are',3), ('abcdefjhjk',3), 
+  ('abcdefjhjk',4), ('tell',-824573952), ('t',0),('v',-1711013888),
+  ('abcdefjhjk',1015414784), ('or',4), ('now',0), ('abcdefjhjk',-32702464),
+  ('abcdefjhjk',4), ('time',1078394880), ('f',4), ('m',-1845559296), 
+  ('ff', 5), ('abcdefjhjk',-1074397184);
+
+EXPLAIN 
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+EXPLAIN
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+
+SET SESSION join_cache_level = 4;
+EXPLAIN 
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+EXPLAIN
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
