@@ -406,6 +406,12 @@ public:
   */
   Format_description_log_event *description_event_for_exec,
     *description_event_for_queue;
+  /*
+    Binlog position of last commit (or non-transactional write) to the binlog.
+    Access to this is protected by LOCK_commit_ordered.
+  */
+  char last_commit_pos_file[FN_REFLEN];
+  my_off_t last_commit_pos_offset;
 
   MYSQL_BIN_LOG();
   /*
@@ -521,7 +527,7 @@ public:
   inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-  void set_status_variables();
+  void set_status_variables(THD *thd);
 };
 
 class Log_event_handler

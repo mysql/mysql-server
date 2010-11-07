@@ -62,6 +62,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 
 /**
   Silence all errors and warnings reported when performing a write
@@ -155,9 +156,10 @@ class binlog_trx_data {
 public:
   binlog_trx_data()
     : at_least_one_stmt_committed(0), incident(FALSE), m_pending(0),
-    before_stmt_pos(MY_OFF_T_UNDEF), commit_bin_log_file_pos(0), using_xa(0)
+    before_stmt_pos(MY_OFF_T_UNDEF), last_commit_pos_offset(0), using_xa(0)
   {
     trans_log.end_of_file= max_binlog_cache_size;
+    strcpy(last_commit_pos_file, "");
   }
 
   ~binlog_trx_data()
@@ -215,7 +217,8 @@ public:
     incident= FALSE;
     trans_log.end_of_file= max_binlog_cache_size;
     using_xa= FALSE;
-    commit_bin_log_file_pos= 0;
+    strcpy(last_commit_pos_file, "");
+    last_commit_pos_offset= 0;
     DBUG_ASSERT(empty());
   }
 
@@ -261,10 +264,14 @@ public:
   */
   my_off_t before_stmt_pos;
   /*
-    Binlog position after current commit, available to storage engines during
-    commit_ordered() and commit().
+    Binlog position for current transaction.
+    For START TRANSACTION WITH CONSISTENT SNAPSHOT, this is the binlog
+    position corresponding to the snapshot taken. During (and after) commit,
+    this is set to the binlog position corresponding to just after the
+    commit (so storage engines can store it in their transaction log).
   */
-  ulonglong commit_bin_log_file_pos;
+  char last_commit_pos_file[FN_REFLEN];
+  my_off_t last_commit_pos_offset;
 
   /*
     Flag set true if this transaction is committed with log_xid() as part of
@@ -1392,6 +1399,7 @@ int binlog_init(void *p)
   binlog_hton->commit= binlog_commit;
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
+  binlog_hton->start_consistent_snapshot= binlog_start_consistent_snapshot;
   binlog_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
 }
@@ -2771,6 +2779,11 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
     if (flush_io_cache(&log_file) ||
         my_sync(log_file.file, MYF(MY_WME)))
       goto err;
+    pthread_mutex_lock(&LOCK_commit_ordered);
+    strmake(last_commit_pos_file, log_file_name,
+            sizeof(last_commit_pos_file)-1);
+    last_commit_pos_offset= my_b_tell(&log_file);
+    pthread_mutex_unlock(&LOCK_commit_ordered);
 
     if (write_file_name_to_index_file)
     {
@@ -4199,6 +4212,25 @@ void THD::binlog_set_stmt_begin() {
   trx_data->before_stmt_pos= pos;
 }
 
+static int
+binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
+{
+  int err= 0;
+  binlog_trx_data *trx_data;
+  DBUG_ENTER("binlog_start_consistent_snapshot");
+
+  thd->binlog_setup_trx_data();
+  trx_data= (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+
+  /* Server layer calls us with LOCK_commit_ordered locked, so this is safe. */
+  strmake(trx_data->last_commit_pos_file, mysql_bin_log.last_commit_pos_file,
+          sizeof(trx_data->last_commit_pos_file)-1);
+  trx_data->last_commit_pos_offset= mysql_bin_log.last_commit_pos_offset;
+
+  trans_register_ha(thd, TRUE, hton);
+
+  DBUG_RETURN(err);
+}
 
 /*
   Write a table map to the binary log.
@@ -4337,6 +4369,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
         rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
       }
 
+      pthread_mutex_lock(&LOCK_commit_ordered);
+      last_commit_pos_offset= my_b_tell(&log_file);
+      pthread_mutex_unlock(&LOCK_commit_ordered);
       pthread_mutex_unlock(&LOCK_log);
     }
 
@@ -4526,7 +4561,12 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
 err_unlock:
     if (file == &log_file)
+    {
+      pthread_mutex_lock(&LOCK_commit_ordered);
+      last_commit_pos_offset= my_b_tell(&log_file);
+      pthread_mutex_unlock(&LOCK_commit_ordered);
       pthread_mutex_unlock(&LOCK_log);
+    }
 
 err:
     if (error)
@@ -4827,6 +4867,9 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
     signal_update();
     rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
+  pthread_mutex_lock(&LOCK_commit_ordered);
+  last_commit_pos_offset= my_b_tell(&log_file);
+  pthread_mutex_unlock(&LOCK_commit_ordered);
   pthread_mutex_unlock(&LOCK_log);
 
   DBUG_RETURN(error);
@@ -4972,9 +5015,11 @@ MYSQL_BIN_LOG::write_transaction_to_binlog_events(group_commit_entry *entry)
 void
 MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::trx_group_commit_leader");
   uint xid_count= 0;
   uint write_count= 0;
+  my_off_t commit_offset;
+  DBUG_ENTER("MYSQL_BIN_LOG::trx_group_commit_leader");
+  LINT_INIT(commit_offset);
 
   /*
     Lock the LOCK_log(), and once we get it, collect any additional writes
@@ -5035,8 +5080,11 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
         write_count++;
       }
 
-      trx_data->commit_bin_log_file_pos=
+      strmake(trx_data->last_commit_pos_file, log_file_name,
+              sizeof(trx_data->last_commit_pos_file)-1);
+      commit_offset=
         log_file.pos_in_file + (log_file.write_pos - log_file.write_buffer);
+      trx_data->last_commit_pos_offset= commit_offset;
       if (trx_data->using_xa)
         xid_count++;
     }
@@ -5078,6 +5126,7 @@ MYSQL_BIN_LOG::trx_group_commit_leader(group_commit_entry *leader)
 
   DEBUG_SYNC(leader->thd, "commit_before_get_LOCK_commit_ordered");
   pthread_mutex_lock(&LOCK_commit_ordered);
+  last_commit_pos_offset= commit_offset;
   /*
     We cannot unlock LOCK_log until we have locked LOCK_commit_ordered;
     otherwise scheduling could allow the next group commit to run ahead of us,
@@ -6529,10 +6578,6 @@ ulonglong mysql_bin_log_file_pos(void)
 
   Since it stores the position inside THD, it is safe to call without any
   locking.
-
-  Note that currently the binlog file name is not stored inside THD, but this
-  is still safe as it can only change when the log is rotated, and we never
-  rotate the binlog while commits are pending inside storage engines.
 */
 void
 mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
@@ -6541,8 +6586,8 @@ mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
     (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
   if (trx_data)
   {
-    *out_pos= trx_data->commit_bin_log_file_pos;
-    *out_file= mysql_bin_log.get_log_fname();
+    *out_file= trx_data->last_commit_pos_file;
+    *out_pos= (ulonglong)(trx_data->last_commit_pos_offset);
   }
   else
   {
@@ -6555,6 +6600,8 @@ mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
 
 static ulonglong binlog_status_var_num_commits;
 static ulonglong binlog_status_var_num_group_commits;
+static char binlog_trx_file[FN_REFLEN];
+static ulonglong binlog_trx_position;
 
 static SHOW_VAR binlog_status_vars_detail[]=
 {
@@ -6562,12 +6609,16 @@ static SHOW_VAR binlog_status_vars_detail[]=
     (char *)&binlog_status_var_num_commits, SHOW_LONGLONG},
   {"group_commits",
     (char *)&binlog_status_var_num_group_commits, SHOW_LONGLONG},
+  {"trx_file",
+    (char *)&binlog_trx_file, SHOW_CHAR},
+  {"trx_position",
+   (char *)&binlog_trx_position, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
 static int show_binlog_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
-  mysql_bin_log.set_status_variables();
+  mysql_bin_log.set_status_variables(thd);
   var->type= SHOW_ARRAY;
   var->value= (char *)&binlog_status_vars_detail;
   return 0;
@@ -6606,17 +6657,31 @@ static struct st_mysql_sys_var *binlog_sys_vars[]=
   This is called only under LOCK_status, so we can fill in a static array.
 */
 void
-TC_LOG_BINLOG::set_status_variables()
+TC_LOG_BINLOG::set_status_variables(THD *thd)
 {
-  ulonglong num_commits, num_group_commits;
+  binlog_trx_data *trx_data;
+
+  if (thd)
+    trx_data= (binlog_trx_data*) thd_get_ha_data(thd, binlog_hton);
+  else
+    trx_data= NULL;
 
   pthread_mutex_lock(&LOCK_commit_ordered);
-  num_commits= this->num_commits;
-  num_group_commits= this->num_group_commits;
+  binlog_status_var_num_commits= this->num_commits;
+  binlog_status_var_num_group_commits= this->num_group_commits;
+  if (!trx_data || 0 == strcmp(trx_data->last_commit_pos_file, ""))
+  {
+    strmake(binlog_trx_file, last_commit_pos_file, sizeof(binlog_trx_file)-1);
+    binlog_trx_position= last_commit_pos_offset;
+  }
   pthread_mutex_unlock(&LOCK_commit_ordered);
 
-  binlog_status_var_num_commits= num_commits;
-  binlog_status_var_num_group_commits= num_group_commits;
+  if (trx_data && 0 != strcmp(trx_data->last_commit_pos_file, ""))
+  {
+    strmake(binlog_trx_file, trx_data->last_commit_pos_file,
+            sizeof(binlog_trx_file)-1);
+    binlog_trx_position= trx_data->last_commit_pos_offset;
+  }
 }
 
 struct st_mysql_storage_engine binlog_storage_engine=
