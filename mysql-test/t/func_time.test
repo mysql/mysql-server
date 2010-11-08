@@ -849,4 +849,14 @@ INSERT INTO t1 VALUES (0),(9.216e-096);
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #52160: crash and inconsistent results when grouping
+--echo #             by a function and column
+--echo #
+
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
+DROP TABLE t1;
+
 --echo End of 5.1 tests
