@@ -472,6 +472,42 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   mrr_funcs= *seq_funcs;
   know_key_tuple_params= FALSE;
   buf_manager= buf_manager_arg;
+  /*
+    Short: don't do identical key handling when we have a pushed index
+    condition.
+
+    Long: In order to check pushed index condition, we need to have both 
+    index tuple table->record[0] and range_id.
+    
+    Key_value_records_iterator has special handling for case when we have
+    multiple (key_value, range_id) pairs with the same key_value. In that 
+    case it will make an index lookup only for the first such element, 
+    for subsequent elements it will only return the new range_id.
+
+    The problem here is that h->table->record[0] is shared with the part that
+    does full record retrieval with rnd_pos() calls, and if we have the
+    following scenario:
+
+     1. We scan ranges {(key_value, range_id1), (key_value, range_id2)}
+     2. Iterator makes a lookup with key_value, produces the (index_tuple,
+        range_id1) pair. Index tuple is read into table->record[0], which
+        allows us to check index condition.
+     3. At this point, we figure that key buffer is full, so we sort it,
+        and return control to Mrr_ordered_rndpos_reader.
+     3.1 Mrr_ordered_rndpos_reader gets rowids and makes rnd_pos() calls, which
+         puts some arbitrary data into table->record[0] in the process.
+     3.2 We ask the iterator for the next (rowid, range_id) pair. The iterator
+         puts in range_id2, and that shuld be sufficient (this is identical key
+         handling at work)
+         However, index tuple in table->record[0] has been destroyed and we 
+         can't check index conditon for (index_tuple, range_id2) now.
+
+    TODO: It is possible to support identical key handling and index condition
+    pushdown, working together (one possible solution is to save/restore the 
+    contents of table->record[0]). We will probably implement that.
+
+  */
+  disallow_identical_key_handling= test(mrr_funcs.skip_index_tuple);
   return 0;
 }
 
@@ -1123,7 +1159,8 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   uchar *save_cur_index_tuple= cur_index_tuple;
   while (!identical_key_it.read())
   {
-    if (Mrr_ordered_index_reader::key_tuple_cmp(owner, key_in_buf, 
+    if (owner->disallow_identical_key_handling ||
+        Mrr_ordered_index_reader::key_tuple_cmp(owner, key_in_buf, 
                                                 cur_index_tuple))
       break;
     last_identical_key_ptr= cur_index_tuple;

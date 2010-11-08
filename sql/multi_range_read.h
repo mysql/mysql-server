@@ -289,6 +289,12 @@ private:
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
   
+  /*
+    TRUE <=> Don't do optimizations for identical key value (see comment in
+    Mrr_ordered_index_reader::init for details)
+  */
+  bool disallow_identical_key_handling;
+  
   /* Range sequence iteration members */
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
