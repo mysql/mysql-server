@@ -1002,8 +1002,7 @@ inline int tokudb_generate_row(
     DBT *dest_val,
     const DBT *src_key, 
     const DBT *src_val,
-    void *extra,
-    bool pack_val
+    void *extra
     ) 
 {
     int error;
@@ -1020,12 +1019,10 @@ inline int tokudb_generate_row(
     row_desc += 4;
     
     if (is_key_pk(row_desc, desc_size)) {
-        assert(dest_key->flags != DB_DBT_USERMEM);
         if (dest_key->flags == DB_DBT_REALLOC && dest_key->data != NULL) {
             free(dest_key->data);
         }
-        if (pack_val && dest_val != NULL) {
-            assert(dest_val->flags != DB_DBT_USERMEM);
+        if (dest_val != NULL) {
             if (dest_val->flags == DB_DBT_REALLOC && dest_val->data != NULL) {
                 free(dest_val->data);
             }
@@ -1033,7 +1030,7 @@ inline int tokudb_generate_row(
         dest_key->data = src_key->data;
         dest_key->size = src_key->size;
         dest_key->flags = 0;
-        if (pack_val && dest_val != NULL) {
+        if (dest_val != NULL) {
             dest_val->data = src_val->data;
             dest_val->size = src_val->size;
             dest_val->flags = 0;
@@ -1083,7 +1080,7 @@ inline int tokudb_generate_row(
     row_desc += desc_size;
     desc_size = (*(u_int32_t *)row_desc) - 4;
     row_desc += 4;
-    if (pack_val && dest_val != NULL) {
+    if (dest_val != NULL) {
         if (!is_key_clustering(row_desc, desc_size)) {
             dest_val->size = 0;
         }
@@ -1136,8 +1133,7 @@ int generate_row_for_del(
         NULL,
         src_key,
         src_val,
-        extra,
-        false
+        extra
         );
 }
 
@@ -1159,8 +1155,7 @@ int generate_row_for_put(
         dest_val,
         src_key,
         src_val,
-        extra,
-        true
+        extra
         );
 }
 
@@ -1676,6 +1671,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 
     int error = 0;
     int ret_val = 0;
+    uint curr_num_DBs = 0;
 
     transaction = NULL;
     cursor = NULL;
@@ -1693,6 +1689,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     else {
         key_used_on_scan = primary_key;
     }
+    curr_num_DBs = table_share->keys + test(hidden_primary_key);
 
     /* Need some extra memory in case of packed keys */
     // the "+ 1" is for the first byte that states +/- infinity
@@ -1720,10 +1717,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         goto exit;
     }
 
-    for (u_int32_t i = 0; i < (table_share->keys); i++) {
-        if (i == primary_key) {
-            continue;
-        }
+    for (u_int32_t i = 0; i < curr_num_DBs; i++) {
         mult_key_buff[i] = (uchar *)my_malloc(max_key_length, MYF(MY_WME));
         assert(mult_key_buff[i] != NULL);
         mult_key_dbt[i].ulen = max_key_length;
@@ -1780,7 +1774,7 @@ exit:
         alloc_ptr = NULL;
         my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
         rec_buff = NULL;
-        for (u_int32_t i = 0; i < (table_share->keys); i++) {
+        for (u_int32_t i = 0; i < curr_num_DBs; i++) {
             my_free(mult_key_buff[i], MYF(MY_ALLOW_ZERO_PTR));
             my_free(mult_rec_buff[i], MYF(MY_ALLOW_ZERO_PTR));
         }
@@ -2006,7 +2000,7 @@ int ha_tokudb::__close(int mutex_is_locked) {
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(blob_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
-    for (u_int32_t i = 0; i < (table_share->keys); i++) {
+    for (u_int32_t i = 0; i < (table_share->keys + test(hidden_primary_key)); i++) {
         my_free(mult_key_buff[i], MYF(MY_ALLOW_ZERO_PTR));
         my_free(mult_rec_buff[i], MYF(MY_ALLOW_ZERO_PTR));
     }
