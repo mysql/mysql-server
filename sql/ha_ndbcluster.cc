@@ -8845,8 +8845,7 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_VOID_RETURN;
 }
 
-
-
+#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
 void
 ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
@@ -8858,6 +8857,7 @@ ha_ndbcluster::column_bitmaps_signal(uint sig_type)
     bitmap_copy(&m_save_read_set, table->read_set);
   DBUG_VOID_RETURN;
 }
+#endif
 
 /**
   Open a table for further use

@@ -79,6 +79,9 @@ enum column_format_type {
 /* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
 #define NDB_WITHOUT_TABLESPACE_IN_FRM
 
+/* Read before write removal not supported */
+#define NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
+
 #endif
 
 
