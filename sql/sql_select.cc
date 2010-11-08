@@ -15997,6 +15997,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
+          str.extra_allocation(1024);
 	  item->print(&str, QT_ORDINARY);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}

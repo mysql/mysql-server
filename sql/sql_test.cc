@@ -57,9 +57,10 @@ print_where(COND *cond,const char *info, enum_query_type query_type)
 {
   if (cond)
   {
-    char buff[256];
+    char buff[1024];
     String str(buff,(uint32) sizeof(buff), system_charset_info);
     str.length(0);
+    str.extra_allocation(1024);
     cond->print(&str, query_type);
     str.append('\0');
     DBUG_LOCK_FILE;

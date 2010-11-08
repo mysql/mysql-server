@@ -116,7 +116,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
   if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
-				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
+				     NET_HEADER_SIZE + COMP_HEADER_SIZE +1,
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
@@ -580,7 +580,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     uchar *b;
     uint header_length=NET_HEADER_SIZE+COMP_HEADER_SIZE;
     if (!(b= (uchar*) my_malloc(len + NET_HEADER_SIZE +
-                                COMP_HEADER_SIZE, MYF(MY_WME))))
+                                COMP_HEADER_SIZE + 1, MYF(MY_WME))))
     {
       net->error= 2;
       net->last_errno= ER_OUT_OF_RESOURCES;
