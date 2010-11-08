@@ -3511,7 +3511,6 @@ row_search_for_mysql(
 	const rec_t*	clust_rec;
 	ulint		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
-	ibool		unique_search_from_clust_index	= FALSE;
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	ibool		moves_up			= FALSE;
 	ibool		set_also_gap_locks		= TRUE;
@@ -3749,8 +3748,6 @@ row_search_for_mysql(
 	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
 
 		mode = PAGE_CUR_GE;
-
-		unique_search_from_clust_index = TRUE;
 
 		if (trx->mysql_n_tables_locked == 0
 		    && prebuilt->select_lock_type == LOCK_NONE
@@ -4704,7 +4701,9 @@ requires_clust_rec:
 	err = DB_SUCCESS;
 
 idx_cond_failed:
-	if (!unique_search_from_clust_index
+	if (!unique_search
+	    || !dict_index_is_clust(index)
+	    || direction != 0
 	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER) {
 
