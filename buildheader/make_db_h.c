@@ -577,7 +577,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "                                             const DBT *old_src_key, const DBT *old_src_data,\n"
                              "                                             const DBT *new_src_key, const DBT *new_src_data,\n"
                              "                                             uint32_t num_dbs, DB **db_array,\n"
-                             "                                             uint32_t num_dbts, DBT *keys, DBT *vals,\n"
+                             "                                             uint32_t num_keys, DBT *keys,\n"
+                             "                                             uint32_t num_vals, DBT *vals,\n"
                              "                                             void *extra) /* update multiple DBs */",
                              "int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */",
                              "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",

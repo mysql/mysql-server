@@ -279,7 +279,8 @@ struct __toku_db_env {
                                              const DBT *old_src_key, const DBT *old_src_data,
                                              const DBT *new_src_key, const DBT *new_src_data,
                                              uint32_t num_dbs, DB **db_array,
-                                             uint32_t num_dbts, DBT *keys, DBT *vals,
+                                             uint32_t num_keys, DBT *keys,
+                                             uint32_t num_vals, DBT *vals,
                                              void *extra) /* update multiple DBs */;
   int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
