@@ -69,3 +69,82 @@ STOP SLAVE;
 --connection master
 DROP TABLE t1;
 -- sync_slave_with_master
+
+# Test ndb_log_apply_status option
+
+--connection master
+start slave;
+create table t1 (a int primary key, b int) engine=ndb;
+show variables like '%log_orig%';
+
+--echo 'Master' has only slave's serverid entry 
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+set global ndb_log_apply_status=On;
+show variables like 'ndb_log_apply_status';
+
+--connection slave
+--echo 'Slave' has only Master's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+--echo 'Slave' has following ndb_binlog_index entries
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+
+set global ndb_log_apply_status=On;
+show variables like 'ndb_log_apply_status';
+
+--connection master
+
+stop slave;
+insert into t1 values (1,1);
+--sync_slave_with_master
+
+--connection slave
+--echo 'Slave' still has only Master's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+--disable_result_log
+show binlog events;
+--enable_result_log
+--echo 'Slave' has following ndb_binlog_index entries
+select inserts, updates, deletes, schemaops, orig_server_id from mysql.ndb_binlog_index order by position;
+
+--connection master
+--echo 'Master' still has only Slave's serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+start slave;
+--connection slave 
+--sync_slave_with_master master
+
+--connection master
+--echo 'Master' now has own serverid entry as well.
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+--connection slave
+--echo 'Slave' still only has 'Master''s serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+--echo Now create event originating at Slave
+insert into t1 values (2,2);
+--sync_slave_with_master master
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+--echo 'Slave' now also has its own serverid entry
+select server_id, log_name from mysql.ndb_apply_status order by server_id;
+
+
+--connection master
+stop slave;
+set global ndb_log_apply_status=off;
+
+--connection slave
+set global ndb_log_apply_status=off;
+stop slave;
+
+drop table t1;
+
+--connection master
+
+drop table t1;

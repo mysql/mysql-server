@@ -14545,6 +14545,17 @@ static MYSQL_SYSVAR_BOOL(
   0                                  /* default */
 );
 
+my_bool opt_ndb_log_apply_status;
+static MYSQL_SYSVAR_BOOL(
+  log_apply_status,                 /* name */
+  opt_ndb_log_apply_status,         /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "Log ndb_apply_status updates from Master in the Binlog",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0                                 /* default */
+);
+
 
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
@@ -14611,6 +14622,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(log_bin),
   MYSQL_SYSVAR(log_binlog_index),
   MYSQL_SYSVAR(log_empty_epochs),
+  MYSQL_SYSVAR(log_apply_status),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),
