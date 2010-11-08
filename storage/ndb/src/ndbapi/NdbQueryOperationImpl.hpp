@@ -719,7 +719,7 @@ private:
   void handleBatchComplete(Uint32 rootFragNo);
 
   /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
-  void fetchRow(const NdbResultStream& resultStream);
+  void fetchRow(NdbResultStream& resultStream);
 
   /** Set result for this operation and all its descendand child 
    *  operations to NULL.
