@@ -209,6 +209,8 @@ read_view_list_validate(void)
 
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
+	mutex_enter(&trx_sys->read_view_mutex);
+
 	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
 	     view != NULL;
 	     prev_view = view, view = UT_LIST_GET_NEXT(view_list, prev_view)) {
@@ -216,6 +218,8 @@ read_view_list_validate(void)
 		ut_a(prev_view == NULL
 		     || prev_view->low_limit_no >= view->low_limit_no);
 	}
+
+	mutex_exit(&trx_sys->read_view_mutex);
 
 	return(TRUE);
 }
