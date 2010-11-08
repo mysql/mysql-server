@@ -1100,11 +1100,6 @@ err:
   mysql_mutex_lock(&LOCK_plugin);
   plugin->state= state;
 
-  /* maintain the obsolete @@have_innodb variable */
-  if (!my_strcasecmp(&my_charset_latin1, plugin->name.str, "InnoDB"))
-    have_innodb= state & PLUGIN_IS_READY ? SHOW_OPTION_YES
-                                         : SHOW_OPTION_DISABLED;
-
   DBUG_RETURN(ret);
 }
 
@@ -1738,7 +1733,11 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
-  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL);
+  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
+  {
+    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    goto err;
+  }
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
   if (argv)
     free_defaults(argv);
