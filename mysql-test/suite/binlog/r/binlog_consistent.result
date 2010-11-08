@@ -4,10 +4,10 @@ CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	241		
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_trx_file	./master-bin.000001
-binlog_trx_position	241
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	241
 BEGIN;
 INSERT INTO t1 VALUES (0, "");
 # Connection con1
@@ -35,10 +35,10 @@ COMMIT;
 SELECT * FROM t1 ORDER BY a,b;
 a	b
 0	
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_trx_file	./master-bin.000001
-binlog_trx_position	540
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	540
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	727		
@@ -57,18 +57,18 @@ FLUSH LOGS;
 SELECT * FROM t1 ORDER BY a,b;
 a	b
 0	
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_trx_file	./master-bin.000001
-binlog_trx_position	540
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	540
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	106		
 COMMIT;
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_trx_file	./master-bin.000002
-binlog_trx_position	106
+binlog_snapshot_file	./master-bin.000002
+binlog_snapshot_position	106
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	106		

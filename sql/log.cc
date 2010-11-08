@@ -6600,8 +6600,8 @@ mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
 
 static ulonglong binlog_status_var_num_commits;
 static ulonglong binlog_status_var_num_group_commits;
-static char binlog_trx_file[FN_REFLEN];
-static ulonglong binlog_trx_position;
+static char binlog_snapshot_file[FN_REFLEN];
+static ulonglong binlog_snapshot_position;
 
 static SHOW_VAR binlog_status_vars_detail[]=
 {
@@ -6609,10 +6609,10 @@ static SHOW_VAR binlog_status_vars_detail[]=
     (char *)&binlog_status_var_num_commits, SHOW_LONGLONG},
   {"group_commits",
     (char *)&binlog_status_var_num_group_commits, SHOW_LONGLONG},
-  {"trx_file",
-    (char *)&binlog_trx_file, SHOW_CHAR},
-  {"trx_position",
-   (char *)&binlog_trx_position, SHOW_LONGLONG},
+  {"snapshot_file",
+    (char *)&binlog_snapshot_file, SHOW_CHAR},
+  {"snapshot_position",
+   (char *)&binlog_snapshot_position, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -6671,16 +6671,17 @@ TC_LOG_BINLOG::set_status_variables(THD *thd)
   binlog_status_var_num_group_commits= this->num_group_commits;
   if (!trx_data || 0 == strcmp(trx_data->last_commit_pos_file, ""))
   {
-    strmake(binlog_trx_file, last_commit_pos_file, sizeof(binlog_trx_file)-1);
-    binlog_trx_position= last_commit_pos_offset;
+    strmake(binlog_snapshot_file, last_commit_pos_file,
+            sizeof(binlog_snapshot_file)-1);
+    binlog_snapshot_position= last_commit_pos_offset;
   }
   pthread_mutex_unlock(&LOCK_commit_ordered);
 
   if (trx_data && 0 != strcmp(trx_data->last_commit_pos_file, ""))
   {
-    strmake(binlog_trx_file, trx_data->last_commit_pos_file,
-            sizeof(binlog_trx_file)-1);
-    binlog_trx_position= trx_data->last_commit_pos_offset;
+    strmake(binlog_snapshot_file, trx_data->last_commit_pos_file,
+            sizeof(binlog_snapshot_file)-1);
+    binlog_snapshot_position= trx_data->last_commit_pos_offset;
   }
 }
 

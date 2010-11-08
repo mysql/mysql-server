@@ -17,7 +17,7 @@ connection default;
 
 CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
 SHOW MASTER STATUS;
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 BEGIN;
 INSERT INTO t1 VALUES (0, "");
 
@@ -56,7 +56,7 @@ COMMIT;
 connection default;
 --echo # Connection default
 SELECT * FROM t1 ORDER BY a,b;
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 SHOW MASTER STATUS;
 SELECT * FROM t2 ORDER BY a;
 
@@ -76,10 +76,10 @@ FLUSH LOGS;
 connection default;
 --echo # Connection default
 SELECT * FROM t1 ORDER BY a,b;
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 SHOW MASTER STATUS;
 COMMIT;
-SHOW STATUS LIKE 'binlog_trx_%';
+SHOW STATUS LIKE 'binlog_snapshot_%';
 SHOW MASTER STATUS;
 
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/

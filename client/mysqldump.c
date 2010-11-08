@@ -1114,8 +1114,8 @@ static int fetch_db_collation(const char *db_name,
 
 /*
   Check if server supports non-blocking binlog position using the
-  binlog_trx_file and binlog_trx_position status variables. If it does,
-  also return the position obtained if output pointers are non-NULL.
+  binlog_snapshot_file and binlog_snapshot_position status variables. If it
+  does, also return the position obtained if output pointers are non-NULL.
   Returns 1 if position available, 0 if not.
 */
 static int
@@ -1126,19 +1126,19 @@ check_consistent_binlog_pos(char *binlog_pos_file, char *binlog_pos_offset)
   int found;
 
   if (mysql_query_with_error_report(mysql, &res,
-                                    "SHOW STATUS LIKE 'binlog_trx_%'"))
+                                    "SHOW STATUS LIKE 'binlog_snapshot_%'"))
     return 1;
 
   found= 0;
   while ((row= mysql_fetch_row(res)))
   {
-    if (0 == strcmp(row[0], "binlog_trx_file"))
+    if (0 == strcmp(row[0], "binlog_snapshot_file"))
     {
       if (binlog_pos_file)
         strmake(binlog_pos_file, row[1], FN_REFLEN-1);
       found++;
     }
-    else if (0 == strcmp(row[0], "binlog_trx_position"))
+    else if (0 == strcmp(row[0], "binlog_snapshot_position"))
     {
       if (binlog_pos_offset)
         strmake(binlog_pos_offset, row[1], LONGLONG_LEN);
