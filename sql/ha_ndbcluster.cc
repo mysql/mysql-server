@@ -243,6 +243,29 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        TABLE_LIST *tables, 
                                        COND *cond);
 
+#if MYSQL_VERSION_ID >= 50501
+/**
+   Used to fill in INFORMATION_SCHEMA* tables.
+
+   @param hton handle to the handlerton structure
+   @param thd the thread/connection descriptor
+   @param[in,out] tables the information schema table that is filled up
+   @param cond used for conditional pushdown to storage engine
+   @param schema_table_idx the table id that distinguishes the type of table
+
+   @return Operation status
+ */
+static int
+ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
+                         COND *cond, enum enum_schema_tables schema_table_idx)
+{
+  if (schema_table_idx == SCH_FILES)
+    return  ndbcluster_fill_files_table(hton, thd, tables, cond);
+  return 0;
+}
+#endif
+
+
 handlerton *ndbcluster_hton;
 
 static handler *ndbcluster_create_handler(handlerton *hton,
@@ -8845,8 +8868,7 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_VOID_RETURN;
 }
 
-
-
+#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
 void
 ha_ndbcluster::column_bitmaps_signal(uint sig_type)
 {
@@ -8858,6 +8880,7 @@ ha_ndbcluster::column_bitmaps_signal(uint sig_type)
     bitmap_copy(&m_save_read_set, table->read_set);
   DBUG_VOID_RETURN;
 }
+#endif
 
 /**
   Open a table for further use
@@ -9131,7 +9154,7 @@ void ha_ndbcluster::set_part_info(partition_info *part_info, bool early)
     }
     if (m_part_info->part_type == HASH_PARTITION &&
         m_part_info->list_of_part_fields &&
-        m_part_info->no_full_part_fields == 0)
+        partition_info_num_full_part_fields(m_part_info) == 0)
     {
       /*
         CREATE TABLE t (....) ENGINE NDB PARTITON BY KEY();
@@ -9560,7 +9583,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::delete_table(thd, 0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -9570,7 +9593,7 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
   }
 
   dict->invalidateDbGlobal(dbname);
@@ -9731,7 +9754,7 @@ int ndbcluster_find_all_files(THD *thd)
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
 
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       if (discover)
       {
         /* ToDo 4.1 database needs to be created if missing */
@@ -9747,7 +9770,7 @@ int ndbcluster_find_all_files(THD *thd)
                                        elmt.database, elmt.name,
                                        TRUE);
       }
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
   while (unhandled && retries);
@@ -9846,19 +9869,19 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                            file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         DBUG_PRINT("info", ("Table %s listed and need discovery",
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
           continue;
         }
-        pthread_mutex_unlock(&LOCK_open);
+        mysql_mutex_unlock(&LOCK_open);
       }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
@@ -9915,10 +9938,10 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
         tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
       ndbcluster_create_binlog_setup(thd, ndb, name, end-name,
                                      db, file_name_str, TRUE);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
   }
 
@@ -9971,7 +9994,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   // Create new files
   List_iterator_fast<char> it2(create_list);
   while ((file_name_str=it2++))
@@ -9986,7 +10009,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
@@ -10114,7 +10137,11 @@ static int ndbcluster_init(void *p)
 #else
     /* Should install alter_table_flags */
 #endif
+#if MYSQL_VERSION_ID >= 50501
+    h->fill_is_table=    ndbcluster_fill_is_table;
+#else
     h->fill_files_table= ndbcluster_fill_files_table;
+#endif
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h->discover=         ndbcluster_discover;
@@ -10900,10 +10927,10 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   if (have_lock_open)
     safe_mutex_assert_owner(&LOCK_open);
   else
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
   if (!have_lock_open)
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
@@ -12278,7 +12305,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     goto ndb_util_thread_fail;
   lex_start(thd);
   thd->init_for_queries();
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
@@ -12301,20 +12330,20 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   /*
     wait for mysql server to start
   */
-  pthread_mutex_lock(&LOCK_server_started);
+  mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
     set_timespec(abstime, 1);
-    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
-	                       &abstime);
+    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
+                         &abstime);
     if (ndbcluster_terminating)
     {
-      pthread_mutex_unlock(&LOCK_server_started);
+      mysql_mutex_unlock(&LOCK_server_started);
       pthread_mutex_lock(&LOCK_ndb_util_thread);
       goto ndb_util_thread_end;
     }
   }
-  pthread_mutex_unlock(&LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
 
   /*
     Wait for cluster to start
@@ -12792,27 +12821,26 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 
 int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
 {
+  const uint num_parts = partition_info_num_parts(part_info);
   NDBTAB *tab= (NDBTAB*)tab_ref;
-  int32 *range_data= (int32*)my_malloc(part_info->no_parts*sizeof(int32),
-                                       MYF(0));
-  uint i;
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_range_data");
 
+  int32 *range_data= (int32*)my_malloc(num_parts*sizeof(int32), MYF(0));
   if (!range_data)
   {
-    mem_alloc_error(part_info->no_parts*sizeof(int32));
+    mem_alloc_error(num_parts*sizeof(int32));
     DBUG_RETURN(1);
   }
-  for (i= 0; i < part_info->no_parts; i++)
+  for (uint i= 0; i < num_parts; i++)
   {
     longlong range_val= part_info->range_int_array[i];
     if (unsigned_flag)
       range_val-= 0x8000000000000000ULL;
     if (range_val < INT_MIN32 || range_val >= INT_MAX32)
     {
-      if ((i != part_info->no_parts - 1) ||
+      if ((i != num_parts - 1) ||
           (range_val != LONGLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
@@ -12823,7 +12851,7 @@ int ha_ndbcluster::set_range_data(void *tab_ref, partition_info *part_info)
     }
     range_data[i]= (int32)range_val;
   }
-  tab->setRangeListData(range_data, part_info->no_parts);
+  tab->setRangeListData(range_data, num_parts);
 error:
   my_free((char*)range_data, MYF(0));
   DBUG_RETURN(error);
@@ -12831,20 +12859,19 @@ error:
 
 int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
 {
+  const uint num_list_values = partition_info_num_list_values(part_info);
   NDBTAB *tab= (NDBTAB*)tab_ref;
-  int32 *list_data= (int32*)my_malloc(part_info->no_list_values * 2
-                                      * sizeof(int32), MYF(0));
-  uint32 i;
+  int32 *list_data= (int32*)my_malloc(num_list_values*2*sizeof(int32), MYF(0));
   int error= 0;
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("set_list_data");
 
   if (!list_data)
   {
-    mem_alloc_error(part_info->no_list_values*2*sizeof(int32));
+    mem_alloc_error(num_list_values*2*sizeof(int32));
     DBUG_RETURN(1);
   }
-  for (i= 0; i < part_info->no_list_values; i++)
+  for (uint i= 0; i < num_list_values; i++)
   {
     LIST_PART_ENTRY *list_entry= &part_info->list_array[i];
     longlong list_val= list_entry->list_value;
@@ -12859,7 +12886,7 @@ int ha_ndbcluster::set_list_data(void *tab_ref, partition_info *part_info)
     list_data[2*i]= (int32)list_val;
     list_data[2*i+1]= list_entry->partition_id;
   }
-  tab->setRangeListData(list_data, 2*part_info->no_list_values);
+  tab->setRangeListData(list_data, 2*num_list_values);
 error:
   my_free((char*)list_data, MYF(0));
   DBUG_RETURN(error);
@@ -12974,12 +13001,14 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
         ng= part_elem->nodegroup_id;
         ts_names[fd_index]= part_elem->tablespace_name;
         frag_data[fd_index++]= ng;
-      } while (++j < part_info->no_subparts);
+      } while (++j < partition_info_num_subparts(part_info));
     }
     first= FALSE;
-  } while (++i < part_info->no_parts);
+  } while (++i < partition_info_num_parts(part_info));
 
-  tab->setDefaultNoPartitionsFlag(part_info->use_default_no_partitions);
+  const bool use_default_num_parts =
+    partition_info_use_default_num_partitions(part_info);
+  tab->setDefaultNoPartitionsFlag(use_default_num_parts);
   tab->setLinearFlag(part_info->linear_hash_ind);
   {
     ha_rows max_rows= table_share->max_rows;
@@ -14067,7 +14096,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
+    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
     {
       init_fill_schema_files_row(table);
       NdbDictionary::Datafile df= dict->getDatafile(id, elt.name);
@@ -14199,7 +14228,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
+    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
     {
       NdbDictionary::Undofile uf= dict->getUndofile(id, elt.name);
       ndberr= dict->getNdbError();
@@ -14545,6 +14574,17 @@ static MYSQL_SYSVAR_BOOL(
   0                                  /* default */
 );
 
+my_bool opt_ndb_log_apply_status;
+static MYSQL_SYSVAR_BOOL(
+  log_apply_status,                 /* name */
+  opt_ndb_log_apply_status,         /* var */
+  PLUGIN_VAR_OPCMDARG,
+  "Log ndb_apply_status updates from Master in the Binlog",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0                                 /* default */
+);
+
 
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
@@ -14611,6 +14651,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(log_bin),
   MYSQL_SYSVAR(log_binlog_index),
   MYSQL_SYSVAR(log_empty_epochs),
+  MYSQL_SYSVAR(log_apply_status),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),
