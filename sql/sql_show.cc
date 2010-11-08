@@ -98,11 +98,13 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
                                           CHARSET_INFO *cs,
                                           bool use_hex);
+#endif
 
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
@@ -477,12 +479,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	}
 	else if (wild_compare(uname, wild, 0))
 	  continue;
-      }
-      if (!(file_name= 
-            thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
-      {
-        my_dirend(dirp);
-        DBUG_RETURN(FIND_FILES_OOM);
       }
     }
     else
@@ -7850,6 +7846,7 @@ void initialize_information_schema_acl()
                                                 &is_internal_schema_access);
 }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert a string in character set in column character set format
   to utf8 character set if possible, the utf8 character set string
@@ -7941,3 +7938,4 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+#endif
