@@ -2773,6 +2773,9 @@ srv_worker_thread(
 
 	++srv_sys->n_threads_active[SRV_WORKER];
 
+	ut_a(srv_n_purge_threads > 1);
+	ut_a(srv_sys->n_threads_active[SRV_WORKER] < srv_n_purge_threads);
+
 	srv_sys_mutex_exit();
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE && !srv_fast_shutdown) {
