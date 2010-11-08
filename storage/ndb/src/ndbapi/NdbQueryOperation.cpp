@@ -1179,7 +1179,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         if (unlikely(len > maxSize))
           return QRY_CHAR_PARAMETER_TRUNCATED;
         
-        dst.appendBytes(&m_value.string, len);
+        dst.appendBytes(m_value.string, len);
       }
       break;
 
