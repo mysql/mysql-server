@@ -12,3 +12,4 @@
 
 binlog_truncate_innodb	    : BUG#42643 2009-02-06 mats Changes to InnoDB requires to complete fix for BUG#36763
 binlog_spurious_ddl_errors  : BUG#54195 2010-06-03 alik binlog_spurious_ddl_errors.test fails, thus disabled
+binlog_unsafe               : Bug#56678 2010-11-08 andrei (*local* to wl2540 tree! fixes of which are not arrived yet to mysql-next-mr-wl2540)
