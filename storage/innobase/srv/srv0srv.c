@@ -2892,6 +2892,13 @@ srv_purge_coordinator_thread(
 					os_thread_sleep(sleep_ms);
 				}
 
+				/* Take snapshot to check for user
+				activity later every 3 seconds. */
+				if (ut_time() - last_time > 1) {
+					count = srv_sys->activity_count;
+					last_time = ut_time();
+				}
+
 			} while (n_pages_purged > 0 && srv_fast_shutdown == 0);
 
 		} else {
@@ -2939,8 +2946,8 @@ srv_purge_coordinator_thread(
 				}
 
 				/* Take snapshot to check for user
-				activity later every 3 seconds. */
-				if (ut_time() - last_time > 3) {
+				activity later every second. */
+				if (ut_time() - last_time > 1) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();
 				}
