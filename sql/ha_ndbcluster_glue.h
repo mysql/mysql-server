@@ -38,7 +38,8 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "sql_parse.h"      // mysql_parse
-#include "sql_truncate.h"      // mysql_truncate_table
+#include "sql_truncate.h"   // mysql_truncate_table
+#include "key.h"            // key_restore
 #else
 #include "mysql_priv.h"
 #endif
