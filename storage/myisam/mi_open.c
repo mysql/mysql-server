@@ -85,13 +85,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong *rec_per_key_part;
+  ulong *rec_per_key_part= 0;
   my_off_t *key_root, *key_del;
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
   LINT_INIT(m_info);
-  LINT_INIT(rec_per_key_part);
   kfile= -1;
   lock_error=1;
   errpos=0;
@@ -683,6 +682,7 @@ err:
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
       (save_errno == HA_ERR_CRASHED_ON_REPAIR))
+  rec_per_key_part= 0;
     mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
@@ -699,8 +699,7 @@ err:
   case 3:
     if (! lock_error)
       VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
-    if (rec_per_key_part)
-      my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
     /* fall through */
   case 2:
     my_afree(disk_cache);
