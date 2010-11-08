@@ -378,7 +378,9 @@ class ha_ndbcluster: public handler
   ~ha_ndbcluster();
 
   int ha_initialise();
+#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
   void column_bitmaps_signal(uint sig_type);
+#endif
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   void local_close(THD *thd, bool release_metadata);
