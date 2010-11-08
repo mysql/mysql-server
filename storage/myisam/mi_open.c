@@ -85,12 +85,13 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
-  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong *rec_per_key_part;
+  my_off_t *key_root, *key_del;
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
   LINT_INIT(m_info);
+  LINT_INIT(rec_per_key_part);
   kfile= -1;
   lock_error=1;
   errpos=0;
@@ -111,9 +112,6 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
-    share_buff.state.rec_per_key_part=rec_per_key_part;
-    share_buff.state.key_root=key_root;
-    share_buff.state.key_del=key_del;
     share_buff.key_cache= multi_key_cache_search((uchar*) name_buff,
                                                  strlen(name_buff),
                                                  dflt_key_cache);
@@ -213,7 +211,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     share->state_diff_length=len-MI_STATE_INFO_SIZE;
 
-    mi_state_info_read(disk_cache, &share->state);
+    if (!mi_state_info_read(disk_cache, &share->state))
+      goto err;
+    rec_per_key_part= share->state.rec_per_key_part;
+    key_root= share->state.key_root;
+    key_del=  share->state.key_del;
+
     len= mi_uint2korr(share->state.header.base_info_length);
     if (len != MI_BASE_INFO_SIZE)
     {
@@ -666,6 +669,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   pthread_mutex_unlock(&THR_LOCK_myisam);
 
   bzero(info.buff, share->base.max_key_block_length * 2);
+  my_free(rec_per_key_part, MYF(0));
 
   if (myisam_log_file >= 0)
   {
@@ -695,6 +699,8 @@ err:
   case 3:
     if (! lock_error)
       VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
+    if (rec_per_key_part)
+      my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
     /* fall through */
   case 2:
     my_afree(disk_cache);
@@ -981,6 +987,16 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
   state->update_count=mi_uint4korr(ptr);	ptr +=4;
 
   ptr+= state->state_diff_length;
+
+  if (!state->rec_per_key_part)
+  {
+    if (!my_multi_malloc(MY_WME,
+			 &state->rec_per_key_part,sizeof(long)*key_parts,
+			 &state->key_root, keys*sizeof(my_off_t),
+			 &state->key_del,  key_blocks*sizeof(my_off_t),
+                         NullS))
+      return(0);
+  }
 
   for (i=0; i < keys; i++)
   {
