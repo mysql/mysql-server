@@ -20,14 +20,15 @@
  **************************************************************/
 
 
-#include <mysql.h>
-#include <mysqld_error.h>
-#include <NdbApi.hpp>
 // Used for cout
 #include <iostream>
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+
+#include <mysql.h>
+#include <mysqld_error.h>
+#include <NdbApi.hpp>
 
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryOperation.hpp"
@@ -50,12 +51,6 @@
   PRINT_APIERROR(error); \
   exit(-1); }
 
-
-
-/**
- * Define NDB_CONNECT_STRING if you don't connect through the default localhost:1186
- */
-  #define NDB_CONNECT_STRING "127.0.0.1:2360"
 
 /*****************************************************
 ** Defines record structure for the rows in our tables
@@ -167,26 +162,10 @@ const char* salariesDef =
 " ENGINE=NDB";
 
 
-int createEmployeeDb()
+int createEmployeeDb(MYSQL& mysql)
 {
-  /**************************************************************
-   * Connect to mysql server and create testDB                  *
-   **************************************************************/
   if (true)
   {
-    MYSQL mysql;
-    if ( !mysql_init(&mysql) ) {
-      std::cout << "mysql_init failed\n";
-      exit(-1);
-    }
-//    mysql_options(&mysql, MYSQL_READ_DEFAULT_FILE, "/home/oa136780/mysql/mysql-5.1-telco-7.0-spj/install/config/my.cnf");
-
-    const char *mysqld_sock = "/tmp/mysql.sock";
-    if ( !mysql_real_connect(&mysql, "127.0.0.1", "root", "", "",
-			     4401, NULL, 0) )
-      return 0;
-
-    printf("Mysql connected\n");
     mysql_query(&mysql, "DROP DATABASE employees");
     printf("Dropped existing employees DB\n");
     mysql_query(&mysql, "CREATE DATABASE employees");
@@ -243,7 +222,6 @@ int createEmployeeDb()
     if (mysql_query(&mysql, "Insert into employees(emp_no,dept_no) values (110567,'d005')") != 0) MYSQLERROR(mysql);
     mysql_commit(&mysql);
 
-    mysql_close(&mysql);
   }
 
   return 1;
@@ -298,7 +276,7 @@ int testQueryBuilder(Ndb &myNdb)
   NdbTransaction* myTransaction = NULL;
   NdbQuery* myQuery = NULL;
 
-  char* dept_no = "d005";
+  const char* dept_no = "d005";
   Uint32 emp_no = 110567;
 
   ManagerRow  managerRow;
@@ -489,6 +467,7 @@ int testQueryBuilder(Ndb &myNdb)
     };
     // Lookup a single tuple with key define by 'managerKey' param. tuple
     const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, paramManagerKey);
+    //const NdbQueryLookupOperationDef *readManager = qb->readTuple(manager, constManagerKey);
     if (readManager == NULL) APIERROR(qb->getNdbError());
 
     // THEN: employee table is joined:
@@ -1066,81 +1045,101 @@ int testQueryBuilder(Ndb &myNdb)
 
 int
 main(int argc, const char** argv){
+  if(argc!=4){
+    std::cout << "Usage: " << argv[0] 
+              << " <mysql IP address> <mysql port> <cluster connect string>" 
+              << std::endl;
+    exit(-1);
+  }
+  const char* const host=argv[1];
+  const int port = atoi(argv[2]);
+  const char* const connectString = argv[3];
+
+  //extern const char *my_progname;
+  //NDB_INIT(argv[0]);
   ndb_init();
+  MYSQL mysql;
+  if(!mysql_init(&mysql)){
+    std::cout << "mysql_init() failed:" << std::endl;
+  }
+  if(!mysql_real_connect(&mysql, host, "root", "", "",
+                         port, NULL, 0)){
+    std::cout << "mysql_real_connect() failed:" << std::endl;
+  }
+
+
+  if (!createEmployeeDb(mysql))
+  {  std::cout << "Create of employee DB failed" << std::endl;
+    exit(-1);
+  }
+  mysql_close(&mysql);
 
   /**************************************************************
    * Connect to ndb cluster                                     *
    **************************************************************/
-
-#if defined(NDB_CONNECT_STRING)
-  Ndb_cluster_connection cluster_connection(NDB_CONNECT_STRING);
-#else
-  Ndb_cluster_connection cluster_connection;
-#endif
-
-  if (!createEmployeeDb())
-  {  std::cout << "Create of employee DB failed" << std::endl;
-     exit(-1);
-  }
-  if (cluster_connection.connect(4, 5, 1))
   {
-    std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
-    exit(-1);
-  }
-  // Optionally connect and wait for the storage nodes (ndbd's)
-  if (cluster_connection.wait_until_ready(30,0) < 0)
-  {
-    std::cout << "Cluster was not ready within 30 secs.\n";
-    exit(-1);
-  }
-  Ndb myNdb(&cluster_connection,"employees");
-  if (myNdb.init(1024) == -1) {      // Set max 1024  parallel transactions
-    APIERROR(myNdb.getNdbError());
-    exit(-1);
-  }
-  std::cout << "Connected to Cluster\n";
+    Ndb_cluster_connection cluster_connection(connectString);
+    if (cluster_connection.connect(4, 5, 1))
+    {
+      std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
+      exit(-1);
+    }
+    // Optionally connect and wait for the storage nodes (ndbd's)
+    if (cluster_connection.wait_until_ready(30,0) < 0)
+    {
+      std::cout << "Cluster was not ready within 30 secs.\n";
+      exit(-1);
+    }
+    Ndb myNdb(&cluster_connection,"employees");
+    if (myNdb.init(1024) == -1) {      // Set max 1024  parallel transactions
+      APIERROR(myNdb.getNdbError());
+      exit(-1);
+    }
+    std::cout << "Connected to Cluster\n";
+  
+    /*******************************************
+     * Check table existence                   *
+     *******************************************/
+    if (true)
+    {
+      bool has_tables = true;
+      const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
+  
+      if (myDict->getTable("departments") == 0)
+      {  std::cout << "Table 'departments' not found" << std::endl;
+         has_tables = false;
+      }
+      if (myDict->getTable("employees") == 0)
+      {  std::cout << "Table 'employees' not found" << std::endl;
+         has_tables = false;
+      }
+      if (myDict->getTable("dept_emp") == 0)
+      {  std::cout << "Table 'dept_emp' not found" << std::endl;
+         has_tables = false;
+      }
+      if (myDict->getTable("dept_manager") == 0)
+      {  std::cout << "Table 'dept_manager' not found" << std::endl;
+         has_tables = false;
+      }
+      if (myDict->getTable("salaries") == 0)
+      {  std::cout << "Table 'salaries' not found" << std::endl;
+         has_tables = false;
+      }
+      if (myDict->getTable("titles") == 0)
+      {  std::cout << "Table 'titles' not found" << std::endl;
+         has_tables = false;
+      }
+      if (!has_tables)
+      {  std::cout << "Table(s) was missing from the 'employees' DB" << std::endl;
+         exit(-1);
+      }
+      std::cout << "All tables in 'employees' DB was found" << std::endl;
+    }
+  
+    testQueryBuilder(myNdb);
 
-  /*******************************************
-   * Check table existence                   *
-   *******************************************/
-  if (true)
-  {
-    bool has_tables = true;
-    const NdbDictionary::Dictionary* myDict= myNdb.getDictionary();
-
-    if (myDict->getTable("departments") == 0)
-    {  std::cout << "Table 'departments' not found" << std::endl;
-       has_tables = false;
-    }
-    if (myDict->getTable("employees") == 0)
-    {  std::cout << "Table 'employees' not found" << std::endl;
-       has_tables = false;
-    }
-    if (myDict->getTable("dept_emp") == 0)
-    {  std::cout << "Table 'dept_emp' not found" << std::endl;
-       has_tables = false;
-    }
-    if (myDict->getTable("dept_manager") == 0)
-    {  std::cout << "Table 'dept_manager' not found" << std::endl;
-       has_tables = false;
-    }
-    if (myDict->getTable("salaries") == 0)
-    {  std::cout << "Table 'salaries' not found" << std::endl;
-       has_tables = false;
-    }
-    if (myDict->getTable("titles") == 0)
-    {  std::cout << "Table 'titles' not found" << std::endl;
-       has_tables = false;
-    }
-    if (!has_tables)
-    {  std::cout << "Table(s) was missing from the 'employees' DB" << std::endl;
-       exit(-1);
-    }
-    std::cout << "All tables in 'employees' DB was found" << std::endl;
-  }
-
-  testQueryBuilder(myNdb);
-
+  }  // Must call ~Ndb_cluster_connection() before ndb_end().
+  ndb_end(0);
   return 0;
 }
 
