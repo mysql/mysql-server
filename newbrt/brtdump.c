@@ -120,6 +120,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 case BRT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
 				 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
 				 case BRT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
+				 case BRT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
 				 }
 				 printf("HUH?");
 			     ok:
@@ -139,6 +140,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     } else {
         struct subtree_estimates *est = &n->u.l.leaf_stats;
         printf("{nkey=%" PRIu64 " ndata=%" PRIu64 " dsize=%" PRIu64 " %s }\n", est->nkeys, est->ndata, est->dsize, est->exact ? "T" : "F");
+        printf(" optimized_for_upgrade=%u\n", n->u.l.optimized_for_upgrade);
 	printf(" n_bytes_in_buffer=%u\n", n->u.l.n_bytes_in_buffer);
 	printf(" items_in_buffer  =%u\n", toku_omt_size(n->u.l.buffer));
 	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);

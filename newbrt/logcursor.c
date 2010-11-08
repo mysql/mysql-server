@@ -89,7 +89,7 @@ static int lc_open_logfile(TOKULOGCURSOR lc, int index) {
         r = toku_read_logmagic(lc->cur_fp, &version);
         if (r!=0) 
             return DB_BADFORMAT;
-        if (version != TOKU_LOG_VERSION)
+        if (version < TOKU_LOG_MIN_SUPPORTED_VERSION || version > TOKU_LOG_VERSION)
             return DB_BADFORMAT;
     }
     // mark as open
@@ -379,6 +379,7 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
     return r;
 }
 
+//get last entry in the logfile specified by logcursor
 int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
     int r=0;
     if ( lc->entry_valid ) {
@@ -462,6 +463,7 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
 
     r = fseek(lc->cur_fp, 0, SEEK_SET);                if ( r!=0 ) return r;
     r = toku_read_logmagic(lc->cur_fp, &version);      if ( r!=0 ) return r;
+    if (version != TOKU_LOG_VERSION) return -1;
     
     toku_off_t last_good_pos;
     last_good_pos = ftello(lc->cur_fp);

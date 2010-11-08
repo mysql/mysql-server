@@ -37,7 +37,6 @@ TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade-*.c)
 NONSTANDARD_SRCS= \
 		  $(RECOVER_SRCS) \
 		  $(LOADER_SRCS) \
-		  $(TRANSPARENT_UPGRADE_SRCS) \
 #end
 
 #Tests that don't compile in windows.  SHould
@@ -179,6 +178,7 @@ BDB_DONTRUN_TESTS = \
 	update-multiple-nochange \
 	update-multiple-key0 \
 	update-multiple-data-diagonal \
+        upgrade_simple \
 	upgrade-test-1 \
 	upgrade-test-2 \
 	upgrade-test-3 \

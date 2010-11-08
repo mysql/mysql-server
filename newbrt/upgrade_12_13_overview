@@ -1,0 +1,219 @@
+The essential idea of auto-upgrade from BRT_LAYOUT_VERSION 12 to 13 is to
+take advantage of the similarities between the two versions, and not to
+try to create an infrastructure for all future upgrades.
+
+As future layouts are created, upgrade paths, if any, will be crafted to
+each particular change.
+
+On startup, the version number of the recovery log is checked.  If an 
+upgrade is needed, then the log is tested for a clean shutdown.  If 
+there is no clean shutdown, then an error is returned.  If the log does
+end in a clean shutdown, then a new log file is created with the current
+version number, starting with an LSN that is one greater than the clean
+shutdown.  
+
+Once the new log is in place, the persistent environment dictionary is 
+upgraded, and then normal operation begins.
+
+The startup of a new version of the storage engine might not be crash
+safe.
+
+Dictionaries, including the persistent environment and the fileops
+directory, are upgraded as they are read into memory from disk.
+
+
+The brt header is upgraded by 
+ - removing an unused flag 
+ - setting the transaction id to the xid of the clean shutdown
+ - marking the header as dirty
+
+Each non-leaf node is upgraded by:
+ - removing an unused flag 
+ - upgrading the version numbers in the node 
+ - marking the node as dirty.
+This works because all of the version 12 messages are unchanged
+in version 13.  The version 12 messages will be applied to the
+leafentries using version 13 code.
+
+Each non-leaf node is upgraded by
+ - removing an unused flag 
+ - using modified version 12 code to unpack the version 12 packed 
+   leaf entries into version 13 unpacked leaf entries
+ - repacking the leafentries into a new mempool
+ - destroying the original mempool (that holds the version 12
+   node read from disk)
+The node is marked as dirty.
+
+Once the brt is open, a BRT_OPTIMIZE broadcast message is inserted to 
+optimize the dictionary.
+
+
+
+A schematic overview of how a brt node is deserialized:
+
+toku_deserialize_brtnode_from() {   // accepts fd, fills in BRTNODE, brt_header
+
+  deserialize_brtnode_from_rbuf_versioned() {
+      deserialize_brtnode_from_rbuf()  // accepts rbuf fills in BRTNODE
+
+         if nonleaf deserialize_brtnode_nonleaf_from_rbuf(){  // rbuf -> BRTNODE (no version sensitivity)
+         if leaf deserialize_brtnode_leaf_from_rbuf()   {  // calculates node size from leafentry sizes
+                                                           // leafentry sizes vary with version
+      if version 12 {
+          if leaf {
+              unpack each leafentry into a version 13 ule
+              pack each version 13 ule into version 13 le
+              allocate new mempool for version 13 les
+              destroy old mempool
+          }
+          remove unused flag 
+          increment version number
+          mark dirty
+      }
+   }
+}
+
+
+      
+Open issues:
+ - The brt layer makes some callbacks to the handlerton layer.  If 
+   any of the functions change from one version to another, then 
+   the result may not be correct.  A version number could be 
+   included in all the function signatures so the callback function
+   could be aware of what version the caller is expecting.
+   The callbacks are:
+    - comparator
+    - hot index generator
+    - hot column mutator
+
+
+
+Note, brt-internal.h defines struct subtree_estimates which contains field nkeys.
+This field is obsolete with the removal of dupsort databases (since it will always
+be the same as ndata), but removing it is not worth the trouble.
+
+
+
+
+==========
+
+
+
+The changes from version 12 to 13 include (may not be complete list):
+ - Persistent environment dictionary
+  - version number
+  - timestamp of environment creation (database installation)
+  - history of previous versions
+   - timestamps for upgrades
+ - Recovery log
+  - version number
+  - new log entries (hotindex, maybe others)
+ - brt header
+  - version number
+  - added field (root_xid_that_created), set to last checkpoint lsn
+  - deleted flag (built-in comparison function for values)
+ - brt internal node
+  - version number
+  - additional message(s) possible, no upgrade needed beyond changing version number
+ - brt leafnode
+  - version number
+  - new leafentry format
+   - version 12 leafentry unpack code is preserved
+ - rollback log
+  - version number is only change, no upgrade is needed because 
+    rollback logs are not preserved through clean shutdown
+
+
+Because version 12 and version 13 leafentries are significantly
+different, the way leafentries is handled is as follows:
+ - deserialize_brtnode_leaf_from_rbuf() 
+  - sets up array of pointers to leafentries (to be unpacked later),
+    these pointers are put into an OMT
+  - calculates checksum (x1764)
+  - adjusts ndone byte counter to verify that entire rbuf is read
+ - deserialize_brtnode_from_rbuf_versioned() calls 
+   deserialize_brtnode_leaf_from_rbuf()
+  - loop through all leafentries, one at a time:
+   - unpack version 12 le and repack as version 13 le, each in its own malloc'ed memory
+   - calculate new fingerprint
+  - create new block
+   - allocate new mempool
+   - copy individual les into new mempool
+   - destroy individual les
+   - destroy original mempool
+
+
+    
+
+
+Open issues:
+
+ - We need to verify clean shutdown before upgrade.  
+   If shutdown was not clean then we would run recovery, and the
+   code does not support recovering from an old format version.  
+  - One way to do this is to increase the log version number (either
+    increment or synchronize with BRT_LAYOUT_VERSION).
+  - Can we just look at the log?  needs_recovery(env);
+    If this mechanism is specific
+    to the version 12 to 13 upgrade, then that is adequate.
+    Once the recovery log format changes, then we need a 
+    different mechanism, similar to the 3.x->4.x upgrade 
+    logic in log_upgrade.c.
+
+
+ - How to decide that an upgrade is necessary?  
+   Needed for logic that says:
+    - If upgrade is necessary, then verify clean shutdown:
+      If upgrade is necessary (recorded version is old)
+      and clean shutdown was not done, then exit with 
+      error code.
+
+ - tokudb_needs_recovery() is not separate from verification of
+   clean shutdown.  This function indicates if a recovery is 
+   necessary, but it does not verify simple clean shutdown 
+   with just the shutdown log entry.  Instead, it looks for
+   checkpoint begin/checkpoint end.  (Also, comment at end
+   is permitted.)
+
+
+Proposed solution:
+ - Decision on whether to perform upgrade is done by examining log version.
+ - If we need an upgrade:
+   - If not clean shutdown, then exit with error message, change nothing
+     on disk.
+   - If clean shutdown, then create new log by simply creating new log file
+     (empty, or perhaps with initial comment that says "start of new log").
+   - Normal log-trimming code will delete old logs.  (None of the 
+     locking logic in log_upgrade.c is needed.)
+   - Log-opening logic needs to be modified to do this.  See log file 
+     manager initialization function (and maybe functions it calls), 
+     maybe the log cursor:
+      - logfilemgr.c: toku_logfilemgr_init()
+   - Log-trimming logic loops over pairs of file names and LSNs,
+     deleting old files based on LSN.  
+
+   - Question: would it help any if the "clean shutdown" log entry
+     was required to be in a new log file of its own?  It would 
+     prevent the creation of an empty log file after "clean shutdown."
+     It might, but it's probably not worth doing.
+
+
+
+Issue of optimize message (to be sent into each dictionary on upgrade)
+  - BRT_COMMIT_BROADCAST_ALL  (should be faster executing, always commits everything, was needed for an earlier upgrade attempt)
+  - BRT_OPTIMIZE              (better tested, has been used, tests to see if transactions are still live)
+After upgrade (after clean shutdown, no running transactions, trees
+fully flattened), there is no difference in what these two message do.
+Note, BRT_OPTIMIZE requires a clean shutdown if used on upgrade.  If used before recovery (which an upgrade
+without clean shutdown would do), then it would be wrong because it would appear that all transactions were
+completed.
+
+
+
+TODO:
+ - update brt header fields
+  - original layout version
+  - version read from disk
+ - add accountability counters
+ - capture LSN of clean shutdown, use instead of checkpoint lsn
+ 

@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 typedef struct brt *BRT;
+typedef struct brtnode *BRTNODE;
 struct brt_header;
 struct wbuf;
 struct dbuf;
@@ -96,7 +97,8 @@ enum brt_msg_type {
     BRT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
     BRT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
     BRT_INSERT_NO_OVERWRITE = 11,
-    BRT_OPTIMIZE = 12,
+    BRT_OPTIMIZE = 12,             // Broadcast
+    BRT_OPTIMIZE_FOR_UPGRADE = 13, // same as BRT_OPTIMIZE, but record version number in leafnode
 };
 
 typedef struct xids_t *XIDS;

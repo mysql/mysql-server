@@ -19,12 +19,13 @@ static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *ext
     if (keep_me) n_keep_me++;
 }
 
-static int fetch(CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs) {
+static int fetch(CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, int *dirtyp, void *extraargs) {
     cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
     assert(0); // should not be called
     n_fetch++;
     *value = 0;
     *sizep = item_size;
+    *dirtyp = 0;
     return 0;
 }
 

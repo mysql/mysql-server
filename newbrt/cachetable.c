@@ -1092,6 +1092,8 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
 
     void *toku_value = 0;
     long size = 0;
+    
+    int dirty = 0;
 
     WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));    
 
@@ -1100,7 +1102,9 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
 
     int r;
     if (toku_cachefile_is_dev_null_unlocked(cf)) r = -1;
-    else r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &size, extraargs);
+    else r = fetch_callback(cf, cf->fd, key, fullhash, &toku_value, &size, &dirty, extraargs);
+    if (dirty)
+	p->dirty = CACHETABLE_DIRTY;
 
     cachetable_lock(ct);
     rwlock_read_unlock(&cf->fdlock);

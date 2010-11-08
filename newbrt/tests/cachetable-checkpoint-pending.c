@@ -46,7 +46,7 @@ flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU
 }
 
 static int
-fetch (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), u_int32_t UU(fullhash), void **UU(value), long *UU(sizep), void *UU(extraargs))
+fetch (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), u_int32_t UU(fullhash), void **UU(value), long *UU(sizep), int *UU(dirtyp), void *UU(extraargs))
 {
     assert(0); // should not be called
     return 0;

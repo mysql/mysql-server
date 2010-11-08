@@ -313,7 +313,7 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
     XIDS xids = brt_msg_get_xids(msg);
     invariant(xids_get_num_xids(xids) < MAX_TRANSACTION_RECORDS);
     enum brt_msg_type type = brt_msg_get_type(msg);
-    if (type != BRT_OPTIMIZE) {
+    if (type != BRT_OPTIMIZE && type != BRT_OPTIMIZE_FOR_UPGRADE) {
         ule_do_implicit_promotions(ule, xids);
     }
     switch (type) {
@@ -342,6 +342,7 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
         ule_apply_commit(ule, xids);
         break;
     case BRT_OPTIMIZE:
+    case BRT_OPTIMIZE_FOR_UPGRADE:
         ule_optimize(ule, xids);
         break;
     default:
@@ -358,7 +359,7 @@ test_msg_modify_ule(ULE ule, BRT_MSG msg){
 
 static void ule_optimize(ULE ule, XIDS xids) {
     if (ule->num_puxrs) {
-        TXNID uncommitted = ule->uxrs[ule->num_cuxrs].xid;
+        TXNID uncommitted = ule->uxrs[ule->num_cuxrs].xid;      // outermost uncommitted
         TXNID oldest_living_xid = TXNID_NONE;
         uint32_t num_xids = xids_get_num_xids(xids);
         if (num_xids > 0) {
@@ -2013,6 +2014,205 @@ bool transaction_open(TXNID xid) {
     if (xid != 0) {
         //TODO: Logic
     }
+    return rval;
+}
+
+#endif
+
+#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_12 
+#if TOKU_WINDOWS
+#pragma pack(push, 1)
+#endif
+struct __attribute__ ((__packed__)) leafentry_12 {
+    u_int8_t  num_xrs;
+    u_int32_t keylen;
+    u_int32_t innermost_inserted_vallen;
+    union {
+        struct __attribute__ ((__packed__)) leafentry_committed_12 {
+            u_int8_t key_val[0];     //Actual key, then actual val
+        } comm;
+        struct __attribute__ ((__packed__)) leafentry_provisional_12 {
+            u_int8_t innermost_type;
+            TXNID    xid_outermost_uncommitted;
+            u_int8_t key_val_xrs[];  //Actual key,
+                                     //then actual innermost inserted val,
+                                     //then transaction records.
+        } prov;
+    } u;
+};
+#if TOKU_WINDOWS
+#pragma pack(pop)
+#endif
+
+//Requires:
+//  Leafentry that ule represents should not be destroyed (is not just all deletes)
+static size_t
+le_memsize_from_ule_12 (ULE ule) {
+    uint32_t num_uxrs = ule->num_cuxrs + ule->num_puxrs;
+    assert(num_uxrs);
+    size_t rval;
+    if (num_uxrs == 1) {
+        assert(uxr_is_insert(&ule->uxrs[0]));
+        rval = 1                    //num_uxrs
+              +4                    //keylen
+              +4                    //vallen
+              +ule->keylen          //actual key
+              +ule->uxrs[0].vallen; //actual val
+    }
+    else {
+        rval = 1                    //num_uxrs
+              +4                    //keylen
+              +ule->keylen          //actual key
+              +1*num_uxrs      //types
+              +8*(num_uxrs-1); //txnids
+        u_int8_t i;
+        for (i = 0; i < num_uxrs; i++) {
+            UXR uxr = &ule->uxrs[i];
+            if (uxr_is_insert(uxr)) {
+                rval += 4;           //vallen
+                rval += uxr->vallen; //actual val
+            }
+        }
+    }
+    return rval;
+}
+
+//This function is mostly copied from 4.1.1
+// Note, number of transaction records in version 12 has been replaced by separate counters in version 13 (MVCC),
+// one counter for committed transaction records and one counter for provisional transaction records.  When 
+// upgrading a version 12 le to version 13, the number of committed transaction records is always set to one (1)
+// and the number of provisional transaction records is set to the original number of transaction records 
+// minus one.  The bottom transaction record is assumed to be a committed value.  (If there is no committed
+// value then the bottom transaction record of version 12 is a committed delete.)
+// This is the only change from the 4.1.1 code.  The rest of the leafentry is read as is.
+static void
+le_unpack_12(ULE ule, LEAFENTRY_12 le) {
+    //Read num_uxrs
+    uint8_t num_xrs = le->num_xrs;
+    assert(num_xrs > 0);
+    ule->uxrs = ule->uxrs_static; //Static version is always enough.
+    ule->num_cuxrs = 1;
+    ule->num_puxrs = num_xrs - 1;
+
+    //Read the keylen
+    ule->keylen = toku_dtoh32(le->keylen);
+
+    //Read the vallen of innermost insert
+    u_int32_t vallen_of_innermost_insert = toku_dtoh32(le->innermost_inserted_vallen);
+
+    u_int8_t *p;
+    if (num_xrs == 1) {
+        //Unpack a 'committed leafentry' (No uncommitted transactions exist)
+        ule->keyp           = le->u.comm.key_val;
+        ule->uxrs[0].type   = XR_INSERT; //Must be or the leafentry would not exist
+        ule->uxrs[0].vallen = vallen_of_innermost_insert;
+        ule->uxrs[0].valp   = &le->u.comm.key_val[ule->keylen];
+        ule->uxrs[0].xid    = 0;          //Required.
+
+        //Set p to immediately after leafentry
+        p = &le->u.comm.key_val[ule->keylen + vallen_of_innermost_insert];
+    }
+    else {
+        //Unpack a 'provisional leafentry' (Uncommitted transactions exist)
+
+        //Read in type.
+        u_int8_t innermost_type = le->u.prov.innermost_type;
+        assert(!uxr_type_is_placeholder(innermost_type));
+
+        //Read in xid
+        TXNID xid_outermost_uncommitted = toku_dtoh64(le->u.prov.xid_outermost_uncommitted);
+
+        //Read pointer to key
+        ule->keyp = le->u.prov.key_val_xrs;
+
+        //Read pointer to innermost inserted val (immediately after key)
+        u_int8_t *valp_of_innermost_insert = &le->u.prov.key_val_xrs[ule->keylen];
+
+        //Point p to immediately after 'header'
+        p = &le->u.prov.key_val_xrs[ule->keylen + vallen_of_innermost_insert];
+
+        BOOL found_innermost_insert = FALSE;
+        int i; //Index in ULE.uxrs[]
+        //Loop inner to outer
+        for (i = num_xrs - 1; i >= 0; i--) {
+            UXR uxr = &ule->uxrs[i];
+
+            //Innermost's type is in header.
+            if (i < num_xrs - 1) {
+                //Not innermost, so load the type.
+                uxr->type = *p;
+                p += 1;
+            }
+            else {
+                //Innermost, load the type previously read from header
+                uxr->type = innermost_type;
+            }
+
+            //Committed txn id is implicit (0).  (i==0)
+            //Outermost uncommitted txnid is stored in header. (i==1)
+            if (i > 1) {
+                //Not committed nor outermost uncommitted, so load the xid.
+                uxr->xid = toku_dtoh64(*(TXNID*)p);
+                p += 8;
+            }
+            else if (i == 1) {
+                //Outermost uncommitted, load the xid previously read from header
+                uxr->xid = xid_outermost_uncommitted;
+            }
+            else {
+                // i == 0, committed entry
+                uxr->xid = 0;
+            }
+
+            if (uxr_is_insert(uxr)) {
+                if (found_innermost_insert) {
+                    //Not the innermost insert.  Load vallen/valp
+                    uxr->vallen = toku_dtoh32(*(u_int32_t*)p);
+                    p += 4;
+
+                    uxr->valp = p;
+                    p += uxr->vallen;
+                }
+                else {
+                    //Innermost insert, load the vallen/valp previously read from header
+                    uxr->vallen = vallen_of_innermost_insert;
+                    uxr->valp   = valp_of_innermost_insert;
+                    found_innermost_insert = TRUE;
+                }
+            }
+        }
+        assert(found_innermost_insert);
+    }
+#if ULE_DEBUG
+    size_t memsize = le_memsize_from_ule_12(ule);
+    assert(p == ((u_int8_t*)le) + memsize);
+#endif
+}
+
+size_t
+leafentry_disksize_12(LEAFENTRY_12 le) {
+    ULE_S ule;
+    le_unpack_12(&ule, le);
+    size_t memsize = le_memsize_from_ule_12(&ule);
+    ule_cleanup(&ule);
+    return memsize;
+}
+
+int 
+toku_le_upgrade_12_13(LEAFENTRY_12 old_leafentry,
+		      size_t *new_leafentry_memorysize, 
+		      size_t *new_leafentry_disksize, 
+		      LEAFENTRY *new_leafentry_p) {
+    ULE_S ule;
+    int rval;
+    invariant(old_leafentry);
+    le_unpack_12(&ule, old_leafentry);
+    rval = le_pack(&ule,                // create packed leafentry
+                   new_leafentry_memorysize, 
+                   new_leafentry_disksize, 
+                   new_leafentry_p,
+                   NULL, NULL, NULL); //NULL for omt means that we use malloc instead of mempool
+    ule_cleanup(&ule);
     return rval;
 }
 

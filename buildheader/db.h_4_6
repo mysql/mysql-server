@@ -235,6 +235,7 @@ typedef enum {
 #define TOKUDB_NO_DATA -100008
 #define TOKUDB_ACCEPT -100009
 #define TOKUDB_MVCC_DICTIONARY_TOO_NEW -100010
+#define TOKUDB_UPGRADE_FAILURE -100011
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/

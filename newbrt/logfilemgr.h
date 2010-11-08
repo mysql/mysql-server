@@ -15,6 +15,7 @@ extern "C" {
 struct toku_logfile_info {
     int64_t index;
     LSN maxlsn;
+    uint32_t version;
 };
 typedef struct toku_logfile_info *TOKULOGFILEINFO;
 
