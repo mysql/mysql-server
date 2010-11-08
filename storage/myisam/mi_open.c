@@ -669,7 +669,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   pthread_mutex_unlock(&THR_LOCK_myisam);
 
   bzero(info.buff, share->base.max_key_block_length * 2);
-  my_free(rec_per_key_part, MYF(0));
+  my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
 
   if (myisam_log_file >= 0)
   {
