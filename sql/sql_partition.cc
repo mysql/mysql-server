@@ -166,12 +166,13 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
                                            uint min_len, uint max_len,
                                            uint flags,
                                            PARTITION_ITERATOR *part_iter);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static int cmp_rec_and_tuple(part_column_list_val *val, uint32 nvals_in_rec);
 static int cmp_rec_and_tuple_prune(part_column_list_val *val,
                                    uint32 n_vals_in_rec,
                                    bool tail_is_min);
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert constants in VALUES definition to the character set the
   corresponding field uses.
@@ -1996,7 +1997,7 @@ static int add_part_field_list(File fptr, List<char> field_list)
     String field_string("", 0, system_charset_info);
     THD *thd= current_thd;
     ulonglong save_options= thd->variables.option_bits;
-    thd->variables.option_bits= 0;
+    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
     append_identifier(thd, &field_string, field_str,
                       strlen(field_str));
     thd->variables.option_bits= save_options;
@@ -2015,8 +2016,7 @@ static int add_name_string(File fptr, const char *name)
   String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
   ulonglong save_options= thd->variables.option_bits;
-
-  thd->variables.option_bits= 0;
+  thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
   append_identifier(thd, &name_string, name,
                     strlen(name));
   thd->variables.option_bits= save_options;
