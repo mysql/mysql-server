@@ -464,6 +464,13 @@ dict_stats_analyze_index_level(
 
 		rec = btr_pcur_get_rec(&pcur);
 
+		/* increment the pages counter at the end of each page */
+		if (page_rec_is_supremum(page_rec_get_next(rec))) {
+
+			(*total_pages)++;
+		}
+
+		/* skip delete-marked records */
 		if (rec_get_deleted_flag(rec, page_is_comp(
 				btr_pcur_get_page(&pcur)))) {
 
@@ -534,10 +541,6 @@ dict_stats_analyze_index_level(
 
 		if (page_rec_is_supremum(page_rec_get_next(rec))) {
 			/* end of a page has been reached */
-
-			/* increment the pages counter at the end of
-			each page */
-			(*total_pages)++;
 
 			/* we need to copy the record instead of assigning
 			like prev_rec = rec; because when we traverse the
