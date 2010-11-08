@@ -25,7 +25,9 @@
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "sql_admin.h"                      // Analyze/Check/.._table_statement
 #include "sql_partition_admin.h"            // Alter_table_*_partition
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"                   // ha_partition
+#endif
 #include "sql_base.h"                       // open_and_lock_tables
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
