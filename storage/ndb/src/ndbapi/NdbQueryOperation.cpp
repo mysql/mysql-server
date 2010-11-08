@@ -1713,17 +1713,19 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
         assert (m_error.code == 0);
         assert (m_applFrags.getCurrent()==NULL);
         getRoot().nullifyResult();
-        if (!fetchAllowed)
+        m_state = EndOfData;
+        postFetchRelease();
+        return NdbQuery::NextResult_scanComplete;
+
+      case FetchResult_noMoreCache: // No cached data, no error
+        assert (m_error.code == 0);
+        assert (m_applFrags.getCurrent()==NULL);
+        getRoot().nullifyResult();
+        if (fetchAllowed)
         {
-          return NdbQuery::NextResult_bufferEmpty;
+          break;  // ::sendFetchMore() may request more results
         }
-        else if (m_finalBatchFrags == getRootFragCount())
-        {
-          m_state = EndOfData;
-          postFetchRelease();
-          return NdbQuery::NextResult_scanComplete;
-        }
-        break;  // ::sendFetchMore() will request more results
+        return NdbQuery::NextResult_bufferEmpty;
 
       case FetchResult_gotError:    // Error in 'm_error.code'
         assert (m_error.code != 0);
@@ -1823,7 +1825,8 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
         if (m_pendingFrags == 0)
         {
           // 'No more *pending* results', ::sendFetchMore() may make more available
-          return FetchResult_noMoreData;
+          return (m_finalBatchFrags < getRootFragCount()) ? FetchResult_noMoreCache 
+                                                          : FetchResult_noMoreData;
         }
 
         /* More results are on the way, so we wait for them.*/
@@ -1873,6 +1876,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
        *  - There was no matching row for an inner join.
        *  - or, the application called nextResult() twice for a lookup query.
        */
+      assert(m_finalBatchFrags == getRootFragCount());
       return FetchResult_noMoreData;
     }
     else

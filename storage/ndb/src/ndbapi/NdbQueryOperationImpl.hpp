@@ -199,8 +199,9 @@ public:
   { return m_rootFragCount; }
 
 private:
-  /** Possible return values from NdbQueryImpl::awaitMoreResults. Integer values
-   * matches those returned from PoolGuard::wait_scan().
+  /** Possible return values from NdbQueryImpl::awaitMoreResults. 
+   * A subset of the integer values also matches those returned
+   * from PoolGuard::wait_scan().
    */
   enum FetchResult{
     FetchResult_gotError = -4,  // There is an error avail in 'm_error.code'
@@ -208,7 +209,8 @@ private:
     FetchResult_nodeFail = -2,
     FetchResult_timeOut = -1,
     FetchResult_ok = 0,
-    FetchResult_noMoreData = 1
+    FetchResult_noMoreData = 1,
+    FetchResult_noMoreCache = 2
   };
 
   /** A stack of NdbRootFragment pointers.
