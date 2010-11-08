@@ -87,8 +87,8 @@ enum column_format_type {
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
-/* Global schema lock not available */
-#define NDB_NO_GLOBAL_SCHEMA_LOCK
+/* thd->binlog_query has new parameter "direct" */
+#define NDB_THD_BINLOG_QUERY_HAS_DIRECT
 
 #endif
 

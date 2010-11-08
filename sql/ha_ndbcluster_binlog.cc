@@ -854,18 +854,14 @@ static bool ndbcluster_flush_logs(handlerton *hton)
 /*
   Global schema lock across mysql servers
 */
-bool ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb)
+int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb)
 {
-#ifndef NDB_NO_GLOBAL_SCHEMA_LOCK
   if (thd_ndb->global_schema_lock_trans)
   {
     thd_ndb->global_schema_lock_trans->refresh();
-    return true;
+    return 1;
   }
-  return false;
-#else
-  return true; // OK
-#endif
+  return 0;
 }
 
 int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
@@ -879,7 +875,6 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
   return -1;
 }
 
-#ifndef NDB_NO_GLOBAL_SCHEMA_LOCK
 #include "ha_ndbcluster_lock_ext.h"
 
 /*
@@ -889,26 +884,18 @@ int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
 static int ndbcluster_global_schema_lock_is_locked_or_queued= 0;
 static int ndbcluster_global_schema_lock_no_locking_allowed= 0;
 static pthread_mutex_t ndbcluster_global_schema_lock_mutex;
-#endif
 void ndbcluster_global_schema_lock_init()
 {
-#ifndef NDB_NO_GLOBAL_SCHEMA_LOCK
   pthread_mutex_init(&ndbcluster_global_schema_lock_mutex, MY_MUTEX_INIT_FAST);
-#endif
 }
 void ndbcluster_global_schema_lock_deinit()
 {
-#ifndef NDB_NO_GLOBAL_SCHEMA_LOCK
   pthread_mutex_destroy(&ndbcluster_global_schema_lock_mutex);
-#endif
 }
 
 static int ndbcluster_global_schema_lock(THD *thd, int no_lock_queue,
                                          int report_cluster_disconnected)
 {
-#ifdef NDB_NO_GLOBAL_SCHEMA_LOCK
-  return 0;
-#else
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbError ndb_error;
@@ -1012,13 +999,9 @@ static int ndbcluster_global_schema_lock(THD *thd, int no_lock_queue,
   }
   thd_ndb->global_schema_lock_error= ndb_error.code ? ndb_error.code : -1;
   DBUG_RETURN(-1);
-#endif
 }
 static int ndbcluster_global_schema_unlock(THD *thd)
 {
-#ifdef NDB_NO_GLOBAL_SCHEMA_LOCK
-  return 0;
-#else
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ASSERT(thd_ndb != 0);
   if (thd_ndb == 0 || (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP))
@@ -1067,7 +1050,6 @@ static int ndbcluster_global_schema_unlock(THD *thd)
     }
   }
   DBUG_RETURN(0);
-#endif
 }
 
 static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
@@ -1093,14 +1075,12 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
   case BFN_BINLOG_PURGE_FILE:
     res= ndbcluster_binlog_index_purge_file(thd, (const char *)arg);
     break;
-#ifndef NDB_NO_GLOBAL_SCHEMA_LOCK
   case BFN_GLOBAL_SCHEMA_LOCK:
     res= ndbcluster_global_schema_lock(thd, *(int*)arg, 1);
     break;
   case BFN_GLOBAL_SCHEMA_UNLOCK:
     res= ndbcluster_global_schema_unlock(thd);
     break;
-#endif
   }
   DBUG_RETURN(res);
 }
@@ -2591,6 +2571,9 @@ static void ndb_binlog_query(THD *thd, Cluster_schema *schema)
   int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
   thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                     schema->query_length, FALSE,
+#ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
+                    TRUE,
+#endif
                     schema->name[0] == 0 || thd->db[0] == 0,
                     errcode);
   thd->server_id= thd_server_id_save;
