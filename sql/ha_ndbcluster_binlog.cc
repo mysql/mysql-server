@@ -567,7 +567,7 @@ static int ndbcluster_reset_logs(THD *thd)
   bzero((char*) &table, sizeof(table));
   table.db= repdb;
   table.alias= table.table_name= reptable;
-  mysql_truncate(thd, &table, 0);
+  mysql_truncate_table(thd, &table);
 
   /*
     Calling function only expects and handles error cases,

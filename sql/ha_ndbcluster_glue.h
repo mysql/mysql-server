@@ -38,6 +38,7 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "sql_parse.h"      // mysql_parse
+#include "sql_truncate.h"      // mysql_truncate_table
 #else
 #include "mysql_priv.h"
 #endif
@@ -136,6 +137,13 @@ int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
                          struct timespec* abstime)
 {
   return pthread_cond_timedwait(cond, mutex, abstime);
+}
+
+/*  mysql_truncate_table emulation, added in 5.5 */
+static inline
+bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
+{
+  return mysql_truncate(thd, table_ref, 0);
 }
 
 #endif
