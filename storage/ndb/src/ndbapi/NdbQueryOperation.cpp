@@ -39,6 +39,11 @@
 #define DEBUG_CRASH()
 #endif
 
+/** To prevent compiler warnings about variables that are only used in asserts
+ * (when building optimized version).
+ */
+#define UNUSED(x) ((void)(x))
+
 //#define TEST_SCANREQ
 
 /* Various error codes that are not specific to NdbQuery. */
@@ -549,13 +554,11 @@ NdbResultStream::setParentChildMap(Uint16 parentId,
   assert (tupleNo < m_maxRows);
   assert (tupleId != tupleNotFound);
 
-#ifndef NDEBUG
   for (Uint32 i = 0; i < tupleNo; i++)
   {
     // Check that tuple id is unique.
     assert (m_tupleSet[i].m_tupleId != tupleId); 
   }
-#endif
   m_tupleSet[tupleNo].m_parentId = parentId;
   m_tupleSet[tupleNo].m_tupleId  = tupleId;
 
@@ -3525,10 +3528,12 @@ NdbQueryOperationImpl::fetchRow(const NdbResultStream& resultStream)
       Uint32 attrSize = 0;
       const int retVal1 = resultStream.getReceiver()
         .getScanAttrData(attrData, attrSize, posInRow);
+      UNUSED(retVal1);
       assert(retVal1==0);
       assert(attrData!=NULL);
       const bool retVal2 = recAttr
         ->receive_data(reinterpret_cast<const Uint32*>(attrData), attrSize);
+      UNUSED(retVal2);
       assert(retVal2);
       recAttr = recAttr->next();
     }
@@ -4526,12 +4531,11 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
       assert(!maskSet);
     }
   }
-#ifndef NDEBUG
   const NdbQueryOperationDefImpl& finalOpDef = 
     queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1);
   // Check that nodeMask does not have more bits than we have operations. 
+  UNUSED(finalOpDef);
   assert(nodeMask >> (1+finalOpDef.getQueryOperationId()) == 0);
-#endif
   bool ret = false;
   if (rootFrag.isFragBatchComplete()) {
     /* This fragment is now complete*/
