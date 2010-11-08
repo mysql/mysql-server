@@ -292,13 +292,14 @@ int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 {
   HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
   h= h_arg;
-  res= 0;
   return h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
                                            mode, &no_buffer);
 }
 
+
 int Mrr_simple_index_reader::get_next(char **range_info)
 {
+  int res;
   while (!(res= h->handler::multi_range_read_next(range_info)))
   {
     KEY_MULTI_RANGE *curr_range= &h->handler::mrr_cur_range;
@@ -328,6 +329,7 @@ int Mrr_simple_index_reader::get_next(char **range_info)
 
 int Mrr_ordered_index_reader::get_next(char **range_info)
 {
+  int res;
   DBUG_ENTER("Mrr_ordered_index_reader::get_next");
   
   if (!know_key_tuple_params)
@@ -344,33 +346,32 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
     bool have_record= FALSE;
     if (scanning_key_val_iter)
     {
-      if (kv_it.get_next())
+      if ((res= kv_it.get_next()))
       {
         kv_it.close();
         scanning_key_val_iter= FALSE;
+        if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
+          DBUG_RETURN(res);
       }
       else
         have_record= TRUE;
     }
     else
     {
-      while (kv_it.init(this))
+      while ((res= kv_it.init(this)))
       {
-        if (key_buffer->is_empty())
+        if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE) ||
+            key_buffer->is_empty())
         {
-          index_scan_eof= TRUE;
-          DBUG_RETURN(HA_ERR_END_OF_FILE);
+          DBUG_RETURN(res);
         }
       }
       scanning_key_val_iter= TRUE;
     }
 
     if (have_record &&
-        (!mrr_funcs.skip_index_tuple ||
-         !mrr_funcs.skip_index_tuple(mrr_iter, *(char**)cur_range_info))
-        && 
-        (!mrr_funcs.skip_record ||
-         !mrr_funcs.skip_record(mrr_iter, *(char**)cur_range_info, NULL)))
+        !skip_index_tuple(*(char**)cur_range_info) &&
+        !skip_record(*(char**)cur_range_info, NULL))
     {
       break;
     }
@@ -448,7 +449,6 @@ int Mrr_ordered_index_reader::refill_buffer()
 
   bool no_more_keys= test(res);
   scanning_key_val_iter= FALSE;
-  index_scan_eof= FALSE;
 
   if (no_more_keys && (!know_key_tuple_params || key_buffer->is_empty()))
     DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -586,7 +586,7 @@ int Mrr_ordered_rndpos_reader::refill_from_key_buffer()
 
 
 /*
-  Get the next record+range_id using ordered array of rowid+range_id pairds
+  Get the next {record, range_id} using ordered array of rowid+range_id pairs
 
   @note
     Since we have sorted rowids, we try not to make multiple rnd_pos() calls
@@ -976,7 +976,8 @@ equals:
 }
 
 
-int Mrr_ordered_index_reader::key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2)
+int Mrr_ordered_index_reader::key_tuple_cmp_reverse(void* arg, uchar* key1, 
+                                                    uchar* key2)
 {
   return -key_tuple_cmp(arg, key1, key2);
 }
@@ -1070,11 +1071,11 @@ void DsMrr_impl::reset_buffer_sizes()
 }
 
 
-/**
+/*
   Take unused space from the key buffer and give it to the rowid buffer
 */
-//psergey-todo: do invoke this function.
-void DsMrr_impl::reallocate_buffer_space()
+
+void DsMrr_impl::redistribute_buffer_space()
 {
   uchar *unused_start, *unused_end;
   key_buffer->remove_unused_space(&unused_start, &unused_end);
@@ -1082,19 +1083,35 @@ void DsMrr_impl::reallocate_buffer_space()
 }
 
 
-bool Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
+/*
+  @brief Initialize the iterator
+  
+  @note
+  Initialize the iterator to produce matches for the key of the first element 
+  in owner_arg->key_buffer
+
+  @retval  0                    OK
+  @retval  HA_ERR_END_OF_FILE   Either the owner->key_buffer is empty or 
+                                no matches for the key we've tried (check
+                                key_buffer->is_empty() to tell these apart)
+  @retval  other code           Fatal error
+*/
+
+int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 {
   int res;
   owner= owner_arg;
 
   identical_key_it.init(owner->key_buffer);
   /* Get the first pair into (cur_index_tuple, cur_range_info) */ 
-  owner->key_buffer->setup_reading(&cur_index_tuple, owner->keypar.key_size_in_keybuf,
-                            owner->is_mrr_assoc? (uchar**)&owner->cur_range_info: NULL,
-                            sizeof(void*));
+  owner->key_buffer->setup_reading(&cur_index_tuple, 
+                                   owner->keypar.key_size_in_keybuf,
+                                   owner->is_mrr_assoc? 
+                                     (uchar**)&owner->cur_range_info: NULL,
+                                   sizeof(void*));
 
   if (identical_key_it.read())
-    return TRUE;
+    return HA_ERR_END_OF_FILE;
 
   uchar *key_in_buf= cur_index_tuple;
 
@@ -1106,21 +1123,22 @@ bool Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   uchar *save_cur_index_tuple= cur_index_tuple;
   while (!identical_key_it.read())
   {
-    if (Mrr_ordered_index_reader::key_tuple_cmp(owner, key_in_buf, cur_index_tuple))
+    if (Mrr_ordered_index_reader::key_tuple_cmp(owner, key_in_buf, 
+                                                cur_index_tuple))
       break;
     last_identical_key_ptr= cur_index_tuple;
   }
   identical_key_it.init(owner->key_buffer);
   cur_index_tuple= save_cur_index_tuple;
   res= owner->h->ha_index_read_map(owner->h->get_table()->record[0], 
-                            cur_index_tuple, 
-                            owner->keypar.key_tuple_map, 
-                            HA_READ_KEY_EXACT);
+                                   cur_index_tuple, 
+                                   owner->keypar.key_tuple_map, 
+                                   HA_READ_KEY_EXACT);
 
   if (res)
   {
     close();
-    return res; /* Fatal error */
+    return res;
   }
   get_next_row= FALSE;
   return 0;
@@ -1141,20 +1159,21 @@ int Key_value_records_iterator::get_next()
                                     cur_index_tuple, 
                                     owner->keypar.key_tuple_length)))
     {
-      /* EOF is EOF for iterator, also, any error means EOF on the iterator */
-      return res;
+      /* It's either HA_ERR_END_OF_FILE or some other error */
+      return res; 
     }
     identical_key_it.init(owner->key_buffer);
     get_next_row= FALSE;
   }
 
-  identical_key_it.read(); // This gets us next range_id.
+  identical_key_it.read(); /* This gets us next range_id */
   if (!last_identical_key_ptr || (cur_index_tuple == last_identical_key_ptr))
   {
     get_next_row= TRUE;
   }
   return 0;
 }
+
 
 void Key_value_records_iterator::close()
 {
@@ -1178,7 +1197,6 @@ int DsMrr_impl::dsmrr_next(char **range_info)
       break; /* EOF or error */
   }
   return res;
-  //return strategy->get_next(range_info);
 }
 
 

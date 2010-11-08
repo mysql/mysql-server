@@ -77,30 +77,65 @@ public:
 /**
   A class to enumerate (record, range_id) pairs that match given key value.
   
-  The idea is that we have an array of
+  @note
 
-    (key, range_id1), (key, range_id2) ... (key, range_idN)
+  The idea is that we have a Lifo_buffer which holds (key, range_id) pairs
+  ordered by key value. From the front of the buffer we see
 
-  pairs, i.e. multiple identical key values with their different range_id-s,
-  and also we have ha_engine object where we can find matches for the key
-  value.
+    (key_val1, range_id1), (key_val1, range_id2) ... (key_val2, range_idN)
 
-  What this class does is produces all combinations of (key_match_record_X,
-  range_idN) pairs.
+  we take the first elements that have the same key value (key_val1 in the
+  example above), and make lookup into the table.  The table will have 
+  multiple matches for key_val1:
+ 
+                  == Table Index ==
+                   ...
+     key_val1 ->  key_val1, index_tuple1
+                  key_val1, index_tuple2
+                   ...
+                  key_val1, index_tupleN
+                   ...
+  
+  Our goal is to produce all possible combinations, i.e. we need:
+  
+    {(key_val1, index_tuple1), range_id1}
+    {(key_val1, index_tuple1), range_id2}
+       ...           ...               |
+    {(key_val1, index_tuple1), range_idN},
+                  
+    {(key_val1, index_tuple2), range_id1}
+    {(key_val1, index_tuple2), range_id2}
+        ...          ...               |
+    {(key_val1, index_tuple2), range_idN},
+
+        ...          ...          ...                          
+
+    {(key_val1, index_tupleK), range_idN}
 */
 
 class Key_value_records_iterator
 {
   /* Use this to get table handler, key buffer and other parameters */
   Mrr_ordered_index_reader *owner;
-  Lifo_buffer_iterator identical_key_it;
 
+  /* Iterator to get (key, range_id) pairs from */
+  Lifo_buffer_iterator identical_key_it;
+  
+  /* 
+    Last of the identical key values (when we get this pointer from
+    identical_key_it, it will be time to stop).
+  */
   uchar *last_identical_key_ptr;
+
+  /*
+    FALSE <=> we're right after the init() call, the record has been already
+    read with owner->h->index_read_map() call
+  */
   bool get_next_row;
   
   uchar *cur_index_tuple; /* key_buffer.read() reads to here */
 public:
-  bool init(Mrr_ordered_index_reader *owner_arg);
+  int init(Mrr_ordered_index_reader *owner_arg);
   int get_next();
   void close();
 };
@@ -113,10 +148,23 @@ public:
 class Buffer_manager
 {
 public:
+  /* 
+    Index-based reader calls this when it gets the first key, so we get to know
+    key length and 
+  */
   virtual void setup_buffer_sizes(uint key_size_in_keybuf, 
-                                  key_part_map key_tuple_map)=0;
-  virtual void reset_buffer_sizes()= 0;
-  virtual Lifo_buffer* get_key_buffer()= 0;
+                                  key_part_map key_tuple_map) = 0;
+
+  virtual void redistribute_buffer_space() = 0;
+  /* 
+    This is called when both key and rowid buffers are empty, and so it's time 
+    to reset them to their original size (They've lost their original size,
+    because we were dynamically growing rowid buffer and shrinking key buffer).
+  */
+  virtual void reset_buffer_sizes() = 0;
+
+  virtual Lifo_buffer* get_key_buffer() = 0;
+
   virtual ~Buffer_manager(){} /* Shut up the compiler */
 };
 
@@ -160,21 +208,21 @@ public:
                    uint mode, Buffer_manager *buf_manager_arg) = 0;
 
   /* Get pointer to place where every get_next() call will put rowid */
-  virtual uchar *get_rowid_ptr()= 0;
+  virtual uchar *get_rowid_ptr() = 0;
   /* Get the rowid (call this after get_next() call) */
   void position();
-  virtual bool skip_record(char *range_id, uchar *rowid)=0;
+  virtual bool skip_record(char *range_id, uchar *rowid) = 0;
 };
 
 
 /*
-  A "bypass" reader that uses default MRR implementation (i.e.
-  handler::multi_range_read_XXX() calls) to produce rows.
+  A "bypass" index reader that just does and index scan. The index scan is done 
+  by calling default MRR implementation (i.e.  handler::multi_range_read_XXX())
+  functions.
 */
 
 class Mrr_simple_index_reader : public Mrr_index_reader
 {
-  int res; 
 public:
   int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
            void *seq_init_param, uint n_ranges,
@@ -209,30 +257,41 @@ public:
     return (mrr_funcs.skip_record &&
             mrr_funcs.skip_record(mrr_iter, range_info, rowid));
   }
+
+  bool skip_index_tuple(char *range_info)
+  {
+    return (mrr_funcs.skip_index_tuple &&
+            mrr_funcs.skip_index_tuple(mrr_iter, range_info));
+  }
+
 private:
   Key_value_records_iterator kv_it;
 
   bool scanning_key_val_iter;
   
+  /* Key_value_records_iterator::read() will place range_info here */
   char *cur_range_info;
 
   /* Buffer to store (key, range_id) pairs */
   Lifo_buffer *key_buffer;
-
+  
+  /* This manages key buffer allocation and sizing for us */
   Buffer_manager *buf_manager;
 
-  /* Initially FALSE, becomes TRUE when we've set key_tuple_xxx members */
+  /* 
+    Initially FALSE, becomes TRUE when we saw the first lookup key and set 
+    keypar's member.
+  */
   bool know_key_tuple_params;
-
-  Key_parameters  keypar;
+ 
+  Key_parameters  keypar; /* index scan and lookup tuple parameters */
 
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
-
+  
+  /* Range sequence iteration members */
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
-
-  bool index_scan_eof;
 
   static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
   static int key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2);
@@ -256,18 +315,27 @@ public:
   int get_next(char **range_info);
   int refill_buffer();
 private:
-  handler *h;
+  handler *h; /* Handler to use */
   
-  DsMrr_impl *dsmrr;
   /* This what we get (rowid, range_info) pairs from */
   Mrr_index_reader *index_reader;
+
+  /* index_reader->get_next() puts rowid here */
   uchar *index_rowid;
+  
+  /* TRUE <=> index_reader->refill_buffer() call has returned EOF */
   bool index_reader_exhausted;
   
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
-
+  
+  /* 
+    When reading from ordered rowid buffer: the rowid element of the last
+    buffer element that has rowid identical to this one.
+  */
   uchar *last_identical_rowid;
+
+  /* Buffer to store (rowid, range_id) pairs */
   Lifo_buffer *rowid_buffer;
   
   /* rowid_buffer.read() will set the following:  */
@@ -278,7 +346,11 @@ private:
 };
 
 
-/* A place where one can get readers without having to alloc them on the heap */
+/*
+  A primitive "factory" of various Mrr_*_reader classes (the point is to 
+  get various kinds of readers without having to allocate them on the heap)
+*/
+
 class Mrr_reader_factory
 {
 public:
@@ -497,10 +569,9 @@ private:
                                uint *buffer_size, COST_VECT *cost);
   bool check_cpk_scan(THD *thd, uint keyno, uint mrr_flags);
 
-  void reallocate_buffer_space();
-  
   /* Buffer_manager implementation */
   void setup_buffer_sizes(uint key_size_in_keybuf, key_part_map key_tuple_map);
+  void redistribute_buffer_space();
   void reset_buffer_sizes();
   Lifo_buffer* get_key_buffer() { return key_buffer; }
 
