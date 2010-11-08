@@ -585,7 +585,9 @@ setup_thd(char * stackptr)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   thd->main_security_ctx.master_access= ~0;
@@ -5925,7 +5927,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   my_net_init(&thd->net, 0);

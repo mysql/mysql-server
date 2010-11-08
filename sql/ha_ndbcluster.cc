@@ -12305,7 +12305,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     goto ndb_util_thread_fail;
   lex_start(thd);
   thd->init_for_queries();
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
