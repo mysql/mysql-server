@@ -253,8 +253,6 @@ static void run_query(THD *thd, char *buf, char *end,
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
-  ulonglong save_thd_options= thd_options(thd);
-  DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_thd_net= thd->net;
   const char* found_semicolon= NULL;
 
@@ -263,8 +261,8 @@ static void run_query(THD *thd, char *buf, char *end,
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
-    thd->options&= ~OPTION_BIN_LOG;
-    
+    tmp_disable_binlog(thd);
+
   DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
@@ -304,7 +302,7 @@ static void run_query(THD *thd, char *buf, char *end,
     thd->main_da.reset_diagnostics_area();
   }
 
-  thd->options= save_thd_options;
+  reenable_binlog(thd);
   thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
@@ -3404,9 +3402,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
   */
-  ulonglong saved_options= thd_options(thd);
-  thd->options&= ~(OPTION_BIN_LOG);
-
+  tmp_disable_binlog(thd);
 
   if (open_and_lock_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
   {
@@ -3475,7 +3471,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 
 add_ndb_binlog_index_err:
   close_thread_tables(thd);
-  thd->options= saved_options;
+  reenable_binlog(thd);
   return error;
 }
 
