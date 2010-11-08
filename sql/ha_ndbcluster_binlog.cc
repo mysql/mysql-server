@@ -235,6 +235,19 @@ static void dbug_print_table(const char *info, TABLE *table)
 #define dbug_print_table(a,b)
 #endif
 
+static inline void
+print_warning_list(const char* prefix, List<MYSQL_ERROR>& list)
+{
+  List_iterator_fast<MYSQL_ERROR> it(list);
+  MYSQL_ERROR *err;
+  while ((err= it++))
+  {
+    sql_print_warning("%s: (%d)%s",
+                      prefix,
+                      MYSQL_ERROR_get_sql_errno(err),
+                      MYSQL_ERROR_get_message_text(err));
+  }
+}
 
 /*
   Run a query through mysql_parse
@@ -2769,10 +2782,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
                             "my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
-            List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
-            MYSQL_ERROR *err;
-            while ((err= it++))
-              sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
+            print_warning_list("NDB Binlog", thd_warn_list(thd));
           }
           mysql_mutex_unlock(&LOCK_open);
           log_query= 1;
@@ -3149,10 +3159,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
-            List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
-            MYSQL_ERROR *err;
-            while ((err= it++))
-              sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
+            print_warning_list("NDB Binlog", thd_warn_list(thd));
           }
           mysql_mutex_unlock(&LOCK_open);
         }
@@ -3331,10 +3338,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
-            List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
-            MYSQL_ERROR *err;
-            while ((err= it++))
-              sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
+            print_warning_list("NDB Binlog", thd_warn_list(thd));
           }
           mysql_mutex_unlock(&LOCK_open);
         }
@@ -4272,14 +4276,7 @@ err:
   if (do_set_binlog_flags)
     set_binlog_flags(share, NBT_DEFAULT);
   if (ndberror.code && opt_ndb_extra_logging)
-  {
-    List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
-    MYSQL_ERROR *err;
-    while ((err= it++))
-    {
-      sql_print_warning("NDB: %s Error_code: %d", err->msg, err->code);
-    }
-  }
+    print_warning_list("NDB", thd_warn_list(thd));
   DBUG_RETURN(ndberror.code);
 }
 #endif /* HAVE_NDB_BINLOG */
