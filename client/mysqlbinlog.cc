@@ -67,7 +67,7 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static my_bool one_database=0, disable_log_bin= 0;
 static my_bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
-{"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
+{"NEVER", "AUTO", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
   { array_elements(base64_output_mode_names) - 1, "",
     base64_output_mode_names, NULL };
@@ -632,45 +632,6 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
-  Prints the given event in base64 format.
-
-  The header is printed to the head cache and the body is printed to
-  the body cache of the print_event_info structure.  This allows all
-  base64 events corresponding to the same statement to be joined into
-  one BINLOG statement.
-
-  @param[in] ev Log_event to print.
-  @param[in,out] result_file FILE to which the output will be written.
-  @param[in,out] print_event_info Parameters and context state
-  determining how to print.
-
-  @retval ERROR_STOP An error occurred - the program should terminate.
-  @retval OK_CONTINUE No error, the program should continue.
-*/
-static Exit_status
-write_event_header_and_base64(Log_event *ev, FILE *result_file,
-                              PRINT_EVENT_INFO *print_event_info)
-{
-  IO_CACHE *head= &print_event_info->head_cache;
-  IO_CACHE *body= &print_event_info->body_cache;
-  DBUG_ENTER("write_event_header_and_base64");
-
-  /* Write header and base64 output to cache */
-  ev->print_header(head, print_event_info, FALSE);
-  ev->print_base64(body, print_event_info, FALSE);
-
-  /* Read data from cache and write to result file */
-  if (copy_event_cache_to_file_and_reinit(head, result_file) ||
-      copy_event_cache_to_file_and_reinit(body, result_file))
-  {
-    error("Error writing event to file.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-  DBUG_RETURN(OK_CONTINUE);
-}
-
-
-/**
   Print the given event, and either delete it or delegate the deletion
   to someone else.
 
@@ -745,15 +706,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
-      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
-      {
-        if ((retval= write_event_header_and_base64(ev, result_file,
-                                                   print_event_info)) !=
-            OK_CONTINUE)
-          goto end;
-      }
-      else
-        ev->print(result_file, print_event_info);
+      ev->print(result_file, print_event_info);
       break;
 
     case CREATE_FILE_EVENT:
@@ -774,15 +727,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
-      {
-        if ((retval= write_event_header_and_base64(ce, result_file,
-                                                   print_event_info)) !=
-            OK_CONTINUE)
-          goto end;
-      }
-      else
-        ce->print(result_file, print_event_info, TRUE);
+      ce->print(result_file, print_event_info, TRUE);
 
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
@@ -1015,12 +960,10 @@ static struct my_option my_long_options[] =
    "row-based events; 'decode-rows' decodes row events into commented SQL "
    "statements if the --verbose option is also given; 'auto' prints base64 "
    "only when necessary (i.e., for row-based events and format description "
-   "events); 'always' prints base64 whenever possible. 'always' is for "
-   "debugging only and should not be used in a production system. If this "
-   "argument is not given, the default is 'auto'; if it is given with no "
-   "argument, 'always' is used.",
+   "events).  If no --base64-output[=name] option is given at all, the "
+   "default is 'auto'.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
-   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -1347,13 +1290,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     stop_datetime= convert_str_to_timestamp(stop_datetime_str);
     break;
   case OPT_BASE64_OUTPUT_MODE:
-    if (argument == NULL)
-      opt_base64_output_mode= BASE64_OUTPUT_ALWAYS;
-    else
-    {
-      opt_base64_output_mode= (enum_base64_output_mode)
-        (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
-    }
+    opt_base64_output_mode= (enum_base64_output_mode)
+      (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     break;
   case 'v':
     if (argument == disabled_my_option)
@@ -1928,8 +1866,7 @@ static Exit_status check_header(IO_CACHE* file,
                 (ulonglong)tmp_pos);
           return ERROR_STOP;
         }
-        if (opt_base64_output_mode == BASE64_OUTPUT_AUTO
-            || opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+        if (opt_base64_output_mode == BASE64_OUTPUT_AUTO)
         {
           /*
             process_event will delete *description_event and set it to
