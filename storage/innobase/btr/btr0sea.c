@@ -1401,7 +1401,6 @@ btr_search_update_hash_on_delete(
 	rec_t*		rec;
 	ulint		fold;
 	dulint		index_id;
-	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -1433,7 +1432,7 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
+	ha_search_and_delete_if_found(table, fold, rec);
 
 	rw_lock_x_unlock(&btr_search_latch);
 }

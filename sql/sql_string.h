@@ -84,9 +84,13 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr_arg,size_t size)
-  { TRASH(ptr_arg, size); }
-  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, size_t size)
+  {
+    (void) ptr_arg;
+    (void) size;
+    TRASH(ptr_arg, size);
+  }
+  static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
   ~String() { free(); }
 
@@ -97,7 +101,7 @@ public:
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
-  inline bool is_empty() { return (str_length == 0); }
+  inline bool is_empty() const { return (str_length == 0); }
   inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()

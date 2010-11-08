@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_cache_size = 4096;
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -15,11 +17,14 @@ Got one of the listed errors
 *** Single statement on non-transactional table ***
 *** After WL#2687 the difference between STATEMENT/MIXED and ROW will not exist. ***
 Got one of the listed errors
+--source include/wait_for_slave_sql_error_and_skip.inc
+include/start_slave.inc
 *** Single statement on both transactional and non-transactional tables. ***
 *** After WL#2687 we will be able to change the order of the tables. ***
 Got one of the listed errors
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_error_and_skip.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+include/start_slave.inc
 TRUNCATE TABLE t1;
 TRUNCATE TABLE t2;
 TRUNCATE TABLE t3;
@@ -116,16 +121,40 @@ COMMIT;
 BEGIN;
 Got one of the listed errors
 COMMIT;
+--source include/wait_for_slave_sql_error_and_skip.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+include/start_slave.inc
+########################################################################
+#      8 - Bug#55375(Regression Bug) Transaction bigger than
+#          max_binlog_cache_size crashes slave
+########################################################################
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_cache_size = 4096;
+include/stop_slave.inc
+include/start_slave.inc
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+TRUNCATE t1;
+SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+BEGIN;
+Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
+COMMIT;
+SELECT count(*) FROM t1;
+count(*)
+0
+show binlog events in 'slave-bin.000001' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+include/stop_slave.inc
+include/start_slave.inc
+SELECT count(*) FROM t1;
+count(*)
+128
 ########################################################################################
 #                                        CLEAN
 ########################################################################################
-DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE t3;
-DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
-DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
