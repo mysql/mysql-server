@@ -56,7 +56,7 @@ if (`SELECT "$_sql_running" = "Yes" OR "$_io_running" = "Yes"`) {
 # Read server variables.
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $_fake_filename= query_get_value(SHOW VARIABLES LIKE 'relay_log', Value, 1);
-if (`SELECT '$_fake_filename' = ''`) {
+if (!$_fake_filename) {
   --echo Badly written test case: relay_log variable is empty. Please use the
   --echo server option --relay-log=FILE.
 }
@@ -72,7 +72,7 @@ copy_file $fake_relay_log $_fake_relay_log;
 
 if (`SELECT LENGTH(@@secure_file_priv) > 0`)
 {
-  -- let $_file_priv_dir= `SELECT @@secure_file_priv`;
+  -- let $_file_priv_dir= `SELECT @@secure_file_priv`
   -- let $_suffix= `SELECT UUID()`
   -- let $_tmp_file= $_file_priv_dir/fake-index.$_suffix
 

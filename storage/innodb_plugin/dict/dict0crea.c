@@ -627,7 +627,6 @@ dict_create_index_tree_step(
 {
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
-	dict_table_t*	table;
 	dtuple_t*	search_tuple;
 	ulint		zip_size;
 	btr_pcur_t	pcur;
@@ -636,7 +635,6 @@ dict_create_index_tree_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	index = node->index;
-	table = node->table;
 
 	sys_indexes = dict_sys->sys_indexes;
 

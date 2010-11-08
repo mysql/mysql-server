@@ -2503,6 +2503,8 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
       set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
+  else if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    stmt->mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
   DBUG_RETURN(0);
 }
 
@@ -2641,7 +2643,7 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, NULL);
     return 1;
   }
-  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, stmt->unbuffered_fetch_cancelled ?
                    CR_FETCH_CANCELED : CR_COMMANDS_OUT_OF_SYNC,
@@ -4847,7 +4849,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
       DBUG_RETURN(1);
     }
   }
-  else if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  else if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate, NULL);
     DBUG_RETURN(1);

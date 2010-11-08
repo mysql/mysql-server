@@ -223,6 +223,23 @@ ok(int const pass, char const *fmt, ...)
   emit_endl();
 }
 
+void
+ok1(int const pass)
+{
+  va_list ap;
+
+  memset(&ap, 0, sizeof(ap));
+
+  if (!pass && *g_test.todo == '\0')
+    ++g_test.failed;
+
+  vemit_tap(pass, NULL, ap);
+
+  if (*g_test.todo != '\0')
+    emit_dir("todo", g_test.todo);
+
+  emit_endl();
+}
 
 void
 skip(int how_many, char const *fmt, ...)

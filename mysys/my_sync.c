@@ -58,7 +58,7 @@ int my_sync(File fd, myf my_flags)
     /* Some file systems don't support F_FULLFSYNC and fail above: */
     DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
-#if defined(HAVE_FDATASYNC)
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
@@ -89,6 +89,8 @@ int my_sync(File fd, myf my_flags)
 
 
 static const char cur_dir_name[]= {FN_CURLIB, 0};
+
+
 /*
   Force directory information to disk.
 
@@ -100,9 +102,11 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
   RETURN
     0 if ok, !=0 if error
 */
+
+#ifdef NEED_EXPLICIT_SYNC_DIR
+
 int my_sync_dir(const char *dir_name, myf my_flags)
 {
-#ifdef NEED_EXPLICIT_SYNC_DIR
   File dir_fd;
   int res= 0;
   const char *correct_dir_name;
@@ -124,10 +128,17 @@ int my_sync_dir(const char *dir_name, myf my_flags)
   else
     res= 1;
   DBUG_RETURN(res);
-#else
-  return 0;
-#endif
 }
+
+#else /* NEED_EXPLICIT_SYNC_DIR */
+
+int my_sync_dir(const char *dir_name __attribute__((unused)),
+                myf my_flags __attribute__((unused)))
+{
+  return 0;
+}
+
+#endif /* NEED_EXPLICIT_SYNC_DIR */
 
 
 /*
@@ -141,15 +152,24 @@ int my_sync_dir(const char *dir_name, myf my_flags)
   RETURN
     0 if ok, !=0 if error
 */
+
+#ifdef NEED_EXPLICIT_SYNC_DIR
+
 int my_sync_dir_by_file(const char *file_name, myf my_flags)
 {
-#ifdef NEED_EXPLICIT_SYNC_DIR
   char dir_name[FN_REFLEN];
   size_t dir_name_length;
   dirname_part(dir_name, file_name, &dir_name_length);
   return my_sync_dir(dir_name, my_flags);
-#else
-  return 0;
-#endif
 }
+
+#else /* NEED_EXPLICIT_SYNC_DIR */
+
+int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
+                        myf my_flags __attribute__((unused)))
+{
+  return 0;
+}
+
+#endif /* NEED_EXPLICIT_SYNC_DIR */
 

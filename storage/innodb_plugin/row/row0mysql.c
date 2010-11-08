@@ -444,7 +444,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -575,6 +575,13 @@ handle_new_error:
 		      "InnoDB: you dump the tables, look at\n"
 		      "InnoDB: " REFMAN "forcing-recovery.html"
 		      " for help.\n", stderr);
+		break;
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		fprintf(stderr, "InnoDB: Cannot delete/update rows with"
+			" cascading foreign key constraints that exceed max"
+			" depth of %lu\n"
+			"Please drop excessive foreign constraints"
+			" and try again\n", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
 		break;
 	default:
 		fprintf(stderr, "InnoDB: unknown error code %lu\n",
@@ -1381,10 +1388,14 @@ row_update_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
+	thr->fk_cascade_depth = 0;
 
 	row_upd_step(thr);
 
 	err = trx->error_state;
+
+	/* Reset fk_cascade_depth back to 0 */
+	thr->fk_cascade_depth = 0;
 
 	if (err != DB_SUCCESS) {
 		que_thr_stop_for_mysql(thr);
@@ -1422,7 +1433,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -1576,11 +1592,26 @@ row_update_cascade_for_mysql(
 	trx_t*	trx;
 
 	trx = thr_get_trx(thr);
+
+	/* Increment fk_cascade_depth to record the recursive call depth on
+	a single update/delete that affects multiple tables chained
+	together with foreign key relations. */
+	thr->fk_cascade_depth++;
+
+	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
+		return (DB_FOREIGN_EXCEED_MAX_CASCADE);
+	}
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
 	row_upd_step(thr);
+
+	/* The recursive call for cascading update/delete happens
+	in above row_upd_step(), reset the counter once we come
+	out of the recursive call, so it does not accumulate for
+	different row deletes */
+	thr->fk_cascade_depth = 0;
 
 	err = trx->error_state;
 
@@ -2056,7 +2087,7 @@ row_table_add_foreign_constraints(
 					      name, reject_fks);
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, TRUE);
+		err = dict_load_foreigns(name, FALSE, TRUE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -2761,10 +2792,16 @@ row_truncate_table_for_mysql(
 
 			dict_hdr_get_new_id(NULL, NULL, &space);
 
+			/* Lock all index trees for this table. We must
+			do so after dict_hdr_get_new_id() to preserve
+			the latch order */
+			dict_table_x_lock_indexes(table);
+
 			if (space == ULINT_UNDEFINED
 			    || fil_create_new_single_table_tablespace(
 				    space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				dict_table_x_unlock_indexes(table);
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: TRUNCATE TABLE %s failed to"
@@ -2793,6 +2830,15 @@ row_truncate_table_for_mysql(
 					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 			mtr_commit(&mtr);
 		}
+	} else {
+		/* Lock all index trees for this table, as we will
+		truncate the table/index and possibly change their metadata.
+		All DML/DDL are blocked by table level lock, with
+		a few exceptions such as queries into information schema
+		about the table, MySQL could try to access index stats
+		for this kind of query, we need to use index locks to
+		sync up */
+		dict_table_x_lock_indexes(table);
 	}
 
 	/* scan SYS_INDEXES for all indexes of the table */
@@ -2867,6 +2913,10 @@ next_rec:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
+
+	/* Done with index truncation, release index tree locks,
+	subsequent work relates to table level metadata change */
+	dict_table_x_unlock_indexes(table);
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
@@ -3915,7 +3965,7 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, !old_is_tmp || trx->check_foreigns);
+			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

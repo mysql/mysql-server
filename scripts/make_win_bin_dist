@@ -263,6 +263,7 @@ cp include/mysql.h \
    include/keycache.h \
    include/m_ctype.h \
    include/my_attribute.h \
+   include/my_compiler.h \
    include/mysqld_error.h \
    include/sql_state.h \
    include/mysqld_ername.h \
