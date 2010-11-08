@@ -1,0 +1,85 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+show variables like 'server_id';
+Variable_name	Value
+server_id	1
+reset master;
+select @cluster1_server_id:=(variable_value+0) 
+from information_schema.global_variables 
+where variable_name like 'server_id';
+@cluster1_server_id:=(variable_value+0)
+1
+show variables like 'server_id';
+Variable_name	Value
+server_id	2
+stop slave;
+reset master;
+reset slave;
+start slave;
+show variables like 'server_id';
+Variable_name	Value
+server_id	3
+stop slave;
+Warnings:
+Note	1255	Slave already has been stopped
+reset master;
+reset slave;
+start slave;
+First show replication 1->2->3
+use test;
+create table t1(a int primary key, b varchar(50)) engine=ndb;
+insert into t1 values (1,'Summertime');
+Cluster2 has insert and apply_status from Cluster1
+show variables like 'server_id';
+Variable_name	Value
+server_id	2
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+select * from test.t1;
+a	b
+1	Summertime
+Cluster3 has insert and apply_status from Cluster1+2
+show variables like 'server_id';
+Variable_name	Value
+server_id	3
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+2	#	#	#	#
+select * from test.t1;
+a	b
+1	Summertime
+Break Cluster3's link with Cluster2
+stop slave;
+Make further changes on Cluster1
+insert into test.t1 values (2, "The cotton is high");
+insert into test.t1 values (3, "Daddys rich");
+Show changes exist on Cluster2
+select * from test.t1 order by a;
+a	b
+1	Summertime
+2	The cotton is high
+3	Daddys rich
+Check data on Cluster3
+select * from test.t1 order by a;
+a	b
+1	Summertime
+Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
+select * from mysql.ndb_apply_status order by server_id;
+server_id	epoch	log_name	start_pos	end_pos
+1	#	#	#	#
+2	#	#	#	#
+start slave;
+Now show that cluster 3 is successfully replicating from Cluster1
+select * from test.t1 order by a;
+a	b
+1	Summertime
+2	The cotton is high
+3	Daddys rich
+Clean up
+drop table test.t1;

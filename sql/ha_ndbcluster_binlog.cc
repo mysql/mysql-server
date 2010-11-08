@@ -42,6 +42,7 @@ extern my_bool opt_ndb_log_empty_epochs;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
+extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern ulong opt_server_id_mask;
 
@@ -252,23 +253,56 @@ static void run_query(THD *thd, char *buf, char *end,
   struct system_status_var save_thd_status_var= thd->status_var;
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
-  ulonglong save_thd_options= thd_options(thd);
-  DBUG_ASSERT(sizeof(save_thd_options) == sizeof(thd->options));
   NET save_thd_net= thd->net;
-  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   if (disable_binlog)
-    thd->options&= ~OPTION_BIN_LOG;
-    
+    tmp_disable_binlog(thd);
+
   DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->prelocked_mode);
 
+#if MYSQL_VERSION_ID >= 50501
+  {
+    Parser_state parser_state;
+    if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+  }
+
+  if (no_print_error && thd->is_slave_error)
+  {
+    int i;
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    for (i= 0; no_print_error[i]; i++)
+      if ((thd_ndb->m_error_code == no_print_error[i]) ||
+          (thd->stmt_da->sql_errno() == (unsigned) no_print_error[i]))
+        break;
+    if (!no_print_error[i])
+      sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
+                      buf,
+                      thd->stmt_da->message(),
+                      thd->stmt_da->sql_errno(),
+                      thd_ndb->m_error_code,
+                      (int) thd->is_error(), thd->is_slave_error);
+  }
+  /*
+    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
+    can not be called from within a statement, and
+    run_query() can be called from anywhere, including from within
+    a sub-statement.
+    This particular reset is a temporary hack to avoid an assert
+    for double assignment of the diagnostics area when run_query()
+    is called from ndbcluster_reset_logs(), which is called from
+    mysql_flush().
+  */
+  thd->stmt_da->reset_diagnostics_area();
+#else
+  const char* found_semicolon= NULL;
   mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
   if (no_print_error && thd->main_da.is_error())
@@ -302,8 +336,9 @@ static void run_query(THD *thd, char *buf, char *end,
   {
     thd->main_da.reset_diagnostics_area();
   }
+#endif
 
-  thd->options= save_thd_options;
+  reenable_binlog(thd);
   thd->set_query(save_thd_query, save_thd_query_length);
   thd->variables.pseudo_thread_id= save_thread_id;
   thd->status_var= save_thd_status_var;
@@ -532,7 +567,7 @@ static int ndbcluster_reset_logs(THD *thd)
   bzero((char*) &table, sizeof(table));
   table.db= repdb;
   table.alias= table.table_name= reptable;
-  mysql_truncate(thd, &table, 0);
+  mysql_truncate_table(thd, &table);
 
   /*
     Calling function only expects and handles error cases,
@@ -584,7 +619,9 @@ setup_thd(char * stackptr)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   thd->main_security_ctx.master_access= ~0;
@@ -1485,9 +1522,9 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE);
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     if (!ndb_schema_share)
     {
       ndbcluster_create_schema_table(thd);
@@ -1499,9 +1536,9 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   if (!ndb_apply_status_share &&
       ndbcluster_check_ndb_apply_status_share() == 0)
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE);
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     if (!ndb_apply_status_share)
     {
       ndbcluster_create_ndb_apply_status_table(thd);
@@ -1517,7 +1554,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
 
   if (!ndbcluster_find_all_files(thd))
   {
-    pthread_mutex_lock(&LOCK_open);
+    mysql_mutex_lock(&LOCK_open);
     ndb_binlog_tables_inited= TRUE;
     if (ndb_binlog_tables_inited &&
         ndb_binlog_running && ndb_binlog_is_ready)
@@ -1532,7 +1569,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
       */
       ndb_notify_tables_writable();
     }
-    pthread_mutex_unlock(&LOCK_open);
+    mysql_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
     pthread_cond_signal(&injector_cond);
   }
@@ -2278,7 +2315,7 @@ end:
     if (have_lock_open)
     {
       safe_mutex_assert_owner(&LOCK_open);
-      pthread_mutex_unlock(&LOCK_open);
+      mysql_mutex_unlock(&LOCK_open);
     }
     while (1)
     {
@@ -2339,7 +2376,7 @@ end:
     }
     if (have_lock_open)
     {
-      pthread_mutex_lock(&LOCK_open);
+      mysql_mutex_lock(&LOCK_open);
     }
     pthread_mutex_unlock(&ndb_schema_object->mutex);
   }
@@ -2712,7 +2749,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         // fall through
         case SOT_CREATE_TABLE:
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          pthread_mutex_lock(&LOCK_open);
+          mysql_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
@@ -2734,7 +2771,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
             while ((err= it++))
               sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
           }
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
           log_query= 1;
           break;
         case SOT_DROP_DB:
@@ -3030,9 +3067,9 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         log_query= 1;
         if (share)
         {
-          pthread_mutex_lock(&LOCK_open);
+          mysql_mutex_lock(&LOCK_open);
           ndbcluster_rename_share(thd, share);
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
         }
         break;
       case SOT_RENAME_TABLE_PREPARE:
@@ -3093,7 +3130,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share= 0;
           }
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          pthread_mutex_lock(&LOCK_open);
+          mysql_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
@@ -3114,7 +3151,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             while ((err= it++))
               sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
           }
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
         }
         break;
       case SOT_ONLINE_ALTER_TABLE_PREPARE:
@@ -3134,7 +3171,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           Refresh local frm file and dictionary cache if
           remote on-line alter table
         */
-        pthread_mutex_lock(&LOCK_open);
+        mysql_mutex_lock(&LOCK_open);
         TABLE_LIST table_list;
         bzero((char*) &table_list,sizeof(table_list));
         table_list.db= (char *)schema->db;
@@ -3177,7 +3214,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
         }
         if (!share)
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
         else
         {
           if (opt_ndb_extra_logging > 9)
@@ -3189,7 +3226,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           if ((error= ndbcluster_binlog_open_table(thd, share)))
             sql_print_error("NDB Binlog: Failed to re-open table %s.%s",
                             schema->db, schema->name);
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
           if (error)
             pthread_mutex_unlock(&share->mutex);
         }
@@ -3275,7 +3312,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share= 0;
           }
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
-          pthread_mutex_lock(&LOCK_open);
+          mysql_mutex_lock(&LOCK_open);
           if (ndbcluster_check_if_local_table(schema->db, schema->name))
           {
             DBUG_PRINT("info", ("NDB Binlog: Skipping locally defined table '%s.%s'",
@@ -3296,7 +3333,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             while ((err= it++))
               sql_print_warning("NDB Binlog: (%d)%s", err->code, err->msg);
           }
-          pthread_mutex_unlock(&LOCK_open);
+          mysql_mutex_unlock(&LOCK_open);
         }
         break;
       default:
@@ -3401,9 +3438,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
     Turn of binlogging to prevent the table changes to be written to
     the binary log.
   */
-  ulonglong saved_options= thd_options(thd);
-  thd->options&= ~(OPTION_BIN_LOG);
-
+  tmp_disable_binlog(thd);
 
   if (open_and_lock_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
   {
@@ -3472,7 +3507,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
 
 add_ndb_binlog_index_err:
   close_thread_tables(thd);
-  thd->options= saved_options;
+  reenable_binlog(thd);
   return error;
 }
 
@@ -3991,6 +4026,30 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   NdbError ndberror;
   int error= 0;
   const char *error_str= "<none>";
+
+  /* Override for ndb_apply_status when logging */
+  if (opt_ndb_log_apply_status &&
+      do_set_binlog_flags)
+  {
+    if (strcmp(db, NDB_REP_DB) == 0 &&
+        strcmp(table_name, NDB_APPLY_TABLE) == 0)
+    {
+      /*
+        Ensure that we get all columns from ndb_apply_status updates
+        by forcing FULL event type
+        Also, ensure that ndb_apply_status events are always logged as 
+        WRITES.
+        This is needed so that received ndb_apply_status WRITES can be
+        cleanly propagated.
+      */
+      DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
+      sql_print_information("NDB : ndb-log-apply-status forcing "
+                            "%s.%s to FULL USE_WRITE",
+                            NDB_REP_DB, NDB_APPLY_TABLE);
+      set_binlog_flags(share, NBT_FULL);
+      DBUG_RETURN(0);
+    }
+  }
 
   ndb->setDatabaseName(ndb_rep_db);
   NDBDICT *dict= ndb->getDictionary();
@@ -5002,7 +5061,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   thd->proc_info= "Syncing ndb table schema operation and binlog";
   pthread_mutex_lock(&share->mutex);
   safe_mutex_assert_owner(&LOCK_open);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
   {
@@ -5029,7 +5088,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                            type_str, share->key, 0);
     }
   }
-  pthread_mutex_lock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
   pthread_mutex_unlock(&share->mutex);
 #else
   pthread_mutex_lock(&share->mutex);
@@ -5372,45 +5431,14 @@ static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                                     ndb_binlog_index_row **rows,
                                     injector::transaction &trans,
-                                    unsigned &trans_row_count)
+                                    unsigned &trans_row_count,
+                                    unsigned &trans_slave_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->table;
   NDB_SHARE *share= event_data->share;
   if (pOp != share->op)
   {
-    return 0;
-  }
-  if (share == ndb_apply_status_share)
-  {
-    if (opt_ndb_log_orig)
-    {
-      switch(pOp->getEventType())
-      {
-      case NDBEVENT::TE_INSERT:
-        // fall through
-      case NDBEVENT::TE_UPDATE:
-      {
-        /* unpack data to fetch orig_server_id and orig_epoch */
-        uint n_fields= table->s->fields;
-        MY_BITMAP b;
-        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-        bitmap_init(&b, bitbuf, n_fields, FALSE);
-        bitmap_set_all(&b);
-        ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
-        /* store */
-        ndb_binlog_index_row *row= ndb_find_binlog_index_row
-          (rows, (uint)((Field_long *)table->field[0])->val_int(), 1);
-        row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
-        break;
-      }
-      case NDBEVENT::TE_DELETE:
-        break;
-      default:
-        /* We should REALLY never get here */
-        abort();
-      }
-    }
     return 0;
   }
 
@@ -5423,18 +5451,118 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                         anyValue);
     return 0;
   }
-  
   uint32 originating_server_id= ndbcluster_anyvalue_get_serverid(anyValue);
+  bool log_this_slave_update = g_ndb_log_slave_updates;
+  bool count_this_event = true;
 
+  if (share == ndb_apply_status_share)
+  {
+    /* 
+       Note that option values are read without synchronisation w.r.t. 
+       thread setting option variable or epoch boundaries.
+    */
+    if (opt_ndb_log_apply_status ||
+        opt_ndb_log_orig)
+    {
+      Uint32 ndb_apply_status_logging_server_id= originating_server_id;
+      Uint32 ndb_apply_status_server_id= 0;
+      Uint64 ndb_apply_status_epoch= 0;
+      bool event_has_data = false;
+
+      switch(pOp->getEventType())
+      {
+      case NDBEVENT::TE_INSERT:
+        // fall through
+      case NDBEVENT::TE_UPDATE:
+        event_has_data = true;
+        break;
+      case NDBEVENT::TE_DELETE:
+        break;
+      default:
+        /* We should REALLY never get here */
+        abort();
+      }
+      
+      if (likely( event_has_data ))
+      {
+        /* unpack data to fetch orig_server_id and orig_epoch */
+        uint n_fields= table->s->fields;
+        MY_BITMAP b;
+        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
+        bitmap_init(&b, bitbuf, n_fields, FALSE);
+        bitmap_set_all(&b);
+        ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
+        ndb_apply_status_server_id= (uint)((Field_long *)table->field[0])->val_int();
+        ndb_apply_status_epoch= ((Field_longlong *)table->field[1])->val_int();
+        
+        if (opt_ndb_log_apply_status)
+        {
+          /* 
+             Determine if event came from our immediate Master server
+             Ignore locally manually sourced and reserved events 
+          */
+          if ((ndb_apply_status_logging_server_id != 0) &&
+              (! ndbcluster_anyvalue_is_reserved(ndb_apply_status_logging_server_id)))
+          {
+            bool isFromImmediateMaster = (ndb_apply_status_server_id ==
+                                          ndb_apply_status_logging_server_id);
+            
+            if (isFromImmediateMaster)
+            {
+              /* 
+                 We log this event with our server-id so that it 
+                 propagates back to the originating Master (our
+                 immediate Master)
+              */
+              assert(ndb_apply_status_logging_server_id != ::server_id);
+              
+              originating_server_id= 0; /* Will be set to our ::serverid below */
+            }
+          }
+        }
+
+        if (opt_ndb_log_orig)
+        {
+          /* store */
+          ndb_binlog_index_row *row= ndb_find_binlog_index_row
+            (rows, ndb_apply_status_server_id, 1);
+          row->orig_epoch= ndb_apply_status_epoch;
+        }
+      }
+    } // opt_ndb_log_apply_status || opt_ndb_log_orig)
+
+    if (opt_ndb_log_apply_status)
+    {
+      /* We are logging ndb_apply_status changes
+       * Don't count this event as making an epoch non-empty
+       * Log this event in the Binlog
+       */
+      count_this_event = false;
+      log_this_slave_update = true;
+    }
+    else
+    {
+      /* Not logging ndb_apply_status updates, discard this event now */
+      return 0;
+    }
+  }
+  
   if (originating_server_id == 0)
     originating_server_id= ::server_id;
-  else if (!g_ndb_log_slave_updates)
+  else 
   {
-    /*
-      This event comes from a slave applier since it has an originating
-      server id set. Since option to log slave updates is not set, skip it.
-    */
-    return 0;
+    /* Track that we received a replicated row event */
+    if (likely( count_this_event ))
+      trans_slave_row_count++;
+    
+    if (!log_this_slave_update)
+    {
+      /*
+        This event comes from a slave applier since it has an originating
+        server id set. Since option to log slave updates is not set, skip it.
+      */
+      return 0;
+    }
   }
 
   /* 
@@ -5481,8 +5609,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   switch(pOp->getEventType())
   {
   case NDBEVENT::TE_INSERT:
-    row->n_inserts++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_inserts++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -5504,8 +5635,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_DELETE:
-    row->n_deletes++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_deletes++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info",("DELETE FROM %s.%s",
                        table->s->db.str, table->s->table_name.str));
     {
@@ -5545,8 +5679,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_UPDATE:
-    row->n_updates++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_updates++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -5799,9 +5936,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   /* We need to set thd->thread_id before thd->store_globals, or it will
      set an invalid value for thd->variables.pseudo_thread_id.
   */
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thread_id++;
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
@@ -5822,7 +5959,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd->init_for_queries();
   thd->command= COM_DAEMON;
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+#ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
+#endif
   thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
   my_net_init(&thd->net, 0);
@@ -5836,9 +5975,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
 
 
@@ -5905,20 +6044,20 @@ restart_cluster_failure:
     wait for mysql server to start (so that the binlog is started
     and thus can receive the first GAP event)
   */
-  pthread_mutex_lock(&LOCK_server_started);
+  mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
   {
     struct timespec abstime;
     set_timespec(abstime, 1);
-    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
-                           &abstime);
+    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
+                         &abstime);
     if (ndbcluster_terminating)
     {
-      pthread_mutex_unlock(&LOCK_server_started);
+      mysql_mutex_unlock(&LOCK_server_started);
       goto err;
     }
   }
-  pthread_mutex_unlock(&LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
   /*
     Main NDB Injector loop
   */
@@ -6275,6 +6414,7 @@ restart_cluster_failure:
       ndb_binlog_index_row *rows= &_row;
       injector::transaction trans;
       unsigned trans_row_count= 0;
+      unsigned trans_slave_row_count= 0;
       if (!pOp)
       {
         /*
@@ -6320,6 +6460,7 @@ restart_cluster_failure:
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
         trans_row_count= 0;
+        trans_slave_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -6473,7 +6614,7 @@ restart_cluster_failure:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count);
+            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count, trans_slave_row_count);
           else
           {
             ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
@@ -6512,17 +6653,34 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if ((trans_row_count == 0) && !opt_ndb_log_empty_epochs)
+          if (!opt_ndb_log_empty_epochs)
           {
-            /* nothing to commit, rollback instead */
-            if (int r= trans.rollback())
+            /*
+              If 
+                - We did not add any 'real' rows to the Binlog AND
+                - We did not apply any slave row updates, only
+                  ndb_apply_status updates
+              THEN
+                Don't write the Binlog transaction which just
+                contains ndb_apply_status updates.
+                (For cicular rep with log_apply_status, ndb_apply_status
+                updates will propagate while some related, real update
+                is propagating)
+            */
+            if ((trans_row_count == 0) &&
+                (! (opt_ndb_log_apply_status &&
+                    trans_slave_row_count) ))
             {
-              sql_print_error("NDB Binlog: "
-                              "Error during ROLLBACK of GCI %u/%u. Error: %d",
-                              uint(gci >> 32), uint(gci), r);
-              /* TODO: Further handling? */
+              /* nothing to commit, rollback instead */
+              if (int r= trans.rollback())
+              {
+                sql_print_error("NDB Binlog: "
+                                "Error during ROLLBACK of GCI %u/%u. Error: %d",
+                                uint(gci >> 32), uint(gci), r);
+                /* TODO: Further handling? */
+              }
+              break;
             }
-            break;
           }
       commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
@@ -6550,14 +6708,14 @@ restart_cluster_failure:
               */
               if (thd->killed)
               {
-                (void) pthread_mutex_lock(&LOCK_thread_count);
+                (void) mysql_mutex_lock(&LOCK_thread_count);
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
                 ndb_add_ndb_binlog_index(thd, rows);
                 /* Restore kill flag */
                 thd->killed= killed;
-                (void) pthread_mutex_unlock(&LOCK_thread_count);
+                (void) mysql_mutex_unlock(&LOCK_thread_count);
               }
             }
           }

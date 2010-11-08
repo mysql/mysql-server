@@ -18,10 +18,10 @@
 #include <NdbNuma.h>
 #include <ndb_global.h>
 
+static int NDB_TRACE_NUMA = 0;
+
 #if defined HAVE_DLFCN_H && defined HAVE_DLOPEN
 #include <dlfcn.h>
-
-static int NDB_TRACE_NUMA = 0;
 
 /**
  * Load libnuma using dlopen, not have to put link dependency on it...
