@@ -96,6 +96,16 @@ enum column_format_type {
 /* thd->binlog_query has new parameter "direct" */
 #define NDB_THD_BINLOG_QUERY_HAS_DIRECT
 
+/*
+  Additional flags to use in multi range read flags
+  only used internally in ha_ndbcluster
+*/
+
+/* set when RBWR detects that read is just "memcpy" of the current key */
+#define READ_KEY_FROM_RANGE 512
+/* no more records in this range, try next if any */
+#define EMPTY_RANGE 1024
+
 #endif
 
 
