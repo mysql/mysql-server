@@ -3512,9 +3512,9 @@ NdbQueryOperationImpl::handleBatchComplete(Uint32 fragNo)
   
 
 void 
-NdbQueryOperationImpl::fetchRow(const NdbResultStream& resultStream)
+NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
-  const char* buff = resultStream.getReceiver().peek_row();
+  const char* buff = resultStream.getReceiver().get_row();
   assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
 
   m_isRowNull = false;
