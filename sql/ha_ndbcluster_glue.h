@@ -87,6 +87,9 @@ enum column_format_type {
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
+/* Global schema lock not available */
+#define NDB_NO_GLOBAL_SCHEMA_LOCK
+
 #endif
 
 
