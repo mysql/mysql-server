@@ -82,6 +82,9 @@ enum column_format_type {
 /* Read before write removal not supported */
 #define NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
 
+/* thd has no version field anymore */
+#define NDB_THD_HAS_NO_VERSION
+
 #endif
 
 
