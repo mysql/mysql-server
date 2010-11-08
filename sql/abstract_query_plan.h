@@ -160,9 +160,11 @@ namespace AQP
     AT_MULTI_MIXED,
     /** Scan a table. (No index is assumed to be used.) */
     AT_TABLE_SCAN,
+    /** Access method will not be chosen before the execution phase.*/
+    AT_UNDECIDED,
     /**
-      The access method has not yet been decided, or it has properties that
-      otherwise prevents it from being pushed to a storage engine.
+      The access method has properties that prevents it from being pushed to a 
+      storage engine.
      */
     AT_OTHER
   };
@@ -188,6 +190,8 @@ namespace AQP
   public:
 
     enum_access_type get_access_type() const;
+
+    const char* get_other_access_reason() const;
 
     enum_join_type get_join_type(const Table_access* parent) const;
 
@@ -215,6 +219,11 @@ namespace AQP
 
     /** The type of this operation.*/
     mutable enum_access_type m_access_type;
+
+    /** 
+      The reason for getting m_access_type==AT_OTHER. Used for explain extended.
+    */
+    mutable const char* m_other_access_reason;
 
     /** The index to use for this operation (if applicable )*/
     mutable int m_index_no;
@@ -256,6 +265,19 @@ namespace AQP
     if (m_access_type == AT_VOID)
       compute_type_and_index();
     return m_access_type;
+  }
+
+  /** 
+    Get a description of the reason for getting access_type==AT_OTHER. To be 
+    used for informational messages.
+    @return A string that should be assumed to have the same life time as the
+    Table_access object.
+  */
+  inline const char* Table_access::get_other_access_reason() const
+  {
+    if (m_access_type == AT_VOID)
+      compute_type_and_index();
+    return m_other_access_reason;
   }
 
   /**

@@ -309,7 +309,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr);
 
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 {                                                                 \
-  if (unlikely((current_thd->lex->describe & DESCRIBE_EXTENDED))) \
+  if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
   {                                                               \
     explain_no_push ((msgfmt), __VA_ARGS__);                      \
   }                                                               \
@@ -834,15 +834,42 @@ ndb_pushed_builder_ctx::init_pushability()
   {
     m_tables[i].m_maybe_pushable= 0;
 
-    const TABLE* const table= m_plan.get_table_access(i)->get_table();
-    if (table->file->ht != ndbcluster_hton)
+    const AQP::Table_access* const table_access = m_plan.get_table_access(i);
+    if (table_access->get_table()->file->ht != ndbcluster_hton)
     {
       m_tables[i].m_maybe_pushable= 0;
-      EXPLAIN_NO_PUSH("Table '%s' not in Cluster engine, not pushable", table->alias);
+      EXPLAIN_NO_PUSH("Table '%s' not in ndb engine, not pushable", 
+                      table_access->get_table()->alias);
       continue;
     }
 
-    m_tables[i].m_maybe_pushable= static_cast<ha_ndbcluster*>(table->file)->get_pushability();
+    switch (table_access->get_access_type())
+    {
+    case AQP::AT_VOID:
+      DBUG_ASSERT(false);
+      break;
+
+    case AQP::AT_OTHER:
+      EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
+                      table_access->get_table()->alias, 
+                      table_access->get_other_access_reason());
+      m_tables[i].m_maybe_pushable= 0;
+      break;
+
+    case AQP::AT_UNDECIDED:
+      EXPLAIN_NO_PUSH("Access type for table '%s' will not be chosen before"
+                      " execution time and '%s' is therefore not pushable.",
+                      table_access->get_table()->alias,
+                      table_access->get_table()->alias);
+      m_tables[i].m_maybe_pushable= 0;
+      break;
+  
+    default:
+      m_tables[i].m_maybe_pushable= 
+        static_cast<ha_ndbcluster*>(table_access->get_table()->file)
+        ->get_pushability();
+      break;
+    }
   }
 
   m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
@@ -864,13 +891,6 @@ ndb_pushed_builder_ctx::is_pushable_as_parent(const AQP::Table_access* table)
   const AQP::enum_access_type access_type= table->get_access_type();
   DBUG_ASSERT(access_type != AQP::AT_VOID);
 
-  if (access_type == AQP::AT_OTHER)
-  {
-    EXPLAIN_NO_PUSH("Table '%s' is not pushable, "
-                    "unknown access 'type'", table->get_table()->alias);
-    m_tables[table_no].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
-    DBUG_RETURN(false);
-  }
   if (access_type == AQP::AT_MULTI_UNIQUE_KEY)
   {
     EXPLAIN_NO_PUSH("Table '%s' is not pushable, "
@@ -926,7 +946,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
 
   if (!(is_lookup_operation(access_type) || access_type==AQP::AT_ORDERED_INDEX_SCAN))
   {
-    EXPLAIN_NO_PUSH("Can't push table '%s' as child, 'type' must be a REF access",
+    EXPLAIN_NO_PUSH("Can't push table '%s' as child, 'type' must be a 'ref' access",
                      table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
     DBUG_RETURN(false);
@@ -945,7 +965,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
     EXPLAIN_NO_PUSH("Can't push table '%s' as child, "
-                    "to many REF'ed parent fields",
+                    "to many ref'ed parent fields",
                      table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
     DBUG_RETURN(false);
@@ -979,7 +999,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       if (key_part_no==0)
       {
         EXPLAIN_NO_PUSH("Can't push table '%s' as child, "
-                        "column '%s' does neither REF a column nor a constant",
+                        "column '%s' does neither 'ref' a column nor a constant",
                          table->get_table()->alias,
                          table->get_key_part_info(key_part_no)->field->field_name);
         m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently disable as child
@@ -1005,7 +1025,8 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       if (key_part_no==0)
       {
         EXPLAIN_NO_PUSH("Can't push table '%s' as child, "
-                        "column '%s' does not have same datatype as REF'ed column '%s.%s'",
+                        "column '%s' does not have same datatype as ref'ed "
+                        "column '%s.%s'",
                          table->get_table()->alias,
                          table->get_key_part_info(key_part_no)->field->field_name,
                          key_item_field->field->table->alias, 
@@ -1119,7 +1140,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     else
     {
       EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
-                      "Item_field '%s.%s' is outside scope of pushable join",
+                      "column '%s.%s' is outside scope of pushable join",
                        table->get_table()->alias, join_root()->get_table()->alias,
                        get_referred_table_access_name(key_item_field),
                        get_referred_field_name(key_item_field));
