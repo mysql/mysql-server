@@ -336,7 +336,7 @@ user_comment	Procedure privileges
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
-TABLE_NAME	proxy_priv
+TABLE_NAME	proxies_priv
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
 VERSION	10
