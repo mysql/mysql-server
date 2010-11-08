@@ -27,6 +27,7 @@ INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
 INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;
 insert into t1 select * from t2;
@@ -38,6 +39,7 @@ a	b	c	d	id
 SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 delete from t1;
+SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;
 insert into t1 select * from t2;
@@ -60,6 +62,7 @@ SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
 delete from t1;
+SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;
 insert into t1 select * from t2;
@@ -82,6 +85,7 @@ SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
 delete from t1;
+SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;
 insert into t1 select * from t2;
@@ -104,6 +108,7 @@ SHOW BINLOG EVENTS LIMIT 2,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	174	Query	1	268	use `test`; insert into t1 select * from t2
 delete from t1;
+SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;
 insert into t1 select * from t2;

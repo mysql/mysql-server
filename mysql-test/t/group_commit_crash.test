@@ -46,6 +46,7 @@ while ($numinserts)
 
 while ($numtests)
 {
+  SET binlog_format= mixed;
   RESET MASTER;
 
   START TRANSACTION;

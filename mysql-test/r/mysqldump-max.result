@@ -291,6 +291,7 @@ DROP VIEW  v1;
 DROP TABLE t1;
 SET GLOBAL storage_engine=@old_engine;
 # Connection default
+SET binlog_format= mixed;
 RESET MASTER;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2);

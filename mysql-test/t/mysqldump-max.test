@@ -1134,6 +1134,7 @@ connect(c3,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
 connection default;
 --echo # Connection default
+SET binlog_format= mixed;
 RESET MASTER;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2);
