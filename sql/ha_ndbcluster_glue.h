@@ -105,6 +105,41 @@ ulonglong thd_options(const THD * thd)
 #endif
 }
 
+
+/* extract the list of warnings from THD */
+static inline
+List<MYSQL_ERROR>& thd_warn_list(const THD * thd)
+{
+#if MYSQL_VERSION_ID < 50500
+  return const_cast<THD*>(thd)->warn_list;
+#else
+  /* "options" has moved to "variables.option_bits" */
+  return thd->warning_info->warn_list();
+#endif
+}
+
+static inline
+const char* MYSQL_ERROR_get_message_text(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->msg;
+#else
+  /* "msg" is gone, use accessor */
+  return err->get_message_text();
+#endif
+}
+
+static inline
+uint MYSQL_ERROR_get_sql_errno(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->code;
+#else
+  /* "code" is gone, use accessor */
+  return err->get_sql_errno();
+#endif
+}
+
 #if MYSQL_VERSION_ID < 50500
 
 /*
