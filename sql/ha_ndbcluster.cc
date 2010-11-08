@@ -243,6 +243,29 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        TABLE_LIST *tables, 
                                        COND *cond);
 
+#if MYSQL_VERSION_ID >= 50501
+/**
+   Used to fill in INFORMATION_SCHEMA* tables.
+
+   @param hton handle to the handlerton structure
+   @param thd the thread/connection descriptor
+   @param[in,out] tables the information schema table that is filled up
+   @param cond used for conditional pushdown to storage engine
+   @param schema_table_idx the table id that distinguishes the type of table
+
+   @return Operation status
+ */
+static int
+ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
+                         COND *cond, enum enum_schema_tables schema_table_idx)
+{
+  if (schema_table_idx == SCH_FILES)
+    return  ndbcluster_fill_files_table(hton, thd, tables, cond);
+  return 0;
+}
+#endif
+
+
 handlerton *ndbcluster_hton;
 
 static handler *ndbcluster_create_handler(handlerton *hton,
@@ -10114,7 +10137,11 @@ static int ndbcluster_init(void *p)
 #else
     /* Should install alter_table_flags */
 #endif
+#if MYSQL_VERSION_ID >= 50501
+    h->fill_is_table=    ndbcluster_fill_is_table;
+#else
     h->fill_files_table= ndbcluster_fill_files_table;
+#endif
     ndbcluster_binlog_init_handlerton();
     h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h->discover=         ndbcluster_discover;
