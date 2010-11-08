@@ -254,7 +254,6 @@ static void run_query(THD *thd, char *buf, char *end,
   THD_TRANS save_thd_transaction_all= thd->transaction.all;
   THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
   NET save_thd_net= thd->net;
-  const char* found_semicolon= NULL;
 
   bzero((char*) &thd->net, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
@@ -268,6 +267,42 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_ASSERT(!thd->in_sub_stmt);
   DBUG_ASSERT(!thd->prelocked_mode);
 
+#if MYSQL_VERSION_ID >= 50501
+  {
+    Parser_state parser_state;
+    if (!parser_state.init(thd, thd->query(), thd->query_length()))
+      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+  }
+
+  if (no_print_error && thd->is_slave_error)
+  {
+    int i;
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    for (i= 0; no_print_error[i]; i++)
+      if ((thd_ndb->m_error_code == no_print_error[i]) ||
+          (thd->stmt_da->sql_errno() == (unsigned) no_print_error[i]))
+        break;
+    if (!no_print_error[i])
+      sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
+                      buf,
+                      thd->stmt_da->message(),
+                      thd->stmt_da->sql_errno(),
+                      thd_ndb->m_error_code,
+                      (int) thd->is_error(), thd->is_slave_error);
+  }
+  /*
+    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
+    can not be called from within a statement, and
+    run_query() can be called from anywhere, including from within
+    a sub-statement.
+    This particular reset is a temporary hack to avoid an assert
+    for double assignment of the diagnostics area when run_query()
+    is called from ndbcluster_reset_logs(), which is called from
+    mysql_flush().
+  */
+  thd->stmt_da->reset_diagnostics_area();
+#else
+  const char* found_semicolon= NULL;
   mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
   if (no_print_error && thd->main_da.is_error())
@@ -301,6 +336,7 @@ static void run_query(THD *thd, char *buf, char *end,
   {
     thd->main_da.reset_diagnostics_area();
   }
+#endif
 
   reenable_binlog(thd);
   thd->set_query(save_thd_query, save_thd_query_length);
