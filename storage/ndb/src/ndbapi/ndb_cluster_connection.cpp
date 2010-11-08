@@ -204,7 +204,7 @@ Ndb_cluster_connection_impl::get_next_alive_node(Ndb_cluster_connection_node_ite
   if (tp == 0 || tp->ownId() == 0)
     return 0;
 
-  while (id = get_next_node(iter))
+  while ((id = get_next_node(iter)))
   {
     tp->lock_mutex();
     if (tp->get_node_alive(id) != 0)

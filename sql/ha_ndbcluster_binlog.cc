@@ -42,6 +42,7 @@ extern my_bool opt_ndb_log_empty_epochs;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
+extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern ulong opt_server_id_mask;
 
@@ -3992,6 +3993,30 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
   int error= 0;
   const char *error_str= "<none>";
 
+  /* Override for ndb_apply_status when logging */
+  if (opt_ndb_log_apply_status &&
+      do_set_binlog_flags)
+  {
+    if (strcmp(db, NDB_REP_DB) == 0 &&
+        strcmp(table_name, NDB_APPLY_TABLE) == 0)
+    {
+      /*
+        Ensure that we get all columns from ndb_apply_status updates
+        by forcing FULL event type
+        Also, ensure that ndb_apply_status events are always logged as 
+        WRITES.
+        This is needed so that received ndb_apply_status WRITES can be
+        cleanly propagated.
+      */
+      DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
+      sql_print_information("NDB : ndb-log-apply-status forcing "
+                            "%s.%s to FULL USE_WRITE",
+                            NDB_REP_DB, NDB_APPLY_TABLE);
+      set_binlog_flags(share, NBT_FULL);
+      DBUG_RETURN(0);
+    }
+  }
+
   ndb->setDatabaseName(ndb_rep_db);
   NDBDICT *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
@@ -5372,45 +5397,14 @@ static int
 ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                                     ndb_binlog_index_row **rows,
                                     injector::transaction &trans,
-                                    unsigned &trans_row_count)
+                                    unsigned &trans_row_count,
+                                    unsigned &trans_slave_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   TABLE *table= event_data->table;
   NDB_SHARE *share= event_data->share;
   if (pOp != share->op)
   {
-    return 0;
-  }
-  if (share == ndb_apply_status_share)
-  {
-    if (opt_ndb_log_orig)
-    {
-      switch(pOp->getEventType())
-      {
-      case NDBEVENT::TE_INSERT:
-        // fall through
-      case NDBEVENT::TE_UPDATE:
-      {
-        /* unpack data to fetch orig_server_id and orig_epoch */
-        uint n_fields= table->s->fields;
-        MY_BITMAP b;
-        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-        bitmap_init(&b, bitbuf, n_fields, FALSE);
-        bitmap_set_all(&b);
-        ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
-        /* store */
-        ndb_binlog_index_row *row= ndb_find_binlog_index_row
-          (rows, (uint)((Field_long *)table->field[0])->val_int(), 1);
-        row->orig_epoch= ((Field_longlong *)table->field[1])->val_int();
-        break;
-      }
-      case NDBEVENT::TE_DELETE:
-        break;
-      default:
-        /* We should REALLY never get here */
-        abort();
-      }
-    }
     return 0;
   }
 
@@ -5423,18 +5417,118 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                         anyValue);
     return 0;
   }
-  
   uint32 originating_server_id= ndbcluster_anyvalue_get_serverid(anyValue);
+  bool log_this_slave_update = g_ndb_log_slave_updates;
+  bool count_this_event = true;
 
+  if (share == ndb_apply_status_share)
+  {
+    /* 
+       Note that option values are read without synchronisation w.r.t. 
+       thread setting option variable or epoch boundaries.
+    */
+    if (opt_ndb_log_apply_status ||
+        opt_ndb_log_orig)
+    {
+      Uint32 ndb_apply_status_logging_server_id= originating_server_id;
+      Uint32 ndb_apply_status_server_id= 0;
+      Uint64 ndb_apply_status_epoch= 0;
+      bool event_has_data = false;
+
+      switch(pOp->getEventType())
+      {
+      case NDBEVENT::TE_INSERT:
+        // fall through
+      case NDBEVENT::TE_UPDATE:
+        event_has_data = true;
+        break;
+      case NDBEVENT::TE_DELETE:
+        break;
+      default:
+        /* We should REALLY never get here */
+        abort();
+      }
+      
+      if (likely( event_has_data ))
+      {
+        /* unpack data to fetch orig_server_id and orig_epoch */
+        uint n_fields= table->s->fields;
+        MY_BITMAP b;
+        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
+        bitmap_init(&b, bitbuf, n_fields, FALSE);
+        bitmap_set_all(&b);
+        ndb_unpack_record(table, event_data->ndb_value[0], &b, table->record[0]);
+        ndb_apply_status_server_id= (uint)((Field_long *)table->field[0])->val_int();
+        ndb_apply_status_epoch= ((Field_longlong *)table->field[1])->val_int();
+        
+        if (opt_ndb_log_apply_status)
+        {
+          /* 
+             Determine if event came from our immediate Master server
+             Ignore locally manually sourced and reserved events 
+          */
+          if ((ndb_apply_status_logging_server_id != 0) &&
+              (! ndbcluster_anyvalue_is_reserved(ndb_apply_status_logging_server_id)))
+          {
+            bool isFromImmediateMaster = (ndb_apply_status_server_id ==
+                                          ndb_apply_status_logging_server_id);
+            
+            if (isFromImmediateMaster)
+            {
+              /* 
+                 We log this event with our server-id so that it 
+                 propagates back to the originating Master (our
+                 immediate Master)
+              */
+              assert(ndb_apply_status_logging_server_id != ::server_id);
+              
+              originating_server_id= 0; /* Will be set to our ::serverid below */
+            }
+          }
+        }
+
+        if (opt_ndb_log_orig)
+        {
+          /* store */
+          ndb_binlog_index_row *row= ndb_find_binlog_index_row
+            (rows, ndb_apply_status_server_id, 1);
+          row->orig_epoch= ndb_apply_status_epoch;
+        }
+      }
+    } // opt_ndb_log_apply_status || opt_ndb_log_orig)
+
+    if (opt_ndb_log_apply_status)
+    {
+      /* We are logging ndb_apply_status changes
+       * Don't count this event as making an epoch non-empty
+       * Log this event in the Binlog
+       */
+      count_this_event = false;
+      log_this_slave_update = true;
+    }
+    else
+    {
+      /* Not logging ndb_apply_status updates, discard this event now */
+      return 0;
+    }
+  }
+  
   if (originating_server_id == 0)
     originating_server_id= ::server_id;
-  else if (!g_ndb_log_slave_updates)
+  else 
   {
-    /*
-      This event comes from a slave applier since it has an originating
-      server id set. Since option to log slave updates is not set, skip it.
-    */
-    return 0;
+    /* Track that we received a replicated row event */
+    if (likely( count_this_event ))
+      trans_slave_row_count++;
+    
+    if (!log_this_slave_update)
+    {
+      /*
+        This event comes from a slave applier since it has an originating
+        server id set. Since option to log slave updates is not set, skip it.
+      */
+      return 0;
+    }
   }
 
   /* 
@@ -5481,8 +5575,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
   switch(pOp->getEventType())
   {
   case NDBEVENT::TE_INSERT:
-    row->n_inserts++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_inserts++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info", ("INSERT INTO %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -5504,8 +5601,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_DELETE:
-    row->n_deletes++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_deletes++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info",("DELETE FROM %s.%s",
                        table->s->db.str, table->s->table_name.str));
     {
@@ -5545,8 +5645,11 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
     }
     break;
   case NDBEVENT::TE_UPDATE:
-    row->n_updates++;
-    trans_row_count++;
+    if (likely( count_this_event ))
+    {
+      row->n_updates++;
+      trans_row_count++;
+    }
     DBUG_PRINT("info", ("UPDATE %s.%s",
                         table->s->db.str, table->s->table_name.str));
     {
@@ -6275,6 +6378,7 @@ restart_cluster_failure:
       ndb_binlog_index_row *rows= &_row;
       injector::transaction trans;
       unsigned trans_row_count= 0;
+      unsigned trans_slave_row_count= 0;
       if (!pOp)
       {
         /*
@@ -6320,6 +6424,7 @@ restart_cluster_failure:
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
         trans_row_count= 0;
+        trans_slave_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -6473,7 +6578,7 @@ restart_cluster_failure:
 #endif
           if ((unsigned) pOp->getEventType() <
               (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count);
+            ndb_binlog_thread_handle_data_event(i_ndb, pOp, &rows, trans, trans_row_count, trans_slave_row_count);
           else
           {
             ndb_binlog_thread_handle_non_data_event(thd, pOp, *rows);
@@ -6512,17 +6617,34 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if ((trans_row_count == 0) && !opt_ndb_log_empty_epochs)
+          if (!opt_ndb_log_empty_epochs)
           {
-            /* nothing to commit, rollback instead */
-            if (int r= trans.rollback())
+            /*
+              If 
+                - We did not add any 'real' rows to the Binlog AND
+                - We did not apply any slave row updates, only
+                  ndb_apply_status updates
+              THEN
+                Don't write the Binlog transaction which just
+                contains ndb_apply_status updates.
+                (For cicular rep with log_apply_status, ndb_apply_status
+                updates will propagate while some related, real update
+                is propagating)
+            */
+            if ((trans_row_count == 0) &&
+                (! (opt_ndb_log_apply_status &&
+                    trans_slave_row_count) ))
             {
-              sql_print_error("NDB Binlog: "
-                              "Error during ROLLBACK of GCI %u/%u. Error: %d",
-                              uint(gci >> 32), uint(gci), r);
-              /* TODO: Further handling? */
+              /* nothing to commit, rollback instead */
+              if (int r= trans.rollback())
+              {
+                sql_print_error("NDB Binlog: "
+                                "Error during ROLLBACK of GCI %u/%u. Error: %d",
+                                uint(gci >> 32), uint(gci), r);
+                /* TODO: Further handling? */
+              }
+              break;
             }
-            break;
           }
       commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
