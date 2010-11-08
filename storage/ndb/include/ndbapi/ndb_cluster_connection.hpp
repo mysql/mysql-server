@@ -182,6 +182,7 @@ public:
 
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);
+  unsigned int get_next_alive_node(Ndb_cluster_connection_node_iter &iter);
   unsigned get_active_ndb_objects() const;
   
   Uint64 *get_latest_trans_gci();
