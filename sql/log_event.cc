@@ -739,7 +739,7 @@ const char* Log_event::get_type_str()
 #ifndef MYSQL_CLIENT
 Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   :log_pos(0), temp_buf(0), exec_time(0), flags(flags_arg),
-   cache_type(Log_event::EVENT_INVALID_CACHE), thd(thd_arg), crc(0),
+   cache_type(Log_event::EVENT_INVALID_CACHE), crc(0), thd(thd_arg),
    checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	thd->server_id;
