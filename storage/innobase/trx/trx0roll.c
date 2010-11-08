@@ -713,12 +713,7 @@ trx_undo_arr_remove_info(
 	dulint		undo_no)/* in: undo number */
 {
 	trx_undo_inf_t*	cell;
-	ulint		n_used;
-	ulint		n;
 	ulint		i;
-
-	n_used = arr->n_used;
-	n = 0;
 
 	for (i = 0;; i++) {
 		cell = trx_undo_arr_get_nth_info(arr, i);

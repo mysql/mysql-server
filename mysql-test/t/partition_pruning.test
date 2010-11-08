@@ -9,6 +9,30 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 
 --echo #
+--echo # Bug#53806: Wrong estimates for range query in partitioned MyISAM table
+--echo # Bug#46754: 'rows' field doesn't reflect partition pruning
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (5),
+PARTITION p5 VALUES LESS THAN (6),
+PARTITION max VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 11 #
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 11 #
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a < 7;
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 11 #
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a <= 1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#49742: Partition Pruning not working correctly for RANGE
 --echo #
 CREATE TABLE t1 (a INT PRIMARY KEY)

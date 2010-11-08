@@ -98,12 +98,23 @@ void plan(int const count);
    @endcode
 
    @param pass Zero if the test failed, non-zero if it passed.
-   @param fmt  Format string in printf() format. NULL is allowed, in
-               which case nothing is printed.
+   @param fmt  Format string in printf() format. NULL is not allowed,
+               use ok1() in this case.
 */
 
 void ok(int const pass, char const *fmt, ...)
   __attribute__((format(printf,2,3)));
+
+
+/**
+   Report test result as a TAP line.
+
+   Same as ok() but does not take a message to be printed.
+
+   @param pass Zero if the test failed, non-zero if it passed.
+*/
+
+void ok1(int const pass);
 
 
 /**

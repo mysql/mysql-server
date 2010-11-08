@@ -4441,7 +4441,6 @@ dict_index_print_low(
 {
 	ib_int64_t	n_vals;
 	ulint		i;
-	const char*	type_string;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -4455,14 +4454,6 @@ dict_index_print_low(
 	}
 
 	dict_index_stat_mutex_exit(index);
-
-	if (dict_index_is_clust(index)) {
-		type_string = "clustered index";
-	} else if (dict_index_is_unique(index)) {
-		type_string = "unique index";
-	} else {
-		type_string = "secondary index";
-	}
 
 	fprintf(stderr,
 		"  INDEX: name %s, id %lu %lu, fields %lu/%lu,"
