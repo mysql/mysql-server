@@ -280,10 +280,19 @@ namespace AQP
      * There are some JOIN arguments we don't fully understand or has 
      * not yet invested time into exploring pushability of:
      */
-    if (join->procedure ||
-        (join->group_list && !join->tmp_table_param.quick_group))
+    if (join->procedure)
     {
       m_access_type= AT_OTHER;
+      m_other_access_reason = 
+        "'PROCEDURE'-clause post processing cannot be pushed.";
+      DBUG_VOID_RETURN;
+    }
+    
+    if (join->group_list && !join->tmp_table_param.quick_group)
+    {
+      m_access_type= AT_OTHER;
+      m_other_access_reason = 
+        "GROUP BY cannot be done using index on grouped columns.";
       DBUG_VOID_RETURN;
     }
 
@@ -362,7 +371,7 @@ namespace AQP
         DBUG_PRINT("info",
                    ("Operation %d has 'use_quick == 2' -> not pushable",
                     m_tab_no));
-        m_access_type= AT_OTHER;
+        m_access_type= AT_UNDECIDED;
         m_index_no=    -1;
       }
       else
@@ -434,6 +443,7 @@ namespace AQP
                   m_tab_no, join_tab->type));
       m_access_type= AT_OTHER;
       m_index_no=    -1;
+      m_other_access_reason = "This table access method can not be pushed.";
       break;
     }
     DBUG_VOID_RETURN;
@@ -445,6 +455,7 @@ namespace AQP
     :m_join_plan(NULL),
      m_tab_no(0),
      m_access_type(AT_VOID),
+     m_other_access_reason(NULL),
      m_index_no(-1)
   {}
 
