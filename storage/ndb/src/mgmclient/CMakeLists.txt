@@ -13,14 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon)
+INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon
+		    ${READLINE_INCLUDE_DIR})
 
 ADD_LIBRARY(ndbmgmclient STATIC
             CommandInterpreter.cpp)
 
-
+ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_EXECUTABLE(ndb_mgm
                main.cpp)
 
@@ -34,5 +33,8 @@ TARGET_LINK_LIBRARIES(ndb_mgm
                dbug
                mysys
                strings)
+IF(UNIX)
+  TARGET_LINK_LIBRARIES(ndb_mgm ${READLINE_LIBRARY})
+ENDIF(UNIX)
 
 INSTALL(TARGETS ndb_mgm DESTINATION bin)
