@@ -201,7 +201,7 @@ INSERT INTO t1 VALUES (REPEAT('a', 2048));
 --let $old_slave_max_allowed_packet= `SELECT @@global.max_allowed_packet`
 SET @@global.max_allowed_packet=1048576;
 # Restart slave session for new settings to take effect.
---connect (slave2, localhost, root)
+--connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,)
 --connection slave2
 
 while($i)
@@ -225,7 +225,8 @@ while($i)
   # Check Relay log contains the Table_map_log_event
   if (!`SELECT INSTR(@b55790_output.1, 'end_log_pos $table_map_log_pos')`)
   {
-    --die **** ERROR **** Table map 'end_log_pos $table_map_log_pos' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
+    --echo **** ERROR **** Table map 'end_log_pos $table_map_log_pos' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
+    --cat_file $outfile.1
   }
 
   # Check the warning is caused
