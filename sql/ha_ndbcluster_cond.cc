@@ -608,9 +608,27 @@ void ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::NEG_FUNC:
           case Item_func::UNKNOWN_FUNC:
           {
-            DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
+            /*
+              Constant expressions of the type
+              -17, 1+2, concat(0xBB, '%') will
+              be evaluated before pushed.
+             */
+            DBUG_PRINT("info", ("Function %s", 
                                 func_item->const_item()?"const":""));  
             DBUG_PRINT("info", ("result type %d", func_item->result_type()));
+            /*
+              Check if we are rewriting queries of the type
+              <const> BETWEEN|IN <func> ...
+              as this is currently not supported.
+             */
+            if (context->rewrite_stack &&
+                context->rewrite_stack->left_hand_item &&
+                context->rewrite_stack->left_hand_item->type()
+                != Item::FIELD_ITEM)
+            {
+              DBUG_PRINT("info", ("Function during rewrite not supported"));
+              context->supported= FALSE;
+            }
             if (func_item->const_item())
             {
               switch (func_item->result_type()) {
