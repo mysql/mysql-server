@@ -5836,9 +5836,6 @@ struct my_option my_long_options[]=
   */
   {"autocommit", OPT_AUTOCOMMIT, "Set default value for autocommit (0 or 1)",
    NULL, NULL, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, NULL},
-  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
-   &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
