@@ -101,6 +101,9 @@ enum db_err {
 					requested but this storage does not
 					exist itself or the stats for a given
 					table do not exist */
+	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
+					cascading delete/update exceeds
+					maximum allowed depth */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

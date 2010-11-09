@@ -1,6 +1,7 @@
 show grants;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;
 grant SELECT(thread_id, event_id) on performance_schema.EVENTS_WAITS_CURRENT
 to 'pfs_user_5'@localhost;
