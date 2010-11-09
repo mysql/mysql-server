@@ -70,10 +70,8 @@
 #endif
 
 /* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
+#if defined(__linux__)  && defined(__i386__)
 #define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
 #endif /* __linux__ */
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
@@ -2778,14 +2776,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   /* Save pid to this process (or thread on Linux) */
   if (!opt_bootstrap)
     create_pid_file();
-
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
 
   /*
     signal to start_signal_handler that we are ready
@@ -5963,9 +5953,10 @@ struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
 #ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure. "
+   "This option is deprecated and has no effect; a symbolic stack trace will "
+   "be printed after a crash whenever possible.", &opt_do_pstack, &opt_do_pstack,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif /* HAVE_STACK_TRACE_ON_SEGV */
   {"engine-condition-pushdown",
    OPT_ENGINE_CONDITION_PUSHDOWN,
@@ -8654,6 +8645,13 @@ mysqld_get_one_option(int optid,
     lower_case_table_names= argument ? atoi(argument) : 1;
     lower_case_table_names_used= 1;
     break;
+#ifdef HAVE_STACK_TRACE_ON_SEGV
+  case OPT_DO_PSTACK:
+    sql_print_warning("'--enable-pstack' is deprecated and will be removed "
+                      "in a future release. A symbolic stack trace will be "
+                      "printed after a crash whenever possible.");
+    break;
+#endif
 #if defined(ENABLED_DEBUG_SYNC)
   case OPT_DEBUG_SYNC_TIMEOUT:
     /*
