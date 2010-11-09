@@ -74,21 +74,46 @@ HugoQueries::allocRows(int batch)
 
 int
 HugoQueries::equalForParameters(char * buf,
-                                HugoCalculator& calc,
+                                Op & op,
                                 NdbQueryParamValue params[],
                                 int rowNo)
 {
   Uint32 no = 0;
+  HugoCalculator & calc = * op.m_calc;
   const NdbDictionary::Table & tab = calc.getTable();
-  for (int i = 0; i<tab.getNoOfColumns(); i++)
+  if (op.m_query_op->getType() == NdbQueryOperationDef::TableScan)
   {
-    const NdbDictionary::Column* attr = tab.getColumn(i);
-    if (attr->getPrimaryKey())
+
+  }
+  else if (op.m_query_op->getType() == NdbQueryOperationDef::PrimaryKeyAccess)
+  {
+    for (int i = 0; i<tab.getNoOfColumns(); i++)
     {
+      const NdbDictionary::Column* attr = tab.getColumn(i);
+      if (attr->getPrimaryKey())
+      {
+        Uint32 len = attr->getSizeInBytes();
+        Uint32 real_len;
+        bzero(buf, len);
+        calc.calcValue((Uint32)rowNo, i, 0, buf, len, &real_len);
+        params[no++]= NdbQueryParamValue((void*)buf);
+        buf += len;
+      }
+    }
+  }
+  else if (op.m_query_op->getType() == NdbQueryOperationDef::UniqueIndexAccess||
+           op.m_query_op->getType() == NdbQueryOperationDef::OrderedIndexScan)
+  {
+    const NdbDictionary::Index* idx = op.m_query_op->getIndex();
+    for (unsigned i = 0; i < idx->getNoOfColumns(); i++)
+    {
+      const NdbDictionary::Column* attr = 
+        tab.getColumn(idx->getColumn(i)->getName());
       Uint32 len = attr->getSizeInBytes();
       Uint32 real_len;
       bzero(buf, len);
-      calc.calcValue((Uint32)rowNo, i, 0, buf, len, &real_len);
+      calc.calcValue((Uint32)rowNo, attr->getColumnNo(), 
+                     0, buf, len, &real_len);
       params[no++]= NdbQueryParamValue((void*)buf);
       buf += len;
     }
@@ -163,7 +188,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     {
       char buf[NDB_MAX_TUPLE_SIZE];
       NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-      equalForParameters(buf, * m_ops[0].m_calc, params, b + r);
+      equalForParameters(buf, m_ops[0], params, b + r);
 
       NdbQuery * query = pTrans->createQuery(m_query_def, params);
       if (query == 0)
@@ -256,9 +281,10 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     }
 
     NdbQuery * query = 0;
-    //char buf[NDB_MAX_TUPLE_SIZE];
-    NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
 
+    char buf[NDB_MAX_TUPLE_SIZE];
+    NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
+    equalForParameters(buf, m_ops[0], params, /* rowNo */ 0);
     query = pTrans->createQuery(m_query_def, params);
     if (query == 0)
     {

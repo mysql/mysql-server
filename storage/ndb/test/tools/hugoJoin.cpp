@@ -41,7 +41,7 @@ int _loops = 100;
 int _loops_per_query = 100;
 int _depth = 4;
 unsigned int _seed = 0;
-static const char * _options = "lookup";
+static const char * _options = "";
 static const char * _db = "TEST_DB";
 
 extern const char *load_default_groups[];
@@ -188,11 +188,17 @@ int main(int argc, char** argv){
   {
     if (_verbose >= 1)
     {
-      ndbout << "\tbuilding new query" << endl;
+      ndbout << "******\tbuilding new query (mask: 0x" << hex 
+             << (Uint64)mask << ")" << endl;
     }
     HugoQueryBuilder builder(&MyNdb, tables.getBase(), mask);
     builder.setJoinLevel(_depth);
     const NdbQueryDef * q = builder.createQuery(&MyNdb);
+    if (_verbose >= 2)
+    {
+      q->print(); ndbout << endl;
+    }
+
     for (int j = 0; j < _loops_per_query && ((_loops == 0) || (i < _loops));
          i++, j++)
     {
