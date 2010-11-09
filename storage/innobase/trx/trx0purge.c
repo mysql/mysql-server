@@ -1130,9 +1130,10 @@ trx_purge_wait_for_workers_to_complete(
 	trx_purge_t*	purge_sys)	/*!< in: purge instance */ 
 {
 	/* Ensure that the work queue empties out. Note, we are doing
-	a dirty read of purge_sys->n_completed. */
-	while (purge_sys->n_submitted > purge_sys->n_completed
-	       && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	a dirty read of purge_sys->n_completed and purge_sys->n_executing. */
+	while ((purge_sys->n_submitted > purge_sys->n_completed
+	       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP)
+	       || purge_sys->n_executing > 0) {
 
 		srv_release_threads(SRV_WORKER, 1);
 
@@ -1143,7 +1144,10 @@ trx_purge_wait_for_workers_to_complete(
 	/* If shutdown is signalled then the worker threads can
 	simply exit via os_event_wait(). The thread initiating the
 	purge should be prepared to handle this case. */
-	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	if (srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP) {
+
+		/* None of the worker threads can be executing work. */
+		ut_a(purge_sys->n_executing == 0);
 
 		/* There should be no outstanding tasks as long
 		as the worker threads are active. */
