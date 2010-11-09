@@ -3697,8 +3697,21 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
 }
 
 static int
-env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array, void *extra) {
+env_del_multiple(
+    DB_ENV *env, 
+    DB *src_db, 
+    DB_TXN *txn, 
+    const DBT *key, 
+    const DBT *val, 
+    uint32_t num_dbs, 
+    DB **db_array, 
+    DBT *keys, 
+    uint32_t *flags_array, 
+    void *extra
+    ) 
+{
     int r;
+    DBT del_keys[num_dbs];
 
     // special case single DB
     if (num_dbs == 1 && src_db == db_array[0]) {
@@ -3727,10 +3740,15 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
 
+        if (db == src_db) {
+            del_keys[which_db] = *key;
+        }
+        else {
         //Generate the key
-        r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val, extra);
-        if (r != 0) goto cleanup;
-
+            r = env->i->generate_row_for_del(db, src_db, &keys[which_db], key, val, extra);
+            if (r != 0) goto cleanup;
+            del_keys[which_db] = keys[which_db];
+        }
         lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
@@ -3741,7 +3759,7 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
         BOOL error_if_missing = (BOOL)(!(remaining_flags[which_db]&DB_DELETE_ANY));
         if (error_if_missing) {
             //Check if the key exists in the db.
-            r = db_getf_set(db, txn, lock_flags[which_db]|DB_SERIALIZABLE, &keys[which_db], ydb_getf_do_nothing, NULL);
+            r = db_getf_set(db, txn, lock_flags[which_db]|DB_SERIALIZABLE, &del_keys[which_db], ydb_getf_do_nothing, NULL);
             if (r != 0) goto cleanup;
         }
 
@@ -3751,19 +3769,19 @@ env_del_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
 
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_lock(db, txn, &keys[which_db]);
+            r = get_point_lock(db, txn, &del_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
     }
 
     if (num_dbs == 1)
-        r = log_del_single(txn, brts[0], &keys[0]);
+        r = log_del_single(txn, brts[0], &del_keys[0]);
     else
-        r = log_del_multiple(txn, src_db, key, val, num_dbs, brts, keys);
+        r = log_del_multiple(txn, src_db, key, val, num_dbs, brts, del_keys);
 
     if (r == 0) 
-        r = do_del_multiple(txn, num_dbs, db_array, keys);
+        r = do_del_multiple(txn, num_dbs, db_array, del_keys);
 
     }
 
