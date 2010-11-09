@@ -1,5 +1,5 @@
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/cmake/libutils.cmake)
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
+INCLUDE(libutils)
+INCLUDE(cmake_parse_arguments)
 
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
