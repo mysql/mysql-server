@@ -370,11 +370,11 @@ lock_rec_validate_page(
 /*===================*/
 	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
 						both the lock mutex and
-					       	trx_sys_t::lock. */
+						trx_sys_t::lock. */
 	ulint	space,				/*!< in: space id */
 	ulint	zip_size,			/*!< in: compressed page size
-					       	in bytes or 0 for uncompressed
-					       	pages */
+						in bytes or 0 for uncompressed
+						pages */
 	ulint	page_no);			/*!< in: page number */
 #endif /* UNIV_DEBUG */
 
@@ -1595,7 +1595,7 @@ lock_sec_rec_some_has_impl(
 		trx_id = 0;
 
 	/* In this case it is possible that some transaction has an implicit
-       	x-lock. We have to look in the clustered index. */
+	x-lock. We have to look in the clustered index. */
 
 	} else {
 		trx_id = row_vers_impl_x_locked(rec, index, offsets);
@@ -2002,8 +2002,8 @@ lock_rec_lock_fast(
 			status = LOCK_REC_FAIL;
 		} else if (!impl) {
 			/* If the nth bit of the record lock is already
-		       	set then we do not set a new lock bit, otherwise
-		       	we do set */
+			set then we do not set a new lock bit, otherwise
+			we do set */
 
 			if (!lock_rec_get_nth_bit(lock, heap_no)) {
 				lock_rec_set_nth_bit(lock, heap_no);
@@ -2279,11 +2279,11 @@ void
 lock_rec_dequeue_from_page(
 /*=======================*/
 	lock_t*		in_lock)	/*!< in: record lock object: all
-				       	record locks which are contained in
-				       	this lock object are removed;
-				       	transactions waiting behind will
-				       	get their lock requests granted,
-				       	if they are now qualified to it */
+					record locks which are contained in
+					this lock object are removed;
+					transactions waiting behind will
+					get their lock requests granted,
+					if they are now qualified to it */
 {
 	ulint		space;
 	ulint		page_no;
@@ -2331,8 +2331,8 @@ void
 lock_rec_discard(
 /*=============*/
 	lock_t*		in_lock)	/*!< in: record lock object: all
-				       	record locks which are contained
-				       	in this lock object are removed */
+					record locks which are contained
+					in this lock object are removed */
 {
 	ulint		space;
 	ulint		page_no;
@@ -4541,9 +4541,9 @@ loop:
 
 	/* Since we temporarily release the lock mutex and
 	trx_sys->mutex when reading a database page in below,
-       	variable trx may be obsolete now and we must loop
-       	through the trx list to get probably the same trx,
-       	or some other trx. */
+	variable trx may be obsolete now and we must loop
+	through the trx list to get probably the same trx,
+	or some other trx. */
 
 	while (trx && (i < nth_trx)) {
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -4920,8 +4920,8 @@ lock_rec_validate_page(
 						mutexes. */
 	ulint	space,				/*!< in: space id */
 	ulint	zip_size,			/*!< in: compressed page size
-					       	in bytes or 0 for uncompressed
-					       	pages */
+						in bytes or 0 for uncompressed
+						pages */
 	ulint	page_no)			/*!< in: page number */
 {
 	dict_index_t*	index;
@@ -6031,7 +6031,7 @@ UNIV_INTERN
 enum db_err
 lock_trx_handle_wait(
 /*=================*/
-	trx_t*		trx) 	/*!< in, out: trx lock state */
+	trx_t*		trx)	/*!< in, out: trx lock state */
 {
 	enum db_err	err;
 
