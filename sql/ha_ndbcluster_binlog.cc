@@ -587,9 +587,9 @@ static int ndbcluster_reset_logs(THD *thd)
     so reset state if not an error as not to hit asserts
     in upper layers
   */
-  while (thd->main_da.is_error())
+  while (thd_stmt_da(thd)->is_error())
   {
-    if (thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)
     {
       /*
         If table does not exist ignore the error as it
@@ -599,7 +599,7 @@ static int ndbcluster_reset_logs(THD *thd)
     }
     DBUG_RETURN(1);
   }
-  thd->main_da.reset_diagnostics_area();
+  thd_stmt_da(thd)->reset_diagnostics_area();
   DBUG_RETURN(0);
 }
 
@@ -693,14 +693,14 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   " WHERE File='"), file), "'");
 
   run_query(thd, buf, end, NULL, TRUE, FALSE);
-  if (thd->main_da.is_error() &&
-      thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)
+  if (thd_stmt_da(thd)->is_error() &&
+      thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)
   {
     /*
       If table does not exist ignore the error as it
       is a consistant behavior
     */
-    thd->main_da.reset_diagnostics_area();
+    thd_stmt_da(thd)->reset_diagnostics_area();
   }
 
   if (save_thd == 0)
@@ -836,14 +836,14 @@ static void ndbcluster_reset_slave(THD *thd)
   char buf[1024];
   char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
   run_query(thd, buf, end, NULL, TRUE, FALSE);
-  if (thd->main_da.is_error() &&
-      ((thd->main_da.sql_errno() == ER_NO_SUCH_TABLE)))
+  if (thd_stmt_da(thd)->is_error() &&
+      ((thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)))
   {
     /*
       If table does not exist ignore the error as it
       is a consistant behavior
     */
-    thd->main_da.reset_diagnostics_area();
+    thd_stmt_da(thd)->reset_diagnostics_area();
   }
 
   DBUG_VOID_RETURN;
@@ -3418,8 +3418,8 @@ static int open_and_lock_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
     else
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                      thd->main_da.sql_errno(),
-                      thd->main_da.message());
+                      thd_stmt_da(thd)->sql_errno(),
+                      thd_stmt_da(thd)->message());
     thd->proc_info= save_proc_info;
     return -1;
   }
