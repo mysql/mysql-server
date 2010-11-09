@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,52 +15,42 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef PREFETCH_H
-#define PREFETCH_H
+#ifndef NDB_PREFETCH_H
+#define NDB_PREFETCH_H
 
-#ifdef NDB_FORTE6
+#ifdef HAVE_SUN_PREFETCH_H
 #include <sun_prefetch.h>
 #endif
 
-#ifdef USE_PREFETCH
-#define PREFETCH(addr) prefetch(addr)
-#else
-#define PREFETCH(addr)
-#endif
-
-#ifdef USE_PREFETCH
-#define WRITEHINT(addr) writehint(addr)
-#else
-#define WRITEHINT(addr)
-#endif
-
-#ifdef NDB_FORTE6
+#ifdef HAVE_SUN_PREFETCH_H
 #pragma optimize("", off)
 #endif
-inline void prefetch(void* p)
+
+static inline
+void NDB_PREFETCH_READ(void* addr)
 {
-#ifdef NDB_ALPHA
-   __asm(" ldl r31,0(a0);", p);
-#endif /* NDB_ALPHA */
-#ifdef NDB_FORTE6
-  sparc_prefetch_read_once(p);
-#else 
-  (void)p;
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
+  __builtin_prefetch(addr, 0, 3);
+#elif defined(HAVE_SUN_PREFETCH_H)
+  sparc_prefetch_read_once(addr);
+#else
+  (void)addr;
 #endif
 }
 
-inline void writehint(void* p)
+static inline
+void NDB_PREFETCH_WRITE(void* addr)
 {
-#ifdef NDB_ALPHA
-   __asm(" wh64 (a0);", p);
-#endif /* NDB_ALPHA */
-#ifdef NDB_FORTE6
-  sparc_prefetch_write_once(p);
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
+  __builtin_prefetch(addr, 1, 3);
+#elif defined(HAVE_SUN_PREFETCH_H)
+  sparc_prefetch_write_once(addr);
 #else
-  (void)p;
+  (void)addr;
 #endif
 }
-#ifdef NDB_FORTE6
+
+#ifdef HAVE_SUN_PREFETCH_H
 #pragma optimize("", on)
 #endif
 
