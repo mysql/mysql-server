@@ -25,7 +25,7 @@ alter table performance_schema.setup_actors add column foo integer;
 drop table if exists test.setup_actors;
 --enable_warnings
 
-create table test.SETUP_ACTORS as
+create table test.setup_actors as
   select * from performance_schema.setup_actors;
 
 truncate table performance_schema.setup_actors;

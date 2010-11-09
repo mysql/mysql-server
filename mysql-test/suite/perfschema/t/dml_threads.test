@@ -19,10 +19,10 @@
 --source include/have_perfschema.inc
 
 --replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 14 #
-select * from performance_schema.THREADS
+select * from performance_schema.threads
   where name like 'Thread/%' limit 1;
 
-select * from performance_schema.THREADS
+select * from performance_schema.threads
   where name='FOO';
 
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -40,7 +40,7 @@ update performance_schema.threads
 update performance_schema.threads
   set instrumented= 'NO' where PROCESSLIST_ID=connection_id();
 
-select instrumented from performance_schema.THREADS
+select instrumented from performance_schema.threads
   where PROCESSLIST_ID=connection_id();
 
 update performance_schema.threads

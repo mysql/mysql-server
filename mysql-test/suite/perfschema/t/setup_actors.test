@@ -13,8 +13,8 @@
 # along with this program; if not, write to the Free Software Foundation,
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
-# Check the impact of different entries in performance_schema.SETUP_ACTORS
-# on when and how activity of users is recordeed in performance_schema.THREADS.
+# Check the impact of different entries in performance_schema.setup_actors
+# on when and how activity of users is recordeed in performance_schema.threads.
 # The checks for indirect activity caused by users, system threads etc.
 # are within setup_actors1.test.
 
@@ -23,29 +23,29 @@
 --source include/have_perfschema.inc
 
 # The initial number of rows is 1. The initial row always looks like this:
-# mysql> select * from performance_schema.SETUP_ACTORS;
+# mysql> select * from performance_schema.setup_actors;
 # +------+------+------+
 # | Host | User | ROLE |
 # +------+------+------+
 # | %    | %    | %    |
 # +------+------+------+
-select * from performance_schema.SETUP_ACTORS;
+select * from performance_schema.setup_actors;
 
-truncate table performance_schema.SETUP_ACTORS;
+truncate table performance_schema.setup_actors;
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('hosta', 'user1', '%');
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('%', 'user2', '%');
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('localhost', 'user3', '%');
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('hostb', '%', '%');
 
-select * from performance_schema.SETUP_ACTORS
+select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
 
 grant ALL on *.* to user1@localhost;
@@ -59,25 +59,25 @@ flush privileges;
 --echo # Switch to (con1, localhost, user1, , )
 connect (con1, localhost, user1, , );
 
-# INSTRUMENTED must be NO because there is no match in performance_schema.SETUP_ACTORS
+# INSTRUMENTED must be NO because there is no match in performance_schema.setup_actors
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
-let $con1_thread_id= `select THREAD_ID from performance_schema.THREADS
+let $con1_thread_id= `select THREAD_ID from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 --echo # Switch to connection default
 --connection default
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('%', 'user1', '%');
 
 --echo # Switch to connection con1
 --connection con1
-# INSTRUMENTED must be NO because there was no match in performance_schema.SETUP_ACTORS
-# when our current session made its connect. Later changes in SETUP_ACTORS have no
+# INSTRUMENTED must be NO because there was no match in performance_schema.setup_actors
+# when our current session made its connect. Later changes in setup_actors have no
 # impact.
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 
 --echo # Disconnect con1
@@ -87,11 +87,11 @@ where PROCESSLIST_ID = connection_id();
 connect (con2, localhost, user2, , );
 
 # INSTRUMENTED must be YES because there is a match via
-# (HOST,USER,ROLE) = ('%', 'user2', '%') in performance_schema.SETUP_ACTORS.
+# (HOST,USER,ROLE) = ('%', 'user2', '%') in performance_schema.setup_actors.
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID=connection_id();
-let $con2_thread_id= `select THREAD_ID from performance_schema.THREADS
+let $con2_thread_id= `select THREAD_ID from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 --echo # Disconnect con2
@@ -116,9 +116,9 @@ lock table test.t1 write;
 connect (con3, localhost, user3, , );
 
 # INSTRUMENTED must be YES because there is a match via
-# (HOST,USER,ROLE) = ('localhost', 'user3', '%') in performance_schema.SETUP_ACTORS.
+# (HOST,USER,ROLE) = ('localhost', 'user3', '%') in performance_schema.setup_actors.
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 
 # PROCESSLIST_ columns are:
@@ -126,10 +126,10 @@ where PROCESSLIST_ID = connection_id();
 #   run a select on INFORMATION_SCHEMA.PROCESSLIST for the corresponding thread.
 # Check at least once that this is fulfilled.
 # Note(mleich):
-#   A join between INFORMATION_SCHEMA.PROCESSLIST and performance_schema.THREADS
+#   A join between INFORMATION_SCHEMA.PROCESSLIST and performance_schema.threads
 #   Example:
 #      select count(*) = 1
-#      from performance_schema.THREADS T inner join information_schema.PROCESSLIST P
+#      from performance_schema.threads T inner join information_schema.PROCESSLIST P
 #      on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and
 #         T.PROCESSLIST_HOST = P.HOST and T.PROCESSLIST_DB = P.DB and
 #         T.PROCESSLIST_COMMAND = P.COMMAND and T.PROCESSLIST_INFO = P.INFO
@@ -157,7 +157,7 @@ let $wait_condition= select count(*) from information_schema.processlist
 --source include/wait_condition.inc
 # Expect to get 1 now
 select count(*) = 1
-from performance_schema.THREADS T inner join information_schema.PROCESSLIST P
+from performance_schema.threads T inner join information_schema.PROCESSLIST P
   on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and
      T.PROCESSLIST_HOST = P.HOST and T.PROCESSLIST_DB = P.DB and
      T.PROCESSLIST_COMMAND = P.COMMAND and T.PROCESSLIST_INFO = P.INFO
@@ -178,9 +178,9 @@ drop table test.t1;
 
 --echo # Switch to connection con4
 --connection con4
-# INSTRUMENTED must be NO because there is no match in performance_schema.SETUP_ACTORS
+# INSTRUMENTED must be NO because there is no match in performance_schema.setup_actors
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 
 --echo # Disconnect con4
@@ -189,19 +189,19 @@ where PROCESSLIST_ID = connection_id();
 --echo # Switch to connection default
 --connection default
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('localhost', '%', '%');
 
-select * from performance_schema.SETUP_ACTORS
+select * from performance_schema.setup_actors
 order by USER, HOST, ROLE;
 
 --echo # Switch to (con4b, localhost, user4, , )
 connect (con4b, localhost, user4, , );
 
 # INSTRUMENTED must be YES because there is a match via
-# (HOST,USER,ROLE) = ('localhost', '%', '%') in performance_schema.SETUP_ACTORS.
+# (HOST,USER,ROLE) = ('localhost', '%', '%') in performance_schema.setup_actors.
 select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 
 --echo # Disconnect con4b
@@ -209,11 +209,11 @@ where PROCESSLIST_ID = connection_id();
 
 --echo # Switch to connection default
 --connection default
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('%', 'user5', '%');
 
 create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
-from performance_schema.THREADS
+from performance_schema.threads
 where PROCESSLIST_ID = connection_id();
 
 --echo # Switch to (con5, localhost, user5, , )
@@ -224,7 +224,7 @@ select * from performance_schema.threads;
 # 1. INSTRUMENTED must be YES because there are two matches
 #    (HOST,USER,ROLE) = ('localhost', '%', '%')
 #    (HOST,USER,ROLE) = ('%', 'user5', '%')
-#    in performance_schema.SETUP_ACTORS.
+#    in performance_schema.setup_actors.
 #    But the instrument will only count once which means we must get only one row.
 # 2. PROCESSLIST_USER refers to USER(), the user who connected,
 #    not the user we might be temporarily acting as (with definer's rights).
@@ -252,10 +252,10 @@ drop user user4@localhost;
 drop user user5@localhost;
 flush privileges;
 
-truncate table performance_schema.SETUP_ACTORS;
+truncate table performance_schema.setup_actors;
 
-insert into performance_schema.SETUP_ACTORS
+insert into performance_schema.setup_actors
 values ('%', '%', '%');
 
-select * from performance_schema.SETUP_ACTORS;
+select * from performance_schema.setup_actors;
 
