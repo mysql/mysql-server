@@ -265,8 +265,8 @@ APZJobBuffer::retrieve(Signal* signal)
       // read both the first cache line and the next 64 byte
       // entry
       //---------------------------------------------------------
-      PREFETCH((void*)&buffer[rPtr]);
-      PREFETCH((void*)(((char*)&buffer[rPtr]) + 64));
+      NDB_PREFETCH_READ((void*)&buffer[rPtr]);
+      NDB_PREFETCH_READ((void*)(((char*)&buffer[rPtr]) + 64));
       return gsnbnr;
     } else {
       bnr_error();
@@ -338,9 +338,8 @@ APZJobBuffer::insert(const SignalHeader * const sh,
     // write both the first cache line and the next 64 byte
     // entry
     //---------------------------------------------------------
-    WRITEHINT((void*)&buffer[wPtr]);
-    WRITEHINT((void*)(((char*)&buffer[wPtr]) + 64));
-    
+    NDB_PREFETCH_WRITE((void*)&buffer[wPtr]);
+    NDB_PREFETCH_WRITE((void*)(((char*)&buffer[wPtr]) + 64));
   } else {
     jbuf_error();
   }//if

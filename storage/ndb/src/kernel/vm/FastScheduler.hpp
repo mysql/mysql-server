@@ -27,7 +27,7 @@
 #include <ErrorHandlingMacros.hpp>
 #include <GlobalData.hpp>
 #include <TransporterDefinitions.hpp>
-#include <prefetch.h>
+#include <portlib/ndb_prefetch.h>
 
 #define MAX_OCCUPANCY 1024
 
@@ -348,8 +348,8 @@ APZJobBuffer::insert(Signal* signal,
     // write both the first cache line and the next 64 byte
     // entry
     //---------------------------------------------------------
-    WRITEHINT((void*)&buffer[wPtr]);
-    WRITEHINT((void*)(((char*)&buffer[wPtr]) + 64));
+    NDB_PREFETCH_WRITE((void*)&buffer[wPtr]);
+    NDB_PREFETCH_WRITE((void*)(((char*)&buffer[wPtr]) + 64));
   } else {
     jbuf_error();
   }//if
