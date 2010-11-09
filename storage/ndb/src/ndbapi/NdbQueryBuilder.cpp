@@ -327,6 +327,12 @@ NdbQueryDef::release() const
   delete &getImpl();
 }
 
+void
+NdbQueryDef::print() const
+{
+  m_impl.getQueryOperation(0U).printTree(0, Bitmask<NDB_SPJ_MAX_TREE_NODES>());
+}
+
 /*************************************************************************
  * Glue layer between NdbQueryOperand interface and its Impl'ementation.
  ************************************************************************/
