@@ -260,7 +260,7 @@ trx_roll_savepoints_free(
 /*=====================*/
 	trx_t*			trx,	/*!< in: transaction handle */
 	trx_named_savept_t*	savep)	/*!< in: free all savepoints starting
-				       	with this savepoint i*/
+					with this savepoint i*/
 {
 	while (savep != NULL) {
 		trx_named_savept_t*	next_savep;
@@ -311,7 +311,7 @@ trx_rollback_to_savepoint_for_mysql(
 	} else {
 
 		/* We can now free all savepoints strictly later than
-	       	savepoint_name. */
+		savepoint_name. */
 
 		trx_roll_savepoints_free(
 			trx, UT_LIST_GET_NEXT(trx_savepoints, savep));
@@ -323,8 +323,8 @@ trx_rollback_to_savepoint_for_mysql(
 		err = trx_general_rollback_for_mysql(trx, &savep->savept);
 
 		/* Store the current undo_no of the transaction so that
-	       	we know where to roll back if we have to roll back the
-	       	next SQL statement: */
+		we know where to roll back if we have to roll back the
+		next SQL statement: */
 
 		trx_mark_sql_stat_end(trx);
 
@@ -579,7 +579,7 @@ trx_rollback_resurrected(
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	/* The trx_t::is_recovered flag and the trx_t::state
-       	are set atomically under the protection of the trx_t::mutex in
+	are set atomically under the protection of the trx_t::mutex in
 	lock_trx_release_locks(). We don't want to accidentally cleanup
 	a non-recovered transaction here. */
 
@@ -598,7 +598,7 @@ trx_rollback_resurrected(
 
 		fprintf(stderr,
 			"InnoDB: Cleaning up trx with id " TRX_ID_FMT "\n",
-		       	trx->id);
+			trx->id);
 
 		trx_cleanup_at_db_startup(trx);
 
@@ -650,9 +650,9 @@ trx_rollback_or_clean_recovered(
 	}
 
 	/* Note: For XA recovered transactions, we rely on MySQL to
-       	do rollback. They will be in TRX_STATE_PREPARED state. If the server
-       	is shutdown and they are still lingering in trx_sys_t::trx_list
-       	then the shutdown will hang. */
+	do rollback. They will be in TRX_STATE_PREPARED state. If the server
+	is shutdown and they are still lingering in trx_sys_t::trx_list
+	then the shutdown will hang. */
 
 	/* Loop over the transaction list as long as there are
 	recovered transactions to clean up or recover. */
@@ -1038,8 +1038,7 @@ try_again:
 	is_insert = (undo == ins_undo);
 
 	*roll_ptr = trx_undo_build_roll_ptr(
-		is_insert, (undo->rseg)->id, undo->top_page_no,
-	       	undo->top_offset);
+		is_insert, (undo->rseg)->id, undo->top_page_no, undo->top_offset);
 
 	mtr_start(&mtr);
 
@@ -1173,7 +1172,7 @@ trx_rollback_start(
 /*===============*/
 	trx_t*		trx,		/*!< in: transaction */
 	ib_id_t		roll_limit)	/*!< in: rollback to undo no (for
-				    	partial undo), 0 if we are rolling back
+					partial undo), 0 if we are rolling back
 					the entire transaction */
 {
 	que_t*		roll_graph;
