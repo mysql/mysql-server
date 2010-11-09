@@ -1,8 +1,8 @@
-select * from performance_schema.THREADS
+select * from performance_schema.threads
 where name like 'Thread/%' limit 1;
 THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
 #	#	#	#	#	#	#	#	#	#	#	#	#	#
-select * from performance_schema.THREADS
+select * from performance_schema.threads
 where name='FOO';
 THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
 insert into performance_schema.threads
@@ -16,7 +16,7 @@ set thread_id=12 where PROCESSLIST_ID=connection_id();
 ERROR HY000: Invalid performance_schema usage.
 update performance_schema.threads
 set instrumented= 'NO' where PROCESSLIST_ID=connection_id();
-select instrumented from performance_schema.THREADS
+select instrumented from performance_schema.threads
 where PROCESSLIST_ID=connection_id();
 instrumented
 NO

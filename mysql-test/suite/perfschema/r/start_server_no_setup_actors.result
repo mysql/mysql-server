@@ -59,6 +59,6 @@ show status like "performance_schema%";
 show variables like "performance_schema_setup_actors_size";
 Variable_name	Value
 performance_schema_setup_actors_size	0
-select count(*) from performance_schema.SETUP_ACTORS;
+select count(*) from performance_schema.setup_actors;
 count(*)
 0

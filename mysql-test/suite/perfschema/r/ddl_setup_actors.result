@@ -1,7 +1,7 @@
 alter table performance_schema.setup_actors add column foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 drop table if exists test.setup_actors;
-create table test.SETUP_ACTORS as
+create table test.setup_actors as
 select * from performance_schema.setup_actors;
 truncate table performance_schema.setup_actors;
 select count(*) from performance_schema.setup_actors;
