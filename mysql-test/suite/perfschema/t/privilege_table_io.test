@@ -33,7 +33,7 @@ optimize table mysql.db;
 --enable_result_log
 
 # Start recording events
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';
 
 # Code to test
 
