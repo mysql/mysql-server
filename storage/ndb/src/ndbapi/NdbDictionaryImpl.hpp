@@ -33,7 +33,6 @@
 #include <Ndb.hpp>
 #include "DictCache.hpp"
 #include <signaldata/DictSignal.hpp>
-#include "NdbWaiter.hpp"
 
 class ListTablesReq;
 
@@ -611,7 +610,7 @@ public:
   // To abstract the stuff thats made in all create/drop/lists below
   int dictSignal(NdbApiSignal* signal, LinearSectionPtr ptr[3], int secs,
 		 int nodeId, // -1 any, 0 = master, >1 = specified
-		 WaitSignalType wst,
+		 Uint32 waitsignaltype,
 		 int timeout, Uint32 RETRIES,
 		 const int *errcodes = 0, int temporaryMask = 0);
 

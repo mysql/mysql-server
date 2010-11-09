@@ -24,9 +24,9 @@
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
-#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include <NdbApi.hpp>
 #include <util/azlib.h>
+#include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
 #include <version.h>

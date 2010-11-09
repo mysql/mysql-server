@@ -760,7 +760,7 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 				 Uint8 prio,
 				 const Uint32 * const signalData,
 				 NodeId nodeId, 
-				 GenericSectionPtr ptr[3]){
+				 const GenericSectionPtr ptr[3]){
 
 
   Transporter *t = theTransporters[nodeId];
