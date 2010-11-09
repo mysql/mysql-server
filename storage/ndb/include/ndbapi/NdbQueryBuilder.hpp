@@ -479,6 +479,10 @@ public:
 
   NdbQueryDefImpl& getImpl() const;
 
+  /**
+   * Print the query in a semi human readable form
+   */
+  void print() const;
 private:
   NdbQueryDefImpl& m_impl;
 
