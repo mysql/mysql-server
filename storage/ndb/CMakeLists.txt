@@ -42,8 +42,10 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include/util
     ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
     ${CMAKE_CURRENT_SOURCE_DIR}/include/debugger
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/transporter
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
     ${CMAKE_CURRENT_BINARY_DIR}/include
 

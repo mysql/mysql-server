@@ -13,8 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/mgmapi
-		    ${READLINE_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(
+  ${NDB_SOURCE_DIR}/src/mgmapi
+  ${NDB_SOURCE_DIR}/src/ndbapi
+  ${NDB_SOURCE_DIR}/src/mgmclient
+  ${READLINE_INCLUDE_DIR})
 
 ADD_LIBRARY(ndbconf
                Config.cpp
