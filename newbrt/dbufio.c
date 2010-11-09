@@ -378,7 +378,7 @@ dbufio_print(DBUFIO_FILESET bfs) {
     fprintf(stderr, "%s:%d bfs=%p", __FILE__, __LINE__, bfs);
     if (bfs->panic)
         fprintf(stderr, " panic=%d", bfs->panic_errno);
-    //fprintf(stderr, " N=%d %d %"PRIuMAX, bfs->N, bfs->n_not_done, bfs->bufsize);
+    fprintf(stderr, " N=%d %d %"PRIuMAX, bfs->N, bfs->n_not_done, bfs->bufsize);
     for (int i = 0; i < bfs->N; i++) {
         struct dbufio_file *dbf = &bfs->files[i];
         if (dbf->error_code[0] || dbf->error_code[1])

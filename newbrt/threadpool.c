@@ -188,8 +188,6 @@ toku_thread_pool_add(struct toku_thread_pool *pool) {
     return r;
 }   
 
-#define EWOULDBLOCK 10101
-
 // get one thread from the free pool.  
 static int 
 toku_thread_pool_get_one(struct toku_thread_pool *pool, int dowait, struct toku_thread **toku_thread_return) {
