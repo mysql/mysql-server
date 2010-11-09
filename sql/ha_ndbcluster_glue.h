@@ -122,6 +122,17 @@ ulonglong thd_options(const THD * thd)
 #endif
 }
 
+/* get pointer to diagnostic area for statement from THD */
+static inline
+Diagnostics_area* thd_stmt_da(THD* thd)
+{
+#if MYSQL_VERSION_ID < 50500
+  return &(thd->main_da);
+#else
+  /* "main_da" has been made private and one should use "stmt_da*" */
+  return thd->stmt_da;
+#endif
+}
 
 /* extract the list of warnings from THD */
 static inline
