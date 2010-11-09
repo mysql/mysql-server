@@ -5117,7 +5117,7 @@ void create_thread_to_handle_connection(THD *thd)
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
-                  ER(ER_CANT_CREATE_THREAD), error);
+                  ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
       mysql_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
