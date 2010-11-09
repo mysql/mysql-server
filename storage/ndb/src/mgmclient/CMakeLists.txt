@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon
 ADD_LIBRARY(ndbmgmclient STATIC
             CommandInterpreter.cpp)
 
-ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_EXECUTABLE(ndb_mgm
                main.cpp)
 
