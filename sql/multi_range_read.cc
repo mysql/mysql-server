@@ -1041,6 +1041,7 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
     /* Give all space to the key buffer, key buffer must be forward */
     key_buffer= &forward_key_buf;
     key_buffer->set_buffer_space(full_buf, full_buf_end);
+    DBUG_ASSERT(key_buffer->have_space_for(key_buff_elem_size));
 
     /* Just in case, tell rowid buffer that it has zero size: */
     rowid_buffer.set_buffer_space(full_buf_end, full_buf_end);
@@ -1080,15 +1081,25 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
   if (bytes_for_keys < key_buff_elem_size + 1)
   {
     uint add= key_buff_elem_size + 1 - bytes_for_keys;
+    bytes_for_keys= key_buff_elem_size + 1;
     bytes_for_rowids -= add;
-    DBUG_ASSERT(bytes_for_rowids >= 
-                (h->ref_length + (int)is_mrr_assoc * sizeof(char*) + 1));
+    DBUG_ASSERT(bytes_for_rowids >=  rowid_buf_elem_size + 1);
+  }
+
+  if (bytes_for_rowids < rowid_buf_elem_size + 1)
+  {
+    uint add= rowid_buf_elem_size + 1 - bytes_for_rowids;
+    bytes_for_rowids= rowid_buf_elem_size + 1;
+    bytes_for_keys -= add;
+    DBUG_ASSERT(bytes_for_keys >=  key_buff_elem_size + 1);
   }
 
   rowid_buffer_end= full_buf + bytes_for_rowids;
   rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
   key_buffer= &backward_key_buf;
   key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
+  DBUG_ASSERT(key_buffer->have_space_for(key_buff_elem_size));
+  DBUG_ASSERT(rowid_buffer.have_space_for(rowid_buf_elem_size));
 }
 
 

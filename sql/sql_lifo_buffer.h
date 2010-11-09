@@ -112,7 +112,6 @@ public:
   virtual void reset() = 0;
   virtual uchar *end_of_space() = 0;
 protected:
-  virtual bool have_space_for(size_t bytes) = 0;
   virtual size_t used_size() = 0;
   
   /* To be used only by iterator class: */
@@ -120,6 +119,8 @@ protected:
   virtual bool read(uchar **position)= 0;
   friend class Lifo_buffer_iterator;
 public:
+  virtual bool have_space_for(size_t bytes) = 0;
+
   virtual void remove_unused_space(uchar **unused_start, uchar **unused_end)=0;
   virtual uchar *used_area() = 0; 
   virtual ~Lifo_buffer() {};

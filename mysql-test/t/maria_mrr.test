@@ -87,7 +87,41 @@ EXPLAIN
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # BUG#671361: virtual int Mrr_ordered_index_reader::refill_buffer(): Assertion `!know_key_tuple_params
+--echo # (works only on Maria because we need 1024-byte long key)
+--echo #
 
+SET SESSION optimizer_use_mrr = 'force';
+SET SESSION join_cache_level = 6;
+SET SESSION join_buffer_size = 1024;
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_1024_latin1_key varchar(1024) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key)
+) ENGINE=Aria;
 
+INSERT INTO t1 VALUES
+(1,'z'),
+(2,'abcdefjhjkl'),
+(3,'in'),
+(4,'abcdefjhjkl'),
+(6,'abcdefjhjkl');
 
+CREATE TABLE t2 (
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL
+) ENGINE=Aria;
+INSERT INTO t2 VALUES ('foo'), ('foo');
 
+EXPLAIN SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+  table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
+
+SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+  table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
+
+drop table t1, t2;
