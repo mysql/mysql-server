@@ -775,13 +775,13 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 	write_outbuf_to_logfile(logger, &fsynced_lsn);
 	if (fsynced_lsn.lsn < lsn.lsn) {
 	    // it may have gotten fsynced by the write_outbuf_to_logfile.
-            toku_add_trace_mem("fsync", __LINE__);
+            //toku_add_trace_mem("fsync", __LINE__);
 	    r = toku_file_fsync_without_accounting(logger->fd);
 	    if (r!=0) {
 		toku_logger_panic(logger, r);
 		return r;
 	    }
-            toku_add_trace_mem("fsyncdone", __LINE__);
+            //toku_add_trace_mem("fsyncdone", __LINE__);
 	    assert(fsynced_lsn.lsn <= logger->written_lsn.lsn);
 	    fsynced_lsn = logger->written_lsn;
 	}
