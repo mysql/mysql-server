@@ -36,6 +36,26 @@ ELSE()
     SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
   ENDIF()
 
+  INCLUDE_DIRECTORIES(
+    # MySQL Server includes
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/include
+
+    # NDB includes
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/util
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+
+    # Util library includes
+    ${ZLIB_INCLUDE_DIR})
+
+  # The root of storage/ndb/
+  SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
 ENDIF()
 
 OPTION(WITH_NDB_TEST
