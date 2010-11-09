@@ -1032,8 +1032,9 @@ static void close_connections(void)
   Events::deinit();
   end_slave();
 
-  if (thread_count)
-    sleep(2);					// Give threads time to die
+  /* Give threads time to die. */
+  for (int i= 0; thread_count && i < 100; i++)
+    my_sleep(20000);
 
   /*
     Force remaining threads to die by closing the connection to the client

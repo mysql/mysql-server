@@ -704,7 +704,7 @@ UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
-UNIV_INTERN os_event_t	srv_purge_thread_event;
+UNIV_INTERN os_event_t	srv_shutdown_event;
 
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
@@ -1011,7 +1011,7 @@ srv_init(void)
 	}
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
-	srv_purge_thread_event = os_event_create(NULL);
+	srv_shutdown_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -2239,7 +2239,7 @@ loop:
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information. */
 
-	os_thread_sleep(5000000);
+	os_event_wait_time(srv_shutdown_event, 5000000);
 
 	current_time = time(NULL);
 
@@ -2381,7 +2381,7 @@ loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	srv_lock_timeout_active = TRUE;
 
@@ -2546,7 +2546,7 @@ loop:
 
 	fflush(stderr);
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
@@ -2590,7 +2590,7 @@ srv_LRU_dump_restore_thread(
 	last_dump_time = time(NULL);
 
 loop:
-	os_thread_sleep(5000000);
+	os_event_wait_time(srv_shutdown_event, 5000000);
 
 	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 		goto exit_func;
@@ -2754,7 +2754,7 @@ loop:
 
 		if (!skip_sleep) {
 
-			os_thread_sleep(1000000);
+			os_event_wait_time(srv_shutdown_event, 1000000);
 			srv_main_sleeps++;
 
 			/*
@@ -3340,10 +3340,10 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		sleep_ms = 10;
-		os_event_reset(srv_purge_thread_event);
+		os_event_reset(srv_shutdown_event);
 	}
 
-	os_event_wait_time(srv_purge_thread_event, sleep_ms * 1000);
+	os_event_wait_time(srv_shutdown_event, sleep_ms * 1000);
 
 	history_len = trx_sys->rseg_history_len;
 	if (history_len > 1000)
