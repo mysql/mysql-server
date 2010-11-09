@@ -1,3 +1,4 @@
+#include "univ.i"
 #line 2 "fts0blex.c"
 
 #line 4 "fts0blex.c"
@@ -304,9 +305,9 @@ YY_BUFFER_STATE fts0b_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner
 YY_BUFFER_STATE fts0b_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
 YY_BUFFER_STATE fts0b_scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
 
-void *fts0balloc (yy_size_t ,yyscan_t yyscanner );
-void *fts0brealloc (void *,yy_size_t ,yyscan_t yyscanner );
-void fts0bfree (void * ,yyscan_t yyscanner );
+void *fts0balloc (yy_size_t , yyscan_t yyscanner __attribute__((unused)) );
+void *fts0brealloc (void *,yy_size_t , yyscan_t yyscanner __attribute__((unused)) );
+void fts0bfree (void * , yyscan_t yyscanner __attribute__((unused)) );
 
 #define yy_new_buffer fts0b_create_buffer
 
@@ -346,7 +347,7 @@ typedef int yy_state_type;
 static yy_state_type yy_get_previous_state (yyscan_t yyscanner );
 static yy_state_type yy_try_NUL_trans (yy_state_type current_state  ,yyscan_t yyscanner);
 static int yy_get_next_buffer (yyscan_t yyscanner );
-static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
+static void yy_fatal_error (yyconst char msg[] , yyscan_t yyscanner __attribute__((unused)) );
 
 /* Done after the current pattern has been matched and before the
  * corresponding action - sets up yytext.
@@ -446,7 +447,6 @@ static yyconst flex_int16_t yy_chk[26] =
 #line 1 "fts0blex.l"
 #line 2 "fts0blex.l"
 
-#include "univ.i"
 #include "fts0ast.h"
 #include "fts0pars.h"
 
@@ -454,7 +454,7 @@ static yyconst flex_int16_t yy_chk[26] =
 #define YY_DECL int fts_blexer(YYSTYPE* val, yyscan_t yyscanner)
 
 #define YY_NO_INPUT 1
-#line 458 "fts0blex.c"
+#line 457 "fts0blex.c"
 
 #define INITIAL 0
 
@@ -552,11 +552,11 @@ extern int fts0bwrap (yyscan_t yyscanner );
 #endif
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy (char *,yyconst char *,int ,yyscan_t yyscanner);
+static void yy_flex_strncpy (char *,yyconst char *,int , yyscan_t yyscanner __attribute__((unused)));
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen (yyconst char * ,yyscan_t yyscanner);
+static int yy_flex_strlen (yyconst char * , yyscan_t yyscanner __attribute__((unused)));
 #endif
 
 #ifndef YY_NO_INPUT
@@ -678,10 +678,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 19 "fts0blex.l"
+#line 18 "fts0blex.l"
 
 
-#line 685 "fts0blex.c"
+#line 684 "fts0blex.c"
 
 	if ( !yyg->yy_init )
 		{
@@ -762,12 +762,12 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 21 "fts0blex.l"
+#line 20 "fts0blex.l"
 /* Ignore whitespace */ ;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 23 "fts0blex.l"
+#line 22 "fts0blex.l"
 {
 	val->oper = fts0bget_text(yyscanner)[0];
 
@@ -776,7 +776,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 29 "fts0blex.l"
+#line 28 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -785,7 +785,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 35 "fts0blex.l"
+#line 34 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -794,7 +794,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 41 "fts0blex.l"
+#line 40 "fts0blex.l"
 {
 	val->token = strdup(fts0bget_text(yyscanner));
 
@@ -804,15 +804,15 @@ YY_RULE_SETUP
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 47 "fts0blex.l"
+#line 46 "fts0blex.l"
 
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 49 "fts0blex.l"
+#line 48 "fts0blex.l"
 ECHO;
 	YY_BREAK
-#line 816 "fts0blex.c"
+#line 815 "fts0blex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1582,7 +1582,7 @@ YY_BUFFER_STATE fts0b_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 #define YY_EXIT_FAILURE 2
 #endif
 
-static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
+static void yy_fatal_error (yyconst char* msg ,  yyscan_t yyscanner __attribute__((unused)))
 {
     	(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
@@ -1883,7 +1883,7 @@ int fts0blex_destroy  (yyscan_t yyscanner)
  */
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yyscanner)
+static void yy_flex_strncpy (char* s1, yyconst char * s2, int n ,  yyscan_t yyscanner __attribute__((unused)))
 {
 	register int i;
 	for ( i = 0; i < n; ++i )
@@ -1892,7 +1892,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yysca
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
+static int yy_flex_strlen (yyconst char * s ,  yyscan_t yyscanner __attribute__((unused)))
 {
 	register int n;
 	for ( n = 0; s[n]; ++n )
@@ -1902,12 +1902,12 @@ static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 }
 #endif
 
-void *fts0balloc (yy_size_t  size , yyscan_t yyscanner)
+void *fts0balloc (yy_size_t  size ,  yyscan_t yyscanner __attribute__((unused)))
 {
 	return (void *) malloc( size );
 }
 
-void *fts0brealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
+void *fts0brealloc  (void * ptr, yy_size_t  size ,  yyscan_t yyscanner __attribute__((unused)))
 {
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
@@ -1919,14 +1919,14 @@ void *fts0brealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 	return (void *) realloc( (char *) ptr, size );
 }
 
-void fts0bfree (void * ptr , yyscan_t yyscanner)
+void fts0bfree (void * ptr ,  yyscan_t yyscanner __attribute__((unused)))
 {
 	free( (char *) ptr );	/* see fts0brealloc() for (char *) cast */
 }
 
 #define YYTABLES_NAME "yytables"
 
-#line 49 "fts0blex.l"
+#line 48 "fts0blex.l"
 
 
 
