@@ -682,7 +682,6 @@ err:
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
       (save_errno == HA_ERR_CRASHED_ON_REPAIR))
-  rec_per_key_part= 0;
     mi_report_error(save_errno, name);
   switch (errpos) {
   case 6:
