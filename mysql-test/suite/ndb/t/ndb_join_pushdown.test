@@ -7,20 +7,7 @@ drop table if exists t1,t2,t3,t4;
 #######################################
 # Enable ndb$info counters for SPJ block.
 
---source have_ndbinfo.inc
-
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
-  --disable_warnings
-  --disable_query_log
-  --disable_result_log
-  set @ndbinfo_skip_version_check=1;
-  source $NDBINFO_SQL;
-  --enable_result_log
-  --enable_query_log
-  --enable_warnings
-}
+--source ndbinfo_create.inc
 
 # Remember all SPJ conters when test started.
 # Will report and compare the diff. at end of entire test
@@ -2999,13 +2986,7 @@ let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', 
 #--eval select $pushed_reads_at_end - $pushed_reads_at_startup as pushed_reads
 --enable_query_log
 
-
-if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
-{
-  --disable_query_log
-  drop database ndbinfo;
-  --enable_query_log
-}
+--source ndbinfo_drop.inc
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 
