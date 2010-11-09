@@ -13,14 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmclient
-                    ${CMAKE_SOURCE_DIR}/sql)
+INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/mgmapi
+		    ${READLINE_INCLUDE_DIR})
 
 ADD_LIBRARY(ndbconf
                Config.cpp
@@ -38,6 +32,9 @@ ENDIF()
 ADD_EXECUTABLE(ndb_mgmd
   MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp ${NDB_MGMD_EXTRA_SRC})
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient ndbmgmclient)
+IF(UNIX)
+  TARGET_LINK_LIBRARIES(ndb_mgmd ${READLINE_LIBRARY})
+ENDIF(UNIX)
 
 INSTALL(TARGETS ndb_mgmd DESTINATION libexec)
 
