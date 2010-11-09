@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4;
+drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
 #######################################
@@ -25,19 +25,19 @@ if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 # Remember all SPJ conters when test started.
 # Will report and compare the diff. at end of entire test
 create temporary table spj_counts_at_startup 
-       select counter_name, sum(val) AS val 
+       select counter_name, sum(val) as val 
        from ndbinfo.counters 
        where block_name='DBSPJ' 
        group by counter_name;
 
 # Save old counter values.
-let $scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
-let $pruned_scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
-let $sorted_scan_count_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
-let $pushed_queries_defined_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
-let $pushed_queries_dropped_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
-let $pushed_queries_executed_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
-let $pushed_reads_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+let $scan_count_at_startup = query_get_value(show status like 'Ndb_scan_count', Value, 1);
+let $pruned_scan_count_at_startup = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+let $sorted_scan_count_at_startup = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
+let $pushed_queries_defined_at_startup = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
+let $pushed_queries_dropped_at_startup = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
+let $pushed_queries_executed_at_startup = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
+let $pushed_reads_at_startup = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
 ##############
 # Test start
@@ -45,13 +45,13 @@ let $pushed_reads_at_startup = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_read
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 
-CREATE TABLE t1 (
-  a int NOT NULL,
-  b int NOT NULL,
-  c int NOT NULL,
-  d int NOT NULL,
-  PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=ndbcluster;
 
 insert into t1 values
 (1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
@@ -230,20 +230,20 @@ from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t1.c and t3.b = t2.b;
 
-## Join as 'X ALL' -> 'Y ALL' -> 'Z EQ_REF'
-## As Scan vs. scan is not pushable, only Y,Z is pushed
-## However join cond on Z refer X which is a
+## Join as 'x ALL' -> 'y ALL' -> 'z EQ_REF'
+## As Scan vs. scan is not pushable, only y,z is pushed
+## However join cond on z refer x which is a
 ## (pseudo constant) paramValue wrt. the pushed join.
 ## As we have a dependency on previous rows these 
 ## should not be join cached (ref. HA_PUSH_BLOCK_JOINCACHE)
 explain extended
-select STRAIGHT_JOIN *
-  FROM (t1 as X CROSS JOIN t1 as Y)
-     JOIN t1 as Z ON Z.a=X.a and Z.b=Y.b;
+select straight_join *
+  from (t1 as x cross join t1 as y)
+     join t1 as z on z.a=x.a and z.b=y.b;
 --sorted_result
-select STRAIGHT_JOIN *
-  FROM (t1 as X CROSS JOIN t1 as Y)
-     JOIN t1 as Z ON Z.a=X.a and Z.b=Y.b;
+select straight_join *
+  from (t1 as x cross join t1 as y)
+     join t1 as z on z.a=x.a and z.b=y.b;
 
 
 ## Some variants of the above where t3 has a join conditions in t1
@@ -289,13 +289,13 @@ from t1
 
 ## Create a non-ndb table used as a tool to force part of
 ## a query to be non-pushable.
-CREATE TABLE t1_myisam (
-  a int NOT NULL,
-  b int NOT NULL,
-  c int NOT NULL,
-  d int NOT NULL,
-  PRIMARY KEY (`a`,`b`)
-) ENGINE=MyISAM;
+create table t1_myisam (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine=myisam;
 
 insert into t1_myisam values
 (1,1,1,1), (2,2,1,1), (3,3,1,1), (4,4,1,1);
@@ -669,7 +669,7 @@ explain extended
 # effectively lost.
 # With pushed joins we either has to:
 #  1)  find a suitable ordered index which we can create an ordered indexscan on 
-#  (-> joinType() -> JT_NEXT, or type: 'index' w/ explain)
+#  (-> joinType() -> JT_NExT, or type: 'index' w/ explain)
 #  or:
 # 2) Use a temporary result file for the result, which is then filesort'ed
 #  (-> 'Using temporary; Using filesort')
@@ -1110,7 +1110,7 @@ create table t3 (a3 int, b3 int, c3 int, d3 int,
 insert into t3 values (0x1f, 0x2f, 1, 0x1f);
 insert into t3 values (0x2f, 0x3f, 2, 0x2f);
 insert into t3 values (0x3f, 0x1f, 3, 0x3f);
-insert into t3 values (0x4f, 0,    NULL, NULL);
+insert into t3 values (0x4f, 0,    null, null);
 
 explain extended
 select * from t3 as t1
@@ -1148,23 +1148,23 @@ explain extended
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
- where t1.d3 is NULL;
+ where t1.d3 is null;
 --sorted_result
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
- where t1.d3 is NULL;
+ where t1.d3 is null;
 
 explain extended
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
- where t1.d3 is not NULL;
+ where t1.d3 is not null;
 --sorted_result
 select * from t3 as t1
  left outer join t3 as t2 on t2.d3 = t1.a3
  left outer join t3 as t3 on t3.a3 = t2.d3
- where t1.d3 is not NULL;
+ where t1.d3 is not null;
 
 
 drop table t3;
@@ -1176,113 +1176,113 @@ create table t3 (a3 int not null, b3 int not null, c3 int, d3 int,
 insert into t3 values (0x1f, 0x2f, 1,    0x1f);
 insert into t3 values (0x2f, 0x3f, 2,    0x2f);
 insert into t3 values (0x3f, 0x1f, 3,    0x3f);
-insert into t3 values (0x40, 0,    NULL, NULL);
-insert into t3 values (0x41, 0,    NULL, NULL);
-insert into t3 values (0x42, 0,    4,    NULL);
-insert into t3 values (0x43, 0,    NULL, 0x43);
+insert into t3 values (0x40, 0,    null, null);
+insert into t3 values (0x41, 0,    null, null);
+insert into t3 values (0x42, 0,    4,    null);
+insert into t3 values (0x43, 0,    null, 0x43);
 
 ## Baseline: Not pushed as only one of the columns in unique indexes are REF'ed
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
+  from t3 as x join t3 as y on x.b3 = y.b3;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3;
+  from t3 as x join t3 as y on x.b3 = y.b3;
 
 ## Extend query above with 'where <const cond>'
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f;
 
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.d3 = 0x2f;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.d3 = 0x2f;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.d3 = 0x2f;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.d3 = 0x2f;
 
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.d3 = Y.d3
-  where Y.b3 = 0x2f;
+  from t3 as x join t3 as y on x.d3 = y.d3
+  where y.b3 = 0x2f;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.d3 = Y.d3
-  where Y.b3 = 0x2f;
+  from t3 as x join t3 as y on x.d3 = y.d3
+  where y.b3 = 0x2f;
 
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.d3 = Y.d3
-  where Y.b3 = 0x20+0x2f;
+  from t3 as x join t3 as y on x.d3 = y.d3
+  where y.b3 = 0x20+0x2f;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.d3 = Y.d3
-  where Y.b3 = 0x20+0x2f;
+  from t3 as x join t3 as y on x.d3 = y.d3
+  where y.b3 = 0x20+0x2f;
 
 
-## Not pushable as 'not NULL' is actually not a single const value
+## Not pushable as 'not null' is actually not a single const value
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 is not NULL;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 is not null;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 is not NULL;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 is not null;
 
-## Neither 'is NULL' pushable as uniqueness is not defined for NULL
-## ... and NULL's are not present in the unique index
+## Neither 'is null' pushable as uniqueness is not defined for null
+## ... and null's are not present in the unique index
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 is NULL;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 is null;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 is NULL;
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 is null;
 
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.b3 = 0;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.b3 = 0;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.b3 = 0;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.b3 = 0;
 
-## As 'b3' is defined as 'NOT NULL', this query will optimized as 'Impossible WHERE' (No push)
+## As 'b3' is defined as 'not null', this query will optimized as 'Impossible WHERE' (No push)
 explain extended
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.b3 is NULL;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.b3 is null;
 --sorted_result
 select straight_join * 
-  from t3 as X JOIN t3 as Y on X.c3 = Y.c3
-  where Y.b3 is NULL;
+  from t3 as x join t3 as y on x.c3 = y.c3
+  where y.b3 is null;
 
 ## Will break up query in 2 pushed joins.
-## Last join (JOIN t3 as Y2) refer X1.c3 which will
+## Last join (join t3 as y2) refer x1.c3 which will
 ## be handled as a constant paramValue wrt. scope of the 
 ## second pushed join.
 explain extended
 select straight_join * from
-  t3 as X1
-  JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
-  JOIN t3 as X2 on X2.b3 = Y1.b3
-  JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
+  t3 as x1
+  join t3 as y1 on x1.b3 = y1.b3 and x1.d3 = y1.d3
+  join t3 as x2 on x2.b3 = y1.b3
+  join t3 as y2 on y2.b3 = x2.c3 and y2.d3 = x1.c3;
 --sorted_result
 select straight_join * from
-  t3 as X1
-  JOIN t3 as Y1 on X1.b3 = Y1.b3 and X1.d3 = Y1.d3
-  JOIN t3 as X2 on X2.b3 = Y1.b3
-  JOIN t3 as Y2 on Y2.b3 = X2.c3 and Y2.d3 = X1.c3;
+  t3 as x1
+  join t3 as y1 on x1.b3 = y1.b3 and x1.d3 = y1.d3
+  join t3 as x2 on x2.b3 = y1.b3
+  join t3 as y2 on y2.b3 = x2.c3 and y2.d3 = x1.c3;
 
 
 ###########################
@@ -1291,8 +1291,8 @@ select straight_join * from
 
 prepare stmt1 from
 'select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f';
 
 #execute multiple times
 execute stmt1;
@@ -1306,19 +1306,19 @@ execute stmt1;
 # Multiple prepare of same stmt should silently discard prev prepared stmt
 prepare stmt1 from
 'select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f';
 prepare stmt1 from
 'select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f';
 drop prepare stmt1;
 
 #Prepare explain'ed statement and execute it
 prepare stmt1 from
 'explain select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = 0x2f';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = 0x2f';
 execute stmt1;
 execute stmt1;
 
@@ -1339,50 +1339,50 @@ drop prepare stmt1;
 ### Prepared stmt with dynamic parameters ('?') ###
 prepare stmt1 from
 'explain select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = ?';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = ?';
 
 set @a=47;
 execute stmt1 using @a;
 set @a=0;
 execute stmt1 using @a;
-set @a=NULL;
+set @a=null;
 execute stmt1 using @a;
 
 prepare stmt1 from
 'select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3
-  where Y.d3 = ?';
+  from t3 as x join t3 as y on x.b3 = y.b3
+  where y.d3 = ?';
 
 set @a=47;
 execute stmt1 using @a;
 set @a=0;
 execute stmt1 using @a;
-set @a=NULL;
+set @a=null;
 execute stmt1 using @a;
 
 prepare stmt1 from
 'explain select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
-  where X.a3 = ?';
+  from t3 as x join t3 as y on x.b3 = y.b3 and x.d3 = y.d3
+  where x.a3 = ?';
 
 set @a=47;
 execute stmt1 using @a;
 set @a=0;
 execute stmt1 using @a;
-set @a=NULL;
+set @a=null;
 execute stmt1 using @a;
 
 prepare stmt1 from
 'select straight_join * 
-  from t3 as X JOIN t3 as Y on X.b3 = Y.b3 and X.d3 = Y.d3
-  where X.a3 = ?';
+  from t3 as x join t3 as y on x.b3 = y.b3 and x.d3 = y.d3
+  where x.a3 = ?';
 
 set @a=47;
 execute stmt1 using @a;
 set @a=0;
 execute stmt1 using @a;
-set @a=NULL;
+set @a=null;
 execute stmt1 using @a;
 
 drop table t3;
@@ -1424,7 +1424,7 @@ join t1 as t3 on t3.a = t2.a
 join t1 as t4 on t4.a = t3.b
 ;
 
-## Test subquery execution where 'Full scan on NULL key' strategy requires
+## Test subquery execution where 'Full scan on null key' strategy requires
 ## table scan execution in addition to the key lookup which was prepared
 ## as part of the pushed join NdbQuery
 explain extended
@@ -1444,9 +1444,9 @@ xor c > 5;
 ## the scope of our JOIN_TAB's
 ##############
 explain extended
-select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
+select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 --sorted_result
-select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
+select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 
 drop table t1;
 
@@ -1905,13 +1905,13 @@ drop table t1;
 ##
 # Try with higher row-count to test batching/flow control
 #
-CREATE TABLE t1 (
-  a int NOT NULL auto_increment,
+create table t1 (
+  a int not null auto_increment,
   b char(255) not null,
-  c int NOT NULL,
+  c int not null,
   d char(255) not null,
-  PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster;
+  primary key (`a`,`b`)
+) engine=ndbcluster;
 
 let $1=1000;
 disable_query_log;
@@ -1948,65 +1948,65 @@ drop table t1;
 
 # Pushed join accessing disk data.
 
-CREATE LOGFILE GROUP lg1
-ADD UNDOFILE 'undofile.dat'
-INITIAL_SIZE 1M
-UNDO_BUFFER_SIZE = 1M
-ENGINE=NDB;
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 1m
+undo_buffer_size = 1m
+engine=ndb;
 
-CREATE TABLESPACE ts1
-ADD DATAFILE 'datafile.dat'
-USE LOGFILE GROUP lg1
-INITIAL_SIZE 6M
-ENGINE NDB;
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 6m
+engine ndb;
 
 
-create table T1 (a int NOT NULL, 
-                 b int NOT NULL storage disk, 
-       		 c int NOT NULL storage memory, 
+create table t1 (a int not null, 
+                 b int not null storage disk, 
+       		 c int not null storage memory, 
 		 primary key(a)) 
-		 TABLESPACE ts1 STORAGE DISK engine = ndb;
+		 tablespace ts1 storage disk engine = ndb;
 
-insert into T1 values (10, 11, 11);
-insert into T1 values (11, 12, 12);
-insert into T1 values (12, 13, 13);
+insert into t1 values (10, 11, 11);
+insert into t1 values (11, 12, 12);
+insert into t1 values (12, 13, 13);
 
-create table T2 (a int not null, 
+create table t2 (a int not null, 
        	     	 b int not null, primary key(a)) engine = ndb;
-insert into T2 values (10, 11);
-insert into T2 values (11, 12);
-insert into T2 values (12, 13);
+insert into t2 values (10, 11);
+insert into t2 values (11, 12);
+insert into t2 values (12, 13);
 
 # Disk data in projection of first op.
-explain extended select * from T1, T2 where T1.c = T2.a;
+explain extended select * from t1, t2 where t1.c = t2.a;
 --sorted_result
-select * from T1, T2 where T1.c = T2.a;
+select * from t1, t2 where t1.c = t2.a;
 
-explain extended select * from T1, T2 where T1.a=11 and T1.c = T2.a;
-select * from T1, T2 where T1.a=11 and T1.c = T2.a;
+explain extended select * from t1, t2 where t1.a=11 and t1.c = t2.a;
+select * from t1, t2 where t1.a=11 and t1.c = t2.a;
 
 # Disk data in projection of second op.
-explain extended select * from T2, T1 where T2.b = T1.a;
+explain extended select * from t2, t1 where t2.b = t1.a;
 --sorted_result
-select * from T2, T1 where T2.b = T1.a;
+select * from t2, t1 where t2.b = t1.a;
 
-explain extended select * from T2, T1 where T2.a=11 and T2.b = T1.a;
-select * from T2, T1 where T2.a=11 and T2.b = T1.a;
+explain extended select * from t2, t1 where t2.a=11 and t2.b = t1.a;
+select * from t2, t1 where t2.a=11 and t2.b = t1.a;
 
 # Disk data in predicate but not in projection
-explain extended select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.b = T2.a;
+explain extended select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
 --sorted_result
-select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.b = T2.a;
+select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.b = t2.a;
 
-explain extended select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.a=11 and T1.b = T2.a;
-select T1.a, T1.c, T2.a, T2.b from T1, T2 where T1.a=11 and T1.b = T2.a;
+explain extended select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
+select t1.a, t1.c, t2.a, t2.b from t1, t2 where t1.a=11 and t1.b = t2.a;
 
-drop table T1;
-drop table T2;
+drop table t1;
+drop table t2;
 
-ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
 
 drop tablespace ts1
 engine ndb;
@@ -2016,35 +2016,35 @@ engine ndb;
 
 # Store old counter values.
 create temporary table old_count 
-       select counter_name, sum(val) AS val 
+       select counter_name, sum(val) as val 
        from ndbinfo.counters 
        where block_name='DBSPJ' 
        group by counter_name;
 
-create table T1 (a int NOT NULL, 
-                 b int NOT NULL,
-       		 c int NOT NULL,
+create table t1 (a int not null, 
+                 b int not null,
+       		 c int not null,
 		 primary key(a)) 
 		 engine = ndb;
 
 # We use key values that have the same representation in little and big endian.
 # Otherwise, the numbers for local and remote reads may depend on endian-ness,
 # since hashing is endian dependent.
-insert into T1 values (1, 2, 2);
-insert into T1 values (2, 3, 3);
-insert into T1 values (3, 4, 4);
+insert into t1 values (1, 2, 2);
+insert into t1 values (2, 3, 3);
+insert into t1 values (3, 4, 4);
 
 # Run some queries that should increment the counters.
-select * from T1 t1, T1 t2 where t1.a = 2 and t2.a = t1.b; 
+select * from t1 t1, t1 t2 where t1.a = 2 and t2.a = t1.b; 
 
-select count(*) from T1 t1, T1 t2 where t2.a = t1.b; 
+select count(*) from t1 t1, t1 t2 where t2.a = t1.b; 
 
-select count(*) from T1 t1, T1 t2 where t1.a >= 2 and t2.a = t1.b; 
+select count(*) from t1 t1, t1 t2 where t1.a >= 2 and t2.a = t1.b; 
 
 
 # Get new counter values.
 create temporary table new_count 
-       select counter_name, sum(val) AS val 
+       select counter_name, sum(val) as val 
        from ndbinfo.counters 
        where block_name='DBSPJ' 
        group by counter_name;
@@ -2065,18 +2065,18 @@ select 'READS_SENT', sum(new_count.val - old_count.val)
 
 drop table old_count;
 drop table new_count;
-drop table T1;
+drop table t1;
 
 ### Test that scan filters are used for pushed operations.
 
-create table T1 (
+create table t1 (
        a int primary key, 
        b int,
        c int) engine = ndb;
 
-insert into T1 values (1, 2, 3);
-insert into T1 values (2, 3, 4);
-insert into T1 values (3, 4, 5);
+insert into t1 values (1, 2, 3);
+insert into t1 values (2, 3, 4);
+insert into t1 values (3, 4, 5);
 
 # Find the total number of lookups issued by the SPJ blocks.
 let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT'), Value, 1);
@@ -2084,96 +2084,96 @@ let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counter
 
 # Root scan should give only one tuple if scan filter is pushed. 
 # Therefore only one lookup on 'y'.
-explain extended select * from T1 x, T1 y where x.b=y.a and x.c=4;
+explain extended select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
-select * from T1 x, T1 y where x.b=y.a and x.c=4;
+select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 --disable_query_log
---eval select sum(val) - $spj_lookups AS lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
+--eval select sum(val) - $spj_lookups as lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
 --enable_query_log
 
 # Lookup on y should only give one result tuple if filter is pushed.
 # This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
-explain extended select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+explain extended select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
-select * from T1 x, T1 y, T1 z where x.b=y.a and y.c=4 and y.b=z.a;
+select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 --disable_query_log
---eval select sum(val) - $spj_lookups AS lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
+--eval select sum(val) - $spj_lookups as lookups from ndbinfo.counters where block_name='DBSPJ' and (counter_name='LOCAL_READS_SENT' or counter_name='REMOTE_READS_SENT')
 --enable_query_log
 
-drop table T1;
+drop table t1;
 
 # Test and server status variables (i.e. mysqld counters)
 
-create table T1(
+create table t1(
        a int not null,
        b int not null,
        c int not null,
        primary key(a,b))
 engine = ndb partition by key (a);
 
-insert into T1 values (10, 10, 11);
-insert into T1 values (11, 11, 12);
-insert into T1 values (12, 12, 13);
+insert into t1 values (10, 10, 11);
+insert into t1 values (11, 11, 12);
+insert into t1 values (12, 12, 13);
 
 # First query against a new table causes an extra scan (of a dictionaty table??)
 # so adding an extra scan here to make results from the following part easier
 # to interpret.
-select * from T1 t1, T1 t2 
+select * from t1 t1, t1 t2 
       where t1.a = 10 and t1.b = 10 and 
       	     t2.a = t1.c and t2.b = t1.c; 
 
 # Save old counter values.
-let $old_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
-let $old_sorted_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
-let $old_pushed_queries_defined = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
-let $old_pushed_queries_dropped = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
-let $old_pushed_queries_executed = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
-let $old_pushed_reads = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+let $old_scan_count = query_get_value(show status like 'Ndb_scan_count', Value, 1);
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+let $old_sorted_scan_count = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
+let $old_pushed_queries_defined = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
+let $old_pushed_queries_dropped = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
+let $old_pushed_queries_executed = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
+let $old_pushed_reads = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
 # Run some queries that should increment the counters.
 # This query should push a single read.
-select * from T1 t1, T1 t2 
+select * from t1 t1, t1 t2 
       where t1.a = 11 and t1.b = 11 and 
       	     t2.a = t1.c and t2.b = t1.c; 
 
 # This query should push a sorted scan (and three reads).
-select * from T1 t1, T1 t2 
+select * from t1 t1, t1 t2 
        where t2.a = t1.c and t2.b = t1.c
        order by t1.a; 
 
 # This query should push a pruned scan (but pruning must be fixed for 
 # pushed scans.)
-select count(*) from T1 t1, T1 t2 
+select count(*) from t1 t1, t1 t2 
        where t1.a = 11 and 
        	     t2.a = t1.c and t2.b = t1.c; 
 
 # Get the new values;
-let $new_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
-let $new_sorted_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
-let $new_pushed_queries_defined = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
-let $new_pushed_queries_dropped = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
-let $new_pushed_queries_executed = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
-let $new_pushed_reads = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+let $new_scan_count = query_get_value(show status like 'Ndb_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+let $new_sorted_scan_count = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
+let $new_pushed_queries_defined = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
+let $new_pushed_queries_dropped = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
+let $new_pushed_queries_executed = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
+let $new_pushed_reads = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
 # Calculate the change.
 --disable_query_log
---eval SELECT $new_scan_count - $old_scan_count AS scan_count
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
---eval SELECT $new_sorted_scan_count - $old_sorted_scan_count AS sorted_scan_count
---eval SELECT $new_pushed_queries_defined - $old_pushed_queries_defined AS pushed_queries_defined
---eval SELECT $new_pushed_queries_dropped - $old_pushed_queries_dropped AS pushed_queries_dropped
---eval SELECT $new_pushed_queries_executed - $old_pushed_queries_executed AS pushed_queries_executed
---eval SELECT $new_pushed_reads - $old_pushed_reads AS pushed_reads
+--eval select $new_scan_count - $old_scan_count as scan_count
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+--eval select $new_sorted_scan_count - $old_sorted_scan_count as sorted_scan_count
+--eval select $new_pushed_queries_defined - $old_pushed_queries_defined as pushed_queries_defined
+--eval select $new_pushed_queries_dropped - $old_pushed_queries_dropped as pushed_queries_dropped
+--eval select $new_pushed_queries_executed - $old_pushed_queries_executed as pushed_queries_executed
+--eval select $new_pushed_reads - $old_pushed_reads as pushed_reads
 --enable_query_log
 
-drop table T1;
+drop table t1;
 
 # Test scan pruning 
-create table T1(
+create table t1(
        d int not null,
        c int not null,
        a int not null,
@@ -2181,89 +2181,89 @@ create table T1(
        primary key using hash (a,b))
 engine = ndb partition by key (a);
 
-insert into T1(a,b,c,d) values (10, 10, 11, 11);
-insert into T1(a,b,c,d) values (11, 11, 12, 12);
-insert into T1(a,b,c,d) values (12, 12, 13, 13);
+insert into t1(a,b,c,d) values (10, 10, 11, 11);
+insert into t1(a,b,c,d) values (11, 11, 12, 12);
+insert into t1(a,b,c,d) values (12, 12, 13, 13);
 
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 
 # Should give pruned scan.
 
-create index i1 on T1(c,a);
+create index i1 on t1(c,a);
 
-explain extended select count(*) from T1 t1, T1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
+explain extended select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
-select count(*) from T1 t1, T1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
+select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
-drop index i1 on T1;
+drop index i1 on t1;
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
 # Should give pruned scan. There is a one sided limit for t1.b, but this is
 # after the partition key prefix.
 
-create index i2 on T1(a,b);
+create index i2 on t1(a,b);
 
-explain extended select count(*) from T1 t1, T1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
-select count(*) from T1 t1, T1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+explain extended select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
 # Should give pruned scan. Upper and lower bounds for t1.a are the sane. 
-explain extended select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
-select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
 # Should not give pruned scan. Upper and lower bounds for t1.a are different. 
-explain extended select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
-select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
 
-explain extended select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
-select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+explain extended select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
 # Should give pruned scan. There will be two sets of bounds, but they have the
 # same distribution key.
 
-explain extended select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
-select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
+explain extended select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
-drop table T1;
+drop table t1;
 
-create table T2(
+create table t2(
        d int not null,
        e int not null,
        f int not null,
@@ -2273,45 +2273,45 @@ create table T2(
        primary key using hash (a,b,c))
 engine = ndb partition by key (b,a);
 
-insert into T2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (1, 2, 4, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (2, 3, 4, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (3, 4, 5, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (4, 5, 6, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (5, 6, 7, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (6, 7, 8, 1, 2, 3); 
-insert into T2(a,b,c,d,e,f) values (7, 8, 9, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (1, 2, 4, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (2, 3, 4, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (3, 4, 5, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (4, 5, 6, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (5, 6, 7, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (6, 7, 8, 1, 2, 3); 
+insert into t2(a,b,c,d,e,f) values (7, 8, 9, 1, 2, 3); 
 
-create index i2_1 on T2(d, a, b, e);
+create index i2_1 on t2(d, a, b, e);
 
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
-explain extended select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-drop index i2_1 on T2;
+drop index i2_1 on t2;
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
-let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
+let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --enable_query_log
 
-create index i2_3 on T2(a, d, b, e);
+create index i2_3 on t2(a, d, b, e);
 
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
 
-explain extended select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-drop table T2;
+drop table t2;
 
 --disable_query_log
-let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
---eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+--eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
 --enable_query_log
 
 create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb;
@@ -2515,7 +2515,7 @@ select count(*) from t1 as x1
 #
 # As the global cursor will fool mysqld into handling the resultset
 # as a result from a scan - n*lookup query, incorrect cardinality on the
-# parent operation was perceived. Which caused extra NULL-joined outer rows
+# parent operation was perceived. Which caused extra null-joined outer rows
 # to be emitted in this testcase.
 #
 # Refactored handler interface and SPJ API use subcursor on each operation
@@ -2652,7 +2652,7 @@ select straight_join count(*) from t1 as x1
   left join t1 as x3 on x3.b = x1.a
   join t1 as x2 on x2.pk = x1.a;
 
-# Modify rows to force NULL rows from outer join
+# Modify rows to force null rows from outer join
 update t1 set b=b+10;
 
 select straight_join count(*) from t1 as x1 
@@ -2672,7 +2672,7 @@ update t1 set b=b-10;
 # In this testcase (x inner join y) will have incomplete
 # childbatches, while (x left join z) will be complete. 
 
-# Modify rows to force NULL rows from lookup(z) below
+# Modify rows to force null rows from lookup(z) below
 update t1 set u=u+100;
 
 set ndb_join_pushdown=on;
@@ -2790,11 +2790,11 @@ explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 ###########
-# Partition keys may evaluate to NULL-values:
+# Partition keys may evaluate to null-values:
 ###########
 insert into t1(a,b,c,d,e,f) values
- (8, 9, 0, 1,  NULL, 3),
- (9, 9, 0, 1,  2,    NULL);
+ (8, 9, 0, 1,  null, 3),
+ (9, 9, 0, 1,  2,    null);
 
 alter table t1 partition by key (b);
 --sorted_result
@@ -2802,8 +2802,8 @@ select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
 # Verify pruned execution by comparing the NDB$INFO counters
 --disable_query_log
---eval select sum(val) - $pruned_range AS pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='PRUNED_RANGE_SCANS_RECEIVED'
---eval select sum(val) - $const_pruned_range AS const_pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='CONST_PRUNED_RANGE_SCANS_RECEIVED'
+--eval select sum(val) - $pruned_range as pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='PRUNED_RANGE_SCANS_RECEIVED'
+--eval select sum(val) - $const_pruned_range as const_pruned from ndbinfo.counters where block_name='DBSPJ' and counter_name='CONST_PRUNED_RANGE_SCANS_RECEIVED'
 --enable_query_log
 
 drop table t1;
@@ -2855,22 +2855,22 @@ insert into t values
   (7,4), (8,4);
 
 explain extended
-SELECT DISTINCT STRAIGHT_JOIN table1.pk FROM 
-   t AS table1  JOIN
-    (t AS table2  JOIN  
-       (t AS table3  JOIN t AS table4 ON table3.pk = table4.a)
-     ON table2.pk =  table3.pk )
-   ON table1.a =  table4.pk
-   WHERE  table2.pk != 6;
+select distinct straight_join table1.pk FROM 
+   t as table1  join
+    (t as table2  join  
+       (t as table3  join t as table4 on table3.pk = table4.a)
+     on table2.pk =  table3.pk )
+   on table1.a =  table4.pk
+   where  table2.pk != 6;
 
 --sorted_result
-SELECT DISTINCT STRAIGHT_JOIN table1.pk FROM 
-   t AS table1  JOIN
-    (t AS table2  JOIN  
-       (t AS table3  JOIN t AS table4 ON table3.pk = table4.a)
-     ON table2.pk =  table3.pk )
-   ON table1.a =  table4.pk
-   WHERE  table2.pk != 6;
+select distinct straight_join table1.pk FROM 
+   t as table1  join
+    (t as table2  join  
+       (t as table3  join t as table4 on table3.pk = table4.a)
+     on table2.pk =  table3.pk )
+   on table1.a =  table4.pk
+   where  table2.pk != 6;
 
 drop table t;
 
@@ -2891,13 +2891,13 @@ drop table t;
 # Test of varchar query parameteres.
 #######
 
-CREATE TABLE tc(
-  a varchar(10) NOT NULL,
+create table tc(
+  a varchar(10) not null,
   b varchar(10),
   c varchar(10),
-  PRIMARY KEY (a),
-  UNIQUE KEY uk1 (b, c) 
-)ENGINE=ndbcluster;
+  primary key (a),
+  unique key uk1 (b, c) 
+)engine=ndbcluster;
 
 insert into tc values ('aa','bb', 'x'), ('bb','cc', 'x'), ('cc', 'dd', 'x');
 
@@ -2942,7 +2942,7 @@ drop table t1;
 
 # Get new counter values.
 create temporary table spj_counts_at_end
-       select counter_name, sum(val) AS val 
+       select counter_name, sum(val) as val 
        from ndbinfo.counters 
        where block_name='DBSPJ' 
        group by counter_name;
@@ -2980,30 +2980,30 @@ drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 
 # Similar for the SPJ specific 'STATUS' counters
-let $scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
-let $pruned_scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
-let $sorted_scan_count_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
-let $pushed_queries_defined_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
-let $pushed_queries_dropped_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
-let $pushed_queries_executed_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
-let $pushed_reads_at_end = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+let $scan_count_at_end = query_get_value(show status like 'Ndb_scan_count', Value, 1);
+let $pruned_scan_count_at_end = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
+let $sorted_scan_count_at_end = query_get_value(show status like 'Ndb_sorted_scan_count', Value, 1);
+let $pushed_queries_defined_at_end = query_get_value(show status like 'Ndb_pushed_queries_defined', Value, 1);
+let $pushed_queries_dropped_at_end = query_get_value(show status like 'Ndb_pushed_queries_dropped', Value, 1);
+let $pushed_queries_executed_at_end = query_get_value(show status like 'Ndb_pushed_queries_executed', Value, 1);
+let $pushed_reads_at_end = query_get_value(show status like 'Ndb_pushed_reads', Value, 1);
 
 # Calculate the change.
 --disable_query_log
---eval SELECT $scan_count_at_end - $scan_count_at_startup AS scan_count
---eval SELECT $pruned_scan_count_at_end - $pruned_scan_count_at_startup AS pruned_scan_count
---eval SELECT $sorted_scan_count_at_end - $sorted_scan_count_at_startup AS sorted_scan_count
---eval SELECT $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup AS pushed_queries_defined
---eval SELECT $pushed_queries_dropped_at_end - $pushed_queries_dropped_at_startup AS pushed_queries_dropped
---eval SELECT $pushed_queries_executed_at_end - $pushed_queries_executed_at_startup AS pushed_queries_executed
-#--eval SELECT $pushed_reads_at_end - $pushed_reads_at_startup AS pushed_reads
+--eval select $scan_count_at_end - $scan_count_at_startup as scan_count
+--eval select $pruned_scan_count_at_end - $pruned_scan_count_at_startup as pruned_scan_count
+--eval select $sorted_scan_count_at_end - $sorted_scan_count_at_startup as sorted_scan_count
+--eval select $pushed_queries_defined_at_end - $pushed_queries_defined_at_startup as pushed_queries_defined
+--eval select $pushed_queries_dropped_at_end - $pushed_queries_dropped_at_startup as pushed_queries_dropped
+--eval select $pushed_queries_executed_at_end - $pushed_queries_executed_at_startup as pushed_queries_executed
+#--eval select $pushed_reads_at_end - $pushed_reads_at_startup as pushed_reads
 --enable_query_log
 
 
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 {
   --disable_query_log
-  DROP DATABASE ndbinfo;
+  drop database ndbinfo;
   --enable_query_log
 }
 
