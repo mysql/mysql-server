@@ -219,9 +219,8 @@ where PROCESSLIST_ID = connection_id();
 --echo # Switch to (con5, localhost, user5, , )
 connect (con5, localhost, user5, , );
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-select * from performance_schema.THREADS;
+select * from performance_schema.threads;
 # 1. INSTRUMENTED must be YES because there are two matches
 #    (HOST,USER,ROLE) = ('localhost', '%', '%')
 #    (HOST,USER,ROLE) = ('%', 'user5', '%')

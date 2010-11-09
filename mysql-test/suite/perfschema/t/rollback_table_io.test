@@ -35,7 +35,7 @@ insert into test.t1 values(1,'One');
 let $schema_to_dump= 'test';
 
 # Start recording of events
-update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.setup_consumers set enabled = 'YES';
 
 set autocommit = off;
 
