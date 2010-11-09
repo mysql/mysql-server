@@ -1,6 +1,5 @@
 %{
 
-#include "univ.i"
 #include "fts0ast.h"
 #include "fts0pars.h"
 
