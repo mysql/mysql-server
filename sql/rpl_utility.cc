@@ -737,7 +737,7 @@ can_convert_field_to(Field *field,
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
 
-  case MAX_NO_FIELD_TYPES:
+  case MYSQL_NUM_FIELD_TYPES:
     DBUG_RETURN(false);
   }
   DBUG_RETURN(false);                                 // To keep GCC happy

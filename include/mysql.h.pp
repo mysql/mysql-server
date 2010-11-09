@@ -59,7 +59,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
                         MYSQL_TYPE_VAR_STRING=253,
                         MYSQL_TYPE_STRING=254,
                         MYSQL_TYPE_GEOMETRY=255,
-                        MAX_NO_FIELD_TYPES
+                        MYSQL_NUM_FIELD_TYPES
 };
 enum mysql_enum_shutdown_level {
   SHUTDOWN_DEFAULT = 0,
@@ -104,8 +104,7 @@ struct rand_struct {
 };
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
                   DECIMAL_RESULT,
-                  MAX_NO_ITEM_RESULTS
-};
+                  MYSQL_NUM_ITEM_RESULTS };
 typedef struct st_udf_args
 {
   unsigned int arg_count;
