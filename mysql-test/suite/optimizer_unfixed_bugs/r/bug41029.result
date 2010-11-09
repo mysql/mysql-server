@@ -1,6 +1,6 @@
 select @default_binlog_format:=@@global.binlog_format;
 @default_binlog_format:=@@global.binlog_format
-MIXED
+STATEMENT
 set global binlog_format=row;
 set session debug="+d,optimizer_innodb_ds_mrr";
 set autocommit=0;
