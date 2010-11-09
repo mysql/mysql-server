@@ -195,6 +195,6 @@ show create table threads;
 Table	Create Table
 threads	CREATE TABLE `threads` (
   `THREAD_ID` int(11) NOT NULL,
-  `ID` int(11) NOT NULL,
-  `NAME` varchar(64) NOT NULL
+  `PROCESSLIST_ID` int(11) DEFAULT NULL,
+  `NAME` varchar(128) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
