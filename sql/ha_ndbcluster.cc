@@ -6710,6 +6710,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible)
     {
+#ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
       /* Autocommit with read-before-write removal
        * Some operations in this autocommitted statement have not
        * yet been executed
@@ -6754,6 +6755,9 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         /* Modify execution result + optionally message */
         thd->main_da.modify_affected_rows(affected, msg);
       }
+#else
+      abort(); // Should never come here without rbwr support
+#endif
     }
     else
       res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send), FALSE);
