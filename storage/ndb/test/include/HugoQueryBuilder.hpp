@@ -146,14 +146,24 @@ private:
    *   ops
    */
   static bool checkBindable(Vector<const NdbDictionary::Column*> cols,
-                            Vector<Op> ops);
+                            Vector<Op> ops,
+                            bool allow_bind_nullable);
 
   Vector<Op> getParents(OpIdx); //
   NdbQueryOperand * createLink(NdbQueryBuilder&, const NdbDictionary::Column*,
-                               Vector<Op> & parents);
+                               Vector<Op> & parents,
+                               bool allow_bind_nullable);
   const NdbQueryOperationDef* createOp(NdbQueryBuilder&);
 
   void fixOptions();
+
+  /**
+   * We currently don't support busy-scan joins
+   */
+  bool checkBusyScan(Op) const;
+  bool isAncestor(const Op& parent, const Op& child) const;
+
+  friend NdbOut& operator<<(NdbOut& out, const HugoQueryBuilder::Op& op);
 };
 
 #endif

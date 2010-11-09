@@ -27,6 +27,13 @@
 
 class HugoQueries
 {
+  struct Op
+  {
+    const NdbQueryOperationDef* m_query_op;
+    Vector<NDBT_ResultRow*> m_rows;
+    HugoCalculator * m_calc;
+  };
+
 public:
   HugoQueries(const NdbQueryDef & query);
   virtual ~HugoQueries();
@@ -41,7 +48,7 @@ public:
                    int scan_flags = 0);
 
   static int equalForParameters(char * buf,
-                                HugoCalculator&,
+                                Op&,
                                 NdbQueryParamValue params[],
                                 int rowNo);
   static int getValueForQueryOp(NdbQueryOperation* pOp, NDBT_ResultRow* pRow);
@@ -51,13 +58,6 @@ public:
 protected:
 
   const NdbQueryDef* m_query_def;
-  struct Op
-  {
-    const NdbQueryOperationDef* m_query_op;
-    Vector<NDBT_ResultRow*> m_rows;
-    HugoCalculator * m_calc;
-  };
-
   Vector<Op> m_ops;
   int m_retryMax;
 };

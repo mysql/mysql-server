@@ -18,6 +18,34 @@
 
 #include <HugoQueryBuilder.hpp>
 
+static
+bool
+isScan(const NdbQueryOperationDef* def)
+{
+  return
+    def->getType() == NdbQueryOperationDef::TableScan ||
+    def->getType() == NdbQueryOperationDef::OrderedIndexScan;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const HugoQueryBuilder::Op& op)
+{
+  out << "[" << op.m_idx << " : " << op.m_op->getTable()->getName() << ": ";
+  switch(op.m_op->getType()){
+  case NdbQueryOperationDef::TableScan:
+    out << "table-scan";
+    break;
+  case NdbQueryOperationDef::OrderedIndexScan:
+    out << "index-scan";
+    break;
+  default:
+    out << "lookup";
+  }
+
+  out << " : parent: " << op.m_parent << " ]";
+  return out;
+}
+
 void
 HugoQueryBuilder::init()
 {
@@ -58,9 +86,28 @@ HugoQueryBuilder::addTable(Ndb* ndb, const NdbDictionary::Table* tab)
   TableDef def;
   def.m_table = tab;
 
-  /**
-   * TODO discover indexes...
-   */
+  NdbDictionary::Dictionary* pDict = ndb->getDictionary();
+  NdbDictionary::Dictionary::List l;
+  int res = pDict->listIndexes(l, tab->getName());
+  if (res == 0)
+  {
+    for (unsigned i = 0; i<l.count; i++)
+    {
+      const NdbDictionary::Index * idx = pDict->getIndex(l.elements[i].name,
+                                                         tab->getName());
+      if (idx)
+      {
+        if (idx->getType() == NdbDictionary::Index::UniqueHashIndex)
+        {
+          def.m_unique_indexes.push_back(idx);
+        }
+        else if (idx->getType() == NdbDictionary::Index::OrderedIndex)
+        {
+          def.m_ordered_indexes.push_back(idx);
+        }
+      }
+    }
+  }
 
   m_tables.push_back(def);
 }
@@ -166,7 +213,8 @@ found:
 
 bool
 HugoQueryBuilder::checkBindable(Vector<const NdbDictionary::Column*> cols,
-                                Vector<Op> ops)
+                                Vector<Op> ops,
+                                bool allow_bind_nullable)
 {
   for (size_t c = 0; c < cols.size(); c++)
   {
@@ -179,7 +227,9 @@ HugoQueryBuilder::checkBindable(Vector<const NdbDictionary::Column*> cols,
       {
         for (int i = 0; i<tab->getNoOfColumns(); i++)
         {
-          if (col->isBindable(* tab->getColumn(i)) == 0)
+          if (!allow_bind_nullable && tab->getColumn(i)->getNullable())
+            continue;
+          else if (col->isBindable(* tab->getColumn(i)) == 0)
           {
             found = true;
             break;
@@ -193,6 +243,44 @@ HugoQueryBuilder::checkBindable(Vector<const NdbDictionary::Column*> cols,
   return true;
 }
 
+bool
+HugoQueryBuilder::isAncestor(const Op& parent, const Op& child) const
+{
+  int pi = parent.m_idx;
+  int ci = child.m_idx;
+  assert(ci != pi);
+
+  while (ci != 0)
+  {
+    if (m_query[ci].m_parent == pi)
+      return true;
+    assert(m_query[ci].m_parent != -1);
+    ci = m_query[m_query[ci].m_parent].m_idx;
+  }
+  return false;
+}
+
+bool
+HugoQueryBuilder::checkBusyScan(Op op) const
+{
+  /**
+   * Iterate upwards until we find first scan...
+   */
+  while (op.m_parent != -1)
+  {
+    if (isScan(op.m_op))
+    {
+      break;
+    }
+    op = m_query[op.m_parent];
+  }
+
+  for (size_t i = op.m_idx + 1; i < m_query.size(); i++)
+    if (isAncestor(op, m_query[i]) && isScan(m_query[i].m_op))
+      return true;
+
+  return false;
+}
 
 Vector<HugoQueryBuilder::Op>
 HugoQueryBuilder::getParents(OpIdx oi)
@@ -200,6 +288,8 @@ HugoQueryBuilder::getParents(OpIdx oi)
   /**
    * We need to be able to bind all columns in table/index
    */
+  bool allow_bind_nullable = false;
+  bool check_bushy_scan = false;
   Vector<const NdbDictionary::Column*> cols;
   if (oi.m_index == 0)
   {
@@ -207,9 +297,24 @@ HugoQueryBuilder::getParents(OpIdx oi)
       if (oi.m_table->getColumn(i)->getPrimaryKey())
         cols.push_back(oi.m_table->getColumn(i));
   }
-  else
+  else if (oi.m_index->getType() == NdbDictionary::Index::UniqueHashIndex)
   {
-    abort(); // TODO
+    for (unsigned i = 0; i < oi.m_index->getNoOfColumns(); i++)
+      cols.push_back(oi.m_table->getColumn
+                     (oi.m_index->getColumn(i)->getName()));
+  }
+  else if (oi.m_index->getType() == NdbDictionary::Index::OrderedIndex)
+  {
+    /**
+     * Binding a prefix is ok...but skip this for now...
+     */
+    allow_bind_nullable = true;
+    check_bushy_scan = true;
+    unsigned cnt = oi.m_index->getNoOfColumns();
+    unsigned val = cnt; // cnt > 1 ? (1 + (rand() % (cnt - 1))) : cnt;
+    for (unsigned i = 0; i < val; i++)
+      cols.push_back(oi.m_table->getColumn
+                     (oi.m_index->getColumn(i)->getName()));
   }
 
   int r = rand() % m_query.size();
@@ -218,6 +323,8 @@ HugoQueryBuilder::getParents(OpIdx oi)
   {
     Vector<Op> set;
     Op op = m_query[(i + r) % cnt];
+    if (check_bushy_scan && checkBusyScan(op))
+      continue;
     set.push_back(op);
 
 #if 0
@@ -234,7 +341,7 @@ HugoQueryBuilder::getParents(OpIdx oi)
     }
 #endif
 
-    if (checkBindable(cols, set))
+    if (checkBindable(cols, set, allow_bind_nullable))
       return set;
   }
 
@@ -245,7 +352,8 @@ HugoQueryBuilder::getParents(OpIdx oi)
 NdbQueryOperand *
 HugoQueryBuilder::createLink(NdbQueryBuilder& builder,
                              const NdbDictionary::Column* pCol,
-                             Vector<Op> & parents)
+                             Vector<Op> & parents,
+                             bool allow_bind_nullable)
 {
   int cnt = (int)parents.size();
   int r = rand();
@@ -292,6 +400,9 @@ HugoQueryBuilder::createLink(NdbQueryBuilder& builder,
         // already checked
         continue;
       }
+      if (!allow_bind_nullable && col->getNullable())
+        continue;
+
       if (pCol->isBindable(* col) == 0)
       {
         goto found;
@@ -338,12 +449,28 @@ HugoQueryBuilder::createOp(NdbQueryBuilder& builder)
     case NdbQueryOperationDef::TableScan:
       op.m_op = builder.scanTable(oi.m_table);
       break;
-    case NdbQueryOperationDef::OrderedIndexScan:
-      abort();
+    case NdbQueryOperationDef::OrderedIndexScan:{
+      int opNo = 0;
+      NdbQueryOperand * operands[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 1];
+      for (unsigned a = 0; a<oi.m_index->getNoOfColumns(); a++)
+      {
+        operands[opNo++] = builder.paramValue();
+      }
+      operands[opNo] = 0;
+      NdbQueryIndexBound bounds(operands);
+      op.m_op = builder.scanIndex(oi.m_index, oi.m_table, &bounds);
       break;
+    }
     case NdbQueryOperationDef::UniqueIndexAccess:
-      // TODO
-      abort();
+      int opNo = 0;
+      NdbQueryOperand * operands[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 1];
+      for (unsigned a = 0; a<oi.m_index->getNoOfColumns(); a++)
+      {
+        operands[opNo++] = builder.paramValue();
+      }
+      operands[opNo] = 0;
+      op.m_op = builder.readTuple(oi.m_index, oi.m_table, operands);
+      break;
     }
   }
   else
@@ -365,7 +492,7 @@ loop:
         if (oi.m_table->getColumn(a)->getPrimaryKey())
         {
           operands[opNo++] = createLink(builder, oi.m_table->getColumn(a),
-                                        parents);
+                                        parents, false);
         }
       }
       operands[opNo] = 0;
@@ -374,15 +501,54 @@ loop:
       op.m_op = builder.readTuple(oi.m_table, operands);
       break;
     }
+    case NdbQueryOperationDef::UniqueIndexAccess: {
+      int opNo = 0;
+      NdbQueryOperand * operands[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 1];
+      for (unsigned a = 0; a<oi.m_index->getNoOfColumns(); a++)
+      {
+        operands[opNo++] = 
+          createLink(builder, 
+                     oi.m_table->getColumn(oi.m_index->getColumn(a)->getName()),
+                     parents, false);
+      }
+      operands[opNo] = 0;
+
+      op.m_parent = parents[0].m_idx;
+      op.m_op = builder.readTuple(oi.m_index, oi.m_table, operands);
+      break;
+    }
     case NdbQueryOperationDef::TableScan:
       // not supported
       abort();
-    case NdbQueryOperationDef::OrderedIndexScan:
-    case NdbQueryOperationDef::UniqueIndexAccess:
-      // TODO
-      abort();
-    }
+    case NdbQueryOperationDef::OrderedIndexScan:{
+      int opNo = 0;
+      NdbQueryOperand * operands[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 1];
+      for (unsigned a = 0; a<oi.m_index->getNoOfColumns(); a++)
+      {
+        operands[opNo++] = 
+          createLink(builder, 
+                     oi.m_table->getColumn(oi.m_index->getColumn(a)->getName()),
+                     parents, true);
+      }
+      operands[opNo] = 0;
 
+      op.m_parent = parents[0].m_idx;
+      NdbQueryIndexBound bounds(operands); // Only EQ for now
+      op.m_op = builder.scanIndex(oi.m_index, oi.m_table, &bounds);
+      if (op.m_op == 0)
+      {
+        ndbout << "Failed to add to " << endl;
+        for (size_t i = 0; i<m_query.size(); i++)
+          ndbout << m_query[i] << endl;
+
+        ndbout << "Parents: " << endl;
+        for (size_t i = 0; i<parents.size(); i++)
+          ndbout << parents[i].m_idx << " ";
+        ndbout << endl;
+      }
+      break;
+    }
+    }
   }
 
   if (op.m_op == 0)
@@ -414,11 +580,19 @@ HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
   }
 
   /**
-   * We only support lookups as child operations...
+   * We only don't support table scans as child operations...
    */
   OptionMask save = m_options;
-  clearOption(O_ORDERED_INDEX);
   clearOption(O_TABLE_SCAN);
+  
+  /**
+   * Iff root is lookup...ordered index scans are not allowed as
+   *   children
+   */
+  if (!isScan(m_query[0].m_op))
+  {
+    clearOption(O_ORDERED_INDEX);
+  }
 
   int levels = getJoinLevel();
   while (levels --)
