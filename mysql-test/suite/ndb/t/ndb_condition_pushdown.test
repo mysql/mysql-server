@@ -2259,6 +2259,16 @@ explain select * from t where x not like "aa?";
 select * from t where x not like "aa?";
 drop table t;
 
+# Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
+create table t (pk int primary key, x int) engine = ndb;
+insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
+set engine_condition_pushdown = on;
+explain select * from t where 3 between 1+1 and x order by pk; 
+select * from t where 3 between 1+1 and x order by pk; 
+explain select * from t where 3 between -1 and x order by pk; 
+select * from t where 3 between -1 and x order by pk; 
+drop table t;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
 
