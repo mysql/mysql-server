@@ -625,8 +625,8 @@ UNIV_INTERN
 os_thread_ret_t
 srv_purge_thread(
 /*=============*/
-	void*	arg __attribute__((unused))); /*!< in: a dummy parameter
-					      required by os_thread_create */
+	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
+						required by os_thread_create */
 
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
@@ -642,7 +642,7 @@ srv_print_master_thread_info(
 		srv_main_10_second_loops, srv_main_background_loops,
 		srv_main_flush_loops);
 	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
-		      srv_log_writes_and_flush);
+		srv_log_writes_and_flush);
 }
 
 /*********************************************************************//**
@@ -709,8 +709,8 @@ srv_table_reserve_slot(
 /*===================*/
 	enum srv_thread_type	type)	/*!< in: type of the thread */
 {
+	ulint		i;
 	srv_slot_t*	slot;
-	ulint		i = 0;
 
 	ut_ad(srv_sys_mutex_own());
 
@@ -730,6 +730,8 @@ srv_table_reserve_slot(
 		}
 
 	} else {
+		ut_a(type != SRV_NONE);
+		i = 0;
 		slot = srv_table_get_nth_slot(0);
 	}
 
@@ -777,6 +779,9 @@ srv_suspend_thread(void)
 
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
+
+	/* The master thread always uses slot number 0. */
+	ut_a(type != SRV_MASTER || slot_no == 0);
 
 	event = slot->event;
 
@@ -1391,7 +1396,7 @@ srv_printf_innodb_monitor(
 	/* Only if lock_print_info_summary proceeds correctly,
 	before we call the lock_print_info_all_transactions
 	to print all the lock information. IMPORTANT NOTE: This
-       	function acquires the lock mutex on success. */
+	function acquires the lock mutex on success. */
 	ret = lock_print_info_summary(file, nowait);
 
 	if (ret) {
@@ -1405,8 +1410,8 @@ srv_printf_innodb_monitor(
 		}
 
 		/* NOTE: If we get here then we have the lock mutex. This
-	       	function will release the lock mutex that we acquired when
-	       	we called the lock_print_info_summary() function earlier. */
+		function will release the lock mutex that we acquired when
+		we called the lock_print_info_summary() function earlier. */
 
 		lock_print_info_all_transactions(file);
 
@@ -1570,7 +1575,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_total = buf_pool_get_n_pages();
 
 	export_vars.innodb_buffer_pool_pages_misc
-	       	= buf_pool_get_n_pages() - LRU_len - free_len;
+		= buf_pool_get_n_pages() - LRU_len - free_len;
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
@@ -1996,9 +2001,9 @@ srv_active_wake_master_thread(void)
 		/* Only if the master thread has been started. */
 
 		if (slot->in_use) {
-	        	ut_a(slot->type == SRV_MASTER);
+			ut_a(slot->type == SRV_MASTER);
 
-	       		if (slot->suspended) {
+			if (slot->suspended) {
 
 				slot->suspended = FALSE;
 
@@ -2648,7 +2653,7 @@ flush_loop:
 
 		srv_shutdown_print_master_pending(
 			&last_print_time, n_tables_to_drop,
-		       	n_pages_purged, n_bytes_merged);
+			n_pages_purged, n_bytes_merged);
 	}
 
 	/* Keep looping in the background loop if still work to do */
