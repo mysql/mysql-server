@@ -124,6 +124,7 @@ public:
   Deadlock_detection_visitor(MDL_context *start_node_arg)
     : m_start_node(start_node_arg),
       m_victim(NULL),
+      m_current_search_depth(0),
       m_found_deadlock(FALSE)
   {}
   virtual bool enter_node(MDL_context *node);
@@ -132,8 +133,6 @@ public:
   virtual bool inspect_edge(MDL_context *dest);
 
   MDL_context *get_victim() const { return m_victim; }
-
-  void abort_traversal(MDL_context *node);
 private:
   /**
     Change the deadlock victim to a new one if it has lower deadlock
@@ -148,6 +147,13 @@ private:
   MDL_context *m_start_node;
   /** If a deadlock is found, the context that identifies the victim. */
   MDL_context *m_victim;
+  /** Set to the 0 at start. Increased whenever
+    we descend into another MDL context (aka traverse to the next
+    wait-for graph node). When MAX_SEARCH_DEPTH is reached, we
+    assume that a deadlock is found, even if we have not found a
+    loop.
+  */
+  uint m_current_search_depth;
   /** TRUE if we found a deadlock. */
   bool m_found_deadlock;
   /**
@@ -181,7 +187,7 @@ private:
 
 bool Deadlock_detection_visitor::enter_node(MDL_context *node)
 {
-  m_found_deadlock= m_current_search_depth >= MAX_SEARCH_DEPTH;
+  m_found_deadlock= ++m_current_search_depth >= MAX_SEARCH_DEPTH;
   if (m_found_deadlock)
   {
     DBUG_ASSERT(! m_victim);
@@ -201,6 +207,7 @@ bool Deadlock_detection_visitor::enter_node(MDL_context *node)
 
 void Deadlock_detection_visitor::leave_node(MDL_context *node)
 {
+  --m_current_search_depth;
   if (m_found_deadlock)
     opt_change_victim_to(node);
 }
@@ -241,21 +248,6 @@ Deadlock_detection_visitor::opt_change_victim_to(MDL_context *new_victim)
     if (tmp)
       tmp->unlock_deadlock_victim();
   }
-}
-
-
-/**
-  Abort traversal of a wait-for graph and report a deadlock.
-
-  @param node Node which we were about to visit when abort
-              was initiated.
-*/
-
-void Deadlock_detection_visitor::abort_traversal(MDL_context *node)
-{
-  DBUG_ASSERT(! m_victim);
-  m_found_deadlock= TRUE;
-  opt_change_victim_to(node);
 }
 
 
@@ -2064,13 +2056,8 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
     are visiting it but this is OK: in the worst case we might do some
     extra work and one more context might be chosen as a victim.
   */
-  ++gvisitor->m_current_search_depth;
-
   if (gvisitor->enter_node(src_ctx))
-  {
-    --gvisitor->m_current_search_depth;
     goto end;
-  }
 
   /*
     We do a breadth-first search first -- that is, inspect all
@@ -2127,7 +2114,6 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
-  --gvisitor->m_current_search_depth;
 
 end:
   mysql_prlock_unlock(&m_rwlock);

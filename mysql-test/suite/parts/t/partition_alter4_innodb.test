@@ -43,6 +43,9 @@ let $more_pk_ui_tests= 0;
 # The server must support partitioning.
 --source include/have_partition.inc
 
+# This test takes long time, so only run it with the --big mtr-flag.
+--source include/big_test.inc
+
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
