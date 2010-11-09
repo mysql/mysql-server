@@ -2731,6 +2731,8 @@ srv_task_execute(void)
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+	os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
+
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
@@ -2745,11 +2747,13 @@ srv_task_execute(void)
 	mutex_exit(&srv_sys->tasks_mutex);
 
 	if (thr != NULL) {
+
 		que_run_threads(thr);
 
-		os_atomic_inc_ulint(
-			&purge_sys->mutex, &purge_sys->n_completed, 1);
+		os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_completed, 1);
 	}
+
+	os_atomic_dec_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
 
 	return(thr != NULL);
 }
