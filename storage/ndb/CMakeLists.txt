@@ -27,7 +27,7 @@ ELSE()
 
   IF(NOT DEFINED WITH_ZLIB)
     # Hardcode use of the bundled zlib
-    MESSAGE(STATUS "using bundled zlib (hardcoded)"
+    MESSAGE(STATUS "using bundled zlib (hardcoded)")
     SET(ZLIB_LIBRARY zlib)
     SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
   ENDIF()
