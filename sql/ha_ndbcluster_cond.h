@@ -338,11 +338,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   {
     // Allocate type checking bitmaps   
     bitmap_init(&expect_mask,
-                0, round_up_byte(Item::MAX_NO_ITEMS), FALSE);
+                0, round_up_byte(Item::MAX_NUM_ITEMS), FALSE);
     bitmap_init(&expect_field_type_mask,
-                0, round_up_byte(MAX_NO_FIELD_TYPES), FALSE);
+                0, round_up_byte(MYSQL_NUM_FIELD_TYPES), FALSE);
     bitmap_init(&expect_field_result_mask,
-                0, round_up_byte(MAX_NO_ITEM_RESULTS), FALSE);
+                0, round_up_byte(MYSQL_NUM_ITEM_RESULTS), FALSE);
   };
   ~Ndb_expect_stack()
   {
