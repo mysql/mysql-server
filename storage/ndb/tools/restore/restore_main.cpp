@@ -28,6 +28,7 @@
 
 #include "consumer_restore.hpp"
 #include "consumer_printer.hpp"
+#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;

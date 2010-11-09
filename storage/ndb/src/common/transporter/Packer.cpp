@@ -403,7 +403,7 @@ import(Uint32 * & insertPtr, const LinearSectionPtr & ptr){
 
 inline
 void
-importGeneric(Uint32 * & insertPtr, GenericSectionPtr & ptr){
+importGeneric(Uint32 * & insertPtr, const GenericSectionPtr & ptr){
   /* Use the section iterator to obtain the words in this section */
   Uint32 remain= ptr.sz;
 
@@ -553,7 +553,7 @@ Packer::pack(Uint32 * insertPtr,
 	     Uint32 prio, 
 	     const SignalHeader * header, 
 	     const Uint32 * theData,
-	     GenericSectionPtr ptr[3]) const {
+	     const GenericSectionPtr ptr[3]) const {
   Uint32 i;
   
   Uint32 dataLen32 = header->theLength;
