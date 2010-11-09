@@ -3272,3 +3272,41 @@ FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
 col_varchar_nokey
 drop table t1,t2;
 set @@optimizer_switch= default;
+# LP BUG#615378 (incorrect NULL result returning in Item_cache)
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'v');
+INSERT INTO `t1` VALUES (11,'r');
+CREATE TABLE `t2` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (1,'r');
+INSERT INTO `t2` VALUES (2,'c');
+CREATE TABLE `t3` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t3` VALUES (1,'w');
+SELECT  SUM( DISTINCT table2 . `pk` ) AS field2 ,
+(SELECT SUM( SUBQUERY1_t2 . `pk` ) AS SUBQUERY1_field1
+FROM t2 AS SUBQUERY1_t2 STRAIGHT_JOIN
+t3 AS SUBQUERY1_t3 ON (SUBQUERY1_t3 . `pk` = SUBQUERY1_t2 . `pk` )
+WHERE  table1 . `col_varchar_key` ) AS field3  
+FROM ( t1 AS table1 LEFT JOIN
+( t2 AS table2 STRAIGHT_JOIN
+t3 AS table3 ON (table3 . `pk` = table2 . `pk` ) )
+ON (table3 . `col_varchar_key` = table1 . `col_varchar_key` ) )
+WHERE ( table1 . `pk` < 5 ) OR ( table1 . `col_varchar_key` IS NOT NULL)
+GROUP BY field3
+HAVING (field3 <= 'h' AND field2 != 4) ;
+field2	field3
+drop tables t1, t2, t3;
