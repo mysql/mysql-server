@@ -55,6 +55,7 @@ struct __toku_loader {
   int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
 };
 typedef struct __toku_engine_status {
+  char             creationtime[26];        /* time of environment creation */ 
   char             startuptime[26];         /* time of engine startup */ 
   char             now[26];                 /* time of engine status query (i.e. now)  */ 
   u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
@@ -146,6 +147,10 @@ typedef struct __toku_engine_status {
   u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
   u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 
   u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ 
+  u_int64_t        original_ver;            /* original environment version  */ 
+  u_int64_t        ver_at_startup;          /* environment version at startup */ 
+  u_int64_t        last_lsn_v12;            /* last lsn of version 12 environment */ 
+  char             upgrade_v13_time[26];     /* timestamp of when upgrade to version 13 environment was done */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,

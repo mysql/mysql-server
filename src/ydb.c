@@ -430,7 +430,7 @@ static const char * curr_env_ver_key = "current_version";
 // Following keys added in version 13
 static const char * creation_time_key = "creation_time";
 static const char * last_lsn_of_v12_key = "last_lsn_of_v12";
-static const char * upgrade_13_time_key = "upgrade_13_time";  // Add more keys for future upgrades
+static const char * upgrade_v13_time_key = "upgrade_v13_time";  // Add more keys for future upgrades
 
 // Values read from (or written into) persistent environment,
 // kept here for read-only access from engine status.
@@ -438,7 +438,7 @@ static uint32_t persistent_original_env_version;
 static uint32_t persistent_stored_env_version_at_startup;    // read from curr_env_ver_key, prev version as of this startup
 static time_t   persistent_creation_time;
 static uint64_t persistent_last_lsn_of_v12;
-static time_t   persistent_upgrade_13_time;
+static time_t   persistent_upgrade_v13_time;
 
 // Requires: persistent environment dictionary is already open.
 // Input arg is lsn of clean shutdown of previous version,
@@ -472,9 +472,9 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
 	r = toku_db_put(persistent_environment, txn, &key, &val, DB_YESOVERWRITE);
         assert(r==0);
 	
-	time_t upgrade_13_time_d = toku_htod64(time(NULL));
-	toku_fill_dbt(&key, upgrade_13_time_key, strlen(upgrade_13_time_key));
-	toku_fill_dbt(&val, &upgrade_13_time_d, sizeof(upgrade_13_time_d));
+	time_t upgrade_v13_time_d = toku_htod64(time(NULL));
+	toku_fill_dbt(&key, upgrade_v13_time_key, strlen(upgrade_v13_time_key));
+	toku_fill_dbt(&val, &upgrade_v13_time_d, sizeof(upgrade_v13_time_d));
 	r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE);
         assert(r==0);
     }
@@ -521,11 +521,11 @@ capture_persistent_env (DB_ENV * env, DB_TXN * txn) {
 	assert(r == 0);
 	persistent_last_lsn_of_v12 = toku_dtoh64(*(uint32_t*)val.data);
 
-	toku_fill_dbt(&key, upgrade_13_time_key, strlen(upgrade_13_time_key));
+	toku_fill_dbt(&key, upgrade_v13_time_key, strlen(upgrade_v13_time_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
-	persistent_upgrade_13_time = toku_dtoh64((*(time_t*)val.data));
+	persistent_upgrade_v13_time = toku_dtoh64((*(time_t*)val.data));
     }
 
 }
@@ -1630,6 +1630,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     int r = 0;
     if (!env_opened(env)) r = EINVAL;
     else {
+	format_time(&persistent_creation_time, engstat->creationtime);
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
         format_time(&startuptime, engstat->startuptime);
@@ -1784,6 +1785,10 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->upgrade_header     = brt_upgrade_stat.header_12;
 	    engstat->upgrade_nonleaf    = brt_upgrade_stat.nonleaf_12;
 	    engstat->upgrade_leaf       = brt_upgrade_stat.leaf_12;
+	    engstat->original_ver       = persistent_original_env_version;
+	    engstat->ver_at_startup     = persistent_stored_env_version_at_startup;
+	    engstat->last_lsn_v12       = persistent_last_lsn_of_v12;
+	    format_time(&persistent_upgrade_v13_time, engstat->upgrade_v13_time);
 	}
     }
     return r;
@@ -1797,6 +1802,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     int r = env_get_engine_status(env, &engstat);    
     int n = 0;  // number of characters printed so far
 
+    n += snprintf(buff + n, bufsiz - n, "creationtime                     %s \n", engstat.creationtime);
     n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
     n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
     n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
@@ -1887,6 +1893,11 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
     n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
     n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
+    n += snprintf(buff + n, bufsiz - n, "original_ver                     %"PRIu64"\n", engstat.original_ver);
+    n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
+    n += snprintf(buff + n, bufsiz - n, "last_lsn_v12                     %"PRIu64"\n", engstat.last_lsn_v12);
+    n += snprintf(buff + n, bufsiz - n, "upgrade_v13_time                 %s \n", engstat.upgrade_v13_time);
+
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;

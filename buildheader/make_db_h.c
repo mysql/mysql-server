@@ -439,6 +439,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
+    printf("  char             creationtime[26];        /* time of environment creation */ \n");
     printf("  char             startuptime[26];         /* time of engine startup */ \n");
     printf("  char             now[26];                 /* time of engine status query (i.e. now)  */ \n");
     printf("  u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ \n");
@@ -530,6 +531,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ \n");
     printf("  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ \n");
     printf("  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ \n");
+    printf("  u_int64_t        original_ver;            /* original environment version  */ \n");
+    printf("  u_int64_t        ver_at_startup;          /* environment version at startup */ \n");
+    printf("  u_int64_t        last_lsn_v12;            /* last lsn of version 12 environment */ \n");
+    printf("  char             upgrade_v13_time[26];     /* timestamp of when upgrade to version 13 environment was done */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();
