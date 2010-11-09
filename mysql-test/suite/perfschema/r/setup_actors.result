@@ -108,8 +108,8 @@ create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PRO
 from performance_schema.THREADS
 where PROCESSLIST_ID = connection_id();
 # Switch to (con5, localhost, user5, , )
-select * from performance_schema.THREADS;
-ERROR 42000: SELECT command denied to user 'user5'@'localhost' for table 'THREADS'
+select * from performance_schema.threads;
+ERROR 42000: SELECT command denied to user 'user5'@'localhost' for table 'threads'
 select * from test.v1;
 NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
 thread/sql/one_connection	FOREGROUND	YES	user5	localhost
