@@ -2213,6 +2213,14 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	  curr_table->select->cond->fix_fields(thd, 0);
 	}
+        if (curr_table->pre_idx_push_select_cond)
+	{
+          if (!(curr_table->pre_idx_push_select_cond= 
+                new Item_cond_and(curr_table->pre_idx_push_select_cond,
+                                  sort_table_cond)))
+            DBUG_VOID_RETURN;            
+          curr_table->pre_idx_push_select_cond->fix_fields(thd, 0);
+        }
         curr_table->set_select_cond(curr_table->select->cond, __LINE__);
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
@@ -6355,6 +6363,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->do_firstmatch= NULL;
   join_tab->loosescan_match_tab= NULL;
   join_tab->emb_sj_nest= NULL;
+  join_tab->pre_idx_push_select_cond= NULL;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   temp_table->status=0;
   temp_table->null_row=0;
