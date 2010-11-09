@@ -487,28 +487,18 @@ private:
    */
   int sendClose(int nodeId);
 
-  /** Close scan receivers used for lookups. (Since scans and lookups should
-   * have the same semantics for nextResult(), lookups use scan-type 
-   * NdbReceiver objects.)
-   */
-  void closeSingletonScans();
-
   const NdbQuery& getInterface() const
   { return m_interface; }
 
   NdbQueryOperationImpl& getRoot() const 
   { return getQueryOperation(0U); }
 
-  /** Count number of completed root fragments within this batch. 
-   *  @param increment Change in count of completed root frgaments.
-   *  @return True if batch is complete.
-   */
-  bool incrementPendingFrags(int increment);
-
   /** A complete batch has been received for a given root fragment
-   *  Update whatever required before the appl. is allowed to navigate the result.
+   *  Update whatever required before the appl. is allowed to navigate 
+   *  the result.
+   *  @return: 'true' if its time to resume appl. threads
    */ 
-  void handleBatchComplete(Uint32 rootFragNo);
+  bool handleBatchComplete(Uint32 rootFragNo);
 }; // class NdbQueryImpl
 
 
@@ -779,6 +769,8 @@ private:
    * NdbReceiver::m_query_operation_impl here.*/
   Uint32 getIdOfReceiver() const;
   
+  Uint32 findResultStream(Uint32 receiverId) const;
+
   /** 
    * If the operation has a scan filter, append the corresponding
    * interpreter code to a buffer.
