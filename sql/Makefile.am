@@ -81,7 +81,6 @@ mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
-			@pstack_libs@ \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
@@ -176,7 +175,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			rpl_handler.cc mdl.cc transaction.cc sql_audit.cc  \
 			sql_alter.cc sql_partition_admin.cc sha2.cc
 
-nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c client_plugin.c
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -190,10 +189,10 @@ mysql_tzinfo_to_sql_SOURCES = tztime.cc
 mysql_tzinfo_to_sql_CXXFLAGS= -DTZINFO2SQL
 
 DEFS =			-DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DDEFAULT_MYSQL_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' \
+			-DPLUGINDIR='"$(pkgplugindir)"' \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
@@ -217,6 +216,8 @@ link_sources:
 	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
+	rm -f client_plugin.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client_plugin.c client_plugin.c
 	rm -f my_time.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 	rm -f my_user.c

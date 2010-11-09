@@ -46,14 +46,12 @@ insert into t1 select * from t1;
 flush tables;
 optimize table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	error	Table 'test.t1' is read only
-Warnings:
-Error	1036	Table 't1' is read only
+test.t1	optimize	Error	Table 't1' is read only
+test.t1	optimize	status	Operation failed
 repair table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Table 'test.t1' is read only
-Warnings:
-Error	1036	Table 't1' is read only
+test.t1	repair	Error	Table 't1' is read only
+test.t1	repair	status	Operation failed
 drop table t1;
 #
 # BUG#41541 - Valgrind warnings on packed MyISAM table
