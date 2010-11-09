@@ -41,6 +41,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/util
     ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/debugger
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
