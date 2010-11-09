@@ -785,7 +785,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   {
     Parser_state parser_state;
-    if (parser_state.init(thd, defstr.c_ptr(), defstr.length()))
+    if (parser_state.init(thd, defstr.c_ptr_safe(), defstr.length()))
     {
       ret= SP_INTERNAL_ERROR;
       goto end;
