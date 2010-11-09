@@ -31,7 +31,7 @@ int main(int argc, const char** argv){
   int _records = 0;
   int _help = 0;
   int _batch = 512;
-  int _loops = -1;
+  int _loops = 0;
   int _rand = 0;
   int _onetrans = 0;
   int _abort = 0;
