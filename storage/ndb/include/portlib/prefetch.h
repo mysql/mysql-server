@@ -35,8 +35,6 @@
 #define WRITEHINT(addr)
 #endif
 
-#include "PortDefs.h"
-
 #ifdef NDB_FORTE6
 #pragma optimize("", off)
 #endif
