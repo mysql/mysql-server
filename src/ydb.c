@@ -4367,8 +4367,23 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
 }
 
 static int
-env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT *val, uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array, void *extra) {
+env_put_multiple(
+    DB_ENV *env, 
+    DB *src_db, 
+    DB_TXN *txn, 
+    const DBT *key, 
+    const DBT *val, 
+    uint32_t num_dbs, 
+    DB **db_array, 
+    DBT *keys, 
+    DBT *vals, 
+    uint32_t *flags_array, 
+    void *extra
+    ) 
+{
     int r;
+    DBT put_keys[num_dbs];
+    DBT put_vals[num_dbs];
 
     // special case for a single DB
     if (0 && num_dbs == 1 && src_db == db_array[0]) {
@@ -4398,19 +4413,27 @@ env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
         DB *db = db_array[which_db];
 
         //Generate the row
-        r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val, extra);
-        if (r != 0) goto cleanup;
+        if (db == src_db) {
+            put_keys[which_db] = *key;
+            put_vals[which_db] = *val;
+        }
+        else {
+            r = env->i->generate_row_for_put(db, src_db, &keys[which_db], &vals[which_db], key, val, extra);
+            if (r != 0) goto cleanup;
+            put_keys[which_db] = keys[which_db];
+            put_vals[which_db] = vals[which_db];            
+        }
 
         lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
         remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
         // check size constraints
-        r = db_put_check_size_constraints(db, &keys[which_db], &vals[which_db]);
+        r = db_put_check_size_constraints(db, &put_keys[which_db], &put_vals[which_db]);
         if (r != 0) goto cleanup;
 
         //Check overwrite constraints
         r = db_put_check_overwrite_constraint(db, txn,
-                                              &keys[which_db],      &vals[which_db],
+                                              &put_keys[which_db],      &put_vals[which_db],
                                               lock_flags[which_db], remaining_flags[which_db]);
         if (r != 0) goto cleanup;
         if (remaining_flags[which_db] == DB_NOOVERWRITE_NO_ERROR) {
@@ -4425,19 +4448,19 @@ env_put_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn, const DBT *key, const DBT
 
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
-            r = get_point_lock(db, txn, &keys[which_db]);
+            r = get_point_lock(db, txn, &put_keys[which_db]);
             if (r != 0) goto cleanup;
         }
         brts[which_db] = db->i->brt;
     }
 
     if (num_dbs == 1)
-        r = log_put_single(txn, brts[0], &keys[0], &vals[0]);
+        r = log_put_single(txn, brts[0], &put_keys[0], &put_vals[0]);
     else
         r = log_put_multiple(txn, src_db, key, val, num_dbs, brts);
     
     if (r == 0)
-        r = do_put_multiple(txn, num_dbs, db_array, keys, vals);
+        r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals);
 
     }
 
