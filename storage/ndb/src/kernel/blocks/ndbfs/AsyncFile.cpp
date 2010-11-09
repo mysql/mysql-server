@@ -169,7 +169,6 @@ done:
 void
 AsyncFile::writevReq(Request * request)
 {
-  // WriteFileGather on WIN32?
   writeReq(request);
 }
 

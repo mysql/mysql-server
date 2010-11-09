@@ -38,7 +38,8 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "sql_parse.h"      // mysql_parse
-#include "sql_truncate.h"      // mysql_truncate_table
+#include "sql_truncate.h"   // mysql_truncate_table
+#include "key.h"            // key_restore
 #else
 #include "mysql_priv.h"
 #endif
@@ -65,6 +66,12 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
+/* simple_open_n_lock_tables has been removed */
+inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables(thd, tables, FALSE, 0);
+}
+
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
 
@@ -87,6 +94,19 @@ enum column_format_type {
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
+/* thd->binlog_query has new parameter "direct" */
+#define NDB_THD_BINLOG_QUERY_HAS_DIRECT
+
+/*
+  Additional flags to use in multi range read flags
+  only used internally in ha_ndbcluster
+*/
+
+/* set when RBWR detects that read is just "memcpy" of the current key */
+#define READ_KEY_FROM_RANGE 512
+/* no more records in this range, try next if any */
+#define EMPTY_RANGE 1024
+
 #endif
 
 
@@ -99,6 +119,41 @@ ulonglong thd_options(const THD * thd)
 #else
   /* "options" has moved to "variables.option_bits" */
   return thd->variables.option_bits;
+#endif
+}
+
+
+/* extract the list of warnings from THD */
+static inline
+List<MYSQL_ERROR>& thd_warn_list(const THD * thd)
+{
+#if MYSQL_VERSION_ID < 50500
+  return const_cast<THD*>(thd)->warn_list;
+#else
+  /* "options" has moved to "variables.option_bits" */
+  return thd->warning_info->warn_list();
+#endif
+}
+
+static inline
+const char* MYSQL_ERROR_get_message_text(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->msg;
+#else
+  /* "msg" is gone, use accessor */
+  return err->get_message_text();
+#endif
+}
+
+static inline
+uint MYSQL_ERROR_get_sql_errno(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->code;
+#else
+  /* "code" is gone, use accessor */
+  return err->get_sql_errno();
 #endif
 }
 
