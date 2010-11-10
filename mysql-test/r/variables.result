@@ -563,15 +563,9 @@ select @@sql_auto_is_null;
 @@sql_auto_is_null
 0
 set sql_big_selects=1;
-set sql_big_tables=1;
-Warnings:
-Warning	1287	'@@sql_big_tables' is deprecated and will be removed in a future release. Please use @@big_tables instead
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
-Warnings:
-Warning	1287	'@@sql_low_priority_updates' is deprecated and will be removed in a future release. Please use @@low_priority_updates instead
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -769,9 +763,6 @@ select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
 really null
 set names latin1;
-select @@have_innodb;
-@@have_innodb
-#
 *** Various tests with LC_TIME_NAMES
 *** LC_TIME_NAMES: testing case insensitivity
 set @@lc_time_names='ru_ru';

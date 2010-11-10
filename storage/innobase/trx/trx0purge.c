@@ -353,15 +353,15 @@ trx_purge_free_segment(
 		log_hdr = undo_page + hdr_addr.boffset;
 
 		/* Mark the last undo log totally purged, so that if the
-	       	system crashes, the tail of the undo log will not get accessed
-	       	again. The list of pages in the undo log tail gets inconsistent
-	       	during the freeing of the segment, and therefore purge should
-	       	not try to access them again. */
+		system crashes, the tail of the undo log will not get accessed
+		again. The list of pages in the undo log tail gets inconsistent
+		during the freeing of the segment, and therefore purge should
+		not try to access them again. */
 
 		if (!marked) {
 			mlog_write_ulint(
 				log_hdr + TRX_UNDO_DEL_MARKS, FALSE,
-			       	MLOG_2BYTES, &mtr);
+				MLOG_2BYTES, &mtr);
 
 			marked = TRUE;
 		}
@@ -721,8 +721,7 @@ trx_purge_get_rseg_with_min_trx_id(
 
 		ut_a(rseg->last_page_no != FIL_NULL);
 
-		/* We assume in purge of externally stored fields
-	       	that space id == 0 */
+		/* We assume in purge of externally stored fields that space id == 0 */
 		ut_a(rseg->space == 0);
 
 		zip_size = rseg->zip_size;
@@ -762,14 +761,14 @@ trx_purge_read_undo_rec(
 
 		undo_rec = trx_undo_get_first_rec(
 			0 /* System space id */,
-		       	zip_size, purge_sys->hdr_page_no,
+			zip_size, purge_sys->hdr_page_no,
 			purge_sys->hdr_offset, RW_S_LATCH,
-		       	&mtr);
+			&mtr);
 
 		if (undo_rec != NULL) {
 			offset = page_offset(undo_rec);
 			undo_no = trx_undo_rec_get_undo_no(undo_rec);
-                	page_no = page_get_page_no(page_align(undo_rec));
+		       page_no = page_get_page_no(page_align(undo_rec));
 		} else {
 			page_no = purge_sys->hdr_page_no;
 		}
@@ -1054,7 +1053,7 @@ trx_purge_attach_undo_recs(
 
 		/* Fetch the next record, and advance the purge_sys->iter. */
 		purge_rec->undo_rec = trx_purge_fetch_next_rec(
-		       	&purge_rec->roll_ptr, node->heap);
+			&purge_rec->roll_ptr, node->heap);
 
 		if (purge_rec->undo_rec != NULL) {
 
@@ -1130,9 +1129,11 @@ trx_purge_wait_for_workers_to_complete(
 /*===================================*/
 	trx_purge_t*	purge_sys)	/*!< in: purge instance */ 
 {
-	/* Ensure that the work queue empties out. */
-	while (purge_sys->n_submitted > purge_sys->n_completed
-	       && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	/* Ensure that the work queue empties out. Note, we are doing
+	a dirty read of purge_sys->n_completed and purge_sys->n_executing. */
+	while ((purge_sys->n_submitted > purge_sys->n_completed
+	       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP)
+	       || purge_sys->n_executing > 0) {
 
 		srv_release_threads(SRV_WORKER, 1);
 
@@ -1143,8 +1144,13 @@ trx_purge_wait_for_workers_to_complete(
 	/* If shutdown is signalled then the worker threads can
 	simply exit via os_event_wait(). The thread initiating the
 	purge should be prepared to handle this case. */
-	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-		/* There should be no outstanding tasks. */
+	if (srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP) {
+
+		/* None of the worker threads can be executing work. */
+		ut_a(purge_sys->n_executing == 0);
+
+		/* There should be no outstanding tasks as long
+		as the worker threads are active. */
 		ut_a(srv_get_task_queue_length() == 0);
 	}
 }
@@ -1156,7 +1162,7 @@ void
 trx_purge_truncate(void)
 /*====================*/
 {
-	ut_ad(mutex_own(&purge_sys->mutex));
+	mutex_enter(&purge_sys->mutex);
 
 	ut_ad(trx_purge_check_limit());
 
@@ -1165,6 +1171,8 @@ trx_purge_truncate(void)
 	} else {
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
+
+	mutex_exit(&purge_sys->mutex);
 }
 
 /*******************************************************************//**
@@ -1259,11 +1267,7 @@ run_synchronously:
 		}
 	}
 
-	mutex_enter(&purge_sys->mutex);
-
 	trx_purge_truncate();
-
-	mutex_exit(&purge_sys->mutex);
 
 	return(purge_sys->n_pages_handled - n_pages_handled_start);
 }

@@ -3203,24 +3203,25 @@ loop:
 		and worker threads (purge threads). Print the thread
 		type if any of such threads not in suspended mode */
 		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_type;
+			const char*	thread_type = "<null>";
 
 			switch (active_thd) {
 			case SRV_NONE:
-				break;
+				/* This shouldn't happen because we've already
+				checked for this case before entering the if().
+				We handle it here to avoid a compiler worning. */
+				ut_error;
 			case SRV_WORKER:
 				thread_type = "worker threads";
-				goto print;
+				break;
 			case SRV_MASTER:
-				thread_type = "master threads";
-				goto print;
+				thread_type = "master thread";
+				break;
 			case SRV_PURGE:
 				thread_type = "purge thread";
-				goto print;
+				break;
 			}
 
-			ut_error;
-print:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Waiting for %s "
 				" to be suspended\n", thread_type);

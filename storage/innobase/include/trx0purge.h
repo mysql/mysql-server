@@ -136,6 +136,8 @@ struct trx_purge_struct{
 					which are >= this view (purge view) */
 	ulint		n_submitted;	/*!< Count of total tasks submitted
 				       	to the task queue */
+	ulint		n_executing;	/*!< Count of currently executing purge
+					worker threads */
 	ulint		n_completed;	/*!< Count of total tasks completed */
 
 	mutex_t		mutex;		/*!< Mutex protecting the fields

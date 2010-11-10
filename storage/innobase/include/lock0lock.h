@@ -793,7 +793,7 @@ UNIV_INTERN
 enum db_err
 lock_trx_handle_wait(
 /*=================*/
-	trx_t*		trx); 	/*!< in, out: trx lock state */
+	trx_t*		trx);	/*!< in, out: trx lock state */
 /*********************************************************************//**
 Get the number of locks on a table.
 @return number of locks */
@@ -866,17 +866,21 @@ struct lock_op_struct{
 /** The lock system struct */
 struct lock_sys_struct{
 	mutex_t		mutex;			/*!< Mutex protecting the
-					       	locks */
+						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
-					       	locks */
+						locks */
 	mutex_t		wait_mutex;		/*!< Mutex protecting the
-					       	next two fields */
+						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
-					       	locks within InnoDB, protected
+						locks within InnoDB, protected
 						by the lock mutex  */
 	srv_slot_t*	last_slot;		/*!< highest slot ever used
 						in the waiting_threads array */
+	ibool		rollback_complete;
+						/*!< TRUE if rollback of all recovered
+						transactions is complete. Protected by the
+						lock sys mutex */
 };
 
 /** The lock system */

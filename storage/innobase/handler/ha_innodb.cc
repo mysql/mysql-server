@@ -7651,13 +7651,7 @@ innobase_drop_database(
 #ifdef	__WIN__
 	innobase_casedn_str(namebuf);
 #endif
-#if defined __WIN__ && !defined MYSQL_SERVER
-	/* In the Windows plugin, thd = current_thd is always NULL */
-	trx = trx_allocate_for_mysq();
-	trx->mysql_thd = NULL;
-#else
 	trx = innobase_trx_allocate(thd);
-#endif
 
 	row_drop_database_for_mysql(namebuf, trx);
 
@@ -8808,7 +8802,7 @@ get_foreign_key_info(
 
 	/* Referenced (parent) table name */
 	ptr = dict_remove_db_name(foreign->referenced_table_name);
-	len = filename_to_tablename(ptr, name_buff, sizeof(name));
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
 	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
 
 	/* Dependent (child) database name */

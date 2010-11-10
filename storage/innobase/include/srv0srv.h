@@ -155,8 +155,8 @@ extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
-extern ulong	srv_n_page_hash_mutexes; /*!< number of mutexes to
-					 protect buf_pool->page_hash */
+extern ulong	srv_n_page_hash_mutexes;/*!< number of mutexes to
+					protect buf_pool->page_hash */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
@@ -195,13 +195,13 @@ extern ulint	srv_max_n_threads;
 
 extern lint	srv_conc_n_threads;
 
-extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
-					 purge and index buffer merge.
-					 If this 2, do not even flush the
-					 buffer pool to data files at the
-					 shutdown: we effectively 'crash'
-					 InnoDB (but lose no committed
-					 transactions). */
+extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
+					purge and index buffer merge.
+					If this 2, do not even flush the
+					buffer pool to data files at the
+					shutdown: we effectively 'crash'
+					InnoDB (but lose no committed
+					transactions). */
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
@@ -423,11 +423,11 @@ enum {
 enum srv_thread_type {
 	SRV_NONE,			/*!< None */
 	SRV_WORKER,			/*!< threads serving parallelized
-				       	queries and queries released from
-				       	lock wait */
+					queries and queries released from
+					lock wait */
 	SRV_PURGE,			/*!< Purge coordinator thread */
 	SRV_MASTER			/*!< the master thread, (whose type
-				       	number must be biggest) */
+					number must be biggest) */
 };
 
 /*********************************************************************//**
@@ -558,7 +558,7 @@ void
 srv_release_mysql_thread_if_suspended(
 /*==================================*/
 	que_thr_t*	thr);	/*!< in: query thread associated with the
-				MySQL OS thread	 */
+				MySQL OS thread */
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
@@ -615,8 +615,8 @@ UNIV_INTERN
 os_thread_ret_t
 srv_purge_thread(
 /*=============*/
-	void*	arg __attribute__((unused))); /*!< in: a dummy parameter
-					      required by os_thread_create */
+	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
+						required by os_thread_create */
 
 /**********************************************************************//**
 Enqueues a task to server task queue and releases a worker thread, if there
@@ -755,20 +755,20 @@ struct export_var_struct{
 struct srv_slot_struct{
 	os_thread_id_t	id;			/*!< thread id */
 	os_thread_t	handle;			/*!< thread handle */
-	unsigned	type:3;			/*!< thread type: user,
-					       	utility etc. */
-	unsigned	in_use:1;		/*!< TRUE if this slot
-					       	is in use */
-	unsigned	suspended:1;		/*!< TRUE if the thread is
-					       	waiting for the event of this
-					       	slot */
+	enum srv_thread_type
+			type;			/*!< thread type: user,
+						utility etc. */
+	ibool		in_use;			/*!< TRUE if this slot
+						is in use */
+	ibool		suspended;		/*!< TRUE if the thread is waiting for the
+						event of this slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
 						suspended */
 	os_event_t	event;			/*!< event used in suspending the
 						thread when it has nothing to
-					       	do */
+						do */
 	que_thr_t*	thr;			/*!< suspended query thread
-					       	(only used for user threads) */
+						(only used for user threads) */
 };
 
 #else /* !UNIV_HOTBACKUP */

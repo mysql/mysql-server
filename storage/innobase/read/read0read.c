@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -186,8 +186,7 @@ read_view_validate(
 {
 	ulint	i;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED)
-	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
@@ -208,8 +207,9 @@ read_view_list_validate(void)
 	const read_view_t*	view;
 	const read_view_t*	prev_view = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED)
-	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+
+	mutex_enter(&trx_sys->read_view_mutex);
 
 	for (view = UT_LIST_GET_FIRST(trx_sys->view_list);
 	     view != NULL;
@@ -218,6 +218,8 @@ read_view_list_validate(void)
 		ut_a(prev_view == NULL
 		     || prev_view->low_limit_no >= view->low_limit_no);
 	}
+
+	mutex_exit(&trx_sys->read_view_mutex);
 
 	return(TRUE);
 }
@@ -243,6 +245,50 @@ read_view_create_low(
 	view->trx_ids = (trx_id_t*) &view[1];
 
 	return(view);
+}
+
+/*********************************************************************//**
+Clones a read view object. This function will allocate space for two read
+views contiguously, one identical in size and content as @param view (starting
+at returned pointer) and another view immediately following the trx_ids array.
+The second view will have space for an extra trx_id_t element.
+@return	read view struct */
+UNIV_INLINE
+read_view_t*
+read_view_clone(
+/*============*/
+	read_view_t*	view,	/*!< in: view to clone */
+	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+{
+	ulint		sz;
+	read_view_t*	clone;
+	read_view_t*	new_view;
+
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(mutex_own(&trx_sys->read_view_mutex));
+
+	/* Allocate space for two views. */
+
+	sz = sizeof(*view) + view->n_trx_ids * sizeof(*view->trx_ids);
+
+	/* Add an extra trx_id_t slot for the new view. */
+
+	clone = mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t));
+
+	/* Only the contents of the old view are important, the new view
+	will be created from this and so we don't copy that across. */
+
+	memcpy(clone, view, sz);
+
+	clone->trx_ids = (trx_id_t*) &clone[1];
+
+	new_view = (read_view_t*) &clone->trx_ids[clone->n_trx_ids];
+	new_view->trx_ids = (trx_id_t*) &new_view[1];
+	new_view->n_trx_ids = clone->n_trx_ids + 1;
+
+	ut_a(new_view->n_trx_ids == view->n_trx_ids + 1);
+
+	return(clone);
 }
 
 /*********************************************************************//**
@@ -380,9 +426,9 @@ read_view_purge_open(
 
 	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
-	mutex_exit(&trx_sys->read_view_mutex);
-
 	if (oldest_view == NULL) {
+
+		mutex_exit(&trx_sys->read_view_mutex);
 
 		view = read_view_open_now_low(0, heap);
 
@@ -391,12 +437,18 @@ read_view_purge_open(
 		return(view);
 	}
 
+	/* Allocate space for both views, the oldest and the new purge view. */
+
+	oldest_view = read_view_clone(oldest_view, heap);
+
+	mutex_exit(&trx_sys->read_view_mutex);
+
 	ut_ad(read_view_validate(oldest_view));
 
 	ut_a(oldest_view->creator_trx_id > 0);
 	creator_trx_id = oldest_view->creator_trx_id;
 
-	view = read_view_create_low(oldest_view->n_trx_ids + 1, heap);
+	view = (read_view_t*) &oldest_view->trx_ids[oldest_view->n_trx_ids];
 
 	/* Add the creator transaction id in the trx_ids array in the
 	correct slot. */
@@ -457,12 +509,12 @@ read_view_remove(
 /*=============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	/* A transaction can remove a view while purge is busy building its
-       	view using the last view. So we acquire an X lock. */
-
-	rw_lock_x_lock(&trx_sys->lock);
+	/* We acquire an S lock for the debug validate code. */
+	ut_d(rw_lock_s_lock(&trx_sys->lock));
 
 	ut_ad(read_view_validate(view));
+
+	ut_d(rw_lock_s_unlock(&trx_sys->lock));
 
 	mutex_enter(&trx_sys->read_view_mutex);
 
@@ -470,9 +522,12 @@ read_view_remove(
 
 	mutex_exit(&trx_sys->read_view_mutex);
 
+	/* We acquire an S lock for the debug validate code. */
+	ut_d(rw_lock_s_lock(&trx_sys->lock));
+
 	ut_ad(read_view_list_validate());
 
-	rw_lock_x_unlock(&trx_sys->lock);
+	ut_d(rw_lock_s_unlock(&trx_sys->lock));
 }
 
 /*********************************************************************//**
@@ -559,7 +614,7 @@ read_cursor_view_create_for_mysql(
 	curview->heap = heap;
 
 	/* Drop cursor tables from consideration when evaluating the
-       	need of auto-commit */
+	need of auto-commit */
 
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 
@@ -589,7 +644,8 @@ read_cursor_view_create_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->state == TRX_STATE_ACTIVE || trx->state == TRX_STATE_PREPARED) {
+		if (trx->state == TRX_STATE_ACTIVE
+		    || trx->state == TRX_STATE_PREPARED) {
 
 			ut_a(n_trx < view->n_trx_ids);
 
