@@ -14569,29 +14569,28 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
+#ifndef NDB_NO_LOG_EMPTY_EPOCHS
+#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG
+#define LOG_EMPTY_EPOCHS_DEFAULT 0
+#else
+#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY
+#define LOG_EMPTY_EPOCHS_DEFAULT 1
+#endif
 
 static my_bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
-#ifndef NDB_NO_LOG_EMPTY_EPOCHS
-  PLUGIN_VAR_OPCMDARG,
-#else
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-#endif
+  LOG_EMPTY_EPOCHS_OPTS,
   "",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  0                                  /* default */
+  LOG_EMPTY_EPOCHS_DEFAULT           /* default */
 );
 
 bool ndb_log_empty_epochs(void)
 {
-#ifndef NDB_NO_LOG_EMPTY_EPOCHS
   return opt_ndb_log_empty_epochs;
-#else
-  return true; // Always on
-#endif
 }
 
 
