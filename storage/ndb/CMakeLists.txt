@@ -13,12 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-  # Old plugin support on Windows only
-  SET(CMAKE_WINDOWS_ONLY TRUE)
-  INCLUDE(${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
-
-ENDIF()
+# Add both MySQL and NDB cmake repositories to search path
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
+    ${CMAKE_SOURCE_DIR}/cmake
+    ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 
 IF(SOURCE_SUBLIBS)
   # Sourced by libmysqld/CMakeLists.txt in 5.1 only to get
@@ -26,15 +24,6 @@ IF(SOURCE_SUBLIBS)
   # again
 ELSE()
   INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
-
-  IF(CMAKE_WINDOWS_ONLY)
-    # No MySQL Server cmake support, use the version in storage/ndb/cmake
-    INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/cmake/libutils.cmake)
-
-    # Hardcode use of the bundled zlib
-    SET(ZLIB_LIBRARY zlib)
-    SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
-  ENDIF()
 
   INCLUDE_DIRECTORIES(
     # MySQL Server includes
@@ -45,13 +34,17 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/util
     ${CMAKE_CURRENT_SOURCE_DIR}/include/portlib
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/debugger
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/transporter
     ${CMAKE_CURRENT_SOURCE_DIR}/include/kernel
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
     # Util library includes
-    ${ZLIB_INCLUDE_DIR})
+    ${ZLIB_INCLUDE_DIR}
+    ${READLINE_INCLUDE_DIR})
 
   # The root of storage/ndb/
   SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -125,8 +118,9 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbinfo.cc)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
-IF(CMAKE_WINDOWS_ONLY)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
   # Old plugin support on Windows only
+  INCLUDE(${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
   SET(NDBCLUSTER_LIBS ndbclient)
   MYSQL_STORAGE_ENGINE(NDBCLUSTER)
 ELSE()

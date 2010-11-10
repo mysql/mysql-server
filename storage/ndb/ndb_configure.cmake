@@ -22,6 +22,7 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
+INCLUDE(ndb_require_variable)
 
 CHECK_FUNCTION_EXISTS(posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
@@ -135,4 +136,14 @@ CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
 # Define HAVE_NDB_CONFIG_H to make ndb_global.h include the
 # generated ndb_config.h
 ADD_DEFINITIONS(-DHAVE_NDB_CONFIG_H)
+
+# check zlib
+IF(NOT DEFINED WITH_ZLIB)
+  # Hardcode use of the bundled zlib if not set by MySQL
+  MESSAGE(STATUS "Using bundled zlib (hardcoded)")
+  SET(ZLIB_LIBRARY zlib)
+  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
+ENDIF()
+NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
+NDB_REQUIRE_VARIABLE(ZLIB_INCLUDE_DIR)
 

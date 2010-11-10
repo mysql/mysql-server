@@ -30,6 +30,8 @@
 #include "NdbDictionaryImpl.hpp"
 #include "ObjectMap.hpp"
 #include "trp_client.hpp"
+#include "trp_node.hpp"
+#include "NdbWaiter.hpp"
 
 template <class T>
 struct Ndb_free_list_t 
@@ -62,7 +64,7 @@ public:
   Ndb * m_next_ndb_object, * m_prev_ndb_object;
   
   Ndb_cluster_connection_impl &m_ndb_cluster_connection;
-  TransporterFacade *m_transporter_facade;
+  TransporterFacade * const m_transporter_facade;
 
   NdbDictionaryImpl m_dictionary;
 
@@ -151,6 +153,17 @@ public:
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
   virtual void trp_node_status(Uint32, Uint32);
+
+  // Is node available for running transactions
+  bool   get_node_alive(NodeId nodeId) const;
+  bool   get_node_stopping(NodeId nodeId) const;
+  bool   getIsDbNode(NodeId nodeId) const;
+  bool   getIsNodeSendable(NodeId nodeId) const;
+  Uint32 getNodeGrp(NodeId nodeId) const;
+  Uint32 getNodeSequence(NodeId nodeId) const;
+  Uint32 getNodeNdbVersion(NodeId nodeId) const;
+  Uint32 getMinDbNodeVersion() const;
+  bool check_send_size(Uint32 node_id, Uint32 send_size) const { return true;}
 };
 
 #ifdef VM_TRACE
@@ -370,6 +383,64 @@ Ndb_free_list_t<T>::release(Uint32 cnt, T* head, T* tail)
     delete tail;
   }
 #endif
+}
+
+inline
+bool
+NdbImpl::getIsDbNode(NodeId n) const {
+  return
+    getNodeInfo(n).defined &&
+    getNodeInfo(n).m_info.m_type == NodeInfo::DB;
+}
+
+inline
+Uint32
+NdbImpl::getNodeGrp(NodeId n) const {
+  return getNodeInfo(n).m_state.nodeGroup;
+}
+
+
+inline
+bool
+NdbImpl::get_node_alive(NodeId n) const {
+  return getNodeInfo(n).m_alive;
+}
+
+inline
+bool
+NdbImpl::get_node_stopping(NodeId n) const {
+  const trp_node & node = getNodeInfo(n);
+  assert(node.m_info.getType() == NodeInfo::DB);
+  return (!node.m_state.getSingleUserMode() &&
+          node.m_state.startLevel >= NodeState::SL_STOPPING_1);
+}
+
+inline
+bool
+NdbImpl::getIsNodeSendable(NodeId n) const {
+  const trp_node & node = getNodeInfo(n);
+  const Uint32 startLevel = node.m_state.startLevel;
+  const NodeInfo::NodeType node_type = node.m_info.getType();
+  assert(node_type == NodeInfo::DB ||
+         node_type == NodeInfo::MGM);
+
+  return node.compatible && (startLevel == NodeState::SL_STARTED ||
+                             startLevel == NodeState::SL_STOPPING_1 ||
+                             node.m_state.getSingleUserMode() ||
+                             node_type == NodeInfo::MGM);
+}
+
+inline
+Uint32
+NdbImpl::getNodeSequence(NodeId n) const {
+  return getNodeInfo(n).m_info.m_connectCount;
+}
+
+inline
+Uint32
+NdbImpl::getNodeNdbVersion(NodeId n) const
+{
+  return getNodeInfo(n).m_info.m_version;
 }
 
 #endif

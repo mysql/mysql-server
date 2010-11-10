@@ -63,7 +63,7 @@ public:
 	    Uint32 prio, 
 	    const SignalHeader* header, 
 	    const Uint32* data,
-	    GenericSectionPtr ptr[3]) const ;
+	    const GenericSectionPtr ptr[3]) const ;
 };
 
 inline

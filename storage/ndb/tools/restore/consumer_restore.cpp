@@ -18,11 +18,13 @@
 
 #include <NDBT_ReturnCodes.h>
 #include "consumer_restore.hpp"
+#include <kernel/ndb_limits.h>
 #include <my_sys.h>
 #include <NdbSleep.h>
 
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
+#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 #define NDB_ANYVALUE_FOR_NOLOGGING 0x8000007f
 

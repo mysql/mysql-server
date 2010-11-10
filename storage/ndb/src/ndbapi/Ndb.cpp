@@ -144,8 +144,7 @@ Ndb::NDB_connect(Uint32 tNode)
   DBUG_ENTER("Ndb::NDB_connect");
 
   {
-    TransporterFacade *tp = theImpl->m_transporter_facade;
-    if (tp->get_node_stopping(tNode))
+    if (theImpl->get_node_stopping(tNode))
     {
       DBUG_RETURN(0);
     }
@@ -968,8 +967,7 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
    * NOTE: It's ok to call getNodeSequence() here wo/ having mutex,
    */
   Uint32 nodeId = aConnection->getConnectedNodeId();
-  TransporterFacade* tp = theImpl->m_transporter_facade;   
-  Uint32 seq = tp->getNodeSequence(nodeId);
+  Uint32 seq = theImpl->getNodeSequence(nodeId);
   if (aConnection->theNodeSequence != seq)
   {
     aConnection->theReleaseOnClose = true;
