@@ -4204,6 +4204,60 @@ lock_remove_all_on_table_for_trx(
 	}
 }
 
+/*******************************************************************//**
+Remove any explicit record locks held by recovering transactions on
+the table.
+@return number of recovered transactions examined */
+static
+ulint
+lock_remove_recovered_trx_record_locks(
+/*===================================*/
+	dict_table_t*	table)	/*!< in: check if there are any locks
+				held on records in this table or on the
+				table itself */
+{
+	trx_t*		trx;
+	ulint		n_recovered_trx = 0;
+
+	ut_a(table != NULL);
+	ut_ad(lock_mutex_own());
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		lock_t*	lock;
+
+		if (!trx->is_recovered) {
+			continue;
+		}
+
+		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+		     lock != NULL;
+		     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+			ut_a(lock->trx == trx);
+
+			/* Recovered transactions can't wait on a lock. */
+
+			ut_a(!lock_get_wait(lock));
+
+			/* Recovered transactions don't have any
+			table level locks. */
+
+			ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+			if (lock->index->table == table) {
+				lock_rec_discard(lock);
+			}
+		}
+
+		++n_recovered_trx;
+	}
+
+	return(n_recovered_trx);
+}
+
 /*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
@@ -4218,8 +4272,8 @@ lock_remove_all_on_table(
 	ibool		remove_also_table_sx_locks)/*!< in: also removes
 						table S and X locks */
 {
-	lock_t*	lock;
-	lock_t*	prev_lock;
+	lock_t*		lock;
+	lock_t*		prev_lock;
 
 	lock_mutex_enter();
 
@@ -4264,6 +4318,17 @@ lock_remove_all_on_table(
 			lock = UT_LIST_GET_NEXT(
 				un_member.tab_lock.locks, lock);
 		}
+	}
+
+	/* Note: Recovered transactions don't have table level IX or IS locks
+	but can have implicit record locks that have been converted to explicit
+	record locks. Such record locks cannot be freed by traversing the
+	transaction lock list in dict_table_t (as above). */
+
+	if (!lock_sys->rollback_complete
+	    && lock_remove_recovered_trx_record_locks(table) == 0) {
+
+		lock_sys->rollback_complete = TRUE;
 	}
 
 	lock_mutex_exit();
