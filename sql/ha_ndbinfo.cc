@@ -16,7 +16,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql_priv.h"
+#include "ha_ndbcluster_glue.h"
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbinfo.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
