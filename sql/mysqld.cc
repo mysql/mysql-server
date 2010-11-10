@@ -489,8 +489,8 @@ handlerton *myisam_hton;
 handlerton *partition_hton;
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-ulong opt_ndb_wait_setup;
-int(*ndb_wait_setup_func)(ulong)= 0;
+extern ulong opt_ndb_wait_setup;
+extern int(*ndb_wait_setup_func)(ulong);
 #endif
 #ifndef MCP_BUG52305
 uint opt_server_id_bits= 0;
