@@ -62,7 +62,7 @@ static const ulong ONE_YEAR_IN_SECONDS= (ulong) 3600L*24L*365L;
 
 ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
-extern ulong opt_ndb_wait_setup;
+ulong opt_ndb_wait_setup;
 static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
@@ -10100,7 +10100,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
 
-extern int(*ndb_wait_setup_func)(ulong);
+int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
 extern int ndb_dictionary_is_mysqld;
 
