@@ -1276,17 +1276,6 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   m_currentGsn = tGsn;
   subTime(tGsn, diff);
 #endif
-#ifdef VM_TRACE
-  if(globalData.testOn){
-    signal->header.theVerId_signalNumber = gsn;
-    signal->header.theReceiversBlockNumber = numberToBlock(block, instanceNo);
-    signal->header.theSendersBlockRef = reference();
-    globalSignalLoggers.executeDirect(signal->header,
-				      1,        // out
-				      &signal->theData[0],
-                                      globalData.ownId);
-  }
-#endif
 }
 
 /**
