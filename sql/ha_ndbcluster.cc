@@ -10062,6 +10062,7 @@ static int connect_callback()
   return 0;
 }
 
+#ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
   DBUG_ENTER("ndb_wait_setup_func_impl");
@@ -10100,7 +10101,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 }
 
 extern int(*ndb_wait_setup_func)(ulong);
-
+#endif
 extern int ndb_dictionary_is_mysqld;
 
 static int ndbcluster_init(void *p)
@@ -10211,7 +10212,9 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+#ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
+#endif
 
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
