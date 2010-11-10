@@ -131,8 +131,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       mysql_port = MYSQL_PORT;
 #ifndef MSDOS
       {
-	struct servent *serv_ptr;
-	char	*env;
+        char *env;
+        struct servent *serv_ptr __attribute__((unused));
 
         /*
           if builder specifically requested a default port, use that
