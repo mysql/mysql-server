@@ -3635,8 +3635,6 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	dict_index_stat_mutex_enter(index);
-
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3667,8 +3665,6 @@ btr_estimate_number_of_different_key_vals(
 
 		index->stat_n_sample_sizes[j] = n_sample_pages;
 	}
-
-	dict_index_stat_mutex_exit(index);
 
 	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {
