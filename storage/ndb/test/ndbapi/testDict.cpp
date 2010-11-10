@@ -1875,7 +1875,15 @@ int getColumnMaxLength(const NdbDictionary::Column* c)
       return 0;
     }
 
-    length= ((1 << attrDesc.AttributeSize) * c->getLength()) >> 3;
+    if (attrDesc.AttributeSize == 0)
+    {
+      // bits...
+      length = 4 * ((c->getLength() + 31) / 32);
+    }
+    else
+    {
+      length = ((1 << attrDesc.AttributeSize) * c->getLength()) >> 3;
+    }
   }
 
   return length;
@@ -1995,6 +2003,8 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clean error insert value");
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) == 0,
@@ -2014,6 +2024,8 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) != 0,
              "failed to fail after error insert " << errval);
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clean error insert value");
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createTable(tab) == 0,
@@ -2037,6 +2049,8 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
 
       CHECK2(pDic->createIndex(idx) != 0,
              "failed to fail after error insert " << errval);
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clean error insert value");
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
       CHECK2(pDic->createIndex(idx) == 0,
@@ -7098,6 +7112,8 @@ loop:
       NdbDictionary::HashMap check;
       CHECK2(res != 0, "create hashmap existed");
       
+      CHECK2(restarter.insertErrorInNode(nodeId, 0) == 0,
+             "failed to clear error insert");
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
     }
   }
