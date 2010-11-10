@@ -136,16 +136,15 @@ NdbOperation::doSendKeyReq(int aNodeId,
    * we can send signal trains instead.
    */
   NdbApiSignal* request = theTCREQ;
-  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-  Uint32 tcNodeVersion = tp->getNodeNdbVersion(aNodeId);
-  bool forceShort = false;
-  forceShort = theNdb->theImpl->forceShortRequests;
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aNodeId);
+  bool forceShort = impl->forceShortRequests;
   bool sendLong = ( tcNodeVersion >= NDBD_LONG_TCKEYREQ ) &&
     ! forceShort;
   
   if (sendLong)
   {
-    return tp->sendSignal(request, aNodeId, secs, numSecs);
+    return impl->sendSignal(request, aNodeId, secs, numSecs);
   }
   else
   {
@@ -187,7 +186,7 @@ NdbOperation::doSendKeyReq(int aNodeId,
 
     request->setLength(reqLen);
 
-    if (tp->sendSignal(request, aNodeId) == -1)
+    if (impl->sendSignal(request, aNodeId) == -1)
       return -1;
     
     keyInfoLen -= keyInfoInReq;
@@ -209,7 +208,7 @@ NdbOperation::doSendKeyReq(int aNodeId,
         keyInfoReader.copyNWords(&keyInfo->keyData[0], dataWords);
         request->setLength(KeyInfo::HeaderLength + dataWords);
 
-        if (tp->sendSignal(request, aNodeId) == -1)
+        if (impl->sendSignal(request, aNodeId) == -1)
           return -1;
 
         keyInfoLen-= dataWords;
@@ -233,7 +232,7 @@ NdbOperation::doSendKeyReq(int aNodeId,
         attrInfoReader.copyNWords(&attrInfo->attrData[0], dataWords);
         request->setLength(AttrInfo::HeaderLength + dataWords);
 
-        if (tp->sendSignal(request, aNodeId) == -1)
+        if (impl->sendSignal(request, aNodeId) == -1)
           return -1;
 
         attrInfoLen-= dataWords;

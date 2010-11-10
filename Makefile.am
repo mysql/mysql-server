@@ -38,7 +38,7 @@ DIST_SUBDIRS =		. include Docs zlib \
 			vio sql man tests \
 			netware libmysqld \
 			mysql-test support-files sql-bench server-tools \
-			win \
+			win cmake \
 			BUILD
 DISTCLEANFILES = ac_available_languages_fragment
 

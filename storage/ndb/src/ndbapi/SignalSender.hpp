@@ -116,7 +116,7 @@ public:
 
   Uint32 get_an_alive_node() const { return theFacade->get_an_alive_node(); }
   Uint32 getAliveNode() const { return get_an_alive_node(); }
-  bool get_node_alive(NodeId n) const { return theFacade->get_node_alive(n); }
+  bool get_node_alive(Uint32 n) const { return getNodeInfo(n).m_alive; }
 
 private:
   int m_blockNo;

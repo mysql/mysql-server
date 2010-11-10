@@ -154,6 +154,7 @@ extern void cpu_pause();
 #endif
 #endif
 #elif defined (_MSC_VER)
+#include <windows.h>
 #define mb()    MemoryBarrier()
 #define read_barrier_depends()  do {} while(0)
 #ifdef _DEBUG

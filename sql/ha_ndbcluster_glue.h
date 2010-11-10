@@ -37,6 +37,9 @@
 #include "sql_acl.h"        // wild_case_compare
 #include "transaction.h"
 #include "sql_test.h"       // print_where
+#include "sql_parse.h"      // mysql_parse
+#include "sql_truncate.h"   // mysql_truncate_table
+#include "key.h"            // key_restore
 #else
 #include "mysql_priv.h"
 #endif
@@ -63,6 +66,37 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
+/* simple_open_n_lock_tables has been removed */
+inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+{
+  return open_and_lock_tables(thd, tables, FALSE, 0);
+}
+
+/* Online alter table not supported */
+#define NDB_WITHOUT_ONLINE_ALTER
+
+/* Column format not supported */
+#define NDB_WITHOUT_COLUMN_FORMAT
+
+enum column_format_type {
+  COLUMN_FORMAT_TYPE_NOT_USED= -1,
+  COLUMN_FORMAT_TYPE_DEFAULT=   0,
+  COLUMN_FORMAT_TYPE_FIXED=     1,
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2
+};
+
+/* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
+#define NDB_WITHOUT_TABLESPACE_IN_FRM
+
+/* Read before write removal not supported */
+#define NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
+
+/* thd has no version field anymore */
+#define NDB_THD_HAS_NO_VERSION
+
+/* thd->binlog_query has new parameter "direct" */
+#define NDB_THD_BINLOG_QUERY_HAS_DIRECT
+
 #endif
 
 
@@ -75,6 +109,153 @@ ulonglong thd_options(const THD * thd)
 #else
   /* "options" has moved to "variables.option_bits" */
   return thd->variables.option_bits;
+#endif
+}
+
+/* get pointer to diagnostic area for statement from THD */
+static inline
+Diagnostics_area* thd_stmt_da(THD* thd)
+{
+#if MYSQL_VERSION_ID < 50500
+  return &(thd->main_da);
+#else
+  /* "main_da" has been made private and one should use "stmt_da*" */
+  return thd->stmt_da;
+#endif
+}
+
+/* extract the list of warnings from THD */
+static inline
+List<MYSQL_ERROR>& thd_warn_list(const THD * thd)
+{
+#if MYSQL_VERSION_ID < 50500
+  return const_cast<THD*>(thd)->warn_list;
+#else
+  /* "options" has moved to "variables.option_bits" */
+  return thd->warning_info->warn_list();
+#endif
+}
+
+static inline
+const char* MYSQL_ERROR_get_message_text(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->msg;
+#else
+  /* "msg" is gone, use accessor */
+  return err->get_message_text();
+#endif
+}
+
+static inline
+uint MYSQL_ERROR_get_sql_errno(const MYSQL_ERROR* err)
+{
+#if MYSQL_VERSION_ID < 50500
+  return err->code;
+#else
+  /* "code" is gone, use accessor */
+  return err->get_sql_errno();
+#endif
+}
+
+#if MYSQL_VERSION_ID < 50500
+
+/*
+  MySQL Server has got its own mutex type in 5.5, add backwards
+  compatibility support allowing to write code in 7.0 that works
+  in future MySQL Server
+*/
+
+typedef pthread_mutex_t mysql_mutex_t;
+
+static inline
+int mysql_mutex_lock(mysql_mutex_t* mutex)
+{
+  return pthread_mutex_lock(mutex);
+}
+
+static inline
+int mysql_mutex_unlock(mysql_mutex_t* mutex)
+{
+  return pthread_mutex_unlock(mutex);
+}
+
+typedef pthread_cond_t mysql_cond_t;
+
+static inline
+int mysql_cond_wait(mysql_cond_t* cond, mysql_mutex_t* mutex)
+{
+  return pthread_cond_wait(cond, mutex);
+}
+
+static inline
+int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
+                         struct timespec* abstime)
+{
+  return pthread_cond_timedwait(cond, mutex, abstime);
+}
+
+/*  mysql_truncate_table emulation, added in 5.5 */
+static inline
+bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
+{
+  return mysql_truncate(thd, table_ref, 0);
+}
+
+#endif
+
+static inline
+uint partition_info_num_full_part_fields(const partition_info* part_info)
+{
+#if MYSQL_VERSION_ID < 50500
+  return part_info->no_full_part_fields;
+#else
+  /* renamed to 'num_full_part_fields' and no accessor function*/
+  return part_info->num_full_part_fields;
+#endif
+}
+
+static inline
+uint partition_info_num_parts(const partition_info* part_info)
+{
+#if MYSQL_VERSION_ID < 50500
+  return part_info->no_parts;
+#else
+  /* renamed to 'num_parts' and no accessor function */
+  return part_info->num_parts;
+#endif
+}
+
+static inline
+uint partition_info_num_list_values(const partition_info* part_info)
+{
+#if MYSQL_VERSION_ID < 50500
+  return part_info->no_list_values;
+#else
+  /* renamed to 'num_list_values' and no accessor function */
+  return part_info->num_list_values;
+#endif
+}
+
+static inline
+bool partition_info_use_default_num_partitions(const partition_info* part_info)
+{
+#if MYSQL_VERSION_ID < 50500
+  return part_info->use_default_no_partitions;
+#else
+  /* renamed to 'use_default_num_partitions' and no accessor function */
+  return part_info->use_default_num_partitions;
+#endif
+}
+
+static inline
+uint partition_info_num_subparts(const partition_info* part_info)
+{
+#if MYSQL_VERSION_ID < 50500
+  return part_info->no_subparts;
+#else
+  /* renamed to 'num_subparts' and no accessor function */
+  return part_info->num_subparts;
 #endif
 }
 

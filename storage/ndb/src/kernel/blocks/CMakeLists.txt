@@ -21,6 +21,12 @@ ADD_SUBDIRECTORY(dbtup)
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
+IF(WIN32)
+  SET(EXTRA_SRC ndbfs/Win32AsyncFile.cpp)
+ELSE()
+  SET(EXTRA_SRC ndbfs/PosixAsyncFile.cpp)
+ENDIF()
+
 ADD_LIBRARY(ndbblocks STATIC
     tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp
     cmvmi/Cmvmi.cpp
@@ -40,8 +46,7 @@ ADD_LIBRARY(ndbblocks STATIC
     dbtup/DbtupDebug.cpp dbtup/DbtupScan.cpp
     dbtup/DbtupDiskAlloc.cpp dbtup/DbtupVarAlloc.cpp
     dbtup/tuppage.cpp dbtup/Undo_buffer.cpp
-    ndbfs/AsyncIoThread.cpp
-    ndbfs/Win32AsyncFile.cpp ndbfs/AsyncFile.cpp
+    ndbfs/AsyncIoThread.cpp ndbfs/AsyncFile.cpp
     ndbfs/Ndbfs.cpp
     ndbfs/VoidFs.cpp
     ndbfs/Filename.cpp
@@ -66,7 +71,7 @@ ADD_LIBRARY(ndbblocks STATIC
     dblqh/DblqhCommon.cpp
     PgmanProxy.cpp
     dbtup/DbtupClient.cpp
-)
+    ${EXTRA_SRC})
 
 ADD_EXECUTABLE(ndb_print_file
     print_file.cpp

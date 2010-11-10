@@ -195,6 +195,28 @@ Ndb_cluster_connection_impl::get_next_node(Ndb_cluster_connection_node_iter &ite
   return node.id;
 }
 
+Uint32
+Ndb_cluster_connection_impl::get_next_alive_node(Ndb_cluster_connection_node_iter &iter)
+{
+  Uint32 id;
+
+  TransporterFacade *tp = m_impl.m_transporter_facade;
+  if (tp == 0 || tp->ownId() == 0)
+    return 0;
+
+  while ((id = get_next_node(iter)))
+  {
+    tp->lock_mutex();
+    if (tp->get_node_alive(id) != 0)
+    {
+      tp->unlock_mutex();
+      return id;
+    }
+    tp->unlock_mutex();
+  }
+  return 0;
+}
+
 unsigned
 Ndb_cluster_connection::no_db_nodes()
 {
@@ -600,6 +622,17 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   DBUG_RETURN(0);
 }
 
+Uint32
+Ndb_cluster_connection_impl::get_db_nodes(Uint8 arr[MAX_NDB_NODES]) const
+{
+  Uint32 cnt = (Uint32)m_all_nodes.size();
+  assert(cnt < MAX_NDB_NODES);
+  const Node *nodes = m_all_nodes.getBase();
+  for (Uint32 i = 0; i<cnt; i++)
+    arr[i] = (Uint8)nodes[i].id;
+  return cnt;
+}
+
 int
 Ndb_cluster_connection_impl::configure(Uint32 nodeId,
                                        const ndb_mgm_configuration &config)
@@ -814,6 +847,12 @@ Uint32
 Ndb_cluster_connection::get_next_node(Ndb_cluster_connection_node_iter &iter)
 {
   return m_impl.get_next_node(iter);
+}
+
+unsigned int 
+Ndb_cluster_connection::get_next_alive_node(Ndb_cluster_connection_node_iter &iter)
+{
+  return m_impl.get_next_alive_node(iter);
 }
 
 unsigned

@@ -40,6 +40,7 @@ ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
 ndb_join_pushdown	#
+ndb_log_apply_status	#
 ndb_log_bin	#
 ndb_log_binlog_index	#
 ndb_log_empty_epochs	#

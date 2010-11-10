@@ -496,7 +496,7 @@ protected:
                           bool fetchAllowed, bool forceSend);
   virtual void release();
   
-  int close_impl(class TransporterFacade*, bool forceSend,
+  int close_impl(bool forceSend,
                  PollGuard *poll_guard);
 
   /* Helper for NdbScanFilter to allocate an InterpretedCode

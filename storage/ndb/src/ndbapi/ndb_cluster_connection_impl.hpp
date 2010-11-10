@@ -63,6 +63,7 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection
 
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   Uint32 get_next_node(Ndb_cluster_connection_node_iter &iter);
+  Uint32 get_next_alive_node(Ndb_cluster_connection_node_iter &iter);
 
   inline unsigned get_connect_count() const;
 public:
@@ -93,6 +94,7 @@ private:
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
+  Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
 
   int connect(int no_retries,
               int retry_delay_in_seconds,
