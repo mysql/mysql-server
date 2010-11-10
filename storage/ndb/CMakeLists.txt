@@ -126,5 +126,5 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/storage/mysql_storage_engine.cmake)
 ELSE()
   # New plugin support, cross-platform
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    DEFAULT MODULE_OUTPUT_NAME ha_ndb)
+    DEFAULT MODULE_OUTPUT_NAME ha_ndb LINK_LIBRARIES ndbclient)
 ENDIF()
