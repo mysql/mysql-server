@@ -38,13 +38,14 @@
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
-extern my_bool opt_ndb_log_empty_epochs;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
 extern ulong opt_server_id_mask;
+
+bool ndb_log_empty_epochs(void);
 
 /*
   defines for cluster replication table names
@@ -6386,7 +6387,7 @@ restart_cluster_failure:
       }
     }
     else if (res > 0 ||
-             (opt_ndb_log_empty_epochs &&
+             (ndb_log_empty_epochs() &&
               gci > ndb_latest_handled_binlog_epoch))
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
@@ -6439,7 +6440,7 @@ restart_cluster_failure:
       {
         /*
           Must be an empty epoch since the condition
-          (opt_ndb_log_empty_epochs &&
+          (ndb_log_empty_epochs() &&
            gci > ndb_latest_handled_binlog_epoch)
           must be true we write empty epoch into
           ndb_binlog_index
@@ -6673,7 +6674,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
-          if (!opt_ndb_log_empty_epochs)
+          if (!ndb_log_empty_epochs())
           {
             /*
               If 
@@ -6691,6 +6692,7 @@ restart_cluster_failure:
                 (! (opt_ndb_log_apply_status &&
                     trans_slave_row_count) ))
             {
+#ifndef NDB_NO_LOG_EMPTY_EPOCHS
               /* nothing to commit, rollback instead */
               if (int r= trans.rollback())
               {
@@ -6700,6 +6702,9 @@ restart_cluster_failure:
                 /* TODO: Further handling? */
               }
               break;
+#else
+              abort(); // Should not come here, log-empty-epochs is always on
+#endif
             }
           }
       commit_to_binlog:

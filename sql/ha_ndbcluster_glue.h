@@ -100,8 +100,10 @@ enum column_format_type {
 /* Global schema lock not available */
 #define NDB_NO_GLOBAL_SCHEMA_LOCK
 
-#endif
+/* Missing functionality in injector -> no --ndb-log-empty-epochs */
+#define NDB_NO_LOG_EMPTY_EPOCHS
 
+#endif
 
 /* extract the bitmask of options from THD */
 static inline
