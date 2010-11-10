@@ -28,6 +28,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 #include <NdbAutoPtr.hpp>
+#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 #include <sys/stat.h>
 

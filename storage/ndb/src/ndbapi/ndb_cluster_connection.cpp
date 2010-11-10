@@ -622,6 +622,17 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
   DBUG_RETURN(0);
 }
 
+Uint32
+Ndb_cluster_connection_impl::get_db_nodes(Uint8 arr[MAX_NDB_NODES]) const
+{
+  Uint32 cnt = (Uint32)m_all_nodes.size();
+  assert(cnt < MAX_NDB_NODES);
+  const Node *nodes = m_all_nodes.getBase();
+  for (Uint32 i = 0; i<cnt; i++)
+    arr[i] = (Uint8)nodes[i].id;
+  return cnt;
+}
+
 int
 Ndb_cluster_connection_impl::configure(Uint32 nodeId,
                                        const ndb_mgm_configuration &config)
