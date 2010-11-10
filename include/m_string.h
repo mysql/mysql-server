@@ -73,7 +73,9 @@ extern "C" {
 extern void *(*my_str_malloc)(size_t);
 extern void (*my_str_free)(void *);
 
-#if defined(HAVE_STPCPY)
+#if MY_GNUC_PREREQ(3, 4)
+#define strmov(dest, src) __builtin_stpcpy(dest, src)
+#elif defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
 #ifndef stpcpy
 extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
