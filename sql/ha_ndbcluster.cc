@@ -62,7 +62,7 @@ static const ulong ONE_YEAR_IN_SECONDS= (ulong) 3600L*24L*365L;
 
 ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
-extern ulong opt_ndb_wait_setup;
+ulong opt_ndb_wait_setup;
 static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
@@ -10062,6 +10062,7 @@ static int connect_callback()
   return 0;
 }
 
+#ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
   DBUG_ENTER("ndb_wait_setup_func_impl");
@@ -10099,8 +10100,8 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
 
-extern int(*ndb_wait_setup_func)(ulong);
-
+int(*ndb_wait_setup_func)(ulong) = 0;
+#endif
 extern int ndb_dictionary_is_mysqld;
 
 static int ndbcluster_init(void *p)
@@ -10211,7 +10212,9 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
+#ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
+#endif
 
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
@@ -14566,17 +14569,30 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
+#ifndef NDB_NO_LOG_EMPTY_EPOCHS
+#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG
+#define LOG_EMPTY_EPOCHS_DEFAULT 0
+#else
+#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY
+#define LOG_EMPTY_EPOCHS_DEFAULT 1
+#endif
 
-my_bool opt_ndb_log_empty_epochs;
+static my_bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
-  PLUGIN_VAR_OPCMDARG,
+  LOG_EMPTY_EPOCHS_OPTS,
   "",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  0                                  /* default */
+  LOG_EMPTY_EPOCHS_DEFAULT           /* default */
 );
+
+bool ndb_log_empty_epochs(void)
+{
+  return opt_ndb_log_empty_epochs;
+}
+
 
 my_bool opt_ndb_log_apply_status;
 static MYSQL_SYSVAR_BOOL(
