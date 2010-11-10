@@ -3203,7 +3203,7 @@ loop:
 		and worker threads (purge threads). Print the thread
 		type if any of such threads not in suspended mode */
 		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_type;
+			const char*	thread_type = "<null>";
 
 			switch (active_thd) {
 			case SRV_NONE:
