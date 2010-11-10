@@ -1932,7 +1932,10 @@ NdbQueryImpl::handleBatchComplete(Uint32 fragNo)
     if (getQueryDef().isScanQuery())
     {
       root.handleBatchComplete(fragNo);  // Only required for scans
-      resume = (m_pendingFrags==0) || true;
+
+      // Only ordered scans has to wait until all pending completed
+      resume = (m_pendingFrags==0) ||
+               (root.m_ordering==NdbQueryOptions::ScanOrdering_unordered);
     }
     else
     {
