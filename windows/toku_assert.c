@@ -17,6 +17,8 @@
 static void *backtrace_pointers[N_POINTERS];
 #endif
 
+int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize);  // tentative definition: if linked to ydb, will have non-zero value
+
 void (*do_assert_hook)(void) = NULL;
 
 static void toku_do_backtrace_abort(void) __attribute__((noreturn));
@@ -32,6 +34,19 @@ toku_do_backtrace_abort(void) {
 #endif
 
     fflush(stderr);
+    
+    if (toku_maybe_get_engine_status_text_p) {
+	int r;
+	int buffsize = 1024 * 32;
+	char buff[buffsize];
+	
+	r = toku_maybe_get_engine_status_text_p(buff, buffsize);  
+	fprintf(stderr, "Engine status:\n%s\n", buff);
+    }
+    else
+	fprintf(stderr, "Engine status function not available\n");
+    fflush(stderr);	    
+    
 
 #if TOKU_WINDOWS
     //Following commented methods will not always end the process (could hang).

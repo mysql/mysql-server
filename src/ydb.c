@@ -55,7 +55,20 @@ static u_int64_t num_sequential_queries;
 static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
 static u_int64_t logsuppressfail;            // number of times unable to suppress logs for empty table (2440)
 static time_t    startuptime;                // timestamp of system startup
-    
+static DB_ENV *  most_recent_env;            // most recently opened env, used for engine status on crash
+
+static void
+init_status_info(void) {
+    num_inserts = 0;
+    num_inserts_fail = 0;
+    num_deletes = 0;
+    num_deletes_fail = 0;
+    num_point_queries = 0;
+    num_sequential_queries = 0;
+    logsuppress = 0;
+    logsuppressfail = 0;
+    startuptime = time(NULL);
+}
 
 const char * environmentdictionary = "tokudb.environment";
 const char * fileopsdirectory = "tokudb.directory";
@@ -114,7 +127,6 @@ ydb_set_brt(DB *db, BRT brt) {
 int 
 toku_ydb_init(void) {
     int r = 0;
-    startuptime = time(NULL);
     //Lower level must be initialized first.
     if (r==0) 
         r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock, ydb_set_brt);
@@ -759,6 +771,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         need_rollback_cachefile = TRUE;
     }
 
+    init_status_info();  // do this before possibly upgrading, so upgrade work is counted in status counters
+
     LSN last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
     BOOL upgrade_in_progress = FALSE;
     r = ydb_maybe_upgrade_env(env, &last_lsn_of_clean_shutdown_read_from_log, &upgrade_in_progress);
@@ -911,8 +925,10 @@ cleanup:
             unlock_single_process(env);
         }
     }
-    if (r == 0)
+    if (r == 0) {
 	errno = 0; // tabula rasa
+	most_recent_env = env;
+    }
     return r;
 }
 
@@ -1624,11 +1640,14 @@ format_time(const time_t *timer, char *buf) {
 // can help diagnose the problem.
 // This function only collects information, and it does not matter if something gets garbled
 // because of a race condition.  
+// Note, engine status is still collected even if the environment or logger is panicked
 static int
 env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
-    HANDLE_PANICKED_ENV(env);
     int r = 0;
-    if (!env_opened(env)) r = EINVAL;
+    if ( !(env)     || 
+	 !(env->i)  || 
+	 !(env_opened(env)) )
+	r = EINVAL;
     else {
 	format_time(&persistent_creation_time, engstat->creationtime);
 	time_t now = time(NULL);
@@ -1794,110 +1813,125 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     return r;
 }
 
+
 // Fill buff with text description of engine status up to bufsiz bytes.
-// Intended for use by test programs that do not have the handlerton available.
+// Intended for use by test programs that do not have the handlerton available,
+// and for use by toku_assert logic to print diagnostic info on crash.
 static int
 env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     ENGINE_STATUS engstat;
     int r = env_get_engine_status(env, &engstat);    
     int n = 0;  // number of characters printed so far
 
-    n += snprintf(buff + n, bufsiz - n, "creationtime                     %s \n", engstat.creationtime);
-    n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
-    n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
-    n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
-    n += snprintf(buff + n, bufsiz - n, "max_possible_sleep               %"PRIu64"\n", engstat.max_possible_sleep);
-    n += snprintf(buff + n, bufsiz - n, "processor_freq_mhz               %"PRIu64"\n", engstat.processor_freq_mhz);
-    n += snprintf(buff + n, bufsiz - n, "max_requested_sleep              %"PRIu64"\n", engstat.max_requested_sleep);
-    n += snprintf(buff + n, bufsiz - n, "times_max_sleep_used             %"PRIu64"\n", engstat.times_max_sleep_used);
-    n += snprintf(buff + n, bufsiz - n, "total_sleepers                   %"PRIu64"\n", engstat.total_sleepers);
-    n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
-    n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu64"\n", engstat.max_waiters);
-    n += snprintf(buff + n, bufsiz - n, "total_waiters                    %"PRIu64"\n", engstat.total_waiters);
-    n += snprintf(buff + n, bufsiz - n, "total_clients                    %"PRIu64"\n", engstat.total_clients);
-    n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
-    n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
-    n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %d \n", engstat.checkpoint_period);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %d \n", engstat.checkpoint_footprint);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin_complete   %s \n", engstat.checkpoint_time_begin_complete);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_time_end              %s \n", engstat.checkpoint_time_end);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu32"\n", engstat.checkpoint_count);
-    n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu32"\n", engstat.checkpoint_count_fail);
-    n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
-    n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
-    n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
-    n += snprintf(buff + n, bufsiz - n, "txn_close                        %"PRIu64"\n", engstat.txn_close);
-    n += snprintf(buff + n, bufsiz - n, "txn_oldest_live                  %"PRIu64"\n", engstat.txn_oldest_live);
-    n += snprintf(buff + n, bufsiz - n, "next_lsn                         %"PRIu64"\n", engstat.next_lsn);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_lock_released         %"PRIu64"\n", engstat.cachetable_lock_released);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_hit                   %"PRIu64"\n", engstat.cachetable_hit);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_miss                  %"PRIu64"\n", engstat.cachetable_miss);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_misstime              %"PRIu64"\n", engstat.cachetable_misstime);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
-    n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
-    n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
-    n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
-    n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pin_hits           %"PRIu64"\n", engstat.maybe_get_and_pin_hits);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
-    n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
-    n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
-    n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
-    n += snprintf(buff + n, bufsiz - n, "local_checkpoint_files           %"PRId64"\n", engstat.local_checkpoint_files);
-    n += snprintf(buff + n, bufsiz - n, "local_checkpoint_during_checkpoint  %"PRId64"\n", engstat.local_checkpoint_during_checkpoint);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_max_memory           %"PRIu64"\n", engstat.range_locks_max_memory);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_curr_memory          %"PRIu64"\n", engstat.range_locks_curr_memory);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu32"\n", engstat.range_lock_escalation_successes);
-    n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu32"\n", engstat.range_lock_escalation_failures);
-    n += snprintf(buff + n, bufsiz - n, "range_read_locks                 %"PRIu64"\n", engstat.range_read_locks);
-    n += snprintf(buff + n, bufsiz - n, "range_read_locks_fail            %"PRIu64"\n", engstat.range_read_locks_fail);
-    n += snprintf(buff + n, bufsiz - n, "range_out_of_read_locks          %"PRIu64"\n", engstat.range_out_of_read_locks);
-    n += snprintf(buff + n, bufsiz - n, "range_write_locks                %"PRIu64"\n", engstat.range_write_locks);
-    n += snprintf(buff + n, bufsiz - n, "range_write_locks_fail           %"PRIu64"\n", engstat.range_write_locks_fail);
-    n += snprintf(buff + n, bufsiz - n, "range_out_of_write_locks         %"PRIu64"\n", engstat.range_out_of_write_locks);
-    n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
-    n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
-    n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
-    n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
-    n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
-    n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
-    n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
-    n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
-    n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
-    n += snprintf(buff + n, bufsiz - n, "logger olock count               %"PRIu64"\n", engstat.logger_olock_ctr);
-    n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
-    n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
-    n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
-    n += snprintf(buff + n, bufsiz - n, "enospc count                     %"PRIu64"\n", engstat.enospc_ctr);
-    n += snprintf(buff + n, bufsiz - n, "enospc redzone ctr               %"PRIu64"\n", engstat.enospc_redzone_ctr);
-    n += snprintf(buff + n, bufsiz - n, "enospc state                     %"PRIu64"\n", engstat.enospc_state);
-    n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
-    n += snprintf(buff + n, bufsiz - n, "loader_createf_fail              %"PRIu64"\n", engstat.loader_create_fail);
-    n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
-    n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
-    n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
-    n += snprintf(buff + n, bufsiz - n, "loader_abort                     %"PRIu64"\n", engstat.loader_abort);
-    n += snprintf(buff + n, bufsiz - n, "loader_current                   %"PRIu32"\n", engstat.loader_current);
-    n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu32"\n", engstat.loader_max);
-    n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
-    n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
-    n += snprintf(buff + n, bufsiz - n, "upgrade_env_status               %"PRIu64"\n", engstat.upgrade_env_status);
-    n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
-    n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
-    n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
-    n += snprintf(buff + n, bufsiz - n, "original_ver                     %"PRIu64"\n", engstat.original_ver);
-    n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
-    n += snprintf(buff + n, bufsiz - n, "last_lsn_v12                     %"PRIu64"\n", engstat.last_lsn_v12);
-    n += snprintf(buff + n, bufsiz - n, "upgrade_v13_time                 %s \n", engstat.upgrade_v13_time);
-
+    if (r) {
+	n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
+	if (!env) {
+	    n += snprintf(buff + n, bufsiz - n, "no environment\n");
+	}
+	else if (!(env->i)) {
+	    n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
+	}
+	else if (!env_opened(env)) {
+	    n += snprintf(buff + n, bufsiz - n, "environment is not open\n");
+	}
+    }
+    else {
+	n += snprintf(buff + n, bufsiz - n, "creationtime                     %s \n", engstat.creationtime);
+	n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
+	n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
+	n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
+	n += snprintf(buff + n, bufsiz - n, "max_possible_sleep               %"PRIu64"\n", engstat.max_possible_sleep);
+	n += snprintf(buff + n, bufsiz - n, "processor_freq_mhz               %"PRIu64"\n", engstat.processor_freq_mhz);
+	n += snprintf(buff + n, bufsiz - n, "max_requested_sleep              %"PRIu64"\n", engstat.max_requested_sleep);
+	n += snprintf(buff + n, bufsiz - n, "times_max_sleep_used             %"PRIu64"\n", engstat.times_max_sleep_used);
+	n += snprintf(buff + n, bufsiz - n, "total_sleepers                   %"PRIu64"\n", engstat.total_sleepers);
+	n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
+	n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu64"\n", engstat.max_waiters);
+	n += snprintf(buff + n, bufsiz - n, "total_waiters                    %"PRIu64"\n", engstat.total_waiters);
+	n += snprintf(buff + n, bufsiz - n, "total_clients                    %"PRIu64"\n", engstat.total_clients);
+	n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
+	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
+	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %d \n", engstat.checkpoint_period);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %d \n", engstat.checkpoint_footprint);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin_complete   %s \n", engstat.checkpoint_time_begin_complete);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_time_end              %s \n", engstat.checkpoint_time_end);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu32"\n", engstat.checkpoint_count);
+	n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu32"\n", engstat.checkpoint_count_fail);
+	n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
+	n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
+	n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
+	n += snprintf(buff + n, bufsiz - n, "txn_close                        %"PRIu64"\n", engstat.txn_close);
+	n += snprintf(buff + n, bufsiz - n, "txn_oldest_live                  %"PRIu64"\n", engstat.txn_oldest_live);
+	n += snprintf(buff + n, bufsiz - n, "next_lsn                         %"PRIu64"\n", engstat.next_lsn);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_lock_released         %"PRIu64"\n", engstat.cachetable_lock_released);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_hit                   %"PRIu64"\n", engstat.cachetable_hit);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_miss                  %"PRIu64"\n", engstat.cachetable_miss);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_misstime              %"PRIu64"\n", engstat.cachetable_misstime);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_waittime              %"PRIu64"\n", engstat.cachetable_waittime);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_reading          %"PRIu64"\n", engstat.cachetable_wait_reading);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_wait_writing          %"PRIu64"\n", engstat.cachetable_wait_writing);
+	n += snprintf(buff + n, bufsiz - n, "puts                             %"PRIu64"\n", engstat.puts);
+	n += snprintf(buff + n, bufsiz - n, "prefetches                       %"PRIu64"\n", engstat.prefetches);
+	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pins               %"PRIu64"\n", engstat.maybe_get_and_pins);
+	n += snprintf(buff + n, bufsiz - n, "maybe_get_and_pin_hits           %"PRIu64"\n", engstat.maybe_get_and_pin_hits);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_current          %"PRId64"\n", engstat.cachetable_size_current);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
+	n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
+	n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
+	n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
+	n += snprintf(buff + n, bufsiz - n, "local_checkpoint_files           %"PRId64"\n", engstat.local_checkpoint_files);
+	n += snprintf(buff + n, bufsiz - n, "local_checkpoint_during_checkpoint  %"PRId64"\n", engstat.local_checkpoint_during_checkpoint);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_max_memory           %"PRIu64"\n", engstat.range_locks_max_memory);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_curr_memory          %"PRIu64"\n", engstat.range_locks_curr_memory);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu32"\n", engstat.range_lock_escalation_successes);
+	n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu32"\n", engstat.range_lock_escalation_failures);
+	n += snprintf(buff + n, bufsiz - n, "range_read_locks                 %"PRIu64"\n", engstat.range_read_locks);
+	n += snprintf(buff + n, bufsiz - n, "range_read_locks_fail            %"PRIu64"\n", engstat.range_read_locks_fail);
+	n += snprintf(buff + n, bufsiz - n, "range_out_of_read_locks          %"PRIu64"\n", engstat.range_out_of_read_locks);
+	n += snprintf(buff + n, bufsiz - n, "range_write_locks                %"PRIu64"\n", engstat.range_write_locks);
+	n += snprintf(buff + n, bufsiz - n, "range_write_locks_fail           %"PRIu64"\n", engstat.range_write_locks_fail);
+	n += snprintf(buff + n, bufsiz - n, "range_out_of_write_locks         %"PRIu64"\n", engstat.range_out_of_write_locks);
+	n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
+	n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
+	n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
+	n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
+	n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
+	n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
+	n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
+	n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
+	n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
+	n += snprintf(buff + n, bufsiz - n, "logger olock count               %"PRIu64"\n", engstat.logger_olock_ctr);
+	n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
+	n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
+	n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
+	n += snprintf(buff + n, bufsiz - n, "enospc count                     %"PRIu64"\n", engstat.enospc_ctr);
+	n += snprintf(buff + n, bufsiz - n, "enospc redzone ctr               %"PRIu64"\n", engstat.enospc_redzone_ctr);
+	n += snprintf(buff + n, bufsiz - n, "enospc state                     %"PRIu64"\n", engstat.enospc_state);
+	n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
+	n += snprintf(buff + n, bufsiz - n, "loader_createf_fail              %"PRIu64"\n", engstat.loader_create_fail);
+	n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
+	n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
+	n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
+	n += snprintf(buff + n, bufsiz - n, "loader_abort                     %"PRIu64"\n", engstat.loader_abort);
+	n += snprintf(buff + n, bufsiz - n, "loader_current                   %"PRIu32"\n", engstat.loader_current);
+	n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu32"\n", engstat.loader_max);
+	n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
+	n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
+	n += snprintf(buff + n, bufsiz - n, "upgrade_env_status               %"PRIu64"\n", engstat.upgrade_env_status);
+	n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
+	n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
+	n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
+	n += snprintf(buff + n, bufsiz - n, "original_ver                     %"PRIu64"\n", engstat.original_ver);
+	n += snprintf(buff + n, bufsiz - n, "ver_at_startup                   %"PRIu64"\n", engstat.ver_at_startup);
+	n += snprintf(buff + n, bufsiz - n, "last_lsn_v12                     %"PRIu64"\n", engstat.last_lsn_v12);
+	n += snprintf(buff + n, bufsiz - n, "upgrade_v13_time                 %s \n", engstat.upgrade_v13_time);
+    }
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;
@@ -1906,6 +1940,21 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 
     return r;
 }
+
+static int toku_maybe_get_engine_status_text (char* buff, int buffsize);
+
+// assign value to global pointer so that other files can access via tentative definition if linked to this library (.so)
+int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = toku_maybe_get_engine_status_text;
+
+// intended for use by toku_assert logic, when env is not known
+static int 
+toku_maybe_get_engine_status_text (char * buff, int buffsize) {
+    DB_ENV * env = most_recent_env;
+    int r = env_get_engine_status_text(env, buff, buffsize);
+    return r;
+}
+
+
 
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 

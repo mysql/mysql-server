@@ -168,6 +168,8 @@ typedef struct logger_status {
     u_int64_t ilock_ctr;
     u_int64_t olock_ctr;
     u_int64_t swap_ctr;
+    u_int64_t panicked;
+    u_int64_t panic_errno;
 } LOGGER_STATUS_S, *LOGGER_STATUS;
 
 void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);

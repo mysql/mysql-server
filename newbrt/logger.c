@@ -1355,11 +1355,15 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s) {
 	s->ilock_ctr = logger->input_lock_ctr;
 	s->olock_ctr = logger->output_condition_lock_ctr;
 	s->swap_ctr  = logger->swap_ctr;
+	s->panicked  = logger->is_panicked;
+	s->panic_errno = logger->panic_errno;
     }
     else {
 	s->ilock_ctr = 0;
 	s->olock_ctr = 0;
 	s->swap_ctr  = 0;
+	s->panicked  = 0;
+	s->panic_errno = 0;
     }
 }
 
