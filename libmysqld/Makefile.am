@@ -80,6 +80,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
 	sql_bootstrap.cc \
 	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
+	gcalc_slicescan.cc gcalc_tools.cc \
 	sql_partition_admin.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)
