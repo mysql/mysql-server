@@ -206,21 +206,17 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
-	dict_index_stat_mutex_enter(index);
-
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index)];
-
-	dict_index_stat_mutex_exit(index);
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
 	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
 		- index->stat_index_size;
 
-	table->stat_initialized = TRUE;
-
 	table->stat_modified_counter = 0;
+
+	table->stat_initialized = TRUE;
 }
 /* @} */
 
@@ -1055,15 +1051,11 @@ dict_stats_analyze_index_for_n_prefix(
 				&pcur, n_prefix, &mtr);
 	}
 
-	dict_index_stat_mutex_enter(index);
-
 	index->stat_n_diff_key_vals[n_prefix]
 		= total_recs_on_level * n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
-
-	dict_index_stat_mutex_exit(index);
 
 	DEBUG_PRINTF("    %s(): n_diff=%llu for n_prefix=%lu\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix],
@@ -1144,8 +1136,6 @@ dict_stats_analyze_index(
 		/* do full scan of level 0; save results directly
 		into the index */
 
-		dict_index_stat_mutex_enter(index);
-
 		dict_stats_analyze_index_level(index,
 					       0 /* leaf level */,
 					       index->stat_n_diff_key_vals,
@@ -1156,8 +1146,6 @@ dict_stats_analyze_index(
 		for (i = 1; i <= n_uniq; i++) {
 			index->stat_n_sample_sizes[i] = total_pages;
 		}
-
-		dict_index_stat_mutex_exit(index);
 
 		return(DB_SUCCESS);
 	}
@@ -1362,9 +1350,9 @@ dict_stats_update_persistent(
 			+= index->stat_index_size;
 	}
 
-	table->stat_initialized = TRUE;
-
 	table->stat_modified_counter = 0;
+
+	table->stat_initialized = TRUE;
 
 	return(DB_SUCCESS);
 }
@@ -1582,9 +1570,6 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		/* on stack copies of index members to minimize the
-		scope of dict_index_stat_mutex; the maximum number
-		of elements is the max value of index->n_uniq */
 		ib_uint64_t	stat_n_diff_key_vals[REC_MAX_N_FIELDS];
 		ib_uint64_t	stat_n_sample_sizes[REC_MAX_N_FIELDS];
 		ulint		n_uniq;
@@ -1614,8 +1599,6 @@ dict_stats_save(
 
 		n_uniq = dict_index_get_n_unique(index);
 
-		dict_index_stat_mutex_enter(index);
-
 		ut_ad(n_uniq + 1 <= UT_ARR_SIZE(stat_n_diff_key_vals));
 
 		memcpy(stat_n_diff_key_vals, index->stat_n_diff_key_vals,
@@ -1625,8 +1608,6 @@ dict_stats_save(
 
 		memcpy(stat_n_sample_sizes, index->stat_n_sample_sizes,
 		       (n_uniq + 1) * sizeof(index->stat_n_sample_sizes[0]));
-
-		dict_index_stat_mutex_exit(index);
 
 		for (i = 1; i <= n_uniq; i++) {
 
@@ -1971,8 +1952,6 @@ dict_stats_fetch_index_stats_step(
 		}
 		/* else */
 
-		dict_index_stat_mutex_enter(index);
-
 		index->stat_n_diff_key_vals[n_pfx] = stat_value;
 
 		if (sample_size != UINT64_UNDEFINED) {
@@ -1982,8 +1961,6 @@ dict_stats_fetch_index_stats_step(
 			table manually and SET sample_size = NULL */
 			index->stat_n_sample_sizes[n_pfx] = 0;
 		}
-
-		dict_index_stat_mutex_exit(index);
 	} else {
 		/* silently ignore rows with unknown stat_name, the
 		user may have developed her own stats */
@@ -2177,7 +2154,20 @@ dict_stats_update(
 		if (dict_stats_persistent_storage_check(
 				caller_has_dict_sys_mutex)) {
 
+			dict_table_stats_lock(table, RW_X_LATCH);
+
 			ret = dict_stats_update_persistent(table);
+
+			/* XXX Currently dict_stats_save() would read the
+			stats from the table without dict_table_stats_lock()
+			which means it could save inconsistent data on the
+			disk. This is because we must call
+			dict_table_stats_lock() after locking dict_sys->mutex.
+			A solution is to copy here the stats to a temporary
+			buffer while holding the _stats_lock(), release it,
+			and pass that buffer to dict_stats_save(). */
+
+			dict_table_stats_unlock(table, RW_X_LATCH);
 
 			if (ret == DB_SUCCESS) {
 				ret = dict_stats_save(
@@ -2185,41 +2175,53 @@ dict_stats_update(
 					caller_has_dict_sys_mutex);
 			}
 
-		} else {
-			/* Fall back to transient stats since the persistent
-			storage is not present or is corrupted */
+			return(ret);
+		}
+		/* else */
 
-			if (stats_upd_option == DICT_STATS_RECALC_PERSISTENT) {
+		/* Fall back to transient stats since the persistent
+		storage is not present or is corrupted */
 
-				ut_print_timestamp(stderr);
-				/* XXX add link to the doc about storage
-				creation */
-				fprintf(stderr,
-					" InnoDB: Recalculation of persistent "
-					"statistics requested but the required "
-					"persistent statistics storage is not "
-					"present or is corrupted. "
-					"Using quick transient stats "
-					"instead.\n");
-			}
+		if (stats_upd_option == DICT_STATS_RECALC_PERSISTENT) {
 
-			dict_stats_update_transient(table);
-
-			ret = DB_SUCCESS;
+			ut_print_timestamp(stderr);
+			/* XXX add link to the doc about storage
+			creation */
+			fprintf(stderr,
+				" InnoDB: Recalculation of persistent "
+				"statistics requested but the required "
+				"persistent statistics storage is not "
+				"present or is corrupted. "
+				"Using quick transient stats "
+				"instead.\n");
 		}
 
-		break;
+		goto transient;
 
 	case DICT_STATS_RECALC_TRANSIENT:
 
-		dict_stats_update_transient(table);
-		ret = DB_SUCCESS;
-
-		break;
+		goto transient;
 
 	case DICT_STATS_FETCH:
+	case DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY:
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
+
+		dict_table_stats_lock(table, RW_X_LATCH);
+
+		if (stats_upd_option == DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY
+		    && table->stat_initialized) {
+
+			dict_table_stats_unlock(table, RW_X_LATCH);
+			return(DB_SUCCESS);
+		}
+		/* else */
+
+		/* Must unlock because otherwise there is a lock order
+		violation with dict_sys->mutex below. Declare stats to be
+		initialized before unlocking. */
+		table->stat_initialized = TRUE;
+		dict_table_stats_unlock(table, RW_X_LATCH);
 
 		if (strchr(table->name, '/') == NULL
 		    || strcmp(table->name, INDEX_STATS_NAME) == 0
@@ -2228,32 +2230,34 @@ dict_stats_update(
 			InnoDB internal tables, because we know the
 			persistent stats storage does not contain data
 			for them */
-			dict_stats_update_transient(table);
-			ret = DB_SUCCESS;
-		} else if (dict_stats_persistent_storage_check(
-				caller_has_dict_sys_mutex)) {
 
-			ret = dict_stats_fetch_from_ps(
-				table,
+			goto transient;
+		}
+		/* else */
+
+		if (dict_stats_persistent_storage_check(
+			caller_has_dict_sys_mutex)) {
+
+			ret = dict_stats_fetch_from_ps(table,
 				caller_has_dict_sys_mutex);
+
+			if (ret == DB_STATS_DO_NOT_EXIST
+			    || (ret != DB_SUCCESS && stats_upd_option
+				== DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY)) {
+				/* Stats for this particular table do not
+				exist or we have been called from open table
+				which needs to initialize the stats,
+				calculate the quick transient statistics */
+				goto transient;
+			}
+			/* else */
+
+			return(ret);
 		} else {
-
-			/* if persistent statistics storage does not exist,
-			then force the following code to calculate the
-			transient stats */
-			ret = DB_STATS_DO_NOT_EXIST;
+			/* persistent statistics storage does not exist,
+			calculate the transient stats */
+			goto transient;
 		}
-
-		if (ret == DB_STATS_DO_NOT_EXIST) {
-
-			/* The persistent statistics storage does not exist
-			or stats for this particular table do not exist, then
-			calculate the quick transient statistics */
-			dict_stats_update_transient(table);
-			ret = DB_SUCCESS;
-		}
-		/* else either success or some other failure, return
-		ret whatever it is */
 
 		break;
 
@@ -2261,13 +2265,22 @@ dict_stats_update(
 	about unhandled enumeration value */
 	}
 
-	return(ret);
+transient:
+
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	dict_stats_update_transient(table);
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
+	return(DB_SUCCESS);
 }
 /* @} */
 
 /*********************************************************************//**
 Close the stats tables. Should always be called after successful
-dict_stats_open(). It will free the dict_stats handle. */
+dict_stats_open(). It will free the dict_stats handle.
+dict_stats_close() @{ */
 UNIV_INLINE
 void
 dict_stats_close(
@@ -2287,10 +2300,13 @@ dict_stats_close(
 
 	mem_free(dict_stats);
 }
+/* @} */
+
 /*********************************************************************//**
 Open stats tables to prevent these tables from being DROPped.
 Also check whether they have the correct structure. The caller
 must call dict_stats_close() when he has finished DMLing the tables.
+dict_stats_open() @{
 @return pointer to open tables or NULL on failure */
 UNIV_INLINE
 dict_stats_t*
@@ -2323,6 +2339,7 @@ dict_stats_open(void)
 
 	return(dict_stats);
 }
+/* @} */
 
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
