@@ -32,7 +32,7 @@ void NDB_PREFETCH_READ(void* addr)
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
   __builtin_prefetch(addr, 0, 3);
 #elif defined(HAVE_SUN_PREFETCH_H)
-  sparc_prefetch_read_once(addr);
+  sun_prefetch_read_once(addr);
 #else
   (void)addr;
 #endif
@@ -44,7 +44,7 @@ void NDB_PREFETCH_WRITE(void* addr)
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
   __builtin_prefetch(addr, 1, 3);
 #elif defined(HAVE_SUN_PREFETCH_H)
-  sparc_prefetch_write_once(addr);
+  sun_prefetch_write_once(addr);
 #else
   (void)addr;
 #endif
