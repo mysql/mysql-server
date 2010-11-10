@@ -97,8 +97,16 @@ enum column_format_type {
 /* thd->binlog_query has new parameter "direct" */
 #define NDB_THD_BINLOG_QUERY_HAS_DIRECT
 
-#endif
+/* Global schema lock not available */
+#define NDB_NO_GLOBAL_SCHEMA_LOCK
 
+/* Missing functionality in injector -> no --ndb-log-empty-epochs */
+#define NDB_NO_LOG_EMPTY_EPOCHS
+
+/* No support for --ndb-wait_setup */
+#define NDB_NO_WAIT_SETUP
+
+#endif
 
 /* extract the bitmask of options from THD */
 static inline
