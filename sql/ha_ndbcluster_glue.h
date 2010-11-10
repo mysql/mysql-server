@@ -97,6 +97,9 @@ enum column_format_type {
 /* thd->binlog_query has new parameter "direct" */
 #define NDB_THD_BINLOG_QUERY_HAS_DIRECT
 
+/* Global schema lock not available */
+#define NDB_NO_GLOBAL_SCHEMA_LOCK
+
 #endif
 
 
