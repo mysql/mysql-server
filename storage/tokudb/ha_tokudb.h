@@ -154,6 +154,11 @@ private:
     // number of bytes allocated in rec_buff
     //
     ulong alloced_rec_buff_length;
+    //
+    // same as above two, but for updates
+    //
+    uchar *rec_update_buff;
+    ulong alloced_update_rec_buff_length;
     u_int32_t max_key_length;
     //
     // buffer used to temporarily store a "packed key" 
@@ -180,9 +185,9 @@ private:
     //
     // individual key buffer for each index
     //
-    uchar* mult_key_buff[MAX_KEY + 1];
+    uchar* mult_key_buff[2*(MAX_KEY + 1)];
     uchar* mult_rec_buff[MAX_KEY + 1];
-    DBT mult_key_dbt[MAX_KEY + 1];
+    DBT mult_key_dbt[2*(MAX_KEY + 1)];
     DBT mult_rec_dbt[MAX_KEY + 1];
     u_int32_t mult_put_flags[MAX_KEY + 1];
     u_int32_t mult_del_flags[MAX_KEY + 1];
@@ -278,11 +283,23 @@ private:
     int loader_error;
     
     bool fix_rec_buff_for_blob(ulong length);
+    bool fix_rec_update_buff_for_blob(ulong length);
     void fix_mult_rec_buff();
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
 
     ulong max_row_length(const uchar * buf);
+    int pack_row_in_buff(
+        DBT * row, 
+        const uchar* record,
+        uint index,
+        uchar* row_buff
+        );
     int pack_row(
+        DBT * row, 
+        const uchar* record,
+        uint index
+        );
+    int pack_old_row_for_update(
         DBT * row, 
         const uchar* record,
         uint index
