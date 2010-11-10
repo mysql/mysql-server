@@ -18,8 +18,8 @@
 
 #include <ndb_global.h>
 #include <ndb_limits.h>
-#include "trp_client.hpp"
 #include "TransporterFacade.hpp"
+#include "trp_client.hpp"
 #include "ClusterMgr.hpp"
 #include <IPCConfig.hpp>
 #include <TransporterCallback.hpp>
@@ -1149,8 +1149,10 @@ public:
  * boundaries to simplify reassembly in the kernel.
  */
 int
-TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
-					GenericSectionPtr ptr[3], Uint32 secs)
+TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
+                                        NodeId aNode,
+					const GenericSectionPtr ptr[3],
+                                        Uint32 secs)
 {
   unsigned i;
   Uint32 totalSectionLength= 0;
@@ -1332,7 +1334,8 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 
 int
 TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
-					LinearSectionPtr ptr[3], Uint32 secs)
+					const LinearSectionPtr ptr[3],
+                                        Uint32 secs)
 {
   /* Use the GenericSection variant of sendFragmentedSignal */
   GenericSectionPtr tmpPtr[3];
@@ -1361,7 +1364,7 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
 
 int
 TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode, 
-			      LinearSectionPtr ptr[3], Uint32 secs){
+			      const LinearSectionPtr ptr[3], Uint32 secs){
   aSignal->m_noOfSections = secs;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
@@ -1393,7 +1396,7 @@ TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
 
 int
 TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
-                              GenericSectionPtr ptr[3], Uint32 secs){
+                              const GenericSectionPtr ptr[3], Uint32 secs){
   aSignal->m_noOfSections = secs;
   if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE

@@ -272,7 +272,7 @@ public:
                          const SignalHeader * const signalHeader, Uint8 prio,
                          const Uint32 * const signalData,
                          NodeId nodeId,
-                         GenericSectionPtr ptr[3]);
+                         const GenericSectionPtr ptr[3]);
   /**
    * Backwards compatiple methods with default send buffer handling.
    */
@@ -294,7 +294,7 @@ public:
   SendStatus prepareSend(const SignalHeader * const signalHeader, Uint8 prio,
                          const Uint32 * const signalData,
                          NodeId nodeId,
-                         GenericSectionPtr ptr[3])
+                         const GenericSectionPtr ptr[3])
   {
     return prepareSend(this, signalHeader, prio, signalData, nodeId, ptr);
   }

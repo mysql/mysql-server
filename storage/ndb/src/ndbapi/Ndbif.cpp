@@ -176,15 +176,9 @@ void Ndb::connected(Uint32 ref)
     assert(theMyRef == numberToRef(theNdbBlockNumber, tmpTheNode));
   }
   
-  TransporterFacade * theFacade =  theImpl->m_transporter_facade;
-  int i, n= 0;
-  for (i = 1; i < MAX_NDB_NODES; i++){
-    if (theFacade->getIsDbNode(i)){
-      theImpl->theDBnodes[n] = i;
-      n++;
-    }
-  }
-  theImpl->theNoOfDBnodes = n;
+  Uint32 cnt =
+    theImpl->m_ndb_cluster_connection.get_db_nodes(theImpl->theDBnodes);
+  theImpl->theNoOfDBnodes = cnt;
   
   theFirstTransId += ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
@@ -1138,15 +1132,14 @@ Ndb::sendPrepTrans(int forceSend)
      and we keep a small space for messages like that.
   */
   Uint32 i;
-  TransporterFacade* tp = theImpl->m_transporter_facade;
   theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
   Uint32 no_of_prep_trans = theNoOfPreparedTransactions;
   for (i = 0; i < no_of_prep_trans; i++) {
     NdbTransaction * a_con = thePreparedTransactionsArray[i];
     thePreparedTransactionsArray[i] = NULL;
     Uint32 node_id = a_con->getConnectedNodeId();
-    if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-        (tp->get_node_alive(node_id) || tp->get_node_stopping(node_id)))
+    if ((theImpl->getNodeSequence(node_id) == a_con->theNodeSequence) &&
+        (theImpl->get_node_alive(node_id) || theImpl->get_node_stopping(node_id)))
     {
       /*
       We will send if
@@ -1156,7 +1149,7 @@ Ndb::sendPrepTrans(int forceSend)
       of all transactions and commits and thus we allow aborts and
       commits to continue but not normal operations.
       */
-      if (tp->check_send_size(node_id, a_con->get_send_size())) {
+      if (theImpl->check_send_size(node_id, a_con->get_send_size())) {
         if (a_con->doSend() == 0) {
           NDB_TICKS current_time = NdbTick_CurrentMillisecond();
           a_con->theStartTransTime = current_time;
@@ -1209,11 +1202,7 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  if (forceSend == 0) {
-     tp->checkForceSend(theNdbBlockNumber);
-  } else if (forceSend == 1) {
-     tp->forceSend(theNdbBlockNumber);
-  }//if
+  theImpl->forceSend(forceSend);
   return;
 }//Ndb::sendPrepTrans()
 
@@ -1352,7 +1341,6 @@ Ndb::sendRecSignal(Uint16 node_id,
 
   int return_code;
   Uint32 read_conn_seq;
-  TransporterFacade* tp = theImpl->m_transporter_facade;
   Uint32 send_size = 1; // Always sends one signal only
   // Protected area
   /*
@@ -1362,14 +1350,14 @@ Ndb::sendRecSignal(Uint16 node_id,
     break, continue or simply end of statement block
   */
   PollGuard poll_guard(* theImpl);
-  read_conn_seq= tp->getNodeSequence(node_id);
+  read_conn_seq= theImpl->getNodeSequence(node_id);
   if (ret_conn_seq)
     *ret_conn_seq= read_conn_seq;
-  if ((tp->get_node_alive(node_id)) &&
+  if ((theImpl->get_node_alive(node_id)) &&
       ((read_conn_seq == conn_seq) ||
        (conn_seq == 0))) {
-    if (tp->check_send_size(node_id, send_size)) {
-      return_code = tp->sendSignal(aSignal, node_id);
+    if (theImpl->check_send_size(node_id, send_size)) {
+      return_code = theImpl->sendSignal(aSignal, node_id);
       if (return_code != -1) {
         return poll_guard.wait_n_unlock(WAITFOR_RESPONSE_TIMEOUT,node_id,
                                          aWaitState, false);
@@ -1380,7 +1368,7 @@ Ndb::sendRecSignal(Uint16 node_id,
       return_code = -4;
     }//if
   } else {
-    if ((tp->get_node_stopping(node_id)) &&
+    if ((theImpl->get_node_stopping(node_id)) &&
         ((read_conn_seq == conn_seq) ||
          (conn_seq == 0))) {
       return_code = -5;
@@ -1437,9 +1425,9 @@ NdbImpl::send_event_report(bool has_lock,
   m_ndb_cluster_connection.init_get_next_node(node_iter);
   while ((tNode= m_ndb_cluster_connection.get_next_node(node_iter)))
   {
-    if(tp->get_node_alive(tNode))
+    if(get_node_alive(tNode))
     {
-      tp->sendSignal(&aSignal, tNode);
+      sendSignal(&aSignal, tNode);
       goto done;
     }
   }
