@@ -840,7 +840,41 @@ CREATE INDEX b ON t1(a,b,c,d);
 
 DROP TABLE t1;
 
+--echo End of 5.1 tests
+
+--echo #
+--echo # Bug#668644: HAVING + ORDER BY
 --echo #
 
+CREATE TABLE t1 (
+  pk int  NOT NULL PRIMARY KEY, i int DEFAULT NULL,
+  INDEX idx (i)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES
+  (6,-1636630528),(2,-1097924608),(1,6),(3,6),(4,1148715008),(5,1541734400);
 
---echo End of 5.1 tests
+CREATE TABLE t2 (
+  i int DEFAULT NULL,
+  pk int NOT NULL PRIMARY KEY,
+  INDEX idx (i)
+) ENGINE= INNODB;
+INSERT INTO t2 VALUES
+  (-1993998336,20),(-1036582912,1),(-733413376,5),(-538247168,16),
+  (-514260992,4),(-249561088,9),(1,2),(1,6),(2,10),(2,19),(4,17),
+  (5,14),(5,15),(6,8),(7,13),(8,18),(9,11),(9,12),(257425408,7),
+  (576061440,3);
+
+EXPLAIN
+SELECT t1 .i AS f FROM t1, t2
+  WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+  HAVING f > 7
+  ORDER BY f;
+SELECT t1 .i AS f FROM t1, t2
+  WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+  HAVING f > 7
+  ORDER BY f;
+
+DROP TABLE t1, t2;
+
+
+--echo End of 5.3 tests

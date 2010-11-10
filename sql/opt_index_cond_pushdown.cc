@@ -318,7 +318,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
     if (idx_cond)
     {
       Item *idx_remainder_cond= 0;
-      tab->pre_idx_push_select_cond= tab->select_cond;
+      tab->pre_idx_push_select_cond= tab->select->cond;
       /*
         For BKA cache we store condition to special BKA cache field
         because evaluation of the condition requires additional operations

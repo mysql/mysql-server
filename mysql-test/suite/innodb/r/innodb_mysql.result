@@ -2609,5 +2609,41 @@ ref	NULL
 rows	3
 Extra	Using index
 DROP TABLE t1;
-#
 End of 5.1 tests
+#
+# Bug#668644: HAVING + ORDER BY
+#
+CREATE TABLE t1 (
+pk int  NOT NULL PRIMARY KEY, i int DEFAULT NULL,
+INDEX idx (i)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES
+(6,-1636630528),(2,-1097924608),(1,6),(3,6),(4,1148715008),(5,1541734400);
+CREATE TABLE t2 (
+i int DEFAULT NULL,
+pk int NOT NULL PRIMARY KEY,
+INDEX idx (i)
+) ENGINE= INNODB;
+INSERT INTO t2 VALUES
+(-1993998336,20),(-1036582912,1),(-733413376,5),(-538247168,16),
+(-514260992,4),(-249561088,9),(1,2),(1,6),(2,10),(2,19),(4,17),
+(5,14),(5,15),(6,8),(7,13),(8,18),(9,11),(9,12),(257425408,7),
+(576061440,3);
+EXPLAIN
+SELECT t1 .i AS f FROM t1, t2
+WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+HAVING f > 7
+ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.pk	1	Using index
+SELECT t1 .i AS f FROM t1, t2
+WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+HAVING f > 7
+ORDER BY f;
+f
+1148715008
+1541734400
+1541734400
+DROP TABLE t1, t2;
+End of 5.3 tests
