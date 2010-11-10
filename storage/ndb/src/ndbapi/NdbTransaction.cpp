@@ -890,8 +890,7 @@ NdbTransaction::doSend()
       const Uint32 lastFlag = ((tNextOp == NULL) ? 1 : 0);
       const int tReturnCode = tOp->doSend(theDBnode, lastFlag);
       if (tReturnCode == -1) {
-        theReturnStatus = ReturnFailure;
-        break;
+        goto fail;
       }//if
       tOp = tNextOp;
     } while (tOp != NULL);
@@ -929,10 +928,12 @@ NdbTransaction::doSend()
     abort();
     break;
   }//switch
-  setOperationErrorCodeAbort(4002);
+
   theReleaseOnClose = true;
   theTransactionIsStarted = false;
   theCommitStatus = Aborted;
+fail:
+  setOperationErrorCodeAbort(4002);
   DBUG_RETURN(-1);
 }//NdbTransaction::doSend()
 

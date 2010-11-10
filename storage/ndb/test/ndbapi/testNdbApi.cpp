@@ -351,6 +351,7 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
       case 880: // TUP - Read too much
       case 823: // TUP - Too much AI
       case 4257: // NDBAPI - Too much AI
+      case 4002: // NDBAPI - send problem
 	// OK errors
 	ERR(pCon->getNdbError());
 	break;
