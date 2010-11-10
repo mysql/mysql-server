@@ -965,7 +965,7 @@ trx_sys_init_at_db_start(void)
 
 	mutex_enter(&kernel_mutex);
 
-	trx_sys = mem_alloc(sizeof(trx_sys_t));
+	trx_sys = mem_zalloc(sizeof(trx_sys_t));
 
 	sys_header = trx_sysf_get(&mtr);
 
