@@ -329,7 +329,7 @@ set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
 
 Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
 
-int ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
+bool ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
 int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
 
 class Ndbcluster_global_schema_lock_guard
