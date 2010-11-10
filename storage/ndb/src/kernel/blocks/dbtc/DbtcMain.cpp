@@ -9786,8 +9786,7 @@ bool Dbtc::testFragmentDrop(Signal* signal)
     signal->header.theLength = newLen + 3;
     signal->header.m_noOfSections = 0;
 
-    EXECUTE_DIRECT(DBTC, GSN_SIGNAL_DROPPED_REP, signal,
-                   newLen + 3);
+    executeFunction(GSN_SIGNAL_DROPPED_REP, signal);
     return true;
   }
   return false;
