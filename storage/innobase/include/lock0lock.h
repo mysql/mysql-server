@@ -877,6 +877,10 @@ struct lock_sys_struct{
 						by the lock mutex  */
 	srv_slot_t*	last_slot;		/*!< highest slot ever used
 						in the waiting_threads array */
+	ibool		rollback_complete;
+						/*!< TRUE if rollback of all recovered
+						transactions is complete. Protected by the
+						lock sys mutex */
 };
 
 /** The lock system */
