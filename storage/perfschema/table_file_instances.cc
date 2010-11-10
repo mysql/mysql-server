@@ -54,7 +54,7 @@ table_file_instances::m_field_def=
 PFS_engine_table_share
 table_file_instances::m_share=
 {
-  { C_STRING_WITH_LEN("FILE_INSTANCES") },
+  { C_STRING_WITH_LEN("file_instances") },
   &pfs_readonly_acl,
   &table_file_instances::create,
   NULL, /* write_row */

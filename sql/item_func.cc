@@ -178,7 +178,14 @@ Item_func::fix_fields(THD *thd, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+  /*
+    Use stack limit of STACK_MIN_SIZE * 2 since
+    on some platforms a recursive call to fix_fields
+    requires more than STACK_MIN_SIZE bytes (e.g. for
+    MIPS, it takes about 22kB to make one recursive
+    call to Item_func::fix_fields())
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
