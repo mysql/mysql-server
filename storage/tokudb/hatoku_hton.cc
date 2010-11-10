@@ -954,8 +954,23 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     ENGINE_STATUS engstat;
 
-    error = db_env->get_engine_status(db_env, &engstat);
+    error = db_env->get_engine_status(db_env, &engstat, buf, bufsiz);
+    if (strlen(buf)) {
+	STATPRINT("Environment panic string", buf);
+    }
     if (error == 0) {
+	if (engstat.env_panic) {
+	    snprintf(buf, bufsiz, "%" PRIu64, engstat.env_panic);
+	    STATPRINT("Environment panic", buf);
+	}
+	if (engstat.logger_panic) {
+	    snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_panic);
+	    STATPRINT("logger panic", buf);
+	    snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_panic_errno);
+	    STATPRINT("logger panic errno", buf);
+	}
+
+
       if(engstat.enospc_threads_blocked) {
 	  STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
 	  snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
