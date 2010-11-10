@@ -2991,6 +2991,7 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  mysql-test/Makefile mysql-test/lib/My/SafeProcess/Makefile dnl
  netware/Makefile sql-bench/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
+AC_CONFIG_FILES(cmake/Makefile) # MCP_WIX
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
 

@@ -61,5 +61,5 @@ ndb_global.h \
 ndb_net.h
 
 EXTRA_DIST = debugger editline kernel logger mgmcommon \
-portlib transporter util CMakeLists.txt
+portlib transporter util CMakeLists.txt ndb_config.h.in
 

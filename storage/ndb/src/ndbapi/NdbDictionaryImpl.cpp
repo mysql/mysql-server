@@ -2183,7 +2183,7 @@ int
 NdbDictInterface::dictSignal(NdbApiSignal* sig, 
 			     LinearSectionPtr ptr[3], int secs,
 			     int node_specification,
-			     WaitSignalType wst,
+			     Uint32 wst,
 			     int timeout, Uint32 RETRIES,
 			     const int *errcodes, int temporaryMask)
 {
@@ -2225,7 +2225,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     Uint32 node;
     switch(node_specification){
     case 0:
-      node = (getTransporter()->get_node_alive(m_masterNodeId) ? m_masterNodeId :
+      node = (m_impl->get_node_alive(m_masterNodeId) ? m_masterNodeId :
 	      (m_masterNodeId = getTransporter()->get_an_alive_node()));
       break;
     case -1:
@@ -8116,9 +8116,9 @@ NdbDictInterface::checkAllNodeVersionsMin(Uint32 minNdbVersion) const
 {
   for (Uint32 nodeId = 1; nodeId < MAX_NODES; nodeId++)
   {
-    if (getTransporter()->getIsDbNode(nodeId) &&
-        getTransporter()->getIsNodeSendable(nodeId) &&
-        (getTransporter()->getNodeNdbVersion(nodeId) <
+    if (m_impl->getIsDbNode(nodeId) &&
+        m_impl->getIsNodeSendable(nodeId) &&
+        (m_impl->getNodeNdbVersion(nodeId) <
          minNdbVersion))
     {
       /* At least 1 sendable data node has lower-than-min

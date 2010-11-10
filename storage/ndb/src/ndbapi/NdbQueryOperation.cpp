@@ -1832,7 +1832,6 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
                                                           : FetchResult_noMoreData;
         }
 
-        TransporterFacade* tp = ndb->m_transporter_facade;
         const Uint32 timeout  = ndb->get_waitfor_timeout();
         const Uint32 nodeId   = m_transaction.getConnectedNodeId();
         const Uint32 seq      = m_transaction.theNodeSequence;
@@ -1843,7 +1842,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
                                 nodeId, 
                                 forceSend));
 
-        if (tp->getNodeSequence(nodeId) != seq)
+        if (ndb->getNodeSequence(nodeId) != seq)
           setFetchTerminated(Err_NodeFailCausedAbort,false);
         else if (likely(waitResult == FetchResult_ok))
           continue;
@@ -2327,7 +2326,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   }
 
   Ndb& ndb = *m_transaction.getNdb();
-  TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
+  NdbImpl * impl = ndb.theImpl;
 
   const NdbQueryOperationImpl& root = getRoot();
   const NdbQueryOperationDefImpl& rootDef = root.getQueryOperationDef();
@@ -2454,7 +2453,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     }
 
     /* Send Fragmented as SCAN_TABREQ can be large */
-    const int res = tp->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
+    const int res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
       setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
@@ -2534,7 +2533,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    const int res = tp->sendSignal(&tSignal, nodeId, secs, numSections);
+    const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
       setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
@@ -2631,35 +2630,27 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
   secs[ScanNextReq::ReceiverIdsSectionNum].sectionIter = &receiverIdIter;
   secs[ScanNextReq::ReceiverIdsSectionNum].sz = 1;
   
-  TransporterFacade* const tp = ndb.theImpl->m_transporter_facade;
+  NdbImpl * impl = ndb.theImpl;
   Uint32 nodeId = m_transaction.getConnectedNodeId();
   Uint32 seq    = m_transaction.theNodeSequence;
 
   /* This part needs to be done under mutex due to synchronization with 
    * receiver thread.
    */
-  PollGuard poll_guard(*ndb.theImpl);
+  PollGuard poll_guard(* impl);
 
   if (unlikely(hasReceivedError()))
   {
     // Errors arrived inbetween ::await released mutex, and fetchMore grabbed it
     return -1;
   }
-  if (tp->getNodeSequence(nodeId) != seq ||
-      tp->sendSignal(&tSignal, nodeId, secs, 1) != 0)
+  if (impl->getNodeSequence(nodeId) != seq ||
+      impl->sendSignal(&tSignal, nodeId, secs, 1) != 0)
   {
     setErrorCode(Err_NodeFailCausedAbort);
     return -1;
   }
-  if (forceSend)
-  {
-    // Flush signals to TC.
-    tp->forceSend(ndb.theNdbBlockNumber);
-  }
-  else
-  {
-    tp->checkForceSend(ndb.theNdbBlockNumber);
-  }
+  impl->forceSend(forceSend);
 
   m_pendingFrags++;
   assert(m_pendingFrags <= getRootFragCount());
@@ -2672,8 +2663,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   assert (m_queryDef.isScanQuery());
 
   NdbImpl* const ndb = m_transaction.getNdb()->theImpl;
-
-  TransporterFacade* tp = ndb->m_transporter_facade;
+  NdbImpl* const impl = ndb;
   const Uint32 timeout  = ndb->get_waitfor_timeout();
   const Uint32 nodeId   = m_transaction.getConnectedNodeId();
   const Uint32 seq      = m_transaction.theNodeSequence;
@@ -2683,7 +2673,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
    */
   PollGuard poll_guard(*ndb);
 
-  if (unlikely(tp->getNodeSequence(nodeId) != seq))
+  if (unlikely(impl->getNodeSequence(nodeId) != seq))
   {
     setErrorCode(Err_NodeFailCausedAbort);
     return -1;  // Transporter disconnected and reconnected, no need to close
@@ -2695,7 +2685,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
     const FetchResult result = static_cast<FetchResult>
         (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-    if (unlikely(tp->getNodeSequence(nodeId) != seq))
+    if (unlikely(impl->getNodeSequence(nodeId) != seq))
       setFetchTerminated(Err_NodeFailCausedAbort,false);
     else if (unlikely(result != FetchResult_ok))
     {
@@ -2730,7 +2720,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
       const FetchResult result = static_cast<FetchResult>
           (poll_guard.wait_scan(3*timeout, nodeId, forceSend));
 
-      if (unlikely(tp->getNodeSequence(nodeId) != seq))
+      if (unlikely(impl->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort,false);
       if (unlikely(result != FetchResult_ok))
       {
@@ -2773,8 +2763,8 @@ NdbQueryImpl::sendClose(int nodeId)
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
-  TransporterFacade* tp = ndb.theImpl->m_transporter_facade;
-  return tp->sendSignal(&tSignal, nodeId);
+  NdbImpl * impl = ndb.theImpl;
+  return impl->sendSignal(&tSignal, nodeId);
 
 } // NdbQueryImpl::sendClose()
 

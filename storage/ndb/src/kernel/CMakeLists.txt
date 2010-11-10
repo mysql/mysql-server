@@ -58,7 +58,9 @@ ADD_EXECUTABLE(ndbd
 TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched)
 INSTALL(TARGETS ndbd DESTINATION libexec)
 
-ADD_EXECUTABLE(ndbmtd
-  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
-TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt)
-INSTALL(TARGETS ndbmtd DESTINATION libexec)
+IF(NDB_BUILD_NDBMTD)
+  ADD_EXECUTABLE(ndbmtd
+    main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
+  TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt)
+  INSTALL(TARGETS ndbmtd DESTINATION libexec)
+ENDIF()

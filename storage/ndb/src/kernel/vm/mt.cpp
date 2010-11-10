@@ -13,19 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#ifndef _WIN32
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/time.h>
-#endif
-#include <errno.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#include <ndb_global.h>
 
 #include <VMSignal.hpp>
 #include <kernel_types.h>
@@ -42,6 +30,7 @@
 #include <signaldata/StopForCrash.hpp>
 #include "TransporterCallbackKernel.hpp"
 #include <NdbSleep.h>
+#include <portlib/ndb_prefetch.h>
 
 #include "mt-asm.h"
 
@@ -2392,8 +2381,8 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
      * (Though on Intel Core 2, they do not give much speedup, as apparently
      * the hardware prefetcher is already doing a fairly good job).
      */
-    PREFETCH_READ (read_buffer->m_data + read_pos + 16);
-    PREFETCH_WRITE ((Uint32 *)&sig->header + 16);
+    NDB_PREFETCH_READ (read_buffer->m_data + read_pos + 16);
+    NDB_PREFETCH_WRITE ((Uint32 *)&sig->header + 16);
 
     /* Now execute the signal. */
     SignalHeader* s =
@@ -2402,7 +2391,7 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
     Uint32 siglen = (sizeof(*s)>>2) + s->theLength;
     if(siglen>16)
     {
-      PREFETCH_READ (read_buffer->m_data + read_pos + 32);
+      NDB_PREFETCH_READ (read_buffer->m_data + read_pos + 32);
     }
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
     Uint32 ino = map_instance(s);

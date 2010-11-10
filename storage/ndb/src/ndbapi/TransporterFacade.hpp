@@ -81,28 +81,25 @@ public:
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
+private:
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
   int sendSignal(NdbApiSignal*, NodeId, 
-		 LinearSectionPtr ptr[3], Uint32 secs);
+		 const LinearSectionPtr ptr[3], Uint32 secs);
   int sendSignal(NdbApiSignal*, NodeId,
-                 GenericSectionPtr ptr[3], Uint32 secs);
+                 const GenericSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId, 
-			   LinearSectionPtr ptr[3], Uint32 secs);
+			   const LinearSectionPtr ptr[3], Uint32 secs);
   int sendFragmentedSignal(NdbApiSignal*, NodeId,
-                           GenericSectionPtr ptr[3], Uint32 secs);
+                           const GenericSectionPtr ptr[3], Uint32 secs);
+public:
 
   // Is node available for running transactions
+private:
   bool   get_node_alive(NodeId nodeId) const;
-  bool   get_node_stopping(NodeId nodeId) const;
-  bool   getIsDbNode(NodeId nodeId) const;
   bool   getIsNodeSendable(NodeId nodeId) const;
-  Uint32 getNodeGrp(NodeId nodeId) const;
-  Uint32 getNodeSequence(NodeId nodeId) const;
-  Uint32 getNodeNdbVersion(NodeId nodeId) const;
-  Uint32 getMinDbNodeVersion() const;
 
-  // Is there space in sendBuffer to send messages
-  bool   check_send_size(Uint32 node_id, Uint32 send_size);
+public:
+  Uint32 getMinDbNodeVersion() const;
 
   // My own processor id
   NodeId ownId() const;
@@ -209,10 +206,8 @@ private:
   friend class ArbitMgr;
   friend class MgmtSrvr;
   friend class SignalSender;
-  friend class GrepPS;
-  friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
-  friend class GrepSS;
   friend class Ndb;
+  friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
   friend class NdbTransaction;
   friend class NdbDictInterface;
@@ -317,28 +312,6 @@ unsigned Ndb_cluster_connection_impl::get_connect_count() const
 
 inline
 bool
-TransporterFacade::check_send_size(Uint32 node_id, Uint32 send_size)
-{
-  return true;
-}
-
-inline
-bool
-TransporterFacade::getIsDbNode(NodeId n) const {
-  return 
-    theClusterMgr->getNodeInfo(n).defined && 
-    theClusterMgr->getNodeInfo(n).m_info.m_type == NodeInfo::DB;
-}
-
-inline
-Uint32
-TransporterFacade::getNodeGrp(NodeId n) const {
-  return theClusterMgr->getNodeInfo(n).m_state.nodeGroup;
-}
-
-
-inline
-bool
 TransporterFacade::get_node_alive(NodeId n) const {
   if (theClusterMgr)
   {
@@ -355,15 +328,6 @@ TransporterFacade::hb_received(NodeId n) {
 
 inline
 bool
-TransporterFacade::get_node_stopping(NodeId n) const {
-  const trp_node & node = theClusterMgr->getNodeInfo(n);
-  assert(node.m_info.getType() == NodeInfo::DB);
-  return (!node.m_state.getSingleUserMode() &&
-          node.m_state.startLevel >= NodeState::SL_STOPPING_1);
-}
-
-inline
-bool
 TransporterFacade::getIsNodeSendable(NodeId n) const {
   const trp_node & node = theClusterMgr->getNodeInfo(n);
   const Uint32 startLevel = node.m_state.startLevel;
@@ -375,19 +339,6 @@ TransporterFacade::getIsNodeSendable(NodeId n) const {
                              startLevel == NodeState::SL_STOPPING_1 ||
                              node.m_state.getSingleUserMode() ||
                              node_type == NodeInfo::MGM);
-}
-
-inline
-Uint32
-TransporterFacade::getNodeSequence(NodeId n) const {
-  return theClusterMgr->getNodeInfo(n).m_info.m_connectCount;
-}
-
-inline
-Uint32
-TransporterFacade::getNodeNdbVersion(NodeId n) const
-{
-  return theClusterMgr->getNodeInfo(n).m_info.m_version;
 }
 
 inline

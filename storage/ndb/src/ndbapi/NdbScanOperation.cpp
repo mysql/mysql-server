@@ -1667,7 +1667,7 @@ NdbScanOperation::executeCursor(int nodeId)
    * proceeding
    */  
   bool locked = false;
-  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
+  NdbImpl* theImpl = theNdb->theImpl;
 
   int res = 0;
   if (m_scanUsingOldApi && finaliseScanOldApi() == -1)
@@ -1679,12 +1679,12 @@ NdbScanOperation::executeCursor(int nodeId)
   {
     locked = true;
     NdbTransaction * tCon = theNdbCon;
-    NdbMutex_Lock(tp->theMutexPtr);
+    theImpl->lock();
     
     Uint32 seq = tCon->theNodeSequence;
     
-    if (tp->get_node_alive(nodeId) &&
-        (tp->getNodeSequence(nodeId) == seq)) {
+    if (theImpl->get_node_alive(nodeId) &&
+        (theImpl->getNodeSequence(nodeId) == seq)) {
       
       tCon->theMagicNumber = 0x37412619;
       
@@ -1698,8 +1698,8 @@ NdbScanOperation::executeCursor(int nodeId)
     } 
     else
     {
-      if (!(tp->get_node_stopping(nodeId) &&
-            (tp->getNodeSequence(nodeId) == seq)))
+      if (!(theImpl->get_node_stopping(nodeId) &&
+            (theImpl->getNodeSequence(nodeId) == seq)))
       {
         TRACE_DEBUG("The node is hard dead when attempting to start a scan");
         setErrorCode(4029);
@@ -1731,7 +1731,7 @@ done:
   }
 
   if (locked)
-    NdbMutex_Unlock(tp->theMutexPtr);
+    theImpl->unlock();
 
   return res;
 }
@@ -1845,15 +1845,15 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   /* Now we have to wait for more rows (or end-of-file on all receivers). */
   Uint32 nodeId = theNdbCon->theDBnode;
-  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
-  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
+  NdbImpl* theImpl = theNdb->theImpl;
+  Uint32 timeout= theImpl->get_waitfor_timeout();
   int retVal= 2;
   Uint32 idx, last;
   /*
     The rest needs to be done under mutex due to synchronization with receiver
     thread.
   */
-  PollGuard poll_guard(* theNdb->theImpl);
+  PollGuard poll_guard(* theImpl);
 
   const Uint32 seq= theNdbCon->theNodeSequence;
 
@@ -1862,7 +1862,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
     goto err4;
   }
 
-  if(seq == tp->getNodeSequence(nodeId) &&
+  if(seq == theImpl->getNodeSequence(nodeId) &&
      send_next_scan(m_current_api_receiver, false) == 0)
   {
     idx= m_current_api_receiver;
@@ -1888,7 +1888,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
       {
         /* No completed... */
         int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
-        if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
+        if (ret_code == 0 && seq == theImpl->getNodeSequence(nodeId)) {
           continue;
         } else if(ret_code == -1){
           retVal= -1;
@@ -1992,16 +1992,16 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
     if(sent)
     {
       Uint32 nodeId = theNdbCon->theDBnode;
-      TransporterFacade * tp = theNdb->theImpl->m_transporter_facade;
+      NdbImpl* impl = theNdb->theImpl;
       if(cnt > 21){
         tSignal.setLength(4);
         LinearSectionPtr ptr[3];
         ptr[0].p = prep_array;
         ptr[0].sz = sent;
-        ret = tp->sendSignal(&tSignal, nodeId, ptr, 1);
+        ret = impl->sendSignal(&tSignal, nodeId, ptr, 1);
       } else {
         tSignal.setLength(4+sent);
-        ret = tp->sendSignal(&tSignal, nodeId);
+        ret = impl->sendSignal(&tSignal, nodeId);
       }
     }
     m_sent_receivers_count = last + sent;
@@ -2045,7 +2045,6 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
                m_conf_receivers_count,
                m_sent_receivers_count);
     
-    TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
     /*
       The PollGuard has an implicit call of unlock_and_signal through the
       ~PollGuard method. This method is called implicitly by the compiler
@@ -2053,7 +2052,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
       break, continue or simply end of statement block
     */
     PollGuard poll_guard(* theNdb->theImpl);
-    close_impl(tp, forceSend, &poll_guard);
+    close_impl(forceSend, &poll_guard);
   }
 
   // Keep in local variables, as "this" might be destructed below
@@ -2399,21 +2398,19 @@ NdbScanOperation::doSendScan(int aProcessorId)
     numSections= 3;
   }
 
-  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-
-  Uint32 tcNodeVersion = tp->getNodeNdbVersion(aProcessorId);
-  bool forceShort = false;
-  forceShort = theNdb->theImpl->forceShortRequests;
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 tcNodeVersion = impl->getNodeNdbVersion(aProcessorId);
+  bool forceShort = impl->forceShortRequests;
   bool sendLong = ( tcNodeVersion >= NDBD_LONG_SCANTABREQ) &&
     ! forceShort;
   
   if (sendLong)
   {
     /* Send Fragmented as SCAN_TABREQ can be large */
-    if (tp->sendFragmentedSignal(theSCAN_TABREQ, 
-                                 aProcessorId, 
-                                 &secs[0], 
-                                 numSections) == -1)
+    if (impl->sendFragmentedSignal(theSCAN_TABREQ,
+                                   aProcessorId,
+                                   &secs[0],
+                                   numSections) == -1)
     {
       setErrorCode(4002);
       return -1;
@@ -2437,7 +2434,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
     scanTabReq->attrLenKeyLen = (keyInfoLen << 16) | attrInfoLen;
 
     /* Send with receiver Ids as first and only section */
-    if (tp->sendSignal(theSCAN_TABREQ, aProcessorId, &secs[0], 1) == -1)
+    if (impl->sendSignal(theSCAN_TABREQ, aProcessorId, &secs[0], 1) == -1)
     {
       setErrorCode(4002);
       return -1;
@@ -2458,7 +2455,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
         keyInfoReader.copyNWords(&keyInfo->keyData[0], dataWords);
         theSCAN_TABREQ->setLength(KeyInfo::HeaderLength + dataWords);
 
-        if (tp->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
+        if (impl->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
         {
           setErrorCode(4002);
           return -1;
@@ -2480,7 +2477,7 @@ NdbScanOperation::doSendScan(int aProcessorId)
       attrInfoReader.copyNWords(&attrInfo->attrData[0], dataWords);
       theSCAN_TABREQ->setLength(AttrInfo::HeaderLength + dataWords);
 
-      if (tp->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
+      if (impl->sendSignal(theSCAN_TABREQ, aProcessorId) == -1)
       {
         setErrorCode(4002);
         return -1;
@@ -3707,22 +3704,22 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
 int
 NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
 {
-  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
-  TransporterFacade* tp= theNdb->theImpl->m_transporter_facade;
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 timeout= impl->get_waitfor_timeout();
 
-  PollGuard poll_guard(* theNdb->theImpl);
+  PollGuard poll_guard(* impl);
   if(theError.code)
     return -1;
 
   Uint32 seq= theNdbCon->theNodeSequence;
   Uint32 nodeId= theNdbCon->theDBnode;
-  if (seq == tp->getNodeSequence(nodeId) &&
+  if (seq == impl->getNodeSequence(nodeId) &&
       !send_next_scan_ordered(m_current_api_receiver))
   {
     while (m_sent_receivers_count > 0 && !theError.code)
     {
       int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
-      if (ret_code == 0 && seq == tp->getNodeSequence(nodeId))
+      if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
         setErrorCode(4008);
@@ -3795,21 +3792,21 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   m_sent_receivers_count = last + 1;
   
   Uint32 nodeId = theNdbCon->theDBnode;
-  TransporterFacade * tp = theNdb->theImpl->m_transporter_facade;
+  NdbImpl * impl = theNdb->theImpl;
   tSignal.setLength(4+1);
-  int ret= tp->sendSignal(&tSignal, nodeId);
+  int ret= impl->sendSignal(&tSignal, nodeId);
   return ret;
 }
 
 int
-NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
-                             PollGuard *poll_guard)
+NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
 {
-  Uint32 timeout= theNdb->theImpl->get_waitfor_timeout();
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 timeout= impl->get_waitfor_timeout();
   Uint32 seq = theNdbCon->theNodeSequence;
   Uint32 nodeId = theNdbCon->theDBnode;
   
-  if(seq != tp->getNodeSequence(nodeId))
+  if (seq != impl->getNodeSequence(nodeId))
   {
     theNdbCon->theReleaseOnClose = true;
     return -1;
