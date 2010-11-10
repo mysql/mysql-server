@@ -534,12 +534,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	else if (wild_compare(uname, wild, 0))
 	  continue;
       }
-      if (!(file_name= 
-            thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
-      {
-        my_dirend(dirp);
-        DBUG_RETURN(FIND_FILES_OOM);
-      }
     }
     else
     {
