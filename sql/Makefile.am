@@ -137,6 +137,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
 			sql_cmd.h \
 			sql_plist.h transaction.h sys_vars.h sql_truncate.h \
+			gcalc_slicescan.h gcalc_tools.h plistsort.c \
 			sql_admin.h sql_reload.h datadict.h 
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
@@ -180,6 +181,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_servers.cc event_parse_data.cc sql_signal.cc \
 			mdl.cc transaction.cc sql_audit.cc  \
 			sha2.cc \
+			gcalc_slicescan.cc gcalc_tools.cc \
 			sql_alter.cc \
 			sql_partition_admin.cc
 

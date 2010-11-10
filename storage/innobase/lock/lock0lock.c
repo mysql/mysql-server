@@ -370,11 +370,11 @@ lock_rec_validate_page(
 /*===================*/
 	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
 						both the lock mutex and
-					       	trx_sys_t::lock. */
+						trx_sys_t::lock. */
 	ulint	space,				/*!< in: space id */
 	ulint	zip_size,			/*!< in: compressed page size
-					       	in bytes or 0 for uncompressed
-					       	pages */
+						in bytes or 0 for uncompressed
+						pages */
 	ulint	page_no);			/*!< in: page number */
 #endif /* UNIV_DEBUG */
 
@@ -1595,7 +1595,7 @@ lock_sec_rec_some_has_impl(
 		trx_id = 0;
 
 	/* In this case it is possible that some transaction has an implicit
-       	x-lock. We have to look in the clustered index. */
+	x-lock. We have to look in the clustered index. */
 
 	} else {
 		trx_id = row_vers_impl_x_locked(rec, index, offsets);
@@ -2002,8 +2002,8 @@ lock_rec_lock_fast(
 			status = LOCK_REC_FAIL;
 		} else if (!impl) {
 			/* If the nth bit of the record lock is already
-		       	set then we do not set a new lock bit, otherwise
-		       	we do set */
+			set then we do not set a new lock bit, otherwise
+			we do set */
 
 			if (!lock_rec_get_nth_bit(lock, heap_no)) {
 				lock_rec_set_nth_bit(lock, heap_no);
@@ -2279,11 +2279,11 @@ void
 lock_rec_dequeue_from_page(
 /*=======================*/
 	lock_t*		in_lock)	/*!< in: record lock object: all
-				       	record locks which are contained in
-				       	this lock object are removed;
-				       	transactions waiting behind will
-				       	get their lock requests granted,
-				       	if they are now qualified to it */
+					record locks which are contained in
+					this lock object are removed;
+					transactions waiting behind will
+					get their lock requests granted,
+					if they are now qualified to it */
 {
 	ulint		space;
 	ulint		page_no;
@@ -2331,8 +2331,8 @@ void
 lock_rec_discard(
 /*=============*/
 	lock_t*		in_lock)	/*!< in: record lock object: all
-				       	record locks which are contained
-				       	in this lock object are removed */
+					record locks which are contained
+					in this lock object are removed */
 {
 	ulint		space;
 	ulint		page_no;
@@ -4204,6 +4204,60 @@ lock_remove_all_on_table_for_trx(
 	}
 }
 
+/*******************************************************************//**
+Remove any explicit record locks held by recovering transactions on
+the table.
+@return number of recovered transactions examined */
+static
+ulint
+lock_remove_recovered_trx_record_locks(
+/*===================================*/
+	dict_table_t*	table)	/*!< in: check if there are any locks
+				held on records in this table or on the
+				table itself */
+{
+	trx_t*		trx;
+	ulint		n_recovered_trx = 0;
+
+	ut_a(table != NULL);
+	ut_ad(lock_mutex_own());
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		lock_t*	lock;
+
+		if (!trx->is_recovered) {
+			continue;
+		}
+
+		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+		     lock != NULL;
+		     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+			ut_a(lock->trx == trx);
+
+			/* Recovered transactions can't wait on a lock. */
+
+			ut_a(!lock_get_wait(lock));
+
+			/* Recovered transactions don't have any
+			table level locks. */
+
+			ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+			if (lock->index->table == table) {
+				lock_rec_discard(lock);
+			}
+		}
+
+		++n_recovered_trx;
+	}
+
+	return(n_recovered_trx);
+}
+
 /*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
@@ -4218,8 +4272,8 @@ lock_remove_all_on_table(
 	ibool		remove_also_table_sx_locks)/*!< in: also removes
 						table S and X locks */
 {
-	lock_t*	lock;
-	lock_t*	prev_lock;
+	lock_t*		lock;
+	lock_t*		prev_lock;
 
 	lock_mutex_enter();
 
@@ -4264,6 +4318,17 @@ lock_remove_all_on_table(
 			lock = UT_LIST_GET_NEXT(
 				un_member.tab_lock.locks, lock);
 		}
+	}
+
+	/* Note: Recovered transactions don't have table level IX or IS locks
+	but can have implicit record locks that have been converted to explicit
+	record locks. Such record locks cannot be freed by traversing the
+	transaction lock list in dict_table_t (as above). */
+
+	if (!lock_sys->rollback_complete
+	    && lock_remove_recovered_trx_record_locks(table) == 0) {
+
+		lock_sys->rollback_complete = TRUE;
 	}
 
 	lock_mutex_exit();
@@ -4541,9 +4606,9 @@ loop:
 
 	/* Since we temporarily release the lock mutex and
 	trx_sys->mutex when reading a database page in below,
-       	variable trx may be obsolete now and we must loop
-       	through the trx list to get probably the same trx,
-       	or some other trx. */
+	variable trx may be obsolete now and we must loop
+	through the trx list to get probably the same trx,
+	or some other trx. */
 
 	while (trx && (i < nth_trx)) {
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -4920,8 +4985,8 @@ lock_rec_validate_page(
 						mutexes. */
 	ulint	space,				/*!< in: space id */
 	ulint	zip_size,			/*!< in: compressed page size
-					       	in bytes or 0 for uncompressed
-					       	pages */
+						in bytes or 0 for uncompressed
+						pages */
 	ulint	page_no)			/*!< in: page number */
 {
 	dict_index_t*	index;
@@ -6031,7 +6096,7 @@ UNIV_INTERN
 enum db_err
 lock_trx_handle_wait(
 /*=================*/
-	trx_t*		trx) 	/*!< in, out: trx lock state */
+	trx_t*		trx)	/*!< in, out: trx lock state */
 {
 	enum db_err	err;
 

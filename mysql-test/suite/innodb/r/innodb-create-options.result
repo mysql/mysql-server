@@ -1,4 +1,4 @@
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 SET GLOBAL innodb_file_format=`Barracuda`;
 SET GLOBAL innodb_file_per_table=ON;
 SET SESSION innodb_strict_mode = ON;
@@ -6,7 +6,7 @@ SET SESSION innodb_strict_mode = ON;
 #         KEY_BLOCK_SIZE=0 means 'no KEY_BLOCK_SIZE is specified'
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 #         'FIXED' is sent to InnoDB since it is used by MyISAM.
 #         But it is an invalid mode in InnoDB
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=FIXED;
@@ -261,7 +261,7 @@ Error	1005	Can't create table 'test.t1' (errno: 1478)
 SET GLOBAL innodb_file_format=Antelope;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=4;
 ERROR HY000: Can't create table 'test.t1' (errno: 1478)
 SHOW WARNINGS;

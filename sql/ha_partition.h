@@ -927,22 +927,16 @@ private:
     /* lock already taken */
     if (auto_increment_safe_stmt_log_lock)
       return;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     DBUG_ASSERT(table_share->ha_part_data && !auto_increment_lock);
-#endif
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       mysql_mutex_lock(&table_share->ha_part_data->LOCK_auto_inc);
-#endif
     }
   }
   virtual void unlock_auto_increment()
   {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     DBUG_ASSERT(table_share->ha_part_data);
-#endif
     /*
       If auto_increment_safe_stmt_log_lock is true, we have to keep the lock.
       It will be set to false and thus unlocked at the end of the statement by
@@ -950,25 +944,19 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       mysql_mutex_unlock(&table_share->ha_part_data->LOCK_auto_inc);
-#endif
       auto_increment_lock= FALSE;
     }
   }
   virtual void set_auto_increment_if_higher(Field *field)
   {
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     ulonglong nr= (((Field_num*) field)->unsigned_flag ||
                    field->val_int() > 0) ? field->val_int() : 0;
-#endif
     lock_auto_increment();
-#ifdef WITH_PARTITION_STORAGE_ENGINE
     DBUG_ASSERT(table_share->ha_part_data->auto_inc_initialized == TRUE);
     /* must check when the mutex is taken */
     if (nr >= table_share->ha_part_data->next_auto_inc_val)
       table_share->ha_part_data->next_auto_inc_val= nr + 1;
-#endif
     unlock_auto_increment();
   }
 

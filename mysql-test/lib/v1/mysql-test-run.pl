@@ -2882,7 +2882,7 @@ sub run_benchmarks ($) {
 
   if ( ! $benchmark )
   {
-    mtr_add_arg($args, "--log");
+    mtr_add_arg($args, "--general-log");
     mtr_run("$glob_mysql_bench_dir/run-all-tests", $args, "", "", "", "");
     # FIXME check result code?!
   }
@@ -3912,10 +3912,12 @@ sub mysqld_arguments ($$$$) {
   }
 
   my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
-  mtr_add_arg($args, "%s--log=%s.log", $prefix, $log_base_path);
-  mtr_add_arg($args,
-	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
 
+  mtr_add_arg($args, "%s--general-log", $prefix);
+  mtr_add_arg($args, "%s--general-log-file=%s.log", $prefix, $log_base_path);
+  mtr_add_arg($args, "%s--slow-query-log", $prefix);
+  mtr_add_arg($args,
+              "%s--slow-query-log-file=%s-slow.log", $prefix, $log_base_path);
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
   if ( $mysqld->{'type'} eq 'master' )
