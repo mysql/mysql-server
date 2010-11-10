@@ -401,8 +401,36 @@ true-outer
 Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
 Counter is true, (counter=alpha)
-Beta is true
 while with string, only once
+5<7
+5<7 again
+5<7 still
+5<6
+5>=5
+5>=5 again
+5>3
+5==5
+5!=8
+5!=five
+5==3+2
+5   ==   5
+hello == hello
+hello   ==   hello
+hello != goodbye
+two words
+two words are two words
+right answer
+anything goes
+0 != string
+mysqltest: At line 2: Only == and != are supported for string values
+mysqltest: At line 2: Found junk '~= 6' after $variable in condition
+mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+counter is 2
+counter is 3
+counter is 4
+counter is 5
+counter is 6
+counter is 7
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
@@ -807,8 +835,6 @@ dir-list.txt
 SELECT 'c:\\a.txt' AS col;
 col
 z
-hej
-mysqltest: At line 1: Found junk ' != 143' after $variable in expression
 select 1;
 1
 1
