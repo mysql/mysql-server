@@ -1,5 +1,5 @@
-# Copyright (C) 2007 MySQL AB
-#
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -13,26 +13,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon)
 
-ADD_LIBRARY(ndbmgmclient STATIC
-            CommandInterpreter.cpp)
-
-ADD_EXECUTABLE(ndb_mgm
-               main.cpp)
-
-TARGET_LINK_LIBRARIES(ndb_mgm
-               ndbmgmclient
-               ndbmgmapi
-               ndblogger
-               ndbtrace
-               ndbportlib
-               ndbgeneral
-               dbug
-               mysys
-               strings)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(ndb_mgm ${READLINE_LIBRARY})
-ENDIF(UNIX)
-
-INSTALL(TARGETS ndb_mgm DESTINATION bin)
+# NDB_REQUIRE_VARIABLE
+#
+# Check that the variable with given name is defined
+#
+MACRO(NDB_REQUIRE_VARIABLE variable_name)
+  MESSAGE(STATUS "Checking variable ${variable_name} required by NDB")
+  IF(NOT DEFINED "${variable_name}")
+    MESSAGE(FATAL_ERROR "The variable ${variable_name} is required "
+                         "to build NDB")
+  ENDIF()
+ENDMACRO()
