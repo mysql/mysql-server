@@ -1997,7 +1997,7 @@ static int add_part_field_list(File fptr, List<char> field_list)
     String field_string("", 0, system_charset_info);
     THD *thd= current_thd;
     ulonglong save_options= thd->variables.option_bits;
-    thd->variables.option_bits= 0;
+    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
     append_identifier(thd, &field_string, field_str,
                       strlen(field_str));
     thd->variables.option_bits= save_options;
@@ -2016,8 +2016,7 @@ static int add_name_string(File fptr, const char *name)
   String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
   ulonglong save_options= thd->variables.option_bits;
-
-  thd->variables.option_bits= 0;
+  thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
   append_identifier(thd, &name_string, name,
                     strlen(name));
   thd->variables.option_bits= save_options;
