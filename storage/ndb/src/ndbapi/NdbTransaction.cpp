@@ -843,10 +843,9 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
   tcHbRep->transId1      = tTransId1;
   tcHbRep->transId2      = tTransId2;
  
-  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
-  tp->lock_mutex(); 
-  const int res = tp->sendSignal(tSignal,theDBnode);
-  tp->unlock_mutex(); 
+  tNdb->theImpl->lock();
+  const int res = tNdb->theImpl->sendSignal(tSignal,theDBnode);
+  tNdb->theImpl->unlock();
   tNdb->releaseSignal(tSignal);
 
   if (res == -1){
@@ -949,7 +948,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
  *************************************************************************/
     NdbApiSignal tSignal(tNdb->theMyRef);
     Uint32 tTransId1, tTransId2;
-    TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+    NdbImpl * impl = theNdb->theImpl;
     int	  tReturnCode;
 
     tTransId1 = (Uint32) theTransactionId;
@@ -964,7 +963,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
       tSignal.setLength(tSignal.getLength() + 1); // + flags
       tSignal.setData(0x1, 4); // potentially bad data
     }
-    tReturnCode = tp->sendSignal(&tSignal,theDBnode);
+    tReturnCode = impl->sendSignal(&tSignal,theDBnode);
     if (tReturnCode != -1) {
       theSendStatus = sendTC_ROLLBACK;
       tNdb->insert_sent_list(this);
@@ -1002,7 +1001,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 {
   NdbApiSignal tSignal(theNdb->theMyRef);
   Uint32 tTransId1, tTransId2;
-  TransporterFacade *tp = theNdb->theImpl->m_transporter_facade;
+  NdbImpl * impl = theNdb->theImpl;
   int	  tReturnCode;
 
   tTransId1 = (Uint32) theTransactionId;
@@ -1012,7 +1011,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
   tSignal.setData(tTransId1, 2);
   tSignal.setData(tTransId2, 3);
       
-  tReturnCode = tp->sendSignal(&tSignal,theDBnode);
+  tReturnCode = impl->sendSignal(&tSignal,theDBnode);
   if (tReturnCode != -1) {
     theSendStatus = sendTC_COMMIT;
     theNdb->insert_sent_list(this);

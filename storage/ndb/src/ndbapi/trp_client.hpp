@@ -24,6 +24,7 @@
 struct trp_node;
 class NdbApiSignal;
 struct LinearSectionPtr;
+struct GenericSectionPtr;
 
 class trp_client
 {
@@ -46,7 +47,18 @@ public:
 
   void forceSend(int val = 1);
 
+  int sendSignal(NdbApiSignal * signal, Uint32 nodeId);
+  int sendSignal(NdbApiSignal*, Uint32, const LinearSectionPtr p[3], Uint32 s);
+  int sendSignal(NdbApiSignal*, Uint32, const GenericSectionPtr p[3], Uint32 s);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32,
+			   const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32,
+                           const GenericSectionPtr ptr[3], Uint32 secs);
+
   const trp_node & getNodeInfo(Uint32 i) const;
+
+  void lock();
+  void unlock();
 private:
   Uint32 m_blockNo;
   TransporterFacade * m_facade;
@@ -91,5 +103,64 @@ private:
   class trp_client* m_clnt;
   class NdbWaiter *m_waiter;
 };
+
+#include "TransporterFacade.hpp"
+
+inline
+void
+trp_client::lock()
+{
+  assert(m_poll.m_locked == false);
+  NdbMutex_Lock(m_facade->theMutexPtr);
+  m_poll.m_locked = true;
+}
+
+inline
+void
+trp_client::unlock()
+{
+  assert(m_poll.m_locked == true);
+  NdbMutex_Unlock(m_facade->theMutexPtr);
+  m_poll.m_locked = false;
+}
+
+inline
+int
+trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId)
+{
+  return m_facade->sendSignal(signal, nodeId);
+}
+
+inline
+int
+trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                       const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  return m_facade->sendSignal(signal, nodeId, ptr, secs);
+}
+
+inline
+int
+trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                       const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  return m_facade->sendSignal(signal, nodeId, ptr, secs);
+}
+
+inline
+int
+trp_client::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                                 const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  return m_facade->sendFragmentedSignal(signal, nodeId, ptr, secs);
+}
+
+inline
+int
+trp_client::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                                 const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  return m_facade->sendFragmentedSignal(signal, nodeId, ptr, secs);
+}
 
 #endif
