@@ -25,13 +25,6 @@ IF(SOURCE_SUBLIBS)
 ELSE()
   INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
-  IF(NOT DEFINED WITH_ZLIB)
-    # Hardcode use of the bundled zlib
-    MESSAGE(STATUS "using bundled zlib (hardcoded)")
-    SET(ZLIB_LIBRARY zlib)
-    SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
-  ENDIF()
-
   INCLUDE_DIRECTORIES(
     # MySQL Server includes
     ${CMAKE_SOURCE_DIR}/include
@@ -50,7 +43,8 @@ ELSE()
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
     # Util library includes
-    ${ZLIB_INCLUDE_DIR})
+    ${ZLIB_INCLUDE_DIR}
+    ${READLINE_INCLUDE_DIR})
 
   # The root of storage/ndb/
   SET(NDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})

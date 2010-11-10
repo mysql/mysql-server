@@ -16,8 +16,7 @@
 INCLUDE_DIRECTORIES(
   ${NDB_SOURCE_DIR}/src/mgmapi
   ${NDB_SOURCE_DIR}/src/ndbapi
-  ${NDB_SOURCE_DIR}/src/mgmclient
-  ${READLINE_INCLUDE_DIR})
+  ${NDB_SOURCE_DIR}/src/mgmclient)
 
 ADD_LIBRARY(ndbconf
                Config.cpp
