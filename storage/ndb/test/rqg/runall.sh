@@ -31,7 +31,7 @@ opre="$pre.$$"
 
 gensql=${RQG_HOME}/gensql.pl
 gendata=${RQG_HOME}/gendata.pl
-ecp="set engine_condition_pushdown=off;"
+ecp="set engine_condition_pushdown=on;"
 
 dsn=dbi:mysql:host=loki43:port=4401:user=root:database=${pre}_myisam
 mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot"
