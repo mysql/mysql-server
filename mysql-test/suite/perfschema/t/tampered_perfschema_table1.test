@@ -28,13 +28,13 @@
 --source include/have_perfschema.inc
 
 call mtr.add_suppression(
-"Column count of performance_schema.SETUP_INSTRUMENTS is wrong. "
+"Column count of performance_schema.setup_instruments is wrong. "
 "Expected 4, found 3. The table is probably corrupted");
 
 --error ER_WRONG_NATIVE_TABLE_STRUCTURE
-select * from performance_schema.SETUP_INSTRUMENTS limit 1;
+select * from performance_schema.setup_instruments limit 1;
 
 --disable_result_log
-select * from performance_schema.SETUP_CONSUMERS limit 1;
+select * from performance_schema.setup_consumers limit 1;
 --enable_result_log
 
