@@ -66,7 +66,9 @@
 const char *args_separator= "----args-separator----";
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
-char *my_defaults_extra_file=0;
+const char *my_defaults_extra_file=0;
+
+static my_bool defaults_already_read= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -140,6 +142,36 @@ static char *remove_end_comment(char *ptr);
 
 
 /*
+  Expand a file name so that the current working directory is added if
+  the name is relative.
+
+  RETURNS
+   0   All OK
+   2   Out of memory or path to long
+   3   Not able to get working directory
+ */
+
+static int
+fn_expand(const char *filename, const char **filename_var)
+{
+  char dir[FN_REFLEN], buf[FN_REFLEN];
+  const int flags= MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
+  const char *result_path= NULL;
+  DBUG_ENTER("fn_expand");
+  DBUG_PRINT("enter", ("filename: %s, buf: 0x%lx", filename, (unsigned long) buf));
+  if (my_getwd(dir, sizeof(dir), MYF(0)))
+    DBUG_RETURN(3);
+  DBUG_PRINT("debug", ("dir: %s", dir));
+  if (fn_format(buf, filename, dir, NULL, flags) == NULL ||
+      (result_path= my_strdup(buf, MYF(0))) == NULL)
+    DBUG_RETURN(2);
+  DBUG_PRINT("return", ("result: %s", result_path));
+  DBUG_ASSERT(result_path != NULL);
+  *filename_var= result_path;
+  DBUG_RETURN(0);
+}
+
+/*
   Process config files in default directories.
 
   SYNOPSIS
@@ -167,6 +199,7 @@ static char *remove_end_comment(char *ptr);
     0  ok
     1  given cinf_file doesn't exist
     2  out of memory
+    3  Can't get current working directory
 
     The global variable 'my_defaults_group_suffix' is updated with value for
     --defaults_group_suffix
@@ -189,11 +222,21 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   if (! my_defaults_group_suffix)
     my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
 
-  if (forced_extra_defaults)
-    my_defaults_extra_file= (char *) forced_extra_defaults;
-  
-  if (forced_default_file)
-    my_defaults_file= forced_default_file;
+  if (forced_extra_defaults && !defaults_already_read)
+  {
+    int error= fn_expand(forced_extra_defaults, &my_defaults_extra_file);
+    if (error)
+      DBUG_RETURN(error);
+  }
+
+  if (forced_default_file && !defaults_already_read)
+  {
+    int error= fn_expand(forced_default_file, &my_defaults_file);
+    if (error)
+      DBUG_RETURN(error);
+  }
+
+  defaults_already_read= TRUE;
 
   /*
     We can only handle 'defaults-group-suffix' if we are called from
@@ -236,22 +279,24 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     group->type_names[group->count]= 0;
   }
   
-  if (forced_default_file)
+  // If conf_file is an absolute path, we only read it
+  if (dirname_length(conf_file))
+  {
+    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
+      goto err;
+  }
+  // If my defaults file is set (from a previous run), we read it
+  else if (my_defaults_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
-                                             forced_default_file, 0)) < 0)
+                                             my_defaults_file, 0)) < 0)
       goto err;
     if (error > 0)
     {
       fprintf(stderr, "Could not open required defaults file: %s\n",
-              forced_default_file);
+              my_defaults_file);
       goto err;
     }
-  }
-  else if (dirname_length(conf_file))
-  {
-    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
-      goto err;
   }
   else
   {

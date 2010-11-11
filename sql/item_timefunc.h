@@ -361,6 +361,7 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_length_and_dec()
   {
+    maybe_null= TRUE;
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
@@ -733,7 +734,6 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  String value;
   bool date_value;
  public:
   const interval_type int_type; // keep it public
@@ -949,6 +949,8 @@ public:
       return save_date_in_field(field);
     return Item_str_func::save_in_field(field, no_conversions);
   }
+  longlong val_int();
+  MYSQL_TIME *val_datetime(MYSQL_TIME *time, date_time_format_types *format);
 };
 
 class Item_func_timediff :public Item_str_timefunc

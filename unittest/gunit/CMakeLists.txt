@@ -207,7 +207,7 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
 ENDIF()
 
 # Add tests (link them with sql library) 
-SET(TESTS sql_list mdl mdl_mytap my_regex thread_utils)
+SET(TESTS dbug sql_list mdl mdl_mytap my_regex thread_utils)
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)

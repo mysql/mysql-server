@@ -503,10 +503,19 @@ trx_rollback_active(
 			" in recovery if it exists\n",
 			(ullint) trx->table_id);
 
-		table = dict_table_get_on_id_low(trx->table_id);
+		table = dict_table_open_on_id(trx->table_id, dictionary_locked);
 
 		if (table) {
 			ulint	err;
+
+			/* Ensure that the table doesn't get evicted from the
+			cache, keeps things simple for drop. */
+
+			if (table->can_be_evicted) {
+				dict_table_move_from_lru_to_non_lru(table);
+			}
+
+			dict_table_close(table, dictionary_locked);
 
 			fputs("InnoDB: Table found: dropping table ", stderr);
 			ut_print_name(stderr, trx, TRUE, table->name);
@@ -526,6 +535,7 @@ trx_rollback_active(
 	fprintf(stderr, "\nInnoDB: Rolling back of trx id " TRX_ID_FMT
 		" completed\n",
 		(ullint) trx->id);
+
 	mem_heap_free(heap);
 
 	trx_roll_crash_recv_trx	= NULL;
@@ -747,12 +757,7 @@ trx_undo_arr_remove_info(
 	undo_no_t	undo_no)/*!< in: undo number */
 {
 	trx_undo_inf_t*	cell;
-	ulint		n_used;
-	ulint		n;
 	ulint		i;
-
-	n_used = arr->n_used;
-	n = 0;
 
 	for (i = 0;; i++) {
 		cell = trx_undo_arr_get_nth_info(arr, i);

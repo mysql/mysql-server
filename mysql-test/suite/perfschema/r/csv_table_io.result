@@ -1,13 +1,13 @@
 drop table if exists test.marker;
 create table test.marker(a int);
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_consumers set enabled='NO';
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 flush status;
 drop table if exists test.no_index_tab;
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';
 insert into marker set a = 1;
 create table test.no_index_tab
 ( a varchar(255) not null, b int not null) engine = CSV;
@@ -57,14 +57,14 @@ insert into marker set a = 1;
 truncate table test.no_index_tab;
 insert into marker set a = 1;
 drop table test.no_index_tab;
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
+update performance_schema.setup_consumers set enabled='NO';
 select event_name,
 left(source, locate(":", source)) as short_source,
 object_type, object_schema,
 if (locate("#sql-", object_name), "#sql-XXXX", object_name)
 as pretty_name,
 operation, number_of_bytes
-from performance_schema.EVENTS_WAITS_HISTORY_LONG
+from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
   and object_schema in ("test")
 order by thread_id, event_id;
@@ -126,11 +126,11 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
-truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate performance_schema.events_waits_history_long;
 flush status;
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
-truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+update performance_schema.setup_consumers set enabled='NO';
+truncate performance_schema.events_waits_history_long;
 drop table test.marker;
 flush status;
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';

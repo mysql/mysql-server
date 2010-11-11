@@ -537,7 +537,8 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  no_errors=password= 0;
+  no_errors= 0;
+  password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
@@ -630,7 +631,7 @@ THD::THD()
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
 
   m_internal_handler= NULL;
-  current_user_used= FALSE;
+  m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
 }
@@ -1335,9 +1336,23 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  clean_current_user_used();
+  m_binlog_invoker= FALSE;
 }
 
+
+LEX_STRING *
+make_lex_string_root(MEM_ROOT *mem_root,
+                     LEX_STRING *lex_str, const char* str, uint length,
+                     bool allocate_lex_string)
+{
+  if (allocate_lex_string)
+    if (!(lex_str= (LEX_STRING *)alloc_root(mem_root, sizeof(LEX_STRING))))
+      return 0;
+  if (!(lex_str->str= strmake_root(mem_root, str, length)))
+    return 0;
+  lex_str->length= length;
+  return lex_str;
+}
 
 /**
   Create a LEX_STRING in this connection.
@@ -1353,13 +1368,8 @@ LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str,
                                  const char* str, uint length,
                                  bool allocate_lex_string)
 {
-  if (allocate_lex_string)
-    if (!(lex_str= (LEX_STRING *)alloc(sizeof(LEX_STRING))))
-      return 0;
-  if (!(lex_str->str= strmake_root(mem_root, str, length)))
-    return 0;
-  lex_str->length= length;
-  return lex_str;
+  return make_lex_string_root (mem_root, lex_str, str,
+                               length, allocate_lex_string);
 }
 
 
@@ -2925,9 +2935,9 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= priv_user= ip= 0;
+  host= user= ip= external_user= 0;
   host_or_ip= "connecting host";
-  priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
@@ -2949,6 +2959,12 @@ void Security_context::destroy()
     user= NULL;
   }
 
+  if (external_user)
+  {
+    my_free(external_user);
+    user= NULL;
+  }
+
   my_free(ip);
   ip= NULL;
 }
@@ -2959,8 +2975,7 @@ void Security_context::skip_grants()
   /* privileges for the user are unknown everything is allowed */
   host_or_ip= (char *)"";
   master_access= ~NO_ACCESS;
-  priv_user= (char *)"";
-  *priv_host= '\0';
+  *priv_user= *priv_host= '\0';
 }
 
 
@@ -3002,7 +3017,7 @@ bool Security_context::set_user(char *user_arg)
   of a statement under credentials of a different user, e.g.
   definer of a procedure, we authenticate this user in a local
   instance of Security_context by means of this method (and
-  ultimately by means of acl_getroot_no_password), and make the
+  ultimately by means of acl_getroot), and make the
   local instance active in the thread by re-setting
   thd->security_ctx pointer.
 
@@ -3036,19 +3051,12 @@ change_security_context(THD *thd,
   DBUG_ASSERT(definer_user->str && definer_host->str);
 
   *backup= NULL;
-  /*
-    The current security context may have NULL members
-    if we have just started the thread and not authenticated
-    any user. This use case is currently in events worker thread.
-  */
-  needs_change= (thd->security_ctx->priv_user == NULL ||
-                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
-                 thd->security_ctx->priv_host == NULL ||
+  needs_change= (strcmp(definer_user->str, thd->security_ctx->priv_user) ||
                  my_strcasecmp(system_charset_info, definer_host->str,
                                thd->security_ctx->priv_host));
   if (needs_change)
   {
-    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+    if (acl_getroot(this, definer_user->str, definer_host->str,
                                 definer_host->str, db->str))
     {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
@@ -3459,7 +3467,7 @@ void THD::leave_locked_tables_mode()
 
 void THD::get_definer(LEX_USER *definer)
 {
-  set_current_user_used();
+  binlog_invoker();
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   if (slave_thread && has_invoker())
   {
@@ -3467,6 +3475,10 @@ void THD::get_definer(LEX_USER *definer)
     definer->host= invoker_host;
     definer->password.str= NULL;
     definer->password.length= 0;
+    definer->plugin.str= (char *) "";
+    definer->plugin.length= 0;
+    definer->auth.str=  (char *) "";
+    definer->auth.length= 0;
   }
   else
 #endif
