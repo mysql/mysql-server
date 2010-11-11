@@ -143,7 +143,7 @@ public:
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
   {
     NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
-    qualification.field_type= field->type();
+    qualification.field_type= field->real_type();
     field_value->field= field;
     field_value->column_no= column_no;
     value.field_value= field_value;
