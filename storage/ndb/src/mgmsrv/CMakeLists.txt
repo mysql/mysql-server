@@ -23,6 +23,7 @@ ADD_LIBRARY(ndbconf
                ConfigInfo.cpp
                InitConfigFileParser.cpp
 )
+TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
 
 # Define MYSQLCLUSTERDIR, the default location
 # of ndb_mgmd config files
