@@ -1691,7 +1691,6 @@ when it try to get the value of TIME_ZONE global variable from master.";
                   goto past_checksum;);
   {
     int rc;
-    ulong thread_id= mysql->thread_id;
     const char query[]= "SET @master_binlog_checksum= @@global.binlog_checksum";
     master_res= NULL;
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF; //initially undefined
@@ -1775,7 +1774,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
     }
   }
 
+#ifndef DBUG_OFF
 past_checksum:
+#endif
 err:
   if (errmsg)
   {
