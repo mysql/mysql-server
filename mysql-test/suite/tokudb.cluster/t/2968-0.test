@@ -40,6 +40,5 @@ show create table s;
 show create table t;
 explain select straight_join * from s,t where s.b = t.b;
 
-
-
-
+#cleanup
+drop table s,t;

@@ -59,5 +59,7 @@ show create table t;
 show create table u;
 explain select straight_join * from s,t,u where s.b = t.b and s.c = u.c;
 
+# cleanup
+drop table s,t,u;
 
 
