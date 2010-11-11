@@ -2875,6 +2875,28 @@ select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 drop table t;
 
 #######
+# Testcase for bug introduced by initial fix for 
+# bug#57601 'Optimizer is overly eager to request ordered access.'
+# When we turned of 'sorted' for 'descending', we broke QUICK_SELECT_DESC
+# which required result to be read as an ordered index access
+#######
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,3), (3,6), (6,9), (9,1);
+
+explain extended
+select * from t as t1 join t as t2
+  on t1.pk2 = t2.pk1 
+  where t1.pk1 != 6
+  order by t1.pk1 DESC;
+
+select * from t as t1 join t as t2
+  on t1.pk2 = t2.pk1 
+  where t1.pk1 != 6
+  order by t1.pk1 DESC;
+
+drop table t;
+
+#######
 # Test of varchar query parameteres.
 #######
 

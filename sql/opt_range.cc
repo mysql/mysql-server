@@ -1097,7 +1097,8 @@ SQL_SELECT::~SQL_SELECT()
 #undef index					// Fix for Unixware 7
 
 QUICK_SELECT_I::QUICK_SELECT_I()
-  :max_used_key_length(0),
+  :sorted(false),
+   max_used_key_length(0),
    used_key_parts(0)
 {}
 
@@ -1109,7 +1110,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
 
   in_ror_merged_scan= 0;
-  sorted= 0;
   index= key_nr;
   head=  table;
   key_part_info= head->key_info[index].key_part;
@@ -8801,6 +8801,14 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   sorted= 1;
   q->dont_free=1;				// Don't free shared mem
   delete q;
+}
+
+
+int QUICK_SELECT_DESC::reset(void)
+{
+  sorted= 1; // 'sorted' index access is required by internals
+  rev_it.rewind();
+  return QUICK_RANGE_SELECT::reset();
 }
 
 

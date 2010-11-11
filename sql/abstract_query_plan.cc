@@ -261,9 +261,11 @@ namespace AQP
     DBUG_PRINT("info", ("index:%d", get_join_tab()->index));
     DBUG_PRINT("info", ("quick:%p", get_join_tab()->quick));
     DBUG_PRINT("info", ("select:%p", get_join_tab()->select));
-    if (get_join_tab()->select)
-      DBUG_PRINT("info", ("select->quick:%p",
-                          get_join_tab()->select->quick));
+    if (get_join_tab()->select && get_join_tab()->select->quick)
+    {
+      DBUG_PRINT("info", ("select->quick->get_type():%d",
+                          get_join_tab()->select->quick->get_type()));
+    }
   }
 
 
@@ -400,6 +402,14 @@ namespace AQP
                          (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
                          (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
 
+#if 0
+          if (quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC) 
+          {
+            m_access_type= AT_OTHER;    // Multiple PKs are produced by merge
+            m_other_access_reason = "DESCending ORDER BY can not be pushed while using index";
+          }
+#endif
+
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed joins
           if (quick->index == MAX_KEY) 
           {
@@ -458,6 +468,28 @@ namespace AQP
      m_other_access_reason(NULL),
      m_index_no(-1)
   {}
+
+  /**
+    @return True iff ordered index access is *required* from this operation. 
+  */
+  bool Table_access::is_fixed_ordered_index() const
+  {
+    const JOIN_TAB* const join_tab= get_join_tab();
+
+    /* For the QUICK_SELECT_I classes we can disable ordered index usage by
+     * setting 'QUICK_SELECT_I::sorted = false'.
+     * However, QUICK_SELECT_I::QS_TYPE_RANGE_DESC is special as its 
+     * internal implementation requires its 'multi-ranges' to be retrieved
+     * in (descending) sorted order from the underlying table.
+     */
+    if (join_tab->select != NULL &&
+        join_tab->select->quick != NULL)
+    {
+      QUICK_SELECT_I *quick= join_tab->select->quick;
+      return (quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC);
+    }
+    return false;
+  }
 
   /**
     @param plan Iterate over fields within this plan.

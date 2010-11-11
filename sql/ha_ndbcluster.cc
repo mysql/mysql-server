@@ -905,7 +905,7 @@ ndb_pushed_builder_ctx::init_pushability()
 bool
 ndb_pushed_builder_ctx::is_pushable_as_parent(const AQP::Table_access* table)
 {
-  DBUG_ENTER("::is_pushable_as_parent");
+  DBUG_ENTER("is_pushable_as_parent");
   uint table_no = table->get_access_no();
   if ((m_tables[table_no].m_maybe_pushable & PUSHABLE_AS_PARENT) != PUSHABLE_AS_PARENT)
   {
@@ -978,12 +978,21 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   }
      
   // Currently there is a limitation in not allowing LOOKUP - (index)SCAN operations
-  if (is_lookup_operation(root_type) && access_type==AQP::AT_ORDERED_INDEX_SCAN)
+  if (access_type==AQP::AT_ORDERED_INDEX_SCAN && is_lookup_operation(root_type))
   {
     EXPLAIN_NO_PUSH("Push of table '%s' as scan-child "
                     "with lookup-root '%s' not implemented",
                      table->get_table()->alias, join_root()->get_table()->alias);
     // 'table' may still be PUSHABLE_AS_CHILD with another parent
+    DBUG_RETURN(false);
+  }
+
+  if (access_type==AQP::AT_ORDERED_INDEX_SCAN && join_root()->is_fixed_ordered_index())  
+  {
+    // root must be an ordered index scan - Thus it cannot have other scan descendant.
+    EXPLAIN_NO_PUSH("Push of table '%s' as scan-child "
+                    "with ordered indexscan-root '%s' not implemented",
+                     table->get_table()->alias, join_root()->get_table()->alias);
     DBUG_RETURN(false);
   }
 
@@ -1477,7 +1486,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
     if (!context.is_pushable_as_child(join_tab, join_items, join_parent))
     {
-      DBUG_PRINT("info", ("Table %d not REF-joined, not pushable", join_cnt));
+      DBUG_PRINT("info", ("Table %d not pushable as child", join_cnt));
       continue;
     }
     /**
