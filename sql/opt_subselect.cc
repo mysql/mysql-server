@@ -1519,11 +1519,10 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
           Got a complete FirstMatch range.
             Calculate correct costs and fanout
         */
-        double reopt_cost, reopt_rec_count, sj_inner_fanout;
         optimize_wo_join_buffering(join, pos->first_firstmatch_table, idx,
                                    remaining_tables, FALSE, idx,
-                                   &reopt_rec_count, &reopt_cost, 
-                                   &sj_inner_fanout);
+                                   current_record_count, 
+                                   current_read_time);
         /*
           We don't yet know what are the other strategies, so pick the
           FirstMatch.
@@ -1534,8 +1533,6 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
           alternate POSITIONs after we've picked the best QEP.
         */
         pos->sj_strategy= SJ_OPT_FIRST_MATCH;
-        *current_read_time=    reopt_cost;
-        *current_record_count= reopt_rec_count / sj_inner_fanout;
         handled_by_fm_or_ls=  pos->firstmatch_need_tables;
       }
     }
@@ -1584,7 +1581,6 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       first=join->positions + pos->first_loosescan_table; 
       uint n_tables= my_count_bits(first->table->emb_sj_nest->sj_inner_tables);
       /* Got a complete LooseScan range. Calculate its cost */
-      double reopt_cost, reopt_rec_count, sj_inner_fanout;
       /*
         The same problem as with FirstMatch - we need to save POSITIONs
         somewhere but reserving space for all cases would require too
@@ -1594,8 +1590,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
                                  remaining_tables, 
                                  TRUE,  //first_alt
                                  pos->first_loosescan_table + n_tables,
-                                 &reopt_rec_count, 
-                                 &reopt_cost, &sj_inner_fanout);
+                                 current_record_count,
+                                 current_read_time);
       /*
         We don't yet have any other strategies that could handle this
         semi-join nest (the other options are Duplicate Elimination or
@@ -1604,8 +1600,6 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         LooseScan.
       */
       pos->sj_strategy= SJ_OPT_LOOSE_SCAN;
-      *current_read_time=    reopt_cost;
-      *current_record_count= reopt_rec_count / sj_inner_fanout;
       handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
     }
   }
