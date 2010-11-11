@@ -1741,21 +1741,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
       if (!mysql_real_query(mysql,
                             STRING_WITH_LEN("SELECT @master_binlog_checksum")) &&
           (master_res= mysql_store_result(mysql)) &&
-          (master_row= mysql_fetch_row(master_res)))
+          (master_row= mysql_fetch_row(master_res)) &&
+          (master_row[0] != NULL))
       {
-#ifndef DBUG_OFF
-        if (master_row[0] == NULL)
-        {
-          errmsg= "The slave I/O thread stops because a fatal error is "
-            "encountered when it tried to SELECT @master_binlog_checksum. "
-            "The setting time thread_id %lu, the current thread_i %lu; "
-            "reconnecting %d.";
-          err_code= ER_SLAVE_FATAL_ERROR;
-          sprintf(err_buff, errmsg, thread_id, mysql->thread_id,
-                  mysql->reconnect);
-          goto err;
-        }
-#endif
         mi->checksum_alg_before_fd= (uint8)
           find_type(master_row[0], &binlog_checksum_typelib, 1) - 1;
         // valid outcome is either of
