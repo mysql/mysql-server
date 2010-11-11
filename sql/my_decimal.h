@@ -55,7 +55,7 @@ C_MODE_END
 
 /**
   maximum length of string representation (number of maximum decimal
-  digits + 1 position for sign + 1 position for decimal point)
+  digits + 1 position for sign + 1 position for decimal point, no terminator)
 */
 #define DECIMAL_MAX_STR_LENGTH (DECIMAL_MAX_POSSIBLE_PRECISION + 2)
 
@@ -212,6 +212,7 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
 inline
 int my_decimal_string_length(const my_decimal *d)
 {
+  /* length of string representation including terminating '\0' */
   return decimal_string_size(d);
 }
 
