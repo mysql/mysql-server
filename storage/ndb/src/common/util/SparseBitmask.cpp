@@ -90,6 +90,7 @@ TAPTEST(SparseBitmask)
   return 1; // OK
 }
 
+#endif
+
 template class Vector<unsigned>;
 
-#endif
