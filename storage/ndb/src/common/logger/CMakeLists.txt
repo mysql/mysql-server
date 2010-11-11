@@ -24,3 +24,4 @@ ADD_LIBRARY(ndblogger STATIC
 	    SysLogHandler.cpp
             EventLogHandler.cpp
             FileLogHandler.cpp)
+TARGET_LINK_LIBRARIES(ndblogger ndbgeneral)
