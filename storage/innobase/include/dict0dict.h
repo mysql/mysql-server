@@ -346,7 +346,8 @@ void
 dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /*!< in/out: table */
-	dict_index_t*	index);	/*!< in: index to be replaced */
+	dict_index_t*	index,	/*!< in: index to be replaced */
+	const trx_t*	trx);	/*!< in: transaction handle */
 /*********************************************************************//**
 Checks if a index is defined for a foreign key constraint. Index is a part
 of a foreign key constraint if the index is referenced by foreign key
