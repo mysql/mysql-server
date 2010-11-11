@@ -3355,13 +3355,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -3376,6 +3371,18 @@ JOIN::destroy()
   delete_dynamic(&keyuse);
   delete procedure;
   DBUG_RETURN(error);
+}
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
 }
 
 
@@ -3548,16 +3555,20 @@ static TABLE_LIST *alloc_join_nest(THD *thd)
 }
 
 
-void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
+void fix_list_after_tbl_changes(st_select_lex *parent_select,
+                                st_select_lex *removed_select,
+                                List<TABLE_LIST> *tlist)
 {
   List_iterator<TABLE_LIST> it(*tlist);
   TABLE_LIST *table;
   while ((table= it++))
   {
     if (table->on_expr)
-      table->on_expr->fix_after_pullout(new_parent, &table->on_expr);
+      table->on_expr->fix_after_pullout(parent_select, removed_select,
+                                        &table->on_expr);
     if (table->nested_join)
-      fix_list_after_tbl_changes(new_parent, &table->nested_join->join_list);
+      fix_list_after_tbl_changes(parent_select, removed_select,
+                                 &table->nested_join->join_list);
   }
 }
 
@@ -3761,7 +3772,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf);
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  {}
   tl->next_leaf= subq_lex->leaf_tables;
   last_leaf= tl;
 
@@ -3770,7 +3782,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local);
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  {}
   tl->next_local= subq_lex->leaf_tables;
 
   /* A theory: no need to re-connect the next_global chain */
@@ -3870,15 +3883,16 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr);
   }
 
+  /* Unlink the child select_lex: */
+  subq_lex->master_unit()->exclude_level();
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, &sj_nest->sj_on_expr);
-  fix_list_after_tbl_changes(parent_lex, &nested_join->join_list);
-
-  /* Unlink the child select_lex so it doesn't show up in EXPLAIN: */
-  subq_lex->master_unit()->exclude_level();
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
+                                         &sj_nest->sj_on_expr);
+  fix_list_after_tbl_changes(parent_lex, subq_lex,
+                             &sj_nest->nested_join->join_list);
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
@@ -4349,7 +4363,8 @@ int pull_out_semijoin_tables(JOIN *join)
       {
         List_iterator<TABLE_LIST> li(*upper_join_list);
         /* Find the sj_nest in the list. */
-        while (sj_nest != li++);
+        while (sj_nest != li++)
+        {}
         li.remove();
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
@@ -5846,7 +5861,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -5862,20 +5876,21 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
-            return TRUE;
+          KEYUSE keyuse;
+          keyuse.table=          field->table;
+          keyuse.val=            key_field->val;
+          keyuse.used_tables=    key_field->val->used_tables();
+          keyuse.key=            key;
+          keyuse.keypart=        part;
+          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.keypart_map=    (key_part_map) 1 << part;
           /* This will be set accordingly in optimize_keyuse */
           keyuse.ref_table_rows= ~(ha_rows) 0;
+          keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.cond_guard=     key_field->cond_guard;
+          keyuse.sj_pred_no=     key_field->sj_pred_no;
+          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+            return TRUE;
 	}
       }
     }
@@ -7627,6 +7642,12 @@ optimize_straight_join(JOIN *join, table_map join_tables)
  
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
+    /*
+      Dependency computation (make_join_statistics()) and proper ordering
+      based on them (join_tab_cmp*) guarantee that this order is compatible
+      with execution, check it:
+    */
+    DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(join, s, join_tables, idx, FALSE, record_count,
                      join->positions + idx, &loose_scan_pos);
@@ -10689,7 +10710,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    if (!(tab_ref= new (thd->mem_root) TABLE_REF))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -10702,10 +10723,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
 
-    tab_ref->key_buff2=tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
-    tab_ref->key_err=1;
+    tab_ref->key_buff2= tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
     tab_ref->null_rejecting= 1;
-    tab_ref->disable_cache= FALSE;
 
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
@@ -10724,7 +10743,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                       use that information instead.
                                    */
                                    cur_ref_buff + null_count,
-                                   null_count ? tab_ref->key_buff : 0,
+                                   null_count ? cur_ref_buff : 0,
                                    cur_key_part->length, tab_ref->items[i]);
       cur_ref_buff+= cur_key_part->store_length;
     }
@@ -10896,7 +10915,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
-        return TRUE; /* purecov: inspected */
+        DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -10909,7 +10928,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab[-1].next_select= sub_select_sjm;
 
       if (setup_sj_materialization(tab))
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
     switch (tab->type) {
     case JT_EQ_REF:
@@ -13244,7 +13263,6 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   }
     
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   /* 
     Flatten nested joins that can be flattened.
     no ON expression and not a semi-join => can be flattened.
@@ -13252,6 +13270,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (table->sj_on_expr && !in_sj)
     {
@@ -21047,6 +21066,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*

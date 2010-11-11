@@ -1,4 +1,4 @@
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists t1, t2, t3,t4;
 create table t1 (
 pk1 int not NULL,

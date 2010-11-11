@@ -41,6 +41,7 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
+const LEX_STRING empty_lex_str= {(char *) "", 0};
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -1499,6 +1500,21 @@ int lex_one_token(void *arg, void *yythd)
         lip->yySkipn(2);
         /* And start recording the tokens again */
         lip->set_echo(TRUE);
+        
+        /*
+          C-style comments are replaced with a single space (as it
+          is in C and C++).  If there is already a whitespace 
+          character at this point in the stream, the space is
+          not inserted.
+
+          See also ISO/IEC 9899:1999 §5.1.1.2  
+          ("Programming languages — C")
+        */
+        if (!my_isspace(cs, lip->yyPeek()) &&
+            lip->get_cpp_ptr() != lip->get_cpp_buf() &&
+            !my_isspace(cs, *(lip->get_cpp_ptr() - 1)))
+          lip->cpp_inject(' ');
+
         lip->in_comment=NO_COMMENT;
         state=MY_LEX_START;
       }

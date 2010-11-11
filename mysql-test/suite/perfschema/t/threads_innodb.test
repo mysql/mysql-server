@@ -14,9 +14,9 @@
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 
-# Tests for special content of performance_schema.THREADS
+# Tests for special content of performance_schema.threads
 #
-# Show InnoDB related content in performance_schema.THREADS
+# Show InnoDB related content in performance_schema.threads
 
 --source include/not_embedded.inc
 --source include/have_innodb.inc
@@ -29,7 +29,7 @@
 SELECT name, type, processlist_user, processlist_host, processlist_db,
        processlist_command, processlist_time, processlist_state, processlist_info,
        parent_thread_id, role, instrumented
-FROM performance_schema.THREADS
+FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 GROUP BY name;
 

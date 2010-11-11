@@ -98,11 +98,13 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
                                           CHARSET_INFO *cs,
                                           bool use_hex);
+#endif
 
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
@@ -210,6 +212,11 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     break;
   }
   table->field[9]->set_notnull();
+
+  table->field[10]->store(
+    global_plugin_typelib_names[plugin_load_option(plugin)],
+    strlen(global_plugin_typelib_names[plugin_load_option(plugin)]),
+    cs);
 
   return schema_table_store_record(thd, table);
 }
@@ -472,12 +479,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	}
 	else if (wild_compare(uname, wild, 0))
 	  continue;
-      }
-      if (!(file_name= 
-            thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
-      {
-        my_dirend(dirp);
-        DBUG_RETURN(FIND_FILES_OOM);
       }
     }
     else
@@ -4934,18 +4935,29 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
     else
       table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
 
-    if (table->pos_in_table_list->table_open_method &
-        OPEN_FULL_TABLE)
+    /*
+      Only try to fill in the information about view updatability
+      if it is requested as part of the top-level query (i.e.
+      it's select * from i_s.views, as opposed to, say, select
+      security_type from i_s.views).  Do not try to access the
+      underlying tables if there was an error when opening the
+      view: all underlying tables are released back to the table
+      definition cache on error inside open_normal_and_derived_tables().
+      If a field is not assigned explicitly, it defaults to NULL.
+    */
+    if (res == FALSE &&
+        table->pos_in_table_list->table_open_method & OPEN_FULL_TABLE)
     {
       updatable_view= 0;
       if (tables->algorithm != VIEW_ALGORITHM_TMPTABLE)
       {
         /*
-          We should use tables->view->select_lex.item_list here and
-          can not use Field_iterator_view because the view always uses
-          temporary algorithm during opening for I_S and
-          TABLE_LIST fields 'field_translation' & 'field_translation_end'
-          are uninitialized is this case.
+          We should use tables->view->select_lex.item_list here
+          and can not use Field_iterator_view because the view
+          always uses temporary algorithm during opening for I_S
+          and TABLE_LIST fields 'field_translation'
+          & 'field_translation_end' are uninitialized is this
+          case.
         */
         List<Item> *fields= &tables->view->select_lex.item_list;
         List_iterator<Item> it(*fields);
@@ -5065,8 +5077,8 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
     while ((f_key_info=it++))
     {
       if (store_constraints(thd, table, db_name, table_name, 
-                            f_key_info->forein_id->str,
-                            strlen(f_key_info->forein_id->str),
+                            f_key_info->foreign_id->str,
+                            strlen(f_key_info->foreign_id->str),
                             "FOREIGN KEY", 11))
         DBUG_RETURN(1);
     }
@@ -5262,8 +5274,8 @@ static int get_schema_key_column_usage_record(THD *thd,
         f_idx++;
         restore_record(table, s->default_values);
         store_key_column_usage(table, db_name, table_name,
-                               f_key_info->forein_id->str,
-                               f_key_info->forein_id->length,
+                               f_key_info->foreign_id->str,
+                               f_key_info->foreign_id->length,
                                f_info->str, f_info->length,
                                (longlong) f_idx);
         table->field[8]->store((longlong) f_idx, TRUE);
@@ -6049,8 +6061,8 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
       table->field[0]->store(STRING_WITH_LEN("def"), cs);
       table->field[1]->store(db_name->str, db_name->length, cs);
       table->field[9]->store(table_name->str, table_name->length, cs);
-      table->field[2]->store(f_key_info->forein_id->str,
-                             f_key_info->forein_id->length, cs);
+      table->field[2]->store(f_key_info->foreign_id->str,
+                             f_key_info->foreign_id->length, cs);
       table->field[3]->store(STRING_WITH_LEN("def"), cs);
       table->field[4]->store(f_key_info->referenced_db->str, 
                              f_key_info->referenced_db->length, cs);
@@ -7210,6 +7222,7 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_AUTHOR", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License", SKIP_OPEN_TABLE},
+  {"LOAD_OPTION", 64, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -7829,6 +7842,7 @@ void initialize_information_schema_acl()
                                                 &is_internal_schema_access);
 }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert a string in character set in column character set format
   to utf8 character set if possible, the utf8 character set string
@@ -7920,3 +7934,4 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+#endif

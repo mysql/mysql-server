@@ -209,3 +209,199 @@ DROP PROCEDURE run_n_times;
 DROP TABLE it, ot;
 
 # End of Bug#50489
+
+--echo # 
+--echo # BUG#31480: Incorrect result for nested subquery when executed via semijoin
+--echo # 
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
+CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL);
+CREATE TABLE t3 (e INT NOT NULL);
+CREATE TABLE t4 (f INT NOT NULL, g INT NOT NULL);
+
+INSERT INTO t1 VALUES (1,10);
+INSERT INTO t1 VALUES (2,10);
+INSERT INTO t1 VALUES (1,20);
+INSERT INTO t1 VALUES (2,20);
+INSERT INTO t1 VALUES (3,20);
+INSERT INTO t1 VALUES (2,30);
+INSERT INTO t1 VALUES (4,40);
+
+INSERT INTO t2 VALUES (2,10);
+INSERT INTO t2 VALUES (2,20);
+INSERT INTO t2 VALUES (4,10);
+INSERT INTO t2 VALUES (5,10);
+INSERT INTO t2 VALUES (3,20);
+INSERT INTO t2 VALUES (2,40);
+
+INSERT INTO t3 VALUES (10);
+INSERT INTO t3 VALUES (30);
+INSERT INTO t3 VALUES (10);
+INSERT INTO t3 VALUES (20);
+
+INSERT INTO t4 VALUES (2,10);
+INSERT INTO t4 VALUES (2,10);
+INSERT INTO t4 VALUES (3,10);
+INSERT INTO t4 VALUES (4,10);
+INSERT INTO t4 VALUES (4,20);
+INSERT INTO t4 VALUES (4,20);
+
+--echo # Reference to the parent query block (used tables was wrong)
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE tb.d >= SOME(SELECT e FROM t3 as tc
+                                  WHERE ta.b=tc.e));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Subquery with GROUP BY and HAVING
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE tb.d >= SOME(SELECT SUM(g) FROM t4 as tc
+                                  GROUP BY f
+                                  HAVING ta.a=tc.f));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+--echo # The query result with semijoin is WRONG
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Subquery with ORDER BY and LIMIT
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+--echo # NOTE: The ordered subquery should have a LIMIT clause to make sense
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE tb.d IN (SELECT g FROM t4 as tc
+                                  WHERE ta.a=tc.f
+                                  ORDER BY tc.f));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+--echo # The query result with semijoin is WRONG
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Reference to the transformed-away query block (dependency was wrong)
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE tb.d >= SOME(SELECT e FROM t3 as tc
+                                  WHERE tb.d=tc.e));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Reference above the parent query block (should not be affected)
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS t
+WHERE t.a NOT IN (SELECT a FROM t1 AS ta
+                  WHERE ta.a IN (SELECT c FROM t2 AS tb
+                                 WHERE tb.d >= SOME(SELECT e FROM t3 as tc
+                                                    WHERE t.b=tc.e)));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # EXISTS with reference to the parent query block
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE EXISTS (SELECT * FROM t3 as tc
+                             WHERE ta.b=tc.e));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Scalar subquery with reference to the parent query block
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE tb.d = (SELECT MIN(e) FROM t3 as tc
+                             WHERE ta.b=tc.e));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+--echo # Combine scalar subquery with quantified comparison subquery
+
+set @@optimizer_switch='materialization=off,semijoin=off';
+
+let query=
+SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+               WHERE (SELECT MIN(e) FROM t3 as tc
+                      WHERE tb.d=tc.e) < SOME(SELECT e FROM t3 as tc
+                                              WHERE ta.b=tc.e));
+
+eval EXPLAIN $query;
+eval $query;
+
+set @@optimizer_switch='materialization=off,semijoin=on';
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+set @@optimizer_switch='default';
+
+--echo # End of BUG#31480
