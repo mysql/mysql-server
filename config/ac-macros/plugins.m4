@@ -222,7 +222,7 @@ AC_DEFUN([MYSQL_PLUGIN_WITHOUT],[
  if test "X[$with_plugin_]$1" = Xyes; then
    AC_MSG_ERROR([Plugin $1 cannot be built])
  else
-   [with_plugin_]$1=no
+   [mysql_plugin_]$1=no
  fi
 ])
 
@@ -381,6 +381,10 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   __MYSQL_EMIT_CHECK_RESULT($3,[no])
  ],[
 
+  if test "X[$mysql_plugin_]$2" = Xno; then
+    [with_plugin_]$2=no
+  fi
+
   # Plugin is not disabled, determine if it should be built,
   # or only distributed
 
@@ -443,7 +447,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        __MYSQL_EMIT_CHECK_RESULT($3,[plugin])
        m4_ifdef([$6],[
          else
-           [mysql_plugin_]$2=no
+           [with_plugin_]$2=no
            __MYSQL_EMIT_CHECK_RESULT($3,[no])
          fi
        ])
@@ -769,6 +773,10 @@ AC_DEFUN([_MYSQL_EMIT_PLUGINS],[
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_ENABLE],[
+    if test "X[$mysql_plugin_]$2" = Xno -a \
+            "X[$with_plugin_]$2" != Xno; then
+      AC_MSG_ERROR([Plugin $1 cannot be built])
+    fi
     m4_ifdef([$5],m4_ifdef([$4],[
       [mysql_plugin_]$2=yes
     ],[
