@@ -144,11 +144,6 @@ static void verify_excl_ops_fail(DB_ENV* env, DB* db) {
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
-    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    r = env->create_loader(env, txn, &loader, NULL, 1, &db, &put_flags, &dbt_flags, 0);
-    //CKERR2(r, -1);
-    r = txn->commit(txn,0); CKERR(r);
-
 }
 
 
