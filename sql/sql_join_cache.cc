@@ -731,7 +731,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
     ulong len= 0;
     for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
       len+= tab->get_max_used_fieldlength();
-    len+= get_record_max_affix_length() + get_max_key_addon_space_per_record(); 
+    len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
     ulong min_sz= len*min_records;
     ulong add_sz= 0;
     for (uint i=0; i < min_records; i++)
@@ -2633,10 +2633,15 @@ uint JOIN_CACHE_HASHED::get_max_key_addon_space_per_record()
 {
   ulong len;
   TABLE_REF *ref= &join_tab->ref;
+  /* 
+    The total number of hash entries in the hash tables is bounded by
+    ceiling(N/0.7) where N is the maximum number of records in the buffer.
+    That's why the multiplier 2 is used in the formula below. 
+  */ 
   len= (use_emb_key ?  get_size_of_rec_offset() : ref->key_length) +
         size_of_rec_ofs +    // size of the key chain header
         size_of_rec_ofs +    // >= size of the reference to the next key 
-        size_of_rec_ofs;     // >= size of hash table entry
+        2*size_of_rec_ofs;   // >= 2*( size of hash table entry)
   return len; 
 }    
 

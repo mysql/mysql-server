@@ -5925,16 +5925,17 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
     rec_length+=sizeof(my_bool);
   if (max_fl)
   {
-    // TODO: to improve this estimate for max expected length if the record
+    // TODO: to improve this estimate for max expected length 
     if (blobs)
     {
       uint blob_length=(uint) (table->file->stats.mean_rec_length-
 			      (table->s->reclength-rec_length));
-      rec_length+=(uint) max(4,blob_length);
+      rec_length+=(uint) max(sizeof(void*) * blobs, blob_length);
     }
+    max_used_fieldlength= rec_length;
   } 
-  else
-    rec_length= table->file->stats.mean_rec_length;
+  else if (table->file->stats.mean_rec_length)           
+    set_if_smaller(rec_length, table->file->stats.mean_rec_length);
       
   /*
     psergey-todo: why we don't count here rowid that we might need to store

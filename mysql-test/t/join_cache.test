@@ -2358,5 +2358,63 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #672497: 3 way join with tiny incremental join buffer with
+--echo #              and a ref access from the first table 
+--echo #
+
+CREATE TABLE t1 (
+  pk int PRIMARY KEY,
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t1 VALUES
+  (1,'abcdefjhjk'), (2,'i'),(3,'abcdefjhjk'), (4,'well'), (5,'abcdefjhjk'),
+  (6,'abcdefjhjk'), (7,'that');
+
+CREATE TABLE t2 (
+  pk int PRIMARY KEY,
+  i int DEFAULT NULL,
+  v varchar(1000) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t2 VALUES 
+ (1,6,'yes'), (2,NULL,'will'), (3,NULL,'o'), (4,NULL,'k'), (5,NULL,'she'),
+ (6,-1450835968,'abcdefjhjkl'), (7,-975831040,'abcdefjhjkl'), (8,NULL,'z'),
+ (10,-343932928,'t'),
+ (11,6,'yes'), (12,NULL,'will'), (13,NULL,'o'), (14,NULL,'k'), (15,NULL,'she'),
+ (16,-1450835968,'abcdefjhjkl'), (17,-975831040,'abcdefjhjkl'), (18,NULL,'z'),
+ (19,-343932928,'t');
+
+CREATE TABLE t3 (
+  pk int NOT NULL PRIMARY KEY,
+  i int,
+  v varchar(1024) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  INDEX idx (v(333))
+);
+INSERT INTO t3 VALUES 
+(1,7,'abcdefjhjkl'),(2,6,'y'), (3,NULL,'to'),(4,7,'n'),(5,7,'look'), (6,NULL,'all'),
+(7,1443168256,'c'), (8,1427046400,'right'),
+(11,7,'abcdefjhjkl'), (12,6,'y'), (13,NULL,'to'), (14,7,'n'), (15,7,'look'),
+(16,NULL,'all'), (17,1443168256,'c'), (18,1427046400,'right'),
+(21,7,'abcdefjhjkl'), (22,6,'y'), (23,NULL,'to'), (24,7,'n'), (25,7,'look'),
+(26,NULL,'all'), (27,1443168256,'c'), (28,1427046400,'right'),
+(31,7,'abcdefjhjkl'), (32,6,'y'), (33,NULL,'to'), (34,7,'n'), (35,7,'look'),
+(36,NULL,'all'), (37,1443168256,'c'), (38,1427046400,'right');
+
+SET SESSION join_buffer_size = 192;
+
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT t3.i FROM t1,t2,t3
+  WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
+SELECT t3.i FROM t1,t2,t3
+  WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
