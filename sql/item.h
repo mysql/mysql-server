@@ -3451,8 +3451,8 @@ public:
     cmp_context= STRING_RESULT;
   }
 
-  virtual void store(Item *item) { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
+  void store(Item *item);
   double val_real();
   longlong val_int();
   String* val_str(String *str);
