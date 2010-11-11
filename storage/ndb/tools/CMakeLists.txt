@@ -50,7 +50,6 @@ TARGET_LINK_LIBRARIES(ndb_config ndbmgmclient ndbconf)
 SET(options "-I${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi")
 SET(options "${options} -I${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv")
 SET(options "${options} -I${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon")
-#SET(options "${options} -DMYSQLCLUSTERDIR=\"\\\"\\\"\"")
 SET_TARGET_PROPERTIES(ndb_config PROPERTIES
                       COMPILE_FLAGS "${options}")
 
