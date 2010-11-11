@@ -1,5 +1,11 @@
 2010-11-10	The InnoDB Team
 
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h
+	row/row0merge.c:
+	Fix Bug #55084 Innodb crash and corruption after alter table
+
+2010-11-10	The InnoDB Team
+
 	* srv/srv0start.c:
 	Fix Bug #48026 Log start and end of InnoDB buffer pool
 	initialization to the error log
