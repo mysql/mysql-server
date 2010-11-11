@@ -172,9 +172,6 @@ struct trx_purge_struct{
 					the next record to purge belongs */
 	ulint		hdr_offset;	/*!< Header byte offset on the page */
 	/*-----------------------------*/
-	trx_undo_arr_t*	arr;		/*!< Array of transaction numbers and
-					undo numbers of the undo records
-					currently under processing in purge */
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
