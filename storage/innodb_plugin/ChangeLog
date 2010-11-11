@@ -1,3 +1,9 @@
+2010-11-10	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug #48026 Log start and end of InnoDB buffer pool
+	initialization to the error log
+
 2010-11-03	The InnoDB Team
 
 	* include/btr0btr.h, include/btr0btr.ic, dict/dict0crea.c:
