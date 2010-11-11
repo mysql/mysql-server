@@ -7,16 +7,16 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 
 static int
-put_multiple_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+put_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), DBT *dest_val __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused)), void *extra __attribute__((unused))) {
     return 0;
 }
 
 static int
-del_multiple_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_val, void *extra) {
+del_multiple_callback(DB *dest_db __attribute__((unused)), DB *src_db __attribute__((unused)), DBT *dest_key __attribute__((unused)), const DBT *src_key __attribute__((unused)), const DBT *src_val __attribute__((unused)), void *extra __attribute__((unused))) {
     return 0;
 }
 
-void verify_shared_ops_fail(DB_ENV* env, DB* db) {
+static void verify_shared_ops_fail(DB_ENV* env, DB* db) {
     int r;
     DB_TXN* txn = NULL;
     u_int32_t flags = DB_YESOVERWRITE;
@@ -132,7 +132,7 @@ void verify_shared_ops_fail(DB_ENV* env, DB* db) {
 
 }
 
-void verify_excl_ops_fail(DB_ENV* env, DB* db) {
+static void verify_excl_ops_fail(DB_ENV* env, DB* db) {
     DB_TXN* txn = NULL;
     int r; 
     DB_LOADER* loader = NULL;
@@ -144,10 +144,10 @@ void verify_excl_ops_fail(DB_ENV* env, DB* db) {
     CKERR2(r, DB_LOCK_NOTGRANTED);
     r = txn->commit(txn,0); CKERR(r);
 
-    //r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
-    //r = env->create_loader(env, txn, &loader, NULL, 1, &db, &put_flags, &dbt_flags, 0);
-    //CKERR2(r, DB_LOCK_NOTGRANTED);
-    //r = txn->commit(txn,0); CKERR(r);
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+    r = env->create_loader(env, txn, &loader, NULL, 1, &db, &put_flags, &dbt_flags, 0);
+    //CKERR2(r, -1);
+    r = txn->commit(txn,0); CKERR(r);
 
 }
 
