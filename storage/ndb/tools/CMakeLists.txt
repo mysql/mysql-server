@@ -15,10 +15,8 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
-INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR}
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
-)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
 
 ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ADD_EXECUTABLE(ndb_waiter waiter.cpp)
