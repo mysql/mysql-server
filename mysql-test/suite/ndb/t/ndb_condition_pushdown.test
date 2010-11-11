@@ -2139,5 +2139,20 @@ explain select * from t where 3 between -1 and x order by pk;
 select * from t where 3 between -1 and x order by pk; 
 drop table t;
 
+# Bug#53360 No result for requests using LIKE condition on ENUM fields
+set engine_condition_pushdown = on;
+create table t (x enum ('yes','yep','no')) engine = ndb;
+insert into t values ('yes'),('yep'),('no');
+--replace_column 9 #
+explain select * from t where x like 'yes' order by x;
+select * from t where x like 'yes' order by x;
+--replace_column 9 #
+explain select * from t where x like 'ye%' order by x;
+select * from t where x like 'ye%' order by x;
+--replace_column 9 #
+explain select * from t where x not like 'ye%' order by x;
+select * from t where x not like 'ye%' order by x;
+drop table t;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
