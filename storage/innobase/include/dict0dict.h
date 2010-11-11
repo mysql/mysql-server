@@ -1081,23 +1081,9 @@ Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
 UNIV_INTERN
 void
-dict_update_statistics_low(
-/*=======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats,/*!< in: only
-					update/recalc the stats if they have
-					not been initialized yet, otherwise
-					do nothing */
-	ibool		has_dict_mutex);/*!< in: TRUE if the caller has the
-					dictionary mutex */
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
 dict_update_statistics(
 /*===================*/
-	dict_table_t*	table,	/*!< in/out: table */
+	dict_table_t*	table,		/*!< in/out: table */
 	ibool		only_calc_if_missing_stats);/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
