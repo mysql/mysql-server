@@ -628,9 +628,8 @@ class Relay_log_info;
 enum enum_base64_output_mode {
   BASE64_OUTPUT_NEVER= 0,
   BASE64_OUTPUT_AUTO= 1,
-  BASE64_OUTPUT_ALWAYS= 2,
-  BASE64_OUTPUT_UNSPEC= 3,
-  BASE64_OUTPUT_DECODE_ROWS= 4,
+  BASE64_OUTPUT_UNSPEC= 2,
+  BASE64_OUTPUT_DECODE_ROWS= 3,
   /* insert new output modes here */
   BASE64_OUTPUT_MODE_COUNT
 };
@@ -1032,7 +1031,7 @@ public:
     return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
   }
 
-  static void operator delete(void *ptr, size_t size)
+  static void operator delete(void *ptr, size_t)
   {
     my_free(ptr);
   }
@@ -1845,7 +1844,9 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Slave_log_event(const char* buf, uint event_len);
+  Slave_log_event(const char* buf,
+                  uint event_len,
+                  const Format_description_log_event *description_event);
   ~Slave_log_event();
   int get_data_size();
   bool is_valid() const { return master_host != 0; }

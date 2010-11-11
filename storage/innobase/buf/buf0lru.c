@@ -123,7 +123,7 @@ Takes a block out of the LRU list and page hash table.
 If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
 the object will be freed.
 
-The caller must hold buf_pool_mutex, the buf_page_get_mutex() mutex
+The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_mutex. This function will release the
 buf_page_get_mutex() and the hash_mutex.
 
@@ -360,8 +360,8 @@ scan_again:
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
 		/* bpage->space and bpage->io_fix are protected by
-		buf_pool_mutex and block_mutex.  It is safe to check
-		them while holding buf_pool_mutex only. */
+		buf_pool->mutex and block_mutex.  It is safe to check
+		them while holding buf_pool->mutex only. */
 
 		if (buf_page_get_space(bpage) != id) {
 			/* Skip this block, as it does not belong to
@@ -415,7 +415,7 @@ scan_again:
 						/* Descriptors of uncompressed
 						blocks will not be relocated,
 						because we are holding the
-						buf_pool_mutex. */
+						buf_pool->mutex. */
 						break;
 					case BUF_BLOCK_ZIP_PAGE:
 					case BUF_BLOCK_ZIP_DIRTY:
@@ -1447,10 +1447,10 @@ Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
 NOTE: If this function returns BUF_LRU_FREED, it will temporarily
-release buf_pool_mutex.  Furthermore, the page frame will no longer be
+release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
-The caller must hold buf_pool_mutex and must not hold any
+The caller must hold buf_pool->mutex and must not hold any
 buf_page_get_mutex() when calling this function.
 @return BUF_LRU_FREED if freed, BUF_LRU_CANNOT_RELOCATE or
 BUF_LRU_NOT_FREED otherwise. */
@@ -1553,7 +1553,12 @@ func_exit:
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in buf_page_t.  On
+	other systems, Valgrind could complain about uninitialized pad
+	bytes. */
 	UNIV_MEM_ASSERT_RW(bpage, sizeof *bpage);
+#endif
 
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
