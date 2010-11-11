@@ -258,7 +258,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
         {
           Item_field *field_item= (Item_field *) item;
           Field *field= field_item->field;
-          enum_field_types type= field->type();
+          enum_field_types type= field->real_type();
           /*
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
@@ -270,18 +270,19 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
             DBUG_PRINT("info", ("column length %u", field->field_length));
-            DBUG_PRINT("info", ("type %d", field->type()));
+            DBUG_PRINT("info", ("type %d", field->real_type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
 
             // Check that we are expecting a field and with the correct
             // result type and of length that can store the item value
             if (context->expecting(Item::FIELD_ITEM) &&
-                context->expecting_field_type(field->type()) &&
+                context->expecting_field_type(field->real_type()) &&
                 context->expecting_max_length(field->field_length) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
                    type == MYSQL_TYPE_DATE || 
+                   type == MYSQL_TYPE_NEWDATE || 
                    type == MYSQL_TYPE_YEAR ||
                    type == MYSQL_TYPE_DATETIME)
                   ? (context->expecting_field_result(STRING_RESULT) ||
@@ -305,6 +306,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
                     type == MYSQL_TYPE_DATE || 
+                    type == MYSQL_TYPE_NEWDATE || 
                     type == MYSQL_TYPE_YEAR ||
                     type == MYSQL_TYPE_DATETIME)
                 {
@@ -348,6 +350,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                     !context->expecting_collation(item->collation.collation)
                     && type != MYSQL_TYPE_TIME
                     && type != MYSQL_TYPE_DATE
+                    && type != MYSQL_TYPE_NEWDATE
                     && type != MYSQL_TYPE_YEAR
                     && type != MYSQL_TYPE_DATETIME)
                 {
