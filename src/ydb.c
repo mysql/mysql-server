@@ -50,6 +50,14 @@ static u_int64_t num_inserts;
 static u_int64_t num_inserts_fail;
 static u_int64_t num_deletes;
 static u_int64_t num_deletes_fail;
+static u_int64_t num_updates;
+static u_int64_t num_updates_fail;
+static u_int64_t num_multi_inserts;
+static u_int64_t num_multi_inserts_fail;
+static u_int64_t num_multi_deletes;
+static u_int64_t num_multi_deletes_fail;
+static u_int64_t num_multi_updates;
+static u_int64_t num_multi_updates_fail;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
 static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
@@ -63,6 +71,14 @@ init_status_info(void) {
     num_inserts_fail = 0;
     num_deletes = 0;
     num_deletes_fail = 0;
+    num_updates = 0;
+    num_updates_fail = 0;
+    num_multi_inserts = 0;
+    num_multi_inserts_fail = 0;
+    num_multi_deletes = 0;
+    num_multi_deletes_fail = 0;
+    num_multi_updates = 0;
+    num_multi_updates_fail = 0;
     num_point_queries = 0;
     num_sequential_queries = 0;
     logsuppress = 0;
@@ -1757,10 +1773,18 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->range_out_of_write_locks        = ltmstat.out_of_write_locks;
 	}
 	{
-	    engstat->inserts            = num_inserts;
+     	    engstat->inserts            = num_inserts;
 	    engstat->inserts_fail       = num_inserts_fail;
 	    engstat->deletes            = num_deletes;
 	    engstat->deletes_fail       = num_deletes_fail;
+	    engstat->updates            = num_updates;
+	    engstat->updates_fail       = num_updates_fail;
+     	    engstat->multi_inserts      = num_multi_inserts;
+	    engstat->multi_inserts_fail = num_multi_inserts_fail;
+	    engstat->multi_deletes      = num_multi_deletes;
+	    engstat->multi_deletes_fail = num_multi_deletes_fail;
+	    engstat->multi_updates      = num_multi_updates;
+	    engstat->multi_updates_fail = num_multi_updates_fail;
 	    engstat->point_queries      = num_point_queries;
 	    engstat->sequential_queries = num_sequential_queries;
 	}
@@ -1921,6 +1945,14 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
 	n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
+	n += snprintf(buff + n, bufsiz - n, "updates                          %"PRIu64"\n", engstat.updates);
+	n += snprintf(buff + n, bufsiz - n, "updates_fail                     %"PRIu64"\n", engstat.updates_fail);
+	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
+	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
+	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
+	n += snprintf(buff + n, bufsiz - n, "multi_deletes_fail               %"PRIu64"\n", engstat.multi_deletes_fail);
+	n += snprintf(buff + n, bufsiz - n, "multi_updates                    %"PRIu64"\n", engstat.multi_updates);
+	n += snprintf(buff + n, bufsiz - n, "multi_updates_fail               %"PRIu64"\n", engstat.multi_updates_fail);
 	n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
 	n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
 	n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
@@ -3761,7 +3793,6 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
-        num_deletes++;
         r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
     }
     return r;
@@ -3783,9 +3814,11 @@ env_del_multiple(
 {
     int r;
     DBT del_keys[num_dbs];
+    BOOL multi_accounting = TRUE;  // use num_multi_delete accountability counters 
 
     // special case single DB
     if (num_dbs == 1 && src_db == db_array[0]) {
+	multi_accounting = FALSE;
         r = toku_db_del(db_array[0], txn, (DBT *) key, flags_array[0]);
         goto cleanup;
     }
@@ -3857,6 +3890,12 @@ env_del_multiple(
     }
 
 cleanup:
+    if (multi_accounting) {
+	if (r==0)
+	    num_multi_deletes += num_dbs;
+	else
+	    num_multi_deletes_fail += num_dbs;
+    }
     return r;
 }
 
@@ -4473,9 +4512,11 @@ env_put_multiple(
     int r;
     DBT put_keys[num_dbs];
     DBT put_vals[num_dbs];
+    BOOL multi_accounting = TRUE;  // use num_multi_insert accountability counters 
 
     // special case for a single DB
     if (0 && num_dbs == 1 && src_db == db_array[0]) {
+	multi_accounting = FALSE;
         r = toku_db_put(src_db, txn, (DBT *) key, (DBT *) val, flags_array[0]);
         goto cleanup;
     }
@@ -4554,6 +4595,12 @@ env_put_multiple(
     }
 
 cleanup:
+    if (multi_accounting) {
+	if (r==0)
+	    num_multi_inserts += num_dbs;
+	else
+	    num_multi_inserts_fail += num_dbs;
+    }
     return r;
 }
 
@@ -4600,6 +4647,10 @@ update_single(
         r = toku_db_put(db, txn, (DBT *) new_key, (DBT *) new_data, DB_YESOVERWRITE);
     }
 cleanup:
+    if (r == 0)
+	num_updates++;
+    else
+	num_updates_fail++;
     return r;
 }
 
@@ -4612,9 +4663,11 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                     uint32_t num_vals, DBT vals[],
                     void *extra) {
     int r = 0;
+    BOOL multi_accounting = TRUE;  // use num_multi_update accountability counters 
 
     // special case for a single DB 
     if (num_dbs == 1 && src_db == db_array[0]) {
+	multi_accounting = FALSE;	
         r = update_single(
             db_array[0], 
             flags_array[0], 
@@ -4770,6 +4823,12 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     }
 
 cleanup:
+    if (multi_accounting) {
+	if (r==0)
+	    num_multi_updates += num_dbs;
+	else
+	    num_multi_updates_fail += num_dbs;
+    }
     return r;
 }
 
