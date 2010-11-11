@@ -2140,6 +2140,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
 
     thd->rollback_item_tree_changes();
 
@@ -2978,6 +2980,8 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
   }
 
   if (m_lex->query_tables_own_last)
@@ -4176,7 +4180,8 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       */
       table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                               table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ);
+                              MDL_SHARED_WRITE : MDL_SHARED_READ,
+                              MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 
@@ -4220,7 +4225,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          mdl_type);
+                          mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
   return table;

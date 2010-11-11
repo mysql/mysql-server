@@ -133,15 +133,15 @@ select event_name from information_schema.events;
 event_name
 e1
 create event e2 on schedule every 10 hour do select 1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 disable;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 rename to e3;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e2;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 lock table t1 write;
 show create event e1;
@@ -151,15 +151,15 @@ select event_name from information_schema.events;
 event_name
 e1
 create event e2 on schedule every 10 hour do select 1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 disable;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 rename to e3;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e2;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 lock table t1 read, mysql.event read;
 show create event e1;
@@ -169,15 +169,15 @@ select event_name from information_schema.events;
 event_name
 e1
 create event e2 on schedule every 10 hour do select 1;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 disable;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 rename to e3;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e2;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e1;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 lock table t1 write, mysql.event read;
 show create event e1;
@@ -187,15 +187,15 @@ select event_name from information_schema.events;
 event_name
 e1
 create event e2 on schedule every 10 hour do select 1;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 disable;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 rename to e3;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e2;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e1;
-ERROR HY000: Table 'event' was locked with a READ lock and can't be updated
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 lock table t1 read, mysql.event write;
 ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
@@ -209,11 +209,17 @@ select event_name from information_schema.events;
 event_name
 e1
 create event e2 on schedule every 10 hour do select 1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 disable;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 alter event e2 rename to e3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e3;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 drop event e1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
+drop event e1;
 Make sure we have left no events 
 select event_name from information_schema.events;
 event_name

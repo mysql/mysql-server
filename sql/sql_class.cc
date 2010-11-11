@@ -3497,11 +3497,15 @@ void THD::set_mysys_var(struct st_my_thread_var *new_mysys_var)
 void THD::leave_locked_tables_mode()
 {
   locked_tables_mode= LTM_NONE;
-  /* Make sure we don't release the global read lock when leaving LTM. */
-  mdl_context.reset_trans_sentinel(global_read_lock.global_shared_lock());
+  mdl_context.set_transaction_duration_for_all_locks();
+  /*
+    Make sure we don't release the global read lock and commit blocker
+    when leaving LTM.
+  */
+  global_read_lock.set_explicit_lock_duration(this);
   /* Also ensure that we don't release metadata locks for open HANDLERs. */
   if (handler_tables_hash.records)
-    mysql_ha_move_tickets_after_trans_sentinel(this);
+    mysql_ha_set_explicit_lock_duration(this);
 }
 
 void THD::get_definer(LEX_USER *definer)

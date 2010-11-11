@@ -101,9 +101,7 @@ public:
   update_timing_fields_for_event(THD *thd,
                                  LEX_STRING event_db_name,
                                  LEX_STRING event_name,
-                                 bool update_last_executed,
                                  my_time_t last_executed,
-                                 bool update_status,
                                  ulonglong status);
 public:
   static bool
