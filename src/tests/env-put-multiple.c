@@ -101,7 +101,7 @@ static void run_test (void) {
         uint32_t magic2 = ~magic;
         DBT keydbt = {.data=&magic, .size=sizeof(magic)};
         DBT valdbt = {.data=&magic2, .size=sizeof(magic2)};
-        r = env->put_multiple(env, dbs_multiple[0], txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, NULL);
+        r = env->put_multiple(env, NULL, txn, &keydbt, &valdbt, num_dbs, dbs_multiple, dest_keys, dest_vals, flags, &num_dbs);
         CKERRIFNOT0(r);
         for (which = 0; which < num_dbs; which++) {
             DBT key={.data = kbuf[which], .size = sizeof(kbuf[which])};
