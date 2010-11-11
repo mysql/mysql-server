@@ -1043,3 +1043,4 @@ explain select straight_join * from s,t where s.b = t.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	index	b	b	5	NULL	1000	
 1	SIMPLE	t	ref	b	b	5	test.s.b	11	Using where
+drop table s,t;

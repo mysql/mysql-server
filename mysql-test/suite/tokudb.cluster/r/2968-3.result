@@ -1099,3 +1099,4 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	index	b,b_2	b_2	5	NULL	1000	
 1	SIMPLE	t	ref	b,b_2	b_2	5	test.s.b	11	Using where
 1	SIMPLE	u	ref	c,c_2	c_2	5	test.s.c	11	Using where
+drop table s,t,u;
