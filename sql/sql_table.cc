@@ -23,9 +23,7 @@
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"   // open_table_uncached, lock_table_names
-#include "lock.h"       // wait_if_global_read_lock
-                        // start_waiting_global_read_lock,
-                        // mysql_unlock_tables
+#include "lock.h"       // mysql_unlock_tables
 #include "strfunc.h"    // find_type2, find_set
 #include "sql_view.h" // view_checksum 
 #include "sql_truncate.h"                       // regenerate_locked_table 
@@ -1855,20 +1853,9 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   DBUG_ENTER("mysql_rm_table");
 
   /* mark for close and remove all cached entries */
-
-  if (!drop_temporary)
-  {
-    if (!thd->locked_tables_mode &&
-       thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      DBUG_RETURN(TRUE);
-  }
-
   thd->push_internal_handler(&err_handler);
   error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
   thd->pop_internal_handler();
-
-  if (thd->global_read_lock.has_protection())
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (error)
     DBUG_RETURN(TRUE);
@@ -5592,7 +5579,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   TABLE *table, *new_table= 0;
   MDL_ticket *mdl_ticket;
   MDL_request target_mdl_request;
-  bool has_target_mdl_lock= FALSE;
   int error= 0;
   char tmp_name[80],old_name[32],new_name_buff[FN_REFLEN + 1];
   char new_alias_buff[FN_REFLEN], *table_name, *db, *new_alias, *alias;
@@ -5754,7 +5740,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
         target_mdl_request.init(MDL_key::TABLE, new_db, new_name,
-                                MDL_EXCLUSIVE);
+                                MDL_EXCLUSIVE, MDL_TRANSACTION);
         /*
           Global intention exclusive lock must have been already acquired when
           table to be altered was open, so there is no need to do it here.
@@ -5772,7 +5758,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 	  DBUG_RETURN(TRUE);
         }
         DEBUG_SYNC(thd, "locked_table_name");
-        has_target_mdl_lock= TRUE;
         /*
           Table maybe does not exist, but we got an exclusive lock
           on the name, now we can safely try to find out for sure.
@@ -5959,10 +5944,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         along with the implicit commit.
       */
       if (new_name != table_name || new_db != db)
-      {
-        thd->mdl_context.release_lock(target_mdl_request.ticket);
         thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-      }
       else
         mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
     }
@@ -6667,10 +6649,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
   {
     if ((new_name != table_name || new_db != db))
-    {
-      thd->mdl_context.release_lock(target_mdl_request.ticket);
       thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-    }
     else
       mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
@@ -6731,8 +6710,6 @@ err:
                                  alter_info->datetime_field->field_name);
     thd->abort_on_warning= save_abort_on_warning;
   }
-  if (has_target_mdl_lock)
-    thd->mdl_context.release_lock(target_mdl_request.ticket);
 
   DBUG_RETURN(TRUE);
 
@@ -6744,9 +6721,6 @@ err_with_mdl:
     tables and release the exclusive metadata lock.
   */
   thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
-  if (has_target_mdl_lock)
-    thd->mdl_context.release_lock(target_mdl_request.ticket);
-
   thd->mdl_context.release_all_locks_for_name(mdl_ticket);
   DBUG_RETURN(TRUE);
 }
