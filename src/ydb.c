@@ -3891,7 +3891,7 @@ env_del_multiple(
 
 cleanup:
     if (multi_accounting) {
-	if (r==0)
+	if (r == 0)
 	    num_multi_deletes += num_dbs;
 	else
 	    num_multi_deletes_fail += num_dbs;
@@ -4515,7 +4515,7 @@ env_put_multiple(
     BOOL multi_accounting = TRUE;  // use num_multi_insert accountability counters 
 
     // special case for a single DB
-    if (0 && num_dbs == 1 && src_db == db_array[0]) {
+    if (num_dbs == 1 && src_db == db_array[0]) {
 	multi_accounting = FALSE;
         r = toku_db_put(src_db, txn, (DBT *) key, (DBT *) val, flags_array[0]);
         goto cleanup;
@@ -4596,7 +4596,7 @@ env_put_multiple(
 
 cleanup:
     if (multi_accounting) {
-	if (r==0)
+	if (r == 0)
 	    num_multi_inserts += num_dbs;
 	else
 	    num_multi_inserts_fail += num_dbs;
@@ -4615,14 +4615,14 @@ dbt_cmp(const DBT *a, const DBT *b) {
 
 static int
 update_single(
+    DB_ENV *env,
     DB *db, 
     uint32_t flags, 
     DB_TXN *txn, 
     DBT *old_key, 
     DBT *old_data, 
     DBT *new_key, 
-    DBT *new_data
-    ) 
+    DBT *new_data) 
 {
     int r = 0;
     uint32_t lock_flags;
@@ -4633,7 +4633,11 @@ update_single(
     r = toku_grab_read_lock_on_directory(db, txn);
     if (r != 0) goto cleanup;
 
-    BOOL key_eq = dbt_cmp(old_key, new_key) == 0;
+    int (*cmpfun)(DB *db, const DBT *a, const DBT *b) = toku_builtin_compare_fun;
+    if (env->i->bt_compare)
+        cmpfun = env->i->bt_compare;
+
+    BOOL key_eq = cmpfun(db, old_key, new_key) == 0;
     if (!key_eq) {
         //Check overwrite constraints only in the case where 
         // the keys are not equal.
@@ -4671,7 +4675,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     // special case for a single DB 
     if (num_dbs == 1 && src_db == db_array[0]) {
 	multi_accounting = FALSE;	
-        r = update_single(
+        r = update_single(env,
             db_array[0], 
             flags_array[0], 
             txn, 
@@ -4827,7 +4831,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
 cleanup:
     if (multi_accounting) {
-	if (r==0)
+	if (r == 0)
 	    num_multi_updates += num_dbs;
 	else
 	    num_multi_updates_fail += num_dbs;
