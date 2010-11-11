@@ -3183,3 +3183,4 @@ err:
 }
 
 template class Vector<char const*>;
+template class Vector<int>;
