@@ -402,14 +402,6 @@ namespace AQP
                          (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
                          (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
 
-#if 0
-          if (quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC) 
-          {
-            m_access_type= AT_OTHER;    // Multiple PKs are produced by merge
-            m_other_access_reason = "DESCending ORDER BY can not be pushed while using index";
-          }
-#endif
-
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed joins
           if (quick->index == MAX_KEY) 
           {
