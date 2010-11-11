@@ -4622,16 +4622,13 @@ Calculates new estimates for table and index statistics. The statistics
 are used in query optimization. */
 UNIV_INTERN
 void
-dict_update_statistics_low(
-/*=======================*/
+dict_update_statistics(
+/*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats,/*!< in: only
+	ibool		only_calc_if_missing_stats)/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
 					do nothing */
-	ibool		has_dict_mutex __attribute__((unused)))
-					/*!< in: TRUE if the caller has the
-					dictionary mutex */
 {
 	dict_index_t*	index;
 	ulint		sum_of_index_sizes	= 0;
@@ -4725,22 +4722,6 @@ dict_update_statistics_low(
 	dict_table_stats_unlock(table, RW_X_LATCH);
 }
 
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		only_calc_if_missing_stats)/*!< in: only
-					update/recalc the stats if they have
-					not been initialized yet, otherwise
-					do nothing */
-{
-	dict_update_statistics_low(table, only_calc_if_missing_stats, FALSE);
-}
-
 /**********************************************************************//**
 Prints info of a foreign key constraint. */
 static
@@ -4818,9 +4799,7 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics_low(table,
-				   FALSE /* update even if initialized */,
-				   TRUE /* we have the dict mutex */);
+	dict_update_statistics(table, FALSE /* update even if initialized */);
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 
