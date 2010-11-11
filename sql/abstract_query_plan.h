@@ -209,6 +209,8 @@ namespace AQP
 
     void dbug_print() const;
 
+    bool is_fixed_ordered_index() const;
+
   private:
 
     /** Backref. to the Join_plan which this Table_access is part of */
