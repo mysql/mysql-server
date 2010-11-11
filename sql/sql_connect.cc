@@ -899,6 +899,19 @@ static int check_connection(THD *thd)
     user_len-= 2;
   }
 
+  /*
+    Clip username to allowed length in characters (not bytes).  This is
+    mostly for backward compatibility.
+  */
+  {
+    CHARSET_INFO *cs= system_charset_info;
+    int           err;
+
+    user_len= (uint) cs->cset->well_formed_len(cs, user, user + user_len,
+                                               USERNAME_CHAR_LENGTH, &err);
+    user[user_len]= '\0';
+  }
+
   if (thd->main_security_ctx.user)
     x_free(thd->main_security_ctx.user);
   if (!(thd->main_security_ctx.user= my_strdup(user, MYF(MY_WME))))

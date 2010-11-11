@@ -293,6 +293,34 @@ SET GLOBAL event_scheduler = OFF;
 --echo # -- End of Bug#35074.
 --echo
 
+
+###########################################################################
+
+--echo #
+--echo # -- Bug#49752: 2469.126.2 unintentionally breaks authentication
+--echo #               against MySQL 5.1 server
+--echo #
+
+GRANT ALL ON test.* TO 'Azundris12345678'@'localhost' IDENTIFIED BY 'test123';
+
+FLUSH PRIVILEGES;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect (con1,localhost,Azundris123456789,test123,test);
+disconnect con1;
+
+connection default;
+
+DROP USER 'Azundris12345678'@'localhost';
+
+FLUSH PRIVILEGES;
+
+--echo #
+--echo # -- End of Bug#49752
+--echo #
+
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
