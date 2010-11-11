@@ -2583,7 +2583,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   DBUG_ENTER("Field_new_decimal::store_value");
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("enter", ("value: %s", dbug_decimal_as_string(dbug_buff, decimal_value)));
   }
 #endif
@@ -2598,7 +2598,7 @@ bool Field_new_decimal::store_value(const my_decimal *decimal_value)
   }
 #ifndef DBUG_OFF
   {
-    char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+    char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("info", ("saving with precision %d  scale: %d  value %s",
                         (int)precision, (int)dec,
                         dbug_decimal_as_string(dbug_buff, decimal_value)));
@@ -2673,7 +2673,7 @@ int Field_new_decimal::store(const char *from, uint length,
   }
 
 #ifndef DBUG_OFF
-  char dbug_buff[DECIMAL_MAX_STR_LENGTH+1];
+  char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
   DBUG_PRINT("enter", ("value: %s",
                        dbug_decimal_as_string(dbug_buff, &decimal_value)));
 #endif

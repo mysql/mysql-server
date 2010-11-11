@@ -95,10 +95,11 @@ int my_decimal2string(uint mask, const my_decimal *d,
     UNSIGNED. Hence the buffer for a ZEROFILLed value is the length
     the user requested, plus one for a possible decimal point, plus
     one if the user only wanted decimal places, but we force a leading
-    zero on them. Because the type is implicitly UNSIGNED, we do not
-    need to reserve a character for the sign. For all other cases,
-    fixed_prec will be 0, and my_decimal_string_length() will be called
-    instead to calculate the required size of the buffer.
+    zero on them, plus one for the '\0' terminator. Because the type
+    is implicitly UNSIGNED, we do not need to reserve a character for
+    the sign. For all other cases, fixed_prec will be 0, and
+    my_decimal_string_length() will be called instead to calculate the
+    required size of the buffer.
   */
   int length= (fixed_prec
                ? (fixed_prec + ((fixed_prec == fixed_dec) ? 1 : 0) + 1)
@@ -275,7 +276,7 @@ print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length)
 
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
 {
-  int length= DECIMAL_MAX_STR_LENGTH;
+  int length= DECIMAL_MAX_STR_LENGTH + 1;     /* minimum size for buff */
   if (!val)
     return "NULL";
   (void)decimal2string((decimal_t*) val, buff, &length, 0,0,0);
