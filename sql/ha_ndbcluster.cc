@@ -13235,7 +13235,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
+    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
     {
       init_fill_schema_files_row(table);
       NdbDictionary::Datafile df= dict->getDatafile(id, elt.name);
@@ -13367,7 +13367,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
 
     g_ndb_cluster_connection->init_get_next_node(iter);
 
-    while ((id= g_ndb_cluster_connection->get_next_node(iter)))
+    while ((id= g_ndb_cluster_connection->get_next_alive_node(iter)))
     {
       NdbDictionary::Undofile uf= dict->getUndofile(id, elt.name);
       ndberr= dict->getNdbError();
