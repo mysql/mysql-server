@@ -22,7 +22,7 @@ show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
 drop table if exists t1;
-create table t1 (a int, b CHAR(32)) engine=innodb;
+create table t1 (a int PRIMARY KEY, b CHAR(32)) engine=innodb;
 create procedure test.p_init (n int, size int) 
 begin
 while n > 0 do

@@ -11,7 +11,7 @@ call mtr.add_suppression('Replication event checksum verification failed');
 SET @old_master_verify_checksum = @@master_verify_checksum;
 # 1. Creating test table/data and set corruption position for testing
 * insert/update/delete rows in table t1 *
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c TEXT);
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c VARCHAR(100));
 include/stop_slave.inc
 # 2. Corruption in master binlog and SHOW BINLOG EVENTS
 SET GLOBAL debug="+d,corrupt_read_log_event_char";

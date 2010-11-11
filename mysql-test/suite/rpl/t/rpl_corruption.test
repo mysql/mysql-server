@@ -29,7 +29,7 @@ SET @old_master_verify_checksum = @@master_verify_checksum;
 # from binlog (usually it is FD) we randomly execute different 
 # statements and set position for corruption inside events.
 
-CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c TEXT);
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c VARCHAR(100));
 --disable_query_log
 let $i=`SELECT 3+CEILING(10*RAND())`;
 let $j=1;
