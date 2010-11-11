@@ -82,7 +82,8 @@ thr_local_validate(
 	const thr_local_t*	local)	/*!< in: data to validate */
 {
 	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
-	ut_ad(local->slot_no < OS_THREAD_MAX_N);
+	ut_ad(local->slot_no == ULINT_UNDEFINED
+	      || local->slot_no < OS_THREAD_MAX_N);
 	ut_ad(local->in_ibuf == FALSE || local->in_ibuf == TRUE);
 	return(TRUE);
 }
@@ -206,7 +207,7 @@ thr_local_create(void)
 	local->id = os_thread_get_curr_id();
 	local->handle = os_thread_get_curr();
 	local->magic_n = THR_LOCAL_MAGIC_N;
-
+	local->slot_no = ULINT_UNDEFINED;
 	local->in_ibuf = FALSE;
 
 	mutex_enter(&thr_local_mutex);
