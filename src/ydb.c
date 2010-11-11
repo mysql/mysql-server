@@ -124,7 +124,7 @@ single_process_unlock(int *lockfd) {
 }
 
 /** The default maximum number of persistent locks in a lock tree  */
-const u_int32_t __toku_env_default_max_locks = 1000;
+const u_int32_t __toku_env_default_max_locks = 0x7FFFFFFF;
 const uint64_t __toku_env_default_max_lock_memory = 1000*1024;
 
 static inline DBT*
