@@ -24,6 +24,22 @@ ADD_LIBRARY(ndbconf
                InitConfigFileParser.cpp
 )
 
+# Define MYSQLCLUSTERDIR, the default location
+# of ndb_mgmd config files
+IF(NOT DEFINED DEFAULT_MYSQL_HOME)
+  # MySQL does not define DEFAULT_MYSQL_HOME in pre 5.5 version, fall
+  # back to our old defaults and be backwards compatible
+  IF(WIN32)
+    SET(DEFAULT_MYSQL_HOME "C:/mysql" )
+  ELSE()
+    SET(DEFAULT_MYSQL_HOME ${CMAKE_INSTALL_PREFIX})
+  ENDIF()
+ENDIF()
+SET(clusterdir ${DEFAULT_MYSQL_HOME}/mysql-cluster)
+ADD_DEFINITIONS(-DMYSQLCLUSTERDIR=\"${clusterdir}\")
+MESSAGE(STATUS "Using MYSQLCLUSTERDIR: '${clusterdir}'")
+
+
 IF(WIN32)
   # Add the rseource files for logging to event log
   SET(NDB_MGMD_EXTRA_SRC

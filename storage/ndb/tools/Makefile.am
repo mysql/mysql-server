@@ -63,8 +63,7 @@ ndb_config_SOURCES = ndb_config.cpp \
 
 ndb_config_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi \
                       -I$(top_srcdir)/storage/ndb/src/mgmsrv \
-                      -I$(top_srcdir)/storage/ndb/include/mgmcommon \
-                      -DMYSQLCLUSTERDIR="\"\""
+                      -I$(top_srcdir)/storage/ndb/include/mgmcommon
 
 ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
                     $(LDADD)
