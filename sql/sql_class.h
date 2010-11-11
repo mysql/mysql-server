@@ -822,8 +822,8 @@ struct st_savepoint {
   char                *name;
   uint                 length;
   Ha_trx_info         *ha_list;
-  /** Last acquired lock before this savepoint was set. */
-  MDL_ticket     *mdl_savepoint;
+  /** State of metadata locks before this savepoint was set. */
+  MDL_savepoint        mdl_savepoint;
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
@@ -1058,12 +1058,12 @@ class Open_tables_backup: public Open_tables_state
 public:
   /**
     When we backup the open tables state to open a system
-    table or tables, points at the last metadata lock
-    acquired before the backup. Is used to release
-    metadata locks on system tables after they are
+    table or tables, we want to save state of metadata
+    locks which were acquired before the backup. It is used
+    to release metadata locks on system tables after they are
     no longer used.
   */
-  MDL_ticket *mdl_system_tables_svp;
+  MDL_savepoint mdl_system_tables_svp;
 };
 
 /**
@@ -1336,26 +1336,43 @@ public:
   };
 
   Global_read_lock()
-    :m_protection_count(0), m_state(GRL_NONE), m_mdl_global_shared_lock(NULL)
+    : m_state(GRL_NONE),
+      m_mdl_global_shared_lock(NULL),
+      m_mdl_blocks_commits_lock(NULL)
   {}
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
-  bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                                bool is_not_commit);
-  void start_waiting_global_read_lock(THD *thd);
+  /**
+    Check if this connection can acquire protection against GRL and
+    emit error if otherwise.
+  */
+  bool can_acquire_protection() const
+  {
+    if (m_state)
+    {
+      my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
+      return TRUE;
+    }
+    return FALSE;
+  }
   bool make_global_read_lock_block_commit(THD *thd);
   bool is_acquired() const { return m_state != GRL_NONE; }
-  bool has_protection() const { return m_protection_count > 0; }
-  MDL_ticket *global_shared_lock() const { return m_mdl_global_shared_lock; }
+  void set_explicit_lock_duration(THD *thd);
 private:
-  uint           m_protection_count;            // GRL protection count
+  enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must
-    acquire a global shared metadata lock, to prohibit all DDL.
+    acquire shared metadata lock in GLOBAL namespace, to prohibit
+    all DDL.
   */
-  enum_grl_state m_state;
   MDL_ticket *m_mdl_global_shared_lock;
+  /**
+    Also in order to acquire the global read lock, the connection
+    must acquire a shared metadata lock in COMMIT namespace, to
+    prohibit commits.
+  */
+  MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
 
@@ -2697,7 +2714,7 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_trans_sentinel();
+    mdl_context.set_explicit_duration_for_all_locks();
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3503,20 +3520,10 @@ public:
 #define CF_DIAGNOSTIC_STMT        (1U << 8)
 
 /**
-  SQL statements that must be protected against impending global read lock
-  to prevent deadlock. This deadlock could otherwise happen if the statement
-  starts waiting for the GRL to go away inside mysql_lock_tables while at the
-  same time having "old" opened tables. The thread holding the GRL can be
-  waiting for these "old" opened tables to be closed, causing a deadlock
-  (FLUSH TABLES WITH READ LOCK).
- */
-#define CF_PROTECT_AGAINST_GRL  (1U << 10)
-
-/**
   Identifies statements that may generate row events
   and that may end up in the binary log.
 */
-#define CF_CAN_GENERATE_ROW_EVENTS (1U << 11)
+#define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
 
 /* Bits in server_command_flags */
 

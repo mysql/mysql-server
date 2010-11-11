@@ -27,7 +27,7 @@
 #include "sql_acl.h"                       // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
-#include "lock.h"                               // lock_routine_name
+#include "lock.h"                               // lock_object_name
 
 #include <my_user.h>
 
@@ -440,7 +440,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
 {
   TABLE_LIST table_list;
   TABLE *table;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_proc_table_for_update");
 
   table_list.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
@@ -925,6 +925,8 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
   ulong saved_mode= thd->variables.sql_mode;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
   CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
@@ -944,8 +946,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        sp->m_db.str, sp->m_name.str))
+  if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   /* Reset sql_mode during data dictionary operations. */
@@ -1193,6 +1194,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   TABLE *table;
   int ret;
   bool save_binlog_row_based;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1201,8 +1204,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
+  if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_DELETE_ROW_FAILED);
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1273,6 +1275,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   TABLE *table;
   int ret;
   bool save_binlog_row_based;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1281,8 +1285,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
+  if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1370,7 +1373,7 @@ sp_drop_db_routines(THD *thd, char *db)
   TABLE *table;
   int ret;
   uint key_len;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1697,7 +1700,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->mdl_request.init(key, MDL_SHARED);
+    rn->mdl_request.init(key, MDL_SHARED, MDL_TRANSACTION);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
