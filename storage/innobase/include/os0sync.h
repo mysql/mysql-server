@@ -370,20 +370,20 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
-# define os_atomic_increment_lint(ptr, amount) \
-	atomic_add_long_nv((ulong_t*) ptr, amount)
-
 # define os_atomic_increment_ulint(ptr, amount) \
-	atomic_add_ulong_nv(ptr, amount)
+	atomic_add_long_nv(ptr, amount)
+
+# define os_atomic_increment_lint(ptr, amount) \
+	os_atomic_increment_ulint((ulong_t*) ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
 
 # define os_atomic_decrement_lint(ptr, amount) \
-	atomic_dec_long_nv(ptr, amount)
+	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
 
 # define os_atomic_decrement_ulint(ptr, amount) \
-	atomic_dec_ulong_nv(ptr, amount)
+	os_atomic_increment_ulint(ptr, -(amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
