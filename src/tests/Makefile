@@ -443,12 +443,6 @@ loader-stress-test: LOADLIBES+=-L.. -ltokudb -Wl,-rpath,..
 %.tdb$(BINSUF) %.tdbt$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK) $(TDB_EXTRA_NEEDED)
 	$(CC) $< $(TDB_CFLAGS) $(filter-out ../../lib/libtokuportability.a,$(BIN_FROM_C_FLAGS)) $(LINK_MUST_BE_LAST)
 
-clean:
-	rm -f $(ALL_BINS)
-	rm -rf dir.* *.check.output *.check.valgrind
-	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
-	rm -f *.bdb *.tdb
-
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
 else
@@ -749,3 +743,10 @@ UNPACKED_DIRS = env_preload.4.1.1.cleanshutdown env_preload.4.1.1.flat.cleanshut
 %.cleanshutdown: %.cleanshutdown.tar.bz2
 	bzip $< | tar xf -
 upgrade-test-1.tdbrun: $(UNPACKED_DIRS)
+
+clean:
+	rm -f $(ALL_BINS)
+	rm -rf dir.* *.check.output *.check.valgrind
+	rm -f dump.bdb.1426 dump.tdb.1426 test1426.bdb
+	rm -f *.bdb *.tdb
+	rm -rf $(UNPACKED_DIRS)
