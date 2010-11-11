@@ -27,4 +27,4 @@ ADD_LIBRARY(ndbmgmapi STATIC
             mgmapi_configuration.cpp
             LocalConfig.cpp
             ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error/ndbd_exit_codes.c)
-TARGET_LINK_LIBRARIES(ndbmgmapi ndbconf)
+TARGET_LINK_LIBRARIES(ndbmgmapi ndbconf ndbportlib)
