@@ -4855,7 +4855,8 @@ void
 dict_table_replace_index_in_foreign_list(
 /*=====================================*/
 	dict_table_t*	table,  /*!< in/out: table */
-	dict_index_t*	index)	/*!< in: index to be replaced */
+	dict_index_t*	index,	/*!< in: index to be replaced */
+	const trx_t*	trx)	/*!< in: transaction handle */
 {
 	dict_foreign_t*	foreign;
 
@@ -4866,7 +4867,13 @@ dict_table_replace_index_in_foreign_list(
 		if (foreign->foreign_index == index) {
 			dict_index_t*	new_index
 				= dict_foreign_find_equiv_index(foreign);
-			ut_a(new_index);
+
+			/* There must exist an alternative index if
+			check_foreigns (FOREIGN_KEY_CHECKS) is on, 
+			since ha_innobase::prepare_drop_index had done
+			the check before we reach here. */
+
+			ut_a(new_index || !trx->check_foreigns);
 
 			foreign->foreign_index = new_index;
 		}
