@@ -12497,6 +12497,7 @@ keyword_sp:
         | FILE_SYM                 {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
+        | GENERAL                  {}
         | GEOMETRY_SYM             {}
         | GEOMETRYCOLLECTION       {}
         | GET_FORMAT               {}
@@ -12506,6 +12507,7 @@ keyword_sp:
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
+        | IGNORE_SERVER_IDS_SYM    {}
         | INVOKER_SYM              {}
         | IMPORT                   {}
         | INDEXES                  {}
@@ -12528,6 +12530,7 @@ keyword_sp:
         | LOGS_SYM                 {}
         | MAX_ROWS                 {}
         | MASTER_SYM               {}
+        | MASTER_HEARTBEAT_PERIOD_SYM {}
         | MASTER_HOST_SYM          {}
         | MASTER_PORT_SYM          {}
         | MASTER_LOG_FILE_SYM      {}
@@ -12633,6 +12636,7 @@ keyword_sp:
         | SIMPLE_SYM               {}
         | SHARE_SYM                {}
         | SHUTDOWN                 {}
+        | SLOW                     {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}

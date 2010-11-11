@@ -18,42 +18,38 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-select * from performance_schema.SETUP_CONSUMERS;
+select * from performance_schema.setup_consumers;
 
-select * from performance_schema.SETUP_CONSUMERS
+select * from performance_schema.setup_consumers
   where name='events_waits_current';
 
-select * from performance_schema.SETUP_CONSUMERS
+select * from performance_schema.setup_consumers
   where enabled='YES';
 
-select * from performance_schema.SETUP_CONSUMERS
+select * from performance_schema.setup_consumers
   where enabled='NO';
 
---replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.SETUP_CONSUMERS
+insert into performance_schema.setup_consumers
   set name='FOO', enabled='YES';
 
---replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
 --error ER_WRONG_PERFSCHEMA_USAGE
-update performance_schema.SETUP_CONSUMERS
+update performance_schema.setup_consumers
   set name='FOO';
 
-update performance_schema.SETUP_CONSUMERS
+update performance_schema.setup_consumers
   set enabled='YES';
 
---replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_CONSUMERS;
+delete from performance_schema.setup_consumers;
 
---replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_CONSUMERS
+delete from performance_schema.setup_consumers
   where name='events_waits_current';
 
-LOCK TABLES performance_schema.SETUP_CONSUMERS READ;
+LOCK TABLES performance_schema.setup_consumers READ;
 UNLOCK TABLES;
 
-LOCK TABLES performance_schema.SETUP_CONSUMERS WRITE;
+LOCK TABLES performance_schema.setup_consumers WRITE;
 UNLOCK TABLES;
 

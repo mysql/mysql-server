@@ -4949,7 +4949,7 @@ void create_thread_to_handle_connection(THD *thd)
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
-                  ER(ER_CANT_CREATE_THREAD), error);
+                  ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
       mysql_mutex_lock(&LOCK_thread_count);
       close_connection(thd,0,0);
@@ -5662,6 +5662,12 @@ struct my_option my_long_options[]=
   {"ansi", 'a', "Use ANSI SQL syntax instead of MySQL syntax. This mode "
    "will also set transaction isolation level 'serializable'.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  /*
+    Because Sys_var_bit does not support command-line options, we need to
+    explicitely add one for --autocommit
+  */
+  {"autocommit", OPT_AUTOCOMMIT, "Set default value for autocommit (0 or 1)",
+   NULL, NULL, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, NULL},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7113,6 +7119,13 @@ mysqld_get_one_option(int optid,
     */
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
+    break;
+  case OPT_AUTOCOMMIT:
+    const ulonglong turn_bit_on= (argument && (atoi(argument) == 0)) ?
+      OPTION_NOT_AUTOCOMMIT : OPTION_AUTOCOMMIT;
+    global_system_variables.option_bits=
+      (global_system_variables.option_bits &
+       ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
     break;
   }
   return 0;
