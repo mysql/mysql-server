@@ -1831,7 +1831,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 static int
 env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     ENGINE_STATUS engstat;
-    uint stringsize = 80;
+    uint32_t stringsize = 80;
     char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
 
@@ -4614,7 +4614,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     int r = 0;
 
     // special case for a single DB 
-    if (FALSE && num_dbs == 1 && src_db == db_array[0]) {
+    if (num_dbs == 1 && src_db == db_array[0]) {
         r = update_single(
             db_array[0], 
             flags_array[0], 
