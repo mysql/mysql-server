@@ -64,4 +64,12 @@ Comparing tables master:test.t1 and slave:test.t1
 # comments
 SELECT c1 FROM /*!99999 t1 WHEREN;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*!99999 t1 WHEREN' at line 1
+#
+# Bug#53373 Comments are not properly removed from the
+#           pre-processed query buffer.
+#
+CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT e1 ON SCHEDULE EVERY 10 DAY DO SELECT 'abc'
 DROP TABLE t1;

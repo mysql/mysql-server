@@ -340,11 +340,9 @@ select @@sql_auto_is_null;
 set @@sql_auto_is_null=0;
 select @@sql_auto_is_null;
 set sql_big_selects=1;
-set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -519,14 +517,6 @@ SET GLOBAL table_open_cache=DEFAULT;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 set names latin1;
-
-
-#
-# Bug #9613: @@have_innodb
-#
-
---replace_column 1 #
-select @@have_innodb;
 
 #
 # Tests for lc_time_names

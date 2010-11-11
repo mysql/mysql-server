@@ -260,6 +260,11 @@ buf_read_ahead_linear(
 		= BUF_READ_AHEAD_LINEAR_AREA(buf_pool);
 	ulint		threshold;
 
+	/* check if readahead is disabled */
+	if (!srv_read_ahead_threshold) {
+		return(0);
+	}
+
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
