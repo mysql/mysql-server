@@ -471,3 +471,6 @@ TAPTEST(MgmConfig)
   ndb_end(0);
   return 1; // OK
 }
+
+template class Vector<const char*>;
+
