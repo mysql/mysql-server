@@ -2798,12 +2798,12 @@ String *Item_func_xml_extractvalue::val_str(String *str)
   null_value= 0;
   if (!nodeset_func ||
       !(res= args[0]->val_str(str)) || 
-      !parse_xml(res, &pxml))
+      !parse_xml(res, &pxml) ||
+      !(res= nodeset_func->val_str(&tmp_value)))
   {
     null_value= 1;
     return 0;
   }
-  res= nodeset_func->val_str(&tmp_value);
   return res;  
 }
 
