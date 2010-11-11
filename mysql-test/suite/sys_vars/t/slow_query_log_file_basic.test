@@ -68,6 +68,7 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='slow_query_log_file';
 
 #SET @@global.slow_query_log_file= @start_value;
+--replace_result $start_value start_value
 eval SET @@global.slow_query_log_file= '$start_value';
 #SELECT @start_value;
 #####################################################
