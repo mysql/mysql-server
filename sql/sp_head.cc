@@ -3100,7 +3100,12 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
+      {
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
+
         thd->protocol->end_statement();
+      }
 
       query_cache_end_of_result(thd);
 
