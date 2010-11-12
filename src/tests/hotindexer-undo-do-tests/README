@@ -54,6 +54,7 @@ commit_any [<XIDS>] <KEY>
 
 == delete committed ==
 delete_committed [<XIDS>] <KEY>
+commit_any [<XIDS>] <KEY>
 
 == insert provisional ==
 insert_provisional [<XIDS>] <KEY> <VALUE>
