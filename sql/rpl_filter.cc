@@ -466,7 +466,7 @@ Rpl_filter::add_table_rule_to_array(DYNAMIC_ARRAY* a, const char* table_spec)
   e->key_len= len;
   memcpy(e->db, table_spec, len);
 
-  if (insert_dynamic(a, (uchar*)&e))
+  if (insert_dynamic(a, &e))
   {
     my_free(e);
     return 1;
