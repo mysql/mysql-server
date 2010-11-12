@@ -25,14 +25,14 @@ alter table foo drop index a;
 alter table foo add clustering index (a);
 explain select * from foo where a=2 and b=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	b,a	a	5	NULL	6144	Using where
+1	SIMPLE	foo	ref	b,a	a	5	const	6144	Using where
 alter table foo drop index a;
 alter table foo drop index b;
 alter table foo add index (a);
 alter table foo add clustering index(b);
 explain select * from foo where a=2 and b=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	range	a,b	b	5	NULL	6144	Using where
+1	SIMPLE	foo	ref	a,b	b	5	const	6144	Using where
 alter table foo drop index a;
 alter table foo drop index b;
 alter table foo add clustering index (a), add clustering index (b);
