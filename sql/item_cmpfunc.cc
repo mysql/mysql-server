@@ -5848,3 +5848,89 @@ void Item_equal::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+/**
+  Get item that can be substituted for the supplied item.
+
+  @param field  field item to get substitution field for, which must be
+                present within the multiple equality itself.
+
+  @retval Found substitution item in the multiple equality.
+
+  @details Get the first item of multiple equality that can be substituted
+  for the given field item. In order to make semijoin materialization strategy
+  work correctly we can't propagate equal fields between a materialized
+  semijoin and the outer query (or any other semijoin) unconditionally.
+  Thus the field is returned according to the following rules:
+
+  1) If the given field belongs to a materialized semijoin then the
+     first field in the multiple equality which belongs to the same semijoin
+     is returned.
+  2) If the given field doesn't belong to a materialized semijoin then
+     the first field in the multiple equality is returned.
+*/
+
+Item_field* Item_equal::get_subst_item(const Item_field *field)
+{
+  DBUG_ASSERT(field != NULL);
+
+  const JOIN_TAB *field_tab= field->field->table->reginfo.join_tab;
+
+  if (sj_is_materialize_strategy(field_tab->get_sj_strategy()))
+  {
+    /*
+      It's a field from a materialized semijoin. We can substitute it only
+      with a field from the same semijoin.
+
+      Example: suppose we have a join order:
+
+       ot1 ot2  SJM(it1  it2  it3)  ot3
+
+      and equality ot2.col = it1.col = it2.col
+
+      If we're looking for best substitute for 'it2.col', we must pick it1.col
+      and not ot2.col. it2.col is evaluated while performing materialization,
+      when the outer tables are not available in the execution.
+    */
+    List_iterator<Item_field> it(fields);
+    Item_field *item;
+    const JOIN_TAB *first= field_tab->first_sj_inner_tab;
+    const JOIN_TAB *last=  field_tab->last_sj_inner_tab;
+
+    while ((item= it++))
+    {
+      if (item->field->table->reginfo.join_tab >= first &&
+          item->field->table->reginfo.join_tab <= last)
+      {
+        return item;
+      }
+    }
+  }
+  else
+  {
+    /*
+      The field is not in a materialized semijoin nest. We can return
+      the first field in the multiple equality.
+
+      Example: suppose we have a join order with MaterializeLookup:
+
+       ot1 ot2  SJM-Lookup(it1  it2)
+
+      Here we should always pick the first field in the multiple equality,
+      as this will be present before all other dependent fields.
+
+      Example: suppose we have a join order with MaterializeScan:
+
+          SJM-Scan(it1  it2)  ot1  ot2
+
+      and equality ot2.col = ot1.col = it2.col.
+
+      When looking for best substitute for 'ot2.col', we can pick it2.col,
+      because when we run the scan, column values from the inner materialized
+      tables will be copied back to the column buffers for it1 and it2.
+    */
+    return fields.head();
+  }
+  DBUG_ASSERT(FALSE);                          // Should never get here.
+  return NULL;
+}

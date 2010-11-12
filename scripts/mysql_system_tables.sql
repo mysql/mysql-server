@@ -169,7 +169,7 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 -- TABLE COND_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.COND_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.cond_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -183,7 +183,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_CURRENT
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_CURRENT("
+SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -211,7 +211,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY("
+SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -239,7 +239,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY_LONG
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG("
+SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -267,7 +267,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "COUNT_STAR BIGINT unsigned not null,"
@@ -286,7 +286,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_thread_by_event_name("
   "THREAD_ID INTEGER not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
@@ -305,7 +305,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_global_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -323,7 +323,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.file_instances("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "OPEN_COUNT INTEGER unsigned not null"
@@ -338,7 +338,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_SUMMARY_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
@@ -355,7 +355,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_INSTANCE
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_SUMMARY_BY_INSTANCE("
+SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
@@ -373,7 +373,7 @@ DROP PREPARE stmt;
 -- TABLE MUTEX_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.MUTEX_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "LOCKED_BY_THREAD_ID INTEGER"
@@ -388,7 +388,7 @@ DROP PREPARE stmt;
 -- TABLE PERFORMANCE_TIMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.PERFORMANCE_TIMERS("
+SET @cmd="CREATE TABLE performance_schema.performance_timers("
   "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null,"
   "TIMER_FREQUENCY BIGINT,"
   "TIMER_RESOLUTION BIGINT,"
@@ -404,7 +404,7 @@ DROP PREPARE stmt;
 -- TABLE RWLOCK_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.RWLOCK_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "WRITE_LOCKED_BY_THREAD_ID INTEGER,"
@@ -420,13 +420,11 @@ DROP PREPARE stmt;
 -- TABLE SETUP_ACTORS
 --
 
-SET @l1="CREATE TABLE performance_schema.SETUP_ACTORS(";
-SET @l2="HOST CHAR(60) collate utf8_bin default '%' not null,";
-SET @l3="USER CHAR(16) collate utf8_bin default '%' not null,";
-SET @l4="ROLE CHAR(16) collate utf8_bin default '%' not null";
-SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
+SET @cmd="CREATE TABLE performance_schema.setup_actors("
+  "HOST CHAR(60) collate utf8_bin default '%' not null,"
+  "USER CHAR(16) collate utf8_bin default '%' not null,"
+  "ROLE CHAR(16) collate utf8_bin default '%' not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -437,7 +435,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_CONSUMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_CONSUMERS("
+SET @cmd="CREATE TABLE performance_schema.setup_consumers("
   "NAME VARCHAR(64) not null,"
   "ENABLED ENUM ('YES', 'NO') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -451,7 +449,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_INSTRUMENTS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_INSTRUMENTS("
+SET @cmd="CREATE TABLE performance_schema.setup_instruments("
   "NAME VARCHAR(128) not null,"
   "ENABLED ENUM ('YES', 'NO') not null,"
   "TIMED ENUM ('YES', 'NO') not null"
@@ -466,7 +464,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_TIMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_TIMERS("
+SET @cmd="CREATE TABLE performance_schema.setup_timers("
   "NAME VARCHAR(64) not null,"
   "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -480,7 +478,7 @@ DROP PREPARE stmt;
 -- TABLE THREADS
 --
 
-SET @cmd="CREATE TABLE performance_schema.THREADS("
+SET @cmd="CREATE TABLE performance_schema.threads("
   "THREAD_ID INTEGER not null,"
   "NAME VARCHAR(128) not null,"
   "TYPE VARCHAR(10) not null,"

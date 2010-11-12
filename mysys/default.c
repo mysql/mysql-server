@@ -279,7 +279,14 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     group->type_names[group->count]= 0;
   }
   
-  if (my_defaults_file)
+  // If conf_file is an absolute path, we only read it
+  if (dirname_length(conf_file))
+  {
+    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
+      goto err;
+  }
+  // If my defaults file is set (from a previous run), we read it
+  else if (my_defaults_file)
   {
     if ((error= search_default_file_with_ext(func, func_ctx, "", "",
                                              my_defaults_file, 0)) < 0)
@@ -290,11 +297,6 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
               my_defaults_file);
       goto err;
     }
-  }
-  else if (dirname_length(conf_file))
-  {
-    if ((error= search_default_file(func, func_ctx, NullS, conf_file)) < 0)
-      goto err;
   }
   else
   {

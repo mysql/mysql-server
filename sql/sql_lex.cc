@@ -1500,6 +1500,21 @@ int lex_one_token(void *arg, void *yythd)
         lip->yySkipn(2);
         /* And start recording the tokens again */
         lip->set_echo(TRUE);
+        
+        /*
+          C-style comments are replaced with a single space (as it
+          is in C and C++).  If there is already a whitespace 
+          character at this point in the stream, the space is
+          not inserted.
+
+          See also ISO/IEC 9899:1999 §5.1.1.2  
+          ("Programming languages — C")
+        */
+        if (!my_isspace(cs, lip->yyPeek()) &&
+            lip->get_cpp_ptr() != lip->get_cpp_buf() &&
+            !my_isspace(cs, *(lip->get_cpp_ptr() - 1)))
+          lip->cpp_inject(' ');
+
         lip->in_comment=NO_COMMENT;
         state=MY_LEX_START;
       }

@@ -55,7 +55,7 @@ table_setup_actors::m_field_def=
 PFS_engine_table_share
 table_setup_actors::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_ACTORS") },
+  { C_STRING_WITH_LEN("setup_actors") },
   &pfs_editable_acl,
   table_setup_actors::create,
   table_setup_actors::write_row,
