@@ -332,7 +332,7 @@ bool Unique::flush()
 
   if (tree_walk(&tree, (tree_walk_action) unique_write_to_file,
 		(void*) this, left_root_right) ||
-      insert_dynamic(&file_ptrs, (uchar*) &file_ptr))
+      insert_dynamic(&file_ptrs, &file_ptr))
     return 1;
   delete_tree(&tree);
   return 0;

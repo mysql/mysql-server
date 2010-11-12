@@ -263,7 +263,7 @@ sp_pcontext::push_variable(LEX_STRING *name, enum enum_field_types type,
   p->mode= mode;
   p->offset= current_var_count();
   p->dflt= NULL;
-  if (insert_dynamic(&m_vars, (uchar*)&p))
+  if (insert_dynamic(&m_vars, &p))
     return NULL;
   return p;
 }
@@ -318,7 +318,7 @@ sp_pcontext::push_cond(LEX_STRING *name, sp_cond_type_t *val)
   p->name.str= name->str;
   p->name.length= name->length;
   p->val= val;
-  return insert_dynamic(&m_conds, (uchar *)&p);
+  return insert_dynamic(&m_conds, &p);
 }
 
 /*
@@ -390,7 +390,7 @@ sp_pcontext::push_cursor(LEX_STRING *name)
     m_max_cursor_index+= 1;
   n.str= name->str;
   n.length= name->length;
-  return insert_dynamic(&m_cursors, (uchar *)&n);
+  return insert_dynamic(&m_cursors, &n);
 }
 
 /*

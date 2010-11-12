@@ -491,3 +491,27 @@ ORDER BY c1
 LIMIT 1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#42991 "invalid memory access and/or crash when using
+--echo #            index condition pushdown + InnoDB"
+--echo #
+
+# Note that you need to run with --valgrind to see the warnings
+# about invalid memory accesses.
+
+CREATE TABLE t1 (
+  c1 TINYTEXT NOT NULL,
+  c2 INT NOT NULL,
+  PRIMARY KEY (c2),
+  KEY id1 (c1(4))
+);
+
+INSERT INTO t1 VALUES ('Anastasia', 5);
+INSERT INTO t1 VALUES ('Karianne', 4);
+
+SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
+
+EXPLAIN SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
+
+DROP TABLE t1;
