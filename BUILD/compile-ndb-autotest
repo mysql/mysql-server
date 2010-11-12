@@ -17,7 +17,4 @@ fi
 extra_flags="$extra_flags $max_cflags -g"
 extra_configs="$extra_configs $NDB_AUTOTEST_CONFIGURE_OPTIONS"
 
-# Temporarily build with -j1 to spot build errors easier
-AM_MAKEFLAGS="-j 1"
-
 . "$path/FINISH.sh"
