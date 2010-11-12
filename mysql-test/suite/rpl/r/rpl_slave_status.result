@@ -33,3 +33,4 @@ Slave_IO_Running = No (should be No)
 DROP TABLE t1;
 [on master]
 DROP TABLE t1;
+call mtr.force_restart();
