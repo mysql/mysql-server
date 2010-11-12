@@ -4617,7 +4617,7 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
-			CHARSET_INFO*		cs;
+			CHARSET_INFO*		cs = NULL;
 			ulint			true_len;
 			ulint			key_len;
 			const uchar*		src_start;
@@ -4671,6 +4671,7 @@ ha_innobase::store_key_val_for_row(
 
 			if (true_len < key_len) {
 				ulint	pad_len = key_len - true_len;
+				ut_a(cs != NULL);
 				ut_a(!(pad_len % cs->mbminlen));
 
 				cs->cset->fill(cs, buff, pad_len,
