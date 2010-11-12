@@ -1188,7 +1188,25 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppressfail);
       STATPRINT("log suppress fail", buf);
 
-      // patched out until upgrade logic is in product
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_create);
+      STATPRINT("indexer create (success)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_create_fail);
+      STATPRINT("indexer create fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_build);
+      STATPRINT("indexer build (success)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_build_fail);
+      STATPRINT("indexer build fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_close);
+      STATPRINT("indexer close (success)", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_close_fail);
+      STATPRINT("indexer close fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.indexer_abort);
+      STATPRINT("indexer abort", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.indexer_current);
+      STATPRINT("indexers current", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.indexer_max);
+      STATPRINT("indexer max", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
       STATPRINT("upgrade env status", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_header);
