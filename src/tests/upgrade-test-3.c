@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 20470 2010-05-20 18:30:04Z bkuszmaul $"
+#ident "$Id$"
 
 #include "test.h"
 #include "toku_pthread.h"
@@ -22,7 +22,7 @@ int CHECK_RESULTS=0;
 int SRC_VERSION = 4;
 int littlenode = 0;
 
-#define OLDDATADIR "ls ../../../../tokudb.data/"
+#define OLDDATADIR "../../../../tokudb.data/"
 
 char *env_dir = ENVDIR; // the default env_dir.
 char *db_v5_dir = "dir.preload-db.c.tdb";
