@@ -1438,8 +1438,7 @@ void log_slow_statement(THD *thd)
     ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
 
-    if (((end_utime_of_query - thd->utime_after_lock) >
-         thd->variables.long_query_time ||
+    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
@@ -5505,6 +5504,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
+    /* Finalize server status flags after executing a statement. */
+    thd->update_server_status();
   }
 
   DBUG_VOID_RETURN;

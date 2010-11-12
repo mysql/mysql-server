@@ -2234,6 +2234,20 @@ public:
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
+  /**
+   Update server status after execution of a top level statement.
+
+   Currently only checks if a query was slow, and assigns
+   the status accordingly.
+   Evaluate the current time, and if it exceeds the long-query-time
+   setting, mark the query as slow.
+  */
+  void update_server_status()
+  {
+    ulonglong end_utime_of_query= current_utime();
+    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+      server_status|= SERVER_QUERY_WAS_SLOW;
+  }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;

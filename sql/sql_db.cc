@@ -866,7 +866,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
     my_ok(thd, (ulong) deleted);
-    thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
   else if (mysql_bin_log.is_open())
   {
