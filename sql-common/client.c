@@ -1150,6 +1150,9 @@ static const char *default_options[]=
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth",
+#ifndef MCP_WL3126
+  "bind-address",
+#endif
   NullS
 };
 enum option_id {
@@ -1162,6 +1165,9 @@ enum option_id {
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth, 
+#ifndef MCP_WL3126
+  OPT_bind_addr
+#endif
 };
 
 static TYPELIB option_types={array_elements(default_options)-1,
@@ -1396,6 +1402,12 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_default_auth:
           EXTENSION_SET_STRING(options, default_auth, opt_arg);
           break;
+#ifndef MCP_WL3126
+	case OPT_bind_addr: /* bind-address */
+          my_free(options->client_ip);
+          options->client_ip= my_strdup(opt_arg, MYF(MY_WME));
+          break;
+#endif
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -3132,6 +3144,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     char port_buf[NI_MAXSERV];
     my_socket sock= SOCKET_ERROR;
     int saved_error= 0, status= -1;
+#ifndef MCP_WL3126
+    int bind_result= 0;
+    struct addrinfo *client_bind_ai_lst= NULL;
+#endif
 
     unix_socket=0;				/* This is not used */
 
@@ -3176,9 +3192,37 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
 
+#ifndef MCP_WL3126
+    /* Get address info for client bind name if it is provided */
+    if (mysql->options.client_ip)
+    {
+      int bind_gai_errno= 0;
+
+      DBUG_PRINT("info",("Resolving addresses for client bind: '%s'",
+                         mysql->options.client_ip));
+      /* Lookup address info for name */
+      bind_gai_errno= getaddrinfo(mysql->options.client_ip, 0,
+                                  &hints, &client_bind_ai_lst);
+      if (bind_gai_errno)
+      {
+        DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
+        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                                 ER(CR_UNKNOWN_HOST),
+                                 mysql->options.client_ip,
+                                 bind_gai_errno);
+
+        freeaddrinfo(res_lst);
+        goto error;
+      }
+      DBUG_PRINT("info", ("  got address info for client bind name"));
+    }
+#endif
+
     /*
       A hostname might map to multiple IP addresses (IPv4/IPv6). Go over the
       list of IP addresses until a successful connection can be established.
+      For each IP address, attempt to bind the socket to each client address
+      for the client-side bind hostname until the bind is successful.
     */
     DBUG_PRINT("info", ("Try connect on all addresses for host."));
     for (t_res= res_lst; t_res; t_res= t_res->ai_next)
@@ -3186,12 +3230,58 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       DBUG_PRINT("info", ("Create socket, family: %d  type: %d  proto: %d",
                           t_res->ai_family, t_res->ai_socktype,
                           t_res->ai_protocol));
+
       sock= socket(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
       if (sock == SOCKET_ERROR)
       {
+        DBUG_PRINT("info", ("Socket created was invalid"));
+        /* Try next address if there is one */
         saved_error= socket_errno;
         continue;
       }
+
+#ifndef MCP_WL3126
+      if (client_bind_ai_lst)
+      {
+        struct addrinfo* curr_bind_ai= NULL;
+        DBUG_PRINT("info", ("Attempting to bind socket to bind address(es)"));
+
+        /*
+           We'll attempt to bind to each of the addresses returned, until
+           we find one that works.
+           If none works, we'll try the next destination host address
+           (if any)
+        */
+        curr_bind_ai= client_bind_ai_lst;
+
+        while (curr_bind_ai != NULL)
+        {
+          /* Attempt to bind the socket to the given address */
+          bind_result= bind(sock,
+                            curr_bind_ai->ai_addr,
+                            curr_bind_ai->ai_addrlen);
+          if (!bind_result)
+            break;   /* Success */
+
+          DBUG_PRINT("info", ("bind failed, attempting another bind address"));
+          /* Problem with the bind, move to next address if present */
+          curr_bind_ai= curr_bind_ai->ai_next;
+        }
+
+        if (bind_result)
+        {
+          /*
+            Could not bind to any client-side address with this destination
+             Try the next destination address (if any)
+          */
+          DBUG_PRINT("info", ("All bind attempts with this address failed"));
+          saved_error= socket_errno;
+          closesocket(sock);
+          continue;
+        }
+        DBUG_PRINT("info", ("Successfully bound client side of socket"));
+      }
+#endif
 
       DBUG_PRINT("info", ("Connect socket"));
       status= my_connect(sock, t_res->ai_addr, t_res->ai_addrlen,
@@ -3218,6 +3308,10 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                 sock, status, saved_error));
 
     freeaddrinfo(res_lst);
+#ifndef MCP_WL3126
+    if (client_bind_ai_lst)
+      freeaddrinfo(client_bind_ai_lst);
+#endif
 
     if (sock == SOCKET_ERROR)
     {
@@ -3582,6 +3676,9 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.charset_dir);
   my_free(mysql->options.charset_name);
   my_free(mysql->options.client_ip);
+#ifndef MCP_WL3126
+  /* bind_adress is union with client_ip, already freed above */
+#endif
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -4073,6 +4170,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(my_bool *) arg;
     break;
+#ifndef MCP_WL3126
+  case MYSQL_OPT_BIND:
+    my_free(mysql->options.client_ip);
+    mysql->options.client_ip= my_strdup(arg, MYF(MY_WME));
+    break;
+#endif
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;

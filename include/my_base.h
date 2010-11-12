@@ -523,6 +523,10 @@ enum data_file_type {
 #define NULL_RANGE	64
 #define GEOM_FLAG      128
 #define SKIP_RANGE     256
+#ifndef MCP_BUG58084
+#define READ_KEY_FROM_RANGE 512 /* Reserved for MySQL Cluster internal use */
+#define EMPTY_RANGE 1024 /* Reserved for MySQL Cluster internal use */
+#endif
 
 typedef struct st_key_range
 {

@@ -2308,7 +2308,12 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
     log (remember that now the relay log starts with its Format_desc,
     has a Rotate etc).
   */
-
+#ifndef MCP_BUG52305
+  /*
+     Set the unmasked and actual server ids from the event
+   */
+  thd->unmasked_server_id = ev->unmasked_server_id;
+#endif
   thd->server_id = ev->server_id; // use the original server id for logging
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
@@ -3987,6 +3992,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
+#ifndef MCP_BUG52305
+  /*
+    If server_id_bits option is set we need to mask out irrelevant bits
+    when checking server_id, but we still put the full unmasked server_id
+    into the Relay log so that it can be accessed when applying the event
+  */
+  s_id&= opt_server_id_mask;
+#endif
   if ((s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set

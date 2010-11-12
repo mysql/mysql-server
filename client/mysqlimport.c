@@ -59,6 +59,9 @@ static char	*opt_password=0, *current_user=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
+#ifndef MCP_WL3126
+static char *opt_bind_addr = NULL;
+#endif
 static char * opt_mysql_unix_port=0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
@@ -69,6 +72,11 @@ static char *shared_memory_base_name=0;
 
 static struct my_option my_long_options[] =
 {
+#ifndef MCP_WL3126
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -425,6 +433,10 @@ static MYSQL *db_connect(char *host, char *database,
 #endif
   if (opt_protocol)
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifndef MCP_WL3126
+  if (opt_bind_addr)
+    mysql_options(mysql,MYSQL_OPT_BIND,opt_bind_addr);
+#endif
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

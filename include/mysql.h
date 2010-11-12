@@ -168,6 +168,9 @@ enum mysql_option
   MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP, MYSQL_SECURE_AUTH,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH
+#ifndef MCP_WL3126
+  ,MYSQL_OPT_BIND
+#endif
 };
 
 /**
@@ -197,7 +200,32 @@ struct st_mysql_options {
   my_bool unused3;
   my_bool unused4;
   enum mysql_option methods_to_use;
+#ifndef MCP_WL3126
+#ifdef MCP_WL3126_ORIGINAL_PATCH
+  union {
+    /*
+      The ip/hostname to use when authenticating
+      client against embedded server built with
+      grant tables - only used in embedded server
+    */
+    char *client_ip;
+
+    /*
+      The local address to bind when connecting to
+      remote server - not used in embedded server
+    */
+    char *bind_address;
+  } ci;
+#endif
+  /*
+    Using smaller but "hacky" patch for WL#3126 to avoid touching
+    more lines than necessary. I.e don't define a nice union
+    but use the "client_ip" member directly.
+  */
   char *client_ip;
+#else
+  char *client_ip;
+#endif
   /* Refuse client connecting to server if it uses old (pre-4.1.1) protocol */
   my_bool secure_auth;
   /* 0 - never report, 1 - always report (default) */

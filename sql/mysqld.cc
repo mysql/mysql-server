@@ -409,6 +409,10 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
+#ifndef MCP_BUG53205
+uint opt_server_id_bits= 0;
+ulong opt_server_id_mask= 0;
+#endif
 my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -3814,6 +3818,20 @@ server.");
 --log-slave-updates would lead to infinite loops in this server. However this \
 will be ignored as the --log-bin option is not defined.");
   }
+#endif
+
+#ifndef MCP_BUG53205
+  opt_server_id_mask = ~ulong(0);
+#ifdef HAVE_REPLICATION
+  opt_server_id_mask = (opt_server_id_bits == 32)?
+    ~ ulong(0) : (1 << opt_server_id_bits) -1;
+  if (server_id != (server_id & opt_server_id_mask))
+  {
+    sql_print_error("server-id configured is too large to represent with"
+                    "server-id-bits configured.");
+    unireg_abort(1);
+  }
+#endif
 #endif
 
   if (opt_bin_log)
