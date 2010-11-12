@@ -401,12 +401,10 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 /* On Windows, use Windows atomics / interlocked */
 # ifdef _WIN64
 #  define win_cmp_and_xchg InterlockedCompareExchange64
-#  define win_add InterlockedAdd64
-#  define win_dec InterlockedDecrement64
+#  define win_xchg_and_add InterlockedExchangeAdd64
 # else /* _WIN64 */
 #  define win_cmp_and_xchg InterlockedCompareExchange
-#  define win_add InterlockedAdd
-#  define win_dec InterlockedDecrement
+#  define win_xchg_and_add InterlockedExchangeAdd
 # endif
 
 /**********************************************************//**
@@ -438,13 +436,13 @@ amount of increment. */
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
-amount to decrement. */
+amount to decrement. There is no atomic substract function on Windows */
 
 # define os_atomic_decrement_lint(ptr, amount) \
-	(win_dec(ptr, amount) - amount)
+	(win_xchg_and_add(ptr, -(lint)amount) - amount)
 
 # define os_atomic_decrement_ulint(ptr, amount) \
-	((ulint) (win_dec(ptr, amount) - amount))
+	((ulint) (win_xchg_and_add(ptr, -(lint)amount) - amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
