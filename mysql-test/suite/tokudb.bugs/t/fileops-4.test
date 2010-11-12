@@ -26,6 +26,10 @@ truncate table foo;
 --error ER_LOCK_WAIT_TIMEOUT
 alter table foo drop index a;
 
+connection conn1;
+commit;
+
+connection default;
 disconnect conn1;
 
 connection default;
