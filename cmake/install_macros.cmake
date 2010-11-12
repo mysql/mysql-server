@@ -224,8 +224,6 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
      IF(SIGNCODE AND SIGNCODE_ENABLED)
       SIGN_TARGET(${target})
     ENDIF()
-    # For Windows, add version info to executables
-    ADD_VERSION_INFO(${target})
     # Install man pages on Unix
     IF(UNIX)
       GET_TARGET_PROPERTY(target_location ${target} LOCATION)
