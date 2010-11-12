@@ -27,6 +27,7 @@ static void make_db (int n_locks) {
     DB_TXN *tid, *tid2;
     int r;
     int i;
+    u_int32_t actual_n_locks;
 
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -39,14 +40,17 @@ static void make_db (int n_locks) {
     if (n_locks>0) {
 	r=env->set_lk_max_locks(env, n_locks+EXTRA_LOCK_NEEDED); CKERR(r);
         /* test the get_lk_max_locks method */
-        u_int32_t set_locks;
 #ifdef TOKUDB
 	// BDB cannot handle a NULL passed to get_lk_max_locks
         r=env->get_lk_max_locks(env, 0); 
         assert(r == EINVAL);
 #endif
-        r=env->get_lk_max_locks(env, &set_locks);
-        assert(r == 0 && set_locks == (u_int32_t)n_locks+EXTRA_LOCK_NEEDED);
+        r=env->get_lk_max_locks(env, &actual_n_locks);
+        assert(r == 0 && actual_n_locks == (u_int32_t)n_locks+EXTRA_LOCK_NEEDED);
+    }
+    else {
+	r=env->get_lk_max_locks(env, &actual_n_locks);	
+	CKERR(r);
     }
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
@@ -61,7 +65,7 @@ static void make_db (int n_locks) {
 #else
     u_int32_t datasize = 1;
 #endif
-    int effective_n_locks = (n_locks<0) ? 1000-EXTRA_LOCK_NEEDED : n_locks;
+    int effective_n_locks = (n_locks<0) ? (int)actual_n_locks-EXTRA_LOCK_NEEDED : n_locks;
     // create even numbered keys 0 2 4 ...  (effective_n_locks*32-2)
     
     r=env->txn_begin(env, 0, &tid, 0);    CKERR(r);
@@ -128,11 +132,10 @@ static void make_db (int n_locks) {
 
 int
 test_main (int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
-    make_db(-1);
     make_db(100);
+    make_db(1000);
     if (0) {
-	make_db(1000);
-	make_db(2000);
+	make_db(-1);  // Could be used to test default, but default is now too large for this to be a useful test
     }
     return 0;
 }
