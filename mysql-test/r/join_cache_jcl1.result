@@ -449,7 +449,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using where
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -480,7 +480,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -756,7 +756,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using where
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -787,7 +787,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where
+1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1019,7 +1019,7 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using where
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
@@ -1306,7 +1306,7 @@ t1.metaid = t2.metaid AND t1.affiliateid = '2';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t1	ref	t1_affiliateid,t1_metaid	t1_affiliateid	4	const	1	
-1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using where
+1	SIMPLE	t4	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	Using index condition; Using where
 1	SIMPLE	t5	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	
 1	SIMPLE	t7	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	Using index
@@ -1743,7 +1743,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using where
+1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition
 drop table t1,t2;
 #
 # Bug #42955: join with GROUP BY/ORDER BY and when BKA is enabled 
@@ -2184,7 +2184,7 @@ where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`
 and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	table2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	table3	ref	col_varchar_key	col_varchar_key	4	test.table2.col_varchar_nokey	1	Using where
+1	SIMPLE	table3	ref	col_varchar_key	col_varchar_key	4	test.table2.col_varchar_nokey	1	Using index condition; Using where
 SELECT table2 .`col_int_key` FROM t1 table2,
 t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
