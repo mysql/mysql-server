@@ -45,12 +45,13 @@ void toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) __attribut
 typedef struct indexer_status {
     uint64_t create;        // number of indexers successfully created
     uint64_t create_fail;   // number of calls to toku_indexer_create_indexer() that failed
-    uint64_t build;         // number of calls to indexer->build()
-    uint64_t close;         // number of calls to indexer->close()
+    uint64_t build;         // number of calls to indexer->build() succeeded
+    uint64_t build_fail;    // number of calls to indexer->build() failed
+    uint64_t close;         // number of calls to indexer->close() that succeeded
     uint64_t close_fail;    // number of calls to indexer->close() that failed
     uint64_t abort;         // number of calls to indexer->abort()
     uint32_t current;       // number of indexers currently in existence
-    uint32_t max;           // max number of indexers that ever existed simulataneously
+    uint32_t max;           // max number of indexers that ever existed simultaneously
 } INDEXER_STATUS_S, *INDEXER_STATUS;
 
 void toku_indexer_get_status(INDEXER_STATUS s);

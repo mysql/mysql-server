@@ -161,6 +161,15 @@ typedef struct __toku_engine_status {
   u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ 
   u_int64_t        logsuppress;             /* number of times logging is suppressed */ 
   u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ 
+  u_int64_t        indexer_create;          /* number of indexers created successfully */ 
+  u_int64_t        indexer_create_fail;     /* number of failed indexer creations */ 
+  u_int64_t        indexer_build;           /* number of indexer build calls (succeeded) */ 
+  u_int64_t        indexer_build_fail;      /* number of indexers build calls with error return */ 
+  u_int64_t        indexer_close;           /* number of indexers closed successfully) */ 
+  u_int64_t        indexer_close_fail;      /* number of indexers closed with error return */ 
+  u_int64_t        indexer_abort;           /* number of indexers aborted  */ 
+  u_int32_t        indexer_current;         /* number of indexers currently existing           */ 
+  u_int32_t        indexer_max;             /* max number of indexers extant simultaneously    */ 
   u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ 
   u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
   u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 

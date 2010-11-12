@@ -547,6 +547,15 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ \n");
     printf("  u_int64_t        logsuppress;             /* number of times logging is suppressed */ \n");
     printf("  u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ \n");
+    printf("  u_int64_t        indexer_create;          /* number of indexers created successfully */ \n");
+    printf("  u_int64_t        indexer_create_fail;     /* number of failed indexer creations */ \n");
+    printf("  u_int64_t        indexer_build;           /* number of indexer build calls (succeeded) */ \n");
+    printf("  u_int64_t        indexer_build_fail;      /* number of indexers build calls with error return */ \n");
+    printf("  u_int64_t        indexer_close;           /* number of indexers closed successfully) */ \n");
+    printf("  u_int64_t        indexer_close_fail;      /* number of indexers closed with error return */ \n");
+    printf("  u_int64_t        indexer_abort;           /* number of indexers aborted  */ \n");
+    printf("  u_int32_t        indexer_current;         /* number of indexers currently existing           */ \n");
+    printf("  u_int32_t        indexer_max;             /* max number of indexers extant simultaneously    */ \n");
     printf("  u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ \n");
     printf("  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ \n");
     printf("  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ \n");
