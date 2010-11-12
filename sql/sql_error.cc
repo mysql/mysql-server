@@ -334,7 +334,6 @@ Diagnostics_area::reset_diagnostics_area()
   /** Don't take chances in production */
   m_message[0]= '\0';
   m_sql_errno= 0;
-  m_server_status= 0;
   m_affected_rows= 0;
   m_last_insert_id= 0;
   m_statement_warn_count= 0;
