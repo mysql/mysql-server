@@ -950,6 +950,15 @@ public:
   */
   uint32 server_id;
 
+#ifndef MCP_BUG52305
+  /*
+    The server id read from the Binlog.  server_id above has
+    lowest bits of this only according to the value of
+    opt_server_id_bits
+  */
+  uint32 unmasked_server_id;
+#endif
+
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
