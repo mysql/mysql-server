@@ -190,6 +190,7 @@ insert into t1 values ('AA'),('Aa'),('aa'),('aA');
 insert into t1 values ('AE'),('Ae'),('ae'),('aE');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
+insert into t1 values ('DŽ'),('Dž'),('dž'),('dŽ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
 insert into t1 values ('LJ'),('Lj'),('lj'),('lJ');
 insert into t1 values ('LL'),('Ll'),('ll'),('lL');
@@ -213,7 +214,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -319,7 +320,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Ðð
 Đđ
 Ɖ
@@ -434,6 +435,7 @@ CHChcHch
 Ƈƈ
 DdĎď
 DZDzdZdzǄǅǆǱǲǳ
+DŽDždŽdž
 Đđ
 Ɖ
 Ɗ
@@ -548,7 +550,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -658,6 +660,7 @@ CHChcHch
 Ƈƈ
 DdĎď
 DZDzdZdzǄǅǆǱǲǳ
+DŽDždŽdž
 Đđ
 Ɖ
 Ɗ
@@ -766,7 +769,7 @@ CHChcHch
 Ćć
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -878,6 +881,7 @@ CHChcHch
 Ƈƈ
 DdĎď
 DZDzdZdz
+DŽDždŽdž
 ǄǅǆǱǲǳ
 Đđ
 Ɖ
@@ -990,7 +994,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1096,7 +1100,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1205,7 +1209,7 @@ CHChcHch
 Çç
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1317,6 +1321,7 @@ cH
 Ƈƈ
 DdĎď
 DZDzdZdzǄǅǆǱǲǳ
+DŽDždŽdž
 Đđ
 Ɖ
 Ɗ
@@ -1425,7 +1430,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1535,6 +1540,7 @@ cH
 Ƈƈ
 DdĎď
 DZDzdZdzǄǅǆǱǲǳ
+DŽDždŽdž
 Đđ
 Ɖ
 Ɗ
@@ -1644,6 +1650,7 @@ cH
 Ƈƈ
 DdĎď
 DZDzdZdzǄǅǆǱǲǳ
+DŽDždŽdž
 Đđ
 Ɖ
 Ɗ
@@ -1753,7 +1760,7 @@ cH
 CHChch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1860,7 +1867,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -1969,7 +1976,7 @@ CHChcHch
 Ĉĉ
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -2079,7 +2086,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -2170,6 +2177,116 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_croatian_ci;
+group_concat(c1 order by binary c1 separator '')
+÷
+×
+AaÀÁÂÃÄÅàáâãäåĀāĂăĄąǍǎǞǟǠǡǺǻẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặ
+AAAaaAaa
+AEAeaEae
+ÆæǢǣǼǽ
+Bb
+ƀ
+Ɓ
+Ƃƃ
+CcÇçĈĉĊċ
+CHChcHch
+Čč
+Ćć
+Ƈƈ
+DdĎď
+DZDzdZdzǱǲǳ
+DŽDždŽdžǄǅǆ
+Đđ
+Ɖ
+Ɗ
+Ƌƌ
+Ðð
+EeÈÉÊËèéêëĒēĔĕĖėĘęĚěẸẹẺẻẼẽẾếỀềỂểỄễỆệ
+Ǝǝ
+Ə
+Ɛ
+Ff
+Ƒƒ
+GgĜĝĞğĠġĢģǦǧǴǵ
+Ǥǥ
+Ɠ
+Ɣ
+Ƣƣ
+HhĤĥ
+ƕǶ
+Ħħ
+IiÌÍÎÏìíîïĨĩĪīĬĭĮįİǏǐỈỉỊị
+IJIjiJijĲĳ
+ı
+Ɨ
+Ɩ
+JjĴĵǰ
+KkĶķǨǩ
+Ƙƙ
+LlĹĺĻļĽľ
+Ŀŀ
+LLLllLll
+LJLjlJljǇǈǉ
+Łł
+ƚ
+ƛ
+Mm
+NnÑñŃńŅņŇňǸǹ
+NJNjnJnjǊǋǌ
+Ɲ
+ƞ
+Ŋŋ
+OoÒÓÔÕÖòóôõöŌōŎŏŐőƠơǑǒǪǫǬǭỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợ
+OEOeoEoeŒœ
+ØøǾǿ
+Ɔ
+Ɵ
+Pp
+Ƥƥ
+Qq
+ĸ
+RrŔŕŖŗŘř
+RRRrrRrr
+Ʀ
+SsŚśŜŝŞşſ
+SSSssSssß
+Šš
+Ʃ
+ƪ
+TtŢţŤť
+ƾ
+Ŧŧ
+ƫ
+Ƭƭ
+Ʈ
+UuÙÚÛÜùúûüŨũŪūŬŭŮůŰűŲųƯưǓǔǕǖǗǘǙǚǛǜỤụỦủỨứỪừỬửỮữỰự
+Ɯ
+Ʊ
+Vv
+Ʋ
+WwŴŵ
+Xx
+YyÝýÿŶŷŸ
+Ƴƴ
+ZzŹźŻż
+ƍ
+Žž
+Ƶƶ
+ƷǮǯ
+Ƹƹ
+ƺ
+Þþ
+ƿǷ
+ƻ
+Ƨƨ
+Ƽƽ
+Ƅƅ
+ŉ
+ǀ
+ǁ
+ǂ
+ǃ
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_german2_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2186,7 +2303,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -2291,7 +2408,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdÐðĎďĐđ
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Ɖ
 Ɗ
 Ƌƌ
@@ -2392,7 +2509,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
@@ -2502,7 +2619,7 @@ CcÇçĆćĈĉĊċČč
 CHChcHch
 Ƈƈ
 DdÐðĎď
-DZDzdZdzǄǅǆǱǲǳ
+DZDzDŽDždZdzdŽdžǄǅǆǱǲǳ
 Đđ
 Ɖ
 Ɗ
