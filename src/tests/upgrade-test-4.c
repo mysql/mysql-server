@@ -22,11 +22,12 @@ int CHECK_RESULTS=0;
 int SRC_VERSION = 4;
 int littlenode = 0;
 
+#define OLDDATADIR "ls ../../../../tokudb.data/"
 
 char *env_dir = ENVDIR; // the default env_dir.
 char *db_v5_dir = "dir.preload-db.c.tdb";
-char *db_v4_dir = "env_preload.4.1.1.cleanshutdown";
-char *db_v4_dir_node4k = "env_preload.4.1.1.node4k.cleanshutdown";
+char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.cleanshutdown";
+char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.1.1.node4k.cleanshutdown";
 
 
 enum {ROWS_PER_TRANSACTION=10000};
