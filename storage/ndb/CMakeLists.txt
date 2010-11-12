@@ -127,4 +127,12 @@ ELSE()
   # New plugin support, cross-platform
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT MODULE_OUTPUT_NAME ha_ndb LINK_LIBRARIES ndbclient)
+
+  IF (NOT MCP_BUG58158)
+    IF(WITH_EMBEDDED_SERVER)
+      # Kludge libndbclient into variable used when creating libmysqld
+      SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS}
+	ndbclient CACHE INTERNAL "" FORCE)
+    ENDIF()
+  ENDIF()
 ENDIF()
