@@ -1510,7 +1510,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && !thd->killed)
+  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
