@@ -609,3 +609,17 @@ SELECT DATE_FORMAT("2009-01-01",'%W %d %M %Y') as valid_date;
 valid_date
 Thursday 01 January 2009
 "End of 5.0 tests"
+#
+# Start of 5.1 tests
+#
+#
+# Bug#58005 utf8 + get_format causes failed assertion: !str || str != Ptr'
+#
+SET NAMES utf8;
+SELECT LEAST('%', GET_FORMAT(datetime, 'eur'), CAST(GET_FORMAT(datetime, 'eur') AS CHAR(65535)));
+LEAST('%', GET_FORMAT(datetime, 'eur'), CAST(GET_FORMAT(datetime, 'eur') AS CHAR(65535)))
+%
+SET NAMES latin1;
+#
+# End of 5.1 tests
+#
