@@ -37,6 +37,7 @@
 
    toku_free;
    toku_malloc;
+   toku_calloc;
    toku_xmemdup;
    toku_xrealloc;
    toku_os_get_file_size;
@@ -77,6 +78,7 @@
    toku_test_db_redirect_dictionary;
    toku_test_get_latest_lsn;
    toku_test_get_checkpointing_user_data_status;
+   toku_indexer_set_test_only_flags;
 
  local: *;
 };

@@ -5,6 +5,7 @@
 #include "brttypes.h"
 #include "includes.h"
 #include "ule.h"
+#include "ule-internal.h"
 
 enum {MAX_SIZE = 256};
 static XIDS nested_xids[MAX_TRANSACTION_RECORDS];

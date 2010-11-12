@@ -289,6 +289,7 @@ void toku_rollback_txn_close (TOKUTXN txn) {
 
     note_txn_closing(txn);
     xids_destroy(&txn->xids);
+    toku_txn_ignore_free(txn); // 2954
     toku_free(txn);
     return;
 }

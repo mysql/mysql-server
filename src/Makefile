@@ -36,6 +36,8 @@ OBJS_RAW = \
 	errors \
 	dlmalloc \
 	loader \
+	indexer \
+	indexer-undo-do \
 	elocks \
 #\end
 #OBJS automatically defined.

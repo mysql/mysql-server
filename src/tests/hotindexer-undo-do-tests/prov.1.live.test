@@ -1,0 +1,8 @@
+live 300 301 302
+key 1
+insert committed 0 10
+insert committed 100 20
+insert committed 200 10
+placeholder 300
+insert provisional 301 30
+delete provisional 302

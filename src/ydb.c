@@ -30,6 +30,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "checkpoint.h"
 #include "key.h"
 #include "loader.h"
+#include "indexer.h"
 #include "ydb_load.h"
 #include "brtloader.h"
 
@@ -335,6 +336,12 @@ env_check_avail_fs_space(DB_ENV *env) {
     int r = env->i->fs_state == FS_RED ? ENOSPC : 0; 
     if (r) env->i->enospc_redzone_ctr++;
     return r;
+}
+
+int
+toku_ydb_check_avail_fs_space(DB_ENV *env) {
+    int rval = env_check_avail_fs_space(env);
+    return rval;
 }
 
 /* db methods */
@@ -2078,6 +2085,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(set_redzone);
 #undef SENV
     result->create_loader = toku_loader_create_loader;
+    result->create_indexer = toku_indexer_create_indexer;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
@@ -2128,7 +2136,10 @@ cleanup:
 
 int 
 DB_ENV_CREATE_FUN (DB_ENV ** envp, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_create(envp, flags); toku_ydb_unlock(); return r;
+    toku_ydb_lock(); 
+    int r = toku_env_create(envp, flags); 
+    toku_ydb_unlock(); 
+    return r;
 }
 
 static int 
@@ -2244,7 +2255,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
 #if !TOKUDB_NATIVE_H
     toku_free(db_txn_struct_i(txn));
 #endif
-    toku_free(txn);
+    toku_free(txn);    txn = NULL;
     if (flags!=0) return EINVAL;
     return r;
 }
@@ -2497,15 +2508,15 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, int i
             break;
         }
     }
-    r = toku_txn_begin_txn(
-        stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
-        &db_txn_struct_i(result)->tokutxn, 
-        env->i->logger,
-        snapshot_type
-        );
-    
+    r = toku_txn_begin_txn(result,		   
+			   stxn ? db_txn_struct_i(stxn)->tokutxn : 0, 
+			   &db_txn_struct_i(result)->tokutxn, 
+			   env->i->logger,
+			   snapshot_type
+			   );
     if (r != 0)
         return r;
+
     //Add to the list of children for the parent.
     if (result->parent) {
         assert(!db_txn_struct_i(result->parent)->child);
@@ -2718,20 +2729,36 @@ env_get_zombie_db_with_dname(DB_ENV *env, const char *dname) {
     return rval;
 }
 
+void
+toku_db_add_ref(DB *db) {
+    db->i->refs++;
+}
+
+void
+toku_db_release_ref(DB *db){
+    db->i->refs--;
+}
+
 //DB->close()
 static int 
 toku_db_close(DB * db, u_int32_t flags) {
-    if (db_opened(db) && db->i->dname) {
-        // internal (non-user) dictionary has no dname
-        env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
-        db->i->is_zombie = TRUE;
-        env_note_zombie_db(db->dbenv, db);  // tell env that this db is a zombie
-    }
-    //Remove from transaction's list of 'must close' if necessary.
-    if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
-        toku_list_remove(&db->i->dbs_that_must_close_before_abort);
+    int r = 0;
+    if (db->i->refs != 1) {
+        r = EBUSY;
+    } else {
+        db->i->refs = 0;
+        if (db_opened(db) && db->i->dname) {
+            // internal (non-user) dictionary has no dname
+            env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
+            db->i->is_zombie = TRUE;
+            env_note_zombie_db(db->dbenv, db);  // tell env that this db is a zombie
+        }
+        //Remove from transaction's list of 'must close' if necessary.
+        if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
+            toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
-    int r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
+        r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags);
+    }
     return r;
 }
 
@@ -3027,7 +3054,7 @@ grab_range_lock(RANGE_LOCK_REQUEST request) {
     return r;
 }
 
-static int
+int
 toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn) {
     RANGE_LOCK_REQUEST_S request;
     char *   dname = db->i->dname;
@@ -3787,13 +3814,36 @@ log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32
     return r;
 }
 
+static uint32_t 
+lookup_src_db(uint32_t num_dbs, DB *db_array[], DB *src_db) {
+    uint32_t which_db;
+    for (which_db = 0; which_db < num_dbs; which_db++) 
+        if (db_array[which_db] == src_db)
+            break;
+    return which_db;
+}
+
 static int
 do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
     int r = 0;
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
-        r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+	int do_delete = TRUE;
+	DB_INDEXER *indexer = toku_db_get_indexer(db);
+	if (indexer) {
+            DB *src_db = toku_indexer_get_src_db(indexer);
+            invariant(src_db != NULL);
+            uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
+            if (which_src_db >= num_dbs)
+                r = EINVAL;
+            else
+                do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
+        }
+	if (r == 0 && do_delete) {
+            num_deletes++;
+            r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
+        }
     }
     return r;
 }
@@ -3886,7 +3936,6 @@ env_del_multiple(
 
     if (r == 0) 
         r = do_del_multiple(txn, num_dbs, db_array, del_keys);
-
     }
 
 cleanup:
@@ -4488,8 +4537,21 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     for (uint32_t which_db = 0; r == 0 && which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
-        num_inserts++;
-        r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
+	int do_put = TRUE;
+	DB_INDEXER *indexer = toku_db_get_indexer(db);
+	if (indexer) {
+            DB *src_db = toku_indexer_get_src_db(indexer);
+            invariant(src_db != NULL);
+            uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
+            if (which_src_db >= num_dbs)
+                r = EINVAL;
+            else
+                do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
+        }
+        if (r == 0 && do_put) {
+            num_inserts++;
+            r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
+        }
     }
     return r;
 }
@@ -5304,7 +5366,10 @@ toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
 
 static int 
 locked_db_close(DB * db, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_close(db, flags); toku_ydb_unlock(); return r;
+    toku_ydb_lock(); 
+    int r = toku_db_close(db, flags); 
+    toku_ydb_unlock(); 
+    return r;
 }
 
 static inline int 
@@ -5607,6 +5672,27 @@ locked_db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
     return r;
 }
 
+int 
+toku_db_set_indexer(DB *db, DB_INDEXER * indexer) {
+    db->i->indexer = indexer;
+    return 0;
+}
+
+static int 
+locked_db_set_indexer(DB *db, DB_INDEXER *indexer) {
+    toku_ydb_lock(); int r = toku_db_set_indexer(db, indexer); toku_ydb_unlock(); return r;
+}
+
+DB_INDEXER *
+toku_db_get_indexer(DB *db) {
+    return db->i->indexer;
+}
+
+static void 
+locked_db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
+    toku_ydb_lock(); *indexer_ptr = toku_db_get_indexer(db); toku_ydb_unlock();
+}
+
 static int 
 toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
@@ -5649,6 +5735,8 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(flatten);
     SDB(optimize);
     SDB(get_fragmentation);
+    SDB(set_indexer);
+    SDB(get_indexer);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
@@ -5663,6 +5751,8 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->i->open_flags = 0;
     result->i->open_mode = 0;
     result->i->brt = 0;
+    result->i->indexer = NULL;
+    result->i->refs = 1;
     toku_list_init(&result->i->dbs_that_must_close_before_abort);
     r = toku_brt_create(&result->i->brt);
     if (r != 0) {
@@ -5676,7 +5766,10 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 
 int 
 DB_CREATE_FUN (DB ** db, DB_ENV * env, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_create(db, env, flags); toku_ydb_unlock(); return r;
+    toku_ydb_lock(); 
+    int r = toku_db_create(db, env, flags); 
+    toku_ydb_unlock(); 
+    return r;
 }
 
 /* need db_strerror_r for multiple threads */
@@ -5998,5 +6091,17 @@ toku_test_get_latest_lsn(DB_ENV *env) {
 int 
 toku_test_get_checkpointing_user_data_status (void) {
     return toku_cachetable_get_checkpointing_user_data_status();
+}
+
+int
+toku_grab_write_lock (DB* db, DBT* key, TOKUTXN tokutxn) {
+    RANGE_LOCK_REQUEST_S request;
+    DB_TXN * txn = toku_txn_get_container_db_txn(tokutxn);
+    //Left end of range == right end of range (point lock)
+    write_lock_request_init(&request, txn, db,
+			    key,
+			    key);
+    int r = grab_range_lock(&request);
+    return r;
 }
 

@@ -1,0 +1,15 @@
+insert_committed [0] 10 1 
+delete_committed [100] 10 
+insert_committed [100] 20 1 
+commit_any [100] 10 
+commit_any [100] 20 
+delete_committed [200] 20 
+insert_committed [200] 10 1 
+commit_any [200] 20 
+commit_any [200] 10 
+delete_committed [300,301] 10 
+insert_committed [300,301] 30 1 
+commit_any [300,301] 10 
+commit_any [300,301] 30 
+delete_committed [300,301,302] 30 
+commit_any [300,301,302] 30 

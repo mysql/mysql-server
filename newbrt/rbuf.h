@@ -131,6 +131,26 @@ static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((_
     rbuf_FILENUM(r, filenum);
 }
 
+// 2954
+// Don't try to use the same space, malloc it
+static inline void rbuf_FILENUMS (struct rbuf *r, FILENUMS *filenums) {
+    filenums->num = rbuf_int(r);
+    u_int32_t newndone = r->ndone + ( filenums->num * sizeof(FILENUM) );
+    assert(newndone <= r->size);
+    filenums->filenums = (FILENUM *) toku_memdup(&r->buf[r->ndone], (size_t)filenums->num * sizeof(FILENUM)); 
+    assert(filenums->filenums);
+    r->ndone = newndone;
+}
+// 2954
+static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
+    filenums->num = rbuf_int(r);
+    u_int32_t newndone = r->ndone + ( filenums->num * sizeof(FILENUM) );
+    assert(newndone <= r->size);
+    filenums->filenums = (FILENUM *) memarena_memdup(ma, &r->buf[r->ndone], (size_t)filenums->num * sizeof(FILENUM));
+    assert(filenums->filenums);
+    r->ndone = newndone;
+}
+
 // Don't try to use the same space, malloc it
 static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);

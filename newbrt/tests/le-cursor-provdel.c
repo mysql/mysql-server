@@ -41,7 +41,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     TOKUTXN txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     BRT brt = NULL;
@@ -53,7 +53,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     toku_txn_close_txn(txn);
 
     txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)
@@ -107,7 +107,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     TOKUTXN txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     BRT brt = NULL;
@@ -119,7 +119,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     toku_txn_close_txn(txn);
 
     txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     // del keys 0, 2, 4, ...
@@ -132,7 +132,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     }
 
     TOKUTXN cursortxn = NULL;
-    error = toku_txn_begin_txn(NULL, &cursortxn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &cursortxn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;

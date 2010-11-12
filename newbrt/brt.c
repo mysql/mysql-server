@@ -2619,6 +2619,26 @@ toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_ina
     return r;
 }
 
+// 2954
+// this function handles the tasks needed to be recoverable
+//  - write to rollback log
+//  - write to recovery log
+int
+toku_brt_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn)
+{
+    int r = 0;
+    assert(txn);
+    TOKULOGGER logger = toku_txn_logger(txn);
+
+    // write to the rollback log
+    r = toku_logger_save_rollback_hot_index(txn, &filenums);
+    if ( r==0 && do_log && logger) {
+        TXNID xid = toku_txn_get_txnid(txn);
+        // write to the recovery log
+        r = toku_log_hot_index(logger, hot_index_lsn, do_fsync, xid, filenums);
+    }
+    return r;
+}
 
 static int brt_optimize (BRT brt, BOOL upgrade);
 
@@ -2683,6 +2703,16 @@ toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *l
     return r;
 }
 
+// 2954
+// brt actions for logging hot index filenums
+int 
+toku_brt_hot_index(BRT brt __attribute__ ((unused)), TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) {
+    int r = 0;
+    int do_log = 1;
+    r = toku_brt_hot_index_recovery(txn, filenums, do_fsync, do_log, lsn);
+    return r;
+}
+
 int 
 toku_brt_log_put (TOKUTXN txn, BRT brt, const DBT *key, const DBT *val) {
     int r = 0;
@@ -2728,7 +2758,7 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
 }
 
 int 
-toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type) {
+toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum brt_msg_type type) {
     lazy_assert(type==BRT_INSERT || type==BRT_INSERT_NO_OVERWRITE);
     int r = 0;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
@@ -2766,9 +2796,23 @@ toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_vali
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
         r = 0;
     } else {
-        BRT_MSG_S brtcmd = { type, message_xids, .u.id={key,val}};
-        r = toku_brt_root_put_cmd(brt, &brtcmd);
+        r = toku_brt_send_insert(brt, key, val, message_xids, type);
     }
+    return r;
+}
+
+int
+toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_type type) {
+    BRT_MSG_S brtcmd = { type, xids, .u.id = { key, val }};
+    int r = toku_brt_root_put_cmd(brt, &brtcmd);
+    return r;
+}
+
+int
+toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) {
+    DBT val; 
+    BRT_MSG_S brtcmd = { BRT_COMMIT_ANY, xids, .u.id = { key, toku_init_dbt(&val) }};
+    int r = toku_brt_root_put_cmd(brt, &brtcmd);
     return r;
 }
 
@@ -2817,7 +2861,7 @@ toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
 }
 
 int 
-toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging) {
+toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) {
     int r;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
@@ -2848,11 +2892,17 @@ toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN opls
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
         r = 0;
     } else {
-        DBT val;
-        BRT_MSG_S brtcmd = { BRT_DELETE_ANY, message_xids, .u.id={key, toku_init_dbt(&val)}};
-        r = toku_brt_root_put_cmd(brt, &brtcmd);
+        r = toku_brt_send_delete(brt, key, message_xids);
     }
     return r;
+}
+
+int
+toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) {
+    DBT val; toku_init_dbt(&val);
+    BRT_MSG_S brtcmd = { BRT_DELETE_ANY, xids, .u.id = { key, &val }};
+    int result = toku_brt_root_put_cmd(brt, &brtcmd);
+    return result;
 }
 
 struct omt_compressor_state {

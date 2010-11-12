@@ -11,6 +11,7 @@
 #include "toku_list.h"
 #include "memarena.h"
 #include "logfilemgr.h"
+#include "txn.h"
 #include <stdio.h>
 #include <toku_pthread.h>
 #include <sys/types.h>
@@ -129,6 +130,7 @@ struct tokutxn {
     u_int64_t snapshot_txnid64; /* this is the lsn of the snapshot */
     TOKULOGGER logger;
     TOKUTXN    parent;
+    DB_TXN*    container_db_txn;  // reference to DB_TXN that contains this tokutxn
 
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
@@ -150,6 +152,7 @@ struct tokutxn {
     BOOL       recovered_from_checkpoint;
     ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
     struct toku_list checkpoint_before_commit;
+    TXN_IGNORE ignore_errors; // 2954
 };
 
 struct txninfo {

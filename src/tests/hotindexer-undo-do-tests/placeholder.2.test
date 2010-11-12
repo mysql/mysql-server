@@ -1,0 +1,7 @@
+key 1
+delete committed 0
+insert committed 100 10
+placeholder 300
+placeholder 301
+insert provisional 302 20
+

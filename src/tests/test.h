@@ -304,6 +304,24 @@ multiply_locks_for_n_dbs(DB_ENV *env, int num_dbs) {
 #endif
 }
 
+static inline void
+default_parse_args (int argc, char * const argv[]) {
+    const char *progname=argv[0];
+    argc--; argv++;
+    while (argc>0) {
+	if (strcmp(argv[0],"-v")==0) {
+	    verbose=1;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose=0;
+	} else {
+	    fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
+	    exit(1);
+	}
+	argc--; argv++;
+    }
+}
+
+
 #if defined(__cilkplusplus) || defined(__cplusplus)
 }
 #endif

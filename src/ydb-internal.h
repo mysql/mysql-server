@@ -2,7 +2,7 @@
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
 
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 #include <db.h>
 #include "../newbrt/brttypes.h"
@@ -28,10 +28,18 @@ struct __toku_db_internal {
     struct __toku_lock_tree* lt;
     struct simple_dbt skey, sval; // static key and value
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
-    char *dname;    // dname is constant for this handle (handle must be closed before file is renamed)
-    BOOL is_zombie; // True if DB->close has been called on this DB
+    char *dname;                  // dname is constant for this handle (handle must be closed before file is renamed)
+    BOOL is_zombie;               // True if DB->close has been called on this DB
     struct toku_list dbs_that_must_close_before_abort;
+    DB_INDEXER *indexer;
+    int refs;                     // reference count including indexers and loaders
 };
+
+int toku_db_set_indexer(DB *db, DB_INDEXER *indexer);
+DB_INDEXER *toku_db_get_indexer(DB *db);
+
+void toku_db_add_ref(DB *db);
+void toku_db_release_ref(DB *db);
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 typedef void (*toku_env_errcall_t)(const char *, char *);
@@ -119,8 +127,11 @@ int toku_ydb_lock_init(void);
 int toku_ydb_lock_destroy(void);
 void toku_ydb_lock(void);
 void toku_ydb_unlock(void);
+void toku_ydb_unlock_and_yield(unsigned long useconds);
 
 void toku_ydb_lock_get_status(SCHEDULE_STATUS statp);
+
+int toku_ydb_check_avail_fs_space(DB_ENV *env);
 
 
 /* *********************************************************
@@ -214,6 +225,10 @@ struct __toku_dbc_internal {
 };
 
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
+
+int toku_grab_write_lock (DB* db, DBT* key, TOKUTXN tokutxn);
+
+int toku_grab_read_lock_on_directory (DB* db, DB_TXN * txn);
 
 #if defined(__cplusplus)
 }
