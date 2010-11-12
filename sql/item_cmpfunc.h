@@ -1637,7 +1637,13 @@ public:
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
+  /**
+    Get the first field of multiple equality, use for semantic checking.
+
+    @retval First field in the multiple equality.
+  */
   Item_field* get_first() { return fields.head(); }
+  Item_field* get_subst_item(const Item_field *field);
   void merge(Item_equal *item);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
@@ -1654,8 +1660,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
-  friend Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
-                           Item_equal *item_equal);
   friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 
 

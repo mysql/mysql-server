@@ -2170,6 +2170,31 @@ public:
  */
  virtual void cond_pop() { return; }
 
+ /**
+   Push down an index condition to the handler.
+
+   The server will use this method to push down a condition it wants
+   the handler to evaluate when retrieving records using a specified
+   index. The pushed index condition will only refer to fields from
+   this handler that is contained in the index (but it may also refer
+   to fields in other handlers). Before the handler evaluates the
+   condition it must read the content of the index entry into the 
+   record buffer.
+
+   The handler is free to decide if and how much of the condition it
+   will take responsibility for evaluating. Based on this evaluation
+   it should return the part of the condition it will not evaluate.
+   If it decides to evaluate the entire condition it should return
+   NULL. If it decides not to evaluate any part of the condition it
+   should return a pointer to the same condition as given as argument.
+
+   @param keyno    the index number to evaluate the condition on
+   @param idx_cond the condition to be evaluated by the handler
+
+   @return The part of the pushed condition that the handler decides
+           not to evaluate
+  */
+
  virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
 
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
