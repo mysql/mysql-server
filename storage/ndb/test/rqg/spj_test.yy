@@ -543,13 +543,29 @@ corresponding_spec:
 #########################################
 
 int_scalar_subquery:
+   int_subquery_1row
+ ;
+
+char_scalar_subquery:
+   char_subquery_1row
+ ;
+
+int_table_subquery:
+   int_subquery_1row
+ ;
+
+char_table_subquery:
+   char_subquery_1row
+ ;
+
+int_subquery_1row:
    subqry_enter
    (SELECT lookahead_for_table_alias
     distinct straight_join select_option int_select_item table_expr)
    subqry_leave
  ;
 
-char_scalar_subquery:
+char_subquery_1row:
    subqry_enter
    (SELECT lookahead_for_table_alias
     distinct straight_join select_option char_select_item table_expr)
@@ -649,13 +665,21 @@ other_predicate:
  | value_expr IS not NULL
  | int_value_expr not BETWEEN int_value_expr AND int_value_expr
  | char_value_expr not LIKE {"'%".$prng->string(3)."%'"}
- | int_value_expr not IN (number_list)
-#| int_value_expr not IN int_scalar_subquery
  | EXISTS table_subquery
+ | int_value_expr not IN (number_list)
+ | int_value_expr not IN int_table_subquery
+ | char_value_expr not IN char_table_subquery
+ | int_value_expr comparison_operator quantifier int_table_subquery
+ | char_value_expr comparison_operator quantifier char_table_subquery
+#| UNIQUE table_subquery              # MySql unsupported
  ;
 
 number_list:
    _digit | number_list, _digit
+ ;
+
+quantifier:
+   ALL | ANY
  ;
 
 ################################################################################
