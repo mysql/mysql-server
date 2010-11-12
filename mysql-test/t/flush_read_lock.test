@@ -7,6 +7,9 @@
 --source include/have_innodb.inc
 # We need the Debug Sync Facility.
 --source include/have_debug_sync.inc
+# Parts of this test use DDL on events, BINLOG statement and
+# other statements which are not supported in embedded server.
+-- source include/not_embedded.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
