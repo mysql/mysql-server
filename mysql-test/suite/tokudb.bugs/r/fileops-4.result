@@ -16,4 +16,5 @@ truncate table foo;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 alter table foo drop index a;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
 DROP TABLE foo;

@@ -6,27 +6,31 @@ connect (conn1,localhost,root,,);
 SET STORAGE_ENGINE = 'tokudb';
 
 --disable_warnings
-DROP TABLE IF EXISTS foo;
+DROP TABLE IF EXISTS foo, bar;
 --enable_warnings
 
 connection conn1;
 set session transaction isolation level read committed;
 create table foo ( a int, b int, primary key (a));
+create table bar (a int);
 begin;
 insert into foo values (1,1),(2,2),(3,1),(4,3);
 
 connection default;
-set session transaction isolation level read committed;
-select * from foo;
+set session transaction isolation level repeatable read;
+begin;
+select * from bar;
 
 
 connection conn1;
 commit;
 
 connection default;
+select * from foo;
+commit;
 disconnect conn1;
 
 connection default;
 # Final cleanup.
 set session transaction isolation level serializable;
-DROP TABLE foo;
+DROP TABLE foo, bar;
