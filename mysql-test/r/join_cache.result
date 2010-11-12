@@ -5675,7 +5675,6 @@ f	5
 f	5
 SET SESSION join_cache_level = DEFAULT;
 DROP TABLE t1,t2;
-#
 # Bug #672497: 3 way join with tiny incremental join buffer with
 #              and a ref access from the first table 
 #
@@ -5730,4 +5729,44 @@ i
 SET SESSION join_cache_level = DEFAULT;
 SET SESSION join_buffer_size = DEFAULT;
 DROP TABLE t1,t2,t3;
+#
+# Bug #672551: hash join over a long varchar field
+#
+CREATE TABLE t1 (
+pk int PRIMARY KEY,
+a varchar(512) CHARSET latin1 COLLATE latin1_bin DEFAULT NULL,
+INDEX idx (a)
+);
+INSERT INTO t1 VALUES (2, 'aa'), (5, 'ccccccc'), (3, 'bb');
+CREATE TABLE t2(
+pk int PRIMARY KEY,
+a varchar(512) CHARSET latin1 COLLATE latin1_bin DEFAULT NULL,
+INDEX idx (a)
+);
+INSERT INTO t2 VALUES 
+(10, 'a'), (20, 'c'), (30, 'aa'), (4, 'bb'),
+(11, 'a'), (21, 'c'), (31, 'aa'), (41, 'cc'),
+(12, 'a'), (22, 'c'), (32, 'bb'), (42, 'aa');
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+pk	a	pk	a
+2	aa	30	aa
+2	aa	31	aa
+2	aa	42	aa
+3	bb	4	bb
+3	bb	32	bb
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ref	idx	idx	515	test.t1.a	2	Using join buffer (flat, BNLH join)
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+pk	a	pk	a
+2	aa	30	aa
+3	bb	4	bb
+2	aa	31	aa
+3	bb	32	bb
+2	aa	42	aa
+SET SESSION join_cache_level = DEFAULT;
+DROP TABLE t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
