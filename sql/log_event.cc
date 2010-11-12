@@ -7762,7 +7762,7 @@ static uint decide_row_lookup_method(TABLE* table, MY_BITMAP *cols, uint event_t
   uint key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
 
   /* No index */
-  if (key_index == MAX_KEY /* TODO: || key_index > number of keys in the table */)
+  if (key_index == MAX_KEY || key_index > table->s->keys)
     // TODO: change so that it takes into account the slave_exec_mode flag
     //res= slave_exec_mode & TABLE_SCAN ? TABLE_SCAN : HASH_SCAN;
     res= Rows_log_event::ROW_LOOKUP_HASH_SCAN;
@@ -7883,11 +7883,26 @@ record_compare_exit:
   return result;
 }
 
+/**
+   Hashing commodity structures and functions.
+ */ 
 
 struct row_entry
 {
-  uchar *key;
+  uchar* key;
+
+  /**
+     Length of the key.
+   */
   uint length;
+
+  my_hash_value_type hash_value;
+
+  /** 
+     Points at the position where the row starts in the
+     event buffer (ie, area in memory before unpacking takes
+     place).
+  */
   const uchar *m_curr_row;
 } typedef row_entry;
 
@@ -7905,28 +7920,78 @@ extern "C" uchar *rows_log_event_get_key(const uchar *record, size_t *length,
 static void rows_log_event_free_entry(row_entry *entry)
 {
   DBUG_ENTER("free_entry");
-  my_free(entry->key);
   my_free(entry);
   DBUG_VOID_RETURN;
+}
+
+int remove_blobs_from_record(TABLE* table)
+{ 
+  int res= 0;
+
+  if (table->s->blob_fields)
+  {
+    for (Field **ptr=table->field ; *ptr ; ptr++)
+    {
+      Field *field= *ptr;
+      if (field->type() == MYSQL_TYPE_BLOB)
+      {
+        field->reset();
+        field->set_null(); // careful the table may have a not null constraint on this field
+        res++;
+      }
+    }
+  }
+
+  return res;
+}
+
+bool
+row_hash_insert(HASH* info, uchar* record, int reclength, const uchar* curr_row)
+{
+  row_entry *entry= (row_entry*) malloc(sizeof(row_entry));
+  if (!entry)
+  {
+    return true;
+  }
+
+  entry->key= (uchar*)&entry->hash_value;
+  entry->length= sizeof(my_hash_value_type);
+
+  entry->hash_value= my_calc_hash(info, record, reclength);
+  entry->m_curr_row=(const uchar *) curr_row;
+  my_hash_insert(info, (uchar *) entry);
+
+  return false;
 }
 
 int Rows_log_event::hash_row(Relay_log_info const *rli)
 {
   int error= 0;
 
+  /**
+     Unpack the row to be hashed.
+   */ 
   if ((error= unpack_current_row(rli, &m_cols)))
     goto err;
+
   else
   {
-    // TODO: remove blobs
+    /**
+       Save a copy of the original record unpacked.
+     */ 
+    store_record(m_table, record[1]);
 
-    row_entry *entry= (row_entry*)malloc(sizeof(row_entry));
-    entry->key= (uchar*) malloc(m_table->s->reclength);
-    memcpy(entry->key, m_table->record[0], m_table->s->reclength);
-    entry->length= m_table->s->reclength;
-    entry->m_curr_row=m_curr_row;
-    my_hash_insert(&m_hash, (uchar*)entry);
+    /**
+       Remove the blobs from the record.
+     */
+    remove_blobs_from_record(m_table);
 
+    row_hash_insert(&m_hash, m_table->record[0], m_table->s->reclength, m_curr_row);
+
+    /**
+       Restore back record[0], just to be safe.
+     */
+    memcpy(m_table->record[0], m_table->record[1], m_table->s->reclength);
 
     if (get_type_code() == UPDATE_ROWS_EVENT)
     {
@@ -8312,27 +8377,44 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
     {
       error= table->file->ha_rnd_next(table->record[0]);
 
-      // TODO: remove blobs from record got from the engine
-
       DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
         case 0:
         {
           bool found_in_hash= false;
           HASH_SEARCH_STATE state;
+          my_hash_value_type se_key; /* storage engine record based row key */
+
           /* save a copy from the record got from the engine. */
           store_record(table, record[1]);
-
+          
+          /**
+             Remove the blobs from the record so that we can compare
+             the hash against the hash from record got from the
+             binlog, which was calculated without blobs as well.
+          */
+          remove_blobs_from_record(table);
+          
+          /* calculate the key */
+          se_key= my_calc_hash(&m_hash, m_table->record[0], m_table->s->reclength);
+          
           /**
              This is only needed because records are hashed without blobs, so
              we may have false positives.
            */
-          row_entry *entry= (row_entry *) my_hash_first(&m_hash, table->record[0], table->s->reclength, &state);
+          row_entry *entry= (row_entry *) my_hash_first(&m_hash, 
+                                                        (const uchar*) &se_key, 
+                                                        sizeof(my_hash_value_type), 
+                                                        &state);
           while (entry)
-          {
+          {                        
+            const uchar* key= (const uchar*) &entry->key;
+
             /**
-               unpack again the full record to table->record[0]. Now, both
-               table->record[0] and table->record[1] have the same contents.
+               unpack again the full record to table->record[0]. Now,
+               both table->record[0] and table->record[1] should have
+               approximately the same contents (except maybe for blobs
+               - thence we need to do full comparison below).
              */
             m_curr_row= entry->m_curr_row;
             if ((error= unpack_current_row(rli, &m_cols)))
@@ -8351,8 +8433,11 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
               break;
             }
 
-            // find next
-            entry= (row_entry *)my_hash_next(&m_hash, table->record[0], table->s->reclength,  &state);
+            /* Next row for the loop... */
+            entry= (row_entry *)my_hash_next(&m_hash, 
+                                             key, 
+                                             sizeof(my_hash_value_type),  
+                                             &state);
           }
 
           if (found_in_hash)
