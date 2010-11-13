@@ -19,7 +19,7 @@
 #               main code t/innodb-big.test --> include/read_many_rows.inc
 #
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2, t3, t4;

@@ -1132,6 +1132,20 @@ my_col
 00
 DROP TABLE t1;
 #
+# Bug#32859 Character sets: no warning with non-fitting chariot wheel
+#
+CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
+INSERT INTO t1 (utf32) VALUES (0xc581);
+UPDATE t1 SET latin1 = utf32;
+Warnings:
+Warning	1366	Incorrect string value: '\x00\x00\xC5\x81' for column 'latin1' at row 1
+DELETE FROM t1;
+INSERT INTO t1 (utf32) VALUES (0x100cc);
+UPDATE t1 SET latin1 = utf32;
+Warnings:
+Warning	1366	Incorrect string value: '\x00\x01\x00\xCC' for column 'latin1' at row 1
+DROP TABLE t1;
+#
 # Bug#55912 FORMAT with locale set fails for numbers < 1000
 #
 SET collation_connection=utf32_general_ci;

@@ -380,8 +380,8 @@ ERROR 42000: Incorrect table name ''
 drop table t1;
 drop table if exists t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 create table t1 ( a varchar(10) not null primary key ) engine=myisam;
 create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
 flush tables;
@@ -666,7 +666,7 @@ create database mysqltest;
 create table t1 (c1 int);
 alter table t1 rename mysqltest.t1;
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 alter table mysqltest.t1 rename t1;
 drop table t1;
 create table t1 (c1 int);

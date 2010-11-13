@@ -218,6 +218,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_AIO_DEBUG				/* prints info about
 						submitted and reaped AIO
 						requests to the log. */
+#define UNIV_STATS_DEBUG			/* prints various stats
+						related debug info from
+						dict0stats.c */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -359,6 +362,9 @@ typedef unsigned long long int	ullint;
 
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
+
+/* The 'undefined' value for a ib_uint64_t */
+#define UINT64_UNDEFINED	((ib_uint64_t)(-1))
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF

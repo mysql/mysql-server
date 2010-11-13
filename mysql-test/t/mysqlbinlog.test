@@ -489,6 +489,12 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
 
 #
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlbinlog --protocol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --protocol=tcp --bind-address=127.0.0.1 master-bin.000001 > /dev/null
+
+#
 # WL#5625: Deprecate mysqlbinlog options --base64-output=always and --base64-output
 #
 

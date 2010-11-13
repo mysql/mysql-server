@@ -271,15 +271,18 @@ public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
     Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
-  {}
+  { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   bool is_null();
   longlong val_int();
   void cleanup();
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
+  Item *transform(Item_transformer transformer, uchar *arg);
 };
 
 class Comp_creator
@@ -460,6 +463,8 @@ public:
   const char *func_name() const { return "trigcond"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
+  /* The following is needed for ICP: */
+  table_map used_tables() const { return args[0]->used_tables(); }
 };
 
 class Item_func_not_all :public Item_func_not
@@ -503,13 +508,23 @@ public:
 class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
-  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {}
+  Item_func_eq(Item *a,Item *b) :
+    Item_bool_rowready_func2(a,b), in_equality_no(UINT_MAX)
+  {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
   Item *negated_item();
+  /* 
+    - If this equality is created from the subquery's IN-equality:
+      number of the item it was created from, e.g. for
+       (a,b) IN (SELECT c,d ...)  a=c will have in_equality_no=0, 
+       and b=d will have in_equality_no=1.
+    - Otherwise, UINT_MAX
+  */
+  uint in_equality_no;
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -1464,8 +1479,6 @@ public:
 };
 
 
-typedef class Item COND;
-
 class Item_cond :public Item_bool_func
 {
 protected:
@@ -1502,6 +1515,8 @@ public:
     list.prepand(nlist);
   }
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
@@ -1510,7 +1525,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                         COND **conds);
+                         Item **conds);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
@@ -1598,6 +1613,7 @@ public:
   for them. We have to take care of restricting the predicate such an
   object represents f1=f2= ...=fn to the projection of known fields fi1=...=fik.
 */
+struct st_join_table;
 
 class Item_equal: public Item_bool_func
 {
@@ -1621,7 +1637,13 @@ public:
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
+  /**
+    Get the first field of multiple equality, use for semantic checking.
+
+    @retval First field in the multiple equality.
+  */
   Item_field* get_first() { return fields.head(); }
+  Item_field* get_subst_item(const Item_field *field);
   void merge(Item_equal *item);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
@@ -1638,6 +1660,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
+  friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 
 
 class COND_EQUAL: public Sql_alloc
@@ -1744,14 +1767,34 @@ inline bool is_cond_or(Item *item)
 class Item_cond_xor :public Item_cond
 {
 public:
-  Item_cond_xor() :Item_cond() {}
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
+  {
+    /* 
+      Items must be stored in args[] as well because this Item_cond is
+      treated as a FUNC_ITEM (see type()). I.e., users of it will get
+      it's children by calling arguments(), not argument_list(). This
+      is a temporary solution until XOR is optimized and treated like
+      a full Item_cond citizen.
+     */
+    arg_count= 2;
+    args= tmp_arg;
+    args[0]= i1; 
+    args[1]= i2;
+  }
   enum Functype functype() const { return COND_XOR_FUNC; }
   /* TODO: remove the next line when implementing XOR optimization */
   enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
   void top_level_item() {}
+  /* Since child Items are stored in args[], Items cannot be added.
+     However, since Item_cond_xor is treated as a FUNC_ITEM (see
+     type()), the methods below should never be called. 
+  */
+  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
+  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
 };
 
 

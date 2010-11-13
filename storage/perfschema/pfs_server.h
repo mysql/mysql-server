@@ -66,6 +66,9 @@
 #ifndef PFS_WAITS_HISTORY_LONG_SIZE
   #define PFS_WAITS_HISTORY_LONG_SIZE 10000
 #endif
+#ifndef PFS_MAX_SETUP_ACTOR
+  #define PFS_MAX_SETUP_ACTOR 100
+#endif
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
@@ -94,6 +97,7 @@ struct PFS_global_param
   ulong m_file_handle_sizing;
   ulong m_events_waits_history_sizing;
   ulong m_events_waits_history_long_sizing;
+  ulong m_setup_actor_sizing;
 };
 
 extern PFS_global_param pfs_param;

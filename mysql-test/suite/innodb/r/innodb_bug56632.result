@@ -1,11 +1,11 @@
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 SET GLOBAL innodb_file_format=`Barracuda`;
 SET GLOBAL innodb_file_per_table=ON;
 SET SESSION innodb_strict_mode = ON;
 # Test 1) CREATE with ROW_FORMAT & KEY_BLOCK_SIZE, ALTER with neither
 DROP TABLE IF EXISTS bug56632;
 Warnings:
-Note	1051	Unknown table 'bug56632'
+Note	1051	Unknown table 'test.bug56632'
 CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
 ERROR HY000: Can't create table 'test.bug56632' (errno: 1478)
 SHOW WARNINGS;
@@ -15,7 +15,7 @@ Error	1005	Can't create table 'test.bug56632' (errno: 1478)
 # Test 2) CREATE with ROW_FORMAT, ALTER with KEY_BLOCK_SIZE
 DROP TABLE IF EXISTS bug56632;
 Warnings:
-Note	1051	Unknown table 'bug56632'
+Note	1051	Unknown table 'test.bug56632'
 CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
 Level	Code	Message
@@ -94,7 +94,7 @@ SET SESSION innodb_strict_mode = OFF;
 # Test 6) CREATE with ROW_FORMAT & KEY_BLOCK_SIZE, ALTER with neither
 DROP TABLE IF EXISTS bug56632;
 Warnings:
-Note	1051	Unknown table 'bug56632'
+Note	1051	Unknown table 'test.bug56632'
 CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
 Warnings:
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.

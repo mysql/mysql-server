@@ -232,10 +232,10 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
