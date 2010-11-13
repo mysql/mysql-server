@@ -94,6 +94,10 @@ do {								\
 } while (0)
 #endif /* !UNIV_HOTBACKUP */
 
+/* beware of possible side effects like UT_MIN(x, y++); */
+#define UT_MIN(a, b)	((a) < (b) ? (a) : (b))
+#define UT_MAX(a, b)	((a) > (b) ? (a) : (b))
+
 /********************************************************//**
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,

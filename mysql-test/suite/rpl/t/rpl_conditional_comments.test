@@ -73,5 +73,14 @@ connection master;
 --error 1064
 SELECT c1 FROM /*!99999 t1 WHEREN;
 
+
+--echo #
+--echo # Bug#53373 Comments are not properly removed from the
+--echo #           pre-processed query buffer.
+--echo #
+CREATE/*!*/EVENT e1 ON SCHEDULE EVERY 10 DAY DO/*!*/SELECT 'abc';
+source include/show_binlog_events.inc;
+
 DROP TABLE t1;
+DROP EVENT e1;
 source include/master-slave-end.inc;

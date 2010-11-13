@@ -4,6 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
 # Test non-transaction
 create table t1(a int, b int) engine= myisam;
 insert into t1(a,b) values(1,1),(2,1);
@@ -42,6 +44,7 @@ insert into t5(a, b) values(3,1);
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
 # Test insert delayed ...
 insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
+SET @@global.debug= @old_debug;
 # Test load data infile
 create table t6(a VARCHAR(60)) engine= myisam;
 load data infile '../../std_data/words.dat' into table t6;
@@ -132,6 +135,10 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Rows_query	#	#	# insert delayed into t3(a,b) values(1,5),(1,6),(1,7)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t6(a VARCHAR(60)) engine= myisam
 master-bin.000001	#	Query	#	#	BEGIN
@@ -173,8 +180,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t1(a,b) values(1,1),(2,1)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -198,8 +205,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # update t1 set a = a + 5 where b = 1 LIMIT 1
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
@@ -222,8 +229,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # delete from t1 where a = 6
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
@@ -248,8 +255,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t2(a,b) values(2,1),(3,1)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
@@ -263,8 +270,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # update t2 set a = a + 5 where b = 1
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t2
 ### WHERE
@@ -284,8 +291,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # delete from t2 where a = 7
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t2
 ### WHERE
@@ -303,8 +310,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t1(a,b) values(1,5)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -324,8 +331,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t1(a,b) values(1,7)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
@@ -345,8 +352,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t2(a,b) values(2,5)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
@@ -356,8 +363,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t2(a,b) values(2,6)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t2
 ### SET
@@ -395,8 +402,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t3(a, b) values(1,1)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
@@ -416,8 +423,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t4(a, b) values(2,1)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t4
 ### SET
@@ -437,12 +444,12 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # update t3,t4 set t3.a=3, t4.a=4 where t3.b=t4.b
 # at #
-# at #
-# at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
+# at #
 #server id #  end_log_pos # 	Update_rows: table id #
+# at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t3
 ### WHERE
@@ -472,8 +479,8 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert into t5(a, b) values(3,1)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t5` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t5
 ### SET
@@ -493,10 +500,10 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b
 # at #
-# at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
+# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t5` mapped to number #
+# at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t5
 ### WHERE
@@ -519,17 +526,25 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # insert delayed into t3(a,b) values(1,5),(1,6),(1,7)
 # at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
+# at #
+#server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+# at #
+#server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t3
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -553,10 +568,10 @@ BEGIN
 #server id #  end_log_pos # 	Rows_query
 # load data infile '../../std_data/words.dat' into table t6
 # at #
-# at #
-# at #
 #server id #  end_log_pos # 	Table_map: `test`.`t6` mapped to number #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id #
+# at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t6
 ### SET
@@ -932,6 +947,14 @@ slave-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
 slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Rows_query	#	#	# insert delayed into t3(a,b) values(1,5),(1,6),(1,7)
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
+slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	#	#	COMMIT
+slave-bin.000001	#	Query	#	#	BEGIN
 slave-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
 slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
