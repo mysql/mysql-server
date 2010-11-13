@@ -28,7 +28,7 @@ set @had_db_table= @@warning_count != 0;
 CREATE TABLE IF NOT EXISTS host (  Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,Db) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Host privileges;  Merged with database privileges';
 
 
-CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(60) DEFAULT '' NOT NULL, authentication_string TEXT NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -169,7 +169,7 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 -- TABLE COND_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.COND_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.cond_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -183,7 +183,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_CURRENT
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_CURRENT("
+SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -211,7 +211,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY("
+SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -239,7 +239,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY_LONG
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG("
+SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "THREAD_ID INTEGER not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -267,7 +267,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_instance("
   "EVENT_NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "COUNT_STAR BIGINT unsigned not null,"
@@ -286,7 +286,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_thread_by_event_name("
   "THREAD_ID INTEGER not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
@@ -305,7 +305,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.events_waits_summary_global_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -323,7 +323,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.file_instances("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "OPEN_COUNT INTEGER unsigned not null"
@@ -338,7 +338,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_EVENT_NAME
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_SUMMARY_BY_EVENT_NAME("
+SET @cmd="CREATE TABLE performance_schema.file_summary_by_event_name("
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
   "COUNT_WRITE BIGINT unsigned not null,"
@@ -355,7 +355,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_INSTANCE
 --
 
-SET @cmd="CREATE TABLE performance_schema.FILE_SUMMARY_BY_INSTANCE("
+SET @cmd="CREATE TABLE performance_schema.file_summary_by_instance("
   "FILE_NAME VARCHAR(512) not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_READ BIGINT unsigned not null,"
@@ -373,7 +373,7 @@ DROP PREPARE stmt;
 -- TABLE MUTEX_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.MUTEX_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "LOCKED_BY_THREAD_ID INTEGER"
@@ -388,7 +388,7 @@ DROP PREPARE stmt;
 -- TABLE PERFORMANCE_TIMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.PERFORMANCE_TIMERS("
+SET @cmd="CREATE TABLE performance_schema.performance_timers("
   "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null,"
   "TIMER_FREQUENCY BIGINT,"
   "TIMER_RESOLUTION BIGINT,"
@@ -404,7 +404,7 @@ DROP PREPARE stmt;
 -- TABLE RWLOCK_INSTANCES
 --
 
-SET @cmd="CREATE TABLE performance_schema.RWLOCK_INSTANCES("
+SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "WRITE_LOCKED_BY_THREAD_ID INTEGER,"
@@ -420,7 +420,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_CONSUMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_CONSUMERS("
+SET @cmd="CREATE TABLE performance_schema.setup_consumers("
   "NAME VARCHAR(64) not null,"
   "ENABLED ENUM ('YES', 'NO') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -434,7 +434,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_INSTRUMENTS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_INSTRUMENTS("
+SET @cmd="CREATE TABLE performance_schema.setup_instruments("
   "NAME VARCHAR(128) not null,"
   "ENABLED ENUM ('YES', 'NO') not null,"
   "TIMED ENUM ('YES', 'NO') not null"
@@ -449,7 +449,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_TIMERS
 --
 
-SET @cmd="CREATE TABLE performance_schema.SETUP_TIMERS("
+SET @cmd="CREATE TABLE performance_schema.setup_timers("
   "NAME VARCHAR(64) not null,"
   "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -463,10 +463,10 @@ DROP PREPARE stmt;
 -- TABLE THREADS
 --
 
-SET @cmd="CREATE TABLE performance_schema.THREADS("
+SET @cmd="CREATE TABLE performance_schema.threads("
   "THREAD_ID INTEGER not null,"
-  "ID INTEGER not null,"
-  "NAME VARCHAR(64) not null"
+  "PROCESSLIST_ID INTEGER,"
+  "NAME VARCHAR(128) not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -474,3 +474,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
+
+-- Remember for later if proxies_priv table already existed
+set @had_proxies_priv_table= @@warning_count != 0;

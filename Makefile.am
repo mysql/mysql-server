@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ libservices \
+			libservices \
 			@sql_union_dirs@ \
 			unittest/mytap \
 			@sql_server@ unittest @man_dirs@ tests \
@@ -35,7 +35,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			cmake
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack libservices \
+			libservices \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			libmysqld \
@@ -264,12 +264,16 @@ test-full-qa:
 #
 # Headers which need to be checked for abi/api compatibility.
 #
+# Attention: do not forget to also add to cmake/abi_check.cmake
+#
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin_audit.h \
 			$(top_srcdir)/include/mysql/plugin_ftparser.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
-			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
+			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h \
+                        $(top_srcdir)/include/mysql/client_plugin.h \
+                        $(top_srcdir)/include/mysql/plugin_auth.h
 
 #
 # Rules for checking that the abi/api has not changed.

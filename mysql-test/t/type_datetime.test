@@ -485,5 +485,15 @@ explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#57095: Wrongly chosen expression cache type led to a wrong
+--echo #            result.
+--echo #
+CREATE TABLE t1 (`b` datetime );
+INSERT INTO t1 VALUES ('2010-01-01 00:00:00'), ('2010-01-01 00:00:00');
+SELECT * FROM t1 WHERE b <= coalesce(NULL, now());
+DROP TABLE t1;
+--echo #
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

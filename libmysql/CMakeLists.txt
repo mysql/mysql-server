@@ -140,6 +140,7 @@ SET(CLIENT_SOURCES
   errmsg.c
   ../sql-common/client.c 
   ../sql-common/my_time.c 
+  ../sql-common/client_plugin.c 
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/password.c
@@ -148,7 +149,7 @@ ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
 
-SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
+SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES} ${LIBDL})
 
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
