@@ -2448,5 +2448,52 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #674431: nested outer join when join_cache_level is set to 7
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(32)) ;
+INSERT INTO t1 VALUES (5,'h'), (NULL,'j');
+CREATE TABLE t2 (a int, b varchar(32), c int) ;
+INSERT INTO t2 VALUES (5,'h',100), (NULL,'j',200);
+CREATE TABLE t3 (a int, b varchar(32), INDEX idx(b));
+INSERT INTO t3 VALUES (77,'h'), (88,'g');
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+SET SESSION join_cache_level = 7;
+SELECT t3.a
+  FROM t1 LEFT JOIN
+       (t2 LEFT OUTER JOIN t3 ON t2.b = t3.b) ON t2.a = t1.b
+    WHERE t3.a BETWEEN 3 AND 11 OR t1.a <= t2.c;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #52540: nested outer join when join_cache_level is set to 3
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (a varchar(10));
+INSERT INTO t2 VALUES ('f'),('x');
+CREATE TABLE t3 (pk int(11) PRIMARY KEY);
+INSERT INTO t3 VALUES (2);
+CREATE TABLE t4 (a varchar(10));
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+SET SESSION join_cache_level = 3;
+
+SELECT *
+       FROM t2 LEFT JOIN
+           ((t1 JOIN t3 ON t1.a = t3.pk) LEFT JOIN t4 ON 1) ON 1;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

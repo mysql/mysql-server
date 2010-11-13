@@ -7634,6 +7634,10 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (cache_level == 0 || i == join->const_tables || !prev_tab)
     return 0;
 
+  if (force_unlinked_cache && 
+      (cache_level & JOIN_CACHE_INCREMENTAL_BIT))
+    cache_level--;
+
   if (options & SELECT_NO_JOIN_CACHE)
     goto no_join_cache;
   /* 
@@ -7732,7 +7736,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
           tab->make_scan_filter())
         goto no_join_cache;
       if (cache_level == 3)
+      {
+        if (prev_tab->cache)
+          goto no_join_cache;
         prev_cache= 0;
+      }
       if ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&
           ((options & SELECT_DESCRIBE) || !tab->cache->init()))
       {
@@ -7747,6 +7755,9 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if ((flags & HA_MRR_NO_ASSOCIATION) &&
 	(cache_level <= 6 || no_hashed_cache))
       goto no_join_cache;
+
+    if (prev_tab->cache and cache_level==7)
+      cache_level= 6;
     
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL))
     {
