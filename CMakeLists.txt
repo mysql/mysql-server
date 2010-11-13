@@ -331,6 +331,11 @@ ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
+
+# Create a single package with "make package"
+# (see http://public.kitware.com/Bug/view.php?id=11452)
+SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
+
 INCLUDE(CPack)
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
