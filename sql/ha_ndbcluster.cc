@@ -6434,8 +6434,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+    if ((m_skip_auto_increment &&
+        ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
       if (--retries &&
@@ -9502,7 +9502,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user = 0;
+  thd->main_security_ctx.priv_user[0] = 0;
   /* Do not use user-supplied timeout value for system threads. */
   thd->variables.lock_wait_timeout= LONG_TIMEOUT;
 
@@ -10270,8 +10270,8 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);

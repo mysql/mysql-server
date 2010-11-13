@@ -43,7 +43,7 @@ typedef enum {
 	IBUF_OP_DELETE = 2,
 
 	/* Number of different operation types. */
-	IBUF_OP_COUNT = 3,
+	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
 /** Combinations of operations that can be buffered.  Because the enum
@@ -62,6 +62,11 @@ typedef enum {
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+extern uint		ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;

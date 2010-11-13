@@ -31,14 +31,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/* TODO list for the InnoDB handler in 5.0:
-  - Remove the flag trx->active_trans and look at trx->conc_state
-  - fix savepoint functions to use savepoint storage area
-  - Find out what kind of problems the OS X case-insensitivity causes to
-    table and database names; should we 'normalize' the names like we do
-    in Windows?
-*/
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
@@ -97,10 +89,6 @@ extern "C" {
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
 
-#if MYSQL_VERSION_ID < 50124
-bool check_global_access(THD *thd, ulong want_access);
-#endif /* MYSQL_VERSION_ID < 50124 */
-
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -125,11 +113,14 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-static long innobase_mirrored_log_groups, innobase_log_files_in_group,
-	innobase_log_buffer_size,
-	innobase_additional_mem_pool_size, innobase_file_io_threads,
-	innobase_force_recovery, innobase_open_files,
-	innobase_autoinc_lock_mode;
+static long innobase_mirrored_log_groups;
+static long innobase_log_files_in_group;
+static long innobase_log_buffer_size;
+static long innobase_additional_mem_pool_size;
+static long innobase_file_io_threads;
+static long innobase_force_recovery;
+static long innobase_open_files;
+static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
@@ -149,10 +140,10 @@ static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
-static char*	innobase_monitor_counter_on		= NULL;
-static char*	innobase_monitor_counter_off		= NULL;
-static char*	innobase_monitor_counter_reset		= NULL;
-static char*	innobase_monitor_counter_reset_all	= NULL;
+static char*	innobase_enable_monitor_counter		= NULL;
+static char*	innobase_disable_monitor_counter	= NULL;
+static char*	innobase_reset_monitor_counter		= NULL;
+static char*	innobase_reset_all_monitor_counter	= NULL;
 
 /* The highest file format being used in the database. The value can be
 set by user, however, it will be adjusted to the newer file format if
@@ -212,10 +203,10 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-        {&commit_threads_m_key, "commit_threads_m", 0},
-        {&commit_cond_mutex_key, "commit_cond_mutex", 0},
-        {&innobase_share_mutex_key, "innobase_share_mutex", 0},
-        {&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+	{&commit_threads_m_key, "commit_threads_m", 0},
+ 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
+ 	{&innobase_share_mutex_key, "innobase_share_mutex", 0},
+ 	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -246,7 +237,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
 	{&ibuf_pessimistic_insert_mutex_key,
 		 "ibuf_pessimistic_insert_mutex", 0},
-	{&ios_mutex_key, "ios_mutex", 0},
 	{&kernel_mutex_key, "kernel_mutex", 0},
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
@@ -326,97 +316,11 @@ static PSI_file_info	all_innodb_files[] = {
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
-static INNOBASE_SHARE *get_share(const char *table_name);
-static void free_share(INNOBASE_SHARE *share);
-static int innobase_close_connection(handlerton *hton, THD* thd);
-static int innobase_commit(handlerton *hton, THD* thd, bool all);
-static int innobase_rollback(handlerton *hton, THD* thd, bool all);
-static int innobase_rollback_to_savepoint(handlerton *hton, THD* thd,
-           void *savepoint);
-static int innobase_savepoint(handlerton *hton, THD* thd, void *savepoint);
-static int innobase_release_savepoint(handlerton *hton, THD* thd,
-           void *savepoint);
-static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table,
-                                        MEM_ROOT *mem_root);
-
-/* "GEN_CLUST_INDEX" is the name reserved for Innodb default
+/** "GEN_CLUST_INDEX" is the name reserved for Innodb default
 system primary index. */
 static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
 
-/** @brief Initialize the default value of innodb_commit_concurrency.
-
-Once InnoDB is running, the innodb_commit_concurrency must not change
-from zero to nonzero. (Bug #42101)
-
-The initial default value is 0, and without this extra initialization,
-SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
-to 0, even if it was initially set to nonzero at the command line
-or configuration file. */
-static
-void
-innobase_commit_concurrency_init_default(void);
-/*==========================================*/
-
-/************************************************************//**
-Validate the file format name and return its corresponding id.
-@return	valid file format id */
-static
-uint
-innobase_file_format_name_lookup(
-/*=============================*/
-	const char*	format_name);		/*!< in: pointer to file format
-						name */
-/************************************************************//**
-Validate the file format check config parameters, as a side effect it
-sets the srv_max_file_format_at_startup variable.
-@return	the format_id if valid config value, otherwise, return -1 */
-static
-int
-innobase_file_format_validate_and_set(
-/*==================================*/
-	const char*	format_max);		/*!< in: parameter value */
-/****************************************************************//**
-Return alter table flags supported in an InnoDB database. */
-static
-uint
-innobase_alter_table_flags(
-/*=======================*/
-	uint	flags);
-
 static const char innobase_hton_name[]= "InnoDB";
-
-/*************************************************************//**
-Check for a valid value of innobase_commit_concurrency.
-@return	0 for valid innodb_commit_concurrency */
-static
-int
-innobase_commit_concurrency_validate(
-/*=================================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
-{
-	long long	intbuf;
-	ulong		commit_concurrency;
-
-	DBUG_ENTER("innobase_commit_concurrency_validate");
-
-	if (value->val_int(value, &intbuf)) {
-		/* The value is NULL. That is invalid. */
-		DBUG_RETURN(1);
-	}
-
-	*reinterpret_cast<ulong*>(save) = commit_concurrency
-		= static_cast<ulong>(intbuf);
-
-	/* Allow the value to be updated, as long as it remains zero
-	or nonzero. */
-	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
-}
 
 static MYSQL_THDVAR_BOOL(support_xa, PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB support for the XA two-phase commit",
@@ -435,158 +339,6 @@ static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
-
-
-static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table,
-                                        MEM_ROOT *mem_root)
-{
-  return new (mem_root) ha_innobase(hton, table);
-}
-
-/*******************************************************************//**
-This function is used to prepare an X/Open XA distributed transaction.
-@return	0 or error number */
-static
-int
-innobase_xa_prepare(
-/*================*/
-        handlerton*	hton,	/*!< in: InnoDB handlerton */
-	THD*		thd,	/*!< in: handle to the MySQL thread of
-				the user whose XA transaction should
-				be prepared */
-	bool		all);	/*!< in: TRUE - commit transaction
-				FALSE - the current SQL statement
-				ended */
-/*******************************************************************//**
-This function is used to recover X/Open XA distributed transactions.
-@return	number of prepared transactions stored in xid_list */
-static
-int
-innobase_xa_recover(
-/*================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	XID*		xid_list,/*!< in/out: prepared transactions */
-	uint		len);	/*!< in: number of slots in xid_list */
-/*******************************************************************//**
-This function is used to commit one X/Open XA distributed transaction
-which is in the prepared state
-@return	0 or error number */
-static
-int
-innobase_commit_by_xid(
-/*===================*/
-	handlerton* hton,
-	XID*	xid);	/*!< in: X/Open XA transaction identification */
-/*******************************************************************//**
-This function is used to rollback one X/Open XA distributed transaction
-which is in the prepared state
-@return	0 or error number */
-static
-int
-innobase_rollback_by_xid(
-/*=====================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
-	XID*		xid);	/*!< in: X/Open XA transaction
-				identification */
-/*******************************************************************//**
-Create a consistent view for a cursor based on current transaction
-which is created if the corresponding MySQL thread still lacks one.
-This consistent view is then used inside of MySQL when accessing records
-using a cursor.
-@return	pointer to cursor view or NULL */
-static
-void*
-innobase_create_cursor_view(
-/*========================*/
-	handlerton*	hton,	/*!< in: innobase hton */
-	THD*		thd);	/*!< in: user thread handle */
-/*******************************************************************//**
-Set the given consistent cursor view to a transaction which is created
-if the corresponding MySQL thread still lacks one. If the given
-consistent cursor view is NULL global read view of a transaction is
-restored to a transaction read view. */
-static
-void
-innobase_set_cursor_view(
-/*=====================*/
-	handlerton* hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview);/*!< in: Consistent cursor view to be set */
-/*******************************************************************//**
-Close the given consistent cursor view of a transaction and restore
-global read view to a transaction read view. Transaction is created if the
-corresponding MySQL thread still lacks one. */
-static
-void
-innobase_close_cursor_view(
-/*=======================*/
-	handlerton* hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview);/*!< in: Consistent read view to be closed */
-/*****************************************************************//**
-Removes all tables in the named database inside InnoDB. */
-static
-void
-innobase_drop_database(
-/*===================*/
-	handlerton* hton, /*!< in: handlerton of Innodb */
-	char*	path);	/*!< in: database path; inside InnoDB the name
-			of the last directory in the path is used as
-			the database name: for example, in 'mysql/data/test'
-			the database name is 'test' */
-/*******************************************************************//**
-Closes an InnoDB database. */
-static
-int
-innobase_end(handlerton *hton, ha_panic_function type);
-
-/*****************************************************************//**
-Creates an InnoDB transaction struct for the thd if it does not yet have one.
-Starts a new InnoDB transaction if a transaction is not yet started. And
-assigns a new snapshot for a consistent read if the transaction does not yet
-have one.
-@return	0 */
-static
-int
-innobase_start_trx_and_assign_read_view(
-/*====================================*/
-			/* out: 0 */
-	handlerton* hton, /* in: Innodb handlerton */
-	THD*	thd);	/* in: MySQL thread handle of the user for whom
-			the transaction should be committed */
-/****************************************************************//**
-Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
-the logs, and the name of this function should be innobase_checkpoint.
-@return	TRUE if error */
-static
-bool
-innobase_flush_logs(
-/*================*/
-	handlerton*	hton);	/*!< in: InnoDB handlerton */
-
-/************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client. */
-static
-bool
-innodb_show_status(
-/*===============*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
-	THD*	thd,	/*!< in: the MySQL query thread of the caller */
-	stat_print_fn *stat_print);
-static
-bool innobase_show_status(handlerton *hton, THD* thd,
-                          stat_print_fn* stat_print,
-                          enum ha_stat_type stat_type);
-
-/*****************************************************************//**
-Commits a transaction in an InnoDB database. */
-static
-void
-innobase_commit_low(
-/*================*/
-	trx_t*	trx);	/*!< in: transaction handle */
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_pages_data",
@@ -679,8 +431,370 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
+  {"num_open_files",
+  (char*) &export_vars.innodb_num_open_files,		  SHOW_LONG},
+  {"truncated_status_writes",
+  (char*) &export_vars.innodb_truncated_status_writes,	  SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+/************************************************************************//**
+Handling the shared INNOBASE_SHARE structure that is needed to provide table
+locking. Register the table name if it doesn't exist in the hash table. */
+static
+INNOBASE_SHARE*
+get_share(
+/*======*/
+	const char*	table_name);	/*!< in: table to lookup */
+
+/************************************************************************//**
+Free the shared object that was registered with get_share(). */
+static
+void
+free_share(
+/*=======*/
+	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
+
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return	0 or error number */
+static
+int
+innobase_close_connection(
+/*======================*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
+
+/*****************************************************************//**
+Commits a transaction in an InnoDB database or marks an SQL statement
+ended.
+@return	0 */
+static
+int
+innobase_commit(
+/*============*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd,		/*!< in: MySQL thread handle of the
+					user for whom the transaction should
+					be committed */
+	bool		commit_trx);	/*!< in: true - commit transaction
+					false - the current SQL statement
+					ended */
+
+/*****************************************************************//**
+Rolls back a transaction to a savepoint.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_rollback(
+/*==============*/
+	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back */
+	bool		rollback_trx);	/*!< in: TRUE - rollback entire
+					transaction FALSE - rollback the current
+					statement only */
+
+/*****************************************************************//**
+Rolls back a transaction to a savepoint.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_rollback_to_savepoint(
+/*===========================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be rolled back to savepoint */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/*****************************************************************//**
+Sets a transaction savepoint.
+@return	always 0, that is, always succeeds */
+static
+int
+innobase_savepoint(
+/*===============*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user's XA transaction for which
+					we need to take a savepoint */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/*****************************************************************//**
+Release transaction savepoint name.
+@return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
+given name */
+static
+int
+innobase_release_savepoint(
+/*=======================*/
+	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction's
+					savepoint should be released */
+	void*		savepoint);	/*!< in: savepoint data */
+
+/************************************************************************//**
+Function for constructing an InnoDB table handler instance. */
+static
+handler*
+innobase_create_handler(
+/*====================*/
+	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	TABLE_SHARE*	table,
+	MEM_ROOT*	mem_root);
+
+/** @brief Initialize the default value of innodb_commit_concurrency.
+
+Once InnoDB is running, the innodb_commit_concurrency must not change
+from zero to nonzero. (Bug #42101)
+
+The initial default value is 0, and without this extra initialization,
+SET GLOBAL innodb_commit_concurrency=DEFAULT would set the parameter
+to 0, even if it was initially set to nonzero at the command line
+or configuration file. */
+static
+void
+innobase_commit_concurrency_init_default();
+/*=======================================*/
+
+/************************************************************//**
+Validate the file format name and return its corresponding id.
+@return	valid file format id */
+static
+uint
+innobase_file_format_name_lookup(
+/*=============================*/
+	const char*	format_name);	/*!< in: pointer to file format
+					name */
+/************************************************************//**
+Validate the file format check config parameters, as a side effect it
+sets the srv_max_file_format_at_startup variable.
+@return	the format_id if valid config value, otherwise, return -1 */
+static
+int
+innobase_file_format_validate_and_set(
+/*==================================*/
+	const char*	format_max);	/*!< in: parameter value */
+/****************************************************************//**
+Return alter table flags supported in an InnoDB database. */
+static
+uint
+innobase_alter_table_flags(
+/*=======================*/
+	uint	flags);
+
+/*******************************************************************//**
+This function is used to prepare an X/Open XA distributed transaction.
+@return	0 or error number */
+static
+int
+innobase_xa_prepare(
+/*================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be prepared */
+	bool		all);		/*!< in: true - prepare transaction
+					false - the current SQL statement
+					ended */
+/*******************************************************************//**
+This function is used to recover X/Open XA distributed transactions.
+@return	number of prepared transactions stored in xid_list */
+static
+int
+innobase_xa_recover(
+/*================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid_list,	/*!< in/out: prepared transactions */
+	uint		len);		/*!< in: number of slots in xid_list */
+/*******************************************************************//**
+This function is used to commit one X/Open XA distributed transaction
+which is in the prepared state
+@return	0 or error number */
+static
+int
+innobase_commit_by_xid(
+/*===================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid);		/*!< in: X/Open XA transaction
+					identification */
+/*******************************************************************//**
+This function is used to rollback one X/Open XA distributed transaction
+which is in the prepared state
+@return	0 or error number */
+static
+int
+innobase_rollback_by_xid(
+/*=====================*/
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	XID*		xid);		/*!< in: X/Open XA transaction
+					identification */
+/*******************************************************************//**
+Create a consistent view for a cursor based on current transaction
+which is created if the corresponding MySQL thread still lacks one.
+This consistent view is then used inside of MySQL when accessing records
+using a cursor.
+@return	pointer to cursor view or NULL */
+static
+void*
+innobase_create_cursor_view(
+/*========================*/
+	handlerton*	hton,		/*!< in: innobase hton */
+	THD*		thd);		/*!< in: user thread handle */
+/*******************************************************************//**
+Set the given consistent cursor view to a transaction which is created
+if the corresponding MySQL thread still lacks one. If the given
+consistent cursor view is NULL global read view of a transaction is
+restored to a transaction read view. */
+static
+void
+innobase_set_cursor_view(
+/*=====================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	THD*		thd,		/*!< in: user thread handle */
+	void*		curview);	/*!< in: Consistent cursor view to
+					be set */
+/*******************************************************************//**
+Close the given consistent cursor view of a transaction and restore
+global read view to a transaction read view. Transaction is created if the
+corresponding MySQL thread still lacks one. */
+static
+void
+innobase_close_cursor_view(
+/*=======================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	THD*		thd,		/*!< in: user thread handle */
+	void*		curview);	/*!< in: Consistent read view to be
+					closed */
+/*****************************************************************//**
+Removes all tables in the named database inside InnoDB. */
+static
+void
+innobase_drop_database(
+/*===================*/
+	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	char*		path);		/*!< in: database path; inside InnoDB
+					the name of the last directory in
+					the path is used as the database name:
+					for example, in 'mysql/data/test' the
+					database name is 'test' */
+/*******************************************************************//**
+Closes an InnoDB database. */
+static
+int
+innobase_end(
+/*=========*/
+	handlerton*		hton,	/* in: Innodb handlerton */
+	ha_panic_function	type);
+
+/*****************************************************************//**
+Creates an InnoDB transaction struct for the thd if it does not yet have one.
+Starts a new InnoDB transaction if a transaction is not yet started. And
+assigns a new snapshot for a consistent read if the transaction does not yet
+have one.
+@return	0 */
+static
+int
+innobase_start_trx_and_assign_read_view(
+/*====================================*/
+	handlerton*	hton,		/* in: Innodb handlerton */
+	THD*		thd);		/* in: MySQL thread handle of the
+					user for whom the transaction should
+					be committed */
+/****************************************************************//**
+Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
+the logs, and the name of this function should be innobase_checkpoint.
+@return	TRUE if error */
+static
+bool
+innobase_flush_logs(
+/*================*/
+	handlerton*	hton);		/*!< in: InnoDB handlerton */
+
+/************************************************************************//**
+Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
+Monitor to the client.
+@return 0 on success */
+static
+int
+innodb_show_status(
+/*===============*/
+	handlerton*	hton,		/*!< in: the innodb handlerton */
+	THD*		thd,		/*!< in: the MySQL query thread of
+					the caller */
+	stat_print_fn*	stat_print);
+/************************************************************************//**
+Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int. */
+static
+bool
+innobase_show_status(
+/*=================*/
+	handlerton*		hton,	/*!< in: the innodb handlerton */
+	THD*			thd,	/*!< in: the MySQL query thread of
+					the caller */
+	stat_print_fn*		stat_print,
+	enum ha_stat_type	stat_type);
+
+/*****************************************************************//**
+Commits a transaction in an InnoDB database. */
+static
+void
+innobase_commit_low(
+/*================*/
+	trx_t*	trx);	/*!< in: transaction handle */
+
+
+/*************************************************************//**
+Check for a valid value of innobase_commit_concurrency.
+@return	0 for valid innodb_commit_concurrency */
+static
+int
+innobase_commit_concurrency_validate(
+/*=================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	long long	intbuf;
+	ulong		commit_concurrency;
+
+	DBUG_ENTER("innobase_commit_concurrency_validate");
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		DBUG_RETURN(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = commit_concurrency
+		= static_cast<ulong>(intbuf);
+
+	/* Allow the value to be updated, as long as it remains zero
+	or nonzero. */
+	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
+}
+
+/*******************************************************************//**
+Function for constructing an InnoDB table handler instance. */
+static
+handler*
+innobase_create_handler(
+/*====================*/
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	TABLE_SHARE*	table,
+	MEM_ROOT*	mem_root)
+{
+	return new (mem_root) ha_innobase(hton, table);
+}
 
 /* General functions */
 
@@ -904,6 +1018,19 @@ convert_error_code_to_mysql(
 	case DB_INTERRUPTED:
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 		/* fall through */
+
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_ROW_IS_REFERENCED,
+				    "InnoDB: Cannot delete/update "
+				    "rows with cascading foreign key "
+				    "constraints that exceed max "
+				    "depth of %d. Please "
+				    "drop extra constraints and try "
+				    "again", DICT_FK_MAX_RECURSIVE_LOAD);
+
+		/* fall through */
+
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
@@ -1023,7 +1150,7 @@ innobase_mysql_print_thd(
 	FILE*	f,		/*!< in: output stream */
 	void*	thd,		/*!< in: pointer to a MySQL THD object */
 	uint	max_query_len)	/*!< in: max query length to print, or 0 to
-				   use the default max length */
+				use the default max length */
 {
 	char	buffer[1024];
 
@@ -1160,6 +1287,19 @@ innobase_get_stmt(
 	return(stmt->str);
 }
 
+/**********************************************************************//**
+Get the current seting of the table_def_size global parameter. We do
+a dirty read because for one there is no synchronization object and
+secondly there is little harm in doing so even if we get a torn read.
+@return	value of table_def_size */
+extern "C" UNIV_INTERN
+ulint
+innobase_get_table_cache_size(void)
+/*===============================*/
+{
+	return(table_def_size);
+}
+
 #if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
@@ -1276,19 +1416,19 @@ innobase_mysql_tmpfile(void)
 
 #ifdef _WIN32
 		/* Note that on Windows, the integer returned by mysql_tmpfile
-		has no relation to C runtime file descriptor. Here, we need 
+		has no relation to C runtime file descriptor. Here, we need
 		to call my_get_osfhandle to get the HANDLE and then convert it 
 		to C runtime filedescriptor. */
 		{
 			HANDLE hFile = my_get_osfhandle(fd);
 			HANDLE hDup;
-			BOOL bOK = 
-				DuplicateHandle(GetCurrentProcess(), hFile, GetCurrentProcess(),
-								&hDup, 0, FALSE, DUPLICATE_SAME_ACCESS);
-			if(bOK) {
+			BOOL bOK = DuplicateHandle(
+					GetCurrentProcess(),
+					hFile, GetCurrentProcess(),
+					&hDup, 0, FALSE, DUPLICATE_SAME_ACCESS);
+			if (bOK) {
 				fd2 = _open_osfhandle((intptr_t)hDup,0);
-			}
-			else {
+			} else {
 				my_osmaperr(GetLastError());
 				fd2 = -1;
 			}	
@@ -1322,13 +1462,15 @@ innobase_convert_string(
 	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
 	const void*	from,		/*!< in: string to convert */
 	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert from */
+	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
+					from */
 	uint*		errors)		/*!< out: number of errors encountered
 					during the conversion */
 {
-  return(copy_and_convert((char*)to, (uint32) to_length, to_cs,
-                          (const char*)from, (uint32) from_length, from_cs,
-                          errors));
+	return(copy_and_convert(
+			(char*) to, (uint32) to_length, to_cs,
+			(const char*) from, (uint32) from_length, from_cs,
+			errors));
 }
 
 /*******************************************************************//**
@@ -1503,7 +1645,7 @@ Gets the InnoDB transaction handle for a MySQL handler object, creates
 an InnoDB transaction struct if the corresponding MySQL thread struct still
 lacks one.
 @return	InnoDB transaction handle */
-static
+static inline
 trx_t*
 check_trx_exists(
 /*=============*/
@@ -1525,13 +1667,87 @@ check_trx_exists(
 	return(trx);
 }
 
+/*********************************************************************//**
+Note that a transaction has been registered with MySQL.
+@return true if transaction is registered with MySQL 2PC coordinator */
+static inline
+bool
+trx_is_registered_for_2pc(
+/*=========================*/
+	const trx_t*	trx)	/* in: transaction */
+{
+	return(trx->is_registered == 1);
+}
+
+/*********************************************************************//**
+Note that a transaction owns the prepare_commit_mutex. */
+static inline
+void
+trx_owns_prepare_commit_mutex_set(
+/*==============================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	ut_a(trx_is_registered_for_2pc(trx));
+	trx->owns_prepare_mutex = 1;
+}
+
+/*********************************************************************//**
+Note that a transaction has been registered with MySQL 2PC coordinator. */
+static inline
+void
+trx_register_for_2pc(
+/*==================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	trx->is_registered = 1;
+	ut_ad(trx->owns_prepare_mutex == 0);
+}
+
+/*********************************************************************//**
+Note that a transaction has been deregistered. */
+static inline
+void
+trx_deregister_from_2pc(
+/*====================*/
+	trx_t*	trx)	/* in: transaction */
+{
+	trx->is_registered = 0;
+	trx->owns_prepare_mutex = 0;
+}
+
+/*********************************************************************//**
+Check whether atransaction owns the prepare_commit_mutex.
+@return true if transaction owns the prepare commit mutex */
+static inline
+bool
+trx_has_prepare_commit_mutex(
+/*=========================*/
+	const trx_t*	trx)	/* in: transaction */
+{
+	return(trx->owns_prepare_mutex == 1);
+}
+
+/*********************************************************************//**
+Check if transaction is started.
+@reutrn true if transaction is in state started */
+static
+bool
+trx_is_started(
+/*===========*/
+	trx_t*	trx)	/* in: transaction */
+{
+	return(trx->conc_state != TRX_NOT_STARTED);
+}
 
 /*********************************************************************//**
 Construct ha_innobase handler. */
 UNIV_INTERN
-ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg),
-  int_table_flags(HA_REC_NOT_IN_SEQ |
+ha_innobase::ha_innobase(
+/*=====================*/
+	handlerton*	hton,
+	TABLE_SHARE*	table_arg)
+	:handler(hton, table_arg),
+	int_table_flags(HA_REC_NOT_IN_SEQ |
 		  HA_NULL_IN_KEY |
 		  HA_CAN_INDEX_BLOBS |
 		  HA_CAN_SQL_HANDLER |
@@ -1540,14 +1756,15 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
 		  HA_TABLE_SCAN_ON_INDEX),
-  start_of_scan(0),
-  num_write_row(0)
+	start_of_scan(0),
+	num_write_row(0)
 {}
 
 /*********************************************************************//**
 Destruct ha_innobase handler. */
 UNIV_INTERN
 ha_innobase::~ha_innobase()
+/*======================*/
 {
 }
 
@@ -1583,55 +1800,39 @@ ha_innobase::update_thd()
 /*=====================*/
 {
 	THD*	thd = ha_thd();
+
 	ut_ad(EQ_CURRENT_THD(thd));
 	update_thd(thd);
 }
 
 /*********************************************************************//**
-Registers that InnoDB takes part in an SQL statement, so that MySQL knows to
-roll back the statement if the statement results in an error. This MUST be
-called for every SQL statement that may be rolled back by MySQL. Calling this
-several times to register the same statement is allowed, too. */
+Registers an InnoDB transaction with the MySQL 2PC coordinator, so that
+the MySQL XA code knows to call the InnoDB prepare and commit, or rollback
+for the transaction. This MUST be called for every transaction for which
+the user may call commit or rollback. Calling this several times to register
+the same transaction is allowed, too. This function also registers the
+current SQL statement. */
 static inline
 void
-innobase_register_stmt(
-/*===================*/
-        handlerton*	hton,	/*!< in: Innobase hton */
-	THD*	thd)	/*!< in: MySQL thd (connection) object */
+innobase_register_trx(
+/*==================*/
+	handlerton*	hton,	/* in: Innobase handlerton */
+	THD*		thd,	/* in: MySQL thd (connection) object */
+	trx_t*		trx)	/* in: transaction to register */
 {
-	DBUG_ASSERT(hton == innodb_hton_ptr);
-	/* Register the statement */
 	trans_register_ha(thd, FALSE, hton);
-}
 
-/*********************************************************************//**
-Registers an InnoDB transaction in MySQL, so that the MySQL XA code knows
-to call the InnoDB prepare and commit, or rollback for the transaction. This
-MUST be called for every transaction for which the user may call commit or
-rollback. Calling this several times to register the same transaction is
-allowed, too.
-This function also registers the current SQL statement. */
-static inline
-void
-innobase_register_trx_and_stmt(
-/*===========================*/
-        handlerton *hton, /*!< in: Innobase handlerton */
-	THD*	thd)	/*!< in: MySQL thd (connection) object */
-{
-	/* NOTE that actually innobase_register_stmt() registers also
-	the transaction in the AUTOCOMMIT=1 mode. */
+	if (!trx_is_registered_for_2pc(trx)
+	    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
-	innobase_register_stmt(hton, thd);
-
-	if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-
-		/* No autocommit mode, register for a transaction */
 		trans_register_ha(thd, TRUE, hton);
 	}
+
+	trx_register_for_2pc(trx);
 }
 
-/*   BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
-     ------------------------------------------------------------
+/*	BACKGROUND INFO: HOW THE MYSQL QUERY CACHE WORKS WITH INNODB
+	------------------------------------------------------------
 
 1) The use of the query cache for TBL is disabled when there is an
 uncommitted change to TBL.
@@ -1769,20 +1970,15 @@ innobase_query_caching_of_table_permitted(
 
 	memcpy(norm_name, full_name, full_name_len);
 
-	norm_name[strlen(norm_name)] = '/'; /* InnoDB uses '/' as the
-					    separator between db and table */
+	norm_name[strlen(norm_name)] = '/'; 	/* InnoDB uses '/' as the
+						separator between db and
+						table */
 	norm_name[full_name_len] = '\0';
 #ifdef __WIN__
 	innobase_casedn_str(norm_name);
 #endif
-	/* The call of row_search_.. will start a new transaction if it is
-	not yet started */
 
-	if (trx->active_trans == 0) {
-
-		innobase_register_trx_and_stmt(innodb_hton_ptr, thd);
-		trx->active_trans = 1;
-	}
+	innobase_register_trx(innodb_hton_ptr, thd, trx);
 
 	if (row_search_check_if_query_cache_permitted(trx, norm_name)) {
 
@@ -1842,11 +2038,7 @@ innobase_convert_identifier(
 				FALSE=id is an UTF-8 string */
 {
 	char nz[NAME_LEN + 1];
-#if MYSQL_VERSION_ID >= 50141
 	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
-#else /* MYSQL_VERSION_ID >= 50141 */
-	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
-#endif /* MYSQL_VERSION_ID >= 50141 */
 
 	const char*	s	= id;
 	int		q;
@@ -1864,13 +2056,9 @@ innobase_convert_identifier(
 		nz[idlen] = 0;
 
 		s = nz2;
-#if MYSQL_VERSION_ID >= 50141
 		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
 					 EXPLAIN_PARTITIONS_AS_COMMENT);
 		goto no_quote;
-#else /* MYSQL_VERSION_ID >= 50141 */
-		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
-#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
 	/* See if the identifier needs to be quoted. */
@@ -1881,9 +2069,7 @@ innobase_convert_identifier(
 	}
 
 	if (q == EOF) {
-#if MYSQL_VERSION_ID >= 50141
 no_quote:
-#endif /* MYSQL_VERSION_ID >= 50141 */
 		if (UNIV_UNLIKELY(idlen > buflen)) {
 			idlen = buflen;
 		}
@@ -2049,14 +2235,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	trx_assign_read_view(prebuilt->trx);
 
-	/* Set the MySQL flag to mark that there is an active transaction */
-
-	if (prebuilt->trx->active_trans == 0) {
-
-		innobase_register_trx_and_stmt(ht, user_thd);
-
-		prebuilt->trx->active_trans = 1;
-	}
+	innobase_register_trx(ht, user_thd, prebuilt->trx);
 
 	/* We did the necessary inits in this function, no need to repeat them
 	in row_search_for_mysql */
@@ -2096,33 +2275,39 @@ innobase_init(
 	uint		format_id;
 
 	DBUG_ENTER("innobase_init");
-        handlerton *innobase_hton= (handlerton *)p;
-        innodb_hton_ptr = innobase_hton;
+	handlerton *innobase_hton= (handlerton *)p;
+	innodb_hton_ptr = innobase_hton;
 
-        innobase_hton->state = SHOW_OPTION_YES;
-        innobase_hton->db_type= DB_TYPE_INNODB;
-        innobase_hton->savepoint_offset=sizeof(trx_named_savept_t);
-        innobase_hton->close_connection=innobase_close_connection;
-        innobase_hton->savepoint_set=innobase_savepoint;
-        innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
-        innobase_hton->savepoint_release=innobase_release_savepoint;
-        innobase_hton->commit=innobase_commit;
-        innobase_hton->rollback=innobase_rollback;
-        innobase_hton->prepare=innobase_xa_prepare;
-        innobase_hton->recover=innobase_xa_recover;
-        innobase_hton->commit_by_xid=innobase_commit_by_xid;
-        innobase_hton->rollback_by_xid=innobase_rollback_by_xid;
-        innobase_hton->create_cursor_read_view=innobase_create_cursor_view;
-        innobase_hton->set_cursor_read_view=innobase_set_cursor_view;
-        innobase_hton->close_cursor_read_view=innobase_close_cursor_view;
-        innobase_hton->create=innobase_create_handler;
-        innobase_hton->drop_database=innobase_drop_database;
-        innobase_hton->panic=innobase_end;
-        innobase_hton->start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
-        innobase_hton->flush_logs=innobase_flush_logs;
-        innobase_hton->show_status=innobase_show_status;
-        innobase_hton->flags=HTON_NO_FLAGS;
-        innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
+	innobase_hton->state = SHOW_OPTION_YES;
+	innobase_hton->db_type= DB_TYPE_INNODB;
+	innobase_hton->savepoint_offset = sizeof(trx_named_savept_t);
+	innobase_hton->close_connection = innobase_close_connection;
+	innobase_hton->savepoint_set = innobase_savepoint;
+	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+	innobase_hton->savepoint_release = innobase_release_savepoint;
+	innobase_hton->commit = innobase_commit;
+	innobase_hton->rollback = innobase_rollback;
+	innobase_hton->prepare = innobase_xa_prepare;
+	innobase_hton->recover = innobase_xa_recover;
+	innobase_hton->commit_by_xid = innobase_commit_by_xid;
+	innobase_hton->rollback_by_xid = innobase_rollback_by_xid;
+	innobase_hton->create_cursor_read_view = innobase_create_cursor_view;
+	innobase_hton->set_cursor_read_view = innobase_set_cursor_view;
+	innobase_hton->close_cursor_read_view = innobase_close_cursor_view;
+	innobase_hton->create = innobase_create_handler;
+	innobase_hton->drop_database = innobase_drop_database;
+	innobase_hton->panic = innobase_end;
+
+	innobase_hton->start_consistent_snapshot =
+		innobase_start_trx_and_assign_read_view;
+
+	innobase_hton->flush_logs = innobase_flush_logs;
+	innobase_hton->show_status = innobase_show_status;
+	innobase_hton->flags = HTON_NO_FLAGS;
+
+	innobase_hton->release_temporary_latches =
+		innobase_release_temporary_latches;
+
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
@@ -2357,8 +2542,9 @@ innobase_change_buffering_inited_ok:
 	srv_use_checksums = (ibool) innobase_use_checksums;
 
 #ifdef HAVE_LARGE_PAGES
-        if ((os_use_large_pages = (ibool) my_use_large_pages))
+	if ((os_use_large_pages = (ibool) my_use_large_pages)) {
 		os_large_page_size = (ulint) opt_large_page_size;
+	}
 #endif
 
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
@@ -2394,9 +2580,10 @@ innobase_change_buffering_inited_ok:
 	if (PSI_server) {
 		int	count;
 
-                count = array_elements(all_pthread_mutexes);
-                PSI_server->register_mutex("innodb",
-                                           all_pthread_mutexes, count);
+		count = array_elements(all_pthread_mutexes);
+
+ 		PSI_server->register_mutex(
+			"innodb", all_pthread_mutexes, count);
 
 # ifdef UNIV_PFS_MUTEX
 		count = array_elements(all_innodb_mutexes);
@@ -2556,12 +2743,10 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-	if (trx->conc_state == TRX_NOT_STARTED) {
+	if (trx_is_started(trx)) {
 
-		return;
+		trx_commit_for_mysql(trx);
 	}
-
-	trx_commit_for_mysql(trx);
 }
 
 /*****************************************************************//**
@@ -2574,9 +2759,9 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
-	THD*	thd)	/*!< in: MySQL thread handle of the user for whom
-			the transaction should be committed */
+	handlerton*	hton,	/*!< in: Innodb handlerton */
+	THD*		thd)	/*!< in: MySQL thread handle of the user for
+				whom the transaction should be committed */
 {
 	trx_t*	trx;
 
@@ -2603,10 +2788,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
-	if (trx->active_trans == 0) {
-		innobase_register_trx_and_stmt(hton, thd);
-		trx->active_trans = 1;
-	}
+	innobase_register_trx(hton, current_thd, trx);
 
 	DBUG_RETURN(0);
 }
@@ -2619,11 +2801,13 @@ static
 int
 innobase_commit(
 /*============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
-	THD* 	thd,	/*!< in: MySQL thread handle of the user for whom
-			the transaction should be committed */
-	bool	all)	/*!< in:	TRUE - commit transaction
-				FALSE - the current SQL statement ended */
+	handlerton*	hton,		/*!< in: Innodb handlerton */
+	THD*		thd,		/*!< in: MySQL thread handle of the
+					user for whom the transaction should
+					be committed */
+	bool		commit_trx)	/*!< in: true - commit transaction
+					false - the current SQL statement
+					ended */
 {
 	trx_t*		trx;
 
@@ -2640,29 +2824,19 @@ innobase_commit(
 		trx_search_latch_release_if_reserved(trx);
 	}
 
-	/* The flag trx->active_trans is set to 1 in
+	/* Transaction is deregistered only in a commit or a rollback. If
+	it is deregistered we know there cannot be resources to be freed
+	and we could return immediately.  For the time being, we play safe
+	and do the cleanup though there should be nothing to clean up. */
 
-	1. ::external_lock(),
-	2. ::start_stmt(),
-	3. innobase_query_caching_of_table_permitted(),
-	4. innobase_savepoint(),
-	5. ::init_table_handle_for_HANDLER(),
-	6. innobase_start_trx_and_assign_read_view(),
-	7. ::transactional_table_lock()
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-	and it is only set to 0 in a commit or a rollback. If it is 0 we know
-	there cannot be resources to be freed and we could return immediately.
-	For the time being, we play safe and do the cleanup though there should
-	be nothing to clean up. */
-
-	if (trx->active_trans == 0
-		&& trx->conc_state != TRX_NOT_STARTED) {
-
-		sql_print_error("trx->active_trans == 0, but"
-			" trx->conc_state != TRX_NOT_STARTED");
+		sql_print_error("Transaction not registered for MySQL 2PC, "
+				"but transaction is active");
 	}
-	if (all
-		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+
+	if (commit_trx
+	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
@@ -2717,15 +2891,15 @@ retry:
 			mysql_mutex_unlock(&commit_cond_m);
 		}
 
-		if (trx->active_trans == 2) {
+		if (trx_has_prepare_commit_mutex(trx)) {
 
 			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
+ 
+		trx_deregister_from_2pc(trx);
 
 		/* Now do a write + flush of logs. */
 		trx_commit_complete_for_mysql(trx);
-		trx->active_trans = 0;
-
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction commit */
@@ -2764,11 +2938,13 @@ static
 int
 innobase_rollback(
 /*==============*/
-        handlerton *hton, /*!< in: Innodb handlerton */ 
-	THD*	thd,	/*!< in: handle to the MySQL thread of the user
-			whose transaction should be rolled back */
-	bool	all)	/*!< in:	TRUE - commit transaction
-				FALSE - the current SQL statement ended */
+	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back */
+	bool		rollback_trx)	/*!< in: TRUE - rollback entire
+					transaction FALSE - rollback the current
+					statement only */
 {
 	int	error = 0;
 	trx_t*	trx;
@@ -2793,11 +2969,11 @@ innobase_rollback(
 
 	row_unlock_table_autoinc_for_mysql(trx);
 
-	if (all
-		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+	if (rollback_trx
+	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 		error = trx_rollback_for_mysql(trx);
-		trx->active_trans = 0;
+		trx_deregister_from_2pc(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
@@ -2844,10 +3020,11 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-        handlerton *hton,       /*!< in: Innodb handlerton */ 
-	THD*	thd,		/*!< in: handle to the MySQL thread of the user
-				whose transaction should be rolled back */
-	void*	savepoint)	/*!< in: savepoint data */
+	handlerton*	hton,		/*!< in: Innodb handlerton */ 
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction should
+					be rolled back to savepoint */
+	void*		savepoint)	/*!< in: savepoint data */
 {
 	ib_int64_t	mysql_binlog_cache_pos;
 	int		error = 0;
@@ -2869,8 +3046,9 @@ innobase_rollback_to_savepoint(
 
 	longlong2str((ulint)savepoint, name, 36);
 
-	error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
-						&mysql_binlog_cache_pos);
+	error = (int) trx_rollback_to_savepoint_for_mysql(
+		trx, name, &mysql_binlog_cache_pos);
+
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
@@ -2882,10 +3060,11 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-        handlerton*	hton,	/*!< in: handlerton for Innodb */
-	THD*	thd,		/*!< in: handle to the MySQL thread of the user
-				whose transaction should be rolled back */
-	void*	savepoint)	/*!< in: savepoint data */
+	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	THD*		thd,		/*!< in: handle to the MySQL thread
+					of the user whose transaction's
+					savepoint should be released */
+	void*		savepoint)	/*!< in: savepoint data */
 {
 	int		error = 0;
 	trx_t*		trx;
@@ -2912,7 +3091,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,   /*!< in: handle to the Innodb handlerton */
+	handlerton*	hton,	/*!< in: handle to the Innodb handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread */
 	void*	savepoint)	/*!< in: savepoint data */
 {
@@ -2922,11 +3101,10 @@ innobase_savepoint(
 	DBUG_ENTER("innobase_savepoint");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	/*
-	  In the autocommit mode there is no sense to set a savepoint
-	  (unless we are in sub-statement), so SQL layer ensures that
-	  this method is never called in such situation.
-	*/
+	/* In the autocommit mode there is no sense to set a savepoint
+	(unless we are in sub-statement), so SQL layer ensures that
+	this method is never called in such situation.  */
+
 #ifdef MYSQL_SERVER /* plugins cannot access thd->in_sub_stmt */
 	DBUG_ASSERT(thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
 		thd->in_sub_stmt);
@@ -2940,8 +3118,8 @@ innobase_savepoint(
 
 	innobase_release_stat_resources(trx);
 
-	/* cannot happen outside of transaction */
-	DBUG_ASSERT(trx->active_trans);
+	/* Cannot happen outside of transaction */
+	DBUG_ASSERT(trx_is_registered_for_2pc(trx));
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 	char name[64];
@@ -2959,9 +3137,9 @@ static
 int
 innobase_close_connection(
 /*======================*/
-        handlerton*	hton,	/*!< in:  innobase handlerton */
-	THD*	thd)	/*!< in: handle to the MySQL thread of the user
-			whose resources should be free'd */
+	handlerton*	hton,	/*!< in: innobase handlerton */
+	THD*		thd)	/*!< in: handle to the MySQL thread of the user
+				whose resources should be free'd */
 {
 	trx_t*	trx;
 
@@ -2971,16 +3149,15 @@ innobase_close_connection(
 
 	ut_a(trx);
 
-	if (trx->active_trans == 0
-		&& trx->conc_state != TRX_NOT_STARTED) {
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-		sql_print_error("trx->active_trans == 0, but"
-			" trx->conc_state != TRX_NOT_STARTED");
+		sql_print_error("Transaction not registered for MySQL 2PC, "
+				"but transaction is active");
 	}
 
 
-	if (trx->conc_state != TRX_NOT_STARTED &&
-		global_system_variables.log_warnings) {
+	if (trx_is_started(trx) && global_system_variables.log_warnings) {
+
 		sql_print_warning(
 			"MySQL is closing a connection that has an active "
 			"InnoDB transaction.  %llu row modifications will "
@@ -3047,19 +3224,22 @@ handler::Table_flags
 ha_innobase::table_flags() const
 /*============================*/
 {
-       /* Need to use tx_isolation here since table flags is (also)
-          called before prebuilt is inited. */
-        ulong const tx_isolation = thd_tx_isolation(ha_thd());
-        if (tx_isolation <= ISO_READ_COMMITTED)
-                return int_table_flags;
-        return int_table_flags | HA_BINLOG_STMT_CAPABLE;
+	/* Need to use tx_isolation here since table flags is (also)
+	called before prebuilt is inited. */
+	ulong const tx_isolation = thd_tx_isolation(ha_thd());
+
+	if (tx_isolation <= ISO_READ_COMMITTED) {
+		return int_table_flags;
+	}
+
+	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
 }
 
 /****************************************************************//**
 Gives the file extension of an InnoDB single-table tablespace. */
 static const char* ha_innobase_exts[] = {
-  ".ibd",
-  NullS
+	".ibd",
+	NullS
 };
 
 /****************************************************************//**
@@ -3105,8 +3285,7 @@ ha_innobase::index_flags(
 /*=====================*/
 	uint,
 	uint,
-	bool)
-const
+	bool) const
 {
 	return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
 	       | HA_READ_RANGE | HA_KEYREAD_ONLY);
@@ -3145,6 +3324,7 @@ Returns the key map of keys that are usable for scanning.
 UNIV_INTERN
 const key_map*
 ha_innobase::keys_to_use_for_scanning()
+/*===================================*/
 {
 	return(&key_map_full);
 }
@@ -3155,6 +3335,7 @@ Determines if table caching is supported.
 UNIV_INTERN
 uint8
 ha_innobase::table_cache_type()
+/*===========================*/
 {
 	return(HA_CACHE_TBL_ASKTRANSACT);
 }
@@ -3165,6 +3346,7 @@ Determines if the primary key is clustered index.
 UNIV_INTERN
 bool
 ha_innobase::primary_key_is_clustered()
+/*===================================*/
 {
 	return(true);
 }
@@ -3358,13 +3540,13 @@ static
 ibool
 innobase_build_index_translation(
 /*=============================*/
-	const TABLE*		table,	  /*!< in: table in MySQL data
-					  dictionary */
-	dict_table_t*		ib_table, /*!< in: table in Innodb data
-					  dictionary */
-	INNOBASE_SHARE*		share)	  /*!< in/out: share structure
-					  where index translation table
-					  will be constructed in. */
+	const TABLE*		table,	/*!< in: table in MySQL data
+					dictionary */
+	dict_table_t*		ib_table,/*!< in: table in Innodb data
+					dictionary */
+	INNOBASE_SHARE*		share)	/*!< in/out: share structure
+					where index translation table
+					will be constructed in. */
 {
 	ulint		mysql_num_index;
 	ulint		ib_num_index;
@@ -3552,12 +3734,19 @@ ha_innobase::innobase_initialize_autoinc()
 		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
 
 		switch (err) {
-		case DB_SUCCESS:
-			/* At the this stage we do not know the increment
-			or the offset, so use a default increment of 1. */
-			auto_inc = read_auto_inc + 1;
-			break;
+		case DB_SUCCESS: {
+			ulonglong	col_max_value;
 
+			col_max_value = innobase_get_int_col_max_value(field);
+
+			/* At the this stage we do not know the increment
+			nor the offset, so use a default increment of 1. */
+
+			auto_inc = innobase_next_autoinc(
+				read_auto_inc, 1, 1, col_max_value);
+
+			break;
+		}
 		case DB_RECORD_NOT_FOUND:
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
@@ -3658,8 +3847,8 @@ ha_innobase::open(
 	is_part = strstr(norm_name, "#P#");
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_get(norm_name, TRUE);
-	
+	ib_table = dict_table_open_on_name(norm_name, FALSE);
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
 			++retries;
@@ -3710,7 +3899,7 @@ retry:
 		my_free(upd_buff);
 		my_errno = ENOENT;
 
-		dict_table_decrement_handle_count(ib_table, FALSE);
+		dict_table_close(ib_table, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -3854,8 +4043,6 @@ retry:
 			dict_table_get_format(prebuilt->table));
 	}
 
-	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
-
 	/* Only if the table has an AUTOINC column. */
 	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
 		dict_table_autoinc_lock(prebuilt->table);
@@ -3872,12 +4059,15 @@ retry:
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
+	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
 	DBUG_RETURN(0);
 }
 
 UNIV_INTERN
 uint
 ha_innobase::max_supported_key_part_length() const
+/*==============================================*/
 {
 	return(DICT_MAX_INDEX_COL_LEN - 1);
 }
@@ -3887,8 +4077,8 @@ Closes a handle to an InnoDB table.
 @return	0 */
 UNIV_INTERN
 int
-ha_innobase::close(void)
-/*====================*/
+ha_innobase::close()
+/*================*/
 {
 	THD*	thd;
 
@@ -3903,6 +4093,8 @@ ha_innobase::close(void)
 
 	my_free(upd_buff);
 	free_share(share);
+
+	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
@@ -3947,7 +4139,7 @@ field_in_record_is_null(
 	}
 
 	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
+		    - (char*) table->record[0]);
 
 	if (record[null_offset] & field->null_bit) {
 
@@ -3971,7 +4163,7 @@ set_field_in_record_to_null(
 	int	null_offset;
 
 	null_offset = (uint) ((char*) field->null_ptr
-					- (char*) table->record[0]);
+		    - (char*) table->record[0]);
 
 	record[null_offset] = record[null_offset] | field->null_bit;
 }
@@ -4040,9 +4232,9 @@ innobase_mysql_cmp(
 		changes then: 'b\0\0...' is ordered BEFORE 'b  ...'. Users
 		having indexes on such data need to rebuild their tables! */
 
-		ret = charset->coll->strnncollsp(charset,
-				  a, a_length,
-						 b, b_length, 0);
+		ret = charset->coll->strnncollsp(
+			charset, a, a_length, b, b_length, 0);
+
 		if (ret < 0) {
 			return(-1);
 		} else if (ret > 0) {
@@ -4109,13 +4301,12 @@ get_innobase_type_from_mysql_type(
 	switch (field->type()) {
 		/* NOTE that we only allow string types in DATA_MYSQL and
 		DATA_VARMYSQL */
-	case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
-	case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
+	case MYSQL_TYPE_VAR_STRING:	/* old <= 4.1 VARCHAR */
+	case MYSQL_TYPE_VARCHAR:	/* new >= 5.0.3 true VARCHAR */
 		if (field->binary()) {
 			return(DATA_BINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+		} else if (strcmp(field->charset()->name,
+				  "latin1_swedish_ci") == 0) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
@@ -4124,9 +4315,8 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_STRING: if (field->binary()) {
 
 			return(DATA_FIXBINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+		} else if (strcmp(field->charset()->name,
+				  "latin1_swedish_ci") == 0) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
@@ -4301,8 +4491,7 @@ ha_innobase::store_key_val_for_row(
 				true_len = (ulint) cs->cset->well_formed_len(cs,
 						(const char *) data,
 						(const char *) data + len,
-                                                (uint) (key_len /
-                                                        cs->mbmaxlen),
+ 						(uint) (key_len / cs->mbmaxlen),
 						&error);
 			}
 
@@ -4374,8 +4563,7 @@ ha_innobase::store_key_val_for_row(
 						(const char *) blob_data,
 						(const char *) blob_data
 							+ blob_len,
-                                                (uint) (key_len /
-                                                        cs->mbmaxlen),
+						(uint) (key_len / cs->mbmaxlen),
 						&error);
 			}
 
@@ -4447,8 +4635,8 @@ ha_innobase::store_key_val_for_row(
 							(const char *)src_start,
 							(const char *)src_start
 								+ key_len,
-                                                        (uint) (key_len /
-                                                                cs->mbmaxlen),
+							(uint) (key_len
+								/ cs->mbmaxlen),
 							&error);
 				}
 			}
@@ -4531,11 +4719,11 @@ build_template(
 		} else if (prebuilt->hint_need_to_fetch_extra_cols
 			== ROW_RETRIEVE_PRIMARY_KEY) {
 			/* We must at least fetch all primary key cols. Note
-			   that if the clustered index was internally generated
-			   by InnoDB on the row id (no primary key was
-			   defined), then row_search_for_mysql() will always
-			   retrieve the row id to a special buffer in the
-			   prebuilt struct. */
+			that if the clustered index was internally generated
+			by InnoDB on the row id (no primary key was
+			defined), then row_search_for_mysql() will always
+			retrieve the row id to a special buffer in the
+			prebuilt struct. */
 
 			fetch_primary_key_cols = TRUE;
 		}
@@ -4618,17 +4806,18 @@ include_field:
 		n_requested_fields++;
 
 		templ->col_no = i;
+		templ->clust_rec_field_no = dict_col_get_clust_pos(
+			col, clust_index);
+		ut_ad(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
 		if (index == clust_index) {
-			templ->rec_field_no = dict_col_get_clust_pos(
-				col, index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
-		}
-
-		if (templ->rec_field_no == ULINT_UNDEFINED) {
-			prebuilt->need_to_access_clustered = TRUE;
+			if (templ->rec_field_no == ULINT_UNDEFINED) {
+				prebuilt->need_to_access_clustered = TRUE;
+			}
 		}
 
 		if (field->null_ptr) {
@@ -4678,9 +4867,7 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[templ->col_no],
-				clust_index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		}
 	}
 }
@@ -4803,7 +4990,7 @@ ha_innobase::write_row(
 	uchar*	record)	/*!< in: a row in MySQL format */
 {
 	ulint		error = 0;
-        int             error_result= 0;
+	int		error_result= 0;
 	ibool		auto_inc_used= FALSE;
 	ulint		sql_command;
 	trx_t*		trx = thd_to_trx(user_thd);
@@ -4811,9 +4998,10 @@ ha_innobase::write_row(
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (prebuilt->trx != trx) {
-	  sql_print_error("The transaction object for the table handle is at "
-			  "%p, but for the current thread it is at %p",
-			  (const void*) prebuilt->trx, (const void*) trx);
+		sql_print_error("The transaction object for the table handle "
+				"is at %p, but for the current thread it is at "
+				"%p",
+				(const void*) prebuilt->trx, (const void*) trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
@@ -4876,7 +5064,7 @@ no_commit:
 			/* Altering to InnoDB format */
 			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
-			prebuilt->trx->active_trans = 1;
+			trx_register_for_2pc(prebuilt->trx);
 			/* We will need an IX lock on the destination table. */
 			prebuilt->sql_stat_start = TRUE;
 		} else {
@@ -4892,7 +5080,7 @@ no_commit:
 			locks, so they have to be acquired again. */
 			innobase_commit(ht, user_thd, 1);
 			/* Note that this transaction is still active. */
-			prebuilt->trx->active_trans = 1;
+			trx_register_for_2pc(prebuilt->trx);
 			/* Re-acquire the table lock on the source table. */
 			row_lock_table_for_mysql(prebuilt, src_table, mode);
 			/* We will need an IX lock on the destination table. */
@@ -6141,8 +6329,8 @@ ha_innobase::position(
 	table. */
 
 	if (len != ref_length) {
-	  sql_print_error("Stored ref len is %lu, but table ref len is %lu",
-			  (ulong) len, (ulong) ref_length);
+		sql_print_error("Stored ref len is %lu, but table ref len is "
+				"%lu", (ulong) len, (ulong) ref_length);
 	}
 }
 
@@ -6490,7 +6678,7 @@ create_options_are_valid(
 					columns and indexes */
 	HA_CREATE_INFO*	create_info)	/*!< in: create info. */
 {
-	ibool 	kbs_specified	= FALSE;
+	ibool	kbs_specified	= FALSE;
 	ibool	ret		= TRUE;
 
 
@@ -6559,8 +6747,8 @@ create_options_are_valid(
 				? "COMPRESSED"
 				: "DYNAMIC";
 
-			/* These two ROW_FORMATs require
-			srv_file_per_table and srv_file_format */
+			/* These two ROW_FORMATs require srv_file_per_table
+			and srv_file_format > Antelope */
 			if (!srv_file_per_table) {
 				push_warning_printf(
 					thd,
@@ -6570,7 +6758,6 @@ create_options_are_valid(
 					" requires innodb_file_per_table.",
 					row_format_name);
 					ret = FALSE;
-
 			}
 
 			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
@@ -6647,12 +6834,12 @@ UNIV_INTERN
 void
 ha_innobase::update_create_info(
 /*============================*/
-	HA_CREATE_INFO* create_info)	/*!< in/out: create info */
+	HA_CREATE_INFO*	create_info)	/*!< in/out: create info */
 {
-  if (!(create_info->used_fields & HA_CREATE_USED_AUTO)) {
-    ha_innobase::info(HA_STATUS_AUTO);
-    create_info->auto_increment_value = stats.auto_increment_value;
-  }
+	if (!(create_info->used_fields & HA_CREATE_USED_AUTO)) {
+		ha_innobase::info(HA_STATUS_AUTO);
+		create_info->auto_increment_value = stats.auto_increment_value;
+	}
 }
 
 /*****************************************************************//**
@@ -6769,6 +6956,8 @@ ha_innobase::create(
 		ulint	ssize, ksize;
 		ulint	key_block_size = create_info->key_block_size;
 
+		/*  Set 'flags' to the correct key_block_size.
+		It will be zero if key_block_size is an invalid number.*/
 		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
 		     ssize++, ksize <<= 1) {
 			if (key_block_size == ksize) {
@@ -6809,10 +6998,11 @@ ha_innobase::create(
 	row_type = form->s->row_type;
 
 	if (flags) {
-		/* KEY_BLOCK_SIZE was specified. */
-		if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-			/* ROW_FORMAT was not specified;
-			default to ROW_FORMAT=COMPRESSED */
+		/* if KEY_BLOCK_SIZE was specified on this statement and
+		 ROW_FORMAT was not, automatically change ROW_FORMAT to
+		 COMPRESSED. */
+		if ((create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)
+		    && !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)){
 			row_type = ROW_TYPE_COMPRESSED;
 		} else if (row_type != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
@@ -6831,7 +7021,7 @@ ha_innobase::create(
 			flags = 0;
 		}
 	} else {
-		/* No KEY_BLOCK_SIZE */
+		/* flags == 0 means no KEY_BLOCK_SIZE.*/
 		if (row_type == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
@@ -6898,7 +7088,7 @@ ha_innobase::create(
 
 	/* Look for a primary key */
 
-	primary_key_no= (form->s->primary_key != MAX_KEY ?
+	primary_key_no = (form->s->primary_key != MAX_KEY ?
 			 (int) form->s->primary_key :
 			 -1);
 
@@ -6986,7 +7176,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, FALSE);
+	innobase_table = dict_table_open_on_name(norm_name, FALSE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -7026,6 +7216,8 @@ ha_innobase::create(
 		dict_table_autoinc_initialize(innobase_table, auto_inc_value);
 		dict_table_autoinc_unlock(innobase_table);
 	}
+
+	dict_table_close(innobase_table, FALSE);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -7084,33 +7276,21 @@ Deletes all rows of an InnoDB table.
 @return	error number */
 UNIV_INTERN
 int
-ha_innobase::delete_all_rows(void)
-/*==============================*/
+ha_innobase::truncate()
+/*===================*/
 {
 	int		error;
 
-	DBUG_ENTER("ha_innobase::delete_all_rows");
+	DBUG_ENTER("ha_innobase::truncate");
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
 	update_thd(ha_thd());
 
-	if (thd_sql_command(user_thd) != SQLCOM_TRUNCATE) {
-	fallback:
-		/* We only handle TRUNCATE TABLE t as a special case.
-		DELETE FROM t will have to use ha_innobase::delete_row(),
-		because DELETE is transactional while TRUNCATE is not. */
-		DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
-	}
-
 	/* Truncate the table in InnoDB */
 
 	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
-	if (error == DB_ERROR) {
-		/* Cannot truncate; resort to ha_innobase::delete_row() */
-		goto fallback;
-	}
 
 	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
 					    NULL);
@@ -7202,16 +7382,15 @@ static
 void
 innobase_drop_database(
 /*===================*/
-	handlerton *hton, /*!< in: handlerton of Innodb */
-	char*	path)	/*!< in: database path; inside InnoDB the name
-			of the last directory in the path is used as
-			the database name: for example, in 'mysql/data/test'
-			the database name is 'test' */
+	handlerton*	hton,	/*!< in: handlerton of Innodb */
+	char*		path)	/*!< in: database path; inside InnoDB the name
+				of the last directory in the path is used as
+				the database name: for example, in
+				'mysql/data/test' the database name is 'test' */
 {
 	ulint	len		= 0;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -7254,7 +7433,7 @@ innobase_drop_database(
 #else
 	trx = innobase_trx_allocate(thd);
 #endif
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf);
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -7336,6 +7515,7 @@ innobase_rename_table(
 
 	return error;
 }
+
 /*********************************************************************//**
 Renames an InnoDB table.
 @return	0 or error code */
@@ -7407,9 +7587,9 @@ ha_innobase::records_in_range(
 /*==========================*/
 	uint			keynr,		/*!< in: index number */
 	key_range		*min_key,	/*!< in: start key value of the
-						   range, may also be 0 */
+						range, may also be 0 */
 	key_range		*max_key)	/*!< in: range end key val, may
-						   also be 0 */
+						also be 0 */
 {
 	KEY*		key;
 	dict_index_t*	index;
@@ -7522,8 +7702,8 @@ filesort.cc.
 @return	upper bound of rows */
 UNIV_INTERN
 ha_rows
-ha_innobase::estimate_rows_upper_bound(void)
-/*======================================*/
+ha_innobase::estimate_rows_upper_bound()
+/*====================================*/
 {
 	dict_index_t*	index;
 	ulonglong	estimate;
@@ -7641,12 +7821,12 @@ innobase_get_mysql_key_number_for_index(
 					dictionary */
 	dict_table_t*		ib_table,/*!< in: table in Innodb data
 					dictionary */
-        const dict_index_t*     index)	/*!< in: index */
+	const dict_index_t*	index)	/*!< in: index */
 {
 	const dict_index_t*	ind;
 	unsigned int		i;
 
-        ut_a(index);
+ 	ut_a(index);
 
 	/* If index does not belong to the table of share structure. Search
 	index->table instead */
@@ -7669,7 +7849,7 @@ innobase_get_mysql_key_number_for_index(
 
 	/* If index translation table exists, we will first check
 	the index through index translation table for a match. */
-        if (share->idx_trans_tbl.index_mapping) {
+	if (share->idx_trans_tbl.index_mapping) {
 		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
 			if (share->idx_trans_tbl.index_mapping[i] == index) {
 				return(i);
@@ -7693,46 +7873,37 @@ innobase_get_mysql_key_number_for_index(
 		if (index == ind) {
 			return(i);
 		}
-        }
+	}
 
 	ut_error;
 
-        return(0);
+	return(0);
 }
+
 /*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/*!< in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,			/*!< in: what information MySQL
+					requests */
+	bool	called_from_analyze)	/* in: TRUE if called from
+					::analyze() */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
 	ib_int64_t	n_rows;
-	ulong		j;
-	ulong		i;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
-
 
 	DBUG_ENTER("info");
 
 	/* If we are forcing recovery at a high level, we will suppress
 	statistics calculation on tables, because that may crash the
 	server if an index is badly corrupted. */
-
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
-		/* We return success (0) instead of HA_ERR_CRASHED,
-		because we want MySQL to process this query and not
-		stop, like it would do if it received the error code
-		HA_ERR_CRASHED. */
-
-		DBUG_RETURN(0);
-	}
 
 	/* We do not know if MySQL can call this function before calling
 	external_lock(). To be safe, update the thd of the current table
@@ -7750,7 +7921,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if (innobase_stats_on_metadata) {
+		if (called_from_analyze || innobase_stats_on_metadata) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
@@ -7828,12 +7999,18 @@ ha_innobase::info(
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
-		See Bug#38185.
-		We do not update delete_length if no locking is requested
-		so the "old" value can remain. delete_length is initialized
-		to 0 in the ha_statistics' constructor. */
-		if (!(flag & HA_STATUS_NO_LOCK)) {
-
+		See Bug#38185. */
+		if (flag & HA_STATUS_NO_LOCK) {
+			/* We do not update delete_length if no
+			locking is requested so the "old" value can
+			remain. delete_length is initialized to 0 in
+			the ha_statistics' constructor. */
+		} else if (UNIV_UNLIKELY
+			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
+			/* Avoid accessing the tablespace if
+			innodb_crash_recovery is set to a high value. */
+			stats.delete_length = 0;
+		} else {
 			/* lock the data dictionary to avoid races with
 			ibd_file_missing and tablespace_discarded */
 			row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -7873,11 +8050,13 @@ ha_innobase::info(
 		if (stats.records == 0) {
 			stats.mean_rec_length = 0;
 		} else {
-			stats.mean_rec_length = (ulong) (stats.data_file_length / stats.records);
+			stats.mean_rec_length = (ulong)
+				(stats.data_file_length / stats.records);
 		}
 	}
 
 	if (flag & HA_STATUS_CONST) {
+		ulong	i;
 		/* Verify the number of index in InnoDB and MySQL
 		matches up. If prebuilt->clust_index_was_generated
 		holds, InnoDB defines GEN_CLUST_INDEX internally */
@@ -7894,6 +8073,7 @@ ha_innobase::info(
 		}
 
 		for (i = 0; i < table->s->keys; i++) {
+			ulong	j;
 			/* We could get index quickly through internal
 			index mapping with the index translation table.
 			The identity of index (match up index name with
@@ -7952,11 +8132,16 @@ ha_innobase::info(
 					rec_per_key = 1;
 				}
 
-				table->key_info[i].rec_per_key[j]=
+				table->key_info[i].rec_per_key[j] =
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
 				  (ulong) rec_per_key;
 			}
 		}
+	}
+
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+
+		goto func_exit;
 	}
 
 	if (flag & HA_STATUS_ERRKEY) {
@@ -7979,9 +8164,22 @@ ha_innobase::info(
 		stats.auto_increment_value = innobase_peek_autoinc();
 	}
 
+func_exit:
 	prebuilt->trx->op_info = (char*)"";
 
 	DBUG_RETURN(0);
+}
+
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object. */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information MySQL requests */
+{
+	return(info_low(flag, false /* not called from analyze */));
 }
 
 /**********************************************************************//**
@@ -7996,7 +8194,8 @@ ha_innobase::analyze(
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
 	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		 true /* called from analyze */);
 
 	return(0);
 }
@@ -8297,8 +8496,6 @@ ha_innobase::get_foreign_key_create_info(void)
 	flen = ftell(srv_dict_tmpfile);
 	if (flen < 0) {
 		flen = 0;
-	} else if (flen > 64000 - 1) {
-		flen = 64000 - 1;
 	}
 
 	/* allocate buffer for the string, and
@@ -8318,136 +8515,199 @@ ha_innobase::get_foreign_key_create_info(void)
 }
 
 
+/***********************************************************************//**
+Maps a InnoDB foreign key constraint to a equivalent MySQL foreign key info.
+@return pointer to foreign key info */
+static
+FOREIGN_KEY_INFO*
+get_foreign_key_info(
+/*=================*/
+	THD*			thd,		/*!< in: user thread handle */
+	dict_foreign_t*		foreign)	/*!< in: foreign key constraint */
+{
+	FOREIGN_KEY_INFO	f_key_info;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	uint			i = 0;
+	ulint			len;
+	char			tmp_buff[NAME_LEN+1];
+	char			name_buff[NAME_LEN+1];
+	const char*		ptr;
+	LEX_STRING*		referenced_key_name;
+	LEX_STRING*		name = NULL;
+
+	ptr = dict_remove_db_name(foreign->id);
+	f_key_info.foreign_id = thd_make_lex_string(thd, 0, ptr,
+						    (uint) strlen(ptr), 1);
+
+	/* Name format: database name, '/', table name, '\0' */
+
+	/* Referenced (parent) database name */
+	len = dict_get_db_name_len(foreign->referenced_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->referenced_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.referenced_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Referenced (parent) table name */
+	ptr = dict_remove_db_name(foreign->referenced_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name));
+	f_key_info.referenced_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) database name */
+	len = dict_get_db_name_len(foreign->foreign_table_name);
+	ut_a(len < sizeof(tmp_buff));
+	ut_memcpy(tmp_buff, foreign->foreign_table_name, len);
+	tmp_buff[len] = 0;
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info.foreign_db = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	/* Dependent (child) table name */
+	ptr = dict_remove_db_name(foreign->foreign_table_name);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
+	f_key_info.foreign_table = thd_make_lex_string(thd, 0, name_buff, len, 1);
+
+	do {
+		ptr = foreign->foreign_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.foreign_fields.push_back(name);
+		ptr = foreign->referenced_col_names[i];
+		name = thd_make_lex_string(thd, name, ptr,
+					   (uint) strlen(ptr), 1);
+		f_key_info.referenced_fields.push_back(name);
+	} while (++i < foreign->n_fields);
+
+	if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.delete_method = thd_make_lex_string(thd,
+						       f_key_info.delete_method,
+						       ptr, len, 1);
+
+	if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
+		len = 7;
+		ptr = "CASCADE";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL) {
+		len = 8;
+		ptr = "SET NULL";
+	} else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
+		len = 9;
+		ptr = "NO ACTION";
+	} else {
+		len = 8;
+		ptr = "RESTRICT";
+	}
+
+	f_key_info.update_method = thd_make_lex_string(thd,
+						       f_key_info.update_method,
+						       ptr, len, 1);
+
+	if (foreign->referenced_index && foreign->referenced_index->name) {
+		referenced_key_name = thd_make_lex_string(thd,
+					f_key_info.referenced_key_name,
+					foreign->referenced_index->name,
+					 (uint) strlen(foreign->referenced_index->name),
+					1);
+	} else {
+		referenced_key_name = NULL;
+	}
+
+	f_key_info.referenced_key_name = referenced_key_name;
+
+	pf_key_info = (FOREIGN_KEY_INFO *) thd_memdup(thd, &f_key_info,
+						      sizeof(FOREIGN_KEY_INFO));
+
+	return(pf_key_info);
+}
+
+/*******************************************************************//**
+Gets the list of foreign keys in this table.
+@return always 0, that is, always succeeds */
 UNIV_INTERN
 int
-ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+ha_innobase::get_foreign_key_list(
+/*==============================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
 {
-  dict_foreign_t* foreign;
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-  DBUG_ENTER("get_foreign_key_list");
-  ut_a(prebuilt != NULL);
-  update_thd(ha_thd());
-  prebuilt->trx->op_info = (char*)"getting list of foreign keys";
-  trx_search_latch_release_if_reserved(prebuilt->trx);
-  mutex_enter(&(dict_sys->mutex));
-  foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  while (foreign != NULL) {
-	  uint i;
-	  FOREIGN_KEY_INFO f_key_info;
-	  LEX_STRING *name= 0;
-          uint ulen;
-          char uname[NAME_LEN+1];           /* Unencoded name */
-          char db_name[NAME_LEN+1];
-	  const char *tmp_buff;
+	prebuilt->trx->op_info = "getting list of foreign keys";
 
-	  tmp_buff= foreign->id;
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-		  i++;
-	  tmp_buff+= i + 1;
-	  f_key_info.forein_id = thd_make_lex_string(thd, 0,
-		  tmp_buff, (uint) strlen(tmp_buff), 1);
-	  tmp_buff= foreign->referenced_table_name;
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-          /* Database name */
-	  i= 0;
-	  while (tmp_buff[i] != '/')
-          {
-            db_name[i]= tmp_buff[i];
-            i++;
-          }
-          db_name[i]= 0;
-          ulen= filename_to_tablename(db_name, uname, sizeof(uname));
-	  f_key_info.referenced_db = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	mutex_enter(&(dict_sys->mutex));
 
-          /* Table name */
-	  tmp_buff+= i + 1;
-          ulen= filename_to_tablename(tmp_buff, uname, sizeof(uname));
-	  f_key_info.referenced_table = thd_make_lex_string(thd, 0,
-		  uname, ulen, 1);
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
 
-	  for (i= 0;;) {
-		  tmp_buff= foreign->foreign_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			  tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.foreign_fields.push_back(name);
-		  tmp_buff= foreign->referenced_col_names[i];
-		  name = thd_make_lex_string(thd, name,
-			tmp_buff, (uint) strlen(tmp_buff), 1);
-		  f_key_info.referenced_fields.push_back(name);
-		  if (++i >= foreign->n_fields)
-			  break;
-	  }
+	mutex_exit(&(dict_sys->mutex));
 
-          ulong length;
-          if (foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.delete_method = thd_make_lex_string(
-		  thd, f_key_info.delete_method, tmp_buff, length, 1);
+	prebuilt->trx->op_info = "";
 
+	return(0);
+}
 
-          if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE)
-          {
-            length=7;
-            tmp_buff= "CASCADE";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)
-          {
-            length=8;
-            tmp_buff= "SET NULL";
-          }
-          else if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION)
-          {
-            length=9;
-            tmp_buff= "NO ACTION";
-          }
-          else
-          {
-            length=8;
-            tmp_buff= "RESTRICT";
-          }
-	  f_key_info.update_method = thd_make_lex_string(
-		  thd, f_key_info.update_method, tmp_buff, length, 1);
-          if (foreign->referenced_index &&
-              foreign->referenced_index->name)
-          {
-	    f_key_info.referenced_key_name = thd_make_lex_string(
-		    thd, f_key_info.referenced_key_name,
-		    foreign->referenced_index->name,
-		    (uint) strlen(foreign->referenced_index->name), 1);
-          }
-          else
-            f_key_info.referenced_key_name= 0;
+/*******************************************************************//**
+Gets the set of foreign keys where this table is the referenced table.
+@return always 0, that is, always succeeds */
+UNIV_INTERN
+int
+ha_innobase::get_parent_foreign_key_list(
+/*=====================================*/
+	THD*			thd,		/*!< in: user thread handle */
+	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
+{
+	FOREIGN_KEY_INFO*	pf_key_info;
+	dict_foreign_t*		foreign;
 
-	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
-	  f_key_list->push_back(pf_key_info);
-	  foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
-  }
-  mutex_exit(&(dict_sys->mutex));
-  prebuilt->trx->op_info = (char*)"";
+	ut_a(prebuilt != NULL);
+	update_thd(ha_thd());
 
-  DBUG_RETURN(0);
+	prebuilt->trx->op_info = "getting list of referencing foreign keys";
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	mutex_enter(&(dict_sys->mutex));
+
+	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		pf_key_info = get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
+
+	mutex_exit(&(dict_sys->mutex));
+
+	prebuilt->trx->op_info = "";
+
+	return(0);
 }
 
 /*****************************************************************//**
@@ -8571,9 +8831,12 @@ ha_innobase::extra(
 	return(0);
 }
 
+/******************************************************************//**
+*/
 UNIV_INTERN
 int
 ha_innobase::reset()
+/*================*/
 {
 	if (prebuilt->blob_heap) {
 		row_mysql_prebuilt_free_blob_heap(prebuilt);
@@ -8638,39 +8901,30 @@ ha_innobase::start_stmt(
 		prepared for an update of a row */
 
 		prebuilt->select_lock_type = LOCK_X;
+
+	} else if (trx->isolation_level != TRX_ISO_SERIALIZABLE
+		   && thd_sql_command(thd) == SQLCOM_SELECT
+		   && lock_type == TL_READ) {
+
+		/* For other than temporary tables, we obtain
+		no lock for consistent read (plain SELECT). */
+
+		prebuilt->select_lock_type = LOCK_NONE;
 	} else {
-		if (trx->isolation_level != TRX_ISO_SERIALIZABLE
-			&& thd_sql_command(thd) == SQLCOM_SELECT
-			&& lock_type == TL_READ) {
+		/* Not a consistent read: restore the
+		select_lock_type value. The value of
+		stored_select_lock_type was decided in:
+		1) ::store_lock(),
+		2) ::external_lock(),
+		3) ::init_table_handle_for_HANDLER(), and
+		4) ::transactional_table_lock(). */
 
-			/* For other than temporary tables, we obtain
-			no lock for consistent read (plain SELECT). */
-
-			prebuilt->select_lock_type = LOCK_NONE;
-		} else {
-			/* Not a consistent read: restore the
-			select_lock_type value. The value of
-			stored_select_lock_type was decided in:
-			1) ::store_lock(),
-			2) ::external_lock(),
-			3) ::init_table_handle_for_HANDLER(), and
-			4) ::transactional_table_lock(). */
-
-			prebuilt->select_lock_type =
-				prebuilt->stored_select_lock_type;
-		}
+		prebuilt->select_lock_type = prebuilt->stored_select_lock_type;
 	}
 
-	trx->detailed_error[0] = '\0';
+	*trx->detailed_error = 0;
 
-	/* Set the MySQL flag to mark that there is an active transaction */
-	if (trx->active_trans == 0) {
-
-		innobase_register_trx_and_stmt(ht, thd);
-		trx->active_trans = 1;
-	} else {
-		innobase_register_stmt(ht, thd);
-	}
+	innobase_register_trx(ht, thd, trx);
 
 	return(0);
 }
@@ -8685,12 +8939,15 @@ innobase_map_isolation_level(
 	enum_tx_isolation	iso)	/*!< in: MySQL isolation level code */
 {
 	switch(iso) {
-		case ISO_REPEATABLE_READ: return(TRX_ISO_REPEATABLE_READ);
-		case ISO_READ_COMMITTED: return(TRX_ISO_READ_COMMITTED);
-		case ISO_SERIALIZABLE: return(TRX_ISO_SERIALIZABLE);
-		case ISO_READ_UNCOMMITTED: return(TRX_ISO_READ_UNCOMMITTED);
-		default: ut_a(0); return(0);
+	case ISO_REPEATABLE_READ:	return(TRX_ISO_REPEATABLE_READ);
+	case ISO_READ_COMMITTED:	return(TRX_ISO_READ_COMMITTED);
+	case ISO_SERIALIZABLE:		return(TRX_ISO_SERIALIZABLE);
+	case ISO_READ_UNCOMMITTED:	return(TRX_ISO_READ_UNCOMMITTED);
 	}
+
+	ut_error;
+
+	return(0);
 }
 
 /******************************************************************//**
@@ -8726,8 +8983,8 @@ ha_innobase::external_lock(
 	    && !(table_flags() & HA_BINLOG_STMT_CAPABLE)
 	    && thd_binlog_format(thd) == BINLOG_FORMAT_STMT
 	    && thd_binlog_filter_ok(thd)
-            && thd_sqlcom_can_generate_row_events(thd))
-        {
+	    && thd_sqlcom_can_generate_row_events(thd))
+	{
 		int skip = 0;
 		/* used by test case */
 		DBUG_EXECUTE_IF("no_innodb_binlog_errors", skip = 1;);
@@ -8759,22 +9016,14 @@ ha_innobase::external_lock(
 	if (lock_type != F_UNLCK) {
 		/* MySQL is setting a new table lock */
 
-		trx->detailed_error[0] = '\0';
+		*trx->detailed_error = 0;
 
-		/* Set the MySQL flag to mark that there is an active
-		transaction */
-		if (trx->active_trans == 0) {
-
-			innobase_register_trx_and_stmt(ht, thd);
-			trx->active_trans = 1;
-		} else if (trx->n_mysql_tables_in_use == 0) {
-			innobase_register_stmt(ht, thd);
-		}
+		innobase_register_trx(ht, thd, trx);
 
 		if (trx->isolation_level == TRX_ISO_SERIALIZABLE
-			&& prebuilt->select_lock_type == LOCK_NONE
-			&& thd_test_options(thd,
-				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+		    && prebuilt->select_lock_type == LOCK_NONE
+		    && thd_test_options(
+			    thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 			/* To get serializable execution, we let InnoDB
 			conceptually add 'LOCK IN SHARE MODE' to all SELECTs
@@ -8844,19 +9093,20 @@ ha_innobase::external_lock(
 		trx->mysql_n_tables_locked = 0;
 		prebuilt->used_in_HANDLER = FALSE;
 
-		if (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-			if (trx->active_trans != 0) {
+		if (!thd_test_options(
+				thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+
+			if (trx_is_started(trx)) {
 				innobase_commit(ht, thd, TRUE);
 			}
-		} else {
-			if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-						&& trx->global_read_view) {
 
-				/* At low transaction isolation levels we let
-				each consistent read set its own snapshot */
+		} else if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
+			   && trx->global_read_view) {
 
-				read_view_close_for_mysql(trx);
-			}
+			/* At low transaction isolation levels we let
+			each consistent read set its own snapshot */
+
+			read_view_close_for_mysql(trx);
 		}
 	}
 
@@ -8925,12 +9175,7 @@ ha_innobase::transactional_table_lock(
 
 	/* MySQL is setting a new transactional table lock */
 
-	/* Set the MySQL flag to mark that there is an active transaction */
-	if (trx->active_trans == 0) {
-
-		innobase_register_trx_and_stmt(ht, thd);
-		trx->active_trans = 1;
-	}
+	innobase_register_trx(ht, thd, trx);
 
 	if (THDVAR(thd, table_locks) && thd_in_lock_tables(thd)) {
 		ulint	error = DB_SUCCESS;
@@ -8943,7 +9188,8 @@ ha_innobase::transactional_table_lock(
 			DBUG_RETURN((int) error);
 		}
 
-		if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+		if (thd_test_options(
+			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 			/* Store the current undo_no of the transaction
 			so that we know where to roll back if we have
@@ -8960,8 +9206,8 @@ ha_innobase::transactional_table_lock(
 Here we export InnoDB status variables to MySQL. */
 static
 void
-innodb_export_status(void)
-/*======================*/
+innodb_export_status()
+/*==================*/
 {
 	if (innodb_inited) {
 		srv_export_innodb_status();
@@ -8970,18 +9216,19 @@ innodb_export_status(void)
 
 /************************************************************************//**
 Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client. */
+Monitor to the client.
+@return 0 on success */
 static
-bool
+int
 innodb_show_status(
 /*===============*/
 	handlerton*	hton,	/*!< in: the innodb handlerton */
-	THD*	thd,	/*!< in: the MySQL query thread of the caller */
-	stat_print_fn *stat_print)
+	THD*		thd,	/*!< in: the MySQL query thread of the caller */
+	stat_print_fn*	stat_print)
 {
 	trx_t*			trx;
 	static const char	truncated_msg[] = "... truncated...\n";
-	const long		MAX_STATUS_SIZE = 64000;
+	const long		MAX_STATUS_SIZE = 1048576;
 	ulint			trx_list_start = ULINT_UNDEFINED;
 	ulint			trx_list_end = ULINT_UNDEFINED;
 
@@ -8995,22 +9242,24 @@ innodb_show_status(
 	/* We let the InnoDB Monitor to output at most MAX_STATUS_SIZE
 	bytes of text. */
 
-	long	flen, usable_len;
 	char*	str;
+	ssize_t	flen, usable_len;
 
 	mutex_enter(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
+
 	srv_printf_innodb_monitor(srv_monitor_file, FALSE,
 				  &trx_list_start, &trx_list_end);
-	flen = ftell(srv_monitor_file);
+
 	os_file_set_eof(srv_monitor_file);
 
-	if (flen < 0) {
+	if ((flen = ftell(srv_monitor_file)) < 0) {
 		flen = 0;
 	}
 
 	if (flen > MAX_STATUS_SIZE) {
 		usable_len = MAX_STATUS_SIZE;
+		srv_truncated_status_writes++;
 	} else {
 		usable_len = flen;
 	}
@@ -9020,48 +9269,48 @@ innodb_show_status(
 
 	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
 		mutex_exit(&srv_monitor_file_mutex);
-		DBUG_RETURN(TRUE);
+		DBUG_RETURN(1);
 	}
 
 	rewind(srv_monitor_file);
+
 	if (flen < MAX_STATUS_SIZE) {
 		/* Display the entire output. */
-		flen = (long) fread(str, 1, flen, srv_monitor_file);
+		flen = fread(str, 1, flen, srv_monitor_file);
 	} else if (trx_list_end < (ulint) flen
-			&& trx_list_start < trx_list_end
-			&& trx_list_start + (flen - trx_list_end)
-			< MAX_STATUS_SIZE - sizeof truncated_msg - 1) {
+		   && trx_list_start < trx_list_end
+		   && trx_list_start + (flen - trx_list_end)
+		   < MAX_STATUS_SIZE - sizeof truncated_msg - 1) {
+
 		/* Omit the beginning of the list of active transactions. */
-		long len = (long) fread(str, 1, trx_list_start, srv_monitor_file);
+		ssize_t	len = fread(str, 1, trx_list_start, srv_monitor_file);
+
 		memcpy(str + len, truncated_msg, sizeof truncated_msg - 1);
 		len += sizeof truncated_msg - 1;
 		usable_len = (MAX_STATUS_SIZE - 1) - len;
 		fseek(srv_monitor_file, flen - usable_len, SEEK_SET);
-		len += (long) fread(str + len, 1, usable_len, srv_monitor_file);
+		len += fread(str + len, 1, usable_len, srv_monitor_file);
 		flen = len;
 	} else {
 		/* Omit the end of the output. */
-		flen = (long) fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
+		flen = fread(str, 1, MAX_STATUS_SIZE - 1, srv_monitor_file);
 	}
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	bool result = FALSE;
+	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
+		   STRING_WITH_LEN(""), str, flen);
 
-	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-			STRING_WITH_LEN(""), str, flen)) {
-		result= TRUE;
-	}
 	my_free(str);
 
-	DBUG_RETURN(FALSE);
+	DBUG_RETURN(0);
 }
 
 /************************************************************************//**
 Implements the SHOW MUTEX STATUS command.
-@return TRUE on failure, FALSE on success. */
+@return 0 on success. */
 static
-bool
+int
 innodb_mutex_show_status(
 /*=====================*/
 	handlerton*	hton,		/*!< in: the innodb handlerton */
@@ -9070,7 +9319,8 @@ innodb_mutex_show_status(
 	stat_print_fn*	stat_print)	/*!< in: function for printing
 					statistics */
 {
-	char buf1[IO_SIZE], buf2[IO_SIZE];
+	char		buf1[IO_SIZE];
+	char		buf2[IO_SIZE];
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
 	ulint		block_mutex_oswait_count = 0;
@@ -9078,14 +9328,19 @@ innodb_mutex_show_status(
 	mutex_t*	block_mutex = NULL;
 	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
-	ulint	  rw_lock_count= 0;
-	ulint	  rw_lock_count_spin_loop= 0;
-	ulint	  rw_lock_count_spin_rounds= 0;
-	ulint	  rw_lock_count_os_wait= 0;
-	ulint	  rw_lock_count_os_yield= 0;
-	ulonglong rw_lock_wait_time= 0;
+	ulint		rw_lock_count= 0;
+	ulint		rw_lock_count_spin_loop= 0;
+	ulint		rw_lock_count_spin_rounds= 0;
+	ulint		rw_lock_count_os_wait= 0;
+	ulint		rw_lock_count_os_yield= 0;
+	ulonglong	rw_lock_wait_time= 0;
 #endif /* UNIV_DEBUG */
-	uint	  hton_name_len= (uint) strlen(innobase_hton_name), buf1len, buf2len;
+	uint		buf1len;
+	uint		buf2len;
+	uint		hton_name_len;
+
+	hton_name_len = (uint) strlen(innobase_hton_name);
+
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -9232,34 +9487,54 @@ innodb_mutex_show_status(
 	}
 #endif /* UNIV_DEBUG */
 
-	DBUG_RETURN(FALSE);
+	/* Success */
+	DBUG_RETURN(0);
 }
 
+/************************************************************************//**
+Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int. */
 static
-bool innobase_show_status(handlerton *hton, THD* thd, 
-                          stat_print_fn* stat_print,
-                          enum ha_stat_type stat_type)
+bool
+innobase_show_status(
+/*=================*/
+	handlerton*		hton,	/*!< in: the innodb handlerton */
+	THD*			thd,	/*!< in: the MySQL query thread
+					of the caller */
+	stat_print_fn*		stat_print,
+	enum ha_stat_type	stat_type)
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	switch (stat_type) {
 	case HA_ENGINE_STATUS:
-		return innodb_show_status(hton, thd, stat_print);
+		/* Non-zero return value means there was an error. */
+		return(innodb_show_status(hton, thd, stat_print) != 0);
+
 	case HA_ENGINE_MUTEX:
-		return innodb_mutex_show_status(hton, thd, stat_print);
-	default:
-		return(FALSE);
+		/* Non-zero return value means there was an error. */
+		return(innodb_mutex_show_status(hton, thd, stat_print) != 0);
+
+	case HA_ENGINE_LOGS:
+		/* Not handled */
+		break;
 	}
+
+	/* Success */
+	return(false);
 }
 
 /************************************************************************//**
- Handling the shared INNOBASE_SHARE structure that is needed to provide table
- locking.
-****************************************************************************/
-
-static INNOBASE_SHARE* get_share(const char* table_name)
+Handling the shared INNOBASE_SHARE structure that is needed to provide table
+locking. Register the table name if it doesn't exist in the hash table. */
+static
+INNOBASE_SHARE*
+get_share(
+/*======*/
+	const char*	table_name)
 {
-	INNOBASE_SHARE *share;
+	INNOBASE_SHARE*	share;
+
 	mysql_mutex_lock(&innobase_share_mutex);
 
 	ulint	fold = ut_fold_string(table_name);
@@ -9299,7 +9574,13 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 	return(share);
 }
 
-static void free_share(INNOBASE_SHARE* share)
+/************************************************************************//**
+Free the shared object that was registered with get_share(). */
+static
+void
+free_share(
+/*=======*/
+	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
 {
 	mysql_mutex_lock(&innobase_share_mutex);
 
@@ -9549,7 +9830,7 @@ ha_innobase::innobase_get_autoinc(
 /*==============================*/
 	ulonglong*	value)		/*!< out: autoinc value */
 {
- 	*value = 0;
+	*value = 0;
  
 	prebuilt->autoinc_error = innobase_lock_autoinc();
 
@@ -9569,7 +9850,7 @@ ha_innobase::innobase_get_autoinc(
 }
 
 /*******************************************************************//**
-This function reads the global auto-inc counter. It doesn't use the 
+This function reads the global auto-inc counter. It doesn't use the
 AUTOINC lock even if the lock mode is set to TRADITIONAL.
 @return	the autoinc value */
 UNIV_INTERN
@@ -9589,7 +9870,11 @@ ha_innobase::innobase_peek_autoinc(void)
 
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
-	ut_a(auto_inc > 0);
+	if (auto_inc == 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: AUTOINC next value generation "
+			"is disabled for '%s'\n", innodb_table->name);
+	}
 
 	dict_table_autoinc_unlock(innodb_table);
 
@@ -9607,11 +9892,14 @@ UNIV_INTERN
 void
 ha_innobase::get_auto_increment(
 /*============================*/
-        ulonglong	offset,              /*!< in: table autoinc offset */
-        ulonglong	increment,           /*!< in: table autoinc increment */
-        ulonglong	nb_desired_values,   /*!< in: number of values reqd */
-        ulonglong	*first_value,        /*!< out: the autoinc value */
-        ulonglong	*nb_reserved_values) /*!< out: count of reserved values */
+	ulonglong	offset,			/*!< in: table autoinc offset */
+ 	ulonglong	increment,		/*!< in: table autoinc
+						increment */
+	ulonglong	nb_desired_values,	/*!< in: number of values
+						reqd */
+ 	ulonglong*	first_value,		/*!< out: the autoinc value */
+	ulonglong*	nb_reserved_values)	/*!< out: count of reserved
+						values */
 {
 	trx_t*		trx;
 	ulint		error;
@@ -9749,10 +10037,14 @@ ha_innobase::reset_auto_increment(
 	DBUG_RETURN(0);
 }
 
-/* See comment in handler.cc */
+/*******************************************************************//**
+See comment in handler.cc */
 UNIV_INTERN
 bool
-ha_innobase::get_error_message(int error, String *buf)
+ha_innobase::get_error_message(
+/*===========================*/
+	int	error,
+	String*	buf)
 {
 	trx_t*	trx = check_trx_exists(ha_thd());
 
@@ -9815,8 +10107,8 @@ ha_innobase::cmp_ref(
 
 			ref1 += 2;
 			ref2 += 2;
-			result = ((Field_blob*)field)->cmp( ref1, len1,
-                                                            ref2, len2);
+			result = ((Field_blob*)field)->cmp(
+				ref1, len1, ref2, len2);
 		} else {
 			result = field->key_cmp(ref1, ref2);
 		}
@@ -9859,16 +10151,22 @@ ha_innobase::register_query_cache_table(
 							 engine_data));
 }
 
+/*******************************************************************//**
+Get the bin log name. */
 UNIV_INTERN
-char*
+const char*
 ha_innobase::get_mysql_bin_log_name()
+/*=================================*/
 {
 	return(trx_sys_mysql_bin_log_name);
 }
 
+/*******************************************************************//**
+Get the bin log offset (or file position). */
 UNIV_INTERN
 ulonglong
 ha_innobase::get_mysql_bin_log_pos()
+/*================================*/
 {
 	/* trx... is ib_int64_t, which is a typedef for a 64-bit integer
 	(__int64 or longlong) so it's ok to cast it to ulonglong. */
@@ -9953,13 +10251,13 @@ static
 int
 innobase_xa_prepare(
 /*================*/
-        handlerton*	hton,	/*!< in: InnoDB handlerton */
-	THD*		thd,	/*!< in: handle to the MySQL thread of
-				the user whose XA transaction should
-				be prepared */
-	bool		all)	/*!< in: TRUE - commit transaction
-				FALSE - the current SQL statement
-				ended */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
+	THD*		thd,		/*!< in: handle to the MySQL thread of
+					the user whose XA transaction should
+					be prepared */
+	bool		prepare_trx)	/*!< in: true - prepare transaction
+					false - the current SQL statement
+					ended */
 {
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
@@ -9982,19 +10280,19 @@ innobase_xa_prepare(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->active_trans == 0 && trx->conc_state != TRX_NOT_STARTED) {
+	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
-	  sql_print_error("trx->active_trans == 0, but trx->conc_state != "
-			  "TRX_NOT_STARTED");
+		sql_print_error("Transaction not registered for MySQL 2PC, "
+				"but transaction is active");
 	}
 
-	if (all
-		|| (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+	if (prepare_trx
+	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* We were instructed to prepare the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		ut_ad(trx->active_trans);
+		ut_ad(trx_is_registered_for_2pc(trx));
 
 		error = (int) trx_prepare_for_mysql(trx);
 	} else {
@@ -10018,9 +10316,10 @@ innobase_xa_prepare(
 
 	srv_active_wake_master_thread();
 
-	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE &&
-	    (all || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-	{
+	if (thd_sql_command(thd) != SQLCOM_XA_PREPARE
+	    && (prepare_trx
+		|| !thd_test_options(
+			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
@@ -10041,7 +10340,7 @@ innobase_xa_prepare(
 		will be between XA PREPARE and XA COMMIT, and we don't want
 		to block for undefined period of time. */
 		mysql_mutex_lock(&prepare_commit_mutex);
-		trx->active_trans = 2;
+		trx_owns_prepare_commit_mutex_set(trx);
 	}
 
 	return(error);
@@ -10076,8 +10375,8 @@ static
 int
 innobase_commit_by_xid(
 /*===================*/
-        handlerton *hton,
-	XID*	xid)	/*!< in: X/Open XA transaction identification */
+	handlerton*	hton,
+	XID*		xid)	/*!< in: X/Open XA transaction identification */
 {
 	trx_t*	trx;
 
@@ -10129,8 +10428,8 @@ static
 void*
 innobase_create_cursor_view(
 /*========================*/
-        handlerton *hton, /*!< in: innobase hton */
-	THD* thd)	  /*!< in: user thread handle */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd)	/*!< in: user thread handle */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10145,9 +10444,9 @@ static
 void
 innobase_close_cursor_view(
 /*=======================*/
-        handlerton *hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview)/*!< in: Consistent read view to be closed */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd,	/*!< in: user thread handle */
+	void*		curview)/*!< in: Consistent read view to be closed */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10164,9 +10463,9 @@ static
 void
 innobase_set_cursor_view(
 /*=====================*/
-        handlerton *hton,
-	THD*	thd,	/*!< in: user thread handle */
-	void*	curview)/*!< in: Consistent cursor view to be set */
+	handlerton*	hton,	/*!< in: innobase hton */
+	THD*		thd,	/*!< in: user thread handle */
+	void*		curview)/*!< in: Consistent cursor view to be set */
 {
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
@@ -10234,17 +10533,16 @@ column_is_being_renamed(
 	return(false);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Check whether a column in table "table" is being renamed and if this column
 is part of a foreign key, either part of another table, referencing this
-table or part of this table, referencing another table. */
+table or part of this table, referencing another table.
+@return true if a column that participates in a foreign key definition
+is being renamed */
 static
 bool
 foreign_key_column_is_being_renamed(
 /*================================*/
-					/* out: true if a column that
-					participates in a foreign key definition
-					is being renamed */
 	row_prebuilt_t*	prebuilt,	/* in: InnoDB prebuilt struct */
 	TABLE*		table)		/* in: MySQL table */
 {
@@ -10293,9 +10591,12 @@ foreign_key_column_is_being_renamed(
 	return(false);
 }
 
+/*******************************************************************//**
+*/
 UNIV_INTERN
 bool
 ha_innobase::check_if_incompatible_data(
+/*====================================*/
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
@@ -10489,6 +10790,7 @@ innodb_file_format_name_update(
 	*static_cast<const char**>(var_ptr)
 		= trx_sys_file_format_id_to_name(srv_file_format);
 }
+
 /*************************************************************//**
 Check if valid argument to innodb_file_format_max. This function
 is registered as a callback with MySQL.
@@ -10551,13 +10853,13 @@ static
 void
 innodb_file_format_max_update(
 /*==========================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
 {
 	const char*	format_name_in;
 	const char**	format_name_out;
@@ -10602,13 +10904,13 @@ static
 void
 innodb_adaptive_hash_index_update(
 /*==============================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
 {
 	if (*(my_bool*) save) {
 		btr_search_enable();
@@ -10751,11 +11053,35 @@ innodb_monitor_valid_byname(
 	const char*		name)	/*!< in: incoming monitor name */
 {
 	if (name) {
-		ulint	use;
+		ulint		use;
+		monitor_info_t*	monitor_info;
 
 		for (use = 0; use < NUM_MONITOR; use++) {
 			if (!innobase_strcasecmp(
 				name, srv_mon_get_name((monitor_id_t)use))) {
+				monitor_info = srv_mon_get_info(
+					(monitor_id_t)use);
+
+				/* If the monitor counter is marked with
+				MONITOR_GROUP_MODULE flag, then this counter
+				cannot be turned on/off individually, instead
+				it shall be turned on/off as a group using
+				its module name */
+				if ((monitor_info->monitor_type
+				     & MONITOR_GROUP_MODULE)
+				    && (!(monitor_info->monitor_type
+					  & MONITOR_MODULE))) {
+					sql_print_warning(
+						"Monitor counter '%s' cannot"
+						" be turned on/off individually"
+						" . Please use its module name"
+						" to turn on/off the counters"
+						" in the module as a group.\n",
+						name);
+
+					return(1);
+				}
+
 				*(ulint*) save = use;
 				return(0);
 			}
@@ -10830,8 +11156,7 @@ innodb_monitor_update(
 				    ER_NO_DEFAULT,
 				    "Default value is not defined for "
 				    "this set option. Please specify "
-				    "counter or module name to turn on/off "
-				    "or reset monitor counters.");
+				    "correct counter or module name.");
 		*(const char**) var_ptr = NULL;
 	} else {
 		monitor_info = srv_mon_get_info(monitor_id);
@@ -10856,6 +11181,11 @@ innodb_monitor_update(
 			err_monitor = srv_mon_set_module_control(monitor_id,
 								 set_option);
 		} else {
+			/* If module is marked with MONITOR_GROUP_MODULE
+			status, it cannot be turned on/off individually */
+			ut_a(!(monitor_info->monitor_type &
+			       MONITOR_GROUP_MODULE));
+
 			switch (set_option) {
 			case MONITOR_TURN_ON:
 				MONITOR_ON(monitor_id);
@@ -10901,20 +11231,21 @@ exit:
 	been turned on, we will set err_monitor. Print related
 	information */
 	if (err_monitor) {
-		sql_print_warning("Monitor %s already turned on.",
+		sql_print_warning("Monitor %s is already enabled.",
 				  srv_mon_get_name((monitor_id_t)err_monitor));
 	}
 
 	return;
 }
+
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_on and turn on
+Update the system variable innodb_enable_monitor_counter and enable 
 specified monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_on_update(
-/*=====================*/
+innodb_enable_monitor_update(
+/*=========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10925,13 +11256,14 @@ innodb_monitor_on_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
 }
+
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_off and turn
+Update the system variable innodb_disable_monitor_counter and turn
 off specified monitor counter. */
 static
 void
-innodb_monitor_off_update(
-/*======================*/
+innodb_disable_monitor_update(
+/*==========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
 						system variable */
@@ -10942,13 +11274,14 @@ innodb_monitor_off_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
 }
+
 /****************************************************************//**
 Update the system variable innodb_monitor_counter_reset and reset
 specified monitor counter(s).
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_update(
+innodb_reset_monitor_update(
 /*========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -10960,13 +11293,14 @@ innodb_monitor_reset_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE);
 }
+
 /****************************************************************//**
 Update the system variable innodb_monitor_counter_reset_all and reset
 all value related monitor counter.
 This function is registered as a callback with MySQL. */
 static
 void
-innodb_monitor_reset_all_update(
+innodb_reset_all_monitor_update(
 /*============================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -10979,15 +11313,25 @@ innodb_monitor_reset_all_update(
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
 }
 
-static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
+/****************************************************************//**
+Callback function for accessing the InnoDB variables from MySQL:
+SHOW VARIABLES. */
+static
+int
+show_innodb_vars(
+/*=============*/
+	THD*		thd,
+	SHOW_VAR*	var,
+	char*		buff)
 {
-  innodb_export_status();
-  var->type= SHOW_ARRAY;
-  var->value= (char *) &innodb_status_variables;
-  return 0;
+	innodb_export_status();
+	var->type = SHOW_ARRAY;
+	var->value = (char *) &innodb_status_variables;
+
+	return(0);
 }
 
-/***********************************************************************
+/****************************************************************//**
 This function checks each index name for a table against reserved
 system default primary index name 'GEN_CLUST_INDEX'. If a name matches,
 this function pushes an warning message to the client, and returns true. */
@@ -11087,13 +11431,13 @@ static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
 static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   PLUGIN_VAR_NOCMDARG,
   "Stores each InnoDB table to an .ibd file in the database dir.",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
   innodb_file_format_name_validate,
-  innodb_file_format_name_update, "Barracuda");
+  innodb_file_format_name_update, "Antelope");
 
 /* "innobase_file_format_check" decides whether we would continue
 booting the server if the file format stamped on the system
@@ -11343,35 +11687,42 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "all");
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB change buffering (0=none)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to "
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-static MYSQL_SYSVAR_STR(monitor_counter_on, innobase_monitor_counter_on,
+static MYSQL_SYSVAR_STR(enable_monitor_counter, innobase_enable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn on a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_on_update, NULL);
+  innodb_enable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_off, innobase_monitor_counter_off,
+static MYSQL_SYSVAR_STR(disable_monitor_counter, innobase_disable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn off a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_off_update, NULL);
+  innodb_disable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset, innobase_monitor_counter_reset,
+static MYSQL_SYSVAR_STR(reset_monitor_counter, innobase_reset_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_update, NULL);
+  innodb_reset_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(monitor_counter_reset_all, innobase_monitor_counter_reset_all,
+static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset all values for a monitor counter",
   innodb_monitor_validate,
-  innodb_monitor_reset_all_update, NULL);
+  innodb_reset_all_monitor_update, NULL);
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11430,12 +11781,15 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+  MYSQL_SYSVAR(change_buffering_debug),
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(monitor_counter_on),
-  MYSQL_SYSVAR(monitor_counter_off),
-  MYSQL_SYSVAR(monitor_counter_reset),
-  MYSQL_SYSVAR(monitor_counter_reset_all),
+  MYSQL_SYSVAR(enable_monitor_counter),
+  MYSQL_SYSVAR(disable_monitor_counter),
+  MYSQL_SYSVAR(reset_monitor_counter),
+  MYSQL_SYSVAR(reset_all_monitor_counter),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(page_hash_mutexes),
@@ -11464,15 +11818,7 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
-i_s_innodb_sys_tables,
-i_s_innodb_sys_tablestats,
-i_s_innodb_sys_indexes,
-i_s_innodb_sys_columns,
-i_s_innodb_sys_fields,
-i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols,
 i_s_innodb_metrics
-
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
@@ -11486,8 +11832,8 @@ to 0, even if it was initially set to nonzero at the command line
 or configuration file. */
 static
 void
-innobase_commit_concurrency_init_default(void)
-/*==========================================*/
+innobase_commit_concurrency_init_default()
+/*======================================*/
 {
 	MYSQL_SYSVAR_NAME(commit_concurrency).def_val
 		= innobase_commit_concurrency;

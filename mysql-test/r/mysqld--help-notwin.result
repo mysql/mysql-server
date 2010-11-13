@@ -19,6 +19,7 @@ The following options may be given as the first argument:
  --auto-increment-offset[=#] 
  Offset added to Auto-increment columns. Used when
  auto-increment-increment != 1
+ --autocommit        Set default value for autocommit (0 or 1)
  --automatic-sp-privileges 
  Creating and dropping stored procedures alters ACLs
  (Defaults to on; use --skip-automatic-sp-privileges to disable.)
@@ -904,7 +905,6 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
-socket /tmp/mysql.sock
 sort-buffer-size 2097152
 sporadic-binlog-dump-fail FALSE
 sql-mode 

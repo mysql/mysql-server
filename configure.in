@@ -87,7 +87,6 @@ sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/dtrace.m4)
 sinclude(config/ac-macros/gtest.m4)
-sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/readline.m4)
@@ -118,6 +117,13 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
 AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
+
+# Check whether a debug mode should be enabled.
+AC_ARG_WITH([debug],
+    AS_HELP_STRING([--with-debug@<:@=full@:>@],
+      [Enable various amounts of debugging support (full adds a slow memory checker).]),
+    [with_debug=$withval],
+    [with_debug=no])
 
 # Whether the maintainer mode should be enabled.
 MY_MAINTAINER_MODE
@@ -1071,46 +1077,6 @@ struct request_info *req;
 ])
 AC_SUBST(WRAPLIBS)
 
-if test "$TARGET_LINUX" = "true"; then
-  AC_ARG_WITH(pstack,
-    [  --with-pstack           Use the pstack backtrace library],
-    [ USE_PSTACK=$withval ],
-    [ USE_PSTACK=no ])
-  pstack_libs=
-  pstack_dir=
-  if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
-  then
-    have_libiberty= have_libbfd=
-    my_save_LIBS="$LIBS"
-dnl I have no idea if this is a good test - can not find docs for libiberty  
-    AC_CHECK_LIB([iberty], [fdmatch],
-      [have_libiberty=yes
-       AC_CHECK_LIB([bfd], [bfd_openr], [have_libbfd=yes], , [-liberty])])
-    LIBS="$my_save_LIBS"
-
-    if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
-    then
-      pstack_dir="pstack"
-      pstack_libs="../pstack/libpstack.a -lbfd -liberty"
-      # We must link staticly when using pstack
-      with_mysqld_ldflags="-all-static"
-      AC_SUBST([pstack_dir])
-      AC_SUBST([pstack_libs])
-      AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
-dnl This check isn't needed, but might be nice to give some feedback....
-dnl    AC_CHECK_HEADER(libiberty.h,
-dnl      have_libiberty_h=yes,
-dnl      have_libiberty_h=no)
-    else
-      USE_PSTACK="no"
-    fi
-  else
-    USE_PSTACK="no"
-  fi
-fi
-AC_MSG_CHECKING([if we should use pstack])
-AC_MSG_RESULT([$USE_PSTACK])
-
 # Check for gtty if termio.h doesn't exists
 if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
@@ -1659,9 +1625,8 @@ case "$with_mysqld_ldflags " in
     ;;
 
   *)
-    # Check for dlopen, needed for user definable functions
+    # Check for dlopen, needed for user definable functions and plugins
     # This must be checked after threads on AIX
-    # We only need this for mysqld, not for the clients.
 
     my_save_LIBS="$LIBS"
     LIBS=""
@@ -1733,10 +1698,6 @@ then
   DEBUG_OPTIMIZE_CXX=""
 fi
 
-AC_ARG_WITH(debug,
-    [AS_HELP_STRING([--with-debug], [Add debug code @<:@default=no@:>@])],
-    [with_debug=$withval],
-    [with_debug=no])
 if test "$with_debug" = "yes"
 then
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
@@ -2161,6 +2122,13 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
+AC_CHECK_DECLS([fdatasync],,,
+[
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+])
+
 AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
@@ -2171,7 +2139,7 @@ AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setstacksize pthread_condattr_create \
   pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock \
-  pthread_rwlockattr_setkind_np pthread_sigmask \
+  pthread_sigmask \
   readlink realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep thr_yield \
@@ -3007,9 +2975,6 @@ AC_SUBST([RDTSC_SPARC_ASSEMBLY])
 # Output results
 #--------------------------------------------------------------------
 
-if test -d "$srcdir/pstack" ; then
-  AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
-fi
 if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi

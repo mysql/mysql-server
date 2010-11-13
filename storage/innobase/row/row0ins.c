@@ -1523,10 +1523,12 @@ row_ins_check_foreign_constraints(
 
 	while (foreign) {
 		if (foreign->foreign_index == index) {
+			dict_table_t*	ref_table = NULL;
 
 			if (foreign->referenced_table == NULL) {
-				dict_table_get(foreign->referenced_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->referenced_table_name, FALSE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -1536,12 +1538,9 @@ row_ins_check_foreign_constraints(
 			}
 
 			if (foreign->referenced_table) {
-				mutex_enter(&(dict_sys->mutex));
-
-				(foreign->referenced_table
-				 ->n_foreign_key_checks_running)++;
-
-				mutex_exit(&(dict_sys->mutex));
+				os_inc_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
@@ -1553,21 +1552,21 @@ row_ins_check_foreign_constraints(
 				TRUE, foreign, table, entry, thr);
 
 			if (foreign->referenced_table) {
-				mutex_enter(&(dict_sys->mutex));
-
-				ut_a(foreign->referenced_table
-				     ->n_foreign_key_checks_running > 0);
-				(foreign->referenced_table
-				 ->n_foreign_key_checks_running)--;
-
-				mutex_exit(&(dict_sys->mutex));
+				os_dec_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
 			}
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
+			}
+
 			if (err != DB_SUCCESS) {
+
 				return(err);
 			}
 		}
