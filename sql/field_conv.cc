@@ -553,14 +553,7 @@ void Copy_field::set(uchar *to,Field *from)
   else
   { 
     to_null_ptr=  0;				// For easy debugging
-    /* Setup optimal copying for varchar */
-    if (from->real_type() == MYSQL_TYPE_VARCHAR)
-    {
-      do_copy= (((Field_varstring*) from)->length_bytes == 1 ?
-                 do_varstring1 : do_varstring2);
-    }  
-    else
-      do_copy= do_field_eq;
+    do_copy= do_field_eq;
   }
 }
 
@@ -722,7 +715,6 @@ Copy_field::get_copy_func(Field *to,Field *from)
         else 
           return  (((Field_varstring*) from)->length_bytes == 1 ?
                     do_varstring1 : do_varstring2);
-
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?
