@@ -59,6 +59,7 @@ table_setup_instruments::m_share=
   &table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_setup_instruments),
   &m_table_lock,

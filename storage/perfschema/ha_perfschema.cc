@@ -80,7 +80,8 @@ static int pfs_init_func(void *p)
   pfs_hton->show_status= pfs_show_status;
   pfs_hton->flags= HTON_ALTER_NOT_SUPPORTED |
     HTON_TEMPORARY_NOT_SUPPORTED |
-    HTON_NO_PARTITION;
+    HTON_NO_PARTITION |
+    HTON_NO_BINLOG_ROW_OPT;
 
   /*
     As long as the server implementation keeps using legacy_db_type,
@@ -220,13 +221,7 @@ int ha_perfschema::write_row(uchar *buf)
   ha_statistic_increment(&SSV::ha_write_count);
   DBUG_ASSERT(m_table_share);
 
-  if (m_table_share->m_write_row)
-    result= m_table_share->m_write_row(table, buf, table->field);
-  else
-  {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
-    result= HA_ERR_WRONG_COMMAND;
-  }
+  result= m_table_share->write_row(table, buf, table->field);
 
   DBUG_RETURN(result);
 }
@@ -248,6 +243,15 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 
   DBUG_ASSERT(m_table);
   int result= m_table->update_row(table, old_data, new_data, table->field);
+  DBUG_RETURN(result);
+}
+
+int ha_perfschema::delete_row(const uchar *buf)
+{
+  DBUG_ENTER("ha_perfschema::delete_row");
+
+  DBUG_ASSERT(m_table);
+  int result= m_table->delete_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
 
@@ -318,7 +322,7 @@ int ha_perfschema::info(uint flag)
   DBUG_ENTER("ha_perfschema::info");
   DBUG_ASSERT(m_table_share);
   if (flag & HA_STATUS_VARIABLE)
-    stats.records= m_table_share->m_records;
+    stats.records= m_table_share->get_row_count();
   if (flag & HA_STATUS_CONST)
     ref_length= m_table_share->m_ref_length;
   DBUG_RETURN(0);

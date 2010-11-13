@@ -29,25 +29,21 @@
 #ifndef MYSQL_CLIENT
 
 /*
-  Generates a warning that a feature is deprecated. After a specified
-  version asserts that the feature is removed.
+  Generates a warning that a feature is deprecated. 
 
   Using it as
 
-  WARN_DEPRECATED(thd, 6,2, "BAD", "'GOOD'");
+  WARN_DEPRECATED(thd, "BAD", "'GOOD'");
 
   Will result in a warning
  
-  "The syntax 'BAD' is deprecated and will be removed in MySQL 6.2. Please
-   use 'GOOD' instead"
+  "The syntax 'BAD' is deprecated and will be removed in a
+   future release. Please use 'GOOD' instead"
 
    Note that in macro arguments BAD is not quoted, while 'GOOD' is.
-   Note that the version is TWO numbers, separated with a comma
-   (two macro arguments, that is)
 */
-#define WARN_DEPRECATED(Thd,VerHi,VerLo,Old,New)                            \
+#define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
-    compile_time_assert(MYSQL_VERSION_ID < VerHi * 10000 + VerLo * 100);    \
     if (((THD *) Thd) != NULL)                                              \
       push_warning_printf(((THD *) Thd), MYSQL_ERROR::WARN_LEVEL_WARN,      \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
@@ -154,16 +150,48 @@
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 5)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 5)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 6)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 8)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 9)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 10)
+#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
+
+/**
+   If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
+   optimizer features (semijoin, MRR, ICP) will be available.
+ */
+#undef OPTIMIZER_SWITCH_ALL
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+#ifdef OPTIMIZER_SWITCH_ALL
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                  OPTIMIZER_SWITCH_SEMIJOIN | \
+                                  OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
+#else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
-
-
+#endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should

@@ -2126,6 +2126,7 @@ sql/.libs/udf_example.so.0.0.0
 sql/client.c
 sql/cmake_dummy.cc
 sql/Doxyfile
+sql/cscope.out
 sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
@@ -3102,6 +3103,13 @@ libmysqld/sys_vars.cc
 libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
+storage/archive/archive_performance
+storage/archive/concurrency_test
+libmysql_r/client_settings.h
+libmysqld/scheduler.cc
+libmysqld/sql_connect.cc
+libmysqld/sql_tablespace.cc
+mysql-test/dump.txt
 configure.am
 run_collection*.cmake
 configure.am

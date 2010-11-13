@@ -240,10 +240,6 @@ public:
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
     has_null_value(FALSE), column_list(FALSE)
   {
-    all_fields_in_PF.clear_all();
-    all_fields_in_PPF.clear_all();
-    all_fields_in_SPF.clear_all();
-    some_fields_in_PF.clear_all();
     partitions.empty();
     temp_partitions.empty();
     part_field_list.empty();

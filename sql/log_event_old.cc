@@ -1,3 +1,17 @@
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "sql_priv.h"
 #ifndef MYSQL_CLIENT
@@ -53,7 +67,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->sql_thd == ev_thd);
+  DBUG_ASSERT(rli->info_thd == ev_thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -1470,7 +1484,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->sql_thd == thd);
+  DBUG_ASSERT(rli->info_thd == thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -1938,12 +1952,6 @@ void Old_rows_log_event::print_helper(FILE *file,
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
-
-  if (get_flags(STMT_END_F))
-  {
-    copy_event_cache_to_file_and_reinit(head, file);
-    copy_event_cache_to_file_and_reinit(body, file);
-  }
 }
 #endif
 
@@ -1998,7 +2006,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
   /* fill table->record[0] with default values */
 
-  if ((error= prepare_record(table, m_width,
+  if ((error= prepare_record(table, table->write_set,
                              TRUE /* check if columns have def. values */)))
     DBUG_RETURN(error);
   
@@ -2213,7 +2221,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
   /* unpack row - missing fields get default values */
 
   // TODO: shall we check and report errors here?
-  prepare_record(table, m_width, FALSE /* don't check errors */); 
+  prepare_record(table, table->read_set, FALSE /* don't check errors */); 
   error= unpack_current_row(rli); 
 
 #ifndef DBUG_OFF

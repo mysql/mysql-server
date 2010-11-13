@@ -63,6 +63,7 @@ table_performance_timers::m_share=
   &table_performance_timers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   COUNT_TIMER_NAME, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,

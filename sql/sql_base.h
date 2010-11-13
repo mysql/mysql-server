@@ -144,6 +144,8 @@ bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                   uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
                   MEM_ROOT *mem_root);
 
+TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
+			    const char *table_name, bool link_in_list);
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
@@ -231,7 +233,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-		COND **conds);
+		Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
