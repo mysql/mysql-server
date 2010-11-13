@@ -565,7 +565,8 @@ bool trans_xa_end(THD *thd)
   else if (!xa_trans_rolled_back(&thd->transaction.xid_state))
     thd->transaction.xid_state.xa_state= XA_IDLE;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_IDLE);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_IDLE);
 }
 
 
@@ -596,7 +597,8 @@ bool trans_xa_prepare(THD *thd)
   else
     thd->transaction.xid_state.xa_state= XA_PREPARED;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_PREPARED);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_PREPARED);
 }
 
 

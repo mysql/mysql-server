@@ -592,12 +592,20 @@ public:
   virtual void make_field(Send_field *field);
   Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
-  /*
-    Fix after some tables has been pulled out. Basically re-calculate all
-    attributes that are dependent on the tables.
-  */
-  virtual void fix_after_pullout(st_select_lex *new_parent, Item **ref) {};
+  /**
+    Fix after tables have been moved from one select_lex level to the parent
+    level, e.g by semijoin conversion.
+    Basically re-calculate all attributes dependent on the tables.
 
+    @param parent_select  select_lex that tables are moved to.
+    @param removed_select select_lex that tables are moved away from,
+                          child of parent_select.
+    @param ref            updated with new ref whenever the function substitutes
+                          this item with another.
+  */
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref) {};
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1753,11 +1761,16 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
+  /*
+    Return used table information for the level on which this table is resolved.
+  */
+  table_map resolved_used_tables() const;
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -2573,7 +2586,8 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   int save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -2712,7 +2726,8 @@ public:
   {}
 
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {
@@ -2769,7 +2784,8 @@ public:
     outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;

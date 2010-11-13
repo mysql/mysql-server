@@ -1,5 +1,5 @@
 SET @max_row = 20;
-SET @@session.storage_engine = 'MyISAM';
+SET @@session.default_storage_engine = 'MyISAM';
 
 #------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables

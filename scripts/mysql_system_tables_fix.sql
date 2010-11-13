@@ -640,6 +640,11 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
+ALTER TABLE user ADD plugin char(60) DEFAULT '' NOT NULL,  ADD authentication_string TEXT NOT NULL;
+ALTER TABLE user MODIFY plugin char(60) DEFAULT '' NOT NULL;
+
+CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

@@ -1635,12 +1635,7 @@ CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (1234567);
 SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
 SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
-if (`SELECT @@character_set_connection != 'ucs2'`)
-{
-  # Temporarily disable for ucs2
-  # For details, see Bug#55744 GROUP_CONCAT + CASE + ucs return garbage
-  SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
-}
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
 --enable_metadata
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 --disable_metadata

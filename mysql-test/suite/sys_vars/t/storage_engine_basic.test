@@ -34,9 +34,9 @@
 #                 Save initial value                        #
 #############################################################
 
-SET @start_global_value = @@global.storage_engine;
+SET @start_global_value = @@global.default_storage_engine;
 SELECT @start_global_value;
-SET @start_session_value = @@session.storage_engine;
+SET @start_session_value = @@session.default_storage_engine;
 SELECT @start_session_value;
 
 
@@ -45,13 +45,13 @@ SELECT @start_session_value;
 #     Display the DEFAULT value of storage_engine                    #
 ######################################################################
 
-SET @@global.storage_engine = INNODB;
-SET @@global.storage_engine = DEFAULT;
-SELECT @@global.storage_engine;
+SET @@global.default_storage_engine = INNODB;
+SET @@global.default_storage_engine = DEFAULT;
+SELECT @@global.default_storage_engine;
 
-SET @@session.storage_engine = INNODB;
-SET @@session.storage_engine = DEFAULT;
-SELECT @@session.storage_engine;
+SET @@session.default_storage_engine = INNODB;
+SET @@session.default_storage_engine = DEFAULT;
+SELECT @@session.default_storage_engine;
 
 
 --echo '#--------------------FN_DYNVARS_005_02-------------------------#'
@@ -59,14 +59,14 @@ SELECT @@session.storage_engine;
 # Change the value of storage_engine to a valid value for GLOBAL Scope #
 ########################################################################
 
-SET @@global.storage_engine = MYISAM;
-SELECT @@global.storage_engine;
-SET @@global.storage_engine = MERGE;
-SELECT @@global.storage_engine;
-SET @@global.storage_engine = MEMORY;
-SELECT @@global.storage_engine;
-SET @@global.storage_engine = INNODB;
-SELECT @@global.storage_engine;
+SET @@global.default_storage_engine = MYISAM;
+SELECT @@global.default_storage_engine;
+SET @@global.default_storage_engine = MERGE;
+SELECT @@global.default_storage_engine;
+SET @@global.default_storage_engine = MEMORY;
+SELECT @@global.default_storage_engine;
+SET @@global.default_storage_engine = INNODB;
+SELECT @@global.default_storage_engine;
 
 
 --echo '#--------------------FN_DYNVARS_005_03-------------------------#'
@@ -74,14 +74,14 @@ SELECT @@global.storage_engine;
 # Change the value of storage_engine to a valid value for SESSION Scope #
 #########################################################################
  
-SET @@session.storage_engine = MYISAM;
-SELECT @@session.storage_engine;
-SET @@session.storage_engine = MERGE;
-SELECT @@session.storage_engine;
-SET @@session.storage_engine = MEMORY;
-SELECT @@session.storage_engine;
-SET @@session.storage_engine = INNODB;
-SELECT @@session.storage_engine;
+SET @@session.default_storage_engine = MYISAM;
+SELECT @@session.default_storage_engine;
+SET @@session.default_storage_engine = MERGE;
+SELECT @@session.default_storage_engine;
+SET @@session.default_storage_engine = MEMORY;
+SELECT @@session.default_storage_engine;
+SET @@session.default_storage_engine = INNODB;
+SELECT @@session.default_storage_engine;
 
 
 --echo '#------------------FN_DYNVARS_005_04-----------------------#'
@@ -90,28 +90,28 @@ SELECT @@session.storage_engine;
 ##################################################################
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.storage_engine = 8199;
+SET @@global.default_storage_engine = 8199;
 
 --Error ER_WRONG_VALUE_FOR_VAR
-SET @@global.storage_engine = NULL;
+SET @@global.default_storage_engine = NULL;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.storage_engine = -1024;
+SET @@global.default_storage_engine = -1024;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.storage_engine = 65530.34;
+SET @@global.default_storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
-SET @@global.storage_engine = FILE;
+SET @@global.default_storage_engine = FILE;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@session.storage_engine = 8199;
+SET @@session.default_storage_engine = 8199;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@session.storage_engine = 65530.34;
+SET @@session.default_storage_engine = 65530.34;
 
 --Error ER_UNKNOWN_STORAGE_ENGINE
-SET @@session.storage_engine = RECORD;
+SET @@session.default_storage_engine = RECORD;
 
 
 --echo '#------------------FN_DYNVARS_005_05-----------------------#'
@@ -120,18 +120,18 @@ SET @@session.storage_engine = RECORD;
 ####################################################################
 
 
-SELECT @@global.storage_engine =
+SELECT @@global.default_storage_engine =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-  WHERE VARIABLE_NAME='storage_engine';
+  WHERE VARIABLE_NAME='default_storage_engine';
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
 #  Check if the value in SESSION Table matches value in variable   #
 ####################################################################
 
-SELECT @@session.storage_engine =
+SELECT @@session.default_storage_engine =
  VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-  WHERE VARIABLE_NAME='storage_engine';
+  WHERE VARIABLE_NAME='default_storage_engine';
 
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -140,10 +140,10 @@ SELECT @@session.storage_engine =
 ####################################################################
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.storage_engine = TRUE;
+SET @@global.default_storage_engine = TRUE;
 
 --Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.storage_engine = FALSE;
+SET @@global.default_storage_engine = FALSE;
 
 
 --echo '#---------------------FN_DYNVARS_001_8----------------------#'
@@ -152,9 +152,9 @@ SET @@global.storage_engine = FALSE;
 #  SCOPE points to same session variable                      #
 ###############################################################
 
-SET @@storage_engine = MYISAM;
-SELECT @@storage_engine = @@local.storage_engine;
-SELECT @@local.storage_engine = @@session.storage_engine;
+SET @@default_storage_engine = MYISAM;
+SELECT @@default_storage_engine = @@local.default_storage_engine;
+SELECT @@local.default_storage_engine = @@session.default_storage_engine;
 
 
 --echo '#---------------------FN_DYNVARS_001_9----------------------#'
@@ -162,26 +162,26 @@ SELECT @@local.storage_engine = @@session.storage_engine;
 #   Check if storage_engine can be accessed with and without @@ sign    #
 #########################################################################
 
-SET storage_engine = MEMORY;
-SELECT @@storage_engine;
+SET default_storage_engine = MEMORY;
+SELECT @@default_storage_engine;
 --Error ER_UNKNOWN_TABLE
-SELECT local.storage_engine;
+SELECT local.default_storage_engine;
 --Error ER_UNKNOWN_TABLE
-SELECT session.storage_engine;
+SELECT session.default_storage_engine;
 --Error ER_BAD_FIELD_ERROR
-SELECT storage_engine = @@session.storage_engine;
+SELECT default_storage_engine = @@session.default_storage_engine;
 
 # check the old obsolete name
-SET @@storage_engine = @start_global_value;
+SET @@default_storage_engine = @start_global_value;
 
 ####################################
 #     Restore initial value        #
 ####################################
 
-SET @@global.storage_engine = @start_global_value;
-SELECT @@global.storage_engine;
-SET @@session.storage_engine = @start_session_value;
-SELECT @@session.storage_engine;
+SET @@global.default_storage_engine = @start_global_value;
+SELECT @@global.default_storage_engine;
+SET @@session.default_storage_engine = @start_session_value;
+SELECT @@session.default_storage_engine;
 
 
 #############################################################
