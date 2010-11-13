@@ -2495,5 +2495,32 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # Bug #674423: outer join with ON expression over only outer tables 
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES ('9');
+
+CREATE TABLE t2 (pk int, a int) ;
+INSERT INTO t2 VALUES ('9',NULL), ('1',NULL);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <>0 OR t2.pk < 9;
+
+SET SESSION join_cache_level = 1;
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

@@ -2219,9 +2219,9 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
     DBUG_ASSERT(cache);
     rec_ptr= cache->get_rec_ref(rec_ptr);
   } 
-  if (rec_ptr[0] == 0)
+  if ((Match_flag) rec_ptr[0] != MATCH_FOUND)
   {
-    rec_ptr[0]= 1;
+    rec_ptr[0]= MATCH_FOUND;
     first_inner->found= 1;
     return TRUE;  
   }
