@@ -398,6 +398,10 @@ typedef struct st_join_table {
 } JOIN_TAB;
 
 
+#define JOIN_CACHE_INCREMENTAL_BIT           1
+#define JOIN_CACHE_HASHED_BIT                2
+#define JOIN_CACHE_BKA_BIT                   4
+
 /* 
   Categories of data fields of variable length written into join cache buffers.
   The value of any of these fields is written into cache together with the
