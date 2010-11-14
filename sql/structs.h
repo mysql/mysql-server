@@ -156,7 +156,7 @@ extern const char *show_comp_option_name[];
 typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
 typedef struct	st_lex_user {
-  LEX_STRING user, host, password;
+  LEX_STRING user, host, password, plugin, auth;
 } LEX_USER;
 
 /*

@@ -24,7 +24,9 @@ HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
 			my_list.h my_alloc.h typelib.h mysql/plugin.h \
 			mysql/plugin_audit.h mysql/plugin_ftparser.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
-			my_xml.h mysql_embed.h mysql/services.h \
+			my_xml.h mysql_embed.h mysql/plugin_auth.h \
+                        mysql/client_plugin.h mysql/plugin_auth_common.h \
+                        mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 			mysql/service_thread_scheduler.h \
 			mysql/service_thd_wait.h \
@@ -56,7 +58,8 @@ pkgpsiinclude_HEADERS = mysql/psi/psi.h mysql/psi/mysql_thread.h \
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
 			CMakeLists.txt \
 			mysql/psi/psi_abi_v1.h.pp \
-			mysql/psi/psi_abi_v2.h.pp
+			mysql/psi/psi_abi_v2.h.pp \
+                        mysql/plugin_auth.h.pp mysql/client_plugin.h.pp
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl probes_mysql.d probes_mysql_nodtrace.h

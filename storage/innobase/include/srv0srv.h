@@ -225,6 +225,8 @@ extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
+extern ulint	srv_truncated_status_writes;
+
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
@@ -710,11 +712,12 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 };
 
 /** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
-  
+
 /** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 
