@@ -879,3 +879,9 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 End of 5.0 tests
 End of 5.1 tests
+# Expect error for unknown argument.
+Unknown option to base64-output: always
+Alternatives are: 'NEVER','AUTO','UNSPEC','DECODE-ROWS'
+# Expect error for unknown argument again.
+Unknown option to base64-output: std_data/master-bin.000001
+Alternatives are: 'NEVER','AUTO','UNSPEC','DECODE-ROWS'

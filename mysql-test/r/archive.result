@@ -1,6 +1,6 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
-SET storage_engine=ARCHIVE;
+SET default_storage_engine=ARCHIVE;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
@@ -12747,7 +12747,7 @@ FLUSH TABLE t1;
 SELECT * FROM t1;
 ERROR HY000: Can't find file: 't1' (errno: 2)
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 #
 # Ensure that TRUNCATE fails for non-empty archive tables.
 #

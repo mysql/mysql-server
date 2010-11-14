@@ -1,5 +1,4 @@
 drop table if exists t1,t2;
-set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -7,6 +6,7 @@ set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
+set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
@@ -563,11 +563,9 @@ select @@sql_auto_is_null;
 @@sql_auto_is_null
 0
 set sql_big_selects=1;
-set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -765,9 +763,6 @@ select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
 really null
 set names latin1;
-select @@have_innodb;
-@@have_innodb
-#
 *** Various tests with LC_TIME_NAMES
 *** LC_TIME_NAMES: testing case insensitivity
 set @@lc_time_names='ru_ru';
@@ -1035,7 +1030,6 @@ Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '1'
 set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size=@save_join_buffer_size;
-set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 set global delayed_queue_size        =@my_delayed_queue_size;
@@ -1043,6 +1037,7 @@ set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =@my_max_binlog_cache_size;
+set global binlog_cache_size         =@my_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;

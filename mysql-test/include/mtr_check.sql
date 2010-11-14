@@ -57,9 +57,10 @@ BEGIN
   CALL check_testcase_perfschema();
 
   -- Dump all global variables except those
-  -- that are supposed to change
+  -- that are supposed to or might change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' ORDER BY VARIABLE_NAME;
+    WHERE variable_name != 'timestamp' AND
+          variable_name != 'SERVER_UUID' ORDER BY VARIABLE_NAME;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap

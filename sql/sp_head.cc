@@ -1176,10 +1176,17 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 /**
   Execute the routine. The main instruction jump loop is there.
   Assume the parameters already set.
+
+  @param thd                  Thread context.
+  @param merge_da_on_success  Flag specifying if Warning Info should be
+                              propagated to the caller on Completion
+                              Condition or not.
+
   @todo
     - Will write this SP statement into binlog separately
     (TODO: consider changing the condition to "not inside event union")
 
+  @return Error status.
   @retval
     FALSE  on success
   @retval
@@ -1187,7 +1194,7 @@ find_handler_after_execution(THD *thd, sp_rcontext *ctx)
 */
 
 bool
-sp_head::execute(THD *thd)
+sp_head::execute(THD *thd, bool merge_da_on_success)
 {
   DBUG_ENTER("sp_head::execute");
   char saved_cur_db_name_buf[NAME_LEN+1];
@@ -1213,8 +1220,28 @@ sp_head::execute(THD *thd)
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info, warning_info(thd->warning_info->warn_id());
 
-  /* Use some extra margin for possible SP recursion and functions */
-  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
+  /*
+    Just reporting a stack overrun error
+    (@sa check_stack_overrun()) requires stack memory for error
+    message buffer. Thus, we have to put the below check
+    relatively close to the beginning of the execution stack,
+    where available stack margin is still big. As long as the check
+    has to be fairly high up the call stack, the amount of memory
+    we "book" for has to stay fairly high as well, and hence
+    not very accurate. The number below has been calculated
+    by trial and error, and reflects the amount of memory necessary
+    to execute a single stored procedure instruction, be it either
+    an SQL statement, or, heaviest of all, a CALL, which involves
+    parsing and loading of another stored procedure into the cache
+    (@sa db_load_routine() and Bug#10100).
+    At the time of measuring, a recursive SP invocation required
+    3232 bytes of stack on 32 bit Linux, 6016 bytes on 64 bit Mac
+    and 11152 on 64 bit Solaris sparc.
+    The same with db_load_routine() required circa 7k bytes and
+    14k bytes accordingly. Hence, here we book the stack with some
+    reasonable margin.
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
@@ -1461,8 +1488,15 @@ sp_head::execute(THD *thd)
   thd->stmt_arena= old_arena;
   state= EXECUTED;
 
-  /* Restore the caller's original warning information area. */
-  saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
+  /*
+    Restore the caller's original warning information area:
+      - warnings generated during trigger execution should not be
+        propagated to the caller on success;
+      - if there was an exception during execution, warning info should be
+        propagated to the caller in any case.
+  */
+  if (err_status || merge_da_on_success)
+    saved_warning_info->merge_with_routine_info(thd, thd->warning_info);
   thd->warning_info= saved_warning_info;
 
  done:
@@ -1476,7 +1510,7 @@ sp_head::execute(THD *thd)
     If the DB has changed, the pointer has changed too, but the
     original thd->db will then have been freed
   */
-  if (cur_db_changed && !thd->killed)
+  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION)
   {
     /*
       Force switching back to the saved current database, because it may be
@@ -1684,7 +1718,7 @@ sp_head::execute_trigger(THD *thd,
 
   thd->spcont= nctx;
 
-  err_status= execute(thd);
+  err_status= execute(thd, FALSE);
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
@@ -1901,7 +1935,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->set_n_backup_active_arena(&call_arena, &backup_arena);
 
-  err_status= execute(thd);
+  err_status= execute(thd, TRUE);
 
   thd->restore_active_arena(&call_arena, &backup_arena);
 
@@ -2134,7 +2168,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 #endif
 
   if (!err_status)
-    err_status= execute(thd);
+    err_status= execute(thd, TRUE);
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
@@ -2879,6 +2913,9 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's merged with the saved parent's value at the exit of this func.
   */
   bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&parent_modified_non_trans_table))
+    DBUG_RETURN(TRUE);
+
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
@@ -3033,6 +3070,9 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   int res;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
+    DBUG_RETURN(TRUE);
 
   query= thd->query();
   query_length= thd->query_length();

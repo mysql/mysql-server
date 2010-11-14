@@ -171,7 +171,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL, 1);
 DELETE FROM t1 WHERE c1 = 1;
@@ -184,7 +184,7 @@ c1	c2
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL, 1);
 DELETE FROM t1 WHERE c1 = 1;
@@ -203,7 +203,7 @@ auto_increment_increment	100
 auto_increment_offset	10
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL),(5),(NULL);
 INSERT INTO t1 VALUES (250),(NULL);
@@ -236,7 +236,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(0);
 SELECT * FROM t1;
@@ -275,7 +275,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(-1);
 SELECT * FROM t1;
@@ -321,7 +321,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(-1);
 Warnings:
@@ -376,7 +376,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(-1);
 Warnings:
@@ -425,7 +425,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 BIGINT AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES (9223372036854775794);
@@ -458,7 +458,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES (18446744073709551603);
@@ -491,7 +491,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES (18446744073709551603);
@@ -520,7 +520,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 BIGINT AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(-9223372036854775806);
@@ -556,7 +556,7 @@ auto_increment_increment	1
 auto_increment_offset	1
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES (18446744073709551610);
@@ -630,10 +630,10 @@ DROP TABLE t1;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=5;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 (
 a INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
 b INT(10) UNSIGNED NOT NULL,
@@ -850,10 +850,10 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1(
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT
 PRIMARY KEY) ENGINE=InnoDB;
@@ -1099,7 +1099,7 @@ c1	c2
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
 INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
 INSERT INTO t1(C2) VALUES ('innodb');
@@ -1124,7 +1124,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 SET c1 = 1;
 SHOW CREATE TABLE t1;
@@ -1163,7 +1163,7 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1  (c1 INTEGER AUTO_INCREMENT, PRIMARY KEY (c1)) ENGINE=InnoDB;
 INSERT INTO  t1 VALUES (-685113344), (1), (NULL), (NULL);
 SELECT * FROM t1;
@@ -1243,4 +1243,17 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (18446744073709551615);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 DROP TABLE t1;

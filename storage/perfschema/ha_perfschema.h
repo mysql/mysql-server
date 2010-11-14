@@ -72,7 +72,8 @@ public:
       records.
     */
     return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_NO_BLOBS;
+      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+      HA_PRIMARY_KEY_REQUIRED_FOR_DELETE;
   }
 
   /**
@@ -113,6 +114,8 @@ public:
 
   int update_row(const uchar *old_data, uchar *new_data);
 
+  int delete_row(const uchar *buf);
+
   int rnd_init(bool scan);
 
   int rnd_end(void);
@@ -126,6 +129,8 @@ public:
   int info(uint);
 
   int delete_all_rows(void);
+
+  int truncate();
 
   int delete_table(const char *from);
 

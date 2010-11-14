@@ -80,7 +80,6 @@ insert into t2 select id from t1;
 
 create table t3 (kill_id int);
 insert into t3 values(connection_id());
-
 connect (conn2, localhost, root,,);
 connection conn2;
 

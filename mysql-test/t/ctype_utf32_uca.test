@@ -53,10 +53,10 @@ select group_concat(c1 order by binary c1 separator '') from t1 group by c1 coll
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_roman_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_esperanto_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_hungarian_ci;
+select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_croatian_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_german2_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_unicode_520_ci;
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_vietnamese_ci;
-select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf32_vietnamese_520_ci;
 
 drop table t1;
 

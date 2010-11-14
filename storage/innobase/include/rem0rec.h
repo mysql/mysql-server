@@ -801,12 +801,10 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec,	/*!< in: physical record */
-	dict_index_t*	index);	/*!< in: record descriptor */
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index);	/*!< in: record descriptor */
 #endif /* UNIV_HOTBACKUP */
-
-#define REC_INFO_BITS		6	/* This is single byte bit-field */
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */

@@ -118,11 +118,12 @@ table_events_waits_current::m_field_def=
 PFS_engine_table_share
 table_events_waits_current::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_CURRENT") },
+  { C_STRING_WITH_LEN("events_waits_current") },
   &pfs_truncatable_acl,
   &table_events_waits_current::create,
   NULL, /* write_row */
   &table_events_waits_current::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
@@ -135,11 +136,12 @@ THR_LOCK table_events_waits_history::m_table_lock;
 PFS_engine_table_share
 table_events_waits_history::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_HISTORY") },
+  { C_STRING_WITH_LEN("events_waits_history") },
   &pfs_truncatable_acl,
   &table_events_waits_history::create,
   NULL, /* write_row */
   &table_events_waits_history::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
@@ -152,11 +154,12 @@ THR_LOCK table_events_waits_history_long::m_table_lock;
 PFS_engine_table_share
 table_events_waits_history_long::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_HISTORY_LONG") },
+  { C_STRING_WITH_LEN("events_waits_history_long") },
   &pfs_truncatable_acl,
   &table_events_waits_history_long::create,
   NULL, /* write_row */
   &table_events_waits_history_long::delete_all_rows,
+  NULL, /* get_row_count */
   10000, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,

@@ -385,11 +385,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (thd->slave_thread)
       {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli.slave_patternload_file, name, 
-            active_mi->rli.slave_patternload_file_size))
+        if (strncmp(active_mi->rli->slave_patternload_file, name,
+            active_mi->rli->slave_patternload_file_size))
         {
           /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from 
+            LOAD DATA INFILE in the slave SQL Thread can only read from
             --slave-load-tmpdir". This should never happen. Please, report a bug.
            */
 
@@ -1345,6 +1345,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free(buffer); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1371,13 +1372,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+
+  if (buffer != NULL)
     my_free(buffer);
-    error=1;
-  }
   List_iterator<XML_TAG> xmlit(taglist);
   XML_TAG *t;
   while ((t= xmlit++))

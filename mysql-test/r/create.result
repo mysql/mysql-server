@@ -28,15 +28,15 @@ create table t2 select auto+1 from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1,t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 create table t1 (b char(0) not null, index(b));
 ERROR 42000: The used storage engine can't index column 'b'
 create table t1 (a int not null,b text) engine=heap;
 ERROR 42000: The used table type doesn't support BLOB/TEXT columns
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
 ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
 create table not_existing_database.test (a int);
@@ -157,17 +157,17 @@ create table t2 (a int, a float) select * from t1;
 ERROR 42S21: Duplicate column name 'a'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 create table t2 (a int) select a as b, a+1 as b from t1;
 ERROR 42S21: Duplicate column name 'b'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 create table t2 (b int) select a as b, a+1 as b from t1;
 ERROR 42S21: Duplicate column name 'b'
 drop table if exists t1,t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 (a int not null);
 INSERT INTO t1 values (1),(2),(1);
 CREATE TABLE t2 (primary key(a)) SELECT * FROM t1;
@@ -177,7 +177,7 @@ ERROR 42S02: Table 'test.t2' doesn't exist
 DROP TABLE t1;
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
 show create table t1;
 Table	Create Table
@@ -225,9 +225,9 @@ select * from t1;
 if('2002'='2002','Y','N')
 Y
 drop table if exists t1;
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
-@@storage_engine
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
+@@default_storage_engine
 MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -236,10 +236,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
-SET SESSION storage_engine="gemini";
+SET SESSION default_storage_engine="gemini";
 ERROR 42000: Unknown storage engine 'gemini'
-SELECT @@storage_engine;
-@@storage_engine
+SELECT @@default_storage_engine;
+@@default_storage_engine
 MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -247,7 +247,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
 insert into t1 values ("a", 1), ("b", 2);
@@ -389,9 +389,9 @@ create temporary table t3 like t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 unlock tables;
 drop tables t1, t2;
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
-@@storage_engine
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
+@@default_storage_engine
 MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -400,10 +400,10 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 drop table t1;
-SET SESSION storage_engine="gemini";
+SET SESSION default_storage_engine="gemini";
 ERROR 42000: Unknown storage engine 'gemini'
-SELECT @@storage_engine;
-@@storage_engine
+SELECT @@default_storage_engine;
+@@default_storage_engine
 MEMORY
 CREATE TABLE t1 (a int not null);
 show create table t1;
@@ -411,7 +411,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
 insert into t1(a)values(1);
@@ -1593,12 +1593,12 @@ CREATE TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (a int, b int, primary key (a));
 INSERT INTO t2 select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'

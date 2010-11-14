@@ -90,7 +90,7 @@ bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
   DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db,
                                              table_name, MDL_SHARED));
 
-  if (check_db_name(&db_name))
+  if (check_and_convert_db_name(&db_name, FALSE))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
     return TRUE;

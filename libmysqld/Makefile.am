@@ -39,7 +39,7 @@ pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
-                        my_time.c
+                        my_time.c client_plugin.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
@@ -63,7 +63,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_reload.cc \
 	sql_analyse.cc sql_base.cc sql_cache.cc sql_class.cc \
 	sql_crypt.cc sql_db.cc sql_delete.cc sql_error.cc sql_insert.cc \
-	sql_lex.cc sql_list.cc sql_manager.cc \
+        sql_join_cache.cc sql_lex.cc sql_list.cc sql_manager.cc\
 	scheduler.cc sql_connect.cc sql_parse.cc \
 	sql_prepare.cc sql_derived.cc sql_rename.cc \
 	sql_select.cc sql_do.cc sql_show.cc set_var.cc sys_vars.cc \
@@ -80,6 +80,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_servers.cc event_parse_data.cc sql_signal.cc \
 	sql_bootstrap.cc \
 	binlog.cc rpl_handler.cc mdl.cc keycaches.cc sql_audit.cc \
+	gcalc_slicescan.cc gcalc_tools.cc \
 	sql_partition_admin.cc
 
 libmysqld_int_a_SOURCES= $(libmysqld_sources)

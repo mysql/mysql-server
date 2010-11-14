@@ -214,9 +214,9 @@ private:
   */
   friend class THD;
   friend class Warning_info;
-  friend class Signal_common;
-  friend class Signal_statement;
-  friend class Resignal_statement;
+  friend class Sql_cmd_common_signal;
+  friend class Sql_cmd_signal;
+  friend class Sql_cmd_resignal;
   friend class sp_rcontext;
 
   /**
@@ -501,7 +501,7 @@ private:
   /** Read only status. */
   bool m_read_only;
 
-  friend class Resignal_statement;
+  friend class Sql_cmd_resignal;
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,

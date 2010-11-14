@@ -148,6 +148,29 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
 
 
 /**
+  Zero the null components of key tuple
+  SYNOPSIS
+    key_zero_nulls()
+      tuple
+      key_info
+
+  DESCRIPTION
+*/
+
+void key_zero_nulls(uchar *tuple, KEY *key_info)
+{
+  KEY_PART_INFO *key_part= key_info->key_part;
+  KEY_PART_INFO *key_part_end= key_part + key_info->key_parts;
+  for (; key_part != key_part_end; key_part++)
+  {
+    if (key_part->null_bit && *tuple)
+      bzero(tuple+1, key_part->store_length-1);
+    tuple+= key_part->store_length;
+  }
+}
+
+
+/**
   Restore a key from some buffer to record.
 
     This function converts a key into record format. It can be used in cases
@@ -361,7 +384,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
       if (field->binary() &&  field->type() == MYSQL_TYPE_STRING && tmp.length())
       {
         const char *tmp_end= tmp.ptr() + tmp.length();
-        while (tmp_end > tmp.ptr() && !*--tmp_end);
+        while (tmp_end > tmp.ptr() && !*--tmp_end) ;
         tmp.length(tmp_end - tmp.ptr() + 1);
       }
       if (cs->mbmaxlen > 1 &&

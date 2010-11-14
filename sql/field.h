@@ -509,6 +509,24 @@ public:
     DBUG_ASSERT(0);
     return GEOM_GEOMETRY;
   }
+#ifndef DBUG_OFF
+  /* Print field value into debug trace, in NULL-aware way. */
+  void dbug_print()
+  {
+    if (is_real_null())
+      fprintf(DBUG_FILE, "NULL");
+    else
+    {
+      char buf[256];
+      String str(buf, sizeof(buf), &my_charset_bin);
+      str.length(0);
+      String *pstr;
+      pstr= val_str(&str);
+      fprintf(DBUG_FILE, "'%s'", pstr->c_ptr_safe());
+    }
+  }
+#endif
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
@@ -554,6 +572,48 @@ private:
   { return 0; }
 
 protected:
+  static void handle_int16(uchar *to, const uchar *from,
+                           bool low_byte_first_from, bool low_byte_first_to)
+  {
+    int16 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_from)
+      val = sint2korr(from);
+    else
+#endif
+      shortget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_to)
+      int2store(to, val);
+    else
+#endif
+      shortstore(to, val);
+  }
+
+  static void handle_int24(uchar *to, const uchar *from,
+                           bool low_byte_first_from, bool low_byte_first_to)
+  {
+    int32 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_from)
+      val = sint3korr(from);
+    else
+#endif
+      val= (from[0] << 16) + (from[1] << 8) + from[2];
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_to)
+      int2store(to, val);
+    else
+#endif
+    {
+      to[0]= 0xFF & (val >> 16);
+      to[1]= 0xFF & (val >> 8);
+      to[2]= 0xFF & val;
+    }
+  }
+
   /*
     Helper function to pack()/unpack() int32 values
   */
@@ -596,6 +656,32 @@ protected:
     else
 #endif
       longlongstore(to, val);
+  }
+
+  uchar *pack_int16(uchar *to, const uchar *from, bool low_byte_first_to)
+  {
+    handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
+    return to  + sizeof(int16);
+  }
+
+  const uchar *unpack_int16(uchar* to, const uchar *from,
+                            bool low_byte_first_from)
+  {
+    handle_int16(to, from, low_byte_first_from, table->s->db_low_byte_first);
+    return from + sizeof(int16);
+  }
+
+  uchar *pack_int24(uchar *to, const uchar *from, bool low_byte_first_to)
+  {
+    handle_int24(to, from, table->s->db_low_byte_first, low_byte_first_to);
+    return to + 3;
+  }
+
+  const uchar *unpack_int24(uchar* to, const uchar *from,
+                            bool low_byte_first_from)
+  {
+    handle_int24(to, from, low_byte_first_from, table->s->db_low_byte_first);
+    return from + 3;
   }
 
   uchar *pack_int32(uchar *to, const uchar *from, bool low_byte_first_to)
@@ -918,41 +1004,13 @@ public:
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length, bool low_byte_first)
   {
-    int16 val;
-#ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-      val = sint2korr(from);
-    else
-#endif
-      shortget(val, from);
-
-#ifdef WORDS_BIGENDIAN
-    if (low_byte_first)
-      int2store(to, val);
-    else
-#endif
-      shortstore(to, val);
-    return to + sizeof(val);
+    return pack_int16(to, from, low_byte_first);
   }
 
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first)
   {
-    int16 val;
-#ifdef WORDS_BIGENDIAN
-    if (low_byte_first)
-      val = sint2korr(from);
-    else
-#endif
-      shortget(val, from);
-
-#ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-      int2store(to, val);
-    else
-#endif
-      shortstore(to, val);
-    return from + sizeof(val);
+    return unpack_int16(to, from, low_byte_first);
   }
 };
 
@@ -1895,6 +1953,12 @@ public:
   bool has_charset(void) const { return TRUE; }
   /* enum and set are sorted as integers */
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
+
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar *to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+
 private:
   int do_save_field_metadata(uchar *first_byte);
   uint is_equal(Create_field *new_field);

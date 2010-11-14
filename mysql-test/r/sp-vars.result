@@ -400,7 +400,7 @@ Warnings:
 Note	1305	PROCEDURE test.p2 does not exist
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(log_msg VARCHAR(1024));
 CREATE PROCEDURE p1(arg VARCHAR(255))
 BEGIN

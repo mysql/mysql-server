@@ -16,40 +16,66 @@
 #ifndef TABLE_THREADS_H
 #define TABLE_THREADS_H
 
-/**
-  @file storage/perfschema/table_threads.h
-  Table THREADS (declarations).
-*/
-
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 
 struct PFS_thread;
 
 /**
-  @addtogroup Performance_schema_tables
+  \addtogroup Performance_schema_tables
   @{
 */
 
-/** A row of PERFORMANCE_SCHEMA.THREADS. */
+/**
+  A row of PERFORMANCE_SCHEMA.THREADS.
+*/
 struct row_threads
 {
   /** Column THREAD_ID. */
   ulong m_thread_internal_id;
-  /** Column ID. */
+  /** Column PROCESSLIST_ID. */
   ulong m_thread_id;
   /** Column NAME. */
-  const char *m_name;
+  const char* m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+  /** Column PROCESSLIST_USER. */
+  char m_username[USERNAME_LENGTH];
+  /** Length in bytes of @c m_username. */
+  uint m_username_length;
+  /** Column PROCESSLIST_HOST. */
+  char m_hostname[HOSTNAME_LENGTH];
+  /** Length in bytes of @c m_hostname. */
+  uint m_hostname_length;
+  /** Column PROCESSLIST_DB. */
+  char m_dbname[NAME_LEN];
+  /** Length in bytes of @c m_dbname. */
+  uint m_dbname_length;
+  /** Column PROCESSLIST_COMMAND. */
+  int m_command;
+  /** Column PROCESSLIST_TIME. */
+  time_t m_start_time;
+  /** Column PROCESSLIST_STATE. */
+  const char* m_processlist_state_ptr;
+  /** Length in bytes of @c m_processlist_state_ptr. */
+  uint m_processlist_state_length;
+  /** Column PROCESSLIST_INFO. */
+  const char* m_processlist_info_ptr;
+  /** Length in bytes of @c m_processlist_info_ptr. */
+  uint m_processlist_info_length;
+  /** Column INSTRUMENTED. */
+  bool *m_enabled_ptr;
+  /** Column PARENT_THREAD_ID. */
+  ulong m_parent_thread_internal_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */
 class table_threads : public PFS_engine_table
 {
 public:
-  /** Table share. */
+  /** Table share */
   static PFS_engine_table_share m_share;
+  /** Table builder */
   static PFS_engine_table* create();
 
   virtual int rnd_next();
@@ -61,6 +87,12 @@ protected:
                               unsigned char *buf,
                               Field **fields,
                               bool read_all);
+
+
+  virtual int update_row_values(TABLE *table,
+                                const unsigned char *old_buf,
+                                unsigned char *new_buf,
+                                Field **fields);
 
 protected:
   table_threads();
@@ -79,7 +111,7 @@ private:
 
   /** Current row. */
   row_threads m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;

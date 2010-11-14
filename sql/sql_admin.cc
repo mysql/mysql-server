@@ -111,9 +111,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
   }
 
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
-
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
   */
@@ -150,6 +147,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
     goto end;					// No data file
+
+  /* A MERGE table must not come here. */
+  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -231,6 +231,26 @@ end:
 }
 
 
+/**
+  Check if a given error is something that could occur during
+  open_and_lock_tables() that does not indicate table corruption.
+
+  @param  sql_errno  Error number to check.
+
+  @retval TRUE       Error does not indicate table corruption.
+  @retval FALSE      Error could indicate table corruption.
+*/
+
+static inline bool table_not_corrupt_error(uint sql_errno)
+{
+  return (sql_errno == ER_NO_SUCH_TABLE ||
+          sql_errno == ER_FILE_NOT_FOUND ||
+          sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+          sql_errno == ER_LOCK_DEADLOCK ||
+          sql_errno == ER_CANT_LOCK_LOG_TABLE ||
+          sql_errno == ER_OPEN_AS_READONLY);
+}
+
 
 /*
   RETURN VALUES
@@ -311,7 +331,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables= table;
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
-      thd->no_warnings_for_error= no_warnings_for_error;
+      /*
+        Under locked tables, we know that the table can be opened,
+        so any errors opening the table are logical errors.
+        In these cases it makes sense to report them.
+      */
+      if (!thd->locked_tables_mode)
+        thd->no_warnings_for_error= no_warnings_for_error;
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
@@ -320,6 +346,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
+
+      /*
+        If open_and_lock_tables() failed, close_thread_tables() will close
+        the table and table->table can therefore be invalid.
+      */
+      if (open_error)
+        table->table= NULL;
+
       /*
         Under locked tables, we know that the table can be opened,
         so any errors opening the table are logical errors.
@@ -418,9 +452,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->stmt_da->is_error() &&
-          (thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE ||
-           thd->stmt_da->sql_errno() == ER_FILE_NOT_FOUND))
-        /* A missing table is just issued as a failed command */
+          table_not_corrupt_error(thd->stmt_da->sql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */
@@ -591,8 +623,14 @@ send_result_message:
     case HA_ADMIN_NOT_BASE_TABLE:
       {
         char buf[MYSQL_ERRMSG_SIZE];
+
+        String tbl_name;
+        tbl_name.append(String(db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(table_name,system_charset_info));
+
         size_t length= my_snprintf(buf, sizeof(buf),
-                                 ER(ER_BAD_TABLE_ERROR), table_name);
+                                   ER(ER_BAD_TABLE_ERROR), tbl_name.c_ptr());
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
       }
@@ -884,65 +922,65 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
-bool Analyze_table_statement::execute(THD *thd)
+bool Sql_cmd_analyze_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-  DBUG_ENTER("Analyze_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_analyze_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt,
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,
                          &handler::ha_analyze, 0);
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, ANALYZE and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Check_table_statement::execute(THD *thd)
+bool Sql_cmd_check_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res= TRUE;
-  DBUG_ENTER("Check_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_check_table::execute");
 
   if (check_table_access(thd, SELECT_ACL, first_table,
                          TRUE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt, "check",
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
                          &handler::ha_check, &view_checksum);
 
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Optimize_table_statement::execute(THD *thd)
+bool Sql_cmd_optimize_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Optimize_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
@@ -950,51 +988,51 @@ bool Optimize_table_statement::execute(THD *thd)
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
     mysql_recreate_table(thd, first_table) :
-    mysql_admin_table(thd, first_table, &m_lex->check_opt,
+    mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
                       &handler::ha_optimize, 0);
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, OPTIMIZE and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Repair_table_statement::execute(THD *thd)
+bool Sql_cmd_repair_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Repair_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_repair_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt, "repair",
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "repair",
                          TL_WRITE, 1,
-                         test(m_lex->check_opt.sql_flags & TT_USEFRM),
+                         test(thd->lex->check_opt.sql_flags & TT_USEFRM),
                          HA_OPEN_FOR_REPAIR, &prepare_for_repair,
                          &handler::ha_repair, 0);
 
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, REPAIR and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);

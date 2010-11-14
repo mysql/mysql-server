@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <sslopt-vars.h>
+#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static char * host=0, *opt_password=0, *user=0;
 static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
@@ -38,6 +39,7 @@ static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static char *opt_bind_addr = NULL;
 
 static void get_options(int *argc,char ***argv);
 static uint opt_mysql_port=0;
@@ -117,6 +119,8 @@ int main(int argc, char **argv)
 #endif
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -160,6 +164,9 @@ int main(int argc, char **argv)
 
 static struct my_option my_long_options[] =
 {
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", 'c', "Directory for character set files.",
    &charsets_dir, &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
@@ -247,8 +254,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010)"));
   puts("Shows the structure of a MySQL database (databases, tables, and columns).\n");
   printf("Usage: %s [OPTIONS] [database [table [column]]]\n",my_progname);
   puts("\n\
