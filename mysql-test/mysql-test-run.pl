@@ -131,6 +131,9 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+my $auth_filename;              # the name of the authentication test plugin
+my $auth_plugin;                # the path to the authentication test plugin
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
@@ -159,7 +162,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -283,7 +286,8 @@ sub testcase_timeout ($) {
 
 our $opt_warnings= 1;
 
-our $opt_skip_ndbcluster= 0;
+our $opt_include_ndbcluster= 0;
+our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -925,6 +929,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -1106,6 +1111,22 @@ sub command_line_setup {
   $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
+
+  # Look for client test plugin 
+  if (IS_WINDOWS)
+  {
+    $auth_filename = "auth_test_plugin.dll";
+  }
+  else
+  {
+    $auth_filename = "auth_test_plugin.so";
+  }
+  $auth_plugin=
+  mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
+    "$basedir/plugin/auth/.libs/" . $auth_filename,
+    "$basedir/lib/mysql/plugin/" . $auth_filename,
+    "$basedir/lib/plugin/" . $auth_filename);
+
 
   if (using_extern())
   {
@@ -1994,6 +2015,24 @@ sub environment_setup {
     ($lib_udf_example ? dirname($lib_udf_example) : "");
 
   # --------------------------------------------------------------------------
+  # Add the path where mysqld will find the auth test plugin (dialog.so/dll)
+  # --------------------------------------------------------------------------
+  if ($auth_plugin)
+  {
+    $ENV{'PLUGIN_AUTH'}= basename($auth_plugin);
+    $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
+
+    $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+  }
+  else
+  {
+    $ENV{'PLUGIN_AUTH'}= "";
+    $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
+    $ENV{'PLUGIN_AUTH_LOAD'}="";
+  }
+  
+
+  # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
   if ($mysql_version_id >= 50100) {
@@ -2522,6 +2561,11 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster)
   {
@@ -5090,6 +5134,10 @@ sub start_mysqltest ($) {
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
+  if ($auth_plugin)
+  {
+    mtr_add_arg($args, "--plugin_dir=%s", dirname($auth_plugin));
+  }
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
@@ -5570,7 +5618,8 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
