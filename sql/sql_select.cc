@@ -2378,13 +2378,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -2394,6 +2389,19 @@ JOIN::destroy()
   delete procedure;
   DBUG_RETURN(error);
 }
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
+}
+
 
 /**
   An entry point to single-unit select (a select without UNION).
@@ -6819,6 +6827,8 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
+      /* This error should not be ignored. */
+      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
@@ -8875,10 +8885,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
     {
@@ -12485,7 +12495,9 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.items_to_copy);
+    if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
     {
@@ -12591,7 +12603,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       memcpy(table->record[0]+key_part->offset, group->buff, 1);
   }
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
@@ -12626,7 +12639,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
   if (!(error=table->file->ha_write_row(table->record[0])))
     join->send_records++;			// New group
@@ -12713,7 +12727,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.items_to_copy);
+      if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
@@ -13010,6 +13025,34 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 }
 
 
+/**
+  Find shortest key suitable for full table scan.
+
+  @param table                 Table to scan
+  @param usable_keys           Allowed keys
+
+  @note
+     As far as 
+     1) clustered primary key entry data set is a set of all record
+        fields (key fields and not key fields) and
+     2) secondary index entry data is a union of its key fields and
+        primary key fields (at least InnoDB and its derivatives don't
+        duplicate primary key fields there, even if the primary and
+        the secondary keys have a common subset of key fields),
+     then secondary index entry data is always a subset of primary key entry.
+     Unfortunately, key_info[nr].key_length doesn't show the length
+     of key/pointer pair but a sum of key field lengths only, thus
+     we can't estimate index IO volume comparing only this key_length
+     value of secondary keys and clustered PK.
+     So, try secondary keys first, and choose PK only if there are no
+     usable secondary covering keys or found best secondary key include
+     all table fields (i.e. same as PK):
+
+  @return
+    MAX_KEY     no suitable key found
+    key index   otherwise
+*/
+
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
   uint best= MAX_KEY;
@@ -13022,23 +13065,6 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
     uint min_length= (uint) ~0;
     for (uint nr=0; nr < table->s->keys ; nr++)
     {
-      /*
-       As far as 
-       1) clustered primary key entry data set is a set of all record
-          fields (key fields and not key fields) and
-       2) secondary index entry data is a union of its key fields and
-          primary key fields (at least InnoDB and its derivatives don't
-          duplicate primary key fields there, even if the primary and
-          the secondary keys have a common subset of key fields),
-       then secondary index entry data is always a subset of primary key
-       entry, and the PK is always longer.
-       Unfortunately, key_info[nr].key_length doesn't show the length
-       of key/pointer pair but a sum of key field lengths only, thus
-       we can't estimate index IO volume comparing only this key_length
-       value of seconday keys and clustered PK.
-       So, try secondary keys first, and choose PK only if there are no
-       usable secondary covering keys:
-      */
       if (nr == usable_clustered_pk)
         continue;
       if (usable_keys->is_set(nr))
@@ -13051,7 +13077,20 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
       }
     }
   }
-  return best != MAX_KEY ? best : usable_clustered_pk;
+  if (usable_clustered_pk != MAX_KEY)
+  {
+    /*
+     If the primary key is clustered and found shorter key covers all table
+     fields then primary key scan normally would be faster because amount of
+     data to scan is the same but PK is clustered.
+     It's safe to compare key parts with table fields since duplicate key
+     parts aren't allowed.
+     */
+    if (best == MAX_KEY ||
+        table->key_info[best].key_parts >= table->s->fields)
+      best= usable_clustered_pk;
+  }
+  return best;
 }
 
 /**
@@ -15773,14 +15812,39 @@ update_sum_func(Item_sum **func_ptr)
   return 0;
 }
 
-/** Copy result of functions to record in tmp_table. */
+/** 
+  Copy result of functions to record in tmp_table. 
 
-void
-copy_funcs(Item **func_ptr)
+  Uses the thread pointer to check for errors in 
+  some of the val_xxx() methods called by the 
+  save_in_result_field() function.
+  TODO: make the Item::val_xxx() return error code
+
+  @param func_ptr  array of the function Items to copy to the tmp table
+  @param thd       pointer to the current thread for error checking
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
+*/
+
+bool
+copy_funcs(Item **func_ptr, const THD *thd)
 {
   Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
+  {
     func->save_in_result_field(1);
+    /*
+      Need to check the THD error state because Item::val_xxx() don't
+      return error code, but can generate errors
+      TODO: change it for a real status check when Item::val_xxx()
+      are extended to return status code.
+    */  
+    if (thd->is_error())
+      return TRUE;
+  }
+  return FALSE;
 }
 
 

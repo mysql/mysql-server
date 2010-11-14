@@ -577,6 +577,7 @@ private:
   */
   bool implicit_grouping; 
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
+  void cleanup_item_list(List<Item> &items) const;
 };
 
 
@@ -601,7 +602,7 @@ bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 		       List<Item> &new_list1, List<Item> &new_list2,
 		       uint elements, List<Item> &fields);
 void copy_fields(TMP_TABLE_PARAM *param);
-void copy_funcs(Item **func_ptr);
+bool copy_funcs(Item **func_ptr, const THD *thd);
 bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
 			     int error, bool ignore_last_dupp_error);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
