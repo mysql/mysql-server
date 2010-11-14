@@ -1,0 +1,135 @@
+select * from performance_schema.setup_actors;
+HOST	USER	ROLE
+%	%	%
+truncate table performance_schema.setup_actors;
+insert into performance_schema.setup_actors
+values ('hosta', 'user1', '%');
+insert into performance_schema.setup_actors
+values ('%', 'user2', '%');
+insert into performance_schema.setup_actors
+values ('localhost', 'user3', '%');
+insert into performance_schema.setup_actors
+values ('hostb', '%', '%');
+select * from performance_schema.setup_actors
+order by USER, HOST, ROLE;
+HOST	USER	ROLE
+hostb	%	%
+hosta	user1	%
+%	user2	%
+localhost	user3	%
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+grant select on test.* to user5@localhost;
+flush privileges;
+# Switch to (con1, localhost, user1, , )
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user1	localhost
+# Switch to connection default
+insert into performance_schema.setup_actors
+values ('%', 'user1', '%');
+# Switch to connection con1
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user1	localhost
+# Disconnect con1
+# Switch to (con2, localhost, user2, , )
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user2	localhost
+# Disconnect con2
+# Switch to connection default
+drop table if exists test.t1;
+create table test.t1 (col1 bigint);
+lock table test.t1 write;
+# Switch to (con3, localhost, user3, , )
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user3	localhost
+# Send a statement to the server, but do not wait till the result
+# comes back. We will pull this later.
+insert into test.t1 set col1 = 1;
+# Switch to (con4, localhost, user4, , )
+# Poll till INFO is no more NULL and State = 'Waiting for table metadata lock'.
+select count(*) = 1
+from performance_schema.threads T inner join information_schema.PROCESSLIST P
+on T.PROCESSLIST_ID = P.ID and T.PROCESSLIST_USER = P.USER and
+T.PROCESSLIST_HOST = P.HOST and T.PROCESSLIST_DB = P.DB and
+T.PROCESSLIST_COMMAND = P.COMMAND and T.PROCESSLIST_INFO = P.INFO
+where T.PROCESSLIST_USER = 'user3' and T.NAME = 'thread/sql/one_connection';
+count(*) = 1
+1
+# Switch to connection default
+unlock tables;
+# Switch to connection con3 and reap the result of the no more blocked insert
+# Switch to connection default
+drop table test.t1;
+# Disconnect con3
+# Switch to connection con4
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user4	localhost
+# Disconnect con4
+# Switch to connection default
+insert into performance_schema.setup_actors
+values ('localhost', '%', '%');
+select * from performance_schema.setup_actors
+order by USER, HOST, ROLE;
+HOST	USER	ROLE
+hostb	%	%
+localhost	%	%
+%	user1	%
+hosta	user1	%
+%	user2	%
+localhost	user3	%
+# Switch to (con4b, localhost, user4, , )
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user4	localhost
+# Disconnect con4b
+# Switch to connection default
+insert into performance_schema.setup_actors
+values ('%', 'user5', '%');
+create sql security definer view test.v1 as select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.threads
+where PROCESSLIST_ID = connection_id();
+# Switch to (con5, localhost, user5, , )
+select * from performance_schema.threads;
+ERROR 42000: SELECT command denied to user 'user5'@'localhost' for table 'threads'
+select * from test.v1;
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user5	localhost
+# Disconnect con5
+# Switch to connection default and cleanup
+drop view test.v1;
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+revoke all privileges, grant option from user5@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+drop user user5@localhost;
+flush privileges;
+truncate table performance_schema.setup_actors;
+insert into performance_schema.setup_actors
+values ('%', '%', '%');
+select * from performance_schema.setup_actors;
+HOST	USER	ROLE
+%	%	%

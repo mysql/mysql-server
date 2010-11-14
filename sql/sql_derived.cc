@@ -171,8 +171,9 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       SELECT is last SELECT of UNION).
     */
     if ((res= derived_result->create_result_table(thd, &unit->types, FALSE,
-                                                 create_options,
-                                                 orig_table_list->alias)))
+                                                  create_options,
+                                                  orig_table_list->alias,
+                                                  FALSE)))
       goto exit;
 
     table= derived_result->table;

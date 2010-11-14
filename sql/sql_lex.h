@@ -122,81 +122,7 @@ struct sys_var_with_base
 #endif
 #endif
 
-/*
-  When a command is added here, be sure it's also added in mysqld.cc
-  in "struct show_var_st status_vars[]= {" ...
-
-  If the command returns a result set or is not allowed in stored
-  functions or triggers, please also make sure that
-  sp_get_flags_for_command (sp_head.cc) returns proper flags for the
-  added SQLCOM_.
-*/
-
-enum enum_sql_command {
-  SQLCOM_SELECT, SQLCOM_CREATE_TABLE, SQLCOM_CREATE_INDEX, SQLCOM_ALTER_TABLE,
-  SQLCOM_UPDATE, SQLCOM_INSERT, SQLCOM_INSERT_SELECT,
-  SQLCOM_DELETE, SQLCOM_TRUNCATE, SQLCOM_DROP_TABLE, SQLCOM_DROP_INDEX,
-
-  SQLCOM_SHOW_DATABASES, SQLCOM_SHOW_TABLES, SQLCOM_SHOW_FIELDS,
-  SQLCOM_SHOW_KEYS, SQLCOM_SHOW_VARIABLES, SQLCOM_SHOW_STATUS,
-  SQLCOM_SHOW_ENGINE_LOGS, SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_MUTEX,
-  SQLCOM_SHOW_PROCESSLIST, SQLCOM_SHOW_MASTER_STAT, SQLCOM_SHOW_SLAVE_STAT,
-  SQLCOM_SHOW_GRANTS, SQLCOM_SHOW_CREATE, SQLCOM_SHOW_CHARSETS,
-  SQLCOM_SHOW_COLLATIONS, SQLCOM_SHOW_CREATE_DB, SQLCOM_SHOW_TABLE_STATUS,
-  SQLCOM_SHOW_TRIGGERS,
-
-  SQLCOM_LOAD,SQLCOM_SET_OPTION,SQLCOM_LOCK_TABLES,SQLCOM_UNLOCK_TABLES,
-  SQLCOM_GRANT,
-  SQLCOM_CHANGE_DB, SQLCOM_CREATE_DB, SQLCOM_DROP_DB, SQLCOM_ALTER_DB,
-  SQLCOM_REPAIR, SQLCOM_REPLACE, SQLCOM_REPLACE_SELECT,
-  SQLCOM_CREATE_FUNCTION, SQLCOM_DROP_FUNCTION,
-  SQLCOM_REVOKE,SQLCOM_OPTIMIZE, SQLCOM_CHECK,
-  SQLCOM_ASSIGN_TO_KEYCACHE, SQLCOM_PRELOAD_KEYS,
-  SQLCOM_FLUSH, SQLCOM_KILL, SQLCOM_ANALYZE,
-  SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
-  SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
-  SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
-  SQLCOM_BEGIN, SQLCOM_CHANGE_MASTER,
-  SQLCOM_RENAME_TABLE,
-  SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
-  SQLCOM_SHOW_OPEN_TABLES,
-  SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
-  SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
-  SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
-  SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
-  SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
-  SQLCOM_REVOKE_ALL, SQLCOM_CHECKSUM,
-  SQLCOM_CREATE_PROCEDURE, SQLCOM_CREATE_SPFUNCTION, SQLCOM_CALL,
-  SQLCOM_DROP_PROCEDURE, SQLCOM_ALTER_PROCEDURE,SQLCOM_ALTER_FUNCTION,
-  SQLCOM_SHOW_CREATE_PROC, SQLCOM_SHOW_CREATE_FUNC,
-  SQLCOM_SHOW_STATUS_PROC, SQLCOM_SHOW_STATUS_FUNC,
-  SQLCOM_PREPARE, SQLCOM_EXECUTE, SQLCOM_DEALLOCATE_PREPARE,
-  SQLCOM_CREATE_VIEW, SQLCOM_DROP_VIEW,
-  SQLCOM_CREATE_TRIGGER, SQLCOM_DROP_TRIGGER,
-  SQLCOM_XA_START, SQLCOM_XA_END, SQLCOM_XA_PREPARE,
-  SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK, SQLCOM_XA_RECOVER,
-  SQLCOM_SHOW_PROC_CODE, SQLCOM_SHOW_FUNC_CODE,
-  SQLCOM_ALTER_TABLESPACE,
-  SQLCOM_INSTALL_PLUGIN, SQLCOM_UNINSTALL_PLUGIN,
-  SQLCOM_SHOW_AUTHORS, SQLCOM_BINLOG_BASE64_EVENT,
-  SQLCOM_SHOW_PLUGINS,
-  SQLCOM_SHOW_CONTRIBUTORS,
-  SQLCOM_CREATE_SERVER, SQLCOM_DROP_SERVER, SQLCOM_ALTER_SERVER,
-  SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
-  SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
-  SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
-  SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
-  SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
-  SQLCOM_SHOW_RELAYLOG_EVENTS, 
-  /*
-    When a command is added here, be sure it's also added in mysqld.cc
-    in "struct show_var_st status_vars[]= {" ...
-  */
-  /* This should be the last !!! */
-  SQLCOM_END
-};
+#include "sql_cmd.h"
 
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
@@ -284,13 +210,14 @@ typedef struct st_lex_master_info
   float heartbeat_period;
   int sql_delay;
   ulonglong pos;
-  ulong server_id;
+  ulong server_id, retry_count;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value
    */
   enum {LEX_MI_UNCHANGED= 0, LEX_MI_DISABLE, LEX_MI_ENABLE}
-    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt;
+    ssl, ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt, 
+    retry_count_opt;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *relay_log_name;
   ulong relay_log_pos;
@@ -541,7 +468,6 @@ public:
 
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
-  virtual st_select_lex* return_after_parsing()= 0;
 
   virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
@@ -610,6 +536,10 @@ public:
     Item_type_holders from which this list consist may have pointers to Field,
     pointers is valid only after preparing SELECTS of this unit and before
     any SELECT of this unit execution
+
+    TODO:
+    Possibly this member should be protected, and its direct use replaced
+    by get_unit_column_types(). Check the places where it is used.
   */
   List<Item> types;
   /*
@@ -617,8 +547,6 @@ public:
     global parameters for union
   */
   st_select_lex *global_parameters;
-  //node on wich we should return current_select pointer after parsing subquery
-  st_select_lex *return_to;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
@@ -646,7 +574,6 @@ public:
   {
     return reinterpret_cast<st_select_lex_unit*>(next);
   }
-  st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
 
@@ -662,7 +589,8 @@ public:
   bool add_fake_select_lex(THD *thd);
   void init_prepare_fake_select_lex(THD *thd);
   inline bool is_prepared() { return prepared; }
-  bool change_result(select_subselect *result, select_subselect *old_result);
+  bool change_result(select_result_interceptor *result,
+                     select_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
@@ -714,6 +642,8 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  List<TABLE_LIST> sj_nests;
+  //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected
@@ -770,8 +700,6 @@ public:
     query processing end even if we use temporary table
   */
   bool subquery_in_having;
-  /* TRUE <=> this SELECT is correlated w.r.t. some ancestor select */
-  bool is_correlated;
   /*
     This variable is required to ensure proper work of subqueries and
     stored procedures. Generally, one should use the states of
@@ -831,6 +759,15 @@ public:
   }
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
+
+  st_select_lex* last_select() 
+  { 
+    st_select_lex* mylast= this;
+    for (; mylast->next_select(); mylast= mylast->next_select())
+    {}
+    return mylast; 
+  }
+
   st_select_lex* next_select_in_list() 
   {
     return (st_select_lex*) link_next;
@@ -839,11 +776,6 @@ public:
   {
     return &link_next;
   }
-  st_select_lex* return_after_parsing()
-  {
-    return master_unit()->return_after_parsing();
-  }
-
   void mark_as_dependent(st_select_lex *last);
 
   bool set_braces(bool value);
@@ -929,7 +861,7 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
-
+  bool is_part_of_union() { return master_unit()->is_union(); }
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
@@ -1823,6 +1755,15 @@ public:
   }
 
   /**
+    Inject a character into the pre-processed stream.
+  */
+  char *cpp_inject(char ch)
+  {
+    *m_cpp_ptr= ch;
+    return ++m_cpp_ptr;
+  }
+
+  /**
     End of file indicator for the query text to parse.
     @return true if there are no more characters to parse
   */
@@ -2094,63 +2035,6 @@ public:
   CHARSET_INFO *m_underscore_cs;
 };
 
-/**
-  Abstract representation of a statement.
-  This class is an interface between the parser and the runtime.
-  The parser builds the appropriate sub classes of Sql_statement
-  to represent a SQL statement in the parsed tree.
-  The execute() method in the sub classes contain the runtime implementation.
-  Note that this interface is used for SQL statement recently implemented,
-  the code for older statements tend to load the LEX structure with more
-  attributes instead.
-  The recommended way to implement new statements is to sub-class
-  Sql_statement, as this improves code modularity (see the 'big switch' in
-  dispatch_command()), and decrease the total size of the LEX structure
-  (therefore saving memory in stored programs).
-*/
-class Sql_statement : public Sql_alloc
-{
-public:
-  /**
-    Execute this SQL statement.
-    @param thd the current thread.
-    @return 0 on success.
-  */
-  virtual bool execute(THD *thd) = 0;
-
-protected:
-  /**
-    Constructor.
-    @param lex the LEX structure that represents parts of this statement.
-  */
-  Sql_statement(LEX *lex)
-    : m_lex(lex)
-  {}
-
-  /** Destructor. */
-  virtual ~Sql_statement()
-  {
-    /*
-      Sql_statement objects are allocated in thd->mem_root.
-      In MySQL, the C++ destructor is never called, the underlying MEM_ROOT is
-      simply destroyed instead.
-      Do not rely on the destructor for any cleanup.
-    */
-    DBUG_ASSERT(FALSE);
-  }
-
-protected:
-  /**
-    The legacy LEX structure for this statement.
-    The LEX structure contains the existing properties of the parsed tree.
-    TODO: with time, attributes from LEX should move to sub classes of
-    Sql_statement, so that the parser only builds Sql_statement objects
-    with the minimum set of attributes, instead of a LEX structure that
-    contains the collection of every possible attribute.
-  */
-  LEX *m_lex;
-};
-
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -2252,7 +2136,7 @@ struct LEX: public Query_tables_list
   */
   nesting_map allow_sum_func;
 
-  Sql_statement *m_stmt;
+  Sql_cmd *m_sql_cmd;
 
   /*
     Usually `expr` rule of yacc is quite reused but some commands better

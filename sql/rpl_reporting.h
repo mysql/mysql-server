@@ -80,12 +80,36 @@ public:
     {
       number= 0;
       message[0]= '\0';
+      timestamp[0]= '\0';
+
+    }
+
+    void update_timestamp()
+    {
+      time_t skr;
+      struct tm tm_tmp;
+      struct tm *start;
+
+      skr= my_time(0);
+      localtime_r(&skr, &tm_tmp);
+      start=&tm_tmp;
+
+      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
+              start->tm_year % 100,
+              start->tm_mon+1,
+              start->tm_mday,
+              start->tm_hour,
+              start->tm_min,
+              start->tm_sec);
+      timestamp[15]= '\0';
     }
 
     /** Error code */
     uint32 number;
     /** Error message */
     char message[MAX_SLAVE_ERRMSG];
+    /** Error timestamp as string */
+    char timestamp[16];
   };
 
   Error const& last_error() const { return m_last_error; }

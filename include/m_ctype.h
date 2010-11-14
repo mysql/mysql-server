@@ -154,6 +154,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
+#define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -431,6 +432,7 @@ extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
 
 extern CHARSET_INFO my_charset_utf8_general_ci;
+extern CHARSET_INFO my_charset_utf8_tolower_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;

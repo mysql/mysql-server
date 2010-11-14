@@ -623,8 +623,14 @@ send_result_message:
     case HA_ADMIN_NOT_BASE_TABLE:
       {
         char buf[MYSQL_ERRMSG_SIZE];
+
+        String tbl_name;
+        tbl_name.append(String(db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(table_name,system_charset_info));
+
         size_t length= my_snprintf(buf, sizeof(buf),
-                                 ER(ER_BAD_TABLE_ERROR), table_name);
+                                   ER(ER_BAD_TABLE_ERROR), tbl_name.c_ptr());
         protocol->store(STRING_WITH_LEN("note"), system_charset_info);
         protocol->store(buf, length, system_charset_info);
       }
@@ -916,65 +922,65 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 }
 
 
-bool Analyze_table_statement::execute(THD *thd)
+bool Sql_cmd_analyze_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-  DBUG_ENTER("Analyze_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_analyze_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt,
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,
                          &handler::ha_analyze, 0);
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, ANALYZE and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Check_table_statement::execute(THD *thd)
+bool Sql_cmd_check_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res= TRUE;
-  DBUG_ENTER("Check_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_check_table::execute");
 
   if (check_table_access(thd, SELECT_ACL, first_table,
                          TRUE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt, "check",
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                          lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
                          &handler::ha_check, &view_checksum);
 
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Optimize_table_statement::execute(THD *thd)
+bool Sql_cmd_optimize_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Optimize_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_optimize_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
@@ -982,51 +988,51 @@ bool Optimize_table_statement::execute(THD *thd)
   thd->enable_slow_log= opt_log_slow_admin_statements;
   res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
     mysql_recreate_table(thd, first_table) :
-    mysql_admin_table(thd, first_table, &m_lex->check_opt,
+    mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,
                       &handler::ha_optimize, 0);
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, OPTIMIZE and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
 }
 
 
-bool Repair_table_statement::execute(THD *thd)
+bool Sql_cmd_repair_table::execute(THD *thd)
 {
-  TABLE_LIST *first_table= m_lex->select_lex.table_list.first;
+  TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   bool res= TRUE;
-  DBUG_ENTER("Repair_table_statement::execute");
+  DBUG_ENTER("Sql_cmd_repair_table::execute");
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= mysql_admin_table(thd, first_table, &m_lex->check_opt, "repair",
+  res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "repair",
                          TL_WRITE, 1,
-                         test(m_lex->check_opt.sql_flags & TT_USEFRM),
+                         test(thd->lex->check_opt.sql_flags & TT_USEFRM),
                          HA_OPEN_FOR_REPAIR, &prepare_for_repair,
                          &handler::ha_repair, 0);
 
   /* ! we write after unlocking the table */
-  if (!res && !m_lex->no_write_to_binlog)
+  if (!res && !thd->lex->no_write_to_binlog)
   {
     /*
       Presumably, REPAIR and binlog writing doesn't require synchronization
     */
     res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  m_lex->select_lex.table_list.first= first_table;
-  m_lex->query_tables= first_table;
+  thd->lex->select_lex.table_list.first= first_table;
+  thd->lex->query_tables= first_table;
 
 error:
   DBUG_RETURN(res);
