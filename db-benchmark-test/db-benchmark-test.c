@@ -137,10 +137,9 @@ DBT dest_vals[MAX_DBS];
 
 #if defined(TOKUDB)
 static int
-put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
     assert(src_db == NULL);
     assert(dest_db != NULL);
-    assert(extra == &put_flags); //Verifying extra gets set right.
 
     dest_key->data = src_key->data;
     dest_key->size = src_key->size;
@@ -391,7 +390,7 @@ static void insert (long long v) {
     fill_dbt(&vt, vc, valsize);
     if (insert_multiple) {
 #if defined(TOKUDB)
-        r = dbenv->put_multiple(dbenv, NULL, tid, &kt, &vt, num_dbs, dbs, dest_keys, dest_vals, put_flagss, &put_flags); //Extra used just to verify its passed right
+        r = dbenv->put_multiple(dbenv, NULL, tid, &kt, &vt, num_dbs, dbs, dest_keys, dest_vals, put_flagss);
 #else
         r = EINVAL;
 #endif

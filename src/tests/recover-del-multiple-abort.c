@@ -17,10 +17,9 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data, void *extra) {
+put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
     dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
     assert(src_db == NULL);
-    assert(extra == NULL);
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
@@ -64,8 +63,8 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data, void *extra) {
-    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data, extra);
+del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data);
 }
 
 static void
@@ -103,7 +102,7 @@ run_test(int ndbs, int nrows) {
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         DBT vals[ndbs]; memset(vals, 0, sizeof vals);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->put_multiple(env, NULL, txn, &pri_key, &pri_val, ndbs, db, keys, vals, flags, NULL); 
+        r = env->put_multiple(env, NULL, txn, &pri_key, &pri_val, ndbs, db, keys, vals, flags); 
         assert_zero(r);
     }
 
@@ -120,7 +119,7 @@ run_test(int ndbs, int nrows) {
         DBT pri_data; dbt_init(&pri_data, &v[0], sizeof v);
         DBT keys[ndbs]; memset(keys, 0, sizeof keys);
         uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
-        r = env->del_multiple(env, NULL, txn, &pri_key, &pri_data, ndbs, db, keys, flags, NULL);
+        r = env->del_multiple(env, NULL, txn, &pri_key, &pri_data, ndbs, db, keys, flags);
         assert_zero(r);
     }
 

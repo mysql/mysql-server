@@ -20,10 +20,9 @@ struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
 
-static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
     src_db = src_db;
-    extra = extra;
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
     assert(which == 0);

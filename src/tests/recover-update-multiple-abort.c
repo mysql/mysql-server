@@ -32,10 +32,9 @@ get_new_data(int *v, int i, int ndbs) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data, void *extra) {
+put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
     dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
     assert(src_db == NULL);
-    assert(extra == NULL);
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
@@ -85,8 +84,8 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 }
 
 static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data, void *extra) {
-    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data, extra);
+del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data);
 }
 
 static void
@@ -112,7 +111,7 @@ update_diagonal(DB_ENV *env, DB_TXN *txn, DB *db[], int ndbs, int nrows) {
         DBT vals[ndbts]; memset(vals, 0, sizeof vals);
         uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
 
-        r = env->update_multiple(env, NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals, NULL);
+        r = env->update_multiple(env, NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
         assert_zero(r);
     }
 }

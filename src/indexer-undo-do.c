@@ -198,7 +198,7 @@ indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRH
 
     // generate the secondary row
     DB_ENV *env = indexer->i->env;
-    result = env->i->generate_row_for_put(hotdb, indexer->i->src_db, hotkey, hotval, &srckey, &srcval, indexer->i->generate_extra);
+    result = env->i->generate_row_for_put(hotdb, indexer->i->src_db, hotkey, hotval, &srckey, &srcval);
 
     toku_destroy_dbt(&srckey);
     toku_destroy_dbt(&srcval);

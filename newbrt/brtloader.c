@@ -1122,7 +1122,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	    pval.size = prow->vlen;
 	
 	    {
-		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
+		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval);
 		if (r != 0) {
                     error_codes[i] = r;
                     inc_error_count();

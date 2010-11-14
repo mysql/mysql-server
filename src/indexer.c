@@ -134,7 +134,6 @@ toku_indexer_create_indexer(DB_ENV *env,
 	indexer->i->indexer_flags      = indexer_flags;
 	indexer->i->loop_mod           = 1000; // call poll_func every 1000 rows
 	indexer->i->estimated_rows     = 0; 
-	indexer->i->generate_extra     = NULL; // TODO add a parameter
         indexer->i->undo_do            = indexer_undo_do; // TEST export the undo do function
 	
 	XCALLOC_N(N, indexer->i->fnums);

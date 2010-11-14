@@ -24,10 +24,10 @@ static void copy_dbt(DBT *dest, const DBT *src) {
     memcpy(dest->data, src->data, src->size);
 }
 
-static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
-    if (verbose) printf("%s %p %p %p %p %p %p %p\n", __FUNCTION__, dest_db, src_db, dest_key, dest_val, src_key, src_val, extra);
+static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+    if (verbose) printf("%s %p %p %p %p %p %p\n", __FUNCTION__, dest_db, src_db, dest_key, dest_val, src_key, src_val);
 
-    assert(dest_db == NULL); assert(src_db == NULL); assert(extra == NULL);
+    assert(dest_db == NULL); assert(src_db == NULL);
 
     int result;
     if (event_count_trigger == event_add_and_fetch()) {

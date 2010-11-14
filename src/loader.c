@@ -304,8 +304,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
                                          loader->i->dbs, // (DB**)db_array
                                          loader->i->ekeys, 
                                          loader->i->evals,
-                                         loader->i->db_flags, // flags_array
-                                         NULL);
+                                         loader->i->db_flags); // flags_array
     }
     else {
         r = toku_brt_loader_put(loader->i->brt_loader, key, val);

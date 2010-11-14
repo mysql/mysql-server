@@ -132,8 +132,7 @@ static void * client(void *arg)
                                cs->dbs, // dest dbs
                                dest_keys,
                                dest_vals, 
-                               cs->flags,
-                               NULL);
+                               cs->flags);
         if ( rr != 0 ) {
             if ( verbose ) printf("client[%u] : put_multiple returns %d, i=%u, n=%u, key=%u\n", cs->client_number, rr, i, n, k);
             r = txn->abort(txn); CKERR(r);

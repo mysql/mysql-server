@@ -257,8 +257,8 @@ static void copy_dbt(DBT *dest, const DBT *src) {
     memcpy(dest->data, src->data, src->size);
 }
 
-static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
-    assert(dest_db == NULL); assert(src_db == NULL); assert(extra == NULL);
+static int generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+    assert(dest_db == NULL); assert(src_db == NULL);
 
     copy_dbt(dest_key, src_key);
     copy_dbt(dest_val, src_val);

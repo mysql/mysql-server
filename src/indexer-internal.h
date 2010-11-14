@@ -25,7 +25,6 @@ struct __toku_indexer_internal {
     uint64_t estimated_rows; // current estimate of table size
     uint64_t loop_mod;       // how often to call poll_func
     LE_CURSOR lec;
-    void *generate_extra;
     FILENUM  *fnums; /* [N] */
     FILENUMS filenums;
 

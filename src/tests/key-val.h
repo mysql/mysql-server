@@ -91,10 +91,9 @@ static uint32_t UU() pkey_for_val(int key, int i) {
 
 // There is no handlerton in this test, so this function is a local replacement
 // for the handlerton's generate_row_for_put().
-static int UU() put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra) {
+static int UU() put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
     src_db = src_db;
-    extra = extra;
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
 

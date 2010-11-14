@@ -273,6 +273,8 @@ typedef enum {
 #define TOKUDB_UPGRADE_FAILURE -100011
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
+typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);
+typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val);
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
@@ -295,29 +297,21 @@ struct __toku_db_env {
   void *app_private;
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
-                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
-                                             void *extra) /* insert into multiple DBs */;
-  int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
-                                             int (*generate_row_for_put)(DB *dest_db, DB *src_db,
-                                                                         DBT *dest_key, DBT *dest_val,
-                                                                         const DBT *src_key, const DBT *src_val,
-                                                                         void *extra));
+                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array
+                                            ) /* insert into multiple DBs */;
+  int (*set_generate_row_callback_for_put)    (DB_ENV *env, generate_row_for_put_func generate_row_for_put);
   int (*del_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
-                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array,
-                                             void *extra) /* delete from multiple DBs */;
-  int (*set_generate_row_callback_for_del)    (DB_ENV *env, 
-                                             int (*generate_row_for_del)(DB *dest_db, DB *src_db,
-                                                                         DBT *dest_key,
-                                                                         const DBT *src_key, const DBT *src_val,
-                                                                         void *extra));
+                                             uint32_t num_dbs, DB **db_array, DBT *keys, uint32_t *flags_array
+                                            ) /* delete from multiple DBs */;
+  int (*set_generate_row_callback_for_del)    (DB_ENV *env, generate_row_for_del_func generate_row_for_del);
   int (*update_multiple)                      (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              DBT *old_src_key, DBT *old_src_data,
                                              DBT *new_src_key, DBT *new_src_data,
                                              uint32_t num_dbs, DB **db_array, uint32_t *flags_array,
                                              uint32_t num_keys, DBT *keys,
-                                             uint32_t num_vals, DBT *vals,
-                                             void *extra) /* update multiple DBs */;
+                                             uint32_t num_vals, DBT *vals
+                                            ) /* update multiple DBs */;
   int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
