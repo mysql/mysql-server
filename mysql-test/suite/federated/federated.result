@@ -60,7 +60,7 @@ CREATE TABLE federated.t1 (
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
 SELECT * FROM federated.t1;
-ERROR HY000: Unable to connect to foreign data source: Access denied for user 'user'@'localhost' (using password: YES)
+ERROR HY000: Unable to connect to foreign data source: Access denied for user 'user'@'localhost' (using password: NO)
 DROP TABLE federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
