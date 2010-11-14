@@ -737,3 +737,155 @@ drop table t1;
 alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
 drop tablespace ts1 engine=ndb;
 drop logfile group lg1 engine=ndb;
+# bug#57032
+create table t1 (
+a int not null,
+b int,
+primary key using hash (a),
+unique key using hash (b)
+)
+engine ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into t1 values
+(0,0),(1,1),(2,2),(3,3),(4,4),
+(5,null),(6,null),(7,null),(8,null),(9,null);
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = 0;
+select a from t1 where b is not null order by a;
+a
+0
+1
+2
+3
+4
+select a from t1 where b is null order by a;
+a
+5
+6
+7
+8
+9
+set engine_condition_pushdown = 1;
+select a from t1 where b is not null order by a;
+a
+0
+1
+2
+3
+4
+select a from t1 where b is null order by a;
+a
+5
+6
+7
+8
+9
+set engine_condition_pushdown = @old_ecpd;
+drop table t1;
+create table t1 (
+a int not null,
+b int,
+c int,
+primary key using hash (a),
+unique key using hash (b,c)
+)
+engine ndb;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into t1 values
+(0,0,0),(1,1,1),(2,2,1),(3,3,1),(4,4,2),
+(5,null,0),(6,null,1),(7,null,1),(8,null,1),(9,null,2),
+(10,0,null),(11,1,null),(12,1,null),(13,1,null),(14,2,null),
+(15,null,null),(16,null,null),(17,null,null),(18,null,null),(19,null,null);
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = 0;
+select a from t1 where b is not null and c = 1 order by a;
+a
+1
+2
+3
+select a from t1 where b is null and c = 1 order by a;
+a
+6
+7
+8
+select a from t1 where b = 1 and c is null order by a;
+a
+11
+12
+13
+select a from t1 where b is null and c is null order by a;
+a
+15
+16
+17
+18
+19
+select a from t1 where b is not null and c is null order by a;
+a
+10
+11
+12
+13
+14
+select a from t1 where b is null and c is not null order by a;
+a
+5
+6
+7
+8
+9
+select a from t1 where b is not null and c is not null order by a;
+a
+0
+1
+2
+3
+4
+set engine_condition_pushdown = 1;
+select a from t1 where b is not null and c = 1 order by a;
+a
+1
+2
+3
+select a from t1 where b is null and c = 1 order by a;
+a
+6
+7
+8
+select a from t1 where b = 1 and c is null order by a;
+a
+11
+12
+13
+select a from t1 where b is null and c is null order by a;
+a
+15
+16
+17
+18
+19
+select a from t1 where b is not null and c is null order by a;
+a
+10
+11
+12
+13
+14
+select a from t1 where b is null and c is not null order by a;
+a
+5
+6
+7
+8
+9
+select a from t1 where b is not null and c is not null order by a;
+a
+0
+1
+2
+3
+4
+set engine_condition_pushdown = @old_ecpd;
+drop table t1;

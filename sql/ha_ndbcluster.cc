@@ -3042,8 +3042,8 @@ guess_scan_flags(NdbOperation::LockMode lm,
  */
 
 int ha_ndbcluster::full_table_scan(const KEY* key_info, 
-                                   const uchar *key, 
-                                   uint key_len,
+                                   const key_range *start_key,
+                                   const key_range *end_key,
                                    uchar *buf)
 {
   int error;
@@ -3143,7 +3143,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
         my_errno= HA_ERR_OUT_OF_MEM;
         DBUG_RETURN(my_errno);
       }       
-      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, key, key_len, buf))
+      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, start_key, end_key, buf))
         ERR_RETURN(code.getNdbError());
     }
 
@@ -4909,8 +4909,8 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     }
     else if (type == UNIQUE_INDEX)
       DBUG_RETURN(full_table_scan(key_info, 
-                                  start_key->key, 
-                                  start_key->length, 
+                                  start_key,
+                                  end_key,
                                   buf));
     break;
   default:
@@ -5010,7 +5010,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (!m_active_cursor)
-    DBUG_RETURN(full_table_scan(NULL, NULL, 0, buf));
+    DBUG_RETURN(full_table_scan(NULL, NULL, NULL, buf));
   DBUG_RETURN(next_result(buf));
 }
 
