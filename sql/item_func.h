@@ -1353,6 +1353,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_result();
   longlong val_int_result();
+  bool val_bool_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();

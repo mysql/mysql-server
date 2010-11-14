@@ -1199,56 +1199,6 @@ reopen_tables:
 }
 
 
-/**
-   Implementation of the safe update options during UPDATE IGNORE. This syntax
-   causes an UPDATE statement to ignore all errors. In safe update mode,
-   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
-   is a special hook in my_message_sql that will otherwise delete all errors
-   when the IGNORE option is specified. 
-
-   In the future, all IGNORE handling should be used with this class and all
-   traces of the hack outlined below should be removed.
-
-   - The parser detects IGNORE option and sets thd->lex->ignore= 1
-   
-   - In JOIN::optimize, if this is set, then 
-     thd->lex->current_select->no_error gets set.
-
-   - In my_message_sql(), if the flag above is set then any error is
-     unconditionally converted to a warning.
-
-   We are moving in the direction of using Internal_error_handler subclasses
-   to do all such error tweaking, please continue this effort if new bugs
-   appear.
- */
-class Safe_dml_handler : public Internal_error_handler {
-
-private:
-  bool m_handled_error;
-
-public:
-  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
-
-  bool handle_error(uint sql_errno,
-                    const char *message,
-                    MYSQL_ERROR::enum_warning_level level,
-                    THD *thd)
-  {
-    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
-        
-    {      
-      thd->main_da.set_error_status(thd, sql_errno, message);
-      m_handled_error= TRUE;
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  bool handled_error() { return m_handled_error; }
-
-};
-
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1278,11 +1228,6 @@ bool mysql_multi_update(THD *thd,
 
   List<Item> total_list;
 
-  Safe_dml_handler handler;
-  bool using_handler= thd->options & OPTION_SAFE_UPDATES;
-  if (using_handler)
-    thd->push_internal_handler(&handler);
-
   res= mysql_select(thd, &select_lex->ref_pointer_array,
                     table_list, select_lex->with_wild,
                     total_list,
@@ -1292,21 +1237,9 @@ bool mysql_multi_update(THD *thd,
                     OPTION_SETUP_TABLES_DONE,
                     result, unit, select_lex);
 
-  if (using_handler)
-  {
-    Internal_error_handler *top_handler;
-    top_handler= thd->pop_internal_handler();
-    DBUG_ASSERT(&handler == top_handler);
-  }
-
   DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  /*
-    Todo: remove below code and make Safe_dml_handler do error processing
-    instead. That way we can return the actual error instead of
-    ER_UNKNOWN_ERROR.
-  */
-  if (unlikely(res) && (!using_handler || !handler.handled_error()))
+  if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
     result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
