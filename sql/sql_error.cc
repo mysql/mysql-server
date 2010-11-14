@@ -154,7 +154,7 @@ This file contains the implementation of error and warnings related
   This is implemented by using 'String MYSQL_ERROR::m_message_text'.
 
   The UTF8 -> error_message_charset_info conversion is implemented in
-  Signal_common::eval_signal_informations() (for path #B and #C).
+  Sql_cmd_common_signal::eval_signal_informations() (for path #B and #C).
 
   Future work
   -----------

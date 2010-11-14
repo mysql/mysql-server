@@ -1770,6 +1770,27 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select,
+                                          Item **ref)
+{
+  used_tables_cache=0;
+  not_null_tables_cache= 0;
+  const_item_cache= 1;
+
+  /*
+    No need to call fix_after_pullout() on args[0] (ie left expression),
+    as Item_in_subselect::fix_after_pullout() will do this.
+    So, just forward the call to the Item_in_subselect object.
+  */
+
+  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+
+  used_tables_cache|= args[1]->used_tables();
+  not_null_tables_cache|= args[1]->not_null_tables();
+  const_item_cache&= args[1]->const_item();
+}
+
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
    predicates. The implementation works as follows.
@@ -1840,6 +1861,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
      @see Item_in_subselect::val_bool()
      @see Item_is_not_null_test::val_int()
  */
+
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;
@@ -1949,6 +1971,70 @@ bool Item_in_optimizer::is_null()
 {
   val_int();
   return null_value;
+}
+
+
+/**
+  Transform an Item_in_optimizer and its arguments with a callback function.
+
+  @param transformer the transformer callback function to be applied to the
+         nodes of the tree of the object
+  @param parameter to be passed to the transformer
+
+  @detail
+    Recursively transform the left and the right operand of this Item. The
+    Right operand is an Item_in_subselect or its subclass. To avoid the
+    creation of new Items, we use the fact the the left operand of the
+    Item_in_subselect is the same as the one of 'this', so instead of
+    transforming its operand, we just assign the left operand of the
+    Item_in_subselect to be equal to the left operand of 'this'.
+    The transformation is not applied further to the subquery operand
+    if the IN predicate.
+
+  @returns
+    @retval pointer to the transformed item
+    @retval NULL if an error occurred
+*/
+
+Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument)
+{
+  Item *new_item;
+
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(arg_count == 2);
+
+  /* Transform the left IN operand. */
+  new_item= (*args)->transform(transformer, argument);
+  if (!new_item)
+    return 0;
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if ((*args) != new_item)
+    current_thd->change_item_tree(args, new_item);
+
+  /*
+    Transform the right IN operand which should be an Item_in_subselect or a
+    subclass of it. The left operand of the IN must be the same as the left
+    operand of this Item_in_optimizer, so in this case there is no further
+    transformation, we only make both operands the same.
+    TODO: is it the way it should be?
+  */
+  DBUG_ASSERT((args[1])->type() == Item::SUBSELECT_ITEM &&
+              (((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::IN_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ALL_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ANY_SUBS));
+
+  Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
+  in_arg->left_expr= args[0];
+
+  return (this->*transformer)(argument);
 }
 
 
@@ -3029,6 +3115,14 @@ void Item_func_case::fix_length_and_dec()
   {
     if (agg_arg_charsets_for_string_result(collation, agg, nagg))
       return;
+    /*
+      Copy all THEN and ELSE items back to args[] array.
+      Some of the items might have been changed to Item_func_conv_charset.
+    */
+    for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
+      args[nagg * 2 + 1]= agg[nagg];
+    if (else_expr_num != -1)
+      args[else_expr_num]= agg[nagg++];
   }
   else
     collation.set_numeric();
@@ -4201,9 +4295,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
+
+  if (functype() != COND_AND_FUNC)
+    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4262,10 +4360,46 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
 }
+
+
+void Item_cond::fix_after_pullout(st_select_lex *parent_select,
+                                  st_select_lex *removed_select,
+                                  Item **ref)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
+
+  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
+  not_null_tables_cache= 0;
+
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    item->fix_after_pullout(parent_select, removed_select, li.ref());
+    item= *li.ref();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
+  }
+}
+
 
 bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
@@ -5714,3 +5848,89 @@ void Item_equal::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+/**
+  Get item that can be substituted for the supplied item.
+
+  @param field  field item to get substitution field for, which must be
+                present within the multiple equality itself.
+
+  @retval Found substitution item in the multiple equality.
+
+  @details Get the first item of multiple equality that can be substituted
+  for the given field item. In order to make semijoin materialization strategy
+  work correctly we can't propagate equal fields between a materialized
+  semijoin and the outer query (or any other semijoin) unconditionally.
+  Thus the field is returned according to the following rules:
+
+  1) If the given field belongs to a materialized semijoin then the
+     first field in the multiple equality which belongs to the same semijoin
+     is returned.
+  2) If the given field doesn't belong to a materialized semijoin then
+     the first field in the multiple equality is returned.
+*/
+
+Item_field* Item_equal::get_subst_item(const Item_field *field)
+{
+  DBUG_ASSERT(field != NULL);
+
+  const JOIN_TAB *field_tab= field->field->table->reginfo.join_tab;
+
+  if (sj_is_materialize_strategy(field_tab->get_sj_strategy()))
+  {
+    /*
+      It's a field from a materialized semijoin. We can substitute it only
+      with a field from the same semijoin.
+
+      Example: suppose we have a join order:
+
+       ot1 ot2  SJM(it1  it2  it3)  ot3
+
+      and equality ot2.col = it1.col = it2.col
+
+      If we're looking for best substitute for 'it2.col', we must pick it1.col
+      and not ot2.col. it2.col is evaluated while performing materialization,
+      when the outer tables are not available in the execution.
+    */
+    List_iterator<Item_field> it(fields);
+    Item_field *item;
+    const JOIN_TAB *first= field_tab->first_sj_inner_tab;
+    const JOIN_TAB *last=  field_tab->last_sj_inner_tab;
+
+    while ((item= it++))
+    {
+      if (item->field->table->reginfo.join_tab >= first &&
+          item->field->table->reginfo.join_tab <= last)
+      {
+        return item;
+      }
+    }
+  }
+  else
+  {
+    /*
+      The field is not in a materialized semijoin nest. We can return
+      the first field in the multiple equality.
+
+      Example: suppose we have a join order with MaterializeLookup:
+
+       ot1 ot2  SJM-Lookup(it1  it2)
+
+      Here we should always pick the first field in the multiple equality,
+      as this will be present before all other dependent fields.
+
+      Example: suppose we have a join order with MaterializeScan:
+
+          SJM-Scan(it1  it2)  ot1  ot2
+
+      and equality ot2.col = ot1.col = it2.col.
+
+      When looking for best substitute for 'ot2.col', we can pick it2.col,
+      because when we run the scan, column values from the inner materialized
+      tables will be copied back to the column buffers for it1 and it2.
+    */
+    return fields.head();
+  }
+  DBUG_ASSERT(FALSE);                          // Should never get here.
+  return NULL;
+}

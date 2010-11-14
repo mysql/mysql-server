@@ -1,3 +1,16 @@
+DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
+CREATE TABLE t1 (s1 INT PRIMARY KEY) engine=innodb;
+CREATE TABLE t2 (s1 INT, FOREIGN KEY (s1) REFERENCES t1 (s1)) engine=innodb;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (1),(2),(3);
+CREATE TABLE t3 (s1 INT PRIMARY KEY)
+engine=innodb
+PARTITION BY LIST (s1)
+(PARTITION p1 VALUES IN (1,2,3));
+ALTER TABLE t3 EXCHANGE PARTITION p1 WITH TABLE t1;
+ERROR HY000: Table to exchange with partition has foreign key references: 't1'
+DROP TABLE t2, t1, t3;
+# Tests for WL#4445
 CREATE TABLE t (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
@@ -583,8 +596,8 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t IGNORE;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
 Level	Code	Message
-Error	1701	Non matching attribute 'MAX_ROWS' between partition and table
-Error	1701	Non matching attribute 'MIN_ROWS' between partition and table
+Error	1705	Non matching attribute 'MAX_ROWS' between partition and table
+Error	1705	Non matching attribute 'MIN_ROWS' between partition and table
 DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);

@@ -174,10 +174,13 @@ store the charset-collation number; one byte is left unused, though */
 /* Pack mbminlen, mbmaxlen to mbminmaxlen. */
 #define DATA_MBMINMAXLEN(mbminlen, mbmaxlen)	\
 	((mbmaxlen) * DATA_MBMAX + (mbminlen))
-/* Get mbminlen from mbminmaxlen. */
-#define DATA_MBMINLEN(mbminmaxlen) UNIV_EXPECT(((mbminmaxlen) % DATA_MBMAX), 1)
+/* Get mbminlen from mbminmaxlen. Cast the result of UNIV_EXPECT to ulint
+because in GCC it returns a long. */
+#define DATA_MBMINLEN(mbminmaxlen) ((ulint) \
+                                    UNIV_EXPECT(((mbminmaxlen) % DATA_MBMAX), \
+                                                1))
 /* Get mbmaxlen from mbminmaxlen. */
-#define DATA_MBMAXLEN(mbminmaxlen) ((mbminmaxlen) / DATA_MBMAX)
+#define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
@@ -447,6 +450,20 @@ dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/*!< in: type struct */
 	const byte*	buf);	/*!< in: buffer for stored type order info */
+
+/*********************************************************************//**
+Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
+@return the SQL type name */
+UNIV_INLINE
+char*
+dtype_sql_name(
+/*===========*/
+	unsigned	mtype,	/*!< in: mtype */
+	unsigned	prtype,	/*!< in: prtype */
+	unsigned	len,	/*!< in: len */
+	char*		name,	/*!< out: SQL name */
+	unsigned	name_sz);/*!< in: size of the name buffer */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**

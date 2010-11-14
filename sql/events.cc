@@ -485,10 +485,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       ret= TRUE;                                // OOM
     else if ((ret= db_repository->load_named_event(thd, dbname, name,
                                                    new_element)))
-    {
-      DBUG_ASSERT(ret == OP_LOAD_ERROR);
       delete new_element;
-    }
     else
     {
       /*
@@ -747,7 +744,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 */
 
 int
-Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
+Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
 {
   char *db= NULL;
   int ret;

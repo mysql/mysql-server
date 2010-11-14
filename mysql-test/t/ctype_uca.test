@@ -65,10 +65,10 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_hungarian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_croatian_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_german2_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_unicode_520_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_vietnamese_ci;
-select group_concat(c1 order by c1) from t1 group by c1 collate utf8_vietnamese_520_ci;
 
 ALTER TABLE t1 CONVERT TO CHARACTER SET ucs2 COLLATE ucs2_bin;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_unicode_ci;
@@ -89,10 +89,10 @@ SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_spanish2_ci
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_roman_ci;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_esperanto_ci;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_hungarian_ci;
+SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_croatian_ci;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_german2_ci;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_unicode_520_ci;
 SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_vietnamese_ci;
-SELECT GROUP_CONCAT(c1 ORDER BY c1) FROM t1 GROUP BY c1 COLLATE ucs2_vietnamese_520_ci;
 
 drop table t1;
 

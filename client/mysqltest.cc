@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "client_priv.h"
 #include <mysql_version.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -50,6 +51,8 @@
 #endif
 #include <signal.h>
 #include <my_stacktrace.h>
+
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #ifdef __WIN__
 #include <crtdbg.h>
@@ -87,7 +90,7 @@ enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
-  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION
+  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_EXPLAIN_PROTOCOL
 };
 
 static int record= 0, opt_sleep= -1;
@@ -107,6 +110,7 @@ static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
+static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
@@ -191,6 +195,8 @@ static ulonglong timer_now(void);
 
 static ulong connection_retry_sleep= 100000; /* Microseconds */
 
+static char *opt_plugin_dir= 0;
+
 /* Precompiled re's */
 static my_regex_t ps_re;     /* the query can be run using PS protocol */
 static my_regex_t sp_re;     /* the query can be run as a SP */
@@ -200,7 +206,9 @@ static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
 
-static uint opt_protocol=0;
+#ifndef EMBEDDED_LIBRARY
+static uint opt_protocol= 0;
+#endif
 
 DYNAMIC_ARRAY q_lines;
 
@@ -3900,13 +3908,15 @@ void do_change_user(struct st_command *command)
   }
 
   if (!ds_user.length)
+  {
     dynstr_set(&ds_user, mysql->user);
 
-  if (!ds_passwd.length)
-    dynstr_set(&ds_passwd, mysql->passwd);
+    if (!ds_passwd.length)
+      dynstr_set(&ds_passwd, mysql->passwd);
 
-  if (!ds_db.length)
-    dynstr_set(&ds_db, mysql->db);
+    if (!ds_db.length)
+      dynstr_set(&ds_db, mysql->db);
+  }
 
   DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' database: '%s'",
                       cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
@@ -5275,6 +5285,7 @@ void do_connect(struct st_command *command)
   static DYNAMIC_STRING ds_port;
   static DYNAMIC_STRING ds_sock;
   static DYNAMIC_STRING ds_options;
+  static DYNAMIC_STRING ds_default_auth;
 #ifdef HAVE_SMEM
   static DYNAMIC_STRING ds_shm;
 #endif
@@ -5286,7 +5297,8 @@ void do_connect(struct st_command *command)
     { "database", ARG_STRING, FALSE, &ds_database, "Database to select after connect" },
     { "port", ARG_STRING, FALSE, &ds_port, "Port to connect to" },
     { "socket", ARG_STRING, FALSE, &ds_sock, "Socket to connect with" },
-    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" }
+    { "options", ARG_STRING, FALSE, &ds_options, "Options to use while connecting" },
+    { "default_auth", ARG_STRING, FALSE, &ds_default_auth, "Default authentication to use" }
   };
 
   DBUG_ENTER("do_connect");
@@ -5392,8 +5404,13 @@ void do_connect(struct st_command *command)
                   opt_charsets_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl || con_ssl)
+  if (opt_use_ssl)
+    con_ssl= 1;
+#endif
+
+  if (con_ssl)
   {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
@@ -5402,41 +5419,48 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
-  }
 #endif
+  }
 
-#ifdef __WIN__
   if (con_pipe)
   {
+#if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
-  }
 #endif
+  }
 
 #ifndef EMBEDDED_LIBRARY
   if (opt_protocol)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 #endif
 
-#ifdef HAVE_SMEM
   if (con_shm)
   {
+#ifdef HAVE_SMEM
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+#endif
   }
-  else if(shared_memory_base_name)
+#ifdef HAVE_SMEM
+  else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
-      shared_memory_base_name);
+                  shared_memory_base_name);
   }
 #endif
-
 
   /* Use default db name */
   if (ds_database.length == 0)
     dynstr_set(&ds_database, opt_db);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&con_slot->mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (ds_default_auth.length)
+    mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -6356,10 +6380,16 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"explain-protocol", OPT_EXPLAIN_PROTOCOL, "Explains all select.",
+   &explain_protocol, &explain_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
    120, 0, 3600 * 12, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6373,8 +6403,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  printf("MySQL AB, by Sasha, Matt, Monty & Jani\n");
-  printf("This software comes with ABSOLUTELY NO WARRANTY\n\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -7830,6 +7859,35 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_VOID_RETURN;
 }
 
+
+void run_explain(struct st_connection *cn, struct st_command *command, int flags)
+{
+  if (explain_protocol_enabled &&
+      !command->expected_errors.count &&
+      match_re(&view_re, command->query))
+  {
+    st_command save_command= *command;
+    DYNAMIC_STRING query_str;
+    DYNAMIC_STRING ds_warning_messages;
+
+    init_dynamic_string(&ds_warning_messages, "", 0, 2048);
+    init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
+    dynstr_append_mem(&query_str, command->query,
+                      command->end - command->query);
+    command->query= query_str.str;
+    command->query_len= query_str.length;
+    command->end= strend(command->query);
+
+    run_query(cn, command, flags);
+
+    dynstr_free(&query_str);
+    dynstr_free(&ds_warning_messages);
+
+    *command= save_command;
+  }
+}
+
+
 /****************************************************************************/
 /*
   Functions to detect different SQL statements
@@ -8228,6 +8286,7 @@ int main(int argc, char **argv)
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
+  var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
   DBUG_PRINT("info",("result_file: '%s'",
@@ -8250,6 +8309,7 @@ int main(int argc, char **argv)
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
   view_protocol_enabled= view_protocol;
+  explain_protocol_enabled= explain_protocol;
   cursor_protocol_enabled= cursor_protocol;
   /* Cursor protcol implies ps protocol */
   if (cursor_protocol_enabled)
@@ -8486,6 +8546,7 @@ int main(int argc, char **argv)
 	  save_file[0]= 0;
 	}
 	run_query(cur_con, command, flags);
+	run_explain(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 

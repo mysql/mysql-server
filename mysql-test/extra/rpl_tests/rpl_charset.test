@@ -104,18 +104,6 @@ connection master;
 set global character_set_server=latin2;
 set global character_set_server=latin1; # back
 
-# Check that SET ONE_SHOT is really one shot
-
-set one_shot @@character_set_server=latin5;
-set @@max_join_size=1000;
-select @@character_set_server;
-select @@character_set_server;
-set @@character_set_server=latin5;
-select @@character_set_server;
-select @@character_set_server;
-
-set one_shot max_join_size=1000000;
-
 # Test of wrong character set numbers;
 error 1115;
 set character_set_client=9999999;

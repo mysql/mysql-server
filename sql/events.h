@@ -41,21 +41,7 @@ class Event_queue;
 class Event_scheduler;
 struct TABLE_LIST;
 class THD;
-typedef class Item COND;
 typedef struct charset_info_st CHARSET_INFO;
-
-/* Return codes */
-enum enum_events_error_code
-{
-  OP_OK= 0,
-  OP_NOT_RUNNING,
-  OP_CANT_KILL,
-  OP_CANT_INIT,
-  OP_DISABLED_EVENT,
-  OP_LOAD_ERROR,
-  OP_ALREADY_EXISTS
-};
-
 
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
@@ -136,7 +122,7 @@ public:
                                   longlong expression);
 
   static int
-  fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
+  fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */);
 
   static void
   dump_internal_status();

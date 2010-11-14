@@ -100,14 +100,11 @@ bool No_such_table_error_handler::safely_trapped_errors()
   TABLE_SHAREs, refresh_version and the table id counter.
 */
 mysql_mutex_t LOCK_open;
-mysql_mutex_t LOCK_dd_owns_lock_open;
-uint dd_owns_lock_open= 0;
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_open, key_LOCK_dd_owns_lock_open;
+static PSI_mutex_key key_LOCK_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
-  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL },
-  { &key_LOCK_dd_owns_lock_open, "LOCK_dd_owns_lock_open", PSI_FLAG_GLOBAL }
+  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
 };
 
 /**
@@ -250,7 +247,8 @@ static void check_unused(void)
     Length of key
 */
 
-uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
+uint create_table_def_key(THD *thd, char *key,
+                          const TABLE_LIST *table_list,
                           bool tmp_table)
 {
   uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
@@ -301,8 +299,6 @@ bool table_def_init(void)
   init_tdc_psi_keys();
 #endif
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_dd_owns_lock_open, &LOCK_dd_owns_lock_open,
-                   MY_MUTEX_INIT_FAST);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
@@ -346,7 +342,6 @@ void table_def_free(void)
     table_def_inited= 0;
     /* Free table definitions. */
     my_hash_free(&table_def_cache);
-    mysql_mutex_destroy(&LOCK_dd_owns_lock_open);
     mysql_mutex_destroy(&LOCK_open);
   }
   DBUG_VOID_RETURN;
@@ -1999,39 +1994,60 @@ void update_non_unique_table_error(TABLE_LIST *update,
 }
 
 
+/**
+  Find temporary table specified by database and table names in the
+  THD::temporary_tables list.
+
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name)
 {
-  TABLE_LIST table_list;
+  TABLE_LIST tl;
 
-  table_list.db= (char*) db;
-  table_list.table_name= (char*) table_name;
-  return find_temporary_table(thd, &table_list);
+  tl.db= (char*) db;
+  tl.table_name= (char*) table_name;
+
+  return find_temporary_table(thd, &tl);
 }
 
 
-TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
-{
-  char	key[MAX_DBKEY_LENGTH];
-  uint	key_length;
-  TABLE *table;
-  DBUG_ENTER("find_temporary_table");
-  DBUG_PRINT("enter", ("table: '%s'.'%s'",
-                       table_list->db, table_list->table_name));
+/**
+  Find a temporary table specified by TABLE_LIST instance in the
+  THD::temporary_tables list.
 
-  key_length= create_table_def_key(thd, key, table_list, 1);
-  for (table=thd->temporary_tables ; table ; table= table->next)
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
+TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
+{
+  char key[MAX_DBKEY_LENGTH];
+  uint key_length= create_table_def_key(thd, key, tl, 1);
+
+  return find_temporary_table(thd, key, key_length);
+}
+
+
+/**
+  Find a temporary table specified by a key in the THD::temporary_tables list.
+
+  @return TABLE instance if a temporary table has been found; NULL otherwise.
+*/
+
+TABLE *find_temporary_table(THD *thd,
+                            const char *table_key,
+                            uint table_key_length)
+{
+  for (TABLE *table= thd->temporary_tables; table; table= table->next)
   {
-    if (table->s->table_cache_key.length == key_length &&
-	!memcmp(table->s->table_cache_key.str, key, key_length))
+    if (table->s->table_cache_key.length == table_key_length &&
+        !memcmp(table->s->table_cache_key.str, table_key, table_key_length))
     {
-      DBUG_PRINT("info",
-                 ("Found table. server_id: %u  pseudo_thread_id: %lu",
-                  (uint) thd->server_id,
-                  (ulong) thd->variables.pseudo_thread_id));
-      DBUG_RETURN(table);
+      return table;
     }
   }
-  DBUG_RETURN(0);                               // Not a temporary table
+
+  return NULL;
 }
 
 
@@ -2892,8 +2908,12 @@ retry_share:
     */
     if (check_and_update_table_version(thd, table_list, share))
       goto err_unlock;
-    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
+    if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+               table_list->table_name);
       goto err_unlock;
+    }
 
     /* Open view */
     if (open_new_frm(thd, share, alias,
@@ -2921,7 +2941,11 @@ retry_share:
   */
 
   if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+             table_list->table_name);
     goto err_unlock;
+  }
 
   if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
@@ -3035,41 +3059,11 @@ retry_share:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
-  DBUG_ASSERT(table->s->ref_count > 0 || table->s->tmp_table != NO_TMP_TABLE);
-
-  if (thd->lex->need_correct_ident())
-    table->alias_name_used= my_strcasecmp(table_alias_charset,
-                                          table->s->table_name.str, alias);
-  /* Fix alias if table name changes */
-  if (strcmp(table->alias, alias))
-  {
-    uint length=(uint) strlen(alias)+1;
-    table->alias= (char*) my_realloc((char*) table->alias, length,
-                                     MYF(MY_WME));
-    memcpy((char*) table->alias, alias, length);
-  }
-  table->tablenr=thd->current_tablenr++;
-  table->used_fields=0;
-  table->const_table=0;
-  table->null_row= table->maybe_null= 0;
-  table->force_index= table->force_index_order= table->force_index_group= 0;
-  table->status=STATUS_NO_RECORD;
-  table->insert_values= 0;
-  table->fulltext_searched= 0;
-  table->file->ft_handler= 0;
-  table->reginfo.impossible_range= 0;
-  /* Catch wrong handling of the auto_increment_field_not_null. */
-  DBUG_ASSERT(!table->auto_increment_field_not_null);
-  table->auto_increment_field_not_null= FALSE;
-  if (table->timestamp_field)
-    table->timestamp_field_type= table->timestamp_field->get_auto_set_type();
-  table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
-  table->clear_column_bitmaps();
   table_list->table= table;
-  DBUG_ASSERT(table->key_read == 0);
-  /* Tables may be reused in a sub statement. */
-  DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+  table->init(thd, table_list);
+
   DBUG_RETURN(FALSE);
 
 err_lock:
@@ -4542,13 +4536,15 @@ lock_table_names(THD *thd,
            ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
            find_temporary_table(thd, table))))
     {
-      if (schema_set.insert(table))
+      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+          schema_set.insert(table))
         return TRUE;
       mdl_requests.push_front(&table->mdl_request);
     }
   }
 
-  if (! mdl_requests.is_empty())
+  if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+      ! mdl_requests.is_empty())
   {
     /*
       Scoped locks: Take intention exclusive locks on all involved
@@ -5183,6 +5179,8 @@ static bool check_lock_and_start_stmt(THD *thd,
   @param[in]    lock_type       lock to use for table
   @param[in]    flags           options to be used while opening and locking
                                 table (see open_table(), mysql_lock_tables())
+  @param[in]    prelocking_strategy  Strategy which specifies how prelocking
+                                     algorithm should work for this statement.
 
   @return       table
     @retval     != NULL         OK, opened table returned
@@ -5208,7 +5206,8 @@ static bool check_lock_and_start_stmt(THD *thd,
 */
 
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                thr_lock_type lock_type, uint flags)
+                                thr_lock_type lock_type, uint flags,
+                                Prelocking_strategy *prelocking_strategy)
 {
   TABLE_LIST *save_next_global;
   DBUG_ENTER("open_n_lock_single_table");
@@ -5224,7 +5223,8 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   table_l->required_type= FRMTYPE_TABLE;
 
   /* Open the table. */
-  if (open_and_lock_tables(thd, table_l, FALSE, flags))
+  if (open_and_lock_tables(thd, table_l, FALSE, flags,
+                           prelocking_strategy))
     table_l->table= NULL; /* Just to be sure. */
 
   /* Restore list. */
@@ -5333,7 +5333,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
 end:
   if (table == NULL)
+  {
+    if (!thd->in_sub_stmt)
+      trans_rollback_stmt(thd);
     close_thread_tables(thd);
+  }
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
@@ -5716,35 +5720,37 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 }
 
 
-/*
-  Open a single table without table caching and don't set it in open_list
+/**
+  Open a single table without table caching and don't add it to
+  THD::open_tables. Depending on the 'add_to_temporary_tables_list' value,
+  the opened TABLE instance will be addded to THD::temporary_tables list.
 
-  SYNPOSIS
-    open_temporary_table()
-    thd		  Thread object
-    path	  Path (without .frm)
-    db		  database
-    table_name	  Table name
-    link_in_list  1 if table should be linked into thd->temporary_tables
+  @param thd                          Thread context.
+  @param path                         Path (without .frm)
+  @param db                           Database name.
+  @param table_name                   Table name.
+  @param add_to_temporary_tables_list Specifies if the opened TABLE
+                                      instance should be linked into
+                                      THD::temporary_tables list.
 
- NOTES:
-    Used by alter_table to open a temporary table and when creating
-    a temporary table with CREATE TEMPORARY ...
+  @note This function is used:
+    - by alter_table() to open a temporary table;
+    - when creating a temporary table with CREATE TEMPORARY TABLE.
 
- RETURN
-   0  Error
-   #  TABLE object
+  @return TABLE instance for opened table.
+  @retval NULL on error.
 */
 
-TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list)
+TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
+                           const char *table_name,
+                           bool add_to_temporary_tables_list)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
   char cache_key[MAX_DBKEY_LENGTH], *saved_cache_key, *tmp_path;
   uint key_length;
   TABLE_LIST table_list;
-  DBUG_ENTER("open_temporary_table");
+  DBUG_ENTER("open_table_uncached");
   DBUG_PRINT("enter",
              ("table: '%s'.'%s'  path: '%s'  server_id: %u  "
               "pseudo_thread_id: %lu",
@@ -5799,7 +5805,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   share->tmp_table= (tmp_table->file->has_transactions() ? 
                      TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
-  if (link_in_list)
+  if (add_to_temporary_tables_list)
   {
     /* growing temp list at the head */
     tmp_table->next= thd->temporary_tables;
@@ -7951,46 +7957,6 @@ bool setup_tables_and_check_access(THD *thd,
 
 
 /*
-   Create a key_map from a list of index names
-
-   SYNOPSIS
-     get_key_map_from_key_list()
-     map		key_map to fill in
-     table		Table
-     index_list		List of index names
-
-   RETURN
-     0	ok;  In this case *map will includes the choosed index
-     1	error
-*/
-
-bool get_key_map_from_key_list(key_map *map, TABLE *table,
-                               List<String> *index_list)
-{
-  List_iterator_fast<String> it(*index_list);
-  String *name;
-  uint pos;
-
-  map->clear_all();
-  while ((name=it++))
-  {
-    if (table->s->keynames.type_names == 0 ||
-        (pos= find_type(&table->s->keynames, name->ptr(),
-                        name->length(), 1)) <=
-        0)
-    {
-      my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), name->c_ptr(),
-	       table->pos_in_table_list->alias);
-      map->set_all();
-      return 1;
-    }
-    map->set_bit(pos-1);
-  }
-  return 0;
-}
-
-
-/*
   Drops in all fields instead of current '*' field
 
   SYNOPSIS
@@ -8213,7 +8179,17 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   if (!table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name);
+  {
+    String tbl_name;
+    if (db_name)
+    {
+      tbl_name.append(String(db_name,system_charset_info));
+      tbl_name.append('.');
+    }
+    tbl_name.append(String(table_name,system_charset_info));
+
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+  }
 
   DBUG_RETURN(TRUE);
 }
@@ -8238,10 +8214,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 */
 
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
-                COND **conds)
+                Item **conds)
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
@@ -8268,6 +8245,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
+  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
   if (*conds)
   {
     thd->where="where clause";
@@ -8275,6 +8253,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8290,6 +8269,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
+        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
         if ((!embedded->on_expr->fixed &&
             embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
@@ -8314,6 +8294,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       }
     }
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {

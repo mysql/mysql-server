@@ -39,6 +39,10 @@ extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
 
+C_MODE_START
+ICP_RESULT index_cond_func_myisam(void *arg);
+C_MODE_END
+
 class ha_myisam: public handler
 {
   MI_INFO *file;
@@ -55,11 +59,15 @@ class ha_myisam: public handler
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulonglong table_flags() const { return int_table_flags; }
+  int index_init(uint idx, bool sorted);
+  int index_end();
+  int rnd_end();
+
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY);
+            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
@@ -107,6 +115,7 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
+  int truncate();
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
@@ -145,4 +154,24 @@ class ha_myisam: public handler
   {
     return file;
   }
+public:
+  /**
+   * Multi Range Read interface
+   */
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
+  
+  /* Index condition pushdown implementation */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+private:
+  DsMrr_impl ds_mrr;
+  friend ICP_RESULT index_cond_func_myisam(void *arg);
 };
+

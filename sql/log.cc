@@ -925,8 +925,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     if (!query)
     {
       is_command= TRUE;
-      query= command_name[thd->command].str;
-      query_length= command_name[thd->command].length;
+      query= command_name[thd->get_command()].str;
+      query_length= command_name[thd->get_command()].length;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -1125,7 +1125,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
 void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
-  MYSQL_LOG *file_log;
+  MYSQL_LOG *file_log= NULL;
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1137,7 +1137,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
     file_log= file_log_handler->get_mysql_log();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!(*tmp_opt))

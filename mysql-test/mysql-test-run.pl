@@ -131,6 +131,12 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+my $auth_interface_fn;          # the name of qa_auth_interface plugin
+my $auth_server_fn;             # the name of qa_auth_server plugin
+my $auth_client_fn;             # the name of qa_auth_client plugin
+my $auth_filename;              # the name of the authentication test plugin
+my $auth_plugin;                # the path to the authentication test plugin
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
@@ -159,7 +165,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,perfschema";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -183,6 +189,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_explain_protocol;
 
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
@@ -283,7 +290,8 @@ sub testcase_timeout ($) {
 
 our $opt_warnings= 1;
 
-our $opt_skip_ndbcluster= 0;
+our $opt_include_ndbcluster= 0;
+our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -908,6 +916,7 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
@@ -925,6 +934,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -1106,6 +1116,28 @@ sub command_line_setup {
   $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
+
+  # Look for auth test plugins 
+  if (IS_WINDOWS)
+  {
+    $auth_filename = "auth_test_plugin.dll";
+    $auth_interface_fn = "qa_auth_interface.dll";
+    $auth_server_fn = "qa_auth_server.dll";
+    $auth_client_fn = "qa_auth_client.dll";
+  }
+  else
+  {
+    $auth_filename = "auth_test_plugin.so";
+    $auth_interface_fn = "qa_auth_interface.so";
+    $auth_server_fn = "qa_auth_server.so";
+    $auth_client_fn = "qa_auth_client.so";
+  }
+  $auth_plugin=
+  mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
+    "$basedir/plugin/auth/.libs/" . $auth_filename,
+    "$basedir/lib/mysql/plugin/" . $auth_filename,
+    "$basedir/lib/plugin/" . $auth_filename);
+
 
   if (using_extern())
   {
@@ -1994,6 +2026,30 @@ sub environment_setup {
     ($lib_udf_example ? dirname($lib_udf_example) : "");
 
   # --------------------------------------------------------------------------
+  # Add the path where mysqld will find the auth test plugin (dialog.so/dll)
+  # --------------------------------------------------------------------------
+  if ($auth_plugin)
+  {
+    $ENV{'PLUGIN_AUTH'}= basename($auth_plugin);
+    $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
+
+    $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="--plugin_load=qa_auth_interface=".$auth_interface_fn;
+    $ENV{'PLUGIN_AUTH_SERVER'}="--plugin_load=qa_auth_server=".$auth_server_fn;
+    $ENV{'PLUGIN_AUTH_CLIENT'}="--plugin_load=qa_auth_client=".$auth_client_fn;
+  }
+  else
+  {
+    $ENV{'PLUGIN_AUTH'}= "";
+    $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
+    $ENV{'PLUGIN_AUTH_LOAD'}="";
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="";
+    $ENV{'PLUGIN_AUTH_SERVER'}="";
+    $ENV{'PLUGIN_AUTH_CLIENT'}="";
+  }
+  
+
+  # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
   if ($mysql_version_id >= 50100) {
@@ -2522,6 +2578,11 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster)
   {
@@ -4429,7 +4490,13 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  my @defaults = grep(/^--defaults-file=/, @$extra_opts);
+  if (@defaults > 0) {
+    mtr_add_arg($args, pop(@defaults))
+  }
+  else {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
@@ -4465,6 +4532,9 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
+    # Skip --defaults-file option since it's handled above.
+    next if $arg =~ /^--defaults-file/;
+
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
     {
@@ -5096,6 +5166,10 @@ sub start_mysqltest ($) {
   mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
   mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
   mtr_add_arg($args, "--logdir=%s/log", $opt_vardir);
+  if ($auth_plugin)
+  {
+    mtr_add_arg($args, "--plugin_dir=%s", dirname($auth_plugin));
+  }
 
   # Log line number and time  for each line in .test file
   mtr_add_arg($args, "--mark-progress")
@@ -5111,6 +5185,11 @@ sub start_mysqltest ($) {
   if ( $opt_sp_protocol )
   {
     mtr_add_arg($args, "--sp-protocol");
+  }
+
+  if ( $opt_explain_protocol )
+  {
+    mtr_add_arg($args, "--explain-protocol");
   }
 
   if ( $opt_view_protocol )
@@ -5274,8 +5353,7 @@ sub gdb_arguments {
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "end\n");
   }
 
   if ( $opt_manual_gdb )
@@ -5334,7 +5412,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
+	       "file ../sql/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
@@ -5539,6 +5617,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server
@@ -5576,7 +5655,8 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX

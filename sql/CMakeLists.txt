@@ -48,6 +48,7 @@ SET (SQL_SOURCE
                key.cc log.cc lock.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
+               ../sql-common/client_plugin.c
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc set_var.cc 
@@ -58,7 +59,7 @@ SET (SQL_SOURCE
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
                sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
-               debug_sync.cc debug_sync.h
+               sql_join_cache.cc debug_sync.cc debug_sync.h
                sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
@@ -72,6 +73,7 @@ SET (SQL_SOURCE
                sql_profile.cc event_parse_data.cc
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
+               gcalc_slicescan.cc gcalc_tools.cc
                sql_alloc_error_handler.cc
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
                datadict.cc sql_reload.cc
@@ -102,7 +104,9 @@ SET (MASTER_SOURCE rpl_master.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
-SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
+SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
+		  rpl_info_handler.cc rpl_info_file.cc rpl_info.cc
+                  rpl_info_factory.cc server_ids.h)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
