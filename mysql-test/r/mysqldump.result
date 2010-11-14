@@ -2613,13 +2613,13 @@ DROP TABLE t1, t2;
 #
 DROP TABLE IF EXISTS `test1`;
 Warnings:
-Note	1051	Unknown table 'test1'
+Note	1051	Unknown table 'test.test1'
 CREATE TABLE `test1` (
 `a1` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS `test2`;
 Warnings:
-Note	1051	Unknown table 'test2'
+Note	1051	Unknown table 'test.test2'
 CREATE TABLE `test2` (
 `a2` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
@@ -4575,6 +4575,11 @@ SELECT LENGTH(a) FROM t2;
 LENGTH(a)
 800
 DROP TABLE t1, t2;
+create table t1 (first char(28) , last varchar(37));
+insert into t1 values ("Magnus", "Blåudd");
+truncate table t1;
+test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+drop table t1;
 #
 # End of 5.1 tests
 #

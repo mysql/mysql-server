@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,15 +10,15 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 #
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 # 13 # 14 #
 select * from performance_schema.threads
   where name like 'Thread/%' limit 1;
 
@@ -29,13 +29,25 @@ select * from performance_schema.threads
 insert into performance_schema.threads
   set name='FOO', thread_id=1, processlist_id=2;
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.threads
   set thread_id=12;
 
---error ER_TABLEACCESS_DENIED_ERROR
+--error ER_WRONG_PERFSCHEMA_USAGE
 update performance_schema.threads
-  set thread_id=12 where name like "FOO";
+  set thread_id=12 where PROCESSLIST_ID=connection_id();
+
+update performance_schema.threads
+  set instrumented= 'NO' where PROCESSLIST_ID=connection_id();
+
+select instrumented from performance_schema.threads
+  where PROCESSLIST_ID=connection_id();
+
+update performance_schema.threads
+  set instrumented= 'YES' where PROCESSLIST_ID=connection_id();
+
+select instrumented from performance_schema.threads
+  where PROCESSLIST_ID=connection_id();
 
 --error ER_TABLEACCESS_DENIED_ERROR
 delete from performance_schema.threads
@@ -44,11 +56,9 @@ delete from performance_schema.threads
 --error ER_TABLEACCESS_DENIED_ERROR
 delete from performance_schema.threads;
 
--- error ER_TABLEACCESS_DENIED_ERROR
 LOCK TABLES performance_schema.threads READ;
 UNLOCK TABLES;
 
--- error ER_TABLEACCESS_DENIED_ERROR
 LOCK TABLES performance_schema.threads WRITE;
 UNLOCK TABLES;
 

@@ -30,6 +30,7 @@ select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_timers;
@@ -52,6 +53,7 @@ performance_schema_max_table_handles	0
 performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
+performance_schema_setup_actors_size	0
 show engine PERFORMANCE_SCHEMA status;
 show status like "performance_schema%";
 show variables like "performance_schema%";
@@ -72,6 +74,7 @@ performance_schema_max_table_handles	0
 performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
+performance_schema_setup_actors_size	0
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 wait/io/table/sql/handler	YES	YES
@@ -118,6 +121,8 @@ FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_
 select * from performance_schema.mutex_instances;
 NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
 select * from performance_schema.threads;
-THREAD_ID	PROCESSLIST_ID	NAME
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
 select * from performance_schema.rwlock_instances;
 NAME	OBJECT_INSTANCE_BEGIN	WRITE_LOCKED_BY_THREAD_ID	READ_LOCKED_BY_COUNT
+select * from performance_schema.threads;
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED

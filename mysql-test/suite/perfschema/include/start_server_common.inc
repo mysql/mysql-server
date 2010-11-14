@@ -39,6 +39,7 @@ select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_timers;

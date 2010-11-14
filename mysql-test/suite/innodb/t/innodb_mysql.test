@@ -809,6 +809,40 @@ drop table t2, t1;
 
 
 --echo #
+--echo # Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+--echo #            with Innodb - extra rows"
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1),
+  KEY k1 (c2)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (12,1);
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (16,1);
+INSERT INTO t1 VALUES (22,1);
+INSERT INTO t1 VALUES (20,2);
+
+CREATE TABLE t2 (
+  c1 INT NOT NULL,
+  c2 INT,
+  PRIMARY KEY (c1)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,9);
+
+SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
+FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
+
+DROP TABLE t1, t2;
+
+
+--echo #
 --echo # Bug#44613 SELECT statement inside FUNCTION takes a shared lock
 --echo #
 
@@ -845,11 +879,67 @@ connection default;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+--echo #
+--echo # BUG#42744: Crash when using a join buffer to join a table with a blob
+--echo # column and an additional column used for duplicate elimination.
+--echo #
+
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+ 
+set optimizer_join_cache_level=1;
+
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+set optimizer_join_cache_level=default;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#48093: 6.0 Server not processing equivalent IN clauses properly 
+--echo #            with Innodb tables
+--echo #
+
+CREATE TABLE t1 (
+  i int(11) DEFAULT NULL,
+  v1 varchar(1) DEFAULT NULL,
+  v2 varchar(20) DEFAULT NULL,
+  KEY i (i),
+  KEY v (v1,i)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+--echo
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+--echo
+--echo # Should not use index_merge
+EXPLAIN
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#54606 innodb fast alter table + pack_keys=0 
 --echo #           prevents adding new indexes
 --echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
   ENGINE=InnoDB 
@@ -858,3 +948,5 @@ CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
 
 DROP TABLE t1;
+
+--echo End of 6.0 tests
