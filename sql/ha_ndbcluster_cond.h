@@ -661,8 +661,8 @@ public:
   int generate_scan_filter_from_key(NdbInterpretedCode* code,
                                     NdbScanOperation::ScanOptions* options,
                                     const KEY* key_info, 
-                                    const uchar *key, 
-                                    uint key_len,
+                                    const key_range *start_key,
+                                    const key_range *end_key,
                                     uchar *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
