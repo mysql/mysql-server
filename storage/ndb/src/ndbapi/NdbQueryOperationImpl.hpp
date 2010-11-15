@@ -703,11 +703,6 @@ private:
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
 
-  /** A complete batch has been received for a given root fragment
-   *  Update whatever required before the appl. is allowed to navigate the result.
-   */ 
-  void handleBatchComplete(Uint32 rootFragNo);
-
   /** Copy NdbRecAttr and/or NdbRecord results from stream into appl. buffers */
   void fetchRow(NdbResultStream& resultStream);
 
