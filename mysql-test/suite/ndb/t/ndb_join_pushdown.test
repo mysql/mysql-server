@@ -2897,6 +2897,25 @@ select * from t as t1 join t as t2
 drop table t;
 
 #######
+# Testcase using 'REF_OR_NULL'
+# 'ref_or_null' contains elements of left outer join wo/ being identical.
+# 
+create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
+insert into t values (1,3), (3,NULL), (6,9), (9,1);
+
+# Currently we do not handle 'ref_or_null' correctly.
+# It is therefore disabled as pushable
+explain extended
+select straight_join * from t as a join t as b 
+  on a.uq=b.uq or b.uq is null;
+
+--sorted_result
+select straight_join * from t as a join t as b 
+  on a.uq=b.uq or b.uq is null;
+
+drop table t;
+
+#######
 # Test of varchar query parameteres.
 #######
 

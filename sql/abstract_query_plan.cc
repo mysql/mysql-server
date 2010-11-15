@@ -327,7 +327,6 @@ namespace AQP
       break;
 
     case JT_REF:
-    case JT_REF_OR_NULL:
     {
       DBUG_ASSERT(join_tab->ref.key >= 0);
       DBUG_ASSERT(join_tab->ref.key < MAX_KEY);
