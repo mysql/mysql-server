@@ -132,6 +132,16 @@ private:
  */
 class NdbRootFragment {
 public:
+  /** Build hash map for mapping from root receiver id to NdbRootFragment 
+   * instance.*/
+  static void buildReciverIdMap(NdbRootFragment* frags, 
+                                Uint32 noOfFrags);
+
+  /** Find NdbRootFragment instance corresponding to a given root receiver id.*/
+  static NdbRootFragment* receiverIdLookup(NdbRootFragment* frags, 
+                                           Uint32 noOfFrags, 
+                                           Uint32 receiverId);
+
   explicit NdbRootFragment();
 
   /**
@@ -224,6 +234,20 @@ private:
    * Each element is true iff a SCAN_TABCONF (for that fragment) or 
    * TCKEYCONF message has been received */
   bool m_confReceived;
+
+  /** 
+   * Used for implementing a hash map from root receiver ids to a 
+   * NdbRootFragment instance. m_idMapHead is the index of the first
+   * NdbRootFragment in the m_fragNo'th hash bucket. 
+   */
+  int m_idMapHead;
+
+  /** 
+   * Used for implementing a hash map from root receiver ids to a 
+   * NdbRootFragment instance. m_idMapNext is the index of the next
+   * NdbRootFragment in the same hash bucket as this one. 
+   */
+  int m_idMapNext;
 }; //NdbRootFragment
 
 
@@ -788,11 +812,63 @@ NdbResultStream::handleBatchComplete()
 ///////////////////////////////////////////
 /////////  NdbRootFragment methods ///////////
 ///////////////////////////////////////////
+void NdbRootFragment::buildReciverIdMap(NdbRootFragment* frags, 
+                                        Uint32 noOfFrags)
+{
+  for(Uint32 fragNo = 0; fragNo < noOfFrags; fragNo++)
+  {
+    const Uint32 receiverId = 
+      frags[fragNo].getResultStream(0).getReceiver().getId();
+    /** 
+     * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
+     * so we must do the opposite to get a good hash distribution.
+     */
+    assert((receiverId & 0x3) == 0);
+    const int hash = 
+      (receiverId >> 2) % noOfFrags;
+    frags[fragNo].m_idMapNext = frags[hash].m_idMapHead;
+    frags[hash].m_idMapHead = fragNo;
+  } 
+}
+
+NdbRootFragment* 
+NdbRootFragment::receiverIdLookup(NdbRootFragment* frags, 
+                                  Uint32 noOfFrags, 
+                                  Uint32 receiverId)
+{
+  /** 
+   * For reasons unknow, NdbObjectIdMap shifts ids two bits to the left,
+   * so we must do the opposite to get a good hash distribution.
+   */
+  assert((receiverId  & 0x3) == 0);
+  const int hash = (receiverId >> 2) % noOfFrags;
+  int current = frags[hash].m_idMapHead;
+  assert(current < static_cast<int>(noOfFrags));
+  while (current >= 0 && 
+         frags[current].getResultStream(0).getReceiver().getId() 
+         != receiverId)
+  {
+    current = frags[current].m_idMapNext;
+    assert(current < static_cast<int>(noOfFrags));
+  }
+  if (unlikely (current < 0))
+  {
+    return NULL;
+  }
+  else
+  {
+    return frags+current;
+  }
+}
+
+
 NdbRootFragment::NdbRootFragment():
   m_query(NULL),
   m_fragNo(voidFragNo),
   m_outstandingResults(0),
-  m_confReceived(false)
+  m_confReceived(false),
+  m_idMapHead(-1),
+  m_idMapNext(-1)
 {
 }
 
@@ -2221,6 +2297,10 @@ NdbQueryImpl::prepareSend()
     }
   }
 
+  if (getQueryDef().isScanQuery())
+  {
+    NdbRootFragment::buildReciverIdMap(m_rootFrags, m_rootFragCount);
+  }
 #ifdef TRACE_SERIALIZATION
   ndbout << "Serialized ATTRINFO : ";
   for(Uint32 i = 0; i < m_attrInfo.getSize(); i++){
@@ -4303,27 +4383,10 @@ NdbQueryOperationImpl::prepareLookupKeyInfo(
 } // NdbQueryOperationImpl::prepareLookupKeyInfo
 
 
-Uint32
-NdbQueryOperationImpl::findResultStream(Uint32 receiverId) const
-{
-  Uint32 rootFragNo;
-  Uint32 rootFragCount = getQuery().getRootFragCount();
-  assert(&getRoot() == this);
-
-  for (rootFragNo = 0; rootFragNo<rootFragCount; rootFragNo++)
-  {
-    if (m_resultStreams[rootFragNo]->getReceiver().getId() == receiverId)
-      return rootFragNo;
-  }
-
-  assert(false);
-  return rootFragCount;
-} // NdbQueryOperationImpl::findResultStream
-
-
 bool 
 NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
 {
+  NdbRootFragment* rootFrag = m_queryImpl.m_rootFrags;
   Uint32 rootFragNo = 0;
   if (getQueryDef().isScanQuery())
   {
@@ -4333,7 +4396,16 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
      * of the root operation. We can thus find the correct root fragment 
      * number.
      */
-    rootFragNo = getRoot().findResultStream(receiverId);
+    rootFrag = 
+      NdbRootFragment::receiverIdLookup(m_queryImpl.m_rootFrags,
+                                        m_queryImpl.getRootFragCount(), 
+                                        receiverId);
+    if (unlikely(rootFrag == NULL))
+    {
+      assert(false);
+      return false;
+    }
+    rootFragNo = rootFrag->getFragNo();
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
@@ -4345,11 +4417,10 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
   // Process result values.
   m_resultStreams[rootFragNo]->execTRANSID_AI(ptr, len);
 
-  NdbRootFragment& rootFrag = m_queryImpl.m_rootFrags[rootFragNo];
-  rootFrag.incrOutstandingResults(-1);
+  rootFrag->incrOutstandingResults(-1);
 
   bool ret = false;
-  if (rootFrag.isFragBatchComplete())
+  if (rootFrag->isFragBatchComplete())
   {
     ret = m_queryImpl.handleBatchComplete(rootFragNo);
   }
@@ -4446,20 +4517,25 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   assert(&getRoot() == this);
   assert(m_operationDef.isScanOperation());
 
-  // Find root fragment number.
-  Uint32 fragNo = findResultStream(receiver->getId());
-
-  NdbRootFragment& rootFrag = getQuery().m_rootFrags[fragNo];
-  rootFrag.setConfReceived();
-  rootFrag.incrOutstandingResults(rowCount);
+  NdbRootFragment* rootFrag = 
+    NdbRootFragment::receiverIdLookup(m_queryImpl.m_rootFrags,
+                                      m_queryImpl.getRootFragCount(), 
+                                      receiver->getId());
+  if (unlikely(rootFrag == NULL))
+  {
+    assert(false);
+    return false;
+  }
+  rootFrag->setConfReceived();
+  rootFrag->incrOutstandingResults(rowCount);
 
   // Handle for SCAN_NEXTREQ, RNIL -> EOF
-  NdbResultStream& resultStream = *m_resultStreams[fragNo];
+  NdbResultStream& resultStream = *m_resultStreams[rootFrag->getFragNo()];
   resultStream.getReceiver().m_tcPtrI = tcPtrI;  
 
   if(traceSignals){
-    ndbout << "  resultStream(root) {" << resultStream << "} fragNo=" 
-           << fragNo << endl;
+    ndbout << "  resultStream(root) {" << resultStream << "} fragNo" 
+           << rootFrag->getFragNo() << endl;
   }
 
   const NdbQueryDefImpl& queryDef = m_queryImpl.getQueryDef();
@@ -4478,7 +4554,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
 
     if (op.getQueryOperationDef().isScanOperation())
     {
-      rootFrag.getResultStream(opNo).setSubScanComplete(!maskSet);
+      rootFrag->getResultStream(opNo).setSubScanComplete(!maskSet);
     }
     else
     {
@@ -4492,10 +4568,10 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   assert(nodeMask >> (1+finalOpDef.getQueryOperationId()) == 0);
 
   bool ret = false;
-  if (rootFrag.isFragBatchComplete())
+  if (rootFrag->isFragBatchComplete())
   {
     /* This fragment is now complete */
-    ret = m_queryImpl.handleBatchComplete(fragNo);
+    ret = m_queryImpl.handleBatchComplete(rootFrag->getFragNo());
   }
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF():, returns:" << ret
