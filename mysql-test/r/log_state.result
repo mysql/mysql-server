@@ -10,8 +10,6 @@ where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
 Variable_name	Value
 general_log	OFF
-log	OFF
-log_slow_queries	OFF
 slow_query_log	OFF
 flush logs;
 set global general_log= ON;
@@ -34,8 +32,6 @@ where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
 Variable_name	Value
 general_log	ON
-log	ON
-log_slow_queries	OFF
 slow_query_log	OFF
 # Establish connection con1 (user=root)
 # Switch to connection con1
@@ -62,8 +58,6 @@ where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
 Variable_name	Value
 general_log	ON
-log	ON
-log_slow_queries	ON
 slow_query_log	ON
 set global general_log= ON;
 set global general_log= OFF;
@@ -90,8 +84,6 @@ where Variable_name = 'log' or Variable_name = 'log_slow_queries' or
 Variable_name = 'general_log' or Variable_name = 'slow_query_log';
 Variable_name	Value
 general_log	ON
-log	ON
-log_slow_queries	OFF
 slow_query_log	OFF
 show variables like 'general_log_file';
 Variable_name	Value
@@ -187,71 +179,6 @@ SET GLOBAL slow_query_log = ON;
 SET GLOBAL READ_ONLY = OFF;
 SET GLOBAL general_log = @old_general_log;
 SET GLOBAL slow_query_log = @old_slow_query_log;
-SET GLOBAL general_log = ON;
-SHOW VARIABLES LIKE 'general_log';
-Variable_name	Value
-general_log	ON
-SHOW VARIABLES LIKE 'log';
-Variable_name	Value
-log	ON
-SELECT @@general_log, @@log;
-@@general_log	@@log
-1	1
-SET GLOBAL log = 0;
-Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
-SHOW VARIABLES LIKE 'general_log';
-Variable_name	Value
-general_log	OFF
-SHOW VARIABLES LIKE 'log';
-Variable_name	Value
-log	OFF
-SELECT @@general_log, @@log;
-@@general_log	@@log
-0	0
-SET GLOBAL general_log = 1;
-SHOW VARIABLES LIKE 'general_log';
-Variable_name	Value
-general_log	ON
-SHOW VARIABLES LIKE 'log';
-Variable_name	Value
-log	ON
-SELECT @@general_log, @@log;
-@@general_log	@@log
-1	1
-SHOW VARIABLES LIKE 'slow_query_log';
-Variable_name	Value
-slow_query_log	OFF
-SHOW VARIABLES LIKE 'log_slow_queries';
-Variable_name	Value
-log_slow_queries	OFF
-SELECT @@slow_query_log, @@log_slow_queries;
-@@slow_query_log	@@log_slow_queries
-0	0
-SET GLOBAL log_slow_queries = 0;
-Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
-SHOW VARIABLES LIKE 'slow_query_log';
-Variable_name	Value
-slow_query_log	OFF
-SHOW VARIABLES LIKE 'log_slow_queries';
-Variable_name	Value
-log_slow_queries	OFF
-SELECT @@slow_query_log, @@log_slow_queries;
-@@slow_query_log	@@log_slow_queries
-0	0
-SET GLOBAL slow_query_log = 1;
-SHOW VARIABLES LIKE 'slow_query_log';
-Variable_name	Value
-slow_query_log	ON
-SHOW VARIABLES LIKE 'log_slow_queries';
-Variable_name	Value
-log_slow_queries	ON
-SELECT @@slow_query_log, @@log_slow_queries;
-@@slow_query_log	@@log_slow_queries
-1	1
-SET GLOBAL general_log = @old_general_log;
-SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL general_log_file= CONCAT('/not existing path/log.maste', 'r');
 ERROR 42000: Variable 'general_log_file' can't be set to the value of '/not existing path/log.master'
 SET GLOBAL general_log_file= NULL;
@@ -280,34 +207,6 @@ SET GLOBAL general_log_file = @old_general_log_file;
 SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
 
 # -- End of Bug#32748.
-deprecated:
-SET GLOBAL log = 0;
-Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
-SET GLOBAL log_slow_queries = 0;
-Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
-SET GLOBAL log = DEFAULT;
-Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
-SET GLOBAL log_slow_queries = DEFAULT;
-Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
-not deprecated:
-SELECT @@global.general_log_file INTO @my_glf;
-SELECT @@global.slow_query_log_file INTO @my_sqlf;
-SET GLOBAL general_log = 0;
-SET GLOBAL slow_query_log = 0;
-SET GLOBAL general_log_file = 'WL4403_G.log';
-SET GLOBAL slow_query_log_file = 'WL4403_SQ.log';
-SET GLOBAL general_log_file = @my_glf;
-SET GLOBAL slow_query_log_file = @my_sqlf;
-SET GLOBAL general_log = DEFAULT;
-SET GLOBAL slow_query_log = DEFAULT;
-SET @@global.general_log = @old_general_log;
-SET @@global.general_log_file = @old_general_log_file;
-SET @@global.slow_query_log = @old_slow_query_log;
-SET @@global.slow_query_log_file = @old_slow_query_log_file;
 #
 # Bug #49756 Rows_examined is always 0 in the slow query log 
 # for update statements

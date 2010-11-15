@@ -157,6 +157,7 @@ public:
                            TABLE *table, bool names_only);
   static bool drop_all_triggers(THD *thd, char *db, char *table_name);
   static bool change_table_name(THD *thd, const char *db,
+                                const char *old_alias,
                                 const char *old_table,
                                 const char *new_db,
                                 const char *new_table);

@@ -68,7 +68,7 @@ table_setup_objects::m_field_def=
 PFS_engine_table_share
 table_setup_objects::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_OBJECTS") },
+  { C_STRING_WITH_LEN("setup_objects") },
   &pfs_editable_acl,
   table_setup_objects::create,
   table_setup_objects::write_row,

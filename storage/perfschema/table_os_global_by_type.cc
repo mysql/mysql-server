@@ -79,7 +79,7 @@ table_os_global_by_type::m_field_def=
 PFS_engine_table_share
 table_os_global_by_type::m_share=
 {
-  { C_STRING_WITH_LEN("OBJECTS_SUMMARY_GLOBAL_BY_TYPE") },
+  { C_STRING_WITH_LEN("objects_summary_global_by_type") },
   &pfs_truncatable_acl,
   table_os_global_by_type::create,
   NULL, /* write_row */
