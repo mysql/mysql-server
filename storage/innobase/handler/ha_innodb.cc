@@ -1083,6 +1083,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_ROW_IS_REFERENCED);
 
 	case DB_CANNOT_ADD_CONSTRAINT:
+	case DB_CHILD_NO_INDEX:
+	case DB_PARENT_NO_INDEX:
 		return(HA_ERR_CANNOT_ADD_FOREIGN);
 
 	case DB_CANNOT_DROP_CONSTRAINT:
@@ -7146,6 +7148,29 @@ ha_innobase::create(
 		error = row_table_add_foreign_constraints(
 			trx, stmt, stmt_len, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
+
+		switch (error) {
+
+		case DB_PARENT_NO_INDEX:
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Create table '%s' with foreign key constraint"
+				" failed. There is no index in the referenced"
+				" table where the referenced columns appear"
+				" as the first columns.\n", norm_name);
+			break;
+
+		case DB_CHILD_NO_INDEX:
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Create table '%s' with foreign key constraint"
+				" failed. There is no index in the referencing"
+				" table where referencing columns appear"
+				" as the first columns.\n", norm_name);
+			break;
+                }
 
 		error = convert_error_code_to_mysql(error, flags, NULL);
 

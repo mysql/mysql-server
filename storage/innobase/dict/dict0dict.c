@@ -3877,7 +3877,7 @@ col_loop1:
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_CANNOT_ADD_CONSTRAINT);
+		return(DB_CHILD_NO_INDEX);
 	}
 	ptr = dict_accept(cs, ptr, "REFERENCES", &success);
 
@@ -4158,7 +4158,7 @@ try_find_index:
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			return(DB_PARENT_NO_INDEX);
 		}
 	} else {
 		ut_a(trx->check_foreigns == FALSE);
