@@ -258,7 +258,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
         {
           Item_field *field_item= (Item_field *) item;
           Field *field= field_item->field;
-          enum_field_types type= field->type();
+          enum_field_types type= field->real_type();
           /*
             Check that the field is part of the table of the handler
             instance and that we expect a field with of this result type.
@@ -270,18 +270,19 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
             DBUG_PRINT("info", ("column length %u", field->field_length));
-            DBUG_PRINT("info", ("type %d", field->type()));
+            DBUG_PRINT("info", ("type %d", field->real_type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
 
             // Check that we are expecting a field and with the correct
             // result type and of length that can store the item value
             if (context->expecting(Item::FIELD_ITEM) &&
-                context->expecting_field_type(field->type()) &&
+                context->expecting_field_type(field->real_type()) &&
                 context->expecting_max_length(field->field_length) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
                    type == MYSQL_TYPE_DATE || 
+                   type == MYSQL_TYPE_NEWDATE || 
                    type == MYSQL_TYPE_YEAR ||
                    type == MYSQL_TYPE_DATETIME)
                   ? (context->expecting_field_result(STRING_RESULT) ||
@@ -305,6 +306,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
                     type == MYSQL_TYPE_DATE || 
+                    type == MYSQL_TYPE_NEWDATE || 
                     type == MYSQL_TYPE_YEAR ||
                     type == MYSQL_TYPE_DATETIME)
                 {
@@ -348,6 +350,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                     !context->expecting_collation(item->collation.collation)
                     && type != MYSQL_TYPE_TIME
                     && type != MYSQL_TYPE_DATE
+                    && type != MYSQL_TYPE_NEWDATE
                     && type != MYSQL_TYPE_YEAR
                     && type != MYSQL_TYPE_DATETIME)
                 {
@@ -1449,44 +1452,163 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
 }
 
 
+/*
+  Optimizer sometimes does hash index lookup of a key where some
+  key parts are null.  The set of cases where this happens makes
+  no sense but cannot be ignored since optimizer may expect the result
+  to be filtered accordingly.  The scan is actually on the table and
+  the index bounds are pushed down.
+*/
 int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
                                                       NdbScanOperation::ScanOptions* options,
                                                       const KEY* key_info, 
-                                                      const uchar *key, 
-                                                      uint key_len,
+                                                      const key_range *start_key,
+                                                      const key_range *end_key,
                                                       uchar *buf)
 {
-  KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
-  NdbScanFilter filter(code);
-  int res;
   DBUG_ENTER("generate_scan_filter_from_key");
 
-  filter.begin(NdbScanFilter::AND);
-  for (; key_part != end; key_part++) 
+#ifndef DBUG_OFF
   {
-    Field* field= key_part->field;
-    uint32 pack_len= field->pack_length();
-    const uchar* ptr= key;
-    DBUG_PRINT("info", ("Filtering value for %s", field->field_name));
-    DBUG_DUMP("key", ptr, pack_len);
-    if (key_part->null_bit)
+    DBUG_PRINT("info", ("key parts:%u length:%u",
+                        key_info->key_parts, key_info->key_length));
+    const key_range* keylist[2]={ start_key, end_key };
+    for (uint j=0; j <= 1; j++)
     {
-      DBUG_PRINT("info", ("Generating ISNULL filter"));
-      if (filter.isnull(key_part->fieldnr-1) == -1)
-	DBUG_RETURN(1);
+      char buf[8192];
+      const key_range* key=keylist[j];
+      if (key == 0)
+      {
+        sprintf(buf, "key range %u: none", j);
+      }
+      else
+      {
+        sprintf(buf, "key range %u: flag:%u part", j, key->flag);
+        const KEY_PART_INFO* key_part=key_info->key_part;
+        const uchar* ptr=key->key;
+        for (uint i=0; i < key_info->key_parts; i++)
+        {
+          sprintf(buf+strlen(buf), " %u:", i);
+          for (uint k=0; k < key_part->store_length; k++)
+          {
+            sprintf(buf+strlen(buf), " %02x", ptr[k]);
+          }
+          ptr+=key_part->store_length;
+          if (ptr - key->key >= key->length)
+          {
+            /*
+              key_range has no count of parts so must test byte length.
+              But this is not the place for following assert.
+            */
+            // DBUG_ASSERT(ptr - key->key == key->length);
+            break;
+          }
+          key_part++;
+        }
+      }
+      DBUG_PRINT("info", ("%s", buf));
     }
-    else
+  }
+#endif
+
+  NdbScanFilter filter(code);
+  int res;
+  filter.begin(NdbScanFilter::AND);
+  do
+  {
+    /*
+      Case "x is not null".
+      Seen with index(x) where it becomes range "null < x".
+      Not seen with index(x,y) for any combination of bounds
+      which include "is not null".
+    */
+    if (start_key != 0 &&
+        start_key->flag == HA_READ_AFTER_KEY &&
+        end_key == 0 &&
+        key_info->key_parts == 1)
     {
-      DBUG_PRINT("info", ("Generating EQ filter"));
-      if (filter.cmp(NdbScanFilter::COND_EQ, 
-		     key_part->fieldnr-1,
-		     ptr,
-		     pack_len) == -1)
-	DBUG_RETURN(1);
+      const KEY_PART_INFO* key_part=key_info->key_part;
+      if (key_part->null_bit != 0) // nullable (must be)
+      {
+        const Field* field=key_part->field;
+        const uchar* ptr= start_key->key;
+        if (ptr[0] != 0) // null (in "null < x")
+        {
+          DBUG_PRINT("info", ("Generating ISNOTNULL filter for nullable %s",
+                              field->field_name));
+          if (filter.isnotnull(key_part->fieldnr-1) == -1)
+            DBUG_RETURN(1);
+          break;
+        }
+      }
     }
-    key += key_part->store_length;
-  }      
+
+    /*
+      Case "x is null" in an EQ range.
+      Seen with index(x) for "x is null".
+      Seen with index(x,y) for "x is null and y = 1".
+      Not seen with index(x,y) for "x is null and y is null".
+      Seen only when all key parts are present (but there is
+      no reason to limit the code to this case).
+    */
+    if (start_key != 0 &&
+        start_key->flag == HA_READ_KEY_EXACT &&
+        end_key != 0 &&
+        end_key->flag == HA_READ_AFTER_KEY &&
+        start_key->length == end_key->length &&
+        memcmp(start_key->key, end_key->key, start_key->length) == 0)
+    {
+      const KEY_PART_INFO* key_part=key_info->key_part;
+      const uchar* ptr=start_key->key;
+      for (uint i=0; i < key_info->key_parts; i++)
+      {
+        const Field* field=key_part->field;
+        if (key_part->null_bit) // nullable
+        {
+          if (ptr[0] != 0) // null
+          {
+            DBUG_PRINT("info", ("Generating ISNULL filter for nullable %s",
+                                field->field_name));
+            if (filter.isnull(key_part->fieldnr-1) == -1)
+              DBUG_RETURN(1);
+          }
+          else
+          {
+            DBUG_PRINT("info", ("Generating EQ filter for nullable %s",
+                                field->field_name));
+            if (filter.cmp(NdbScanFilter::COND_EQ, 
+                           key_part->fieldnr-1,
+                           ptr + 1, // skip null-indicator byte
+                           field->pack_length()) == -1)
+              DBUG_RETURN(1);
+          }
+        }
+        else
+        {
+          DBUG_PRINT("info", ("Generating EQ filter for non-nullable %s",
+                              field->field_name));
+          if (filter.cmp(NdbScanFilter::COND_EQ, 
+                         key_part->fieldnr-1,
+                         ptr,
+                         field->pack_length()) == -1)
+            DBUG_RETURN(1);
+        }
+        ptr+=key_part->store_length;
+        if (ptr - start_key->key >= start_key->length)
+        {
+          break;
+        }
+        key_part++;
+      }
+      break;
+    }
+
+    DBUG_PRINT("info", ("Unknown hash index scan"));
+    // enable to catch new cases when optimizer changes
+    // DBUG_ASSERT(false);
+  }
+  while (0);
+
   // Add any pushed condition
   if (m_cond_stack &&
       (res= generate_scan_filter_from_cond(filter)))

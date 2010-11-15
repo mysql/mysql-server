@@ -55,7 +55,7 @@ ADD_LIBRARY(ndbgeneral STATIC
 	    SparseBitmask.cpp
             require.c
 )
-TARGET_LINK_LIBRARIES(ndbgeneral ${ZLIB_LIBRARY} mysys)
+TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
 
 ADD_EXECUTABLE(BaseString-t BaseString.cpp)
 SET_TARGET_PROPERTIES(BaseString-t
