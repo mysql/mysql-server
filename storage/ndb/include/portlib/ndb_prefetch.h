@@ -56,7 +56,7 @@ void NDB_PREFETCH_WRITE(void* addr)
 #elif defined(USE_SUN_PREFETCH)
   sun_prefetch_write_once(addr);
 #elif defined(USE_SPARC_PREFETCH)
-  sun_prefetch_write_once(addr);
+  sparc_prefetch_write_once(addr);
 #else
   (void)addr;
 #endif
