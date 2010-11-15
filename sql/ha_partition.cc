@@ -6408,9 +6408,42 @@ bool ha_partition::get_error_message(int error, String *buf)
 */
 uint ha_partition::alter_table_flags(uint flags)
 {
+  uint flags_to_return, flags_to_check;
   DBUG_ENTER("ha_partition::alter_table_flags");
-  DBUG_RETURN(ht->alter_table_flags(flags) |
-              m_file[0]->alter_table_flags(flags)); 
+
+  flags_to_return= ht->alter_table_flags(flags);
+  flags_to_return|= m_file[0]->alter_table_flags(flags); 
+
+  /*
+    If one partition fails we must be able to revert the change for the other,
+    already altered, partitions. So both ADD and DROP can only be supported in
+    pairs.
+  */
+  flags_to_check= HA_ONLINE_ADD_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_PK_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_PK_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  DBUG_RETURN(flags_to_return);
 }
 
 
@@ -6445,6 +6478,7 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   handler **file;
   int ret= 0;
 
+  DBUG_ENTER("ha_partition::add_index");
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
     before this call, which checks for unique/primary key violations of the
@@ -6452,8 +6486,28 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   */
   for (file= m_file; *file; file++)
     if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
-      break;
-  return ret;
+      goto err;
+  DBUG_RETURN(ret);
+err:
+  if (file > m_file)
+  {
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    uint old_num_of_keys= table_arg->s->keys;
+    uint i;
+    /* The newly created keys have the last id's */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i + old_num_of_keys;
+    if (!table_arg->key_info)
+      table_arg->key_info= key_info;
+    while (--file >= m_file)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    if (table_arg->key_info == key_info)
+      table_arg->key_info= NULL;
+  }
+  DBUG_RETURN(ret);
 }
 
 
