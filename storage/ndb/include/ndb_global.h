@@ -46,7 +46,6 @@
 #define NDB_WIN 1
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
-#define HAVE_STRCASECMP
 #pragma warning(disable: 4503 4786)
 #else
 #undef NDB_WIN32
@@ -105,11 +104,6 @@
 
 #ifndef HAVE_STRDUP
 extern char * strdup(const char *s);
-#endif
-
-#ifndef HAVE_STRCASECMP
-extern int strcasecmp(const char *s1, const char *s2);
-extern int strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
 
 static const char table_name_separator =  '/';
