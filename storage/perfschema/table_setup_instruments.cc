@@ -54,11 +54,12 @@ table_setup_instruments::m_field_def=
 PFS_engine_table_share
 table_setup_instruments::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_INSTRUMENTS") },
+  { C_STRING_WITH_LEN("setup_instruments") },
   &pfs_updatable_acl,
   &table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_setup_instruments),
   &m_table_lock,

@@ -46,4 +46,22 @@ lock_get_type_low(
 	return(lock->type_mode & LOCK_TYPE_MASK);
 }
 
+/*********************************************************************//**
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index.
+@return	transaction id of the transaction which has the x-lock, or 0 */
+UNIV_INLINE
+trx_id_t
+lock_clust_rec_some_has_impl(
+/*=========================*/
+	const rec_t*	rec,	/*!< in: user record */
+	dict_index_t*	index,	/*!< in: clustered index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(page_rec_is_user_rec(rec));
+
+	return(row_get_rec_trx_id(rec, index, offsets));
+}
+
 /* vim: set filetype=c: */

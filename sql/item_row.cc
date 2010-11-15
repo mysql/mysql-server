@@ -138,6 +138,20 @@ void Item_row::update_used_tables()
   }
 }
 
+void Item_row::fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref)
+{
+  used_tables_cache= 0;
+  const_item_cache= 1;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    items[i]->fix_after_pullout(parent_select, removed_select, &items[i]);
+    used_tables_cache|= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+  }
+}
+
 bool Item_row::check_cols(uint c)
 {
   if (c != arg_count)

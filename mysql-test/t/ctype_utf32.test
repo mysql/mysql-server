@@ -811,6 +811,17 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#32859 Character sets: no warning with non-fitting chariot wheel
+--echo #
+CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
+INSERT INTO t1 (utf32) VALUES (0xc581);
+UPDATE t1 SET latin1 = utf32;
+DELETE FROM t1;
+INSERT INTO t1 (utf32) VALUES (0x100cc);
+UPDATE t1 SET latin1 = utf32;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#55912 FORMAT with locale set fails for numbers < 1000
 --echo #
 SET collation_connection=utf32_general_ci;

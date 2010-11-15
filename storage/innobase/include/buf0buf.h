@@ -66,11 +66,11 @@ Created 11/5/1995 Heikki Tuuri
 #define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
 					pools that can be defined */
 
+#define BUF_POOL_WATCH_SIZE		(srv_n_purge_threads + 1)
+					/*!< Maximum number of concurrent
+					buffer pool watches */
 #define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
 					page_hash mutexes */
-
-#define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
-					buffer pool watches */
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
@@ -279,7 +279,7 @@ buf_page_get_known_nowait(
 /*******************************************************************//**
 Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the kernel mutex. */
+Suitable for using when holding the lock_sys_t::mutex. */
 UNIV_INTERN
 const buf_block_t*
 buf_page_try_get_func(
@@ -291,7 +291,7 @@ buf_page_try_get_func(
 	mtr_t*		mtr);	/*!< in: mini-transaction */
 
 /** Tries to get a page. If the page is not in the buffer pool it is
-not loaded.  Suitable for using when holding the kernel mutex.
+not loaded.  Suitable for using when holding the lock_sys_t::mutex.
 @param space_id	in: tablespace id
 @param page_no	in: page number
 @param mtr	in: mini-transaction
@@ -1701,7 +1701,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 
-	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
+	buf_page_t*			watch;
 					/*!< Sentinel records for buffer
 					pool watches. Protected by
 				       	buf_pool->mutex. */

@@ -73,6 +73,32 @@ DROP TABLE t;
 -- sync_slave_with_master
 
 #
+# BUG#53889: slaves stops with 1032; handler error HA_ERR_KEY_NOT_FOUND
+#
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t2 (col4 CHAR(25) DEFAULT NULL,
+                 col1 BIGINT,
+                 col2 TINYINT NOT NULL,
+                 col5 VARCHAR(25) DEFAULT ''
+                ) ENGINE = myisam;
+
+ALTER TABLE t2 ADD INDEX idx1 ( col4 ) , ADD UNIQUE INDEX idx2 ( col5 );
+INSERT INTO t2 ( col4 , col2 ) VALUES ( 'Hello', -77 ) ;
+UPDATE t2 SET col1 = 13 WHERE col2 = -77;
+-- sync_slave_with_master
+
+-- let $diff_table_1=master:test.t2
+-- let $diff_table_2=slave:test.t2
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE t2;
+-- sync_slave_with_master
+
+#
 # BUG#53893: RBR: nullable unique key can lead to out-of-sync slave
 #
 
@@ -101,4 +127,3 @@ UPDATE t1 SET c1=1000 WHERE c2=2;
 -- connection master
 DROP TABLE t1;
 -- sync_slave_with_master
-

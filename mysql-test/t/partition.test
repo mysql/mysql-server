@@ -892,13 +892,13 @@ drop table t1;
 #
 # Bug #16775: Wrong engine type stored for subpartition
 #
-set session storage_engine= 'memory';
+set session default_storage_engine= 'memory';
 create table t1 (f_int1 int(11) default null) engine = memory
   partition by range (f_int1) subpartition by hash (f_int1)
   (partition part1 values less than (1000)
    (subpartition subpart11 engine = memory));
 drop table t1;
-set session storage_engine='myisam';
+set session default_storage_engine='myisam';
 
 #
 # Bug #16782: Crash using REPLACE on table with primary key
@@ -1742,8 +1742,7 @@ WHERE t1.id IN (
     SELECT distinct id
     FROM t4
     WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 
 drop table t1, t2, t4;
 

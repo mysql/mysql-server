@@ -26,7 +26,7 @@ stop slave;
 SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 FROM mysql.ndb_binlog_index WHERE epoch = <the_epoch> ;
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-107	master-bin.000001
+109	master-bin.000001
 CHANGE MASTER TO
 master_port=<MASTER_PORT1>,
 master_log_file = 'master-bin.000001',

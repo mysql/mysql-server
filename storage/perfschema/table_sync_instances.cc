@@ -55,11 +55,12 @@ table_mutex_instances::m_field_def=
 PFS_engine_table_share
 table_mutex_instances::m_share=
 {
-  { C_STRING_WITH_LEN("MUTEX_INSTANCES") },
+  { C_STRING_WITH_LEN("mutex_instances") },
   &pfs_readonly_acl,
   &table_mutex_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -223,11 +224,12 @@ table_rwlock_instances::m_field_def=
 PFS_engine_table_share
 table_rwlock_instances::m_share=
 {
-  { C_STRING_WITH_LEN("RWLOCK_INSTANCES") },
+  { C_STRING_WITH_LEN("rwlock_instances") },
   &pfs_readonly_acl,
   &table_rwlock_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -388,11 +390,12 @@ table_cond_instances::m_field_def=
 PFS_engine_table_share
 table_cond_instances::m_share=
 {
-  { C_STRING_WITH_LEN("COND_INSTANCES") },
+  { C_STRING_WITH_LEN("cond_instances") },
   &pfs_readonly_acl,
   &table_cond_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,

@@ -27,6 +27,7 @@ Created 1/8/1996 Heikki Tuuri
 #define dict0dict_h
 
 #include "univ.i"
+#include "db0err.h"
 #include "dict0types.h"
 #include "dict0mem.h"
 #include "data0type.h"
@@ -845,12 +846,24 @@ dict_index_get_nth_col_no(
 Looks for column n in an index.
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
-UNIV_INTERN
+UNIV_INLINE
 ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
 	const dict_index_t*	index,	/*!< in: index */
 	ulint			n);	/*!< in: column number */
+/********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INTERN
+ulint
+dict_index_get_nth_col_or_prefix_pos(
+/*=================================*/
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			n,		/*!< in: column number */
+	ibool			inc_prefix);	/*!< in: TRUE=consider
+						column prefixes too */
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
 @return	TRUE if contains the column or its prefix */
@@ -1062,18 +1075,6 @@ ulint
 dict_index_calc_min_rec_len(
 /*========================*/
 	const dict_index_t*	index);	/*!< in: index */
-/*********************************************************************//**
-Calculates new estimates for table and index statistics. The statistics
-are used in query optimization. */
-UNIV_INTERN
-void
-dict_update_statistics(
-/*===================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats);/*!< in: only
-					update/recalc the stats if they have
-					not been initialized yet, otherwise
-					do nothing */
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 UNIV_INTERN
@@ -1223,6 +1224,56 @@ UNIV_INTERN
 void
 dict_ind_init(void);
 /*===============*/
+
+/* Auxiliary structs for checking a table definition @{ */
+
+/* This struct is used to specify the name and type that a column must
+have when checking a table's schema. */
+struct dict_col_meta_struct {
+	const char*	name;		/* column name */
+	ulint		mtype;		/* required column main type */
+	ulint		prtype_mask;	/* required column precise type mask;
+					if this is non-zero then all the
+					bits it has set must also be set
+					in the column's prtype */
+	ulint		len;		/* required column length */
+};
+typedef struct dict_col_meta_struct dict_col_meta_t;
+
+/* This struct is used for checking whether a given table exists and
+whether it has a predefined schema (number of columns and columns names
+and types) */
+struct dict_table_schema_struct {
+	const char*		table_name;	/* the name of the table whose
+						structure we are checking */
+	ulint			n_cols;		/* the number of columns the
+						table must have */
+	dict_col_meta_t*	columns;	/* metadata for the columns;
+						this array has n_cols
+						elements */
+};
+typedef struct dict_table_schema_struct dict_table_schema_t;
+/* @} */
+
+/*********************************************************************//**
+Checks whether a table exists and whether it has the given structure.
+The table must have the same number of columns with the same names and
+types. The order of the columns does not matter.
+The caller must own the dictionary mutex.
+dict_table_schema_check() @{
+@return DB_SUCCESS if the table exists and contains the necessary columns */
+UNIV_INTERN
+enum db_err
+dict_table_schema_check(
+/*====================*/
+	dict_table_schema_t*	req_schema,	/*!< in/out: required table
+						schema */
+	char*			errstr,		/*!< out: human readable error
+						message if != DB_SUCCESS and
+						!= DB_TABLE_NOT_FOUND is
+						returned */
+	size_t			errstr_sz);	/*!< in: errstr size */
+/* @} */
 
 /**********************************************************************//**
 Closes the data dictionary module. */
