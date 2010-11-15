@@ -1,2 +1,2 @@
-insert_provisional [100] 100 1 
-lock [100] 100 
+insert_provisional [100] v100 k1 
+lock [100] v100 

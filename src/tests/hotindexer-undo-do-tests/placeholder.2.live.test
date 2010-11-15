@@ -1,8 +1,8 @@
 live 300 301 302
-key 1
+key k1
 delete committed 0
-insert committed 100 10
+insert committed 100 v10
 placeholder 300
 placeholder 301
-insert provisional 302 20
+insert provisional 302 v20
 
