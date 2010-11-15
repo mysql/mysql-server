@@ -188,6 +188,12 @@ int mysql_mutex_unlock(mysql_mutex_t* mutex)
   return pthread_mutex_unlock(mutex);
 }
 
+static inline
+void mysql_mutex_assert_owner(mysql_mutex_t* mutex)
+{
+  return safe_mutex_assert_owner(mutex);
+}
+
 typedef pthread_cond_t mysql_cond_t;
 
 static inline
