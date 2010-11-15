@@ -21,7 +21,15 @@
   Performance schema instruments (declarations).
 */
 
+struct PFS_mutex_class;
+struct PFS_rwlock_class;
+struct PFS_cond_class;
+struct PFS_file_class;
+struct PFS_table_share;
+struct PFS_thread_class;
+
 #include "pfs_lock.h"
+#include "pfs_stat.h"
 #include "pfs_instr_class.h"
 #include "pfs_events_waits.h"
 #include "pfs_server.h"
@@ -38,8 +46,8 @@ struct PFS_instr
 {
   /** Internal lock. */
   pfs_lock m_lock;
-  /** Instrument wait statistics chain. */
-  PFS_single_stat_chain m_wait_stat;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
@@ -50,10 +58,10 @@ struct PFS_mutex : public PFS_instr
   /** Mutex class. */
   PFS_mutex_class *m_class;
   /**
-    Mutex lock usage statistics chain.
+    Mutex lock usage statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_lock_stat;
+  PFS_single_stat m_lock_stat;
   /** Current owner. */
   PFS_thread *m_owner;
   /**
@@ -71,15 +79,15 @@ struct PFS_rwlock : public PFS_instr
   /** RWLock class. */
   PFS_rwlock_class *m_class;
   /**
-    RWLock read lock usage statistics chain.
+    RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_read_lock_stat;
+  PFS_single_stat m_read_lock_stat;
   /**
-    RWLock write lock usage statistics chain.
+    RWLock write lock usage statistics.
     This statistic is not exposed in user visible tables yet.
   */
-  PFS_single_stat_chain m_write_lock_stat;
+  PFS_single_stat m_write_lock_stat;
   /** Current writer thread. */
   PFS_thread *m_writer;
   /** Current count of readers. */
@@ -121,21 +129,25 @@ struct PFS_file : public PFS_instr
 };
 
 /** Instrumented table implementation. @see PSI_table. */
-struct PFS_table : public PFS_instr
+struct PFS_table
 {
+  /** Internal lock. */
+  pfs_lock m_lock;
   /** Owner. */
   PFS_thread *m_opening_thread;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
   const void *m_identity;
+  /** Table statistics. */
+  PFS_table_stat m_table_stat;
 };
 
 /**
-  @def LOCKER_STACK_SIZE
+  @def WAIT_STACK_SIZE
   Maximum number of nested waits.
 */
-#define LOCKER_STACK_SIZE 3
+#define WAIT_STACK_SIZE 3
 
 /**
   @def PFS_MAX_ALLOC_RETRY
@@ -192,6 +204,8 @@ struct PFS_thread
   LF_PINS *m_table_share_hash_pins;
   /** Pins for setup_actor_hash. */
   LF_PINS *m_setup_actor_hash_pins;
+  /** Pins for setup_object_hash. */
+  LF_PINS *m_setup_object_hash_pins;
   /** Event ID counter */
   ulonglong m_event_id;
   /** Thread instrumentation flag. */
@@ -204,10 +218,10 @@ struct PFS_thread
   ulong m_thread_id;
   /** Thread class. */
   PFS_thread_class *m_class;
-  /** Size of @c m_wait_locker_stack. */
-  uint m_wait_locker_count;
+  /** Size of @c m_events_waits_stack. */
+  uint m_events_waits_count;
   /**
-    Stack of wait lockers.
+    Stack of events waits.
     This member holds the data for the table
     PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
     For most locks, only 1 wait locker is used at a given time.
@@ -215,7 +229,7 @@ struct PFS_thread
     - 1 for a 'logical' wait (for example on the GLOBAL READ LOCK state)
     - 1 for a 'physical' wait (for example on COND_refresh)
   */
-  PFS_wait_locker m_wait_locker_stack[LOCKER_STACK_SIZE];
+  PFS_events_waits m_events_waits_stack[WAIT_STACK_SIZE];
   /** True if the circular buffer @c m_waits_history is full. */
   bool m_waits_history_full;
   /** Current index in the circular buffer @c m_waits_history. */
@@ -231,7 +245,7 @@ struct PFS_thread
     This member holds the data for the table
     PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
   */
-  PFS_single_stat_chain *m_instr_class_wait_stats;
+  PFS_single_stat *m_instr_class_wait_stats;
 
   /** User name. */
   char m_username[USERNAME_LENGTH];
@@ -259,23 +273,13 @@ struct PFS_thread
   uint m_processlist_info_length;
 };
 
+extern PFS_single_stat *global_instr_class_waits_array;
+
+PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
+PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
+PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
-
-PFS_single_stat_chain*
-find_per_thread_mutex_class_wait_stat(PFS_thread *thread,
-                                      PFS_mutex_class *klass);
-
-PFS_single_stat_chain*
-find_per_thread_rwlock_class_wait_stat(PFS_thread *thread,
-                                       PFS_rwlock_class *klass);
-
-PFS_single_stat_chain*
-find_per_thread_cond_class_wait_stat(PFS_thread *thread,
-                                     PFS_cond_class *klass);
-
-PFS_single_stat_chain*
-find_per_thread_file_class_wait_stat(PFS_thread *thread,
-                                     PFS_file_class *klass);
+PFS_file *sanitize_file(PFS_file *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -319,7 +323,6 @@ extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
 extern ulong events_waits_history_per_thread;
-extern ulong instr_class_per_thread;
 extern ulong locker_lost;
 
 /* Exposing the data directly, for iterators. */
@@ -335,6 +338,16 @@ extern PFS_table *table_array;
 void reset_events_waits_by_instance();
 void reset_per_thread_wait_stat();
 void reset_file_instance_io();
+
+void reset_global_wait_stat(void);
+
+void aggregate_all_event_names(PFS_single_stat *from_array,
+                               PFS_single_stat *to_array);
+void aggregate_all_event_names(PFS_single_stat *from_array,
+                               PFS_single_stat *to_array_1,
+                               PFS_single_stat *to_array_2);
+
+void aggregate_thread(PFS_thread *thread);
 
 /** @} */
 #endif

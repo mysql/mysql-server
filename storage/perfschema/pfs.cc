@@ -29,6 +29,7 @@
 #include "pfs_timer.h"
 #include "pfs_events_waits.h"
 #include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -300,8 +301,7 @@
 */
 
 /**
-  @page PAGE_INSTRUMENTATION_INTERFACE
-  Performance schema: instrumentation interface page.
+  @page PAGE_INSTRUMENTATION_INTERFACE Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
   @section INTRO Introduction
@@ -487,7 +487,7 @@ static inline int mysql_mutex_lock(...)
   Applying this function to our point P gives another point P':
 
   F_i (P):
-  P(x1, x2, ..., x{i-1}, x_i, x{i+1}, ..., x_N
+  P(x1, x2, ..., x{i-1}, x_i, x{i+1}, ..., x_N)
   --> P' (x1, x2, ..., x{i-1}, f_i(x_i), x{i+1}, ..., x_N)
 
   That function defines in fact an aggregate !
@@ -583,27 +583,17 @@ static inline int mysql_mutex_lock(...)
 
   What has all this to do with the code ?
 
-  Function composition such as F_2_to_3 o F_1_to_2 o F1 is implemented
-  as PFS_single_stat_chain, where each link in the chain represents
-  an individual F_{i}_to_{i+1} aggregation step.
+  Functions (or aggregates) such as F_3 are not implemented as is.
+  Instead, they are decomposed into F_2_to_3 o F_1_to_2 o F1,
+  and each intermediate aggregate is stored into an internal buffer.
+  This allows to support every F1, F2, F3 aggregates from shared
+  internal buffers, where computation already performed to compute F2
+  is reused when computing F3.
 
-  A single call to aggregate_single_stat_chain() updates all the tables
-  described in the statistics chain.
+  @section OBJECT_GRAPH Object graph
 
-  @section STAT_CHAIN Statistics chains
-
-  Statistics chains are only used for on the fly aggregates,
-  and are therefore all based initially on the '_CURRENT' base table that
-  contains the data recorded.
-  The following table aggregates are implemented with a statistics chain:
-
-  EVENTS_WAITS_CURRENT --> EVENTS_WAITS_SUMMARY_BY_INSTANCE
-  --> EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
-
-  This relationship is between classes.
-
-  In terms of object instances, or records, this chain is implemented
-  as a flyweight.
+  In terms of object instances, or records, pointers between
+  different buffers define an object instance graph.
 
   For example, assuming the following scenario:
   - A mutex class "M" is instrumented, the instrument name
@@ -654,10 +644,244 @@ static inline int mysql_mutex_lock(...)
   This is necessary because the data the aggregate is based on is volatile,
   and can not be kept indefinitely.
 
+  With on the fly aggregates:
+  - the writer thread does all the computation
+  - the reader thread accesses the result directly
+
+  This model is to be avoided if possible, due to the overhead
+  caused when instrumenting code.
+
   @section HIGHER_LEVEL Higher level aggregates
 
-  Note: no higher level aggregate is implemented yet,
-  this section is a place holder.
+  'Higher level' aggregates are implemented on demand only.
+  The code executing a SELECT from the aggregate table is
+  collecting data from multiple internal buffers to produce the result.
+
+  With higher level aggregates:
+  - the reader thread does all the computation
+  - the writer thread has no overhead.
+
+  @section MIXED Mixed level aggregates
+
+  The 'Mixed' model is a compromise between 'On the fly' and 'Higher level'
+  aggregates, for internal buffers that are not permanent.
+
+  While an object is present in a buffer, the higher level model is used.
+  When an object is about to be destroyed, statistics are saved into
+  a 'parent' buffer with a longer life cycle, to follow the on the fly model.
+
+  With mixed aggregates:
+  - the reader thread does a lot of complex computation,
+  - the writer thread has minimal overhead, on destroy events.
+
+  @section IMPL_WAIT Implementation for waits aggregates
+
+  For waits, the tables that contains aggregated wait data are:
+  - EVENTS_WAITS_SUMMARY_BY_INSTANCE
+  - EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
+  - FILE_SUMMARY_BY_EVENT_NAME
+  - FILE_SUMMARY_BY_INSTANCE
+  - OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+
+  The instrumented code that generates waits events consist of:
+  - mutexes (mysql_mutex_t)
+  - rwlocks (mysql_rwlock_t)
+  - conditions (mysql_cond_t)
+  - file io (MYSQL_FILE)
+  - table io
+
+  The flow of data between aggregates tables varies for each instrumentation.
+
+  @subsection IMPL_WAIT_MUTEX Mutex waits
+
+@verbatim
+  mutex_locker(T, M)
+   |
+   | [1]
+   |
+   |-> pfs_mutex(M)                           =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_mutex_class(M.class)          =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(M)            =====>> [A], [D], [E], [F]
+        |
+        | [3]
+        |
+        |-> pfs_user_host(U, H).event_name(M) =====>> [D], [E], [F]
+        |    |
+        |    | [4]
+        |    |
+        |----+-> pfs_user(U).event_name(M)    =====>> [E]
+        |    |
+        |----+-> pfs_host(H).event_name(M)    =====>> [F]
+@endverbatim
+
+  How to read this diagram:
+  - events that occur during the instrumented code execution are noted with numbers,
+  as in [1]. Code executed by these events has an impact on overhead.
+  - events that occur when a reader extracts data from a performance schema table
+  are noted with letters, as in [A]. The name of the table involved,
+  and the method that builds a row are documented. Code executed by these events
+  has no impact on the instrumentation overhead. Note that the table
+  implementation may pull data from different buffers.
+  - placeholders for aggregates tables that are not implemented yet are
+  documented, to illustrate the overall architecture principles.
+
+  Implemented as:
+  - [1] @c get_thread_mutex_locker_v1(), @c start_mutex_wait_v1(), @c end_mutex_wait_v1()
+  - [2] @c destroy_mutex_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_mutex_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_mutex_row()
+
+  Not implemented:
+  - [3] thread disconnect
+  - [4] user host disconnect
+  - [D] EVENTS_WAITS_SUMMARY_BY_USER_HOST_BY_EVENT_NAME,
+        table_ews_by_user_host_by_event_name::make_row()
+  - [E] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        table_ews_by_user_by_event_name::make_row()
+  - [F] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        table_ews_by_host_by_event_name::make_row()
+
+  Table EVENTS_WAITS_SUMMARY_BY_INSTANCE is a 'on the fly' aggregate,
+  because the data is collected on the fly by (1) and stored into a buffer,
+  pfs_mutex. The table implementation [B] simply reads the results directly
+  from this buffer.
+
+  Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME is a 'mixed' aggregate,
+  because some data is collected on the fly (1),
+  some data is preserved with (2) at a later time in the life cycle,
+  and two different buffers pfs_mutex and pfs_mutex_class are used to store the
+  statistics collected. The table implementation [C] is more complex, since
+  it reads from two buffers pfs_mutex and pfs_mutex_class.
+
+  @subsection IMPL_WAIT_RWLOCK Rwlock waits
+
+@verbatim
+  rwlock_locker(T, R)
+   |
+   | [1]
+   |
+   |-> pfs_rwlock(R)                          =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_rwlock_class(R.class)         =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(R)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_rwlock_locker_v1(), @c start_rwlock_rdwait_v1(),
+        @c end_rwlock_rdwait_v1(), ...
+  - [2] @c destroy_rwlock_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_rwlock_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_rwlock_row()
+
+  @subsection IMPL_WAIT_COND Cond waits
+
+@verbatim
+  cond_locker(T, C)
+   |
+   | [1]
+   |
+   |-> pfs_cond(C)                            =====>> [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_cond_class(C.class)           =====>> [C]
+   |
+   |-> pfs_thread(T).event_name(C)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_cond_locker_v1(), @c start_cond_wait_v1(), @c end_cond_wait_v1()
+  - [2] @c destroy_cond_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_cond_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_cond_row()
+
+  @subsection IMPL_WAIT_FILE File waits
+
+@verbatim
+  file_locker(T, F)
+   |
+   | [1]
+   |
+   |-> pfs_file(F)                            =====>> [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_file_class(F.class)           =====>> [C], [D]
+   |
+   |-> pfs_thread(T).event_name(F)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_file_name_locker_v1(), @c start_file_wait_v1(),
+        @c end_file_wait_v1(), ...
+  - [2] @c close_file_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_file_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_file_row()
+  - [D] FILE_SUMMARY_BY_EVENT_NAME,
+        @c table_file_summary_by_event_name::make_row()
+  - [E] FILE_SUMMARY_BY_INSTANCE,
+        @c table_file_summary_by_instance::make_row()
+
+  @subsection IMPL_WAIT_TABLE Table waits
+
+@verbatim
+  table_locker(T, Tb)
+   |
+   | [1]
+   |
+   |-> pfs_table(Tb)                          =====>> [B], [C], [D]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_table_share(Tb.share)         =====>> [C], [D]
+   |
+   |-> pfs_thread(T).event_name(Tb)           =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_table_locker_v1(), @c start_table_wait_v1(), @c end_table_wait_v1()
+  - [2] @c close_table_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_table_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_table_io_row()
+  - [D] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
+        @c table_os_global_by_type::make_row()
+
 */
 
 /**
@@ -672,6 +896,10 @@ static inline int mysql_mutex_lock(...)
   @defgroup Performance_schema_tables Performance Schema Tables
   @ingroup Performance_schema_implementation
 */
+
+#define STATE_FLAG_TIMED (1<<0)
+#define STATE_FLAG_THREAD (1<<1)
+#define STATE_FLAG_WAIT (1<<2)
 
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
@@ -734,6 +962,27 @@ static enum_operation_type table_operation_map[]=
   OPERATION_TYPE_TABLE_UPDATE_ROW,
   OPERATION_TYPE_TABLE_DELETE_ROW
 };
+
+static void aggregate_table(PFS_table *pfs)
+{
+  DBUG_ASSERT(pfs);
+  PFS_table_share *table_share= pfs->m_share;
+  DBUG_ASSERT(table_share);
+
+  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
+  PFS_thread *thread= pfs->m_opening_thread;
+  DBUG_ASSERT(thread != NULL);
+  PFS_single_stat *event_name_array;
+  uint index;
+  event_name_array= thread->m_instr_class_wait_stats;
+
+  index= global_table_io_class.m_event_name_index;
+  pfs->m_table_stat.sum_io(& event_name_array[index]);
+
+  /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
+  table_share->m_table_stat.aggregate(&pfs->m_table_stat);
+  pfs->m_table_stat.reset();
+}
 
 /**
   Build the prefix name of a class of instruments in a category.
@@ -872,11 +1121,6 @@ static void register_file_v1(const char *category,
 #define INIT_BODY_V1(T, KEY, ID)                                            \
   PFS_##T##_class *klass;                                                   \
   PFS_##T *pfs;                                                             \
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS); \
-  if (unlikely(pfs_thread == NULL))                                         \
-    return NULL;                                                            \
-  if (! pfs_thread->m_enabled)                                              \
-    return NULL;                                                            \
   klass= find_##T##_class(KEY);                                             \
   if (unlikely(klass == NULL))                                              \
     return NULL;                                                            \
@@ -885,36 +1129,60 @@ static void register_file_v1(const char *category,
   pfs= create_##T(klass, ID);                                               \
   return reinterpret_cast<PSI_##T *> (pfs)
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::init_mutex.
+*/
 static PSI_mutex*
 init_mutex_v1(PSI_mutex_key key, const void *identity)
 {
   INIT_BODY_V1(mutex, key, identity);
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::destroy_mutex.
+*/
 static void destroy_mutex_v1(PSI_mutex* mutex)
 {
   PFS_mutex *pfs= reinterpret_cast<PFS_mutex*> (mutex);
   destroy_mutex(pfs);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::init_rwlock.
+*/
 static PSI_rwlock*
 init_rwlock_v1(PSI_rwlock_key key, const void *identity)
 {
   INIT_BODY_V1(rwlock, key, identity);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::destroy_rwlock.
+*/
 static void destroy_rwlock_v1(PSI_rwlock* rwlock)
 {
   PFS_rwlock *pfs= reinterpret_cast<PFS_rwlock*> (rwlock);
   destroy_rwlock(pfs);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::init_cond.
+*/
 static PSI_cond*
 init_cond_v1(PSI_cond_key key, const void *identity)
 {
   INIT_BODY_V1(cond, key, identity);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::destroy_cond.
+*/
 static void destroy_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs= reinterpret_cast<PFS_cond*> (cond);
@@ -928,10 +1196,12 @@ static void destroy_cond_v1(PSI_cond* cond)
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
+  /* Do not instrument this table is all table instruments are disabled. */
+  if (! global_table_io_class.m_enabled)
+    return NULL;
+  /* An instrumented thread is required, for LF_PINS. */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! global_table_class.m_enabled)
     return NULL;
   PFS_table_share* pfs_share;
   pfs_share= find_or_create_table_share(pfs_thread, temporary, share);
@@ -945,12 +1215,9 @@ get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 static void release_table_share_v1(PSI_table_share* share)
 {
   DBUG_ASSERT(share != NULL);
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return;
   PFS_table_share* pfs;
   pfs= reinterpret_cast<PFS_table_share*> (share);
-  purge_table_share(pfs_thread, pfs);
+  release_table_share(pfs);
 }
 
 /**
@@ -976,14 +1243,12 @@ drop_table_share_v1(const char *schema_name, int schema_name_length,
 static PSI_table*
 open_table_v1(PSI_table_share *share, const void *identity)
 {
+  PFS_table_share *pfs_table_share= reinterpret_cast<PFS_table_share*> (share);
+  DBUG_ASSERT(pfs_table_share);
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(thread == NULL))
     return NULL;
-  PFS_table_share *pfs_table_share=
-    reinterpret_cast<PFS_table_share*> (share);
-  PFS_table *pfs_table;
-  DBUG_ASSERT(pfs_table_share);
-  pfs_table= create_table(pfs_table_share, thread, identity);
+  PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
 
@@ -995,32 +1260,49 @@ static void close_table_v1(PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
   DBUG_ASSERT(pfs);
+  aggregate_table(pfs);
   destroy_table(pfs);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::create_file.
+*/
 static void create_file_v1(PSI_file_key key, const char *name, File file)
 {
+  if (! flag_global_instrumentation)
+    return;
   int index= (int) file;
   if (unlikely(index < 0))
-    return;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return;
-  if (! pfs_thread->m_enabled)
     return;
   PFS_file_class *klass= find_file_class(key);
   if (unlikely(klass == NULL))
     return;
   if (! klass->m_enabled)
     return;
-  if (likely(index < file_handle_max))
+
+  /* A thread is needed for LF_PINS */
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+
+  if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
+    return;
+
+  /*
+    We want this check after pfs_thread->m_enabled,
+    to avoid reporting false loss.
+  */
+  if (unlikely(index >= file_handle_max))
   {
-    uint len= strlen(name);
-    PFS_file *pfs= find_or_create_file(pfs_thread, klass, name, len);
-    file_handle_array[index]= pfs;
-  }
-  else
     file_handle_lost++;
+    return;
+  }
+
+  uint len= strlen(name);
+  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len);
+
+  file_handle_array[index]= pfs_file;
 }
 
 struct PFS_spawn_thread_arg
@@ -1080,6 +1362,10 @@ void* pfs_spawn_thread(void *arg)
   return NULL;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::spawn_thread.
+*/
 static int spawn_thread_v1(PSI_thread_key key,
                            pthread_t *thread, const pthread_attr_t *attr,
                            void *(*start_routine)(void*), void *arg)
@@ -1104,6 +1390,10 @@ static int spawn_thread_v1(PSI_thread_key key,
   return result;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::new_thread.
+*/
 static PSI_thread*
 new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
 {
@@ -1118,6 +1408,10 @@ new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
   return reinterpret_cast<PSI_thread*> (pfs);
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_id.
+*/
 static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
 {
   DBUG_ASSERT(thread);
@@ -1125,6 +1419,10 @@ static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
   pfs->m_thread_id= id;
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread_id.
+*/
 static PSI_thread*
 get_thread_v1(void)
 {
@@ -1147,25 +1445,30 @@ static void set_thread_user_v1(const char *user, int user_len)
   if (unlikely(pfs == NULL))
     return;
 
+  aggregate_thread(pfs);
+
   pfs->m_lock.allocated_to_dirty();
+
   if (user_len > 0)
     memcpy(pfs->m_username, user, user_len);
   pfs->m_username_length= user_len;
 
-  bool enabled= false;
-
-  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  bool enabled= true;
+  if (flag_thread_instrumentation)
   {
-    /*
-      TODO: performance improvement.
-      Once performance_schema.USERS is exposed,
-      we can use PFS_user::m_enabled instead of looking up
-      SETUP_ACTORS every time.
-    */
-    lookup_setup_actor(pfs,
-                       pfs->m_username, pfs->m_username_length,
-                       pfs->m_hostname, pfs->m_hostname_length,
-                       &enabled);
+    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+    {
+      /*
+        TODO: performance improvement.
+        Once performance_schema.USERS is exposed,
+        we can use PFS_user::m_enabled instead of looking up
+        SETUP_ACTORS every time.
+      */
+      lookup_setup_actor(pfs,
+                         pfs->m_username, pfs->m_username_length,
+                         pfs->m_hostname, pfs->m_hostname_length,
+                         &enabled);
+    }
   }
 
   pfs->m_enabled= enabled;
@@ -1202,19 +1505,22 @@ static void set_thread_user_host_v1(const char *user, int user_len,
     memcpy(pfs->m_username, user, user_len);
   pfs->m_username_length= user_len;
 
-  bool enabled= false;
-  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  bool enabled= true;
+  if (flag_thread_instrumentation)
   {
-    /*
-      TODO: performance improvement.
-      Once performance_schema.USERS is exposed,
-      we can use PFS_user::m_enabled instead of looking up
-      SETUP_ACTORS every time.
-    */
-    lookup_setup_actor(pfs,
-                       pfs->m_username, pfs->m_username_length,
-                       pfs->m_hostname, pfs->m_hostname_length,
-                       &enabled);
+    if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+    {
+      /*
+        TODO: performance improvement.
+        Once performance_schema.USERS is exposed,
+        we can use PFS_user::m_enabled instead of looking up
+        SETUP_ACTORS every time.
+      */
+      lookup_setup_actor(pfs,
+                         pfs->m_username, pfs->m_username_length,
+                         pfs->m_hostname, pfs->m_hostname_length,
+                         &enabled);
+    }
   }
   pfs->m_enabled= enabled;
 
@@ -1325,6 +1631,7 @@ static void delete_current_thread_v1(void)
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (thread != NULL)
   {
+    aggregate_thread(thread);
     my_pthread_setspecific_ptr(THR_PFS, NULL);
     destroy_thread(thread);
   }
@@ -1333,10 +1640,18 @@ static void delete_current_thread_v1(void)
 static void delete_thread_v1(PSI_thread *thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+
   if (pfs != NULL)
+  {
+    aggregate_thread(pfs);
     destroy_thread(pfs);
+  }
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::get_thread_mutex_locker.
+*/
 static PSI_mutex_locker*
 get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
                            PSI_mutex *mutex, PSI_mutex_operation op)
@@ -1344,52 +1659,86 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
   DBUG_ASSERT((int) op >= 0);
   DBUG_ASSERT((uint) op < array_elements(mutex_operation_map));
+  DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(pfs_mutex != NULL);
   DBUG_ASSERT(pfs_mutex->m_class != NULL);
-  if (! flag_events_waits_current)
+
+  if (! flag_global_instrumentation)
     return NULL;
-  if (! pfs_mutex->m_class->m_enabled)
+  PFS_mutex_class *klass= pfs_mutex->m_class;
+  if (! klass->m_enabled)
     return NULL;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! pfs_thread->m_enabled)
-    return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
   {
-    locker_lost++;
-    return NULL;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_mutex->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= mutex_operation_map[(int) op];
+      wait->m_wait_class= WAIT_CLASS_MUTEX;
+
+      pfs_thread->m_events_waits_count++;
+    }
   }
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
   else
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    if (klass->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+      state->m_thread= NULL;
+    }
+    else
+    {
+      /*
+        Complete shortcut.
+      */
+      PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex *> (mutex);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+      pfs_mutex->m_wait_stat.aggregate_counted();
+      return NULL;
+    }
   }
 
-  pfs_locker->m_target.m_mutex= pfs_mutex;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= pfs_mutex->m_class;
-  if (pfs_mutex->m_class->m_timed)
-  {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-  }
-  else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_mutex->m_identity;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation= mutex_operation_map[(int) op];
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_MUTEX;
-
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_mutex_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_mutex= mutex;
+  return reinterpret_cast<PSI_mutex_locker*> (state);
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::get_thread_rwlock_locker.
+*/
 static PSI_rwlock_locker*
 get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
                             PSI_rwlock *rwlock, PSI_rwlock_operation op)
@@ -1397,56 +1746,89 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(rwlock_operation_map));
+  DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(pfs_rwlock != NULL);
   DBUG_ASSERT(pfs_rwlock->m_class != NULL);
-  if (! flag_events_waits_current)
+
+  if (! flag_global_instrumentation)
     return NULL;
-  if (! pfs_rwlock->m_class->m_enabled)
+  PFS_rwlock_class *klass= pfs_rwlock->m_class;
+  if (! klass->m_enabled)
     return NULL;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! pfs_thread->m_enabled)
-    return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
   {
-    locker_lost++;
-    return NULL;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_rwlock->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= rwlock_operation_map[static_cast<int> (op)];
+      wait->m_wait_class= WAIT_CLASS_RWLOCK;
+
+      pfs_thread->m_events_waits_count++;
+    }
   }
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
   else
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    if (klass->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+      state->m_thread= NULL;
+    }
+    else
+    {
+      /*
+        Complete shortcut.
+      */
+      PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock *> (rwlock);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+      pfs_rwlock->m_wait_stat.aggregate_counted();
+      return NULL;
+    }
   }
 
-  pfs_locker->m_target.m_rwlock= pfs_rwlock;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= pfs_rwlock->m_class;
-  if (pfs_rwlock->m_class->m_timed)
-  {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-  }
-  else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_rwlock->m_identity;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation=
-    rwlock_operation_map[static_cast<int> (op)];
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_RWLOCK;
-
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_rwlock_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_rwlock= rwlock;
+  return reinterpret_cast<PSI_rwlock_locker*> (state);
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::get_thread_cond_locker.
+*/
 static PSI_cond_locker*
 get_thread_cond_locker_v1(PSI_cond_locker_state *state,
-                          PSI_cond *cond, PSI_mutex * /* unused: mutex */,
+                          PSI_cond *cond, PSI_mutex *mutex,
                           PSI_cond_operation op)
 {
   /*
@@ -1463,51 +1845,83 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(cond_operation_map));
+  DBUG_ASSERT(state != NULL);
   DBUG_ASSERT(pfs_cond != NULL);
   DBUG_ASSERT(pfs_cond->m_class != NULL);
-  if (! flag_events_waits_current)
+
+  if (! flag_global_instrumentation)
     return NULL;
-  if (! pfs_cond->m_class->m_enabled)
+  PFS_cond_class *klass= pfs_cond->m_class;
+  if (! klass->m_enabled)
     return NULL;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! pfs_thread->m_enabled)
-    return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+
+  register uint flags;
+
+  if (klass->m_timed)
+    state->m_flags= STATE_FLAG_TIMED;
+  else
+    state->m_flags= 0;
+
+  if (flag_thread_instrumentation)
   {
-    locker_lost++;
-    return NULL;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_cond->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= cond_operation_map[static_cast<int> (op)];
+      wait->m_wait_class= WAIT_CLASS_COND;
+
+      pfs_thread->m_events_waits_count++;
+    }
   }
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
   else
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    if (klass->m_timed)
+      flags= STATE_FLAG_TIMED;
+    else
+    {
+      /*
+        Complete shortcut.
+      */
+      PFS_cond *pfs_cond= reinterpret_cast<PFS_cond *> (cond);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+      pfs_cond->m_wait_stat.aggregate_counted();
+      return NULL;
+    }
   }
 
-  pfs_locker->m_target.m_cond= pfs_cond;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= pfs_cond->m_class;
-  if (pfs_cond->m_class->m_timed)
-  {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-  }
-  else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_cond->m_identity;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation=
-    cond_operation_map[static_cast<int> (op)];
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_COND;
-
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_cond_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_cond= cond;
+  state->m_mutex= mutex;
+  return reinterpret_cast<PSI_cond_locker*> (state);
 }
 
 /**
@@ -1516,67 +1930,134 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
 */
 static PSI_table_locker*
 get_thread_table_locker_v1(PSI_table_locker_state *state,
-                           PSI_table *table, PSI_table_operation op, ulong flags)
+                           PSI_table *table, PSI_table_operation op, ulong op_flags)
 {
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(table_operation_map));
+  DBUG_ASSERT(state != NULL);
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
   DBUG_ASSERT(pfs_table != NULL);
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
-  if (! flag_events_waits_current)
+  if (! flag_global_instrumentation)
     return NULL;
-  if (! global_table_class.m_enabled)
-    return NULL;
-  /*
-    Table locks will be recorded with WL#5371.
-  */
-  if ((op == PSI_TABLE_EXTERNAL_LOCK) || (op == PSI_TABLE_LOCK))
-    return NULL;
-  if (! pfs_table->m_share->m_enabled)
-    return NULL;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! pfs_thread->m_enabled)
-    return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+  PFS_table_share *share= pfs_table->m_share;
+  if (unlikely(setup_objects_version != share->m_setup_objects_version))
   {
-    locker_lost++;
-    return NULL;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    /* Refresh the enabled and timed flags from SETUP_OBJECTS */
+    share->m_setup_objects_version= setup_objects_version;
+    lookup_setup_object(pfs_thread,
+                        OBJECT_TYPE_TABLE, /* even for temporary tables */
+                        share->m_schema_name,
+                        share->m_schema_name_length,
+                        share->m_table_name,
+                        share->m_table_name_length,
+                        & share->m_enabled,
+                        & share->m_timed);
   }
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
-  else
+  if (! share->m_enabled)
+    return NULL;
+
+  PFS_instr_class *klass;
+
+  switch (op)
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    case PSI_TABLE_LOCK:
+    case PSI_TABLE_EXTERNAL_LOCK:
+      return NULL;
+    case PSI_TABLE_FETCH_ROW:
+    case PSI_TABLE_WRITE_ROW:
+    case PSI_TABLE_UPDATE_ROW:
+    case PSI_TABLE_DELETE_ROW:
+      if (! global_table_io_class.m_enabled)
+        return NULL;
+      klass= &global_table_io_class;
+      break;
+    default:
+      klass= NULL;
+      DBUG_ASSERT(false);
   }
 
-  pfs_locker->m_target.m_table= pfs_table;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= &global_table_class;
-  if (pfs_table->m_share->m_timed)
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
   {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (share->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_table->m_identity;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= table_operation_map[static_cast<int> (op)];
+      wait->m_flags= op_flags;
+      wait->m_object_type= share->get_object_type();
+      wait->m_schema_name= share->m_schema_name;
+      wait->m_schema_name_length= share->m_schema_name_length;
+      wait->m_object_name= share->m_table_name;
+      wait->m_object_name_length= share->m_table_name_length;
+      wait->m_wait_class= WAIT_CLASS_TABLE;
+
+      pfs_thread->m_events_waits_count++;
+    }
   }
   else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_table->m_identity;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation=
-    table_operation_map[static_cast<int> (op)];
-  pfs_locker->m_waits_current.m_flags= flags;
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_TABLE;
+  {
+    if (share->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+    }
+    else
+    {
+#ifdef LATER
+      /*
+        Complete shortcut.
+      */
+      PFS_table *pfs_table= reinterpret_cast<PFS_table *> (table);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+      pfs_table->m_wait_stat.aggregate_counted();
+      return NULL;
+#endif
+      flags= 0;
+    }
+  }
 
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_table_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_table= table;
+  state->m_class= klass;
+  state->m_operation= op;
+  return reinterpret_cast<PSI_table_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_name_locker.
+*/
 static PSI_file_locker*
 get_thread_file_name_locker_v1(PSI_file_locker_state *state,
                                PSI_file_key key,
@@ -1585,199 +2066,259 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
 {
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
+  DBUG_ASSERT(state != NULL);
 
-  if (! flag_events_waits_current)
+  if (! flag_global_instrumentation)
     return NULL;
   PFS_file_class *klass= find_file_class(key);
   if (unlikely(klass == NULL))
     return NULL;
   if (! klass->m_enabled)
     return NULL;
+
+  /* Needed for the LF_HASH */
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
     return NULL;
-  if (! pfs_thread->m_enabled)
+
+  if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
     return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
-  {
-    locker_lost++;
-    return NULL;
-  }
+
+  register uint flags;
+
+  state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+  flags= STATE_FLAG_THREAD;
+
+  if (klass->m_timed)
+    flags|= STATE_FLAG_TIMED;
+
   uint len= strlen(name);
   PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len);
   if (unlikely(pfs_file == NULL))
     return NULL;
 
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
-  else
+  if (flag_events_waits_current)
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+    {
+      locker_lost++;
+      return NULL;
+    }
+    PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+    state->m_wait= wait;
+    flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+    wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+    wait->m_thread= pfs_thread;
+    wait->m_class= klass;
+    wait->m_timer_start= 0;
+    wait->m_timer_end= 0;
+    wait->m_object_instance_addr= pfs_file;
+    wait->m_object_name= pfs_file->m_filename;
+    wait->m_object_name_length= pfs_file->m_filename_length;
+    wait->m_event_id= pfs_thread->m_event_id++;
+    wait->m_operation= file_operation_map[static_cast<int> (op)];
+    wait->m_wait_class= WAIT_CLASS_FILE;
+
+    pfs_thread->m_events_waits_count++;
   }
 
-  pfs_locker->m_target.m_file= pfs_file;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= pfs_file->m_class;
-  if (pfs_file->m_class->m_timed)
-  {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-  }
-  else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_file;
-  pfs_locker->m_waits_current.m_object_name= pfs_file->m_filename;
-  pfs_locker->m_waits_current.m_object_name_length=
-    pfs_file->m_filename_length;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation=
-    file_operation_map[static_cast<int> (op)];
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_FILE;
-
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_file_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+  state->m_operation= op;
+  return reinterpret_cast<PSI_file_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_stream_locker.
+*/
 static PSI_file_locker*
 get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
                                  PSI_file *file, PSI_file_operation op)
 {
   PFS_file *pfs_file= reinterpret_cast<PFS_file*> (file);
-
-  DBUG_ASSERT(static_cast<int> (op) >= 0);
-  DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
   DBUG_ASSERT(pfs_file != NULL);
   DBUG_ASSERT(pfs_file->m_class != NULL);
+  DBUG_ASSERT(static_cast<int> (op) >= 0);
+  DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
+  DBUG_ASSERT(state != NULL);
 
-  if (! flag_events_waits_current)
+  if (! flag_global_instrumentation)
     return NULL;
-  if (! pfs_file->m_class->m_enabled)
+
+  PFS_file_class *klass= pfs_file->m_class;
+  if (! klass->m_enabled)
     return NULL;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (! pfs_thread->m_enabled)
-    return NULL;
-  if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
   {
-    locker_lost++;
-    return NULL;
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_file;
+      wait->m_object_name= pfs_file->m_filename;
+      wait->m_object_name_length= pfs_file->m_filename_length;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= file_operation_map[static_cast<int> (op)];
+      wait->m_wait_class= WAIT_CLASS_FILE;
+
+      pfs_thread->m_events_waits_count++;
+    }
   }
-  PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-    [pfs_thread->m_wait_locker_count];
-  if (likely(pfs_thread->m_wait_locker_count == 0))
-    pfs_locker->m_waits_current.m_nesting_event_id= 0;
   else
   {
-    PFS_wait_locker *parent_locker= pfs_locker-1;
-    pfs_locker->m_waits_current.m_nesting_event_id=
-      parent_locker->m_waits_current.m_event_id;
+    state->m_thread= NULL;
+    if (klass->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+    }
+    else
+    {
+      /* TODO: consider a shortcut. */
+      flags= 0;
+    }
   }
 
-  pfs_locker->m_target.m_file= pfs_file;
-  pfs_locker->m_waits_current.m_thread= pfs_thread;
-  pfs_locker->m_waits_current.m_class= pfs_file->m_class;
-  if (pfs_file->m_class->m_timed)
-  {
-    pfs_locker->m_timer_name= wait_timer;
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-  }
-  else
-    pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-  pfs_locker->m_waits_current.m_object_instance_addr= pfs_file;
-  pfs_locker->m_waits_current.m_object_name= pfs_file->m_filename;
-  pfs_locker->m_waits_current.m_object_name_length=
-    pfs_file->m_filename_length;
-  pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-  pfs_locker->m_waits_current.m_operation=
-    file_operation_map[static_cast<int> (op)];
-  pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_FILE;
-
-  pfs_thread->m_wait_locker_count++;
-  return reinterpret_cast<PSI_file_locker*> (pfs_locker);
+  state->m_flags= flags;
+  state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+  state->m_operation= op;
+  return reinterpret_cast<PSI_file_locker*> (state);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::get_thread_file_descriptor_locker.
+*/
 static PSI_file_locker*
 get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
                                      File file, PSI_file_operation op)
 {
   int index= static_cast<int> (file);
-
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(file_operation_map));
+  DBUG_ASSERT(state != NULL);
 
-  if (! flag_events_waits_current)
+  if (! flag_global_instrumentation)
     return NULL;
-  if (likely((index >= 0) && (index < file_handle_max)))
+
+  if (unlikely((index < 0) || (index >= file_handle_max)))
+    return NULL;
+
+  PFS_file *pfs_file= file_handle_array[index];
+  if (unlikely(pfs_file == NULL))
+    return NULL;
+
+  /*
+    We are about to close a file by descriptor number,
+    and the calling code still holds the descriptor.
+    Cleanup the file descriptor <--> file instrument association.
+    Remove the instrumentation *before* the close to avoid race
+    conditions with another thread opening a file
+    (that could be given the same descriptor).
+  */
+  if (op == PSI_FILE_CLOSE)
+    file_handle_array[index]= NULL;
+
+  DBUG_ASSERT(pfs_file->m_class != NULL);
+  PFS_instr_class *klass= pfs_file->m_class;
+  if (! klass->m_enabled)
+    return NULL;
+
+  register uint flags;
+
+  if (flag_thread_instrumentation)
   {
-    PFS_file *pfs_file= file_handle_array[index];
-    if (likely(pfs_file != NULL))
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (klass->m_timed)
+      flags|= STATE_FLAG_TIMED;
+
+    if (flag_events_waits_current)
     {
-      PFS_thread *pfs_thread;
-
-      /*
-        We are about to close a file by descriptor number,
-        and the calling code still holds the descriptor.
-        Cleanup the file descriptor <--> file instrument association.
-        Remove the instrumentation *before* the close to avoid race
-        conditions with another thread opening a file
-        (that could be given the same descriptor).
-      */
-      if (op == PSI_FILE_CLOSE)
-        file_handle_array[index]= NULL;
-
-      DBUG_ASSERT(pfs_file->m_class != NULL);
-      if (! pfs_file->m_class->m_enabled)
-        return NULL;
-      pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-      if (unlikely(pfs_thread == NULL))
-        return NULL;
-      if (! pfs_thread->m_enabled)
-        return NULL;
-      if (unlikely(pfs_thread->m_wait_locker_count >= LOCKER_STACK_SIZE))
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
       {
         locker_lost++;
         return NULL;
       }
-      PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
-        [pfs_thread->m_wait_locker_count];
-      if (likely(pfs_thread->m_wait_locker_count == 0))
-        pfs_locker->m_waits_current.m_nesting_event_id= 0;
-      else
-      {
-        PFS_wait_locker *parent_locker= pfs_locker-1;
-        pfs_locker->m_waits_current.m_nesting_event_id=
-          parent_locker->m_waits_current.m_event_id;
-      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
 
-      pfs_locker->m_target.m_file= pfs_file;
-      pfs_locker->m_waits_current.m_thread= pfs_thread;
-      pfs_locker->m_waits_current.m_class= pfs_file->m_class;
-      if (pfs_file->m_class->m_timed)
-      {
-        pfs_locker->m_timer_name= wait_timer;
-        pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_STARTING;
-      }
-      else
-        pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
-      pfs_locker->m_waits_current.m_object_instance_addr= pfs_file;
-      pfs_locker->m_waits_current.m_object_name= pfs_file->m_filename;
-      pfs_locker->m_waits_current.m_object_name_length=
-        pfs_file->m_filename_length;
-      pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
-      pfs_locker->m_waits_current.m_operation=
-        file_operation_map[static_cast<int> (op)];
-      pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_FILE;
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
 
-      pfs_thread->m_wait_locker_count++;
-      return reinterpret_cast<PSI_file_locker*> (pfs_locker);
+      wait->m_thread= pfs_thread;
+      wait->m_class= klass;
+      wait->m_timer_start= 0;
+      wait->m_timer_end= 0;
+      wait->m_object_instance_addr= pfs_file;
+      wait->m_object_name= pfs_file->m_filename;
+      wait->m_object_name_length= pfs_file->m_filename_length;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= file_operation_map[static_cast<int> (op)];
+      wait->m_wait_class= WAIT_CLASS_FILE;
+
+      pfs_thread->m_events_waits_count++;
     }
   }
-  return NULL;
+  else
+  {
+    state->m_thread= NULL;
+    if (klass->m_timed)
+    {
+      flags= STATE_FLAG_TIMED;
+    }
+    else
+    {
+      /* TODO: consider a shortcut. */
+      flags= 0;
+    }
+  }
+
+  state->m_flags= flags;
+  state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+  state->m_operation= op;
+  return reinterpret_cast<PSI_file_locker*> (state);
 }
 
 static void unlock_mutex_v1(PSI_mutex *mutex)
@@ -1813,7 +2354,7 @@ static void unlock_mutex_v1(PSI_mutex *mutex)
   if (pfs_mutex->m_class->m_timed)
   {
     ulonglong locked_time;
-    locked_time= get_timer_value(wait_timer) - pfs_mutex->m_last_locked;
+    locked_time= get_timer_pico_value(wait_timer) - pfs_mutex->m_last_locked;
     aggregate_single_stat_chain(&pfs_mutex->m_lock_stat, locked_time);
   }
 #endif
@@ -1880,7 +2421,7 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
   {
     if (pfs_rwlock->m_class->m_timed)
     {
-      locked_time= get_timer_value(wait_timer) - pfs_rwlock->m_last_written;
+      locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_written;
       aggregate_single_stat_chain(&pfs_rwlock->m_write_lock_stat, locked_time);
     }
   }
@@ -1888,7 +2429,7 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
   {
     if (pfs_rwlock->m_class->m_timed)
     {
-      locked_time= get_timer_value(wait_timer) - pfs_rwlock->m_last_read;
+      locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_read;
       aggregate_single_stat_chain(&pfs_rwlock->m_read_lock_stat, locked_time);
     }
   }
@@ -1911,93 +2452,157 @@ static void broadcast_cond_v1(PSI_cond* cond)
   pfs_cond->m_cond_stat.m_broadcast_count++;
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::start_mutex_wait.
+*/
 static void start_mutex_wait_v1(PSI_mutex_locker* locker,
                                 const char *src_file, uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  PSI_mutex_locker_state *state= reinterpret_cast<PSI_mutex_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  register uint flags= state->m_flags;
+  ulonglong timer_start= 0;
+
+  if (flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
+
+  if (flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+  }
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::end_mutex_wait.
+*/
 static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_mutex_locker_state *state= reinterpret_cast<PSI_mutex_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_mutex *mutex= reinterpret_cast<PFS_mutex *> (state->m_mutex);
+  DBUG_ASSERT(mutex != NULL);
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    mutex->m_wait_stat.aggregate_timed(wait_time);
   }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
-
-  if (rc == 0)
+  else
   {
-    /* Thread safe: we are protected by the instrumented mutex */
-    PFS_mutex *mutex= pfs_locker->m_target.m_mutex;
-    PFS_single_stat_chain *stat= find_per_thread_mutex_class_wait_stat(wait->m_thread, mutex->m_class);
-    mutex->m_owner= wait->m_thread;
-    mutex->m_last_locked= wait->m_timer_end;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    mutex->m_wait_stat.aggregate_counted();
+  }
 
-    /* If timed then aggregate stats, else increment the value counts only */
-    if (wait->m_timer_state == TIMER_STATE_TIMED)
+  if (likely(rc == 0))
+  {
+    mutex->m_owner= thread;
+    mutex->m_last_locked= timer_end;
+  }
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= mutex->m_class->m_event_name_index;
+
+    if (flags & STATE_FLAG_TIMED)
     {
-      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-      aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
-      aggregate_single_stat_chain(stat, wait_time);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
     }
     else
     {
-      increment_single_stat_chain(&mutex->m_wait_stat);
-      increment_single_stat_chain(stat);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
     }
   }
-  wait->m_thread->m_wait_locker_count--;
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::start_rwlock_rdwait.
+*/
 static void start_rwlock_rdwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  ulonglong timer_start= 0;
+  PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
+
+  if (state->m_flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+  }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::end_rwlock_rdwait.
+*/
 static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_rwlock *rwlock= reinterpret_cast<PFS_rwlock *> (state->m_rwlock);
+
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    rwlock->m_wait_stat.aggregate_timed(wait_time);
   }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
+  else
+  {
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    rwlock->m_wait_stat.aggregate_counted();
+  }
 
   if (rc == 0)
   {
@@ -2008,225 +2613,360 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
       The statistics generated are not safe, which is why they are
       just statistics, not facts.
     */
-    PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
-    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
-
     if (rwlock->m_readers == 0)
-      rwlock->m_last_read= wait->m_timer_end;
+      rwlock->m_last_read= timer_end;
     rwlock->m_writer= NULL;
     rwlock->m_readers++;
+  }
 
-    /* If timed then aggregate stats, else increment the value counts only */
-    if (wait->m_timer_state == TIMER_STATE_TIMED)
+  if (state->m_flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= rwlock->m_class->m_event_name_index;
+
+    if (state->m_flags & STATE_FLAG_TIMED)
     {
-      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-      aggregate_single_stat_chain(stat, wait_time);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
     }
     else
     {
-      increment_single_stat_chain(&rwlock->m_wait_stat);
-      increment_single_stat_chain(stat);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (state->m_flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
     }
   }
-  wait->m_thread->m_wait_locker_count--;
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::start_rwlock_wrwait.
+*/
 static void start_rwlock_wrwait_v1(PSI_rwlock_locker* locker,
                                    const char *src_file, uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  ulonglong timer_start= 0;
+  PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
+
+  if (state->m_flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+  }
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::end_rwlock_wrwait.
+*/
 static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_rwlock_locker_state *state= reinterpret_cast<PSI_rwlock_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_rwlock *rwlock= reinterpret_cast<PFS_rwlock *> (state->m_rwlock);
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    rwlock->m_wait_stat.aggregate_timed(wait_time);
   }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
+  else
+  {
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    rwlock->m_wait_stat.aggregate_counted();
+  }
 
-  if (rc == 0)
+  if (likely(rc == 0))
   {
     /* Thread safe : we are protected by the instrumented rwlock */
-    PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
-    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
-    rwlock->m_writer= wait->m_thread;
-    rwlock->m_last_written= wait->m_timer_end;
+    rwlock->m_writer= thread;
+    rwlock->m_last_written= timer_end;
     /* Reset the readers stats, they could be off */
     rwlock->m_readers= 0;
     rwlock->m_last_read= 0;
+  }
 
-    /* If timed then aggregate stats, else increment the value counts only */
-    if (wait->m_timer_state == TIMER_STATE_TIMED)
+  if (state->m_flags & STATE_FLAG_THREAD)
+  {
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= rwlock->m_class->m_event_name_index;
+
+    if (state->m_flags & STATE_FLAG_TIMED)
     {
-      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-      aggregate_single_stat_chain(stat, wait_time);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
     }
     else
     {
-      increment_single_stat_chain(&rwlock->m_wait_stat);
-      increment_single_stat_chain(stat);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (state->m_flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
     }
   }
-  wait->m_thread->m_wait_locker_count--;
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::start_cond_wait.
+*/
 static void start_cond_wait_v1(PSI_cond_locker* locker,
                                const char *src_file, uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  ulonglong timer_start= 0;
+  PSI_cond_locker_state *state= reinterpret_cast<PSI_cond_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
+
+  if (state->m_flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+  }
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::end_cond_wait.
+*/
 static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_cond_locker_state *state= reinterpret_cast<PSI_cond_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_cond *cond= reinterpret_cast<PFS_cond *> (state->m_cond);
+  /* PFS_mutex *mutex= reinterpret_cast<PFS_mutex *> (state->m_mutex); */
+
+  if (state->m_flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    cond->m_wait_stat.aggregate_timed(wait_time);
   }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
-
-  if (rc == 0)
+  else
   {
-    /*
-      Not thread safe, race conditions will occur.
-      A first race condition is:
-      - thread 1 waits on cond A
-      - thread 2 waits on cond A
-      threads 1 and 2 compete when updating the same cond A
-      statistics, possibly missing a min / max / sum / count.
-      A second race condition is:
-      - thread 1 waits on cond A
-      - thread 2 destroys cond A
-      - thread 2 or 3 creates cond B in the same condition slot
-      thread 1 will then aggregate statistics about defunct A
-      in condition B.
-      This is accepted, the data will be slightly inaccurate.
-    */
-    PFS_cond *cond= pfs_locker->m_target.m_cond;
-    PFS_single_stat_chain *stat= find_per_thread_cond_class_wait_stat(wait->m_thread, cond->m_class);
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    cond->m_wait_stat.aggregate_counted();
+  }
 
-    /* If timed then aggregate stats, else increment the value counts only */
-    if (wait->m_timer_state == TIMER_STATE_TIMED)
+  if (state->m_flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= cond->m_class->m_event_name_index;
+
+    if (state->m_flags & STATE_FLAG_TIMED)
     {
-      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-      aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
-      aggregate_single_stat_chain(stat, wait_time);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
     }
     else
     {
-      increment_single_stat_chain(&cond->m_wait_stat);
-      increment_single_stat_chain(stat);
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (state->m_flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
     }
   }
-  wait->m_thread->m_wait_locker_count--;
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::start_table_wait.
+*/
 static void start_table_wait_v1(PSI_table_locker* locker, uint index,
                                 const char *src_file, uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  ulonglong timer_start= 0;
+  PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
-  PFS_table_share *share= pfs_locker->m_target.m_table->m_share;
-  wait->m_object_type= share->get_object_type();
-  wait->m_schema_name= share->m_schema_name;
-  wait->m_schema_name_length= share->m_schema_name_length;
-  wait->m_object_name= share->m_table_name;
-  wait->m_object_name_length= share->m_table_name_length;
-  /* FIXME: revise this */
-  if (share->get_object_type() == OBJECT_TYPE_TEMPORARY_TABLE)
-    wait->m_index= MAX_KEY;
-  else
-    wait->m_index= index;
+
+  if (flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+  }
+
+  state->m_index= index;
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::end_table_wait.
+*/
 static void end_table_wait_v1(PSI_table_locker* locker)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_table *table= reinterpret_cast<PFS_table *> (state->m_table);
+  DBUG_ASSERT(table != NULL);
+  PFS_instr_class *klass= reinterpret_cast<PFS_instr_class *> (state->m_class);
+  DBUG_ASSERT(klass != NULL);
+
+  PFS_single_stat *stat;
+
+  switch (state->m_operation)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
+  case PSI_TABLE_FETCH_ROW:
+    DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
+                (state->m_index == MAX_KEY));
+    stat= & table->m_table_stat.m_index_stat[state->m_index].m_fetch;
+    break;
+  case PSI_TABLE_WRITE_ROW:
+    DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
+                (state->m_index == MAX_KEY));
+    stat= & table->m_table_stat.m_index_stat[state->m_index].m_insert;
+    break;
+  case PSI_TABLE_UPDATE_ROW:
+    DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
+                (state->m_index == MAX_KEY));
+    stat= & table->m_table_stat.m_index_stat[state->m_index].m_update;
+    break;
+  case PSI_TABLE_DELETE_ROW:
+    DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
+                (state->m_index == MAX_KEY));
+    stat= & table->m_table_stat.m_index_stat[state->m_index].m_delete;
+    break;
+  case PSI_TABLE_LOCK:
+  case PSI_TABLE_EXTERNAL_LOCK:
+  default:
+    DBUG_ASSERT(false);
+    stat= NULL;
+    break;
   }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
 
-  PFS_table *table= pfs_locker->m_target.m_table;
+  register uint flags= state->m_flags;
 
-  /* If timed then aggregate stats, else increment the value counts only */
-  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  if (flags & STATE_FLAG_TIMED)
   {
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    stat->aggregate_timed(wait_time);
   }
   else
   {
-    increment_single_stat_chain(&table->m_wait_stat);
+    stat->aggregate_counted();
   }
 
-  /*
-    There is currently no per table and per thread aggregation.
-    The number of tables in the application is arbitrary, and may be high.
-    The number of slots per thread to hold aggregates is fixed,
-    and is constrained by memory.
-    Implementing a per thread and per table aggregate has not been
-    decided yet.
-    If it's implemented, it's likely that the user will have to specify,
-    per table name, if the aggregate per thread is to be computed or not.
-    This will mean a SETUP_ table.
-  */
-  wait->m_thread->m_wait_locker_count--;
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    DBUG_ASSERT(thread != NULL);
+
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= klass->m_event_name_index;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
+    }
+  }
 }
 
 static void start_file_wait_v1(PSI_file_locker *locker,
@@ -2237,34 +2977,45 @@ static void start_file_wait_v1(PSI_file_locker *locker,
 static void end_file_wait_v1(PSI_file_locker *locker,
                              size_t count);
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_open_wait.
+*/
 static PSI_file* start_file_open_wait_v1(PSI_file_locker *locker,
                                          const char *src_file,
                                          uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
   start_file_wait_v1(locker, 0, src_file, src_line);
 
-  PFS_file *pfs_file= pfs_locker->m_target.m_file;
-  return reinterpret_cast<PSI_file*> (pfs_file);
+  return state->m_file;
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_open_wait.
+*/
 static void end_file_open_wait_v1(PSI_file_locker *locker)
 {
   end_file_wait_v1(locker, 0);
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_open_wait_and_bind_to_descriptor.
+*/
 static void end_file_open_wait_and_bind_to_descriptor_v1
   (PSI_file_locker *locker, File file)
 {
   int index= (int) file;
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
   end_file_wait_v1(locker, 0);
 
-  PFS_file *pfs_file= pfs_locker->m_target.m_file;
+  PFS_file *pfs_file= reinterpret_cast<PFS_file*> (state->m_file);
   DBUG_ASSERT(pfs_file != NULL);
 
   if (likely(index >= 0))
@@ -2275,93 +3026,136 @@ static void end_file_open_wait_and_bind_to_descriptor_v1
       file_handle_lost++;
   }
   else
+  {
     release_file(pfs_file);
+  }
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_wait.
+*/
 static void start_file_wait_v1(PSI_file_locker *locker,
                                size_t count,
                                const char *src_file,
                                uint src_line)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
+  ulonglong timer_start= 0;
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
 
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
-  if (wait->m_timer_state == TIMER_STATE_STARTING)
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_start= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_STARTED;
+    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    state->m_timer_start= timer_start;
   }
-  wait->m_source_file= src_file;
-  wait->m_source_line= src_line;
-  wait->m_number_of_bytes= count;
+
+  if (flags & STATE_FLAG_WAIT)
+  {
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
+
+    wait->m_timer_start= timer_start;
+    wait->m_source_file= src_file;
+    wait->m_source_line= src_line;
+    wait->m_number_of_bytes= count;
+  }
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_wait.
+*/
 static void end_file_wait_v1(PSI_file_locker *locker,
                              size_t count)
 {
-  PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
-  DBUG_ASSERT(pfs_locker != NULL);
-  PFS_events_waits *wait= &pfs_locker->m_waits_current;
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
 
-  wait->m_number_of_bytes= count;
-  if (wait->m_timer_state == TIMER_STATE_STARTED)
+  PFS_file *file= reinterpret_cast<PFS_file *> (state->m_file);
+  DBUG_ASSERT(file != NULL);
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
   {
-    wait->m_timer_end= get_timer_value(pfs_locker->m_timer_name);
-    wait->m_timer_state= TIMER_STATE_TIMED;
-  }
-  if (flag_events_waits_history)
-    insert_events_waits_history(wait->m_thread, wait);
-  if (flag_events_waits_history_long)
-    insert_events_waits_history_long(wait);
-
-  PFS_file *file= pfs_locker->m_target.m_file;
-  PFS_single_stat_chain *stat= find_per_thread_file_class_wait_stat(wait->m_thread, file->m_class);
-
-  /* If timed then aggregate stats, else increment the value counts only */
-  if (wait->m_timer_state == TIMER_STATE_TIMED)
-  {
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&file->m_wait_stat, wait_time);
-    aggregate_single_stat_chain(stat, wait_time);
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    file->m_wait_stat.aggregate_timed(wait_time);
   }
   else
   {
-    increment_single_stat_chain(&file->m_wait_stat);
-    increment_single_stat_chain(stat);
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    file->m_wait_stat.aggregate_counted();
   }
 
-  PFS_file_class *klass= file->m_class;
-
-  switch(wait->m_operation)
+  if (flags & STATE_FLAG_THREAD)
   {
-  case OPERATION_TYPE_FILEREAD:
-    file->m_file_stat.m_count_read++;
-    file->m_file_stat.m_read_bytes+= count;
-    klass->m_file_stat.m_count_read++;
-    klass->m_file_stat.m_read_bytes+= count;
+    DBUG_ASSERT(thread != NULL);
+
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= file->m_class->m_event_name_index;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_timed(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (state->m_flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      wait->m_number_of_bytes= count;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
+    }
+  }
+
+  /* FIXME: Have file aggregates for every operation */
+  switch(state->m_operation)
+  {
+  case PSI_FILE_READ:
+    file->m_file_stat.m_io_stat.aggregate_read(count);
     break;
-  case OPERATION_TYPE_FILEWRITE:
-    file->m_file_stat.m_count_write++;
-    file->m_file_stat.m_write_bytes+= count;
-    klass->m_file_stat.m_count_write++;
-    klass->m_file_stat.m_write_bytes+= count;
+  case PSI_FILE_WRITE:
+    file->m_file_stat.m_io_stat.aggregate_write(count);
     break;
-  case OPERATION_TYPE_FILECLOSE:
-  case OPERATION_TYPE_FILESTREAMCLOSE:
-  case OPERATION_TYPE_FILESTAT:
-    release_file(pfs_locker->m_target.m_file);
+  case PSI_FILE_CLOSE:
+  case PSI_FILE_STREAM_CLOSE:
+  case PSI_FILE_STAT:
+    release_file(file);
     break;
-  case OPERATION_TYPE_FILEDELETE:
-    destroy_file(wait->m_thread, pfs_locker->m_target.m_file);
+  case PSI_FILE_DELETE:
+    DBUG_ASSERT(thread != NULL);
+    destroy_file(thread, file);
     break;
   default:
     break;
   }
-
-  wait->m_thread->m_wait_locker_count--;
 }
 
+/**
+  Implementation of the instrumentation interface.
+  @sa PSI_v1.
+*/
 PSI_v1 PFS_v1=
 {
   register_mutex_v1,

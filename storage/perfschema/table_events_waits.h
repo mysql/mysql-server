@@ -45,14 +45,12 @@ struct row_events_waits
   const char *m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
-  /** Timer state. */
-  enum timer_state m_timer_state;
   /** Column TIMER_START. */
   ulonglong m_timer_start;
-  /** True if TIMER_END is null. */
-  bool m_timer_end_null;
   /** Column TIMER_END. */
   ulonglong m_timer_end;
+  /** Column TIMER_WAIT. */
+  ulonglong m_timer_wait;
   /** Column OBJECT_TYPE. */
   const char *m_object_type;
   /** Length in bytes of @c m_object_type. */

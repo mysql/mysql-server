@@ -3,11 +3,8 @@ NAME	ENABLED
 events_waits_current	YES
 events_waits_history	YES
 events_waits_history_long	YES
-events_waits_summary_by_thread_by_event_name	YES
-events_waits_summary_by_event_name	YES
-events_waits_summary_by_instance	YES
-file_summary_by_event_name	YES
-file_summary_by_instance	YES
+global_instrumentation	YES
+thread_instrumentation	YES
 select * from performance_schema.setup_consumers
 where name='events_waits_current';
 NAME	ENABLED
@@ -18,11 +15,8 @@ NAME	ENABLED
 events_waits_current	YES
 events_waits_history	YES
 events_waits_history_long	YES
-events_waits_summary_by_thread_by_event_name	YES
-events_waits_summary_by_event_name	YES
-events_waits_summary_by_instance	YES
-file_summary_by_event_name	YES
-file_summary_by_instance	YES
+global_instrumentation	YES
+thread_instrumentation	YES
 select * from performance_schema.setup_consumers
 where enabled='NO';
 NAME	ENABLED

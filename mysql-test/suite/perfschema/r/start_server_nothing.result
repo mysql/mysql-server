@@ -10,7 +10,7 @@ count(*)
 5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-8
+5
 select count(*) > 1 from performance_schema.setup_instruments;
 count(*) > 1
 0
@@ -28,11 +28,13 @@ select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.mutex_instances;
+select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
 select * from performance_schema.threads;
 show variables like "performance_schema%";
@@ -54,6 +56,7 @@ performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
 performance_schema_setup_actors_size	0
+performance_schema_setup_objects_size	0
 show engine PERFORMANCE_SCHEMA status;
 show status like "performance_schema%";
 show variables like "performance_schema%";
@@ -75,6 +78,7 @@ performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
 performance_schema_setup_actors_size	0
+performance_schema_setup_objects_size	0
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 wait/io/table/sql/handler	YES	YES
@@ -90,11 +94,8 @@ NAME	ENABLED
 events_waits_current	YES
 events_waits_history	YES
 events_waits_history_long	YES
-events_waits_summary_by_thread_by_event_name	YES
-events_waits_summary_by_event_name	YES
-events_waits_summary_by_instance	YES
-file_summary_by_event_name	YES
-file_summary_by_instance	YES
+global_instrumentation	YES
+thread_instrumentation	YES
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 wait	CYCLE
@@ -112,6 +113,7 @@ select * from performance_schema.events_waits_summary_by_thread_by_event_name;
 THREAD_ID	EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
 select * from performance_schema.events_waits_summary_global_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
+wait/io/table/sql/handler	0	0	0	0	0
 select * from performance_schema.file_instances;
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 select * from performance_schema.file_summary_by_event_name;
