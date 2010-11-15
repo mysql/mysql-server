@@ -17,8 +17,8 @@ my_regoff_t startoff = 0;
 my_regoff_t endoff = 0;
 
 
-extern int split();
-extern void regprint();
+extern int split(char *string, char *fields[], int nfields, char *sep);
+extern void regprint(my_regex_t *r, FILE *d);
 
 
 #ifdef __WIN__
@@ -192,7 +192,7 @@ FILE *in;
 		inbuf[strlen(inbuf)-1] = '\0';	/* get rid of stupid \n */
 		if (debug)
 			fprintf(stdout, "%d:\n", line);
-		nf = split(inbuf, f, MAXF, "\t\t");
+		nf = split(inbuf, f, MAXF, (char*) "\t\t");
 		if (nf < 3) {
 			fprintf(stderr, "bad input, line %d\n", line);
 			exit(1);
@@ -335,7 +335,7 @@ int opts;			/* may not match f1 */
 
 	for (i = 1; i < NSHOULD; i++)
 		should[i] = NULL;
-	nshould = split(f4, should+1, NSHOULD-1, ",");
+	nshould = split(f4, should+1, NSHOULD-1, (char*) ",");
 	if (nshould == 0) {
 		nshould = 1;
 		should[1] = (char*) "";

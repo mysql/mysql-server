@@ -1770,6 +1770,27 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
+void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
+                                          st_select_lex *removed_select,
+                                          Item **ref)
+{
+  used_tables_cache=0;
+  not_null_tables_cache= 0;
+  const_item_cache= 1;
+
+  /*
+    No need to call fix_after_pullout() on args[0] (ie left expression),
+    as Item_in_subselect::fix_after_pullout() will do this.
+    So, just forward the call to the Item_in_subselect object.
+  */
+
+  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+
+  used_tables_cache|= args[1]->used_tables();
+  not_null_tables_cache|= args[1]->not_null_tables();
+  const_item_cache&= args[1]->const_item();
+}
+
 /**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
    predicates. The implementation works as follows.
@@ -1840,6 +1861,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
      @see Item_in_subselect::val_bool()
      @see Item_is_not_null_test::val_int()
  */
+
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;
@@ -3093,6 +3115,14 @@ void Item_func_case::fix_length_and_dec()
   {
     if (agg_arg_charsets_for_string_result(collation, agg, nagg))
       return;
+    /*
+      Copy all THEN and ELSE items back to args[] array.
+      Some of the items might have been changed to Item_func_conv_charset.
+    */
+    for (nagg= 0 ; nagg < ncases / 2 ; nagg++)
+      args[nagg * 2 + 1]= agg[nagg];
+    if (else_expr_num != -1)
+      args[else_expr_num]= agg[nagg++];
   }
   else
     collation.set_numeric();
@@ -4337,7 +4367,9 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+void Item_cond::fix_after_pullout(st_select_lex *parent_select,
+                                  st_select_lex *removed_select,
+                                  Item **ref)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -4351,7 +4383,7 @@ void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
   while ((item=li++))
   {
     table_map tmp_table_map;
-    item->fix_after_pullout(new_parent, li.ref());
+    item->fix_after_pullout(parent_select, removed_select, li.ref());
     item= *li.ref();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
@@ -5816,3 +5848,89 @@ void Item_equal::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+/**
+  Get item that can be substituted for the supplied item.
+
+  @param field  field item to get substitution field for, which must be
+                present within the multiple equality itself.
+
+  @retval Found substitution item in the multiple equality.
+
+  @details Get the first item of multiple equality that can be substituted
+  for the given field item. In order to make semijoin materialization strategy
+  work correctly we can't propagate equal fields between a materialized
+  semijoin and the outer query (or any other semijoin) unconditionally.
+  Thus the field is returned according to the following rules:
+
+  1) If the given field belongs to a materialized semijoin then the
+     first field in the multiple equality which belongs to the same semijoin
+     is returned.
+  2) If the given field doesn't belong to a materialized semijoin then
+     the first field in the multiple equality is returned.
+*/
+
+Item_field* Item_equal::get_subst_item(const Item_field *field)
+{
+  DBUG_ASSERT(field != NULL);
+
+  const JOIN_TAB *field_tab= field->field->table->reginfo.join_tab;
+
+  if (sj_is_materialize_strategy(field_tab->get_sj_strategy()))
+  {
+    /*
+      It's a field from a materialized semijoin. We can substitute it only
+      with a field from the same semijoin.
+
+      Example: suppose we have a join order:
+
+       ot1 ot2  SJM(it1  it2  it3)  ot3
+
+      and equality ot2.col = it1.col = it2.col
+
+      If we're looking for best substitute for 'it2.col', we must pick it1.col
+      and not ot2.col. it2.col is evaluated while performing materialization,
+      when the outer tables are not available in the execution.
+    */
+    List_iterator<Item_field> it(fields);
+    Item_field *item;
+    const JOIN_TAB *first= field_tab->first_sj_inner_tab;
+    const JOIN_TAB *last=  field_tab->last_sj_inner_tab;
+
+    while ((item= it++))
+    {
+      if (item->field->table->reginfo.join_tab >= first &&
+          item->field->table->reginfo.join_tab <= last)
+      {
+        return item;
+      }
+    }
+  }
+  else
+  {
+    /*
+      The field is not in a materialized semijoin nest. We can return
+      the first field in the multiple equality.
+
+      Example: suppose we have a join order with MaterializeLookup:
+
+       ot1 ot2  SJM-Lookup(it1  it2)
+
+      Here we should always pick the first field in the multiple equality,
+      as this will be present before all other dependent fields.
+
+      Example: suppose we have a join order with MaterializeScan:
+
+          SJM-Scan(it1  it2)  ot1  ot2
+
+      and equality ot2.col = ot1.col = it2.col.
+
+      When looking for best substitute for 'ot2.col', we can pick it2.col,
+      because when we run the scan, column values from the inner materialized
+      tables will be copied back to the column buffers for it1 and it2.
+    */
+    return fields.head();
+  }
+  DBUG_ASSERT(FALSE);                          // Should never get here.
+  return NULL;
+}

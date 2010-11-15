@@ -4985,6 +4985,24 @@ SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 DROP TABLE t2;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
+--echo #             Assertion `file' failed.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM 
+  (SELECT ROW(
+    (SELECT 1 FROM t1 RIGHT JOIN 
+      (SELECT 1 FROM t1, t1 t2) AS d ON 1),
+    1) FROM t1) AS e;
+
+DROP TABLE t1;
+
+
 --echo End of 5.5 tests.
 
 --echo #
@@ -5123,4 +5141,3 @@ WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
 ;
 
 drop table t1;
-
