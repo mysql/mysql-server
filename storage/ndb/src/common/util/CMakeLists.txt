@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_BINARY_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys
-                    ${ZLIB_INCLUDE_DIR}
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
