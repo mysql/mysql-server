@@ -3416,8 +3416,8 @@ guess_scan_flags(NdbOperation::LockMode lm,
  */
 
 int ha_ndbcluster::full_table_scan(const KEY* key_info, 
-                                   const uchar *key, 
-                                   uint key_len,
+                                   const key_range *start_key,
+                                   const key_range *end_key,
                                    uchar *buf)
 {
   int error;
@@ -3506,7 +3506,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
         my_errno= HA_ERR_OUT_OF_MEM;
         DBUG_RETURN(my_errno);
       }       
-      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, key, key_len, buf))
+      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, start_key, end_key, buf))
         ERR_RETURN(code.getNdbError());
     }
 
@@ -5413,8 +5413,8 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
     }
     else if (type == UNIQUE_INDEX)
       DBUG_RETURN(full_table_scan(key_info, 
-                                  start_key->key, 
-                                  start_key->length, 
+                                  start_key,
+                                  end_key,
                                   buf));
     break;
   default:
@@ -5521,7 +5521,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   if (!m_active_cursor)
-    DBUG_RETURN(full_table_scan(NULL, NULL, 0, buf));
+    DBUG_RETURN(full_table_scan(NULL, NULL, NULL, buf));
   DBUG_RETURN(next_result(buf));
 }
 
@@ -7237,6 +7237,9 @@ static int create_ndb_column(THD *thd,
     col.setAutoIncrement(FALSE);
  
 #ifndef NDB_WITHOUT_COLUMN_FORMAT
+  DBUG_PRINT("info", ("storage: %u  format: %u  ",
+                      field->field_storage_type(),
+                      field->column_format()));
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
   default:
@@ -7481,7 +7484,9 @@ int ha_ndbcluster::create(const char *name,
   NDBDICT *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict);
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
+#endif
   table= form;
   if (create_from_engine)
   {
@@ -7621,11 +7626,8 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s  type: %u  storage: %u  format: %u  "
-                        "pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d",
                         field->field_name, field->real_type(),
-                        field->field_storage_type(),
-                        field->column_format(),
                         field->pack_length()));
     if ((my_errno= create_ndb_column(thd, col, field, create_info)))
       goto abort;
@@ -10932,7 +10934,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   if (have_lock_open)
-    safe_mutex_assert_owner(&LOCK_open);
+    mysql_mutex_assert_owner(&LOCK_open);
   else
     mysql_mutex_lock(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
