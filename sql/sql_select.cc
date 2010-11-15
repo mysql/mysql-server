@@ -7149,7 +7149,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
                                               current_map, FALSE, FALSE);
-          add_cond_and_fix(&tmp_cond, tab->on_precond);
+          if (tab == first_inner_tab && tab->on_precond)
+            add_cond_and_fix(&tmp_cond, tab->on_precond);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
@@ -7657,7 +7658,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   /*
     Non-linked join buffers can't guarantee one match
   */
-  if (force_unlinked_cache &&  
+  if ((force_unlinked_cache || cache_level == 1) &&  
       ((tab->is_inner_table_of_semi_join_with_first_match() &&
         !tab->is_single_inner_of_semi_join_with_first_match()) ||
        (tab->is_inner_table_of_outer_join() &&
@@ -7756,7 +7757,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 	(cache_level <= 6 || no_hashed_cache))
       goto no_join_cache;
 
-    if (prev_tab->cache and cache_level==7)
+    if (prev_tab->cache && cache_level==7)
       cache_level= 6;
     
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL))
