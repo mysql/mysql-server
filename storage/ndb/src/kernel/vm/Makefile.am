@@ -14,11 +14,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#SUBDIRS = testCopy testDataBuffer testSimplePropertiesSection
-#ifneq ($(USE_EDITLINE), N)
-#DIRS += testLongSig
-#endif
-
 noinst_LIBRARIES = libkernel.a libsched.a
 EXTRA_LIBRARIES= libsched_mt.a
 

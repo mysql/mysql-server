@@ -9521,6 +9521,9 @@ static int create_ndb_column(THD *thd,
     col.setAutoIncrement(FALSE);
  
 #ifndef NDB_WITHOUT_COLUMN_FORMAT
+  DBUG_PRINT("info", ("storage: %u  format: %u  ",
+                      field->field_storage_type(),
+                      field->column_format()));
   switch (field->field_storage_type()) {
   case(HA_SM_DEFAULT):
   default:
@@ -9765,7 +9768,9 @@ int ha_ndbcluster::create(const char *name,
   NDBDICT *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict);
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
+#endif
   table= form;
   if (create_from_engine)
   {
@@ -9905,11 +9910,8 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
-    DBUG_PRINT("info", ("name: %s  type: %u  storage: %u  format: %u  "
-                        "pack_length: %d", 
+    DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d",
                         field->field_name, field->real_type(),
-                        field->field_storage_type(),
-                        field->column_format(),
                         field->pack_length()));
     if ((my_errno= create_ndb_column(thd, col, field, create_info)))
       goto abort;
@@ -13229,7 +13231,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   if (have_lock_open)
-    safe_mutex_assert_owner(&LOCK_open);
+    mysql_mutex_assert_owner(&LOCK_open);
   else
     mysql_mutex_lock(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);

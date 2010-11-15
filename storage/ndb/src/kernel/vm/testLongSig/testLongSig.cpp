@@ -19,7 +19,7 @@
 
 #include <ndb_global.h>
 #include <NdbApi.hpp>
-#include <editline/editline.h>
+#include <readline/readline.h>
 #include <../../ndbapi/SignalSender.hpp>
 
 void
