@@ -574,7 +574,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     print_defines();
 
     printf("typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
-    printf("typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val);\n");
+    printf("typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_val);\n");
 
     printf("/* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/\n");
     printf("#ifdef _TOKUDB_WRAP_H\n#undef txn_begin\n#endif\n");
