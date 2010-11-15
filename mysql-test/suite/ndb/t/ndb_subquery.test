@@ -75,4 +75,15 @@ select * from t3 where exists (select * from t4 where c = 1) order by a;
 
 drop table if exists t1, t2, t3, t4;
 
+##########
+# bug#58163
+
+create table t (k int, uq int, unique key ix1 (uq)) engine = ndb;
+insert into t values (1,3), (3,6), (6,9), (9,1);
+
+select * from t where 
+   k in (select uq from t as subq where subq.k>10);
+
+drop table if exists t;
+
 --echo End of 5.1 tests

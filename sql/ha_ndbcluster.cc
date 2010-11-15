@@ -7482,8 +7482,10 @@ int ha_ndbcluster::index_read(uchar *buf,
   default:
     break;
   }
-  DBUG_RETURN(read_range_first_to_buf(&start_key, 0, descending,
-                                      m_sorted, buf));
+  const int error= read_range_first_to_buf(&start_key, 0, descending,
+                                           m_sorted, buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7491,7 +7493,9 @@ int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
   ha_statistic_increment(&SSV::ha_read_next_count);
-  DBUG_RETURN(next_result(buf));
+  const int error= next_result(buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7499,7 +7503,9 @@ int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
   ha_statistic_increment(&SSV::ha_read_prev_count);
-  DBUG_RETURN(next_result(buf));
+  const int error= next_result(buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7510,7 +7516,9 @@ int ha_ndbcluster::index_first(uchar *buf)
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
-  DBUG_RETURN(ordered_index_scan(0, 0, m_sorted, FALSE, buf, NULL));
+  const int error= ordered_index_scan(0, 0, m_sorted, FALSE, buf, NULL);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7518,7 +7526,9 @@ int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
   ha_statistic_increment(&SSV::ha_read_last_count);
-  DBUG_RETURN(ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL));
+  const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7762,12 +7772,16 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   DBUG_ENTER("rnd_next");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
+  int error;
   if (m_active_cursor)
-    DBUG_RETURN(next_result(buf));
+    error= next_result(buf);
   else if (m_active_query)
-    DBUG_RETURN(next_result(buf));
+    error= next_result(buf);
   else
-    DBUG_RETURN(full_table_scan(NULL, NULL, 0, buf));
+    error= full_table_scan(NULL, NULL, 0, buf);
+
+  table->status= error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -7832,6 +7846,7 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
        */
       res= HA_ERR_RECORD_DELETED;
     }
+    table->status= res ? STATUS_NOT_FOUND: 0;
     DBUG_RETURN(res);
   }
 }
