@@ -79,8 +79,11 @@
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS,
-  OPT_LOG_DIR, OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION
+  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS,
+  OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES
+#ifndef MCP_RESULT_FORMAT_VERSION
+  ,OPT_RESULT_FORMAT_VERSION
+#endif
 };
 
 static int record= 0, opt_sleep= -1;
@@ -93,7 +96,9 @@ const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
+#ifndef MCP_RESULT_FORMAT_VERSION
 static int opt_result_format_version;
+#endif
 static int opt_max_connections= DEFAULT_MAX_CONN;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
@@ -297,13 +302,17 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
+#ifndef MCP_RESULT_FORMAT_VERSION
   Q_RESULT_FORMAT_VERSION,
+#endif
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
-  Q_COMMENT_WITH_COMMAND,
-  Q_EMPTY_LINE
+  Q_COMMENT_WITH_COMMAND
+#ifndef MCP_RESULT_FORMAT_VERSION
+  ,Q_EMPTY_LINE
+#endif
 };
 
 
@@ -397,7 +406,9 @@ const char *command_names[]=
   "list_files_append_file",
   "send_shutdown",
   "shutdown_server",
+#ifndef MCP_RESULT_FORMAT_VERSION
   "result_format",
+#endif
   "move_file",
   "remove_files_wildcard",
   "send_eval",
@@ -2231,7 +2242,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   DBUG_VOID_RETURN;
 }
 
-
+#ifndef MCP_RESULT_FORMAT_VERSION
 static void
 set_result_format_version(ulong new_version)
 {
@@ -2284,7 +2295,7 @@ do_result_format_version(struct st_command *command)
   dynstr_free(&ds_version);
   DBUG_VOID_RETURN;
 }
-
+#endif
 
 /*
   Set variable from the result of a field in a query
@@ -2682,9 +2693,6 @@ static int replace(DYNAMIC_STRING *ds_str,
 }
 
 
-/* where to put this declaration in the file? */
-int regex_replace(DYNAMIC_STRING *ds, char *expr);
-
 /*
   Execute given command.
 
@@ -2736,18 +2744,12 @@ void do_exec(struct st_command *command)
 
 #ifdef __WIN__
 #ifndef USE_CYGWIN
-  {
-    char *replaces[]= {
-      /* Replace /dev/null with NUL */
-      "/\\/dev\\/null/NUL/",
-      /* Replace "closed stdout" with non existing output fd */
-      "/>&-/>&4/",
-      0
-    };
-    int i= 0;
-    for(;replaces[i];i++)
-      regex_replace(&ds_cmd, replaces[i]);
-  }
+  /* Replace /dev/null with NUL */
+  while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
+    ;
+  /* Replace "closed stdout" with non existing output fd */
+  while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
+    ;
 #endif
 #endif
 
@@ -4121,7 +4123,11 @@ int do_save_master_pos()
         const char latest_applied_binlog_epoch_str[]=
           "latest_applied_binlog_epoch=";
         if (count)
+#ifndef MCP_BUG58195
           my_sleep(100*1000); /* 100ms */
+#else
+          sleep(1);
+#endif
         if (mysql_query(mysql, query= "show engine ndb status"))
           die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
@@ -4210,8 +4216,12 @@ int do_save_master_pos()
 	count++;
 	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
+#ifndef MCP_BUG58195
         else if (count > 300) /* 30s */
-	{
+#else
+        else if (count > 30)
+#endif
+        {
 	  break;
         }
         mysql_free_result(res);
@@ -5574,7 +5584,10 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-    char c, UNINIT_VAR(last_quote), last_char= 0;
+  char c, UNINIT_VAR(last_quote);
+#ifndef MCP_RESULT_FORMAT_VERSION
+  char last_char= 0;
+#endif
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
@@ -5672,8 +5685,12 @@ int read_line(char *buf, int size)
       }
       else if (my_isspace(charset_info, c))
       {
+#ifdef MCP_RESULT_FORMAT_VERSION
+        /* Skip all space at begining of line */
+#endif
 	if (c == '\n')
         {
+#ifndef MCP_RESULT_FORMAT_VERSION
           if (last_char == '\n')
           {
             /* Two new lines in a row, return empty line */
@@ -5682,14 +5699,15 @@ int read_line(char *buf, int size)
             *p= 0;
             DBUG_RETURN(0);
           }
-
+#endif
           /* Query hasn't started yet */
 	  start_lineno= cur_file->lineno;
           DBUG_PRINT("info", ("Query hasn't started yet, start_lineno: %d",
                               start_lineno));
         }
-
+#ifndef MCP_RESULT_FORMAT_VERSION
         /* Skip all space at begining of line */
+#endif
 	skip_char= 1;
       }
       else if (end_of_query(c))
@@ -5730,8 +5748,9 @@ int read_line(char *buf, int size)
 
     }
 
+#ifndef MCP_RESULT_FORMAT_VERSION
     last_char= c;
-
+#endif
     if (!skip_char)
     {
       /* Could be a multibyte character */
@@ -5941,10 +5960,12 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(1);
   }
 
+#ifndef MCP_RESULT_FORMAT_VERSION
   if (opt_result_format_version == 1)
+#endif
     convert_to_format_v1(read_command_buf);
 
-  DBUG_PRINT("info", ("query: '%s'", read_command_buf));
+  DBUG_PRINT("info", ("query: %s", read_command_buf));
   if (*p == '#')
   {
     command->type= Q_COMMENT;
@@ -5954,10 +5975,12 @@ int read_command(struct st_command** command_ptr)
     command->type= Q_COMMENT_WITH_COMMAND;
     p+= 2; /* Skip past -- */
   }
+#ifndef MCP_RESULT_FORMAT_VERSION
   else if (*p == '\n')
   {
     command->type= Q_EMPTY_LINE;
   }
+#endif
 
   /* Skip leading spaces */
   while (*p && my_isspace(charset_info, *p))
@@ -6058,11 +6081,13 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/store result from/in this file.",
    &result_file_name, &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_RESULT_FORMAT_VERSION
   {"result-format-version", OPT_RESULT_FORMAT_VERSION,
    "Version of the result file format to use",
    (uchar**) &opt_result_format_version,
    (uchar**) &opt_result_format_version, 0,
    GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
+#endif 
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
@@ -6267,9 +6292,11 @@ get_one_option(int optid, const struct my_option *opt,
     sf_malloc_quick=1;
 #endif
     break;
+#ifndef MCP_RESULT_FORMAT_VERSION
   case OPT_RESULT_FORMAT_VERSION:
     set_result_format_version(opt_result_format_version);
     break;
+#endif
   case 'V':
     print_version();
     exit(0);
@@ -8177,7 +8204,9 @@ int main(int argc, char **argv)
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
+#ifndef MCP_RESULT_FORMAT_VERSION
       case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
+#endif
       case Q_DELIMITER:
         do_delimiter(command);
 	break;
@@ -8302,7 +8331,10 @@ int main(int argc, char **argv)
 	do_sync_with_master2(command, 0);
 	break;
       }
-      case Q_COMMENT:
+#ifdef MCP_RESULT_FORMAT_VERSION
+      case Q_COMMENT:				/* Ignore row */
+        command->last_argument= command->end;
+#else
       {
         const char* p= command->query;
         command->last_argument= command->end;
@@ -8333,6 +8365,7 @@ int main(int argc, char **argv)
           break;
 
         dynstr_append(&ds_res, "\n");
+#endif
         break;
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
@@ -9014,31 +9047,15 @@ void do_get_replace_regex(struct st_command *command)
   command->last_argument= command->end;
 }
 
-/* where to put these functions in the file? */
-void free_regex(struct st_replace_regex* r)
-{
-  delete_dynamic(&r->regex_arr);
-  my_free(r->even_buf,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(r->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
-  my_free(r,MYF(0));
-}
-
-/* where to put these functions in the file? */
-int regex_replace(DYNAMIC_STRING *ds, char *expr)
-{
-  struct st_replace_regex* r= init_replace_regex(expr);
-  int rv= multi_reg_replace(r, ds->str);
-  dynstr_set(ds, r->buf);
-  free_regex(r);
-  return rv;
-}
-
 void free_replace_regex()
 {
   if (glob_replace_regex)
   {
-    free_regex(glob_replace_regex);
-    glob_replace_regex= 0;
+    delete_dynamic(&glob_replace_regex->regex_arr);
+    my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
+    my_free(glob_replace_regex,MYF(0));
+    glob_replace_regex=0;
   }
 }
 
