@@ -24,4 +24,4 @@ ADD_LIBRARY(ndbtrace STATIC
             BlockNames.cpp
             EventLogger.cpp)
 
-TARGET_LINK_LIBRARIES(ndbtrace ndbgeneral)
+TARGET_LINK_LIBRARIES(ndbtrace ndblogger ndberror ndbgeneral)

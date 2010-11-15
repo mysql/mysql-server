@@ -989,8 +989,7 @@ NdbTransaction::doSend()
           query == lastLookupQuery && theFirstExecOpInList == NULL;
         const int tReturnCode = query->doSend(theDBnode, lastFlag);
         if (tReturnCode == -1) {
-          theReturnStatus = ReturnFailure;
-          break;
+          goto fail;
         }
         last = query;
         query = query->getNext();
@@ -1008,9 +1007,8 @@ NdbTransaction::doSend()
       const Uint32 lastFlag = ((tNext == NULL) ? 1 : 0);
       const int tReturnCode = tOp->doSend(theDBnode, lastFlag);
       if (tReturnCode == -1) {
-        theReturnStatus = ReturnFailure;
-        break;
-      }
+        goto fail;
+      }//if
       tOp = tNext;
     }
 
@@ -1052,10 +1050,12 @@ NdbTransaction::doSend()
     abort();
     break;
   }//switch
-  setOperationErrorCodeAbort(4002);
+
   theReleaseOnClose = true;
   theTransactionIsStarted = false;
   theCommitStatus = Aborted;
+fail:
+  setOperationErrorCodeAbort(4002);
   DBUG_RETURN(-1);
 }//NdbTransaction::doSend()
 

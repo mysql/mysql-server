@@ -2322,9 +2322,12 @@ SimulatedBlock::assembleFragments(Signal * signal){
       signal->header.m_fragmentInfo = 3;
 
 
+      /**
+       * NOTE: Don't use EXECUTE_DIRECT as it 
+       *       sets sendersBlockRef to reference()
+       */
       /* Perform dropped signal handling, in this thread, now */
-      EXECUTE_DIRECT(theNumber, GSN_SIGNAL_DROPPED_REP, 
-                     signal, signal->header.theLength);
+      executeFunction(GSN_SIGNAL_DROPPED_REP, signal);
       
       /* return false to caller - they should not process the signal */
       return false;

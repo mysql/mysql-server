@@ -16,14 +16,30 @@
 INCLUDE_DIRECTORIES(
   ${NDB_SOURCE_DIR}/src/mgmapi
   ${NDB_SOURCE_DIR}/src/ndbapi
-  ${NDB_SOURCE_DIR}/src/mgmclient
-  ${READLINE_INCLUDE_DIR})
+  ${NDB_SOURCE_DIR}/src/mgmclient)
 
 ADD_LIBRARY(ndbconf
                Config.cpp
                ConfigInfo.cpp
                InitConfigFileParser.cpp
 )
+TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
+
+# Define MYSQLCLUSTERDIR, the default location
+# of ndb_mgmd config files
+IF(NOT DEFINED DEFAULT_MYSQL_HOME)
+  # MySQL does not define DEFAULT_MYSQL_HOME in pre 5.5 version, fall
+  # back to our old defaults and be backwards compatible
+  IF(WIN32)
+    SET(DEFAULT_MYSQL_HOME "C:/mysql" )
+  ELSE()
+    SET(DEFAULT_MYSQL_HOME ${CMAKE_INSTALL_PREFIX})
+  ENDIF()
+ENDIF()
+SET(clusterdir ${DEFAULT_MYSQL_HOME}/mysql-cluster)
+ADD_DEFINITIONS(-DMYSQLCLUSTERDIR=\"${clusterdir}\")
+MESSAGE(STATUS "Using MYSQLCLUSTERDIR: '${clusterdir}'")
+
 
 IF(WIN32)
   # Add the rseource files for logging to event log

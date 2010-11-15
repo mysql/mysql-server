@@ -16,11 +16,6 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-MYSQLDATAdir =		$(localstatedir)
-MYSQLSHAREdir =		$(pkgdatadir)
-MYSQLBASEdir=		$(prefix)
-MYSQLCLUSTERdir=        $(prefix)/mysql-cluster
-
 ndbbin_PROGRAMS = ndb_mgmd
 
 ndb_mgmd_SOURCES = \
@@ -55,10 +50,9 @@ LDADD_LOC = $(top_builddir)/storage/ndb/src/mgmclient/CommandInterpreter.lo \
             @NDB_SCI_LIBS@ \
 	    @TERMCAP_LIB@
 
-DEFS_LOC =		-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DMYSQLCLUSTERDIR="\"$(MYSQLCLUSTERdir)\""
+# Define MYSQLCLUSTERDIR, the default location
+# of ndb_mgmd config files
+DEFS_LOC = -DMYSQLCLUSTERDIR="\"$(prefix)/mysql-cluster\""
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am

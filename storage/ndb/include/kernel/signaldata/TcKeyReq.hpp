@@ -20,6 +20,7 @@
 #define TC_KEY_REQ_H
 
 #include "SignalData.hpp"
+#include <transporter/TransporterDefinitions.hpp>
 
 /**
  * @class TcKeyReq
@@ -75,7 +76,8 @@ public:
   STATIC_CONST( SignalLength = 25 );
   STATIC_CONST( MaxKeyInfo = 8 );
   STATIC_CONST( MaxAttrInfo = 5 );
-  STATIC_CONST( MaxTotalAttrInfo = 0xFFFF );
+  STATIC_CONST( MaxTotalAttrInfo = ((MAX_SEND_MESSAGE_BYTESIZE / 4) - 
+                                    SignalLength ));
 
   /**
    * Long signal variant of TCKEYREQ

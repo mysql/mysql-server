@@ -20,6 +20,14 @@
 
 #ifdef HAVE_SUN_PREFETCH_H
 #include <sun_prefetch.h>
+#if (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
+    || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+/* Universal sun_prefetch* macros available with Sun Studio 5.9 */
+#define USE_SUN_PREFETCH
+#elif defined(__sparc)
+/* Use sparc_prefetch* macros with older Sun Studio on sparc */
+#define USE_SPARC_PREFETCH
+#endif
 #endif
 
 #ifdef HAVE_SUN_PREFETCH_H
@@ -31,7 +39,9 @@ void NDB_PREFETCH_READ(void* addr)
 {
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
   __builtin_prefetch(addr, 0, 3);
-#elif defined(HAVE_SUN_PREFETCH_H)
+#elif defined(USE_SUN_PREFETCH)
+  sun_prefetch_read_once(addr);
+#elif defined(USE_SPARC_PREFETCH)
   sparc_prefetch_read_once(addr);
 #else
   (void)addr;
@@ -43,8 +53,10 @@ void NDB_PREFETCH_WRITE(void* addr)
 {
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10)
   __builtin_prefetch(addr, 1, 3);
-#elif defined(HAVE_SUN_PREFETCH_H)
-  sparc_prefetch_write_once(addr);
+#elif defined(USE_SUN_PREFETCH)
+  sun_prefetch_write_once(addr);
+#elif defined(USE_SPARC_PREFETCH)
+  sun_prefetch_write_once(addr);
 #else
   (void)addr;
 #endif

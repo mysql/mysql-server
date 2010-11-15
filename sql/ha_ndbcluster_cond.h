@@ -143,7 +143,7 @@ public:
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
   {
     NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
-    qualification.field_type= field->type();
+    qualification.field_type= field->real_type();
     field_value->field= field;
     field_value->column_no= column_no;
     value.field_value= field_value;
@@ -661,8 +661,8 @@ public:
   int generate_scan_filter_from_key(NdbInterpretedCode* code,
                                     NdbScanOperation::ScanOptions* options,
                                     const KEY* key_info, 
-                                    const uchar *key, 
-                                    uint key_len,
+                                    const key_range *start_key,
+                                    const key_range *end_key,
                                     uchar *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,

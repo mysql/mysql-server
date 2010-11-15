@@ -55,12 +55,12 @@ ENDIF()
 
 ADD_EXECUTABLE(ndbd
   main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
-TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched)
+TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched ${LIBDL})
 INSTALL(TARGETS ndbd DESTINATION libexec)
 
 IF(NDB_BUILD_NDBMTD)
   ADD_EXECUTABLE(ndbmtd
     main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
-  TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt)
+  TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})
   INSTALL(TARGETS ndbmtd DESTINATION libexec)
 ENDIF()

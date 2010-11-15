@@ -727,8 +727,8 @@ private:
   int unique_index_read(const uchar *key, uint key_len, 
                         uchar *buf);
   int full_table_scan(const KEY* key_info, 
-                      const uchar *key, 
-                      uint key_len,
+                      const key_range *start_key,
+                      const key_range *end_key,
                       uchar *buf);
   int flush_bulk_insert(bool allow_batch= FALSE);
   int ndb_write_row(uchar *record, bool primary_key_update,

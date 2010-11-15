@@ -46,7 +46,6 @@
 #define NDB_WIN 1
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
-#define MYSQLCLUSTERDIR "c:\\mysql\\mysql-cluster"
 #define HAVE_STRCASECMP
 #pragma warning(disable: 4503 4786)
 #else
