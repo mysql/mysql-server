@@ -2064,7 +2064,9 @@ bool multi_update::send_eof()
      Does updates for the last n - 1 tables, returns 0 if ok;
      error takes into account killed status gained in do_updates()
   */
-  int local_error = (table_count) ? do_updates() : 0;
+  int local_error= thd->is_error();
+  if (!local_error)
+    local_error = (table_count) ? do_updates() : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.
