@@ -58,6 +58,6 @@ noinst_HEADERS = \
 ndb_global.h \
 ndb_net.h
 
-EXTRA_DIST = debugger editline kernel logger mgmcommon \
+EXTRA_DIST = debugger kernel logger mgmcommon \
 portlib transporter util CMakeLists.txt ndb_config.h.in
 
