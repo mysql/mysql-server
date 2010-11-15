@@ -46,7 +46,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                   SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
   bool          will_batch;

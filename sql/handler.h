@@ -29,6 +29,7 @@
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
+#include <my_global.h>
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
@@ -118,7 +119,6 @@
 #define HA_FILE_BASED	       (1 << 26)
 #define HA_NO_VARCHAR	       (1 << 27)
 #define HA_CAN_BIT_FIELD       (1 << 28) /* supports bit fields */
-#define HA_NEED_READ_RANGE_BUFFER (1 << 29) /* for read_multi_range */
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
@@ -160,6 +160,7 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -167,6 +168,14 @@
 #define HA_READ_RANGE           8       /* can find all records in a range */
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
+/*
+  Index scan will not return records in rowid order. Not guaranteed to be
+  set for unordered (e.g. HASH) indexes.
+*/
+#define HA_KEY_SCAN_NOT_ROR     128 
+#define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
+
+
 
 /*
   bits in alter_table_flags:
@@ -220,12 +229,6 @@
 #define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
 #define HA_FAST_CHANGE_PARTITION                (1L << 13)
 #define HA_PARTITION_ONE_PHASE                  (1L << 14)
-
-/*
-  Index scan will not return records in rowid order. Not guaranteed to be
-  set for unordered (e.g. HASH) indexes.
-*/
-#define HA_KEY_SCAN_NOT_ROR     128 
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -802,6 +805,19 @@ struct handlerton
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
+/*
+  This flag should be set when deciding that the engine does not allow row based
+  binary logging (RBL) optimizations.
+
+  Currently, setting this flag, means that table's read/write_set will be left 
+  untouched when logging changes to tables in this engine. In practice this 
+  means that the server will not mess around with table->write_set and/or 
+  table->read_set when using RBL and deciding whether to log full or minimal rows.
+
+  It's valuable for instance for virtual tables, eg: Performance Schema which have
+  no meaning for replication.
+*/
+#define HTON_NO_BINLOG_ROW_OPT       (1 << 9)
 
 class Ha_trx_info;
 
@@ -1070,9 +1086,6 @@ typedef struct st_savepoint SAVEPOINT;
 extern ulong savepoint_alloc_size;
 extern KEY_CREATE_INFO default_key_create_info;
 
-/* Forward declaration for condition pushdown to storage engine */
-typedef class Item COND;
-
 typedef struct st_ha_check_opt
 {
   st_ha_check_opt() {}                        /* Remove gcc warning */
@@ -1093,12 +1106,193 @@ typedef struct st_ha_check_opt
 
 typedef struct st_handler_buffer
 {
-  const uchar *buffer;         /* Buffer one can start using */
-  const uchar *buffer_end;     /* End of buffer */
+  uchar *buffer;         /* Buffer one can start using */
+  uchar *buffer_end;     /* End of buffer */
   uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
 typedef struct system_status_var SSV;
+
+
+typedef void *range_seq_t;
+
+typedef struct st_range_seq_if
+{
+  /*
+    Initialize the traversal of range sequence
+    
+    SYNOPSIS
+      init()
+        init_params  The seq_init_param parameter 
+        n_ranges     The number of ranges obtained 
+        flags        A combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
+
+    RETURN
+      An opaque value to be used as RANGE_SEQ_IF::next() parameter
+  */
+  range_seq_t (*init)(void *init_params, uint n_ranges, uint flags);
+
+
+  /*
+    Get the next range in the range sequence
+
+    SYNOPSIS
+      next()
+        seq    The value returned by RANGE_SEQ_IF::init()
+        range  OUT Information about the next range
+    
+    RETURN
+      0 - Ok, the range structure filled with info about the next range
+      1 - No more ranges
+  */
+  uint (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+
+  /*
+    Check whether range_info orders to skip the next record
+
+    SYNOPSIS
+      skip_record()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range 
+                    (Ignored if MRR_NO_ASSOCIATION is set)
+        rowid       Rowid of the record to be checked (ignored if set to 0)
+    
+    RETURN
+      1 - Record with this range_info and/or this rowid shall be filtered
+          out from the stream of records returned by multi_range_read_next()
+      0 - The record shall be left in the stream
+  */ 
+  bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
+
+  /*
+    Check if the record combination matches the index condition
+    SYNOPSIS
+      skip_index_tuple()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range 
+    
+    RETURN
+      0 - The record combination satisfies the index condition
+      1 - Otherwise
+  */ 
+  bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
+} RANGE_SEQ_IF;
+
+uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx);
+char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx);
+
+class COST_VECT
+{ 
+public:
+  double io_count;     /* number of I/O                 */
+  double avg_io_cost;  /* cost of an average I/O oper.  */
+  double cpu_cost;     /* cost of operations in CPU     */
+  double mem_cost;     /* cost of used memory           */ 
+  double import_cost;  /* cost of remote operations     */
+  
+  enum { IO_COEFF=1 };
+  enum { CPU_COEFF=1 };
+  enum { MEM_COEFF=1 };
+  enum { IMPORT_COEFF=1 };
+
+  COST_VECT() { zero(); }                              // keep gcc happy
+
+  double total_cost() 
+  {
+    return IO_COEFF*io_count*avg_io_cost + CPU_COEFF * cpu_cost +
+           MEM_COEFF*mem_cost + IMPORT_COEFF*import_cost;
+  }
+
+  void zero()
+  {
+    avg_io_cost= 1.0;
+    io_count= cpu_cost= mem_cost= import_cost= 0.0;
+  }
+
+  void multiply(double m)
+  {
+    io_count *= m;
+    cpu_cost *= m;
+    import_cost *= m;
+    /* Don't multiply mem_cost */
+  }
+
+  void add(const COST_VECT* cost)
+  {
+    double io_count_sum= io_count + cost->io_count;
+    add_io(cost->io_count, cost->avg_io_cost);
+    io_count= io_count_sum;
+    cpu_cost += cost->cpu_cost;
+  }
+  void add_io(double add_io_cnt, double add_avg_cost)
+  {
+    double io_count_sum= io_count + add_io_cnt;
+    if (io_count_sum != 0.0)
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+    DBUG_ASSERT(!isnan(avg_io_cost));
+    io_count= io_count_sum;
+  }
+
+  /*
+    To be used when we go from old single value-based cost calculations to
+    the new COST_VECT-based.
+  */
+  void convert_from_cost(double cost)
+  {
+    zero();
+    avg_io_cost= 1.0;
+    io_count= cost;
+  }
+};
+
+void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
+                         COST_VECT *cost);
+
+/*
+  The below two are not used (and not handled) in this milestone of this WL
+  entry because there seems to be no use for them at this stage of
+  implementation.
+*/
+#define HA_MRR_SINGLE_POINT 1
+#define HA_MRR_FIXED_KEY  2
+
+/* 
+  Indicates that RANGE_SEQ_IF::next(&range) doesn't need to fill in the
+  'range' parameter.
+*/
+#define HA_MRR_NO_ASSOCIATION 4
+
+/* 
+  The MRR user will provide ranges in key order, and MRR implementation
+  must return rows in key order.
+*/
+#define HA_MRR_SORTED 8
+
+/* MRR implementation doesn't have to retrieve full records */
+#define HA_MRR_INDEX_ONLY 16
+
+/* 
+  The passed memory buffer is of maximum possible size, the caller can't
+  assume larger buffer.
+*/
+#define HA_MRR_LIMITS 32
+
+
+/*
+  Flag set <=> default MRR implementation is used
+  (The choice is made by **_info[_const]() function which may set this
+   flag. SQL layer remembers the flag value and then passes it to
+   multi_read_range_init().
+*/
+#define HA_MRR_USE_DEFAULT_IMPL 64
+
+/*
+  Used only as parameter to multi_range_read_info():
+  Flag set <=> the caller guarantees that the bounds of the scanned ranges
+  will not have NULL values.
+*/
+#define HA_MRR_NO_NULL_ENDPOINTS 128
 
 class ha_statistics
 {
@@ -1124,6 +1318,11 @@ public:
   ulong check_time;
   ulong update_time;
   uint block_size;			/* index block size */
+  
+  /*
+    number of buffer bytes that native mrr implementation needs,
+  */
+  uint mrr_length_per_rec; 
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
@@ -1149,6 +1348,48 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
   changing virtual functions to avoid vtable confusion
+
+  Functions in this class accept and return table columns data. Two data
+  representation formats are used:
+  1. TableRecordFormat - Used to pass [partial] table records to/from
+     storage engine
+
+  2. KeyTupleFormat - used to pass index search tuples (aka "keys") to
+     storage engine. See opt_range.cc for description of this format.
+
+  TableRecordFormat
+  =================
+  [Warning: this description is work in progress and may be incomplete]
+  The table record is stored in a fixed-size buffer:
+   
+    record: null_bytes, column1_data, column2_data, ...
+  
+  The offsets of the parts of the buffer are also fixed: every column has 
+  an offset to its column{i}_data, and if it is nullable it also has its own
+  bit in null_bytes. 
+
+  The record buffer only includes data about columns that are marked in the
+  relevant column set (table->read_set and/or table->write_set, depending on
+  the situation). 
+  <not-sure>It could be that it is required that null bits of non-present
+  columns are set to 1</not-sure>
+
+  VARIOUS EXCEPTIONS AND SPECIAL CASES
+
+  f the table has no nullable columns, then null_bytes is still 
+  present, its length is one byte <not-sure> which must be set to 0xFF 
+  at all times. </not-sure>
+  
+  If the table has columns of type BIT, then certain bits from those columns
+  may be stored in null_bytes as well. Grep around for Field_bit for
+  details.
+
+  For blob columns (see Field_blob), the record buffer stores length of the 
+  data, following by memory pointer to the blob data. The pointer is owned 
+  by the storage engine and is valid until the next operation.
+
+  If a blob column has NULL value, then its length and blob data pointer
+  must be set to 0.
 */
 
 class handler :public Sql_alloc
@@ -1156,8 +1397,8 @@ class handler :public Sql_alloc
 public:
   typedef ulonglong Table_flags;
 protected:
-  TABLE_SHARE *table_share;   /* The table definition */
-  TABLE *table;               /* The current open table */
+  TABLE_SHARE *table_share;             /* The table definition */
+  TABLE *table;                         /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
@@ -1167,18 +1408,30 @@ public:
   uchar *dup_ref;			/* Pointer to duplicate row */
 
   ha_statistics stats;
-
-  /** The following are for read_multi_range */
-  bool multi_range_sorted;
-  KEY_MULTI_RANGE *multi_range_curr;
-  KEY_MULTI_RANGE *multi_range_end;
-  HANDLER_BUFFER *multi_range_buffer;
-
+  
+  /* MultiRangeRead-related members: */
+  range_seq_t mrr_iter;    /* Interator to traverse the range sequence */
+  RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
+  HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
+  uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
+  /* TRUE <=> source MRR ranges and the output are ordered */
+  bool mrr_is_output_sorted;
+  
+  /* TRUE <=> we're currently traversing a range in mrr_cur_range. */
+  bool mrr_have_range;
+  /* Current range (the one we're now returning rows from) */
+  KEY_MULTI_RANGE mrr_cur_range;
+  
   /** The following are for read_range() */
   key_range save_end_range, *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  /* 
+    TRUE <=> the engine guarantees that returned records are within the range
+    being scanned.
+  */
+  bool in_range_check_pushed_down;
 
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
@@ -1189,7 +1442,11 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
-  const COND *pushed_cond;
+  const Item *pushed_cond;
+
+  Item *pushed_idx_cond;
+  uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
+
   /**
     next_insert_id is the next value which should be inserted into the
     auto_increment column: in a inserting-multi-row statement (like INSERT
@@ -1234,16 +1491,29 @@ public:
   */
   PSI_table *m_psi;
 
+private:
+  friend class DsMrr_impl;
+  /**
+    The lock type set by when calling::ha_external_lock(). This is 
+    propagated down to the storage engine. The reason for also storing 
+    it here, is that when doing MRR we need to create/clone a second handler
+    object. This cloned handler object needs to know about the lock_type used.
+  */
+  int m_lock_type;
+
+public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
+    ref(0), in_range_check_pushed_down(FALSE),
+    key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
-    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
+    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL)
+    m_psi(NULL), m_lock_type(F_UNLCK)
     {}
   virtual ~handler(void)
   {
@@ -1267,6 +1537,7 @@ public:
     DBUG_ASSERT(inited==NONE);
     if (!(result= index_init(idx, sorted)))
       inited=INDEX;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_index_end()
@@ -1274,6 +1545,7 @@ public:
     DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(index_end());
   }
   int ha_rnd_init(bool scan)
@@ -1385,6 +1657,7 @@ public:
     table= table_arg;
     table_share= share;
   }
+  /* Estimates calculation */
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
 
@@ -1402,6 +1675,21 @@ public:
 */
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
+
+  virtual double index_only_read_time(uint keynr, double records);
+  
+  virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                              void *seq_init_param, 
+                                              uint n_ranges, uint *bufsz,
+                                              uint *flags, COST_VECT *cost);
+  virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                        uint *bufsz, uint *flags, COST_VECT *cost);
+  virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                                    uint n_ranges, uint mode,
+                                    HANDLER_BUFFER *buf);
+  virtual int multi_range_read_next(char **range_info);
+
+
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
@@ -1546,15 +1834,12 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
-  virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                                     KEY_MULTI_RANGE *ranges, uint range_count,
-                                     bool sorted, HANDLER_BUFFER *buffer);
-  virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
   int compare_key(key_range *range);
+  int compare_key2(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
@@ -1877,13 +2162,41 @@ public:
    Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
    condition stack.
  */ 
- virtual const COND *cond_push(const COND *cond) { return cond; };
+ virtual const Item *cond_push(const Item *cond) { return cond; };
  /**
    Pop the top condition from the condition stack of the handler instance.
 
    Pops the top if condition stack, if stack is not empty.
  */
- virtual void cond_pop() { return; };
+ virtual void cond_pop() { return; }
+
+ /**
+   Push down an index condition to the handler.
+
+   The server will use this method to push down a condition it wants
+   the handler to evaluate when retrieving records using a specified
+   index. The pushed index condition will only refer to fields from
+   this handler that is contained in the index (but it may also refer
+   to fields in other handlers). Before the handler evaluates the
+   condition it must read the content of the index entry into the 
+   record buffer.
+
+   The handler is free to decide if and how much of the condition it
+   will take responsibility for evaluating. Based on this evaluation
+   it should return the part of the condition it will not evaluate.
+   If it decides to evaluate the entire condition it should return
+   NULL. If it decides not to evaluate any part of the condition it
+   should return a pointer to the same condition as given as argument.
+
+   @param keyno    the index number to evaluate the condition on
+   @param idx_cond the condition to be evaluated by the handler
+
+   @return The part of the pushed condition that the handler decides
+           not to evaluate
+  */
+
+ virtual Item *idx_cond_push(uint keyno, Item* idx_cond) { return idx_cond; }
+
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
@@ -1930,7 +2243,6 @@ protected:
 private:
   /* Private helpers */
   inline void mark_trx_read_write();
-private:
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use
@@ -2107,6 +2419,72 @@ public:
 };
 
 
+bool key_uses_partial_cols(TABLE *table, uint keyno);
+
+/*
+  A Disk-Sweep MRR interface implementation
+
+  This implementation makes range (and, in the future, 'ref') scans to read
+  table rows in disk sweeps. 
+  
+  Currently it is used by MyISAM and InnoDB. Potentially it can be used with
+  any table handler that has non-clustered indexes and on-disk rows.
+*/
+
+class DsMrr_impl
+{
+public:
+  typedef void (handler::*range_check_toggle_func_t)(bool on);
+
+  DsMrr_impl()
+    : h2(NULL) {};
+  
+  /*
+    The "owner" handler object (the one that calls dsmrr_XXX functions.
+    It is used to retrieve full table rows by calling rnd_pos().
+  */
+  handler *h;
+  TABLE *table; /* Always equal to h->table */
+private:
+  /* Secondary handler object.  It is used for scanning the index */
+  handler *h2;
+
+  /* Buffer to store rowids, or (rowid, range_id) pairs */
+  uchar *rowids_buf;
+  uchar *rowids_buf_cur;   /* Current position when reading/writing */
+  uchar *rowids_buf_last;  /* When reading: end of used buffer space */
+  uchar *rowids_buf_end;   /* End of the buffer */
+
+  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
+
+  /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
+  bool is_mrr_assoc;
+
+  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+public:
+  void init(handler *h_arg, TABLE *table_arg)
+  {
+    h= h_arg; 
+    table= table_arg;
+  }
+  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+                 uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  void dsmrr_close();
+  int dsmrr_fill_buffer();
+  int dsmrr_next(char **range_info);
+
+  ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint *bufsz,
+                     uint *flags, COST_VECT *cost);
+
+  ha_rows dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq, 
+                            void *seq_init_param, uint n_ranges, uint *bufsz,
+                            uint *flags, COST_VECT *cost);
+private:
+  bool choose_mrr_impl(uint keyno, ha_rows rows, uint *flags, uint *bufsz, 
+                       COST_VECT *cost);
+  bool get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags, 
+                               uint *buffer_size, COST_VECT *cost);
+};
 	/* Some extern variables used with handlers */
 
 extern const char *ha_row_type[];

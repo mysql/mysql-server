@@ -1501,7 +1501,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     in this case to be sure.
   */
 
-  if (check_db_name(&new_db_file_name))
+  if (check_and_convert_db_name(&new_db_file_name, FALSE))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
     my_free(new_db_file_name.str);

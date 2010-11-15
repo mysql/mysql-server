@@ -24,6 +24,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_column_types.h
   pfs_column_values.h
+  pfs_defaults.h
   pfs_events_waits.h
   pfs_global.h
   pfs.h
@@ -32,6 +33,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_lock.h
   pfs_atomic.h
   pfs_server.h
+  pfs_setup_actor.h
   pfs_stat.h
   pfs_engine_table.h
   pfs_timer.h
@@ -43,6 +45,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_file_summary.h
   table_helper.h
   table_performance_timers.h
+  table_setup_actors.h
   table_setup_consumers.h
   table_setup_instruments.h
   table_setup_timers.h
@@ -51,11 +54,13 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   ha_perfschema.cc
   pfs.cc
   pfs_column_values.cc
+  pfs_defaults.cc
   pfs_events_waits.cc
   pfs_global.cc
   pfs_instr.cc
   pfs_instr_class.cc
   pfs_server.cc
+  pfs_setup_actor.cc
   pfs_engine_table.cc
   pfs_timer.cc
   table_all_instr.cc
@@ -65,6 +70,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_file_instances.cc
   table_file_summary.cc
   table_performance_timers.cc
+  table_setup_actors.cc
   table_setup_consumers.cc
   table_setup_instruments.cc
   table_setup_timers.cc

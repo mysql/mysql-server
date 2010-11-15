@@ -932,13 +932,13 @@ select * from t1 where f1 = 10;
 f1	f2
 10	1
 drop table t1;
-set session storage_engine= 'memory';
+set session default_storage_engine= 'memory';
 create table t1 (f_int1 int(11) default null) engine = memory
 partition by range (f_int1) subpartition by hash (f_int1)
 (partition part1 values less than (1000)
 (subpartition subpart11 engine = memory));
 drop table t1;
-set session storage_engine='myisam';
+set session default_storage_engine='myisam';
 create table t1 (f_int1 integer, f_int2 integer, primary key (f_int1))
 partition by hash(f_int1) partitions 2;
 insert into t1 values (1,1),(2,2);
@@ -1761,8 +1761,7 @@ WHERE t1.id IN (
 SELECT distinct id
 FROM t4
 WHERE taken BETWEEN @f_date AND date_add(@t_date, INTERVAL 1 DAY))
-ORDER BY t1.id
-;
+ORDER BY t1.id;
 MyISAM_part
 16421
 19092
@@ -1783,7 +1782,7 @@ INSERT INTO t1 VALUES
 ('2006-09-29 21:50:01',22589,'Verified');
 DROP TABLE IF EXISTS t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (
 id int(8) NOT NULL,
 severity tinyint(4) NOT NULL DEFAULT '0',

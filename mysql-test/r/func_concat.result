@@ -118,7 +118,7 @@ EXPLAIN SELECT CONCAT('gui_', t2.a), t1.d FROM t2
 LEFT JOIN t1 ON t1.a = CONCAT('gui_', t2.a) AND t1.b = 'a' AND t1.c = 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	102	NULL	3	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	
+1	SIMPLE	t1	eq_ref	PRIMARY,a	PRIMARY	318	func,const,const	1	Using where
 DROP TABLE t1, t2;
 #
 # Bug #50096: CONCAT_WS inside procedure returning wrong data

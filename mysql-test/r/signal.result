@@ -1555,7 +1555,7 @@ end $$
 call test_resignal() $$
 before RESIGNAL
 before RESIGNAL
-ERROR 42S02: Unknown table 'no_such_table'
+ERROR 42S02: Unknown table 'test.no_such_table'
 drop procedure test_resignal $$
 create procedure test_resignal()
 begin
@@ -2052,7 +2052,7 @@ before RESIGNAL
 after RESIGNAL
 after RESIGNAL
 Warnings:
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Warning	5555	RESIGNAL to a warning
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -2073,7 +2073,7 @@ before RESIGNAL
 ERROR 02444: RESIGNAL to a not found
 show warnings $$
 Level	Code	Message
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Error	5555	RESIGNAL to a not found
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -2094,7 +2094,7 @@ before RESIGNAL
 ERROR 44444: RESIGNAL to an error
 show warnings $$
 Level	Code	Message
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Error	5555	RESIGNAL to an error
 drop procedure test_resignal $$
 #

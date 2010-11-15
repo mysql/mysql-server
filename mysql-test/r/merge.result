@@ -1,5 +1,5 @@
-set global storage_engine=myisam;
-set session storage_engine=myisam;
+set global default_storage_engine=myisam;
+set session default_storage_engine=myisam;
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
 create table t1 (a int not null primary key auto_increment, message char(20));

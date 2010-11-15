@@ -74,11 +74,12 @@ table_events_waits_summary_by_thread_by_event_name::m_field_def=
 PFS_engine_table_share
 table_events_waits_summary_by_thread_by_event_name::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME") },
+  { C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name") },
   &pfs_truncatable_acl,
   &table_events_waits_summary_by_thread_by_event_name::create,
   NULL, /* write_row */
   &table_events_waits_summary_by_thread_by_event_name::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_summary_by_thread_by_event_name),
   &m_table_lock,
@@ -386,11 +387,12 @@ table_events_waits_summary_by_instance::m_field_def=
 PFS_engine_table_share
 table_events_waits_summary_by_instance::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_SUMMARY_BY_INSTANCE") },
+  { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
   &pfs_truncatable_acl,
   &table_events_waits_summary_by_instance::create,
   NULL, /* write_row */
   &table_events_waits_summary_by_instance::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_all_instr),
   &m_table_lock,

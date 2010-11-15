@@ -27,6 +27,7 @@ Smart ALTER TABLE
 #include <mysql/innodb_priv.h>
 
 extern "C" {
+#include "dict0stats.h"
 #include "log0log.h"
 #include "row0merge.h"
 #include "srv0srv.h"
@@ -710,12 +711,12 @@ ha_innobase::add_index(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
 
@@ -871,8 +872,7 @@ ha_innobase::add_index(
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
-	ut_a(trx->n_active_thrs == 0);
-	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	ut_a(trx->lock.n_active_thrs == 0);
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
@@ -1257,12 +1257,12 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */
@@ -1273,6 +1273,36 @@ ha_innobase::final_drop_index(
 	err = convert_error_code_to_mysql(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		prebuilt->table->flags, user_thd);
+
+	/* Delete corresponding rows from the stats table.
+	Marko advises not to edit both user tables and SYS_* tables in one
+	trx, thus we use prebuilt->trx instead of trx. Because of this the
+	drop from SYS_* and from the stats table cannot happen in one
+	transaction and eventually if a crash occurs below, between
+	trx_commit_for_mysql(trx); which drops the indexes from SYS_* and
+	trx_commit_for_mysql(prebuilt->trx);
+	then an orphaned rows will be left in the stats table. */
+	for (index = dict_table_get_first_index(prebuilt->table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+
+			enum db_err	ret;
+			char		errstr[1024];
+
+			ret = dict_stats_delete_index_stats(
+				index, prebuilt->trx,
+				errstr, sizeof(errstr));
+
+			if (ret != DB_SUCCESS) {
+				push_warning(user_thd,
+					     MYSQL_ERROR::WARN_LEVEL_WARN,
+					     ER_LOCK_WAIT_TIMEOUT,
+					     errstr);
+			}
+		}
+	}
 
 	row_mysql_lock_data_dictionary(trx);
 	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));

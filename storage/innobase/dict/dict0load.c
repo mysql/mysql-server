@@ -37,6 +37,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
@@ -171,9 +172,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -208,9 +209,9 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 }
 
 
@@ -345,10 +346,10 @@ dict_process_sys_tables_rec(
 	if ((status & DICT_TABLE_UPDATE_STATS)
 	    && dict_table_get_first_index(*table)) {
 
-		/* Update statistics if DICT_TABLE_UPDATE_STATS
-		is set */
-		dict_update_statistics(*table, FALSE /* update even if
-				       initialized */);
+		/* Update statistics member fields in *table if
+		DICT_TABLE_UPDATE_STATS is set */
+		ut_ad(mutex_own(&dict_sys->mutex));
+		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
 	}
 
 	return(NULL);
@@ -1354,7 +1355,8 @@ dict_load_indexes(
 
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
-		ut_ad((index == NULL) == (err_msg != NULL));
+		ut_ad((index == NULL && err_msg != NULL)
+		      || (index != NULL && err_msg == NULL));
 
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have

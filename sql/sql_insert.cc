@@ -802,7 +802,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     goto abort;
 #endif
 
@@ -1321,7 +1321,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
-                          COND **where, bool select_insert,
+                          Item **where, bool select_insert,
                           bool check_fields, bool abort_on_warning)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
@@ -1834,8 +1834,9 @@ public:
   time_t start_time;
   ulong sql_mode;
   bool auto_increment_field_not_null;
-  bool query_start_used, ignore, log_query;
+  bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
+  MY_BITMAP write_set;
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong forced_insert_id;
   ulong auto_increment_increment;
@@ -1847,6 +1848,7 @@ public:
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
+      binlog_rows_query_log_events(FALSE),
       forced_insert_id(0), query(query_arg), time_zone(0)
     {}
   ~delayed_row()
@@ -1899,7 +1901,7 @@ public:
     strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
             USERNAME_LENGTH);
     thd.current_tablenr=0;
-    thd.command=COM_DELAYED_INSERT;
+    thd.set_command(COM_DELAYED_INSERT);
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
     /*
@@ -2344,12 +2346,15 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
 {
   delayed_row *row= 0;
   Delayed_insert *di=thd->di;
+  my_bitmap_map *bitmaps;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
   DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
                        (ulong) query.length));
 
   thd_proc_info(thd, "waiting for handler insert");
+  DBUG_EXECUTE_IF("waiting_for_delayed_insert_queue_is_empty",
+                  while(di->stacked_inserts) sleep(1););
   mysql_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
     mysql_cond_wait(&di->cond_client, &di->mutex);
@@ -2413,6 +2418,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
   row->sql_mode=                 thd->variables.sql_mode;
   row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+  row->binlog_rows_query_log_events= thd->variables.binlog_rows_query_log_events;
 
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
@@ -2421,6 +2427,15 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
     DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
                            (ulong) row->forced_insert_id));
   }
+  
+  /*
+    Since insert delayed has its own thread and table, we
+    need to copy the user thread session write_set.
+  */
+  bitmaps= (my_bitmap_map*) my_malloc(bitmap_buffer_size(table->write_set->n_bits), MYF(0));
+  bitmap_init(&row->write_set, bitmaps, table->write_set->n_bits, FALSE);
+  bitmap_clear_all(&row->write_set);
+  bitmap_union(&row->write_set, table->write_set);
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -2860,7 +2875,6 @@ bool Delayed_insert::handle_inserts(void)
   mysql_mutex_unlock(&mutex);
 
   table->next_number_field=table->found_next_number_field;
-  table->use_all_columns();
 
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock,
@@ -2893,6 +2907,7 @@ bool Delayed_insert::handle_inserts(void)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   mysql_mutex_lock(&mutex);
 
+  bitmap_set_all(table->read_set);
   while ((row=rows.get()))
   {
     stacked_inserts--;
@@ -2901,6 +2916,16 @@ bool Delayed_insert::handle_inserts(void)
 
     thd.start_time=row->start_time;
     thd.query_start_used=row->query_start_used;
+
+    /* 
+       Copy to the DI table hander the row write set
+       which in its turn is a copy of the user thread's table
+       write set at the time the delayed insert was issued.
+     */
+    bitmap_clear_all(table->write_set);
+    bitmap_union(table->write_set, &row->write_set);
+    table->file->column_bitmaps_signal();
+
     /*
       To get the exact auto_inc interval to store in the binlog we must not
       use values from the previous interval (of the previous rows).
@@ -2911,6 +2936,16 @@ bool Delayed_insert::handle_inserts(void)
                            (ulong) row->query.length));
     if (log_query)
     {
+      if (thd.is_current_stmt_binlog_format_row())
+      {
+        /* Flush rows of previous statement*/
+        if (thd.binlog_flush_pending_rows_event(TRUE, FALSE))
+          goto err;
+        /* Set query for Rows_query_log event in RBR*/
+        thd.set_query(row->query.str, row->query.length);
+        thd.variables.binlog_rows_query_log_events= row->binlog_rows_query_log_events;
+      }
+
       /*
         This is the first value of an INSERT statement.
         It is the right place to clear a forced insert_id.
@@ -2978,7 +3013,8 @@ bool Delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
 
-    if (log_query && mysql_bin_log.is_open())
+    if (log_query && mysql_bin_log.is_open() &&
+        !thd.is_current_stmt_binlog_format_row())
     {
       bool backup_time_zone_used = thd.time_zone_used;
       Time_zone *backup_time_zone = thd.variables.time_zone;
@@ -2993,16 +3029,12 @@ bool Delayed_insert::handle_inserts(void)
       int errcode= 0;
       if (thd.killed == THD::NOT_KILLED)
         errcode= query_error_code(&thd, TRUE);
-      
+
       /*
-        If the query has several rows to insert, only the first row will come
-        here. In row-based binlogging, this means that the first row will be
-        written to binlog as one Table_map event and one Rows event (due to an
-        event flush done in binlog_query()), then all other rows of this query
-        will be binlogged together as one single Table_map event and one
-        single Rows event.
+        In SBR, only the query which has one single value
+        will be binlogged here.
       */
-      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
+      if (thd.binlog_query(THD::STMT_QUERY_TYPE,
                            row->query.str, row->query.length,
                            FALSE, FALSE, FALSE, errcode))
         goto err;
@@ -3023,6 +3055,8 @@ bool Delayed_insert::handle_inserts(void)
     */
     table->auto_increment_field_not_null= FALSE;
 
+    if (log_query && thd.is_current_stmt_binlog_format_row())
+      thd.set_query(NULL, 0);
     delete row;
     /*
       Let READ clients do something once in a while
@@ -3331,7 +3365,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     DBUG_RETURN(1);
 #endif
 

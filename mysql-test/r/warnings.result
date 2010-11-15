@@ -48,13 +48,13 @@ drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
 Warnings:
-Note	1051	Unknown table 'not_exists'
+Note	1051	Unknown table 'test.not_exists'
 drop table if exists not_exists_table;
 Warnings:
-Note	1051	Unknown table 'not_exists_table'
+Note	1051	Unknown table 'test.not_exists_table'
 show warnings limit 1;
 Level	Code	Message
-Note	1051	Unknown table 'not_exists_table'
+Note	1051	Unknown table 'test.not_exists_table'
 drop database if exists not_exists_db;
 Warnings:
 Note	1008	Can't drop database 'not_exists_db'; database doesn't exist
@@ -311,8 +311,8 @@ insert into t2 values(@q);
 ERROR 22001: Data too long for column 'c_tinyblob' at row 1
 drop table t1, t2;
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 SHOW ERRORS;
 Level	Code	Message
-Error	1051	Unknown table 't1'
+Error	1051	Unknown table 'test.t1'
 End of 5.0 tests

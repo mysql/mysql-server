@@ -189,6 +189,7 @@ my $opt_ps_protocol;
 my $opt_sp_protocol;
 my $opt_cursor_protocol;
 my $opt_view_protocol;
+my $opt_explain_protocol;
 
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
@@ -704,22 +705,40 @@ sub run_test_server ($$$) {
 	    next;
 	  }
 
-	  # Prefer same configuration, or just use next if --noreorder
-	  if (!$opt_reorder or (defined $result and
-	      $result->{template_path} eq $t->{template_path}))
-	  {
-	    #mtr_report("Test uses same config => good match");
-	    # Test uses same config => good match
-	    $next= splice(@$tests, $i, 1);
-	    last;
-	  }
-
 	  # Second best choice is the first that does not fulfill
 	  # any of the above conditions
 	  if (!defined $second_best){
 	    #mtr_report("Setting second_best to $i");
 	    $second_best= $i;
 	  }
+
+	  # Smart allocation of next test within this thread.
+
+	  if ($opt_reorder and $opt_parallel > 1 and defined $result)
+	  {
+	    my $wid= $result->{worker};
+	    # Reserved for other thread, try next
+	    next if (defined $t->{reserved} and $t->{reserved} != $wid);
+	    if (! defined $t->{reserved})
+	    {
+	      # Force-restart not relevant when comparing *next* test
+	      $t->{criteria} =~ s/force-restart$/no-restart/;
+	      my $criteria= $t->{criteria};
+	      # Reserve similar tests for this worker, but not too many
+	      my $maxres= (@$tests - $i) / $opt_parallel + 1;
+	      for (my $j= $i+1; $j <= $i + $maxres; $j++)
+	      {
+		my $tt= $tests->[$j];
+		last unless defined $tt;
+		last if $tt->{criteria} ne $criteria;
+		$tt->{reserved}= $wid;
+	      }
+	    }
+	  }
+
+	  # At this point we have found next suitable test
+	  $next= splice(@$tests, $i, 1);
+	  last;
 	}
 
 	# Use second best choice if no other test has been found
@@ -728,10 +747,12 @@ sub run_test_server ($$$) {
 	  mtr_error("Internal error, second best too large($second_best)")
 	    if $second_best >  $#$tests;
 	  $next= splice(@$tests, $second_best, 1);
+	  delete $next->{reserved};
 	}
 
 	if ($next) {
-	  #$next->print_test();
+	  # We don't need this any more
+	  delete $next->{criteria};
 	  $next->write_test($sock, 'TESTCASE');
 	  $running{$next->key()}= $next;
 	  $num_ndb_tests++ if ($next->{ndb_test});
@@ -816,6 +837,11 @@ sub run_worker ($) {
       delete($test->{'comment'});
       delete($test->{'logfile'});
 
+      # A sanity check. Should this happen often we need to look at it.
+      if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
+	my $tres= $test->{reserved};
+	mtr_warning("Test reserved for w$tres picked up by w$thread_num");
+      }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
       run_testcase($test);
@@ -890,11 +916,12 @@ sub command_line_setup {
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
+             'explain-protocol'         => \$opt_explain_protocol,
              'cursor-protocol'          => \$opt_cursor_protocol,
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'vs-config'                => \$opt_vs_config,
+             'vs-config=s'              => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
@@ -4741,17 +4768,6 @@ sub server_need_restart {
     }
   }
 
-  # Temporary re-enable the "always restart slave" hack
-  # this should be removed asap, but will require that each rpl
-  # testcase cleanup better after itself - ie. stop and reset
-  # replication
-  # Use the "#!use-slave-opt" marker to detect that this is a "slave"
-  # server
-  if ( $server->option("#!use-slave-opt") ){
-    mtr_verbose_restart($server, "Always restart slave(s)");
-    return 1;
-  }
-
   my $is_mysqld= grep ($server eq $_, mysqlds());
   if ($is_mysqld)
   {
@@ -5171,6 +5187,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sp-protocol");
   }
 
+  if ( $opt_explain_protocol )
+  {
+    mtr_add_arg($args, "--explain-protocol");
+  }
+
   if ( $opt_view_protocol )
   {
     mtr_add_arg($args, "--view-protocol");
@@ -5391,7 +5412,7 @@ sub ddd_arguments {
   {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
-	       "file $$exe\n" .
+	       "file ../sql/mysqld\n" .
 	       "set args $str\n" .
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
@@ -5596,6 +5617,7 @@ Options to control what engine/variation to run
   cursor-protocol       Use the cursor protocol between client and server
                         (implies --ps-protocol)
   view-protocol         Create a view to execute all non updating queries
+  explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT queries
   sp-protocol           Create a stored procedure to execute all queries
   compress              Use the compressed protocol between client and server
   ssl                   Use ssl protocol between client and server

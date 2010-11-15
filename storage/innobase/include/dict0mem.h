@@ -349,13 +349,18 @@ struct dict_index_struct{
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
-	ib_int64_t*	stat_n_diff_key_vals;
+	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
 				n-column prefix where n <=
 				dict_get_n_unique(index); we
 				periodically calculate new
 				estimates */
+	ib_uint64_t*	stat_n_sample_sizes;
+				/*!< number of pages that were sampled
+				to calculate each of stat_n_diff_key_vals[],
+				e.g. stat_n_sample_sizes[3] pages were sampled
+				to get the number stat_n_diff_key_vals[3]. */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
@@ -555,8 +560,8 @@ struct dict_table_struct{
 				whether a transaction has locked the AUTOINC
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
-				avoid acquiring the kernel mutex and scanning
-				the vector in trx_t.
+				avoid acquiring the lock_sys_t::mutex and
+			       	scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -580,7 +585,7 @@ struct dict_table_struct{
 				/*!< This counter is used to track the number
 				of granted and pending autoinc locks on this
 				table. This value is set after acquiring the
-				kernel mutex but we peek the contents to
+				lock_sys_t::mutex but we peek the contents to
 				determine whether other transactions have
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the

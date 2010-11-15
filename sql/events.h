@@ -41,7 +41,6 @@ class Event_queue;
 class Event_scheduler;
 struct TABLE_LIST;
 class THD;
-typedef class Item COND;
 typedef struct charset_info_st CHARSET_INFO;
 
 int
@@ -123,7 +122,7 @@ public:
                                   longlong expression);
 
   static int
-  fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
+  fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */);
 
   static void
   dump_internal_status();

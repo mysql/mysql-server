@@ -7312,7 +7312,7 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
 #endif
 
 
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -7387,7 +7387,7 @@ err:
 }
 
 
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -7465,7 +7465,7 @@ err:
 }
 
 
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -7549,7 +7549,7 @@ err:
 }
 
 
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond)
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
@@ -9274,6 +9274,16 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     that needs to be preserved as to not break backwards compatibility.
   */
   thd->net.skip_big_packet= TRUE;
+#endif
+
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+  {
+    PSI_server->set_thread_user_host(thd->main_security_ctx.user,
+                                     strlen(thd->main_security_ctx.user),
+                                     thd->main_security_ctx.host_or_ip,
+                                     strlen(thd->main_security_ctx.host_or_ip));
+  }
 #endif
 
   /* Ready to handle queries */
