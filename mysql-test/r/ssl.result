@@ -511,7 +511,7 @@ insert into tmp select * from t3;
 insert into t3 select * from tmp;
 alter table t3 add t2nr int not null auto_increment primary key first;
 drop table tmp;
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 select distinct concat(fld3," ",fld3) as namn from t2,t3 where t2.fld1=t3.t2nr order by namn limit 10;
 namn
 Abraham Abraham
@@ -524,7 +524,7 @@ ammonium ammonium
 analyzable analyzable
 animals animals
 animized animized
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 concat(fld3," ",fld3)
 Abraham Abraham
@@ -561,7 +561,7 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
 fld3	count(*)
 affixed	1
@@ -574,7 +574,7 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
 circus	aaaaaa	1

@@ -42,6 +42,7 @@
 #define TYPE_ENUM_FUNCTION  1
 #define TYPE_ENUM_PROCEDURE 2
 #define TYPE_ENUM_TRIGGER   3
+#define TYPE_ENUM_PROXY     4
 
 Item_result
 sp_map_result_type(enum enum_field_types type);
@@ -526,7 +527,7 @@ private:
   HASH m_sptabs;
 
   bool
-  execute(THD *thd);
+  execute(THD *thd, bool merge_da_on_success);
 
   /**
     Perform a forward flow analysis in the generated code.
