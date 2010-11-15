@@ -66,6 +66,8 @@ noinst_HEADERS=		\
 			include/dict0load.ic	\
 			include/dict0mem.h	\
 			include/dict0mem.ic	\
+			include/dict0priv.ic	\
+			include/dict0stats.h	\
 			include/dict0types.h	\
 			include/dyn0dyn.h	\
 			include/dyn0dyn.ic	\
@@ -115,7 +117,6 @@ noinst_HEADERS=		\
 			include/mtr0mtr.h	\
 			include/mtr0mtr.ic	\
 			include/mtr0types.h	\
-			include/mysql_addons.h	\
 			include/os0file.h	\
 			include/os0file.ic	\
 			include/os0proc.h	\
@@ -209,7 +210,6 @@ noinst_HEADERS=		\
 			include/usr0sess.h	\
 			include/usr0sess.ic	\
 			include/usr0types.h	\
-			include/ut0auxconf.h	\
 			include/ut0byte.h	\
 			include/ut0byte.ic	\
 			include/ut0dbg.h	\
@@ -248,6 +248,7 @@ libinnobase_a_SOURCES=	\
 			dict/dict0dict.c		\
 			dict/dict0load.c		\
 			dict/dict0mem.c			\
+			dict/dict0stats.c		\
 			dyn/dyn0dyn.c			\
 			eval/eval0eval.c		\
 			eval/eval0proc.c		\
@@ -261,7 +262,6 @@ libinnobase_a_SOURCES=	\
 			handler/ha_innodb.cc		\
 			handler/handler0alter.cc	\
 			handler/i_s.cc			\
-			handler/mysql_addons.cc		\
 			ibuf/ibuf0ibuf.c		\
 			lock/lock0iter.c		\
 			lock/lock0lock.c		\

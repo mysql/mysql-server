@@ -262,12 +262,12 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using where; Using index
-1	PRIMARY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using index; Materialize
-1	PRIMARY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using index; Start materialize
+1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using index
+1	PRIMARY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index; Materialize
+1	PRIMARY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index; Start materialize
 1	PRIMARY	t3i	index	it3i1,it3i2,it3i3	it3i3	18	NULL	4	75.00	Using where; Using index; End materialize
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t1i`.`a1` > '0') and (`test`.`t1i`.`a2` > '0'))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0') and (`test`.`t2i`.`b2` > '0'))
 select * from t1i
 where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
@@ -345,13 +345,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-7	UNION	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using where; Using index
-7	UNION	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using index; Materialize
-7	UNION	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using index; Start materialize
+7	UNION	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using index
+7	UNION	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index; Materialize
+7	UNION	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index; Start materialize
 7	UNION	t3i	index	it3i1,it3i2,it3i3	it3i3	18	NULL	4	75.00	Using where; Using index; End materialize
 NULL	UNION RESULT	<union1,7>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) group by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and (`test`.`t1`.`a2` > '0'))) union (select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t1i`.`a1` > '0') and (`test`.`t1i`.`a2` > '0')))
+Note	1003	(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) group by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and (`test`.`t1`.`a2` > '0'))) union (select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i`) semi join (`test`.`t2i` join `test`.`t3i`) where ((`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1i`.`a2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1i`.`a1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` > '0') and (`test`.`t2i`.`b2` > '0')))
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -397,7 +397,7 @@ a1 = c1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Start materialize
 1	PRIMARY	t2i	index	it2i1,it2i2,it2i3	it2i3	18	NULL	5	80.00	Using where; Using index; End materialize
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where

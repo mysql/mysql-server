@@ -31,6 +31,12 @@ public:
   ~Sql_cmd_partition_unsupported()
   {}
 
+  /* Override SQLCOM_*, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
+
   bool execute(THD *thd);
 };
 
@@ -150,6 +156,7 @@ public:
 
   bool execute(THD *thd);
 
+  /* Override SQLCOM_ANALYZE, since it is an ALTER command */
   virtual enum_sql_command sql_command_code() const
   {
     return SQLCOM_ALTER_TABLE;
@@ -175,6 +182,7 @@ public:
 
   bool execute(THD *thd);
 
+  /* Override SQLCOM_CHECK, since it is an ALTER command */
   virtual enum_sql_command sql_command_code() const
   {
     return SQLCOM_ALTER_TABLE;
@@ -200,6 +208,7 @@ public:
 
   bool execute(THD *thd);
 
+  /* Override SQLCOM_OPTIMIZE, since it is an ALTER command */
   virtual enum_sql_command sql_command_code() const
   {
     return SQLCOM_ALTER_TABLE;
@@ -225,6 +234,7 @@ public:
 
   bool execute(THD *thd);
 
+  /* Override SQLCOM_REPAIR, since it is an ALTER command */
   virtual enum_sql_command sql_command_code() const
   {
     return SQLCOM_ALTER_TABLE;
@@ -244,11 +254,12 @@ public:
   Sql_cmd_alter_table_truncate_partition()
   {}
 
-  ~Sql_cmd_alter_table_truncate_partition()
+  virtual ~Sql_cmd_alter_table_truncate_partition()
   {}
 
   bool execute(THD *thd);
 
+  /* Override SQLCOM_TRUNCATE, since it is an ALTER command */
   virtual enum_sql_command sql_command_code() const
   {
     return SQLCOM_ALTER_TABLE;

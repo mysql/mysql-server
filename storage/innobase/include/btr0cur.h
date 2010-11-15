@@ -243,6 +243,22 @@ btr_cur_pessimistic_insert(
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*************************************************************//**
+See if there is enough place in the page modification log to log
+an update-in-place.
+@return	TRUE if enough place */
+UNIV_INTERN
+ibool
+btr_cur_update_alloc_zip(
+/*=====================*/
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	buf_block_t*	block,	/*!< in/out: buffer page */
+	dict_index_t*	index,	/*!< in: the index corresponding to the block */
+	ulint		length,	/*!< in: size needed */
+	ibool		create,	/*!< in: TRUE=delete-and-insert,
+				FALSE=update-in-place */
+	mtr_t*		mtr)	/*!< in: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
@@ -446,7 +462,9 @@ btr_estimate_n_rows_in_range(
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals. */
+The estimates are stored in the array index->stat_n_diff_key_vals[] and
+the number of pages that were sampled is saved in
+index->stat_n_sample_sizes[]. */
 UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
@@ -456,9 +474,10 @@ btr_estimate_number_of_different_key_vals(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed

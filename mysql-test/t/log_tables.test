@@ -256,8 +256,8 @@ set global general_log='OFF';
 set global slow_query_log='OFF';
 
 # check that alter table doesn't work for other engines
-set @save_storage_engine= @@session.storage_engine;
-set storage_engine= MEMORY;
+set @save_storage_engine= @@session.default_storage_engine;
+set default_storage_engine= MEMORY;
 # After fixing bug#35765 the error behaivor changed:
 # If compiled in/enabled ER_UNSUPORTED_LOG_ENGINE
 # If not (i.e. not existant) it will show a warning
@@ -273,7 +273,7 @@ alter table mysql.slow_log engine=memory;
 #alter table mysql.slow_log engine=archive;
 #--error ER_UNSUPORTED_LOG_ENGINE
 #alter table mysql.slow_log engine=blackhole;
-set storage_engine= @save_storage_engine;
+set default_storage_engine= @save_storage_engine;
 
 drop table mysql.slow_log;
 drop table mysql.general_log;
@@ -1033,6 +1033,25 @@ SELECT start_time, rows_examined, rows_sent, sql_text FROM mysql.slow_log WHERE 
 DROP TABLE t1;
 
 TRUNCATE TABLE mysql.slow_log;
+
+#
+# Bug #47924 main.log_tables times out sporadically
+#
+
+use mysql;
+# Should result in error
+--disable_warnings
+drop table if exists renamed_general_log;
+drop table if exists renamed_slow_log;
+--enable_warnings
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE general_log TO renamed_general_log;
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE slow_log TO renamed_slow_log;
+
+use test;
+flush tables with read lock;
+unlock tables;
 
 SET @@session.long_query_time= @old_long_query_time;
 

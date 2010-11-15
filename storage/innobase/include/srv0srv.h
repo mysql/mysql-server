@@ -57,6 +57,15 @@ extern const char	srv_mysql50_table_name_prefix[9];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
+/* The monitor thread waits on this event. */
+extern os_event_t	srv_monitor_event;
+
+/* The lock timeout thread waits on this event. */
+extern os_event_t	srv_timeout_event;
+
+/* The error monitor thread waits on this event. */
+extern os_event_t	srv_error_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -195,7 +204,8 @@ extern ulint	srv_fast_shutdown;	 /* If this is 1, do not do a
 					 transactions). */
 extern ibool	srv_innodb_status;
 
-extern unsigned long long	srv_stats_sample_pages;
+extern unsigned long long	srv_stats_transient_sample_pages;
+extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -228,6 +238,8 @@ extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
 
 extern ulint	srv_n_lock_wait_count;
+
+extern ulint	srv_truncated_status_writes;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
@@ -655,12 +667,14 @@ srv_que_task_enqueue_low(
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /**********************************************************************//**
-Check whether any background thread is active.
-@return FALSE if all are are suspended or have exited. */
+Check whether any background thread is active. If so, return the thread
+type.
+@return ULINT_UNDEFINED if all are are suspended or have exited, thread
+type if any are still active. */
 UNIV_INTERN
-ibool
-srv_is_any_background_thread_active(void);
-/*======================================*/
+ulint
+srv_get_active_thread_type(void);
+/*============================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
@@ -714,11 +728,13 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
+	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 };
 
 /** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
-  
+
 /** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 

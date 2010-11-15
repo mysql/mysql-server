@@ -1414,12 +1414,15 @@ bool might_do_join_buffering(uint join_cache_level,
   setup_sj_materialization() (todo: can't we move that to here also?)
 */
 
-int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
-                                    uint no_jbuf_after)
+bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
+                                     uint no_jbuf_after)
 {
   uint tableno;
   THD *thd= join->thd;
   DBUG_ENTER("setup_semijoin_dups_elimination");
+
+  if (join->select_lex->sj_nests.is_empty())
+    DBUG_RETURN(FALSE);
 
   for (tableno= join->const_tables ; tableno < join->tables; )
   {
@@ -1660,21 +1663,6 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         tableno+= pos->n_sj_tables;
         break;
       }
-    }
-    /*
-      Remember the first and last semijoin inner tables; this serves to tell
-      a JOIN_TAB's semijoin strategy (like in check_join_cache_usage()).
-    */
-    JOIN_TAB *last_sj_inner=
-      (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT) ?
-      /* Range may end with non-inner table so cannot set last_sj_inner_tab */
-      NULL : last_sj_tab;
-    for (JOIN_TAB *tab_in_range= tab; 
-         tab_in_range <= last_sj_tab; 
-         tab_in_range++)
-    {
-      tab_in_range->first_sj_inner_tab= tab;
-      tab_in_range->last_sj_inner_tab=  last_sj_inner;
     }
   }
   DBUG_RETURN(FALSE);
@@ -3355,13 +3343,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -3376,6 +3359,18 @@ JOIN::destroy()
   delete_dynamic(&keyuse);
   delete procedure;
   DBUG_RETURN(error);
+}
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
 }
 
 
@@ -3548,16 +3543,20 @@ static TABLE_LIST *alloc_join_nest(THD *thd)
 }
 
 
-void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist)
+void fix_list_after_tbl_changes(st_select_lex *parent_select,
+                                st_select_lex *removed_select,
+                                List<TABLE_LIST> *tlist)
 {
   List_iterator<TABLE_LIST> it(*tlist);
   TABLE_LIST *table;
   while ((table= it++))
   {
     if (table->on_expr)
-      table->on_expr->fix_after_pullout(new_parent, &table->on_expr);
+      table->on_expr->fix_after_pullout(parent_select, removed_select,
+                                        &table->on_expr);
     if (table->nested_join)
-      fix_list_after_tbl_changes(new_parent, &table->nested_join->join_list);
+      fix_list_after_tbl_changes(parent_select, removed_select,
+                                 &table->nested_join->join_list);
   }
 }
 
@@ -3761,7 +3760,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     NOTE: We actually insert them at the front! That's because the order is
           reversed in this list.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf);
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  {}
   tl->next_leaf= subq_lex->leaf_tables;
   last_leaf= tl;
 
@@ -3770,7 +3770,8 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local);
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  {}
   tl->next_local= subq_lex->leaf_tables;
 
   /* A theory: no need to re-connect the next_global chain */
@@ -3870,15 +3871,16 @@ bool convert_subquery_to_semijoin(JOIN *parent_join,
     sj_nest->sj_on_expr->fix_fields(thd, &sj_nest->sj_on_expr);
   }
 
+  /* Unlink the child select_lex: */
+  subq_lex->master_unit()->exclude_level();
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, &sj_nest->sj_on_expr);
-  fix_list_after_tbl_changes(parent_lex, &nested_join->join_list);
-
-  /* Unlink the child select_lex so it doesn't show up in EXPLAIN: */
-  subq_lex->master_unit()->exclude_level();
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
+                                         &sj_nest->sj_on_expr);
+  fix_list_after_tbl_changes(parent_lex, subq_lex,
+                             &sj_nest->nested_join->join_list);
 
   //TODO fix QT_
   DBUG_EXECUTE("where",
@@ -4248,14 +4250,18 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
     using Materialization or LooseScan to execute it. 
 
   RETURN 
-    0 - OK
-    1 - Out of memory error
+    FALSE - OK
+    TRUE  - Out of memory error
 */
 
-int pull_out_semijoin_tables(JOIN *join)
+bool pull_out_semijoin_tables(JOIN *join)
 {
   TABLE_LIST *sj_nest;
   DBUG_ENTER("pull_out_semijoin_tables");
+
+  if (join->select_lex->sj_nests.is_empty())
+    DBUG_RETURN(FALSE);
+
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
    
   /* Try pulling out of the each of the semi-joins */
@@ -4338,7 +4344,12 @@ int pull_out_semijoin_tables(JOIN *join)
             pointers.
           */
           child_li.remove();
-          upper_join_list->push_back(tbl);
+          if (upper_join_list->push_back(tbl))
+          {
+            if (arena)
+              join->thd->restore_active_arena(arena, &backup);
+            DBUG_RETURN(TRUE);
+          }
           tbl->join_list= upper_join_list;
           tbl->embedding= sj_nest->embedding;
         }
@@ -4349,7 +4360,8 @@ int pull_out_semijoin_tables(JOIN *join)
       {
         List_iterator<TABLE_LIST> li(*upper_join_list);
         /* Find the sj_nest in the list. */
-        while (sj_nest != li++);
+        while (sj_nest != li++)
+        {}
         li.remove();
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
@@ -4359,7 +4371,7 @@ int pull_out_semijoin_tables(JOIN *join)
         join->thd->restore_active_arena(arena, &backup);
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -5846,7 +5858,6 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -5862,20 +5873,21 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
-            return TRUE;
+          KEYUSE keyuse;
+          keyuse.table=          field->table;
+          keyuse.val=            key_field->val;
+          keyuse.used_tables=    key_field->val->used_tables();
+          keyuse.key=            key;
+          keyuse.keypart=        part;
+          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.keypart_map=    (key_part_map) 1 << part;
           /* This will be set accordingly in optimize_keyuse */
           keyuse.ref_table_rows= ~(ha_rows) 0;
+          keyuse.null_rejecting= key_field->null_rejecting;
+          keyuse.cond_guard=     key_field->cond_guard;
+          keyuse.sj_pred_no=     key_field->sj_pred_no;
+          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+            return TRUE;
 	}
       }
     }
@@ -7627,6 +7639,12 @@ optimize_straight_join(JOIN *join, table_map join_tables)
  
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
+    /*
+      Dependency computation (make_join_statistics()) and proper ordering
+      based on them (join_tab_cmp*) guarantee that this order is compatible
+      with execution, check it:
+    */
+    DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(join, s, join_tables, idx, FALSE, record_count,
                      join->positions + idx, &loose_scan_pos);
@@ -8415,15 +8433,19 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 
 static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 {
-  uint tablenr;
   table_map remaining_tables= 0;
   table_map handled_tabs= 0;
 
   DBUG_ENTER("fix_semijoin_strategies_for_picked_join_order");
 
-  for (tablenr= join->tables - 1 ; tablenr != join->const_tables - 1; tablenr--)
+  if (join->select_lex->sj_nests.is_empty())
+    DBUG_RETURN(FALSE);
+
+  for (uint tableno= join->tables - 1;
+       tableno != join->const_tables - 1;
+       tableno--)
   {
-    POSITION *pos= join->best_positions + tablenr;
+    POSITION *pos= join->best_positions + tableno;
     JOIN_TAB *s= pos->table;
     TABLE_LIST *emb_sj_nest= s->emb_sj_nest;
     uint first;
@@ -8460,7 +8482,7 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       */
       memcpy(pos - table_count + 1, emb_sj_nest->nested_join->sjm.positions, 
              sizeof(POSITION) * table_count);
-      first= tablenr - table_count + 1;
+      first= tableno - table_count + 1;
       join->best_positions[first].n_sj_tables= table_count;
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
 
@@ -8496,14 +8518,13 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       /* Add materialization record count*/
       prefix_rec_count *= mat_sj_nest->nested_join->sjm.expected_rowcount;
       
-      uint i;
       table_map rem_tables= remaining_tables;
-      for (i= tablenr; i != (first + table_count - 1); i--)
+      for (uint i= tableno; i != (first + table_count - 1); i--)
         rem_tables |= join->best_positions[i].table->table->map;
 
       POSITION dummy;
       join->cur_sj_inner_tables= 0;
-      for (i= first + table_count; i <= tablenr; i++)
+      for (uint i= first + table_count; i <= tableno; i++)
       {
         best_access_path(join, join->best_positions[i].table, rem_tables, i, FALSE,
                          prefix_rec_count, join->best_positions + i, &dummy);
@@ -8517,14 +8538,14 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     {
       first= pos->first_firstmatch_table;
       join->best_positions[first].sj_strategy= SJ_OPT_FIRST_MATCH;
-      join->best_positions[first].n_sj_tables= tablenr - first + 1;
+      join->best_positions[first].n_sj_tables= tableno - first + 1;
       POSITION dummy; // For loose scan paths
       double record_count= (first== join->const_tables)? 1.0: 
-                           join->best_positions[tablenr - 1].prefix_record_count;
+                           join->best_positions[tableno - 1].prefix_record_count;
       
       table_map rem_tables= remaining_tables;
-      uint idx;
-      for (idx= first; idx <= tablenr; idx++)
+
+      for (uint idx= first; idx <= tableno; idx++)
       {
         rem_tables |= join->best_positions[idx].table->table->map;
       }
@@ -8533,7 +8554,7 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
         join buffering
       */ 
       join->cur_sj_inner_tables= 0;
-      for (idx= first; idx <= tablenr; idx++)
+      for (uint idx= first; idx <= tableno; idx++)
       {
         if (join->best_positions[idx].use_join_buffer)
         {
@@ -8551,18 +8572,18 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       POSITION *first_pos= join->best_positions + first;
       POSITION loose_scan_pos; // For loose scan paths
       double record_count= (first== join->const_tables)? 1.0: 
-                           join->best_positions[tablenr - 1].prefix_record_count;
+                           join->best_positions[tableno - 1].prefix_record_count;
       
       table_map rem_tables= remaining_tables;
-      uint idx;
-      for (idx= first; idx <= tablenr; idx++)
+
+      for (uint idx= first; idx <= tableno; idx++)
         rem_tables |= join->best_positions[idx].table->table->map;
       /*
         Re-run best_access_path to produce best access methods that do not use
         join buffering
       */ 
       join->cur_sj_inner_tables= 0;
-      for (idx= first; idx <= tablenr; idx++)
+      for (uint idx= first; idx <= tableno; idx++)
       {
         if (join->best_positions[idx].use_join_buffer || (idx == first))
         {
@@ -8587,7 +8608,7 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       */
       first= pos->first_dupsweedout_table;
       join->best_positions[first].sj_strategy= SJ_OPT_DUPS_WEEDOUT;
-      join->best_positions[first].n_sj_tables= tablenr - first + 1;
+      join->best_positions[first].n_sj_tables= tableno - first + 1;
     }
     
     uint i_end= first + join->best_positions[first].n_sj_tables;
@@ -8602,7 +8623,7 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       handled_tabs |= join->best_positions[i].table->table->map;
     }
 
-    if (tablenr != first)
+    if (tableno != first)
       pos->sj_strategy= SJ_OPT_NONE;
     remaining_tables |= s->table->map;
   }
@@ -8639,16 +8660,13 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 
 static bool get_best_combination(JOIN *join)
 {
-  uint i,tablenr;
   table_map used_tables;
-  JOIN_TAB *join_tab,*j;
   KEYUSE *keyuse;
-  uint table_count;
+  const uint table_count= join->tables;
   THD *thd=join->thd;
   DBUG_ENTER("get_best_combination");
 
-  table_count=join->tables;
-  if (!(join->join_tab= join_tab= new (thd->mem_root) JOIN_TAB[table_count]))
+  if (!(join->join_tab= new (thd->mem_root) JOIN_TAB[table_count]))
     DBUG_RETURN(TRUE);
 
   join->full_join=0;
@@ -8658,11 +8676,12 @@ static bool get_best_combination(JOIN *join)
   if (fix_semijoin_strategies_for_picked_join_order(join))
     DBUG_RETURN(TRUE);
 
-  for (j=join_tab, tablenr=0 ; tablenr < table_count ; tablenr++,j++)
+  for (uint tableno= 0; tableno < table_count; tableno++)
   {
+    JOIN_TAB *j= join->join_tab + tableno;
     TABLE *form;
-    *j= *join->best_positions[tablenr].table;
-    form=join->all_tables[tablenr]=j->table;
+    *j= *join->best_positions[tableno].table;
+    form=join->all_tables[tableno]= j->table;
     used_tables|= form->map;
     form->reginfo.join_tab=j;
     if (!*j->on_expr_ref)
@@ -8672,31 +8691,73 @@ static bool get_best_combination(JOIN *join)
     if (j->type == JT_CONST)
       continue;					// Handled in make_join_stat..
 
-
     j->loosescan_match_tab= NULL;  //non-nulls will be set later
     j->ref.key = -1;
     j->ref.key_parts=0;
 
-
     if (j->type == JT_SYSTEM)
       continue;
     
-    if (j->keys.is_clear_all() || !(keyuse= join->best_positions[tablenr].key) || 
-        (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN))
+    if (j->keys.is_clear_all() ||
+        !(keyuse= join->best_positions[tableno].key) || 
+        (join->best_positions[tableno].sj_strategy == SJ_OPT_LOOSE_SCAN))
     {
       j->type=JT_ALL;
-      j->index= join->best_positions[tablenr].loosescan_key;
-      if (tablenr != join->const_tables)
+      j->index= join->best_positions[tableno].loosescan_key;
+      if (tableno != join->const_tables)
 	join->full_join=1;
     }
     else if (create_ref_for_key(join, j, keyuse, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
   }
 
-  for (i=0 ; i < table_count ; i++)
-    join->map2table[join->join_tab[i].table->tablenr]=join->join_tab+i;
+  for (uint tableno= 0; tableno < table_count; tableno++)
+    join->map2table[join->join_tab[tableno].table->tablenr]=
+      join->join_tab + tableno;
+
   update_depend_map(join);
-  DBUG_RETURN(0);
+
+  /*
+    Set the first_sj_inner_tab and last_sj_inner_tab fields for all tables
+    inside the semijoin nests of the query.
+  */
+  for (uint tableno= join->const_tables; tableno < table_count; )
+  {
+    JOIN_TAB *tab= join->join_tab + tableno;
+    const POSITION *pos= join->best_positions + tableno;
+
+    switch (pos->sj_strategy)
+    {
+    case SJ_OPT_NONE:
+      tableno++;
+      break;
+    case SJ_OPT_MATERIALIZE_LOOKUP:
+    case SJ_OPT_MATERIALIZE_SCAN:
+    case SJ_OPT_LOOSE_SCAN:
+    case SJ_OPT_DUPS_WEEDOUT:
+    case SJ_OPT_FIRST_MATCH:
+      /*
+        Remember the first and last semijoin inner tables; this serves to tell
+        a JOIN_TAB's semijoin strategy (like in check_join_cache_usage()).
+      */
+      JOIN_TAB *last_sj_tab= tab + pos->n_sj_tables - 1;
+      JOIN_TAB *last_sj_inner=
+        (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT) ?
+        /* Range may end with non-inner table so cannot set last_sj_inner_tab */
+        NULL : last_sj_tab;
+      for (JOIN_TAB *tab_in_range= tab;
+           tab_in_range <= last_sj_tab;
+           tab_in_range++)
+      {
+        tab_in_range->first_sj_inner_tab= tab;
+        tab_in_range->last_sj_inner_tab=  last_sj_inner;
+      }
+      tableno+= pos->n_sj_tables;
+      break;
+    }
+  }
+
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -9339,6 +9400,22 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
 }
 
 
+/**
+  Separates the predicates in a join condition and pushes them to the 
+  join step where all involved tables are available in the join prefix.
+  ON clauses from JOIN expressions are also pushed to the most appropriate step.
+
+  @param join Join object where predicates are pushed.
+
+  @param cond Pointer to condition which may contain an arbitrary number of
+              predicates, combined using AND, OR and XOR items.
+              If NULL, equivalent to a predicate that returns TRUE for all
+              row combinations.
+
+  @retval TRUE if condition is always false OR an error occurred.
+  @retval FALSE otherwise.
+*/
+
 static bool make_join_select(JOIN *join, Item *cond)
 {
   THD *thd= join->thd;
@@ -9434,8 +9511,7 @@ static bool make_join_select(JOIN *join, Item *cond)
          - If we're looking at the first SJM table, reset used_tables
            to refer to only allowed tables
       */
-      if (tab->emb_sj_nest &&
-          tab->emb_sj_nest->sj_mat_exec && 
+      if (sj_is_materialize_strategy(tab->get_sj_strategy()) &&
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
       {
         save_used_tables= used_tables;
@@ -9678,32 +9754,38 @@ static bool make_join_select(JOIN *join, Item *cond)
 
       DBUG_ASSERT(save_used_tables ? tab->emb_sj_nest != NULL : TRUE);
 
-      if (save_used_tables && !(used_tables & 
-                                ~(tab->emb_sj_nest->sj_inner_tables |
-                                  join->const_table_map | PSEUDO_TABLE_BITS)))
+      /*
+         1. We are inside a materialized semijoin nest, and
+         2. All inner tables of the nest are covered.
+      */ 
+      if (save_used_tables &&                                        // 1
+         !(tab->emb_sj_nest->sj_inner_tables & ~used_tables))        // 2
       {
         /*
-          We have reached the end of semi join nest. That is, the join order
-          looks like this:
+          The join order now looks like this:
 
-           outer_tbl1 SJ-Materialize(inner_tbl1 ... inner_tblN) outer_tbl ...
-                                                               ^
-                                                                \-we're here
-          At this point, we need to produce two conditions
-           - A condition that can be checked when we have all of the sj-inner
-             tables (inner_tbl1 ... inner_tblN). This will be used while doing
-             materialization.
-           - A condition that can be checked when we have all of the tables
-             in the prefix (both inner and outer).
+           ot1 ... otI SJM(it1 ... itN) otI+1 ... otM
+                                       ^
+                                        \-we're here
+          At this point, we have generated a condition that can be checked
+          when we have all of the sj-inner tables (it1 ... itN).
+          This will be used while doing materialization.
+
+          In addition, we need a condition that can be checked when we have
+          all of the tables in the prefix (both inner and outer).
+          This condition is only generated (and used) when we have an SJM-scan
+          operation. For SJM-lookup, the condition is completely fulfilled
+          through the lookup into the materialized table.
+          This constraint will last as long as we do not allow correlated
+          subqueries with materialized semijoin execution.
         */
-        tab->emb_sj_nest->sj_mat_exec->join_cond= 
-          cond ?
-             make_cond_after_sjm(cond, cond, save_used_tables, used_tables):
-            NULL;
+        if (cond && tab->emb_sj_nest->sj_mat_exec->is_scan)
+          tab->emb_sj_nest->sj_mat_exec->join_cond= 
+            make_cond_after_sjm(cond, cond, save_used_tables, used_tables);
+
         used_tables= save_used_tables | used_tables;
         save_used_tables= 0;
       }
-
     }
   }
   DBUG_RETURN(0);
@@ -9988,9 +10070,24 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
+
+  /*
+    We will only attempt to push down an index condition when the
+    following criteria are true:
+    1. The storage engine supports ICP.
+    2. The system variable for enabling ICP is ON.
+    3. The query is not a multi-table update or delete statement. The reason
+       for this requirement is that the same handler will be used 
+       both for doing the select/join and the update. The pushed index
+       condition might then also be applied by the storage engine
+       when doing the update part and result in either not finding
+       the record to update or updating the wrong record.
+  */
   if (tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
-      tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN))
+      tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
+      tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
+      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI)
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););
@@ -10689,7 +10786,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
+    if (!(tab_ref= new (thd->mem_root) TABLE_REF))
       DBUG_RETURN(TRUE); /* purecov: inspected */
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
@@ -10702,10 +10799,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
           (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
 
-    tab_ref->key_buff2=tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
-    tab_ref->key_err=1;
+    tab_ref->key_buff2= tab_ref->key_buff+ALIGN_SIZE(tmp_key->key_length);
     tab_ref->null_rejecting= 1;
-    tab_ref->disable_cache= FALSE;
 
     KEY_PART_INFO *cur_key_part= tmp_key->key_part;
     store_key **ref_key= tab_ref->key_copy;
@@ -10724,7 +10819,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                       use that information instead.
                                    */
                                    cur_ref_buff + null_count,
-                                   null_count ? tab_ref->key_buff : 0,
+                                   null_count ? cur_ref_buff : 0,
                                    cur_key_part->length, tab_ref->items[i]);
       cur_ref_buff+= cur_key_part->store_length;
     }
@@ -10868,8 +10963,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   uint last_sjm_table= MAX_TABLES;
   DBUG_ENTER("make_join_readinfo");
 
-  if (!join->select_lex->sj_nests.is_empty() &&
-      setup_semijoin_dups_elimination(join, options, no_jbuf_after))
+  if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -10896,7 +10990,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
-        return TRUE; /* purecov: inspected */
+        DBUG_RETURN(TRUE); /* purecov: inspected */
     }
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -10909,7 +11003,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab[-1].next_select= sub_select_sjm;
 
       if (setup_sj_materialization(tab))
-        return TRUE;
+        DBUG_RETURN(TRUE);
     }
     switch (tab->type) {
     case JT_EQ_REF:
@@ -12518,17 +12612,18 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal)
 {
   List<Item> eq_list;
-  Item_func_eq *eq_item= 0;
+  Item_func_eq *eq_item= NULL;
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
     return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
-  if (item_const)
-    head= item_const;
-  else
+  if (!item_const)
   {
-    head= item_equal->get_first();
+    /*
+      If there is a const item, match all field items with the const item,
+      otherwise match the second and subsequent field items with the first one:
+    */
     it++;
   }
   Item_field *item_field;
@@ -12539,7 +12634,7 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     if (upper)
     { 
       if (item_const && upper->get_const())
-        item= 0;
+        item= NULL;
       else
       {
         Item_equal_iterator li(*item_equal);
@@ -12554,57 +12649,42 @@ Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     {
       if (eq_item)
         eq_list.push_back(eq_item);
+
       /*
-        item_field might refer to a table that is within a semi-join
-        materialization nest. In that case, the join order looks like this:
+        item_field may refer to a table that is within a semijoin
+        materialization nest. In that case, the join order may look like:
 
-          outer_tbl1 outer_tbl2 SJM (inner_tbl1 inner_tbl2) outer_tbl3 
+          ot1 ot2 SJM (it3 it4) ot5 
 
-        We must not construct equalities like 
+        If we have a multiple equality (ot1.c1, ot2.c2, it3.c3, it4.c4, ot5.c5),
+        we should generate the following equalities:
+         1. ot1.c1 = ot2.c2
+         2. ot1.c1 = it3.c3
+         3. it3.c3 = it4.c4
+         4. ot1.c1 = ot5.c5
 
-           outer_tbl1.col = inner_tbl1.col 
+        Equalities 1) and 4) are regular equalities between two outer tables.
+        Equality 2) is an equality that matches the outer query with a
+        materialized semijoin table. It is either performed as a lookup
+        into the materialized table (SJM-lookup), or as a condition on the
+        outer table (SJM-scan).
+        Equality 3) is evaluated during semijoin materialization.
 
-        because they would get attached to inner_tbl1 and will get evaluated
-        during materialization phase, when we don't have current value of
-        outer_tbl1.col.
+        If there is a const item, match against this one.
+        Otherwise, match against the first field item in the multiple equality,
+        unless the item is within a materialized semijoin nest, where we match
+        against the first item within the SJM nest (if the item is not the first
+        item within the SJM nest), or match against the first item in the
+        list (if the item is the first one in the SJM nest).
       */
-      TABLE_LIST *emb_nest= 
-        item_field->field->table->pos_in_table_list->embedding;
-      if (!item_const && emb_nest && emb_nest->sj_mat_exec)
-      {
-        /* 
-          Find the first equal expression that refers to a table that is
-          within the semijoin nest. If we can't find it, do nothing
-        */
-        List_iterator<Item_field> fit(item_equal->fields);
-        Item_field *head_in_sjm;
-        bool found= FALSE;
-        while ((head_in_sjm= fit++))
-        {
-          if (head_in_sjm->used_tables() & emb_nest->sj_inner_tables)
-          {
-            if (head_in_sjm == item_field)
-            {
-              /* This is the first table inside the semi-join*/
-              eq_item= new Item_func_eq(item_field, head);
-              /* Tell make_cond_for_table don't use this. */
-              eq_item->marker=3;
-            }
-            else
-            {
-              eq_item= new Item_func_eq(item_field, head_in_sjm);
-              found= TRUE;
-            }
-            break;
-          }
-        }
-        if (!found)
-          continue;
-      }
-      else
-        eq_item= new Item_func_eq(item_field, head);
+      head= item_const ? item_const : item_equal->get_subst_item(item_field);
+      if (head == item_field)                   // First item in SJM nest
+        head= item_equal->get_first();
+
+      eq_item= new Item_func_eq(item_field, head);
       if (!eq_item)
-        return 0;
+        return NULL;
+
       eq_item->set_cmp_func();
       eq_item->quick_fix_field();
     }
@@ -13244,7 +13324,6 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   }
     
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   /* 
     Flatten nested joins that can be flattened.
     no ON expression and not a semi-join => can be flattened.
@@ -13252,6 +13331,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, Item *conds, bool top,
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (table->sj_on_expr && !in_sj)
     {
@@ -16915,6 +16995,15 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->read_record.read_record= rr_sequential_and_unpack;
     }
   }
+  else
+  {
+    if (sjm->is_scan)
+    {
+      /* Reset the cursor for a new scan over the table */
+      if (sjm->table->file->ha_rnd_init(TRUE))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
+  }
 
   if (sjm->is_scan)
   {
@@ -18831,21 +18920,23 @@ static bool replace_subcondition(JOIN *join, Item **tree,
 }
 
 
-/*
+/**
   Extract a condition that can be checked after reading given table
   
-  SYNOPSIS
-    make_cond_for_table()
-      cond         Condition to analyze
-      tables       Tables for which "current field values" are available
-      used_table   Table that we're extracting the condition for (may 
-                   also include PSEUDO_TABLE_BITS
-      exclude_expensive_cond  Do not push expensive conditions
+  @param cond       Condition to analyze
+  @param tables     Tables for which "current field values" are available
+  @param used_table Table that we're extracting the condition for (may 
+                    also include PSEUDO_TABLE_BITS, and may be zero)
+  @param exclude_expensive_cond  Do not push expensive conditions
 
-  DESCRIPTION
+  @retval <>NULL Generated condition
+  @retval = NULL Already checked, OR error
+
+  @details
     Extract the condition that can be checked after reading the table
     specified in 'used_table', given that current-field values for tables
     specified in 'tables' bitmap are available.
+    If 'used_table' is 0, extract conditions for all tables in 'tables'.
 
     The function assumes that
       - Constant parts of the condition has already been checked.
@@ -18856,12 +18947,10 @@ static bool replace_subcondition(JOIN *join, Item **tree,
     guaranteed to be true by employed 'ref' access methods (the code that
     does this is located at the end, search down for "EQ_FUNC").
 
-
-  SEE ALSO 
-    make_cond_for_info_schema uses similar algorithm
-
-  RETURN
-    Extracted condition
+  @note
+    Make sure to keep the implementations of make_cond_for_table() and
+    make_cond_after_sjm() synchronized.
+    make_cond_for_info_schema() uses similar algorithm as well.
 */
 
 static Item *
@@ -18871,75 +18960,80 @@ make_cond_for_table(Item *cond, table_map tables, table_map used_table,
   return make_cond_for_table_from_pred(cond, cond, tables, used_table,
                                        exclude_expensive_cond);
 }
-               
+
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               bool exclude_expensive_cond)
 {
-  if (used_table && !(cond->used_tables() & used_table) &&
-      /*
-        Exclude constant conditions not checked at optimization time if
+  /*
+    Ignore this condition if
+     1. We are extracting conditions for a specific table, and
+     2. that table is not referenced by the condition, and
+     3. exclude constant conditions not checked at optimization time if
         the table we are pushing conditions to is the first one.
         As a result, such conditions are not considered as already checked
         and will be checked at execution time, attached to the first table.
-
+  */
+  if (used_table &&                                                 // 1
+      !(cond->used_tables() & used_table) &&                        // 2
+      /*
         psergey: TODO: "used_table & 1" doesn't make sense in nearly any
         context. Look at setup_table_map(), table bits reflect the order 
         the tables were encountered by the parser. Check what we should
         replace this condition with.
       */
-      !((used_table & 1) && cond->is_expensive()))
-    return (Item*) 0;				// Already checked
+      !((used_table & 1) && cond->is_expensive()))                  // 3
+    return NULL;
+
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       /* Create new top level AND item */
-      Item_cond_and *new_cond=new Item_cond_and;
+      Item_cond_and *new_cond= new Item_cond_and;
       if (!new_cond)
-	return (Item*) 0;			// OOM /* purecov: inspected */
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
-      while ((item=li++))
+      while ((item= li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
-                                                tables, used_table,
-                                                exclude_expensive_cond);
-	if (fix)
-	  new_cond->argument_list()->push_back(fix);
+        Item *fix= make_cond_for_table_from_pred(root_cond, item, 
+                                                 tables, used_table,
+                                                 exclude_expensive_cond);
+        if (fix)
+          new_cond->argument_list()->push_back(fix);
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (Item*) 0;			// Always true
+        return NULL;                          // Always true
       case 1:
-	return new_cond->argument_list()->head();
+        return new_cond->argument_list()->head();
       default:
-	/*
-	  Item_cond_and do not need fix_fields for execution, its parameters
-	  are fixed or do not need fix_fields, too
-	*/
-	new_cond->quick_fix_field();
-	new_cond->used_tables_cache=
-	  ((Item_cond_and*) cond)->used_tables_cache &
-	  tables;
-	return new_cond;
+        /*
+          Item_cond_and do not need fix_fields for execution, its parameters
+          are fixed or do not need fix_fields, too
+        */
+        new_cond->quick_fix_field();
+        new_cond->used_tables_cache=
+          ((Item_cond_and*) cond)->used_tables_cache & tables;
+          return new_cond;
       }
     }
     else
-    {						// Or list
-      Item_cond_or *new_cond=new Item_cond_or;
+    {                                         // Or list
+      Item_cond_or *new_cond= new Item_cond_or;
       if (!new_cond)
-	return (Item*) 0;			// OOM /* purecov: inspected */
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
-      while ((item=li++))
+      while ((item= li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item,
-                                                tables, 0L,
-                                                exclude_expensive_cond);
+        Item *fix= make_cond_for_table_from_pred(root_cond, item,
+                                                 tables, 0L,
+                                                 exclude_expensive_cond);
 	if (!fix)
-	  return (Item*) 0;			// Always true
+          return NULL;                        // Always true
 	new_cond->argument_list()->push_back(fix);
       }
       /*
@@ -18954,20 +19048,26 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   }
 
   /*
-    Because the following test takes a while and it can be done
-    table_count times, we mark each item that we have examined with the result
-    of the test
+    Omit this condition if
+     1. It has been marked as omittable before, or
+     2. Some tables referred by the condition are not available, or
+     3. We are extracting conditions for all tables, the condition is
+        considered 'expensive', and we want to delay evaluation of such 
+        conditions to the execution phase.
   */
+  if (cond->marker == 3 ||                                             // 1
+      (cond->used_tables() & ~tables) ||                               // 2
+      (!used_table && exclude_expensive_cond && cond->is_expensive())) // 3
+    return NULL;
 
-  if (cond->marker == 3 || (cond->used_tables() & ~tables) ||
-      /*
-        When extracting constant conditions, treat expensive conditions as
-        non-constant, so that they are not evaluated at optimization time.
-      */
-      (!used_table && exclude_expensive_cond && cond->is_expensive()))
-    return (Item*) 0;				// Can't check this yet
-  if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
-    return cond;				// Not boolean op
+  /*
+    Extract this condition if
+     1. It has already been marked as applicable, or
+     2. It is not a <comparison predicate> (=, <, >, <=, >=, <=>)
+  */
+  if (cond->marker == 2 ||                                             // 1
+      cond->eq_cmp_result() == Item::COND_OK)                          // 2
+    return cond;
 
   /* 
     Remove equalities that are guaranteed to be true by use of 'ref' access
@@ -18994,20 +19094,16 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   {
     Item *left_item= ((Item_func*) cond)->arguments()[0]->real_item();
     Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
-    if (left_item->type() == Item::FIELD_ITEM &&
-	test_if_ref(root_cond, (Item_field*) left_item,right_item))
+    if ((left_item->type() == Item::FIELD_ITEM &&
+         test_if_ref(root_cond, (Item_field*) left_item, right_item)) ||
+        (right_item->type() == Item::FIELD_ITEM &&
+         test_if_ref(root_cond, (Item_field*) right_item, left_item)))
     {
-      cond->marker=3;			// Checked when read
-      return (Item*) 0;
-    }
-    if (right_item->type() == Item::FIELD_ITEM &&
-	test_if_ref(root_cond, (Item_field*) right_item,left_item))
-    {
-      cond->marker=3;			// Checked when read
-      return (Item*) 0;
+      cond->marker= 3;                   // Condition can be omitted
+      return NULL;
     }
   }
-  cond->marker=2;
+  cond->marker= 2;                      // Mark condition as applicable
   return cond;
 }
 
@@ -19021,74 +19117,84 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   @param sjm_tables Tables within the semi-join nest (the inner part).
 
   @retval <>NULL Generated condition
-  @retval = NULL Already checked, or error
+  @retval = NULL Already checked, OR error
 
   @details
-  A regular semi-join materialization is always non-correlated, ie
+  A semijoin materialization with lookup is always non-correlated, ie
   the subquery is always resolved by performing a lookup generated in
-  create_subquery_equalities, hence this function should never produce
-  any condition for regular semi-join materialization.
-  For a scan semi-join materialization, this function may return a condition
-  to be checked.
+  create_subquery_equalities, hence this function never needs to produce
+  any condition for it.
+  For a scan semijoin materialization, this function may return a condition
+  to be checked, when there are outer tables before the SJM tables in the
+  join prefix.
+
+  @note
+    Make sure to keep the implementations of make_cond_for_table() and
+    make_cond_after_sjm() synchronized.
 */
 
 static Item *
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
                     table_map sjm_tables)
 {
+  /*
+    We can only test conditions that cover tables from the join prefix
+    and tables from the semijoin nest. Other conditions will be handled
+    by make_cond_for_table().
+  */
   if ((!(cond->used_tables() & ~tables) || 
        !(cond->used_tables() & ~sjm_tables)))
-    return (Item*) 0;				// Already checked
+    return NULL;
+
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
       /* Create new top level AND item */
-      Item_cond_and *new_cond=new Item_cond_and;
+      Item_cond_and *new_cond= new Item_cond_and;
       if (!new_cond)
-	return (Item*) 0;			// OOM /* purecov: inspected */
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
-      while ((item=li++))
+      while ((item= li++))
       {
-	Item *fix=make_cond_after_sjm(root_cond, item, tables, sjm_tables);
-	if (fix)
-	  new_cond->argument_list()->push_back(fix);
+        Item *fix= make_cond_after_sjm(root_cond, item, tables, sjm_tables);
+        if (fix)
+          new_cond->argument_list()->push_back(fix);
       }
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (Item*) 0;			// Always true
+        return NULL;                    // Always true
       case 1:
-	return new_cond->argument_list()->head();
+        return new_cond->argument_list()->head();
       default:
 	/*
-	  Item_cond_and do not need fix_fields for execution, its parameters
-	  are fixed or do not need fix_fields, too
+          Item_cond_and do not need fix_fields for execution, its parameters
+          are fixed or do not need fix_fields, too
 	*/
-	new_cond->quick_fix_field();
-	new_cond->used_tables_cache=
-	  ((Item_cond_and*) cond)->used_tables_cache &
-	  tables;
-	return new_cond;
+        new_cond->quick_fix_field();
+        new_cond->used_tables_cache=
+          ((Item_cond_and*) cond)->used_tables_cache & tables;
+        return new_cond;
       }
     }
     else
-    {						// Or list
-      Item_cond_or *new_cond=new Item_cond_or;
+    {                                          // Or list
+      Item_cond_or *new_cond= new Item_cond_or;
       if (!new_cond)
-	return (Item*) 0;			// OOM /* purecov: inspected */
+        return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
-      while ((item=li++))
+      while ((item= li++))
       {
-	Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
-	if (!fix)
-	  return (Item*) 0;			// Always true
-	new_cond->argument_list()->push_back(fix);
+        Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
+        if (!fix)
+          return NULL;                  // Always true
+        new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
-	are fixed or do not need fix_fields, too
+        Item_cond_and do not need fix_fields for execution, its parameters
+        are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
       new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
@@ -19098,15 +19204,22 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
   }
 
   /*
-    Because the following test takes a while and it can be done
-    table_count times, we mark each item that we have examined with the result
-    of the test
+    Omit this condition if
+     1. It has been marked as omittable before, or
+     2. Some tables referred by the condition are not available.
   */
+  if (cond->marker == 3 ||                                             // 1
+      cond->used_tables() & ~(tables | sjm_tables))                    // 2
+    return NULL;
 
-  if (cond->marker == 3 || (cond->used_tables() & ~(tables | sjm_tables)))
-    return (Item*) 0;				// Can't check this yet
-  if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
-    return cond;				// Not boolean op
+  /*
+    Extract this condition if
+     1. It has already been marked as applicable, or
+     2. It is not a <comparison predicate> (=, <, >, <=, >=, <=>)
+  */
+  if (cond->marker == 2 ||                                             // 1
+      cond->eq_cmp_result() == Item::COND_OK)                          // 2
+    return cond;
 
   /* 
     Remove equalities that are guaranteed to be true by use of 'ref' access
@@ -19114,22 +19227,18 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
   */
   if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {
-    Item *left_item=	((Item_func*) cond)->arguments()[0]->real_item();
+    Item *left_item= ((Item_func*) cond)->arguments()[0]->real_item();
     Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
-    if (left_item->type() == Item::FIELD_ITEM &&
-	test_if_ref(root_cond, (Item_field*) left_item,right_item))
+    if ((left_item->type() == Item::FIELD_ITEM &&
+	 test_if_ref(root_cond, (Item_field*) left_item, right_item)) ||
+        (right_item->type() == Item::FIELD_ITEM &&
+	 test_if_ref(root_cond, (Item_field*) right_item, left_item)))
     {
-      cond->marker=3;			// Checked when read
-      return (Item*) 0;
-    }
-    if (right_item->type() == Item::FIELD_ITEM &&
-	test_if_ref(root_cond, (Item_field*) right_item,left_item))
-    {
-      cond->marker=3;			// Checked when read
-      return (Item*) 0;
+      cond->marker= 3;                  // Condition can be omitted
+      return NULL;
     }
   }
-  cond->marker=2;
+  cond->marker= 2;                      // Mark condition as applicable
   return cond;
 }
 
@@ -19586,6 +19695,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   SQL_SELECT *select=tab->select;
   QUICK_SELECT_I *save_quick= 0;
   Item *orig_select_cond= 0;
+  bool orig_select_cond_saved= false;
+  bool changed_key= false;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -19652,8 +19763,17 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
+      /*
+        If part of the select condition has been pushed we use the
+        select condition as it was before pushing. The original
+        select condition is saved so that it can be restored when
+        exiting this function (if we have not changed index).
+      */
       if (tab->pre_idx_push_select_cond)
+      {
         orig_select_cond= tab->set_cond(tab->pre_idx_push_select_cond, __LINE__);
+        orig_select_cond_saved= true;
+      }
 
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
@@ -19702,6 +19822,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             goto use_filesort;
 	}
         ref_key= new_ref_key;
+        changed_key= true;
       }
     }
     /* Check if we get the rows in requested sorted order by using the key */
@@ -19773,15 +19894,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
           {
-            Item *tmp_cond= tab->pre_idx_push_select_cond;
-            if (orig_select_cond)
-            {
-              tmp_cond= and_conds(tmp_cond, orig_select_cond);
-              tmp_cond->quick_fix_field();
-            }
-            tab->set_cond(tmp_cond, __LINE__);
-            /* orig_select_cond was merged, no need to restore original one. */
+            tab->set_cond(tab->pre_idx_push_select_cond, __LINE__);
+            /*
+              orig_select_cond is a part of pre_idx_push_select_cond,
+              no need to restore it.
+            */
             orig_select_cond= 0;
+            orig_select_cond_saved= false;
           }
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
@@ -19821,6 +19940,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       used_key_parts= (order_direction == -1) ?
         saved_best_key_parts :  best_key_parts;
+      changed_key= true;
     }
     else
       goto use_filesort; 
@@ -19875,12 +19995,16 @@ check_reverse_order:
   }
   else if (select && select->quick)
     select->quick->need_sorted_output();
-  if (orig_select_cond)
+  /*
+    Restore condition only if we didn't chose index different to what we used
+    for ICP.
+  */
+  if (orig_select_cond_saved && !changed_key)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(1);
 
 use_filesort:
-  if (orig_select_cond)
+  if (orig_select_cond_saved)
     tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(0);
 }
@@ -21047,6 +21171,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*
@@ -21729,6 +21855,42 @@ copy_funcs(Item **func_ptr, const THD *thd)
   return FALSE;
 }
 
+/**
+  Create a condition for a const reference for a table.
+
+  @param thd      THD pointer
+  @param join_tab pointer to the table
+
+  @return A pointer to the created condition for the const reference.
+  @retval !NULL if the condition was created successfully
+  @retval NULL if an error has occured
+*/
+
+static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
+{
+  DBUG_ENTER("create_cond_for_const_ref");
+  DBUG_ASSERT(join_tab->ref.key_parts);
+
+  TABLE *table= join_tab->table;
+  Item_cond_and *cond= new Item_cond_and();
+  if (!cond)
+    DBUG_RETURN(NULL);
+
+  for (uint i=0 ; i < join_tab->ref.key_parts ; i++)
+  {
+    Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
+                               fieldnr-1];
+    Item *value= join_tab->ref.items[i];
+    cond->add(new Item_func_equal(new Item_field(field), value));
+  }
+  if (thd->is_fatal_error)
+    DBUG_RETURN(NULL);
+
+  if (!cond->fixed)
+    cond->fix_fields(thd, (Item**)&cond);
+
+  DBUG_RETURN(cond);
+}
 
 /**
   Create a condition for a const reference and add this to the
@@ -21741,24 +21903,14 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (!join_tab->ref.key_parts)
     DBUG_RETURN(FALSE);
 
-  Item_cond_and *cond=new Item_cond_and();
-  TABLE *table=join_tab->table;
   int error= 0;
+
+  /* Create a condition representing the const reference. */
+  Item_cond_and *cond= create_cond_for_const_ref(thd, join_tab);
   if (!cond)
     DBUG_RETURN(TRUE);
 
-  for (uint i=0 ; i < join_tab->ref.key_parts ; i++)
-  {
-    Field *field=table->field[table->key_info[join_tab->ref.key].key_part[i].
-			      fieldnr-1];
-    Item *value=join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
-  }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(TRUE);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  /* Add this condition to the existing select condtion */
   if (join_tab->select)
   {
     if (join_tab->select->cond)
@@ -21769,6 +21921,22 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
                                           &error)))
     join_tab->set_select_cond(cond, __LINE__);
+
+  /*
+    If we have pushed parts of the select condition down to the
+    storage engine we also need to add the condition for the const
+    reference to the pre_idx_push_select_cond since this might be used
+    later (in test_if_skip_sort_order()) instead of the select_cond.
+  */
+  if (join_tab->pre_idx_push_select_cond)
+  {
+    cond= create_cond_for_const_ref(thd, join_tab);
+    if (!cond)
+      DBUG_RETURN(TRUE);
+    if (cond->add(join_tab->pre_idx_push_select_cond))
+      DBUG_RETURN(TRUE);
+    join_tab->pre_idx_push_select_cond = cond;
+  }
 
   DBUG_RETURN(error ? TRUE : FALSE);
 }
