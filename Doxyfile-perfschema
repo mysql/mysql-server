@@ -1,3 +1,13 @@
+#
+# MySQL Doxyfile for the performance_schema.
+#
+# To run doxygen:
+# - mkdir -p ./generated/doxygen
+# - doxygen Doxyfile-perfschema
+# - see the logs in ./doxyerror.log
+# - see the doc in ./generated/doxygen/html/index.html
+
+#===========================================================================
 # Doxyfile 1.6.2
 
 # This file describes the settings to be used by the documentation system
@@ -25,7 +35,7 @@ DOXYFILE_ENCODING      = UTF-8
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded
 # by quotes) that should identify the project.
 
-PROJECT_NAME           = WL#4895
+PROJECT_NAME           = "PERFORMANCE SCHEMA"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number.
 # This could be handy for archiving the generated documentation or
@@ -603,7 +613,7 @@ RECURSIVE              = YES
 # excluded from the INPUT source files. This way you can easily exclude a
 # subdirectory from a directory tree whose root is specified with the INPUT tag.
 
-EXCLUDE                = extra libmysql libmysql_r libmysqld mysql-test storage/ibmdb2i storage/innodb storage/ndb support-files unittest zlib
+EXCLUDE                = extra libmysql libmysql_r libmysqld mysql-test storage/innodb storage/ndb support-files unittest zlib
 
 # The EXCLUDE_SYMLINKS tag can be used select whether or not files or
 # directories that are symbolic links (a Unix filesystem feature) are excluded

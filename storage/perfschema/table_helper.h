@@ -10,11 +10,15 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifndef PFS_TABLE_HELPER_H
 #define PFS_TABLE_HELPER_H
+
+#include "pfs_column_types.h"
+#include "pfs_stat.h"
+#include "pfs_timer.h"
 
 /**
   @file storage/perfschema/table_helper.h
@@ -48,6 +52,79 @@ struct PFS_object_view_constants
   static const uint VIEW_PROCEDURE= 3;
   static const uint VIEW_FUNCTION= 4;
 };
+
+struct PFS_stat_row
+{
+  /** Column COUNT_STAR. */
+  ulonglong m_count;
+  /** Column SUM_TIMER_WAIT. */
+  ulonglong m_sum;
+  /** Column MIN_TIMER_WAIT. */
+  ulonglong m_min;
+  /** Column AVG_TIMER_WAIT. */
+  ulonglong m_avg;
+  /** Column MAX_TIMER_WAIT. */
+  ulonglong m_max;
+
+  inline void set(time_normalizer *normalizer, const PFS_single_stat *stat)
+  {
+    m_count= stat->m_count;
+
+    if (m_count)
+    {
+      m_sum= normalizer->wait_to_pico(stat->m_sum);
+      m_min= normalizer->wait_to_pico(stat->m_min);
+      m_max= normalizer->wait_to_pico(stat->m_max);
+      m_avg= normalizer->wait_to_pico(stat->m_sum / stat->m_count);
+    }
+    else
+    {
+      m_sum= 0;
+      m_min= 0;
+      m_avg= 0;
+      m_max= 0;
+    }
+  }
+};
+
+struct PFS_table_io_stat_row
+{
+  PFS_stat_row m_all;
+  PFS_stat_row m_all_read;
+  PFS_stat_row m_all_write;
+  PFS_stat_row m_fetch;
+  PFS_stat_row m_insert;
+  PFS_stat_row m_update;
+  PFS_stat_row m_delete;
+
+  inline void set(time_normalizer *normalizer, const PFS_table_io_stat *stat)
+  {
+    PFS_single_stat all_read;
+    PFS_single_stat all_write;
+    PFS_single_stat all;
+
+    m_fetch.set(normalizer, & stat->m_fetch);
+
+    all_read.aggregate(& stat->m_fetch);
+
+    m_insert.set(normalizer, & stat->m_insert);
+    m_update.set(normalizer, & stat->m_update);
+    m_delete.set(normalizer, & stat->m_delete);
+
+    all_write.aggregate(& stat->m_insert);
+    all_write.aggregate(& stat->m_update);
+    all_write.aggregate(& stat->m_delete);
+
+    all.aggregate(& all_read);
+    all.aggregate(& all_write);
+
+    m_all_read.set(normalizer, & all_read);
+    m_all_write.set(normalizer, & all_write);
+    m_all.set(normalizer, & all);
+  }
+};
+
+void set_field_object_type(Field *f, enum_object_type object_type);
 
 /** @} */
 

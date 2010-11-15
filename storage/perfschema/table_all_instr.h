@@ -31,66 +31,6 @@
   @{
 */
 
-/** Position of a cursor on table_all_instr_class. */
-struct pos_all_instr_class : public PFS_double_index,
-                             public PFS_instrument_view_constants
-{
-  pos_all_instr_class()
-    : PFS_double_index(FIRST_VIEW, 1)
-  {}
-
-  inline void reset(void)
-  {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 1;
-  }
-
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
-
-  inline void next_view(void)
-  {
-    m_index_1++;
-    /* Instrument keys start at 1, not 0. */
-    m_index_2= 1;
-  }
-};
-
-/**
-  Abstract table, a union of all instrumentations class metadata.
-  This table is a union of:
-  - a view on all mutex classes,
-  - a view on all rwlock classes,
-  - a view on all cond classes,
-  - a view on all file classes
-*/
-class table_all_instr_class : public PFS_engine_table
-{
-public:
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
-
-protected:
-  table_all_instr_class(const PFS_engine_table_share *share);
-
-public:
-  ~table_all_instr_class()
-  {}
-
-protected:
-  /**
-    Build a row.
-    @param klass                      the instrument class
-  */
-  virtual void make_instr_row(PFS_instr_class *klass)= 0;
-
-  /** Current position. */
-  pos_all_instr_class m_pos;
-  /** Next position. */
-  pos_all_instr_class m_next_pos;
-};
-
 /** Position of a cursor on table_all_instr. */
 struct pos_all_instr : public PFS_double_index,
                        public PFS_instrument_view_constants

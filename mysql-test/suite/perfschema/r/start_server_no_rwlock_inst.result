@@ -10,7 +10,7 @@ count(*)
 5
 select count(*) from performance_schema.setup_consumers;
 count(*)
-8
+5
 select count(*) > 1 from performance_schema.setup_instruments;
 count(*) > 1
 1
@@ -28,11 +28,13 @@ select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.mutex_instances;
+select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
 select * from performance_schema.threads;
 show variables like "performance_schema%";
@@ -54,6 +56,7 @@ performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	1000
 performance_schema_setup_actors_size	100
+performance_schema_setup_objects_size	100
 show engine PERFORMANCE_SCHEMA status;
 show status like "performance_schema%";
 show variables like "performance_schema_max_rwlock_classes";

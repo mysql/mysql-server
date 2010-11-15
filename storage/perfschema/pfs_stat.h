@@ -16,6 +16,8 @@
 #ifndef PFS_STAT_H
 #define PFS_STAT_H
 
+#include "sql_const.h"
+
 /**
   @file storage/perfschema/pfs_stat.h
   Statistics (declarations).
@@ -26,16 +28,9 @@
   @{
 */
 
-/** Usage statistics chain, for a single value and its aggregates. */
-struct PFS_single_stat_chain
+/** Single statistic. */
+struct PFS_single_stat
 {
-  /**
-    Control flag.
-    Statistics are aggregated only if the control flag is true.
-  */
-  bool *m_control_flag;
-  /** Next link in the statistics chain. */
-  struct PFS_single_stat_chain *m_parent;
   /** Count of values. */
   ulonglong m_count;
   /** Sum of values. */
@@ -44,60 +39,48 @@ struct PFS_single_stat_chain
   ulonglong m_min;
   /** Maximum value. */
   ulonglong m_max;
+
+  PFS_single_stat()
+  {
+    m_count= 0;
+    m_sum= 0;
+    m_min= ULONGLONG_MAX;
+    m_max= 0;
+  }
+
+  inline void reset(void)
+  {
+    m_count= 0;
+    m_sum= 0;
+    m_min= ULONGLONG_MAX;
+    m_max= 0;
+  }
+
+  inline void aggregate(const PFS_single_stat *stat)
+  {
+    m_count+= stat->m_count;
+    m_sum+= stat->m_sum;
+    if (unlikely(m_min > stat->m_min))
+      m_min= stat->m_min;
+    if (unlikely(m_max < stat->m_max))
+      m_max= stat->m_max;
+  }
+
+  inline void aggregate_counted()
+  {
+    m_count++;
+  }
+
+  inline void aggregate_timed(ulonglong value)
+  {
+    m_count++;
+    m_sum+= value;
+    if (unlikely(m_min > value))
+      m_min= value;
+    if (unlikely(m_max < value))
+      m_max= value;
+  }
 };
-
-/**
-  Reset a single statistic link.
-  Only the current link is reset, parents are not affected.
-  @param stat                         the statistics link to reset
-*/
-inline void reset_single_stat_link(PFS_single_stat_chain *stat)
-{
-  stat->m_count= 0;
-  stat->m_sum= 0;
-  stat->m_min= ULONGLONG_MAX;
-  stat->m_max= 0;
-}
-
-/**
-  Aggregate a value to a statistic chain.
-  @param stat                         the aggregated statistic chain
-  @param value                        the value to aggregate
-*/
-inline void aggregate_single_stat_chain(PFS_single_stat_chain *stat,
-                                        ulonglong value)
-{
-  do
-  {
-    if (*stat->m_control_flag)
-    {
-      stat->m_count++;
-      stat->m_sum+= value;
-      if (stat->m_min > value)
-        stat->m_min= value;
-      if (stat->m_max < value)
-        stat->m_max= value;
-    }
-    stat= stat->m_parent;
-  }
-  while (stat);
-}
-
-/**
-  Increment the value counts in a statistic chain.
-  Used for instruments that are 'ENABLED' but not 'TIMED'.
-  @param stat                         the aggregated statistic chain
-*/
-inline void increment_single_stat_chain(PFS_single_stat_chain *stat)
-{
-  do
-  {
-    if (*stat->m_control_flag)
-      stat->m_count++;
-    stat= stat->m_parent;
-  }
-  while (stat);
-}
 
 /** Statistics for COND usage. */
 struct PFS_cond_stat
@@ -108,11 +91,9 @@ struct PFS_cond_stat
   ulonglong m_broadcast_count;
 };
 
-/** Statistics for FILE usage. */
-struct PFS_file_stat
+/** Statistics for FILE IO usage. */
+struct PFS_file_io_stat
 {
-  /** Number of current open handles. */
-  ulong m_open_count;
   /** Count of READ operations. */
   ulonglong m_count_read;
   /** Count of WRITE operations. */
@@ -121,20 +102,125 @@ struct PFS_file_stat
   ulonglong m_read_bytes;
   /** Number of bytes written. */
   ulonglong m_write_bytes;
+
+  /** Reset file statistic. */
+  inline void reset(void)
+  {
+    m_count_read= 0;
+    m_count_write= 0;
+    m_read_bytes= 0;
+    m_write_bytes= 0;
+  }
+
+  inline void aggregate(const PFS_file_io_stat *stat)
+  {
+    m_count_read+= stat->m_count_read;
+    m_count_write+= stat->m_count_write;
+    m_read_bytes+= stat->m_read_bytes;
+    m_write_bytes+= stat->m_write_bytes;
+  }
+
+  inline void aggregate_read(ulonglong bytes)
+  {
+    m_count_read++;
+    m_read_bytes+= bytes;
+  }
+
+  inline void aggregate_write(ulonglong bytes)
+  {
+    m_count_write++;
+    m_write_bytes+= bytes;
+  }
 };
 
-/**
-  Reset file statistic.
-  @param stat                         the statistics to reset
-*/
-inline void reset_file_stat(PFS_file_stat *stat)
+/** Statistics for FILE usage. */
+struct PFS_file_stat
 {
-  stat->m_open_count= 0;
-  stat->m_count_read= 0;
-  stat->m_count_write= 0;
-  stat->m_read_bytes= 0;
-  stat->m_write_bytes= 0;
-}
+  /** Number of current open handles. */
+  ulong m_open_count;
+  /** File IO statistics. */
+  PFS_file_io_stat m_io_stat;
+};
+
+/** Single table io statistic. */
+struct PFS_table_io_stat
+{
+  /** FETCH statistics */
+  PFS_single_stat m_fetch;
+  /** INSERT statistics */
+  PFS_single_stat m_insert;
+  /** UPDATE statistics */
+  PFS_single_stat m_update;
+  /** DELETE statistics */
+  PFS_single_stat m_delete;
+
+  inline void reset(void)
+  {
+    m_fetch.reset();
+    m_insert.reset();
+    m_update.reset();
+    m_delete.reset();
+  }
+
+  inline void aggregate(const PFS_table_io_stat *stat)
+  {
+    m_fetch.aggregate(&stat->m_fetch);
+    m_insert.aggregate(&stat->m_insert);
+    m_update.aggregate(&stat->m_update);
+    m_delete.aggregate(&stat->m_delete);
+  }
+
+  inline void sum(PFS_single_stat *result)
+  {
+    result->aggregate(& m_fetch);
+    result->aggregate(& m_insert);
+    result->aggregate(& m_update);
+    result->aggregate(& m_delete);
+  }
+};
+
+/** Statistics for TABLE usage. */
+struct PFS_table_stat
+{
+  /**
+    Statistics, per index.
+    Each index stat is in [0, MAX_KEY-1],
+    stats when using no index are in [MAX_KEY].
+  */
+  PFS_table_io_stat m_index_stat[MAX_KEY + 1];
+
+  /** Reset table statistic. */
+  inline void reset(void)
+  {
+    PFS_table_io_stat *stat= & m_index_stat[0];
+    PFS_table_io_stat *stat_last= & m_index_stat[MAX_KEY + 1];
+    for ( ; stat < stat_last ; stat++)
+      stat->reset();
+  }
+
+  inline void aggregate(const PFS_table_stat *stat)
+  {
+    PFS_table_io_stat *to_stat= & m_index_stat[0];
+    PFS_table_io_stat *to_stat_last= & m_index_stat[MAX_KEY + 1];
+    const PFS_table_io_stat *from_stat= & stat->m_index_stat[0];
+    for ( ; to_stat < to_stat_last ; from_stat++, to_stat++)
+      to_stat->aggregate(from_stat);
+  }
+
+  inline void sum_io(PFS_single_stat *result)
+  {
+    PFS_table_io_stat *stat= & m_index_stat[0];
+    PFS_table_io_stat *stat_last= & m_index_stat[MAX_KEY + 1];
+    for ( ; stat < stat_last ; stat++)
+      stat->sum(result);
+  }
+
+  inline void sum(PFS_single_stat *result)
+  {
+    sum_io(result);
+    /* sum_lock(result); */
+  }
+};
 
 /** @} */
 #endif

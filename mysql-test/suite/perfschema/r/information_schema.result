@@ -13,11 +13,13 @@ performance_schema	file_instances	def
 performance_schema	file_summary_by_event_name	def
 performance_schema	file_summary_by_instance	def
 performance_schema	mutex_instances	def
+performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
 performance_schema	rwlock_instances	def
 performance_schema	setup_actors	def
 performance_schema	setup_consumers	def
 performance_schema	setup_instruments	def
+performance_schema	setup_objects	def
 performance_schema	setup_timers	def
 performance_schema	threads	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
@@ -35,11 +37,13 @@ file_instances	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
+objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
 rwlock_instances	BASE TABLE	PERFORMANCE_SCHEMA
 setup_actors	BASE TABLE	PERFORMANCE_SCHEMA
 setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
 setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
+setup_objects	BASE TABLE	PERFORMANCE_SCHEMA
 setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
@@ -57,11 +61,13 @@ file_instances	10	Dynamic
 file_summary_by_event_name	10	Dynamic
 file_summary_by_instance	10	Dynamic
 mutex_instances	10	Dynamic
+objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
 rwlock_instances	10	Dynamic
 setup_actors	10	Fixed
 setup_consumers	10	Dynamic
 setup_instruments	10	Dynamic
+setup_objects	10	Dynamic
 setup_timers	10	Dynamic
 threads	10	Dynamic
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
@@ -79,11 +85,13 @@ file_instances	1000	0
 file_summary_by_event_name	1000	0
 file_summary_by_instance	1000	0
 mutex_instances	1000	0
+objects_summary_global_by_type	1000	0
 performance_timers	5	0
 rwlock_instances	1000	0
 setup_actors	1	0
-setup_consumers	8	0
+setup_consumers	5	0
 setup_instruments	1000	0
+setup_objects	3	0
 setup_timers	1	0
 threads	1000	0
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
@@ -101,11 +109,13 @@ file_instances	0	0
 file_summary_by_event_name	0	0
 file_summary_by_instance	0	0
 mutex_instances	0	0
+objects_summary_global_by_type	0	0
 performance_timers	0	0
 rwlock_instances	0	0
 setup_actors	0	0
 setup_consumers	0	0
 setup_instruments	0	0
+setup_objects	0	0
 setup_timers	0	0
 threads	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
@@ -123,11 +133,13 @@ file_instances	0	0	NULL
 file_summary_by_event_name	0	0	NULL
 file_summary_by_instance	0	0	NULL
 mutex_instances	0	0	NULL
+objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
 rwlock_instances	0	0	NULL
 setup_actors	0	0	NULL
 setup_consumers	0	0	NULL
 setup_instruments	0	0	NULL
+setup_objects	0	0	NULL
 setup_timers	0	0	NULL
 threads	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
@@ -145,11 +157,13 @@ file_instances	NULL	NULL	NULL
 file_summary_by_event_name	NULL	NULL	NULL
 file_summary_by_instance	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
+objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
 rwlock_instances	NULL	NULL	NULL
 setup_actors	NULL	NULL	NULL
 setup_consumers	NULL	NULL	NULL
 setup_instruments	NULL	NULL	NULL
+setup_objects	NULL	NULL	NULL
 setup_timers	NULL	NULL	NULL
 threads	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
@@ -167,11 +181,13 @@ file_instances	utf8_general_ci	NULL
 file_summary_by_event_name	utf8_general_ci	NULL
 file_summary_by_instance	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
+objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
 rwlock_instances	utf8_general_ci	NULL
 setup_actors	utf8_general_ci	NULL
 setup_consumers	utf8_general_ci	NULL
 setup_instruments	utf8_general_ci	NULL
+setup_objects	utf8_general_ci	NULL
 setup_timers	utf8_general_ci	NULL
 threads	utf8_general_ci	NULL
 select lower(TABLE_NAME), TABLE_COMMENT
@@ -189,10 +205,12 @@ file_instances
 file_summary_by_event_name	
 file_summary_by_instance	
 mutex_instances	
+objects_summary_global_by_type	
 performance_timers	
 rwlock_instances	
 setup_actors	
 setup_consumers	
 setup_instruments	
+setup_objects	
 setup_timers	
 threads	
