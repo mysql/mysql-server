@@ -45,7 +45,7 @@ static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
-				 const char *db, const char *path, uint level, 
+				 const char *db, const char *path,
                                  TABLE_LIST **dropped_tables);
          
 long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
@@ -809,7 +809,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       as disabled and will not log the drop database statement on any
       other connected server.
      */
-    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
+    if ((deleted= mysql_rm_known_files(thd, dirp, db, path,
                                        &dropped_tables)) >= 0)
     {
       ha_drop_database(path);
@@ -932,20 +932,18 @@ exit:
 }
 
 /*
-  Removes files with known extensions plus all found subdirectories that
-  are 2 hex digits (raid directories).
+  Removes files with known extensions.
   thd MUST be set when calling this function!
 */
 
 static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level,
+				 const char *org_path,
                                  TABLE_LIST **dropped_tables)
 {
   long deleted=0;
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
-  List<String> raid_dirs;
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -964,36 +962,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
        (file->name[1] == '.' &&  !file->name[2])))
       continue;
 
-    /* Check if file is a raid directory */
-    if ((my_isdigit(system_charset_info, file->name[0]) ||
-	 (file->name[0] >= 'a' && file->name[0] <= 'f')) &&
-	(my_isdigit(system_charset_info, file->name[1]) ||
-	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
-	!file->name[2] && !level)
-    {
-      char newpath[FN_REFLEN], *copy_of_path;
-      MY_DIR *new_dirp;
-      String *dir;
-      uint length;
-
-      strxmov(newpath,org_path,"/",file->name,NullS);
-      length= unpack_filename(newpath,newpath);
-      if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
-      {
-	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
-	  goto err;
-	if (!(copy_of_path= (char*) thd->memdup(newpath, length+1)) ||
-	    !(dir= new (thd->mem_root) String(copy_of_path, length,
-					       &my_charset_bin)) ||
-	    raid_dirs.push_back(dir))
-	  goto err;
-	continue;
-      }
-      found_other_files++;
-      continue;
-    }
-    else if (file->name[0] == 'a' && file->name[1] == 'r' &&
+    if (file->name[0] == 'a' && file->name[1] == 'r' &&
              file->name[2] == 'c' && file->name[3] == '\0')
     {
       /* .frm archive:
@@ -1075,14 +1044,6 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
     goto err;
 
-  /* Remove RAID directories */
-  {
-    List_iterator<String> it(raid_dirs);
-    String *dir;
-    while ((dir= it++))
-      if (rmdir(dir->c_ptr()) < 0)
-	found_other_files++;
-  }
   my_dirend(dirp);  
   
   if (dropped_tables)
@@ -1099,8 +1060,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   }
   else
   {
-    /* Don't give errors if we can't delete 'RAID' directory */
-    if (rm_dir_w_symlink(org_path, level == 0))
+    if (rm_dir_w_symlink(org_path, true))
       DBUG_RETURN(-1);
   }
 
