@@ -996,8 +996,7 @@ inline int tokudb_generate_row(
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
-    const DBT *src_val,
-    void *extra
+    const DBT *src_val
     ) 
 {
     int error;
@@ -1118,8 +1117,8 @@ int generate_row_for_del(
     DB *src_db,
     DBT *dest_key,
     const DBT *src_key, 
-    const DBT *src_val,
-    void *extra)
+    const DBT *src_val
+    )
 {
     return tokudb_generate_row(
         dest_db,
@@ -1127,8 +1126,7 @@ int generate_row_for_del(
         dest_key,
         NULL,
         src_key,
-        src_val,
-        extra
+        src_val
         );
 }
 
@@ -1149,8 +1147,7 @@ int generate_row_for_put(
         dest_key,
         dest_val,
         src_key,
-        src_val,
-        extra
+        src_val
         );
 }
 
@@ -2170,7 +2167,6 @@ int ha_tokudb::pack_row_in_buff(
     row->size = (size_t) (var_field_data_ptr - row_buff);
     r = 0;
 
-cleanup:
     dbug_tmp_restore_column_map(table->write_set, old_map);
     return r;
 }
@@ -3208,7 +3204,7 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
             sprintf(
                 status_msg, 
                 "Verifying index uniqueness: Checked %llu of %llu rows in key-%s.", 
-                cnt, 
+                (long long unsigned) cnt, 
                 share->rows, 
                 key_info->name);
             thd_proc_info(thd, status_msg);
@@ -3537,8 +3533,7 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
             share->key_file, 
             mult_key_dbt,
             mult_rec_dbt,
-            mult_put_flags, 
-            NULL
+            mult_put_flags
             );
         lockretry_wait;
     }
@@ -3853,8 +3848,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
             2*curr_num_DBs, 
             mult_key_dbt,
             curr_num_DBs, 
-            mult_rec_dbt,
-            NULL
+            mult_rec_dbt
             );
         lockretry_wait;
     }
@@ -3967,8 +3961,7 @@ int ha_tokudb::delete_row(const uchar * record) {
             curr_num_DBs, 
             share->key_file, 
             mult_key_dbt,
-            mult_del_flags, 
-            NULL
+            mult_del_flags
             );
         lockretry_wait;
     }

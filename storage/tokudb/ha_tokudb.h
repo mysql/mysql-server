@@ -117,8 +117,7 @@ int generate_row_for_del(
     DB *src_db,
     DBT *dest_key,
     const DBT *src_key, 
-    const DBT *src_val,
-    void *extra
+    const DBT *src_val
     );
 int generate_row_for_put(
     DB *dest_db, 
@@ -126,8 +125,7 @@ int generate_row_for_put(
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
-    const DBT *src_val,
-    void *extra
+    const DBT *src_val
     ); 
 
 
