@@ -62,6 +62,6 @@ show status like "performance_schema%";
 show variables like "performance_schema_setup_objects_size";
 Variable_name	Value
 performance_schema_setup_objects_size	0
-select count(*) from performance_schema.SETUP_OBJECTS;
+select count(*) from performance_schema.setup_objects;
 count(*)
 0
