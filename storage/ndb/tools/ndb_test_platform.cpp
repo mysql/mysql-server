@@ -68,6 +68,8 @@ int test_snprintf(const char * fmt, int buf_sz, int result)
 int
 main(void)
 {
+
+  printf("ndb_test_platform - tests for snprintf and pointer size\n");
   /*
    * Test BaseString::snprintf
    */
