@@ -7484,7 +7484,9 @@ int ha_ndbcluster::create(const char *name,
   NDBDICT *dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict);
 
+#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
+#endif
   table= form;
   if (create_from_engine)
   {
