@@ -30,7 +30,9 @@ INCLUDE_DIRECTORIES(
  ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
  ${CMAKE_SOURCE_DIR}/sql
 )
-
+IF(NOT WIN32)
+  ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
+ENDIF()
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient dbug mysys strings mysqlclient)
 
