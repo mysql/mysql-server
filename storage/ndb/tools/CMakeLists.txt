@@ -15,12 +15,9 @@
 
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
-INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR}
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
-)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
 
-ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ADD_EXECUTABLE(ndb_waiter waiter.cpp)
 TARGET_LINK_LIBRARIES(ndb_waiter ndbportlib ndbNDBT)
 ADD_EXECUTABLE(ndb_drop_table drop_tab.cpp)
@@ -62,4 +59,10 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
                    DEPENDS ndbinfo_sql)
 ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
 				  DEPENDS ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql)
+
+
+IF (MYSQL_VERSION_ID VERSION_LESS "50501")
+  # Don't build or install this program anymore in 5.5+
+  ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
+ENDIF()
 
