@@ -4243,7 +4243,7 @@ int do_save_master_pos()
         const char latest_applied_binlog_epoch_str[]=
           "latest_applied_binlog_epoch=";
         if (count)
-          sleep(1);
+          my_sleep(100*1000); /* 100ms */
         if (mysql_query(mysql, query= "show engine ndb status"))
           die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
@@ -4332,7 +4332,7 @@ int do_save_master_pos()
 	count++;
 	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
-        else if (count > 30)
+        else if (count > 300) /* 30s */
 	{
 	  break;
         }
