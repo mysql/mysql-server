@@ -752,6 +752,7 @@ NdbResultStream::handleBatchComplete()
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     NdbResultStream& childStream = child.getResultStream(m_rootFragNo);
+    childStream.handleBatchComplete();
 
     const bool isInnerJoin = child.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll;
     const bool allSubScansComplete = childStream.isAllSubScansComplete();
@@ -1931,7 +1932,8 @@ NdbQueryImpl::handleBatchComplete(Uint32 fragNo)
 
     if (getQueryDef().isScanQuery())
     {
-      root.handleBatchComplete(fragNo);  // Only required for scans
+      // Only required for scans
+      root.getResultStream(fragNo).handleBatchComplete();  
 
       // Only ordered scans has to wait until all pending completed
       resume = (m_pendingFrags==0) ||
@@ -3480,25 +3482,6 @@ NdbQueryOperationImpl::nextResult(bool fetchAllowed, bool forceSend)
   return NdbQuery::NextResult_scanComplete;
 } //NdbQueryOperationImpl::nextResult()
 
-
-/** 
- * A batch of result rows has been completely received.
- * Update / reset required operation and resultstream status 
- * before we can start navigating and presenting the result rows
- * the the application interface.
- */
-void 
-NdbQueryOperationImpl::handleBatchComplete(Uint32 fragNo)
-{
-  for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
-  {
-    NdbQueryOperationImpl& child = getChildOperation(i);
-    child.handleBatchComplete(fragNo);
-  }
-  m_resultStreams[fragNo]->handleBatchComplete();
-
-} // NdbQueryOperationImpl::handleBatchComplete
-  
 
 void 
 NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
