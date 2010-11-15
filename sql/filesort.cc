@@ -543,11 +543,6 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 		    current_thd->variables.read_buff_size);
   }
 
-  if (quick_select)
-  {
-    if (select->quick->reset())
-      DBUG_RETURN(HA_POS_ERROR);
-  }
 
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
@@ -561,8 +556,18 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
+  if (select && select->pre_idx_push_select_cond)
+    select->pre_idx_push_select_cond->walk(&Item::register_field_in_read_map,
+                                           1, (uchar*) sort_form);
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
                                 &sort_form->tmp_set);
+
+
+  if (quick_select)
+  {
+    if (select->quick->reset())
+      DBUG_RETURN(HA_POS_ERROR);
+  }
 
   for (;;)
   {

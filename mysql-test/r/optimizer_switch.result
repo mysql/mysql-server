@@ -4,19 +4,19 @@
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='index_merge=off,index_merge_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='index_merge_union=on';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,index_merge_sort_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch=4;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of '4'
 set optimizer_switch=NULL;
@@ -43,57 +43,57 @@ set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set @@global.optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 #
 # Check index_merge's @@optimizer_switch flags
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 
 BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,semijoin=off,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,materialization=off,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,semijoin=off,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,semijoin=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch='default,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on,subquery_cache=on,mrr_sort_keys=on,outer_join_with_cache=off,semijoin_with_cache=off,join_cache_incremental=on,join_cache_hashed=on,join_cache_bka=on
 set optimizer_switch=default;

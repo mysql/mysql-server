@@ -381,6 +381,7 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
                                  QT_ORDINARY););
 
         tab->select->cond= tab->select_cond;
+        tab->select->pre_idx_push_select_cond= tab->pre_idx_push_select_cond;
       }
     }
   }

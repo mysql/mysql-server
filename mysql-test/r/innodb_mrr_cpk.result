@@ -1,0 +1,148 @@
+drop table if exists t0,t1,t2,t3;
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=6;
+set @save_storage_engine=@@storage_engine;
+set storage_engine=innodb;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a char(8), b char(8), filler char(100), primary key(a));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(8) NOT NULL DEFAULT '',
+  `b` char(8) DEFAULT NULL,
+  `filler` char(100) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+concat('b-', 1000 + A.a + B.a*10 + C.a*100, '=B'),
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8));
+insert into t2 values ('a-1010=A'), ('a-1030=A'), ('a-1020=A');
+This should use join buffer:
+explain select * from t1, t2 where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.a	1	Using join buffer (flat, BKA join)
+This output must be sorted by value of t1.a:
+select * from t1, t2 where t1.a=t2.a;
+a	b	filler	a
+a-1010=A	b-1010=B	filler	a-1010=A
+a-1020=A	b-1020=B	filler	a-1020=A
+a-1030=A	b-1030=B	filler	a-1030=A
+drop table t1, t2;
+create table t1(
+a char(8) character set utf8, b int, filler char(100), 
+primary key(a,b)
+);
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+1000 + A.a + B.a*10 + C.a*100,
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+insert into t2 values ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	28	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+a-1030=A	1030	filler	a-1030=A	1030
+drop table t1, t2;
+create table t1(
+a varchar(8) character set utf8, b int, filler char(100), 
+primary key(a,b)
+);
+insert into t1 select 
+concat('a-', 1000 + A.a + B.a*10 + C.a*100, '=A'),
+1000 + A.a + B.a*10 + C.a*100,
+'filler'
+from t0 A, t0 B, t0 C;
+create table t2 (a char(8) character set utf8, b int);
+insert into t2 values ('a-1010=A', 1010), ('a-1030=A', 1030), ('a-1020=A', 1020);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	30	test.t2.a,test.t2.b	1	Using index condition(BKA); Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+explain select * from t1, t2 where t1.a=t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	26	test.t2.a	1	Using index condition(BKA); Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a;
+a	b	filler	a	b
+a-1010=A	1010	filler	a-1010=A	1010
+a-1020=A	1020	filler	a-1020=A	1020
+a-1030=A	1030	filler	a-1030=A	1030
+drop table t1, t2;
+create table t1 (a int, b int, c int, filler char(100), primary key(a,b,c));
+insert into t1 select A.a, B.a, C.a, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 values (11, 11, 11,   'filler');
+insert into t1 values (11, 11, 12,   'filler');
+insert into t1 values (11, 11, 13,   'filler');
+insert into t1 values (11, 22, 1234, 'filler');
+insert into t1 values (11, 33, 124,  'filler');
+insert into t1 values (11, 33, 125,  'filler');
+create table t2 (a int, b int);
+insert into t2 values (11,33), (11,22), (11,11);
+explain select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	c	filler	a	b
+11	11	11	filler	11	11
+11	11	12	filler	11	11
+11	11	13	filler	11	11
+11	22	1234	filler	11	22
+11	33	124	filler	11	33
+11	33	125	filler	11	33
+set join_cache_level=0;
+select * from t1, t2 where t1.a=t2.a and t1.b=t2.b;
+a	b	c	filler	a	b
+11	33	124	filler	11	33
+11	33	125	filler	11	33
+11	22	1234	filler	11	22
+11	11	11	filler	11	11
+11	11	12	filler	11	11
+11	11	13	filler	11	11
+set join_cache_level=6;
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using index condition(BKA); Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+a	b	c	filler	a	b
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using where; Using join buffer (flat, BKA join)
+select * from t1, t2 where t1.a=t2.a and t2.b + t1.b > 100;
+a	b	c	filler	a	b
+set optimizer_switch='index_condition_pushdown=on';
+drop table t1,t2;
+set @@join_cache_level= @save_join_cache_level;
+set storage_engine=@save_storage_engine;
+drop table t0;
