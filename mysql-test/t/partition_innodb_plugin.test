@@ -25,6 +25,7 @@ user_num CHAR(10)
 KEY_BLOCK_SIZE=4
 PARTITION BY HASH(id) PARTITIONS 1;
 
+--replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test
 SHOW CREATE TABLE t1;
 
@@ -42,12 +43,14 @@ LOCK TABLE t1 WRITE;
 --error ER_GET_ERRNO
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 
+--replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test
 --echo # This SET is not needed to reproduce the bug,
 --echo # it is here just to make the test case more realistic
 SET innodb_strict_mode = OFF;
 
 ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test
 
 # really bug#56172
