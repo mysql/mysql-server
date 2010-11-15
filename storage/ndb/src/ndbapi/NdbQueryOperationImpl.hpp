@@ -764,8 +764,6 @@ private:
    * NdbReceiver::m_query_operation_impl here.*/
   Uint32 getIdOfReceiver() const;
   
-  Uint32 findResultStream(Uint32 receiverId) const;
-
   /** 
    * If the operation has a scan filter, append the corresponding
    * interpreter code to a buffer.
