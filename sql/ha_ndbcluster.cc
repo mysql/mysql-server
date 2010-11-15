@@ -10932,7 +10932,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   if (have_lock_open)
-    safe_mutex_assert_owner(&LOCK_open);
+    mysql_mutex_assert_owner(&LOCK_open);
   else
     mysql_mutex_lock(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
