@@ -1,0 +1,1 @@
+--skip-safemalloc --mutex-deadlock-detector=0
