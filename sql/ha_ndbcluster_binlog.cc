@@ -401,7 +401,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share)
   TABLE *table= event_data->table= 
     (TABLE*)alloc_root(&event_data->mem_root, sizeof(TABLE));
 
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   init_tmp_table_share(thd, table_share, share->db, 0, share->table_name, 
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)) ||
@@ -2348,7 +2348,7 @@ end:
     pthread_mutex_lock(&ndb_schema_object->mutex);
     if (have_lock_open)
     {
-      safe_mutex_assert_owner(&LOCK_open);
+      mysql_mutex_assert_owner(&LOCK_open);
       mysql_mutex_unlock(&LOCK_open);
     }
     while (1)
@@ -5081,7 +5081,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 #ifdef SYNC_DROP_
   thd->proc_info= "Syncing ndb table schema operation and binlog";
   pthread_mutex_lock(&share->mutex);
-  safe_mutex_assert_owner(&LOCK_open);
+  mysql_mutex_assert_owner(&LOCK_open);
   mysql_mutex_unlock(&LOCK_open);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
