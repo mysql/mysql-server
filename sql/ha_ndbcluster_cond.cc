@@ -1530,12 +1530,11 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
       const KEY_PART_INFO* key_part=key_info->key_part;
       if (key_part->null_bit != 0) // nullable (must be)
       {
-        const Field* field=key_part->field;
         const uchar* ptr= start_key->key;
         if (ptr[0] != 0) // null (in "null < x")
         {
           DBUG_PRINT("info", ("Generating ISNOTNULL filter for nullable %s",
-                              field->field_name));
+                              key_part->field->field_name));
           if (filter.isnotnull(key_part->fieldnr-1) == -1)
             DBUG_RETURN(1);
           break;
