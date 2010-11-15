@@ -4561,11 +4561,10 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
       assert(!maskSet);
     }
   }
-  const NdbQueryOperationDefImpl& finalOpDef = 
-    queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1);
   // Check that nodeMask does not have more bits than we have operations. 
-  UNUSED(finalOpDef);
-  assert(nodeMask >> (1+finalOpDef.getQueryOperationId()) == 0);
+  assert(nodeMask >> 
+         (1+queryDef.getQueryOperation(queryDef.getNoOfOperations() - 1)
+          .getQueryOperationId()) == 0);
 
   bool ret = false;
   if (rootFrag->isFragBatchComplete())

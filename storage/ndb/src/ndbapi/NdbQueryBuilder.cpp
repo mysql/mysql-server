@@ -1577,6 +1577,12 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
            */
           assert(column.m_keyInfoPos < tableRecord->noOfColumns);
           const NdbRecord::Attr& recAttr = tableRecord->columns[column.m_keyInfoPos];
+          /**
+           * Shinked varchars should already have been converted in 
+           * NdbQueryImpl::setBound(), so no need to deal with them here.
+           * (See also bug#56853 and http://lists.mysql.com/commits/121387 .)
+           */
+          assert((recAttr.flags & NdbRecord::IsMysqldShrinkVarchar) == 0);
           const int res=
             (*recAttr.compare_function)(recAttr.charset_info,
                                         keyPart1.ptr, keyPart1.len,

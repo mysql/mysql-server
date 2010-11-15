@@ -44,7 +44,6 @@ class NdbQueryImpl {
 
   /* NdbQueryOperations are allowed to access it containing query */
   friend class NdbQueryOperationImpl;
-  friend class ReceiverIdIterator;
   
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const class NdbQueryOperationImpl&);
