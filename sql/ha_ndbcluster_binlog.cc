@@ -279,9 +279,11 @@ static void run_query(THD *thd, char *buf, char *end,
   DBUG_PRINT("query", ("%s", thd->query()));
 
   DBUG_ASSERT(!thd->in_sub_stmt);
-  DBUG_ASSERT(!thd->prelocked_mode);
 
 #if MYSQL_VERSION_ID >= 50501
+
+  DBUG_ASSERT(!thd->locked_tables_mode);
+
   {
     Parser_state parser_state;
     if (!parser_state.init(thd, thd->query(), thd->query_length()))
@@ -316,6 +318,9 @@ static void run_query(THD *thd, char *buf, char *end,
   */
   thd->stmt_da->reset_diagnostics_area();
 #else
+
+  DBUG_ASSERT(!thd->prelocked_mode);
+
   const char* found_semicolon= NULL;
   mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
 
