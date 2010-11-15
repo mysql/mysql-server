@@ -61,7 +61,7 @@ ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
 				  DEPENDS ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql)
 
 
-IF (MYSQL_VERSION_ID VERSION_LESS "50501")
+IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+
   ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ENDIF()
