@@ -282,6 +282,7 @@ join_condition:
  | int_condition
  | int_condition
  | char_condition
+ | other_condition
  ;
 
 int_condition: 
@@ -308,8 +309,8 @@ int_multi_conditions:
    existing_left_table.col_int = existing_right_table.col_int AND
    existing_left_table.col_int_key = existing_right_table.col_int_key AND
    existing_left_table.col_int_unique = existing_right_table.col_int_unique
- |
-   int_condition AND int_condition
+#|
+#  int_condition AND int_condition
  ;
 
 char_condition:
@@ -326,8 +327,18 @@ char_multi_conditions:
    # ix2(col_varchar_256,col_char_16_unique)
    existing_left_table.col_varchar_256 = existing_right_table.col_varchar_256 AND
    existing_left_table.col_varchar_10_unique = existing_right_table.col_varchar_10_unique
- |
-   char_condition AND char_condition
+#|
+#  char_condition AND char_condition
+ ;
+
+other_condition:
+   existing_left_table.col_int comparison_operator existing_right_table.col_int
+ | existing_left_table.col_int IS not NULL
+ | existing_right_table.col_int IS not NULL
+ | existing_left_table.col_int not IN (number_list)
+ | existing_right_table.col_int not IN (number_list)
+ | join_condition and_or join_condition
+ | not (join_condition) is_truth_value
  ;
 
 existing_left_table:
