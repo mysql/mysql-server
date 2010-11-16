@@ -3320,11 +3320,13 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       is backward compatible.
     */
   }
-  char buffer[STRING_BUFFER_USUAL_SIZE];
+  char buffer[1024];
   for (i=0 ; i < table_def->count; i++, field_def++)
   {
     String sql_type(buffer, sizeof(buffer), system_charset_info);
     sql_type.length(0);
+    /* Allocate min 256 characters at once */
+    sql_type.extra_allocation(256);
     if (i < table->s->fields)
     {
       Field *field= table->field[i];

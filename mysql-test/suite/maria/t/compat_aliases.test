@@ -3,6 +3,7 @@
 #  command-line options). They should match aria* variables.
 #
 
+--replace_column 5 #
 select * from information_schema.plugins where plugin_name like '%aria';
 
 select maria_vars.variable_name, aria_vars.variable_name from
