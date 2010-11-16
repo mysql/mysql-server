@@ -12,6 +12,7 @@ call mtr.add_suppression(".*int __cxa_pure_virtual().*");
 ###################################################################################
 #                               PREPARE EXECUTION
 ###################################################################################
+SET @verbose= 'Y';
 SET @commands= 'configure';
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
