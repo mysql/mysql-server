@@ -3508,7 +3508,7 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
        if (!strcmp("COMMIT", query))
        {
          rli->flush_info(TRUE);
-         DBUG_ABORT();
+         DBUG_SUICIDE();
        }
   );
   
@@ -5543,7 +5543,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     rli_ptr->get_event_relay_log_name(),
     (ulong) rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_SUICIDE(););
 
   /*
     We need to update the positions in here to make it transactional.  
@@ -5573,10 +5573,10 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
     rli_ptr->get_event_relay_log_name(),
     (ulong) rli_ptr->get_event_relay_log_pos()));
 
-  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_SUICIDE(););
 
   error= trans_commit(thd); /* Automatically rolls back on error. */
-  DBUG_EXECUTE_IF("crash_after_apply", DBUG_ABORT(););
+  DBUG_EXECUTE_IF("crash_after_apply", DBUG_SUICIDE(););
   thd->mdl_context.release_transactional_locks();
 
 err:
