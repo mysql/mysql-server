@@ -122,6 +122,30 @@ SET @@global.init_slave = 'SELECT 1';
 
 --echo [on master]
 connection master;
+# checking values of read-only variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@pid_file, @@datadir;
+--echo **** Relay log variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
+--echo **** Binary log variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@log_bin, @@log_bin_index, @@log_bin_basename;
+
+--echo [on slave]
+connection slave;
+# checking values of read-only variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@pid_file, @@datadir;
+--echo **** Relay log variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
+--echo **** Binary log variables
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+query_vertical SELECT @@log_bin, @@log_bin_index, @@log_bin_basename;
+
+--echo [on master]
+connection master;
 
 # Tables where everything happens.
 CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
