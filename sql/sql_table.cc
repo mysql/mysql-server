@@ -1849,12 +1849,77 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 {
   bool error;
   Drop_table_error_handler err_handler;
+  TABLE_LIST *table;
 
   DBUG_ENTER("mysql_rm_table");
 
+  /* Disable drop of enabled log tables, must be done before name locking */
+  for (table= tables; table; table= table->next_local)
+  {
+    if (check_if_log_table(table->db_length, table->db,
+                           table->table_name_length, table->table_name, true))
+    {
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+      DBUG_RETURN(true);
+    }
+  }
+
+  mysql_ha_rm_tables(thd, tables);
+
+  if (!drop_temporary)
+  {
+    if (!thd->locked_tables_mode)
+    {
+      if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
+                           MYSQL_OPEN_SKIP_TEMPORARY))
+        DBUG_RETURN(true);
+      for (table= tables; table; table= table->next_local)
+        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                         false);
+    }
+    else
+    {
+      for (table= tables; table; table= table->next_local)
+        if (table->open_type != OT_BASE_ONLY &&
+	    find_temporary_table(thd, table))
+        {
+          /*
+            A temporary table.
+
+            Don't try to find a corresponding MDL lock or assign it
+            to table->mdl_request.ticket. There can't be metadata
+            locks for temporary tables: they are local to the session.
+
+            Later in this function we release the MDL lock only if
+            table->mdl_requeset.ticket is not NULL. Thus here we
+            ensure that we won't release the metadata lock on the base
+            table locked with LOCK TABLES as a side effect of temporary
+            table drop.
+          */
+          DBUG_ASSERT(table->mdl_request.ticket == NULL);
+        }
+        else
+        {
+          /*
+            Not a temporary table.
+
+            Since 'tables' list can't contain duplicates (this is ensured
+            by parser) it is safe to cache pointer to the TABLE instances
+            in its elements.
+          */
+          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
+                                                   table->table_name, false);
+          if (!table->table)
+            DBUG_RETURN(true);
+          table->mdl_request.ticket= table->table->mdl_ticket;
+        }
+    }
+  }
+
   /* mark for close and remove all cached entries */
   thd->push_internal_handler(&err_handler);
-  error= mysql_rm_table_part2(thd, tables, if_exists, drop_temporary, 0, 0);
+  error= mysql_rm_table_no_locks(thd, tables, if_exists, drop_temporary,
+                                 false, false);
   thd->pop_internal_handler();
 
   if (error)
@@ -1863,39 +1928,38 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Execute the drop of a normal or temporary table
 
-  SYNOPSIS
-    mysql_rm_table_part2()
-    thd			Thread handler
-    tables		Tables to drop
-    if_exists		If set, don't give an error if table doesn't exists.
-			In this case we give an warning of level 'NOTE'
-    drop_temporary	Only drop temporary tables
-    drop_view		Allow to delete VIEW .frm
-    dont_log_query	Don't write query to log files. This will also not
-			generate warnings if the handler files doesn't exists  
+/**
+  Execute the drop of a normal or temporary table.
 
-  TODO:
-    When logging to the binary log, we should log
-    tmp_tables and transactional tables as separate statements if we
-    are in a transaction;  This is needed to get these tables into the
-    cached binary log that is only written on COMMIT.
+  @param  thd             Thread handler
+  @param  tables          Tables to drop
+  @param  if_exists       If set, don't give an error if table doesn't exists.
+                          In this case we give an warning of level 'NOTE'
+  @param  drop_temporary  Only drop temporary tables
+  @param  drop_view       Allow to delete VIEW .frm
+  @param  dont_log_query  Don't write query to log files. This will also not
+                          generate warnings if the handler files doesn't exists
 
-   The current code only writes DROP statements that only uses temporary
-   tables to the cache binary log.  This should be ok on most cases, but
-   not all.
+  @retval  0  ok
+  @retval  1  Error
+  @retval -1  Thread was killed
 
- RETURN
-   0	ok
-   1	Error
-   -1	Thread was killed
+  @note This function assumes that metadata locks have already been taken.
+        It is also assumed that the tables have been removed from TDC.
+
+  @todo When logging to the binary log, we should log
+        tmp_tables and transactional tables as separate statements if we
+        are in a transaction;  This is needed to get these tables into the
+        cached binary log that is only written on COMMIT.
+        The current code only writes DROP statements that only uses temporary
+        tables to the cache binary log.  This should be ok on most cases, but
+        not all.
 */
 
-int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-			 bool drop_temporary, bool drop_view,
-			 bool dont_log_query)
+int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+                            bool drop_temporary, bool drop_view,
+                            bool dont_log_query)
 {
   TABLE_LIST *table;
   char path[FN_REFLEN + 1], *alias= NULL;
@@ -1909,7 +1973,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool non_tmp_table_deleted= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
-  DBUG_ENTER("mysql_rm_table_part2");
+  DBUG_ENTER("mysql_rm_table_no_locks");
 
   /*
     Prepares the drop statements that will be written into the binary
@@ -1963,71 +2027,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  mysql_ha_rm_tables(thd, tables);
-
-  /* Disable drop of enabled log tables, must be done before name locking */
-  for (table= tables; table; table= table->next_local)
-  {
-    if (check_if_log_table(table->db_length, table->db,
-                           table->table_name_length, table->table_name, 1))
-    {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
-      DBUG_RETURN(1);
-    }
-  }
-
-  if (!drop_temporary)
-  {
-    if (!thd->locked_tables_mode)
-    {
-      if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
-                           MYSQL_OPEN_SKIP_TEMPORARY))
-        DBUG_RETURN(1);
-      for (table= tables; table; table= table->next_local)
-      {
-        tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
-                         FALSE);
-      }
-    }
-    else
-    {
-      for (table= tables; table; table= table->next_local)
-        if (table->open_type != OT_BASE_ONLY &&
-	    find_temporary_table(thd, table))
-        {
-          /*
-            A temporary table.
-
-            Don't try to find a corresponding MDL lock or assign it
-            to table->mdl_request.ticket. There can't be metadata
-            locks for temporary tables: they are local to the session.
-
-            Later in this function we release the MDL lock only if
-            table->mdl_requeset.ticket is not NULL. Thus here we
-            ensure that we won't release the metadata lock on the base
-            table locked with LOCK TABLES as a side effect of temporary
-            table drop.
-          */
-          DBUG_ASSERT(table->mdl_request.ticket == NULL);
-        }
-        else
-        {
-          /*
-            Not a temporary table.
-
-            Since 'tables' list can't contain duplicates (this is ensured
-            by parser) it is safe to cache pointer to the TABLE instances
-            in its elements.
-          */
-          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
-                                                   table->table_name, FALSE);
-          if (!table->table)
-            DBUG_RETURN(1);
-          table->mdl_request.ticket= table->table->mdl_ticket;
-        }
-    }
-  }
-
   for (table= tables; table; table= table->next_local)
   {
     bool is_trans;
@@ -2038,6 +2037,16 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
                          table->db, table->table_name, (long) table->table,
                          table->table ? (long) table->table->s : (long) -1));
+
+    /*
+      If we are in locked tables mode and are dropping a temporary table,
+      the ticket should be NULL to ensure that we don't release a lock
+      on a base table later.
+    */
+    DBUG_ASSERT(!(thd->locked_tables_mode &&
+                  table->open_type != OT_BASE_ONLY &&
+                  find_temporary_table(thd, table) &&
+                  table->mdl_request.ticket != NULL));
 
     /*
       drop_temporary_table may return one of the following error codes:
@@ -2114,6 +2123,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         table->table= 0;
       }
 
+      /* Check that we have an exclusive lock on the table to be dropped. */
+      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                                 table->table_name,
+                                                 MDL_EXCLUSIVE));
       if (thd->killed)
       {
         error= -1;
@@ -2156,8 +2169,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         built_query.append("`,");
       }
     }
-    DEBUG_SYNC(thd, "rm_table_part2_before_delete_table");
-    DBUG_EXECUTE_IF("sleep_before_part2_delete_table",
+    DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");
+    DBUG_EXECUTE_IF("sleep_before_no_locks_delete_table",
                     my_sleep(100000););
     error= 0;
     if (drop_temporary ||
@@ -2244,7 +2257,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                                     ER(ER_BAD_TABLE_ERROR), MYF(0),
                                     table->table_name););
   }
-  DEBUG_SYNC(thd, "rm_table_part2_before_binlog");
+  DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
   thd->thread_specific_used|= (trans_tmp_table_deleted ||
                                non_trans_tmp_table_deleted);
   error= 0;
