@@ -73,3 +73,4 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT e1 ON SCHEDULE EVERY 10 DAY DO SELECT 'abc'
 DROP TABLE t1;
+DROP EVENT e1;
