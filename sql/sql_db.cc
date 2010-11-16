@@ -28,6 +28,8 @@
 #include "sql_acl.h"                     // SELECT_ACL, DB_ACLS,
                                          // acl_get, check_grant_db
 #include "log_event.h"                   // Query_log_event
+#include "sql_base.h"                    // lock_table_names, tdc_remove_table
+#include "sql_handler.h"                 // mysql_ha_rm_tables
 #include <mysys_err.h>
 #include "sp.h"
 #include "events.h"
@@ -944,6 +946,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
   ulong found_other_files=0;
   char filePath[FN_REFLEN];
   TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
+  TABLE_LIST *table;
   DBUG_ENTER("mysql_rm_known_files");
   DBUG_PRINT("enter",("path: %s", org_path));
 
@@ -1040,8 +1043,39 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       }
     }
   }
+
+  /*
+    Disable drop of enabled log tables, must be done before name locking.
+    This check is only needed if we are dropping the "mysql" database.
+  */
+  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db) == 0))
+  {
+    for (table= tot_list; table; table= table->next_local)
+    {
+      if (check_if_log_table(table->db_length, table->db,
+                             table->table_name_length, table->table_name, true))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+        goto err;
+      }
+    }
+  }
+
+  /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+  if (tot_list)
+    mysql_ha_rm_tables(thd, tot_list);
+
+  if (lock_table_names(thd, tot_list, NULL, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
+    goto err;
+
+  for (table= tot_list; table; table= table->next_local)
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                     false);
+
   if (thd->killed ||
-      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
+      (tot_list && mysql_rm_table_no_locks(thd, tot_list, true,
+                                           false, true, true)))
     goto err;
 
   my_dirend(dirp);  
