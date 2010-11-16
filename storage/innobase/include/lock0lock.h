@@ -750,6 +750,18 @@ ulint
 lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock);	/*!< in: lock */
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if there are any locks (table or rec) against table.
+@return	lock if found */
+UNIV_INTERN
+lock_t*
+lock_table_has_locks(
+/*=================*/
+	const dict_table_t*	table);	/*!< in: check if there are any locks
+					held on records in this table or on the
+					table itself */
+#endif /* UNIV_DEBUG */
 
 /** Lock modes and types */
 /* @{ */

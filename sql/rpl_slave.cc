@@ -1005,7 +1005,17 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    if (thd->transaction.all.modified_non_trans_table && rli->is_in_group())
+    /*
+      The transaction should always be binlogged if OPTION_KEEP_LOG is set
+      (it implies that something can not be rolled back). And such case
+      should be regarded similarly as modifing a non-transactional table
+      because retrying of the transaction will lead to an error or inconsistency
+      as well.
+      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
+    */
+    if ((thd->transaction.all.modified_non_trans_table ||
+         (thd->variables.option_bits & OPTION_KEEP_LOG))
+        && rli->is_in_group())
     {
       char msg_stopped[]=
         "... The slave SQL is stopped, leaving the current group "
@@ -2601,11 +2611,11 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
                         "ev->when= %lu "
                         "rli->mi->clock_diff_with_master= %lu "
                         "now= %ld "
-                        "sql_delay_end= %lu "
+                        "sql_delay_end= %ld "
                         "nap_time= %ld",
                         sql_delay, (long)ev->when,
                         rli->mi->clock_diff_with_master,
-                        (long)now, sql_delay_end, (long)nap_time));
+                        (long)now, (long)sql_delay_end, (long)nap_time));
 
     if (sql_delay_end > now)
     {
@@ -2680,7 +2690,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   DBUG_PRINT("info", ("thd->options: %s%s; rli->last_event_start_time: %lu",
                       FLAGSTR(thd->variables.option_bits, OPTION_NOT_AUTOCOMMIT),
                       FLAGSTR(thd->variables.option_bits, OPTION_BEGIN),
-                      rli->last_event_start_time));
+                      (ulong) rli->last_event_start_time));
 
   /*
     Execute the event to change the database and update the binary
@@ -2968,9 +2978,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= 0;
-            trans_rollback(thd);
-            close_thread_tables(thd);
-            thd->mdl_context.release_transactional_locks();
+            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3828,6 +3836,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     request is detected only by the present function, not by events), so we
     must "proactively" clear playgrounds:
   */
+  thd->clear_error();
   rli->cleanup_context(thd, 1);
   /*
     Some extra safety, which should not been needed (normally, event deletion
@@ -5229,12 +5238,66 @@ static Log_event* next_event(Relay_log_info* rli)
         DBUG_ASSERT(rli->cur_log_fd == -1);
 
         /*
-          Read pointer has to be at the start since we are the only
-          reader.
-          We must keep the LOCK_log to read the 4 first bytes, as this is a hot
-          log (same as when we call read_log_event() above: for a hot log we
-          take the mutex).
+           When the SQL thread is [stopped and] (re)started the
+           following may happen:
+
+           1. Log was hot at stop time and remains hot at restart
+
+              SQL thread reads again from hot_log (SQL thread was
+              reading from the active log when it was stopped and the
+              very same log is still active on SQL thread restart).
+
+              In this case, my_b_seek is performed on cur_log, while
+              cur_log points to relay_log.get_log_file();
+
+           2. Log was hot at stop time but got cold before restart
+
+              The log was hot when SQL thread stopped, but it is not
+              anymore when the SQL thread restarts.
+
+              In this case, the SQL thread reopens the log, using
+              cache_buf, ie, cur_log points to &cache_buf, and thence
+              its coordinates are reset.
+
+           3. Log was already cold at stop time
+
+              The log was not hot when the SQL thread stopped, and, of
+              course, it will not be hot when it restarts.
+
+              In this case, the SQL thread opens the cold log again,
+              using cache_buf, ie, cur_log points to &cache_buf, and
+              thence its coordinates are reset.
+
+           4. Log was hot at stop time, DBA changes to previous cold
+              log and restarts SQL thread
+
+              The log was hot when the SQL thread was stopped, but the
+              user changed the coordinates of the SQL thread to
+              restart from a previous cold log.
+
+              In this case, at start time, cur_log points to a cold
+              log, opened using &cache_buf as cache, and coordinates
+              are reset. However, as it moves on to the next logs, it
+              will eventually reach the hot log. If the hot log is the
+              same at the time the SQL thread was stopped, then
+              coordinates were not reset - the cur_log will point to
+              relay_log.get_log_file(), and not a freshly opened
+              IO_CACHE through cache_buf. For this reason we need to
+              deploy a my_b_seek before calling check_binlog_magic at
+              this point of the code (see: BUG#55263 for more
+              details).
+          
+          NOTES: 
+            - We must keep the LOCK_log to read the 4 first bytes, as
+              this is a hot log (same as when we call read_log_event()
+              above: for a hot log we take the mutex).
+
+            - Because of scenario #4 above, we need to have a
+              my_b_seek here. Otherwise, we might hit the assertion
+              inside check_binlog_magic.
         */
+
+        my_b_seek(cur_log, (my_off_t) 0);
         if (check_binlog_magic(cur_log,&errmsg))
         {
           if (!hot_log)

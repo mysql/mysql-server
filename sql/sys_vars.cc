@@ -69,7 +69,7 @@ extern void close_thread_tables(THD *thd);
 
 #define PFS_TRAILING_PROPERTIES \
   NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), \
-  0, NULL, sys_var::PARSE_EARLY
+  NULL, sys_var::PARSE_EARLY
 
 static Sys_var_mybool Sys_pfs_enabled(
        "performance_schema",
@@ -242,6 +242,11 @@ static Sys_var_charptr Sys_basedir(
        "basedir", "Path to installation directory. All paths are "
        "usually resolved relative to this",
        READ_ONLY GLOBAL_VAR(mysql_home_ptr), CMD_LINE(REQUIRED_ARG, 'b'),
+       IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_charptr Sys_my_bind_addr(
+       "bind_address", "IP address to bind to.",
+       READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
@@ -955,7 +960,8 @@ static Sys_var_mybool Sys_large_pages(
 
 static Sys_var_charptr Sys_language(
        "lc_messages_dir", "Directory where error messages are",
-       READ_ONLY GLOBAL_VAR(lc_messages_dir_ptr), CMD_LINE(REQUIRED_ARG, 'L'),
+       READ_ONLY GLOBAL_VAR(lc_messages_dir_ptr), 
+       CMD_LINE(REQUIRED_ARG, OPT_LC_MESSAGES_DIRECTORY),
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_mybool Sys_local_infile(
@@ -1052,15 +1058,6 @@ static Sys_var_mybool Sys_low_priority_updates(
        CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_low_prio_updates));
-
-#ifndef TO_BE_DELETED   /* Alias for the low_priority_updates */
-static Sys_var_mybool Sys_sql_low_priority_updates(
-       "sql_low_priority_updates",
-       "INSERT/DELETE/UPDATE has lower priority than selects",
-       SESSION_VAR(low_priority_updates), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_low_prio_updates));
-#endif
 
 static Sys_var_mybool Sys_lower_case_file_system(
        "lower_case_file_system",
@@ -1231,13 +1228,6 @@ static Sys_var_ulong Sys_max_length_for_sort_data(
        "Max number of bytes in sorted records",
        SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(1024), BLOCK_SIZE(1));
-
-static Sys_var_harows Sys_sql_max_join_size(
-       "sql_max_join_size", "Alias for max_join_size",
-       SESSION_VAR(max_join_size), NO_CMD_LINE,
-       VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
 
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
@@ -1486,6 +1476,14 @@ static Sys_var_uint Sys_protocol_version(
        READ_ONLY GLOBAL_VAR(protocol_version), NO_CMD_LINE,
        VALID_RANGE(0, ~0), DEFAULT(PROTOCOL_VERSION), BLOCK_SIZE(1));
 
+static Sys_var_proxy_user Sys_proxy_user(
+       "proxy_user", "The proxy user account name used when logging in",
+       IN_SYSTEM_CHARSET);
+
+static Sys_var_external_user Sys_exterenal_user(
+       "external_user", "The external user account used when logging in",
+       IN_SYSTEM_CHARSET);
+
 static Sys_var_ulong Sys_read_buff_size(
        "read_buffer_size",
        "Each thread that does a sequential scan allocates a buffer of "
@@ -1685,9 +1683,13 @@ static Sys_var_charptr Sys_socket(
 static Sys_var_ulong Sys_thread_concurrency(
        "thread_concurrency",
        "Permits the application to give the threads system a hint for "
-       "the desired number of threads that should be run at the same time",
+       "the desired number of threads that should be run at the same time. "
+       "This variable has no effect, and is deprecated. "
+       "It will be removed in a future release. ",
        READ_ONLY GLOBAL_VAR(concurrency), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1));
+       VALID_RANGE(1, 512), DEFAULT(DEFAULT_CONCURRENCY), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), 
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_thread_stack(
        "thread_stack", "The stack size for each thread",
@@ -2116,15 +2118,6 @@ static Sys_var_ulong Sys_thread_cache_size(
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
-#if HAVE_POOL_OF_THREADS == 1
-static Sys_var_ulong Sys_thread_pool_size(
-       "thread_pool_size",
-       "How many threads we should create to handle query requests in "
-       "case of 'thread_handling=pool-of-threads'",
-       GLOBAL_VAR(thread_pool_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
-#endif
-
 /**
   Can't change the 'next' tx_isolation if we are already in a
   transaction.
@@ -2220,27 +2213,6 @@ static Sys_var_ulong Sys_net_wait_timeout(
        VALID_RANGE(1, IF_WIN(INT_MAX32/1000, LONG_TIMEOUT)),
        DEFAULT(NET_WAIT_TIMEOUT), BLOCK_SIZE(1));
 
-/** propagates changes to the relevant flag of @@optimizer_switch */
-static bool fix_engine_condition_pushdown(sys_var *self, THD *thd,
-                                          enum_var_type type)
-{
-  SV *sv= (type == OPT_GLOBAL) ? &global_system_variables : &thd->variables;
-  if (sv->engine_condition_pushdown)
-    sv->optimizer_switch|= OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
-  else
-    sv->optimizer_switch&= ~OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN;
-  return false;
-}
-static Sys_var_mybool Sys_engine_condition_pushdown(
-       "engine_condition_pushdown",
-       "Push supported query conditions to the storage engine."
-       " Deprecated, use --optimizer-switch instead.",
-       SESSION_VAR(engine_condition_pushdown),
-       CMD_LINE(OPT_ARG, OPT_ENGINE_CONDITION_PUSHDOWN),
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
-       ON_UPDATE(fix_engine_condition_pushdown),
-       DEPRECATED(70000, "'@@optimizer_switch'"));
-
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
@@ -2252,7 +2224,8 @@ static Sys_var_plugin Sys_storage_engine(
        "storage_engine", "Alias for @@default_storage_engine. Deprecated",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
+       ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -2359,12 +2332,6 @@ static Sys_var_mybool Sys_big_tables(
        "big_tables", "Allow big result sets by saving all "
        "temporary sets on file (Solves most 'table full' errors)",
        SESSION_VAR(big_tables), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-
-#ifndef TO_BE_DELETED   /* Alias for big_tables */
-static Sys_var_mybool Sys_sql_big_tables(
-       "sql_big_tables", "alias for big_tables",
-       SESSION_VAR(big_tables), NO_CMD_LINE, DEFAULT(FALSE));
-#endif
 
 static Sys_var_bit Sys_big_selects(
        "sql_big_selects", "sql_big_selects",
@@ -2841,25 +2808,6 @@ static Sys_var_charptr Sys_slow_log_path(
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 
-/// @todo deprecate these four legacy have_PLUGIN variables and use I_S instead
-export SHOW_COMP_OPTION have_csv, have_innodb;
-export SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
-static Sys_var_have Sys_have_csv(
-       "have_csv", "have_csv",
-       READ_ONLY GLOBAL_VAR(have_csv), NO_CMD_LINE);
-
-static Sys_var_have Sys_have_innodb(
-       "have_innodb", "have_innodb",
-       READ_ONLY GLOBAL_VAR(have_innodb), NO_CMD_LINE);
-
-static Sys_var_have Sys_have_ndbcluster(
-       "have_ndbcluster", "have_ndbcluster",
-       READ_ONLY GLOBAL_VAR(have_ndbcluster), NO_CMD_LINE);
-
-static Sys_var_have Sys_have_partition_db(
-       "have_partitioning", "have_partitioning",
-       READ_ONLY GLOBAL_VAR(have_partitioning), NO_CMD_LINE);
-
 static Sys_var_have Sys_have_compress(
        "have_compress", "have_compress",
        READ_ONLY GLOBAL_VAR(have_compress), NO_CMD_LINE);
@@ -2909,13 +2857,6 @@ static Sys_var_mybool Sys_general_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_state));
 
-// Synonym of "general_log" for consistency with SHOW VARIABLES output
-static Sys_var_mybool Sys_log(
-       "log", "Alias for --general-log. Deprecated",
-       GLOBAL_VAR(opt_log), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@general_log'"));
-
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",
        "Log slow queries to a table or log file. Defaults logging to a file "
@@ -2925,13 +2866,6 @@ static Sys_var_mybool Sys_slow_query_log(
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_state));
 
-/* Synonym of "slow_query_log" for consistency with SHOW VARIABLES output */
-static Sys_var_mybool Sys_log_slow(
-       "log_slow_queries",
-       "Alias for --slow-query-log. Deprecated",
-       GLOBAL_VAR(opt_slow_log), NO_CMD_LINE,
-       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@slow_query_log'"));
 
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2939,13 +2873,13 @@ static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
   my_bool *UNINIT_VAR(newvalptr), newval, UNINIT_VAR(oldval);
   uint UNINIT_VAR(log_type);
 
-  if (self == &Sys_general_log || self == &Sys_log)
+  if (self == &Sys_general_log)
   {
     newvalptr= &opt_log;
     oldval=    logger.get_log_file_handler()->is_open();
     log_type=  QUERY_LOG_GENERAL;
   }
-  else if (self == &Sys_slow_query_log || self == &Sys_log_slow)
+  else if (self == &Sys_slow_query_log)
   {
     newvalptr= &opt_slow_log;
     oldval=    logger.get_slow_log_file_handler()->is_open();
@@ -3045,11 +2979,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                        "The current value for master_heartbeat_period"
-                        " exceeds the new value of `slave_net_timeout' sec."
-                        " A sensible value for the period should be"
-                        " less than the timeout.");
+                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }

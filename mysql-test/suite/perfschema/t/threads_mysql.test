@@ -14,9 +14,9 @@
 # 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 
-# Tests for special content of performance_schema.THREADS
+# Tests for special content of performance_schema.threads
 #
-# Show MySQL server related content in performance_schema.THREADS
+# Show MySQL server related content in performance_schema.threads
 
 --source include/not_windows.inc
 --source include/not_embedded.inc
@@ -51,13 +51,13 @@ SELECT name, type, processlist_user, processlist_host, processlist_db,
        IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
          AS unified_parent_thread_id,
        role, instrumented
-FROM performance_schema.THREADS
+FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%'
 ORDER BY name;
 --enable_ps_protocol
 
 CREATE TEMPORARY TABLE t1 AS
-SELECT thread_id FROM performance_schema.THREADS
+SELECT thread_id FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%';
 
 
@@ -70,14 +70,14 @@ SELECT name, type, processlist_user, processlist_host, processlist_db,
        IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
          AS unified_parent_thread_id,
        role, instrumented
-FROM performance_schema.THREADS
+FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%'
   AND thread_id NOT IN (SELECT thread_id FROM t1)
 ORDER BY name;
 
 TRUNCATE t1;
 INSERT INTO t1
-SELECT thread_id FROM performance_schema.THREADS
+SELECT thread_id FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%';
 SELECT COUNT(*) INTO @aux FROM t1;
 
@@ -110,7 +110,7 @@ SELECT name, type, processlist_user, processlist_host, processlist_db,
        IF(parent_thread_id IS NULL, parent_thread_id, 'unified parent_thread_id')
          AS unified_parent_thread_id,
        role, instrumented
-FROM performance_schema.THREADS
+FROM performance_schema.threads
 WHERE name LIKE 'thread/sql%'
   AND thread_id NOT IN (SELECT thread_id FROM t1)
 ORDER BY name;
@@ -119,7 +119,7 @@ ORDER BY name;
 # ------------------------------------------------------
 --horizontal_results
 SELECT t2.name AS parent_thread_name, t1.name AS child_thread_name
-FROM performance_schema.THREADS t1 INNER JOIN performance_schema.THREADS t2
+FROM performance_schema.threads t1 INNER JOIN performance_schema.threads t2
 ON t1.parent_thread_id = t2.thread_id
 WHERE t1.name LIKE 'thread/sql%'
   AND t1.parent_thread_id IS NOT NULL

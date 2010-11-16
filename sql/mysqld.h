@@ -143,6 +143,7 @@ extern char *opt_backup_history_logname, *opt_backup_progress_logname,
 extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
+extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
@@ -372,9 +373,10 @@ enum options_mysqld
   OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_BLOCK_SIZE,
   OPT_KEY_CACHE_DIVISION_LIMIT,
+  OPT_LC_MESSAGES_DIRECTORY,
   OPT_LOWER_CASE_TABLE_NAMES,
+  OPT_MASTER_RETRY_COUNT,
   OPT_MASTER_VERIFY_CHECKSUM,
-  OPT_ONE_THREAD,
   OPT_POOL_OF_THREADS,
   OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_DO_TABLE,
@@ -388,12 +390,10 @@ enum options_mysqld
   OPT_SKIP_HOST_CACHE,
   OPT_SKIP_LOCK,
   OPT_SKIP_NEW,
-  OPT_SKIP_PRIOR,
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
   OPT_SKIP_SYMLINKS,
   OPT_SLAVE_SQL_VERIFY_CHECKSUM,
-  OPT_SLOW_QUERY_LOG,
   OPT_SSL_CA,
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
@@ -402,7 +402,8 @@ enum options_mysqld
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
-  OPT_LOG_ERROR
+  OPT_LOG_ERROR,
+  OPT_AUTOCOMMIT
 };
 
 

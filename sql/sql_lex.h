@@ -760,10 +760,11 @@ public:
   st_select_lex* outer_select();
   st_select_lex* next_select() { return (st_select_lex*) next; }
 
-  inline st_select_lex* last_select() 
+  st_select_lex* last_select() 
   { 
     st_select_lex* mylast= this;
-    for (; mylast->next_select(); mylast= mylast->next_select());
+    for (; mylast->next_select(); mylast= mylast->next_select())
+    {}
     return mylast; 
   }
 
@@ -901,6 +902,7 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_REMOVE_PARTITIONING (1L << 22)
 #define ALTER_FOREIGN_KEY        (1L << 23)
 #define ALTER_EXCHANGE_PARTITION (1L << 24)
+#define ALTER_TRUNCATE_PARTITION (1L << 25)
 
 enum enum_alter_table_change_level
 {
@@ -990,6 +992,8 @@ struct st_sp_chistics
   enum enum_sp_data_access daccess;
 };
 
+extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics
 {
@@ -1329,6 +1333,7 @@ public:
     STMT_ACCESS_TABLE_COUNT
   };
 
+#ifndef DBUG_OFF
   static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
   {
     switch (accessed_table)
@@ -1362,7 +1367,10 @@ public:
         DBUG_ASSERT(0);
       break;
     }
+    MY_ASSERT_UNREACHABLE();
+    return "";
   }
+#endif  /* DBUG */
                
   #define BINLOG_DIRECT_ON 0xF0    /* unsafe when
                                       --binlog-direct-non-trans-updates
@@ -1744,6 +1752,15 @@ public:
     if (m_echo)
       m_cpp_ptr--;
     return m_ptr;
+  }
+
+  /**
+    Inject a character into the pre-processed stream.
+  */
+  char *cpp_inject(char ch)
+  {
+    *m_cpp_ptr= ch;
+    return ++m_cpp_ptr;
   }
 
   /**
@@ -2203,6 +2220,7 @@ struct LEX: public Query_tables_list
   sp_name *spname;
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
+  bool proxy_priv;
   sp_pcontext *spcont;
 
   st_sp_chistics sp_chistics;
@@ -2241,15 +2259,19 @@ struct LEX: public Query_tables_list
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
 
-    keyword_delayed_begin points to the begin of the DELAYED keyword in
-    INSERT DELAYED statement.
+    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
+    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
+    offset to the character right after the DELAYED keyword.
   */
   union {
     const char *stmt_definition_begin;
-    const char *keyword_delayed_begin;
+    uint keyword_delayed_begin_offset;
   };
 
-  const char *stmt_definition_end;
+  union {
+    const char *stmt_definition_end;
+    uint keyword_delayed_end_offset;
+  };
 
   /**
     During name resolution search only in the table list given by 

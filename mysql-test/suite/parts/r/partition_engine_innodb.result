@@ -1,5 +1,5 @@
 SET @max_row = 20;
-SET @@session.storage_engine = 'InnoDB';
+SET @@session.default_storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------
 #  0. Setting of auxiliary variables + Creation of an auxiliary tables
@@ -4294,7 +4294,7 @@ DROP TABLE t1;
 #------------------------------------------------------------------------
 # 6 Session default engine differs from engine used within create table
 #------------------------------------------------------------------------
-SET SESSION storage_engine='MEMORY';
+SET SESSION default_storage_engine='MEMORY';
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -5200,7 +5200,7 @@ TRUNCATE t1;
 # check layout success:    1
 # End usability test (inc/partition_check.inc)
 DROP TABLE t1;
-SET SESSION storage_engine='InnoDB';
+SET SESSION default_storage_engine='InnoDB';
 DROP VIEW  IF EXISTS v1;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t0_aux;

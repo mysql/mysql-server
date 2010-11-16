@@ -391,7 +391,8 @@ public:
   const Gcalc_scan_iterator::point *rb() const
   {
     const Gcalc_scan_iterator::point *result= sp0;
-    while ((result= result->c_get_next())->is_bottom());
+    while ((result= result->c_get_next())->is_bottom())
+    {}
     return result;
   }
   const Gcalc_scan_iterator::point *rt() const
