@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,20 +13,20 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ClusterMgr_H
 #define ClusterMgr_H
 
-#include "API.hpp"
 #include <ndb_limits.h>
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 #include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
-#include <NodeInfo.hpp>
-#include <NodeState.hpp>
+#include "trp_client.hpp"
+#include "trp_node.hpp"
 
 extern "C" void* runClusterMgr_C(void * me);
 
@@ -32,14 +34,14 @@ extern "C" void* runClusterMgr_C(void * me);
 /**
  * @class ClusterMgr
  */
-class ClusterMgr {
+class ClusterMgr : public trp_client
+{
+  friend class TransporterFacade;
   friend void* runClusterMgr_C(void * me);
-  friend void  execute(void *, struct SignalHeader * const, 
-		       Uint8, Uint32 * const, LinearSectionPtr ptr[3]);
 public:
   ClusterMgr(class TransporterFacade &);
-  ~ClusterMgr();
-  void init(struct ndb_mgm_configuration_iterator & config);
+  virtual ~ClusterMgr();
+  void configure(Uint32 nodeId, const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
@@ -50,31 +52,26 @@ public:
   void startThread();
 
   void forceHB();
-  void set_max_api_reg_req_interval(unsigned int millisec) { m_max_api_reg_req_interval = millisec; }
+  void set_max_api_reg_req_interval(unsigned int millisec) {
+    m_max_api_reg_req_interval = millisec;
+  }
 
 private:
   void threadMain();
   
   int  theStop;
   class TransporterFacade & theFacade;
-  
+  class ArbitMgr * theArbitMgr;
+
 public:
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
     CS_waiting_for_first_connect,
     CS_connected
   };
-  struct Node {
+  struct Node : public trp_node
+  {
     Node();
-    bool defined;
-    bool connected;     // Transporter connected
-    bool compatible;    // Version is compatible
-    bool nfCompleteRep; // NF Complete Rep has arrived
-    bool m_alive;       // Node is alive
-    bool m_api_reg_conf;// API_REGCONF has arrived
-    
-    NodeInfo  m_info;
-    NodeState m_state;
 
     /**
      * Heartbeat stuff
@@ -83,16 +80,17 @@ public:
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
   };
   
-  const Node &  getNodeInfo(NodeId) const;
+  const trp_node & getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
-  bool          isClusterAlive() const;
   void          hb_received(NodeId);
 
+  int m_auto_reconnect;
   Uint32        m_connect_count;
 private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
+  Uint32        minDbVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
@@ -105,8 +103,7 @@ private:
    * Used for controlling start/stop of the thread
    */
   NdbMutex*     clusterMgrThreadMutex;
-  
-  void showState(NodeId nodeId);
+
   void reportNodeFailed(NodeId nodeId, bool disconnect = false);
   
   /**
@@ -118,7 +115,14 @@ private:
   void execNODE_FAILREP  (const Uint32 * theData);
   void execNF_COMPLETEREP(const Uint32 * theData);
 
+  void check_wait_for_hb(NodeId nodeId);
+
   inline void set_node_alive(Node& node, bool alive){
+
+    // Only DB nodes can be "alive"
+    assert(!alive ||
+           (alive && node.m_info.getType() == NodeInfo::DB));
+
     if(node.m_alive && !alive)
     {
       assert(noOfAliveNodes);
@@ -130,11 +134,24 @@ private:
     }
     node.m_alive = alive;
   }
+
+  void print_nodes(const char* where, NdbOut& out = ndbout);
+  void recalcMinDbVersion();
+
+public:
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
+  virtual void trp_node_status(Uint32, Uint32);
 };
 
 inline
-const ClusterMgr::Node &
+const trp_node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
+  // Check array bounds
+  assert(nodeId < MAX_NODES);
   return theNodes[nodeId];
 }
 
@@ -145,13 +162,10 @@ ClusterMgr::getNoOfConnectedNodes() const {
 }
 
 inline
-bool
-ClusterMgr::isClusterAlive() const {
-  return noOfAliveNodes != 0;
-}
-inline
 void
 ClusterMgr::hb_received(NodeId nodeId) {
+  // Check array bounds + don't allow node 0 to be touched
+  assert(nodeId > 0 && nodeId < MAX_NODES);
   theNodes[nodeId].m_info.m_heartbeat_cnt= 0;
 }
 

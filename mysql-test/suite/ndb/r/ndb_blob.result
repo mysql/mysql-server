@@ -342,6 +342,8 @@ a	b	c	d
 8	b8	888	dd8
 9	b9	999	dd9
 alter table t1 add x int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 select * from t1 order by a;
 a	b	c	d	x
 1	b1	111	dd1	NULL
@@ -391,6 +393,8 @@ a	b	c	d
 8	b8	888	dd8
 9	b9	999	dd9
 alter table t1 add x int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 select * from t1 order by a;
 a	b	c	d	x
 1	b1	111	dd1	NULL
@@ -447,6 +451,14 @@ insert into t1 values(1, '');
 select * from t1;
 a	b
 1	
+commit;
+begin;
+insert into t1 values (3, repeat("w", 8000));
+insert into t1 values (2, repeat("x", 10000)),
+(3, repeat("y", 5000)),
+(4, repeat("z", 15000));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
 commit;
 drop table t1;
 set autocommit=1;
@@ -588,4 +600,126 @@ select a, length(blob_nn), length(text_nn), blob_nl, text_nl from t1 order by a;
 a	length(blob_nn)	length(text_nn)	blob_nl	text_nl
 1	0	0	NULL	NULL
 2	0	0	NULL	MySQL Cluster NDB
+drop table t1;
+create table `t1` (
+`f1` int(11) not null default -1,
+`f11` text,
+unique key `i1` (`f1`)
+) engine=ndbcluster default charset=utf8;
+insert into `t1` values (123,null);
+create table `t2` (
+`f1` int(11) not null default -1,
+unique key `i2` (`f1`)
+) engine=ndbcluster default charset=utf8;
+begin;
+delete from t2 where f1=5;
+delete from t1 where f1=123;
+delete from t2 where f1=5;
+commit;
+show warnings;
+Level	Code	Message
+drop table t1;
+drop table t2;
+create table t1 (
+a    int primary key,
+giga longblob) 
+engine=ndb;
+set @stuff = '1234567890';
+insert into t1 values (0, repeat(@stuff, 2000));
+select sha1(repeat(@stuff, 2000));
+sha1(repeat(@stuff, 2000))
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select sha1(giga) from t1;
+sha1(giga)
+c8d94eb4127361ac22cf1c8a8f1178a37fb25e41
+select (giga = repeat(@stuff, 2000)) from t1 where a=0;
+(giga = repeat(@stuff, 2000))
+1
+drop table t1;
+Test that automatic lock upgrade on Blobs behaves as expected
+w.r.t other operations on the table.
+create table t1 (a int primary key, b longblob, c int, unique(c)) engine=ndb;
+insert into t1 values (1, repeat('1', 256), 1);
+insert into t1 values (2, repeat('2', 2256), 2);
+insert into t1 values (3, repeat('3', 4256), 3);
+insert into t1 values (4, repeat('4', 8256), 4);
+insert into t1 values (5, repeat('5', 20000), 5);
+No Deadlock scenarios
+Transaction 1 reading PK with no lock.  Transaction 2 reading PK with EX lock
+begin;
+select a, length(b) from t1 where a=2;
+a	length(b)
+2	2256
+select a, length(b) from t1 where a=2 FOR UPDATE;
+a	length(b)
+2	2256
+Transaction 2 scanning with EX lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a FOR UPDATE;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Transaction1 reading PK with SH lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=3 LOCK IN SHARE MODE;
+a	length(b)
+3	4256
+select a, length(b) from t1 where a=3;
+a	length(b)
+3	4256
+Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Transaction1 reading PK with SH lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+a	length(b)
+4	8256
+select a, length(b) from t1 where a=4 LOCK IN SHARE MODE;
+a	length(b)
+4	8256
+Transaction 2 scanning with SH lock - will not deadlock with transaction 1
+select a, length(b) from t1 ORDER BY a LOCK IN SHARE MODE;
+a	length(b)
+1	256
+2	2256
+3	4256
+4	8256
+5	20000
+commit;
+Deadlock scenarios on PK access : 
+Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with no lock
+begin;
+select a, length(b) from t1 where a=5 FOR UPDATE;
+a	length(b)
+5	20000
+select a, length(b) from t1 where a=5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+Transaction 1 reading PK with EX lock.  Transaction 2 reading PK with SH lock
+begin;
+select a, length(b) from t1 where a=1 FOR UPDATE;
+a	length(b)
+1	256
+select a, length(b) from t1 where a=1 LOCK IN SHARE MODE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+Verify that Nolock Unique index access still deadlocks
+as unique index accesses always upgrade to SH
+begin;
+select a, length(b) from t1 where c=2;
+a	length(b)
+2	2256
+select a, length(b) from t1 FOR UPDATE;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
 drop table t1;

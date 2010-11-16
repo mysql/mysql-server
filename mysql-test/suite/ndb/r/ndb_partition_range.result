@@ -17,9 +17,9 @@ INSERT into t1 values (10, 1, 1);
 INSERT into t1 values (15, 1, 1);
 select * from information_schema.partitions where table_name= 't1';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_ORDINAL_POSITION	SUBPARTITION_ORDINAL_POSITION	PARTITION_METHOD	SUBPARTITION_METHOD	PARTITION_EXPRESSION	SUBPARTITION_EXPRESSION	PARTITION_DESCRIPTION	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	CREATE_TIME	UPDATE_TIME	CHECK_TIME	CHECKSUM	PARTITION_COMMENT	NODEGROUP	TABLESPACE_NAME
-def	test	t1	x1	NULL	1	NULL	RANGE	NULL	a	NULL	5	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
-def	test	t1	x2	NULL	2	NULL	RANGE	NULL	a	NULL	10	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
-def	test	t1	x3	NULL	3	NULL	RANGE	NULL	a	NULL	20	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
+NULL	test	t1	x1	NULL	1	NULL	RANGE	NULL	a	NULL	5	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
+NULL	test	t1	x2	NULL	2	NULL	RANGE	NULL	a	NULL	10	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
+NULL	test	t1	x3	NULL	3	NULL	RANGE	NULL	a	NULL	20	0	0	0	#	0	0	#	#	NULL	NULL		default	NULL
 select * from t1 order by a;
 a	b	c
 1	1	1
@@ -113,8 +113,22 @@ a	b	c
 select * from t1 where a=1 and b in (1,6,10,21) order by b;
 a	b	c
 1	1	1
+select * from t1 where b=6;
+a	b	c
+2	6	1
 DELETE from t1 WHERE b = 6;
+select * from t1 where b=6;
+a	b	c
+select * from t1 where a=6;
+a	b	c
+6	15	1
+UPDATE t1 SET c=1001 WHERE a=6;
+select * from t1 where a=6;
+a	b	c
+6	15	1001
 DELETE from t1 WHERE a = 6;
+select * from t1 where a=6;
+a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -138,7 +152,7 @@ d DECIMAL(10,4) DEFAULT 0,
 f FLOAT DEFAULT 0,
 total BIGINT UNSIGNED,
 y YEAR,
-t DATE) ENGINE=NDB
+t DATE PRIMARY KEY) ENGINE=NDB
 PARTITION BY RANGE (YEAR(t))
 (PARTITION p0 VALUES LESS THAN (1901),
 PARTITION p1 VALUES LESS THAN (1946),
@@ -146,14 +160,14 @@ PARTITION p2 VALUES LESS THAN (1966),
 PARTITION p3 VALUES LESS THAN (1986),
 PARTITION p4 VALUES LESS THAN (2005),
 PARTITION p5 VALUES LESS THAN MAXVALUE);
-INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL, '2009-05-15');
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
 ALTER TABLE t1 ENGINE=MYISAM;
 SELECT * FROM t1;
 id	b1	vc	bc	d	f	total	y	t
-0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+0	NULL	NULL	NULL	NULL	NULL	NULL	NULL	2009-05-15
 DROP TABLE t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -164,6 +178,7 @@ CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
   USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
+EXTENT_SIZE 256k
 ENGINE NDB;
 CREATE TABLE test.t1 (
 a1 INT,
@@ -213,7 +228,7 @@ ENGINE=NDB;
 DROP TABLESPACE ts1 ENGINE=NDB;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 CREATE TABLE t1
-(id MEDIUMINT NOT NULL,
+(id MEDIUMINT NOT NULL PRIMARY KEY,
 b1 BIT(8),
 vc VARCHAR(255),
 bc CHAR(255),
@@ -236,7 +251,7 @@ id	b1	vc	bc	d	f	total	y	t
 2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (
-a int not null,
+a int not null PRIMARY KEY,
 b int not null,
 c int not null)
 partition by list(a)
@@ -252,7 +267,7 @@ select * from t1;
 a	b	c
 8	1	1
 drop table t1;
-CREATE TABLE t1 ( f1 INTEGER, f2 char(20)) engine=ndb
+CREATE TABLE t1 ( f1 INTEGER PRIMARY KEY, f2 char(20)) engine=ndb
 PARTITION BY RANGE(f1)
 ( PARTITION part1 VALUES LESS THAN (2),
 PARTITION part2 VALUES LESS THAN (1000));
@@ -272,4 +287,77 @@ select * from t1 order by f1;
 f1	f2
 5	---1---
 6	---2---
+drop table t1;
+create table t1 ( a int, b int, c int, primary key (a,b)) engine=ndb 
+partition by range (a)
+(partition part0 values less than (3),
+partition part1 values less than (6));
+insert into t1 values (0, 0, 0);
+insert into t1 values (0, 1, 1);
+insert into t1 values (0, 2, 2);
+insert into t1 values (1, 0, 3);
+insert into t1 values (1, 1, 4);
+insert into t1 values (1, 2, 5);
+insert into t1 values (4, 0, 6);
+insert into t1 values (4, 1, 7);
+insert into t1 values (4, 2, 8);
+All partitions scan
+select * from t1 order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+1	0	3
+1	1	4
+1	2	5
+4	0	6
+4	1	7
+4	2	8
+ndb_scan_count
+1
+ndb_pruned_scan_count
+0
+Single partition scan
+select * from t1 where a=0 order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+Single partition scan
+select * from t1 where a=4 order by c;
+a	b	c
+4	0	6
+4	1	7
+4	2	8
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+Single partition scan
+select * from t1 where a<3 order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+1	0	3
+1	1	4
+1	2	5
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+MRR single partition scan
+select * from t1 where a in (0, 2) order by c;
+a	b	c
+0	0	0
+0	1	1
+0	2	2
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
 drop table t1;

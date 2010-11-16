@@ -1,0 +1,79 @@
+-- source include/have_multi_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+-- disable_warnings
+drop database if exists discover_db;
+drop database if exists discover_db_2;
+-- enable_warnings
+
+#
+# Prepare for testing database discovery by creating
+# databases, and removing them on one mysqld
+# The discovery happens in ndb_discover_db2.test
+#
+
+#
+# Shutdown server 1
+#
+
+-- connection server1
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to.
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+wait
+EOF
+# Send shutdown to the connected server and give
+# it 30 seconds to die before zapping it.
+shutdown_server 30;
+# Check server is gone.
+--source include/wait_until_disconnected.inc
+
+#
+# Create databases while server1 is down
+#
+-- connection server2
+
+# check that created database is discovered
+create database discover_db;
+create table discover_db.t1 (a int key, b int) engine ndb;
+
+# check that altered database is discovered
+create database discover_db_2;
+alter database discover_db_2 character set binary;
+create table discover_db_2.t1 (a int key, b int) engine ndb;
+
+#
+# Startup server1
+#
+
+-- connection server1
+# Write file to make mysql-test-run.pl start up the server again.
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+restart
+EOF
+# Turn on reconnect.
+--enable_reconnect
+# Call script that will poll the server waiting for it to be back online again.
+--source include/wait_until_connected_again.inc
+# Turn off reconnect again.
+--disable_reconnect
+#
+
+#
+# Now check that databases have been discovered
+#
+
+show create database discover_db;
+show create database discover_db_2;
+reset master;
+insert into discover_db.t1 values (1,1);
+--source include/show_binlog_events2.inc
+reset master;
+insert into discover_db_2.t1 values (1,1);
+--source include/show_binlog_events2.inc
+
+#
+# Cleanup
+#
+drop database discover_db;
+drop database discover_db_2;

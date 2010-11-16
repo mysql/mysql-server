@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -29,6 +28,12 @@ select * from t1 order by pk1;
 UPDATE t1 set pk1 = 4 where pk1 = 2;
 UPDATE IGNORE t1 set pk1 = 4 where pk1 = 2;
 select * from t1 order by pk1;
+--enable_info
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+--disable_info
+--error ER_DUP_ENTRY
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 --error ER_DUP_ENTRY
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
@@ -88,6 +93,19 @@ SELECT * FROM t3 ORDER by a;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+# Bug#40081 UPDATE....ORDER BY cannot find rows in cluster
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+                 mytext CHAR(30) DEFAULT NULL,
+                 PRIMARY KEY (`id`) ) ENGINE=ndbcluster;
+insert into t1 values(NULL,"hello"),(NULL,"world"),(NULL,"hello"),(NULL,"world");
+select * from t1 order by id;
+update t1 set mytext = "goodbye" where mytext = "world" order by mytext;
+select * from t1 order by id;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --echo End of 5.1 tests

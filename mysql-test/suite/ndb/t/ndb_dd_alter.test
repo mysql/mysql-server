@@ -41,7 +41,6 @@
 
 -- source include/have_ndb.inc
 -- source include/have_innodb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS test.t1;
@@ -61,7 +60,7 @@ DROP TABLE IF EXISTS test.t2;
  CREATE TABLESPACE ts
  ADD DATAFILE './table_space/datafile.dat'
  USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
+ INITIAL_SIZE 36M
  ENGINE NDB;
 
 #### Try to ALTER from InnoDB to Cluster Disk Data
@@ -94,7 +93,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 SELECT * FROM test.t1 ORDER BY a1;
 DROP TABLE test.t1;
 
@@ -128,7 +127,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 SELECT * FROM test.t1 ORDER BY a1;
 
 #### Try to ALTER from Cluster Disk Data to InnoDB
@@ -139,7 +138,7 @@ SELECT * FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 
@@ -196,7 +195,7 @@ SELECT a1,a2,a3,hex(a4), a5,a6,a7,a8 FROM test.t1 ORDER BY a1;
 ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a12 LONGTEXT, ADD a13 TEXT, ADD a14 BLOB;
 SHOW CREATE TABLE test.t1;
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 disable_query_log;
 set @d2 = 'dd2';
@@ -219,6 +218,30 @@ enable_query_log;
 
 SELECT a1, a2,a3,hex(a4),a5,a6,a7,a8,a9,a10,a11,a12,a13 FROM test.t1 ORDER BY a1;
 
+#### Try to move t1 into too-small tablespace ####
+# Bug #45768 
+
+ CREATE TABLESPACE ts2
+ ADD DATAFILE './table_space/datafile2.dat'
+ USE LOGFILE GROUP lg
+ INITIAL_SIZE 1M
+ ENGINE NDB;
+
+--echo Expecting tablespace is full error
+# We mention the same error twice here to suppress printing of the error
+# This is required as the error contains the temp table name which
+# varies per-run
+-- disable_query_log
+call mtr.add_suppression("The table '#.*' is full");
+-- enable_query_log
+--error 1114,1114
+ALTER TABLE test.t1 TABLESPACE ts2 STORAGE DISK ENGINE NDB;
+
+ ALTER TABLESPACE ts2
+ DROP DATAFILE './table_space/datafile2.dat'
+ ENGINE NDB;
+ DROP TABLESPACE ts2 ENGINE NDB;
+
 #### Try to ALTER DD Tables and add Indexes
 
 ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
@@ -226,21 +249,21 @@ ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 ALTER TABLE test.t1 DROP INDEX a2_i;
 
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 TRUNCATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 #### Try to ALTER DD Tables and drop columns
 
@@ -259,7 +282,7 @@ ALTER TABLE test.t1 DROP PRIMARY KEY;
 SHOW CREATE TABLE test.t1;
 
 # Check column storage
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+source show_attributes.inc;
 
 DROP TABLE test.t1;
 

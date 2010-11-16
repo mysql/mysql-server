@@ -1,0 +1,14 @@
+--source include/have_ndb.inc
+#
+# Bug #36547  	SET GLOBAL ndb_extra_logging crashes mysqld
+#
+--error 1229
+SET NDB_EXTRA_LOGGING=1;
+
+SET @SAVE_NDB_EXTRA_LOGGING= @@NDB_EXTRA_LOGGING;
+SET GLOBAL NDB_EXTRA_LOGGING=1;
+SHOW VARIABLES LIKE 'ndb_extra_logging';
+SET GLOBAL NDB_EXTRA_LOGGING=0;
+SHOW VARIABLES LIKE 'ndb_extra_logging';
+SET @@GLOBAL.NDB_EXTRA_LOGGING= @SAVE_NDB_EXTRA_LOGGING;
+

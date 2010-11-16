@@ -206,7 +206,7 @@ insert into t4 values (1, "Automatic");
 select * from t4;
 
 # Remove the table from NDB
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
 
 #
 # Test that correct error is returned
@@ -227,7 +227,7 @@ insert into t4 values (1, "Automatic");
 select * from t4;
 
 # Remove the table from NDB
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
 
 --error ER_NO_SUCH_TABLE
 select * from t4;
@@ -259,7 +259,7 @@ select * from t4;
 flush tables;
 
 # Remove the table from NDB
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ;
 
 SHOW TABLES;
 
@@ -293,8 +293,8 @@ insert into t8 values (8, "myisam table 8");
 insert into t9 values (9);
 
 # Remove t3, t5 from NDB
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 >> $NDB_TOOLS_OUTPUT ;
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t3 >> $NDB_TOOLS_OUTPUT ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT ;
 # Remove t6, t7 from disk
 --remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
 --remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
@@ -335,8 +335,8 @@ insert into t8 values (8, "myisam table 8");
 insert into t9 values (9);
 
 # Remove t3, t5 from NDB
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t3 > /dev/null  ;
-system exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test t5 > /dev/null  ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t3 > /dev/null  ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t5 > /dev/null  ;
 # Remove t6, t7 from disk
 --remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
 --remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
@@ -492,11 +492,11 @@ use test_only_ndb_tables;
 create table t1 (a int primary key) engine=ndb;
 select * from t1;
 --exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
+--exec $NDB_WAITER --no-defaults --not-started > /dev/null
 --error ER_CANT_LOCK
 select * from t1;
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
---exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
+--exec $NDB_WAITER --no-defaults > /dev/null
 --source include/ndb_wait_connected.inc
 use test;
 drop database test_only_ndb_tables;
@@ -550,6 +550,6 @@ create table t10 (
 
 insert into t10 values (1, 'kalle');
 
---exec $NDB_TOOLS_DIR/ndb_drop_table --no-defaults -d test `$NDB_TOOLS_DIR/ndb_show_tables --no-defaults | grep BLOB | while read a b c d e f g; do echo $g; done` >> $NDB_TOOLS_OUTPUT 2>&1 || true
+--exec $NDB_DROP_TABLE --no-defaults -d test `$NDB_TOOLS_DIR/ndb_show_tables --no-defaults | grep BLOB | while read a b c d e f g; do echo $g; done` >> $NDB_TOOLS_OUTPUT 2>&1 || true
 
 # End of 4.1 tests

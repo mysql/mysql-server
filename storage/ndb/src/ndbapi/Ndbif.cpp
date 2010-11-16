@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,21 +13,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
 
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbIndexOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include <NdbRecAttr.hpp>
-#include <NdbReceiver.hpp>
 #include "API.hpp"
-#include "NdbEventOperationImpl.hpp"
 
 #include <signaldata/TcCommit.hpp>
 #include <signaldata/TcKeyFailConf.hpp>
@@ -44,7 +38,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -78,19 +71,20 @@ Ndb::init(int aMaxNoOfTransactions)
   }//if
   theInitState = StartingInit;
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
-  theFacade->lock_mutex();
-  
-  const int tBlockNo = theFacade->open(this,
-                                       executeMessage, 
-                                       statusMessage);  
+  theEventBuffer->m_mutex = theFacade->theMutexPtr;
+
+  const int tBlockNo = theImpl->open(theFacade);
+
   if ( tBlockNo == -1 ) {
     theError.code = 4105;
-    theFacade->unlock_mutex();
     DBUG_RETURN(-1); // no more free blocknumbers
   }//if
   
   theNdbBlockNumber = tBlockNo;
 
+  /* Init cached min node version */
+  theFacade->lock_mutex();
+  theCachedMinDbNodeVersion = theFacade->getMinDbNodeVersion();
   theFacade->unlock_mutex();
   
   theDictionary->setTransporter(this, theFacade);
@@ -145,7 +139,7 @@ error_handler:
   ndbout << "error_handler" << endl;
   releaseTransactionArrays();
   delete theDictionary;
-  theImpl->m_transporter_facade->close(theNdbBlockNumber, 0);
+  theImpl->close();
   DBUG_RETURN(-1);
 }
 
@@ -166,12 +160,10 @@ Ndb::releaseTransactionArrays()
 }//Ndb::releaseTransactionArrays()
 
 void
-Ndb::executeMessage(void* NdbObject,
-                    NdbApiSignal * aSignal,
-                    LinearSectionPtr ptr[3])
+NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
+                            const LinearSectionPtr ptr[3])
 {
-  Ndb* tNdb = (Ndb*)NdbObject;
-  tNdb->handleReceivedSignal(aSignal, ptr);
+  m_ndb.handleReceivedSignal(aSignal, ptr);
 }
 
 void Ndb::connected(Uint32 ref)
@@ -184,19 +176,12 @@ void Ndb::connected(Uint32 ref)
     assert(theMyRef == numberToRef(theNdbBlockNumber, tmpTheNode));
   }
   
-  TransporterFacade * theFacade =  theImpl->m_transporter_facade;
-  int i, n= 0;
-  for (i = 1; i < MAX_NDB_NODES; i++){
-    if (theFacade->getIsDbNode(i)){
-      theImpl->theDBnodes[n] = i;
-      n++;
-    }
-  }
-  theImpl->theNoOfDBnodes = n;
+  Uint32 cnt =
+    theImpl->m_ndb_cluster_connection.get_db_nodes(theImpl->theDBnodes);
+  theImpl->theNoOfDBnodes = cnt;
   
-  theFirstTransId = ((Uint64)tBlockNo << 52)+
+  theFirstTransId += ((Uint64)tBlockNo << 52)+
     ((Uint64)tmpTheNode << 40);
-  theFirstTransId += theFacade->m_max_trans_id;
   //      assert(0);
   DBUG_PRINT("info",("connected with ref=%x, id=%d, no_db_nodes=%d, first_trans_id: 0x%lx",
 		     theMyRef,
@@ -220,28 +205,30 @@ void Ndb::report_node_connected(Uint32 nodeId)
 }
 
 void
-Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
+NdbImpl::trp_node_status(Uint32 a_node, Uint32 _event)
 {
   DBUG_ENTER("Ndb::statusMessage");
-  DBUG_PRINT("info", ("a_node: %u  alive: %u  nfComplete: %u",
-                      a_node, alive, nfComplete));
-  Ndb* tNdb = (Ndb*)NdbObject;
-  if (alive) {
-    if (nfComplete) {
-      // cluster connect, a_node == own reference
-      tNdb->connected(a_node);
-      DBUG_VOID_RETURN;
-    }//if
+  NS_Event event = (NS_Event)_event;
+  DBUG_PRINT("info", ("a_node: %u  event: %u",
+                      a_node, _event));
+  Ndb* tNdb = (Ndb*)&m_ndb;
+  switch(event){
+  case NS_CONNECTED:
+    // cluster connect, a_node == own reference
+    tNdb->connected(a_node);
+    break;
+  case NS_NODE_ALIVE:
     tNdb->report_node_connected(a_node);
-  } else {
-    if (nfComplete) {
-      tNdb->report_node_failure_completed(a_node);
-    } else {
-      tNdb->report_node_failure(a_node);
-    }//if
+    break;
+  case NS_NODE_FAILED:
+    tNdb->report_node_failure(a_node);
+    break;
+  case NS_NODE_NF_COMPLETE:
+    tNdb->report_node_failure_completed(a_node);
+    break;
   }//if
   NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
-				   a_node, alive, nfComplete);
+				   a_node, event);
   DBUG_VOID_RETURN;
 }
 
@@ -270,13 +257,7 @@ Ndb::report_node_failure_completed(Uint32 node_id)
   {
     // node failed
     // eventOperations in the ndb object should be notified
-    theEventBuffer->report_node_failure(node_id);
-    if(!theImpl->m_transporter_facade->theClusterMgr->isClusterAlive())
-    {
-      // cluster is unavailable, 
-      // eventOperations in the ndb object should be notified
-      theEventBuffer->completeClusterFailed();
-    }
+    theEventBuffer->report_node_failure_completed(node_id);
   }
   
   abortTransactionsAfterNodeFailure(node_id);
@@ -315,7 +296,7 @@ Ndb::abortTransactionsAfterNodeFailure(Uint16 aNodeId)
         localCon->theCompletionStatus = NdbTransaction::CompletedSuccess;
       } else {
 #ifdef VM_TRACE
-        printState("abortTransactionsAfterNodeFailure %x", this);
+        printState("abortTransactionsAfterNodeFailure %lx", (long)this);
         abort();
 #endif
       }
@@ -344,19 +325,24 @@ Parameters:     aSignal: The signal object.
 Remark:         Send all operations belonging to this connection. 
 *****************************************************************************/
 void	
-Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
+Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
+			  const LinearSectionPtr ptr[3])
 {
   NdbOperation* tOp;
   NdbIndexOperation* tIndexOp;
   NdbTransaction* tCon;
   int tReturnCode = -1;
   const Uint32* tDataPtr = aSignal->getDataPtr();
-  const Uint32 tWaitState = theImpl->theWaiter.m_state;
+  const Uint32 tWaitState = theImpl->theWaiter.get_state();
   const Uint32 tSignalNumber = aSignal->readSignalNumber();
   const Uint32 tFirstData = *tDataPtr;
   const Uint32 tLen = aSignal->getLength();
+  Uint32 tNewState = tWaitState;
   void * tFirstDataPtr;
-  NdbWaiter *t_waiter;
+  NdbWaiter *t_waiter = &theImpl->theWaiter;
+
+  /* Update cached Min Db node version */
+  theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
 
   /*
     In order to support 64 bit processes in the application we need to use
@@ -425,8 +411,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 	return;
       case NdbReceiver::NDB_SCANRECEIVER:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-				      (Uint32) NO_WAIT : tWaitState);
+        tNewState = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+                     (Uint32) NO_WAIT : tWaitState);
 	break;
       default:
 	goto InvalidSignal;
@@ -532,7 +518,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
 	  (tCon->theSendStatus == NdbTransaction::sendTC_COMMIT)) {
-	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf);
+	tReturnCode = tCon->receiveTC_COMMITCONF(commitConf, tLen);
 	if (tReturnCode != -1) {
 	  completedTransaction(tCon);
 	}//if
@@ -623,7 +609,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCSEIZECONF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       } else {
 	goto InvalidSignal;
       }//if
@@ -643,7 +629,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCSEIZEREF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       } else {
         return;
       }//if
@@ -663,7 +649,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCRELEASECONF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       }//if
       break;
     } 
@@ -681,7 +667,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       }//if
       tReturnCode = tCon->receiveTCRELEASEREF(aSignal);
       if (tReturnCode != -1) {
-	theImpl->theWaiter.m_state = NO_WAIT;
+        tNewState = NO_WAIT;
       }//if
       break;
     }
@@ -711,8 +697,15 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_DROP_FILE_CONF:
   case GSN_DROP_FILEGROUP_REF:
   case GSN_DROP_FILEGROUP_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_CONF:
+  case GSN_SCHEMA_TRANS_BEGIN_REF:
+  case GSN_SCHEMA_TRANS_END_CONF:
+  case GSN_SCHEMA_TRANS_END_REF:
+  case GSN_SCHEMA_TRANS_END_REP:
   case GSN_WAIT_GCP_CONF:
   case GSN_WAIT_GCP_REF:
+  case GSN_CREATE_HASH_MAP_REF:
+  case GSN_CREATE_HASH_MAP_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
@@ -731,7 +724,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   {
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
-    theEventBuffer->execSUB_GCP_COMPLETE_REP(rep);
+    theEventBuffer->execSUB_GCP_COMPLETE_REP(rep, tLen);
     return;
   }
   case GSN_SUB_TABLE_DATA:
@@ -743,8 +736,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
     if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
     {
-      g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
-			  "number");
+      g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
+                           "number");
       return ;
     }
 
@@ -754,34 +747,25 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
         !op->execSUB_TABLE_DATA(aSignal, ptr))
       return;
     
-    for (int i= aSignal->m_noOfSections;i < 3; i++) {
-      ptr[i].p = NULL;
-      ptr[i].sz = 0;
+    LinearSectionPtr copy[3];
+    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    {
+      copy[i] = ptr[i];
     }
-    DBUG_PRINT("info",("oid=senderData: %d, gci: %d, operation: %d, "
+    for (int i = aSignal->m_noOfSections; i < 3; i++)
+    {
+      copy[i].p = NULL;
+      copy[i].sz = 0;
+    }
+    DBUG_PRINT("info",("oid=senderData: %d, gci{hi/lo}: %d/%d, operation: %d, "
 		       "tableId: %d",
-		       sdata->senderData, sdata->gci, 
+		       sdata->senderData, sdata->gci_hi, sdata->gci_lo,
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
-    theEventBuffer->insertDataL(op,sdata, ptr);
+    theEventBuffer->insertDataL(op, sdata, tLen, copy);
     return;
   }
-  case GSN_DIHNDBTAMPER:
-    {
-      tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-      
-      if (tWaitState != WAIT_NDB_TAMPER)
-	return;
-      tCon = void2con(tFirstDataPtr);
-      if (tCon->checkMagicNumber() != 0)
-	return;
-      tReturnCode = tCon->receiveDIHNDBTAMPER(aSignal);
-      if (tReturnCode != -1)
-	theImpl->theWaiter.m_state = NO_WAIT;
-      break;
-    }
   case GSN_SCAN_TABCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
@@ -801,7 +785,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 				      tLen - ScanTabConf::SignalLength);
 	}
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN)
-	  theImpl->theWaiter.m_state = NO_WAIT;
+          tNewState = NO_WAIT;
 	break;
       } else {
 	goto InvalidSignal;
@@ -820,7 +804,7 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       if (tCon->checkMagicNumber() == 0){
 	tReturnCode = tCon->receiveSCAN_TABREF(aSignal);
 	if (tReturnCode != -1 && tWaitState == WAIT_SCAN){
-	  theImpl->theWaiter.m_state = NO_WAIT;
+          tNewState = NO_WAIT;
 	}
 	break;
       }
@@ -845,8 +829,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       switch(com){
       case 1:
 	tCon->theScanningOp->receiver_delivered(tRec);
-	theImpl->theWaiter.m_state = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
-			      (Uint32) NO_WAIT : tWaitState);
+        tNewState = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
+                     (Uint32) NO_WAIT : tWaitState);
 	break;
       case 0:
 	break;
@@ -906,12 +890,18 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     goto InvalidSignal;
     return;
   } 
+  case GSN_API_REGCONF:{
+    return; // Ignore
+  }
+  case GSN_TAKE_OVERTCCONF:
+    abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
+    break;
   default:
+    tFirstDataPtr = NULL;
     goto InvalidSignal;
   }//swich
 
-  t_waiter= &theImpl->theWaiter;
-  if (t_waiter->get_state() == NO_WAIT && tWaitState != NO_WAIT)
+  if (tNewState != tWaitState)
   {
     /*
       If our waiter object is the owner of the "poll rights", then we
@@ -924,20 +914,13 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
       its conditional wait. This will wake up this thread so that it
       can continue its work.
     */
-    TransporterFacade *tp= theImpl->m_transporter_facade;
-    if (tp->get_poll_owner() != t_waiter)
-    {
-      /*
-         Wake up the thread waiting for response and remove it from queue
-         of objects waiting for receive completion
-      */
-      tp->remove_from_cond_wait_queue(t_waiter);
-      t_waiter->cond_signal();
-    }
-  }//if
+    t_waiter->signal(tNewState);
+  }
+
   return;
 
- InvalidSignal:
+
+InvalidSignal:
 #ifdef VM_TRACE
   ndbout_c("Ndbif: Error Ndb::handleReceivedSignal "
 	   "(tFirstDataPtr=%p, GSN=%d, theImpl->theWaiter.m_state=%d)"
@@ -989,19 +972,7 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     if ((theMinNoOfEventsToWakeUp != 0) &&
         (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
       theMinNoOfEventsToWakeUp = 0;
-      TransporterFacade *tp = theImpl->m_transporter_facade;
-      NdbWaiter *t_waiter= &theImpl->theWaiter;
-      if (tp->get_poll_owner() != t_waiter) {
-        /*
-          When we come here, this is executed by the thread owning the "poll
-          rights". This thread is not where our waiter object belongs.
-          Thus we wake up the thread owning this waiter object but first
-          we must remove it from the conditional wait queue so that we
-          don't assign it as poll owner later on.
-        */
-        tp->remove_from_cond_wait_queue(t_waiter);
-        t_waiter->cond_signal();
-      }
+      theImpl->theWaiter.signal(NO_WAIT);
       return;
     }//if
   } else {
@@ -1071,7 +1042,7 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
 void
 Ndb::check_send_timeout()
 {
-  Uint32 timeout = theImpl->m_transporter_facade->m_waitfor_timeout;
+  Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   NDB_TICKS current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
   if (current_time - the_last_check_time > 1000) {
@@ -1083,7 +1054,7 @@ Ndb::check_send_timeout()
       {
 #ifdef VM_TRACE
         a_con->printState();
-	Uint32 t1 = a_con->theTransactionId;
+	Uint32 t1 = (Uint32) a_con->theTransactionId;
 	Uint32 t2 = a_con->theTransactionId >> 32;
 	ndbout_c("4012 [%.8x %.8x]", t1, t2);
 	//abort();
@@ -1161,19 +1132,15 @@ Ndb::sendPrepTrans(int forceSend)
      and we keep a small space for messages like that.
   */
   Uint32 i;
-  TransporterFacade* tp = theImpl->m_transporter_facade;
+  theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
   Uint32 no_of_prep_trans = theNoOfPreparedTransactions;
   for (i = 0; i < no_of_prep_trans; i++) {
     NdbTransaction * a_con = thePreparedTransactionsArray[i];
     thePreparedTransactionsArray[i] = NULL;
     Uint32 node_id = a_con->getConnectedNodeId();
-    if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-         tp->get_node_alive(node_id) ||
-         (tp->get_node_stopping(node_id) && 
-         ((a_con->theSendStatus == NdbTransaction::sendABORT) ||
-          (a_con->theSendStatus == NdbTransaction::sendABORTfail) ||
-          (a_con->theSendStatus == NdbTransaction::sendCOMMITstate) ||
-          (a_con->theSendStatus == NdbTransaction::sendCompleted)))) {
+    if ((theImpl->getNodeSequence(node_id) == a_con->theNodeSequence) &&
+        (theImpl->get_node_alive(node_id) || theImpl->get_node_stopping(node_id)))
+    {
       /*
       We will send if
       1) Node is alive and sequences are correct OR
@@ -1182,7 +1149,7 @@ Ndb::sendPrepTrans(int forceSend)
       of all transactions and commits and thus we allow aborts and
       commits to continue but not normal operations.
       */
-      if (tp->check_send_size(node_id, a_con->get_send_size())) {
+      if (theImpl->check_send_size(node_id, a_con->get_send_size())) {
         if (a_con->doSend() == 0) {
           NDB_TICKS current_time = NdbTick_CurrentMillisecond();
           a_con->theStartTransTime = current_time;
@@ -1219,27 +1186,15 @@ Ndb::sendPrepTrans(int forceSend)
 #ifdef VM_TRACE
       a_con->printState();
 #endif
-      if ((tp->getNodeSequence(node_id) == a_con->theNodeSequence) &&
-          tp->get_node_stopping(node_id)) {
-        /*
-        The node we are connected to is currently in an early stopping phase
-        of a graceful stop. We will not send the prepared transactions. We
-        will simply refuse and let the application code handle the abort.
-        */
-        TRACE_DEBUG("Abort a transaction when stopping a node");
-        a_con->setOperationErrorCodeAbort(4023);
-        a_con->theCommitStatus = NdbTransaction::NeedAbort;
-      } else {
-        /*
+      /*
         The node is hard dead and we cannot continue. We will also release
         the connection to the free pool.
-        */
-        TRACE_DEBUG("The node was stone dead, inform about abort");
-        a_con->setOperationErrorCodeAbort(4025);
-        a_con->theReleaseOnClose = true;
-        a_con->theTransactionIsStarted = false;
-        a_con->theCommitStatus = NdbTransaction::Aborted;
-      }//if
+      */
+      TRACE_DEBUG("The node was stone dead, inform about abort");
+      a_con->setOperationErrorCodeAbort(4025);
+      a_con->theReleaseOnClose = true;
+      a_con->theTransactionIsStarted = false;
+      a_con->theCommitStatus = NdbTransaction::Aborted;
     }//if
     a_con->theReturnStatus = NdbTransaction::ReturnFailure;
     a_con->theCompletionStatus = NdbTransaction::CompletedFailure;
@@ -1247,11 +1202,7 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  if (forceSend == 0) {
-     tp->checkForceSend(theNdbBlockNumber);
-  } else if (forceSend == 1) {
-     tp->forceSend(theNdbBlockNumber);
-  }//if
+  theImpl->forceSend(forceSend);
   return;
 }//Ndb::sendPrepTrans()
 
@@ -1267,9 +1218,11 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
 			       int noOfEventsToWaitFor,
                                PollGuard *poll_guard)
 {
-  theImpl->theWaiter.m_state = NO_WAIT; 
+  theImpl->theWaiter.set_node(0);
+  theImpl->theWaiter.set_state(WAIT_TRANS);
+
   /**
-   * theImpl->theWaiter.m_state = NO_WAIT; 
+   * theImpl->theWaiter.set_node(0)
    * To ensure no messup with synchronous node fail handling
    * (see ReportFailure)
    */
@@ -1288,10 +1241,6 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   } while (waitTime > 0);
 }//Ndb::waitCompletedTransactions()
 
-void Ndb::cond_signal()
-{
-  NdbCondition_Signal(theImpl->theWaiter.m_condition);
-}
 /*****************************************************************************
 void sendPreparedTransactions(int forceSend = 0);
 
@@ -1325,8 +1274,7 @@ Ndb::sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup, int forceSen
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
-               theNdbBlockNumber);
+  PollGuard pg(* theImpl);
   sendPrepTrans(forceSend);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
 }
@@ -1348,6 +1296,7 @@ Ndb::poll_trans(int aMillisecondNumber, int minNoOfEventsToWakeup,
   } else {
     tNoCompletedTransactions = pollCompleted(tConArray);
   }//if
+  theMinNoOfEventsToWakeUp = 0; // no more wakup
   pg->unlock_and_signal();
   reportCallback(tConArray, tNoCompletedTransactions);
   return tNoCompletedTransactions;
@@ -1369,8 +1318,7 @@ Ndb::pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup)
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard pg(theImpl->m_transporter_facade, &theImpl->theWaiter,
-               theNdbBlockNumber);
+  PollGuard pg(* theImpl);
   return poll_trans(aMillisecondNumber, minNoOfEventsToWakeup, &pg);
 }
 
@@ -1393,7 +1341,6 @@ Ndb::sendRecSignal(Uint16 node_id,
 
   int return_code;
   Uint32 read_conn_seq;
-  TransporterFacade* tp = theImpl->m_transporter_facade;
   Uint32 send_size = 1; // Always sends one signal only
   // Protected area
   /*
@@ -1402,15 +1349,15 @@ Ndb::sendRecSignal(Uint16 node_id,
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
-  PollGuard poll_guard(tp,&theImpl->theWaiter,theNdbBlockNumber);
-  read_conn_seq= tp->getNodeSequence(node_id);
+  PollGuard poll_guard(* theImpl);
+  read_conn_seq= theImpl->getNodeSequence(node_id);
   if (ret_conn_seq)
     *ret_conn_seq= read_conn_seq;
-  if ((tp->get_node_alive(node_id)) &&
+  if ((theImpl->get_node_alive(node_id)) &&
       ((read_conn_seq == conn_seq) ||
        (conn_seq == 0))) {
-    if (tp->check_send_size(node_id, send_size)) {
-      return_code = tp->sendSignal(aSignal, node_id);
+    if (theImpl->check_send_size(node_id, send_size)) {
+      return_code = theImpl->sendSignal(aSignal, node_id);
       if (return_code != -1) {
         return poll_guard.wait_n_unlock(WAITFOR_RESPONSE_TIMEOUT,node_id,
                                          aWaitState, false);
@@ -1421,7 +1368,7 @@ Ndb::sendRecSignal(Uint16 node_id,
       return_code = -4;
     }//if
   } else {
-    if ((tp->get_node_stopping(node_id)) &&
+    if ((theImpl->get_node_stopping(node_id)) &&
         ((read_conn_seq == conn_seq) ||
          (conn_seq == 0))) {
       return_code = -5;
@@ -1452,11 +1399,12 @@ NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
   Uint32 * dataPtr = aSignal->getDataPtrSend();
   dataPtr[0] = transId1;
   dataPtr[1] = transId2;
-  tp->sendSignalUnCond(aSignal, refToNode(aTCRef));
+  tp->sendSignalUnCond(aSignal, refToNode(aTCRef), 1);
 }
 
 int
-NdbImpl::send_event_report(Uint32 *data, Uint32 length)
+NdbImpl::send_event_report(bool has_lock,
+                           Uint32 *data, Uint32 length)
 {
   NdbApiSignal aSignal(m_ndb.theMyRef);
   TransporterFacade *tp = m_transporter_facade;
@@ -1466,15 +1414,29 @@ NdbImpl::send_event_report(Uint32 *data, Uint32 length)
   aSignal.theLength               = length;
   memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
 
+
+  int ret = 0;
+  if (!has_lock)
+  {
+    tp->lock_mutex();
+  }
   Uint32 tNode;
   Ndb_cluster_connection_node_iter node_iter;
   m_ndb_cluster_connection.init_get_next_node(node_iter);
   while ((tNode= m_ndb_cluster_connection.get_next_node(node_iter)))
   {
-    if(tp->get_node_alive(tNode)){
-      tp->sendSignal(&aSignal, tNode);
-      return 0;
+    if(get_node_alive(tNode))
+    {
+      sendSignal(&aSignal, tNode);
+      goto done;
     }
   }
-  return 1;
+  
+  ret = 1;
+done:
+  if (!has_lock)
+  {
+    tp->unlock_mutex();
+  }
+  return ret;
 }

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_MAINT_CPP
 #include "Dbtux.hpp"
@@ -26,9 +29,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   jamEntry();
   TuxMaintReq* const sig = (TuxMaintReq*)signal->getDataPtrSend();
   // ignore requests from redo log
-  if (c_internalStartPhase < 6 &&
-      c_typeOfStart != NodeState::ST_NODE_RESTART &&
-      c_typeOfStart != NodeState::ST_INITIAL_NODE_RESTART) {
+  IndexPtr indexPtr;
+  c_indexPool.getPtr(indexPtr, sig->indexId);
+
+  if (unlikely(! (indexPtr.p->m_state == Index::Online ||
+                  indexPtr.p->m_state == Index::Building)))
+  {
     jam();
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
@@ -47,13 +53,12 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     sig->errorCode = 0;
     return;
   }
+
   TuxMaintReq reqCopy = *sig;
   TuxMaintReq* const req = &reqCopy;
   const Uint32 opCode = req->opInfo & 0xFF;
   const Uint32 opFlag = req->opInfo >> 8;
   // get the index
-  IndexPtr indexPtr;
-  c_indexPool.getPtr(indexPtr, req->indexId);
   ndbrequire(indexPtr.p->m_tableId == req->tableId);
   // get base fragment id and extra bits
   const Uint32 fragId = req->fragId;
@@ -71,19 +76,19 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   ndbrequire(fragPtr.i != RNIL);
   Frag& frag = *fragPtr.p;
   // set up index keys for this operation
-  setKeyAttrs(frag);
+  setKeyAttrs(c_ctx, frag);
   // set up search entry
   TreeEnt ent;
   ent.m_tupLoc = TupLoc(req->pageId, req->pageIndex);
   ent.m_tupVersion = req->tupVersion;
   // read search key
-  readKeyAttrs(frag, ent, 0, c_searchKey);
+  readKeyAttrs(c_ctx, frag, ent, 0, c_ctx.c_searchKey);
   if (! frag.m_storeNullKey) {
     // check if all keys are null
     const unsigned numAttrs = frag.m_numAttrs;
     bool allNull = true;
     for (unsigned i = 0; i < numAttrs; i++) {
-      if (c_searchKey[i] != 0) {
+      if (c_ctx.c_searchKey[i] != 0) {
         jam();
         allNull = false;
         break;
@@ -114,7 +119,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jam();
-    ok = searchToAdd(frag, c_searchKey, ent, treePos);
+    ok = searchToAdd(c_ctx, frag, c_ctx.c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
@@ -136,21 +141,19 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     if (frag.m_freeLoc == NullTupLoc) {
       jam();
       NodeHandle node(frag);
-      req->errorCode = allocNode(signal, node);
+      req->errorCode = allocNode(c_ctx, node);
       if (req->errorCode != 0) {
         jam();
         break;
       }
-      // link to freelist
-      node.setLink(0, frag.m_freeLoc);
       frag.m_freeLoc = node.m_loc;
       ndbrequire(frag.m_freeLoc != NullTupLoc);
     }
-    treeAdd(frag, treePos, ent);
+    treeAdd(c_ctx, frag, treePos, ent);
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    ok = searchToRemove(frag, c_searchKey, ent, treePos);
+    ok = searchToRemove(frag, c_ctx.c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
@@ -178,4 +181,10 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #endif
   // copy back
   *sig = *req;
+
+  //ndbrequire(c_keyAttrs[0] == c_keyAttrs[1]);
+  //ndbrequire(c_sqlCmp[0] == c_sqlCmp[1]);
+  //ndbrequire(c_searchKey[0] == c_searchKey[1]);
+  //ndbrequire(c_entryKey[0] == c_entryKey[1]);
+  //ndbrequire(c_dataBuffer[0] == c_dataBuffer[1]);
 }

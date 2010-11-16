@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -21,6 +24,7 @@
 #include <Vector.hpp>
 #include "ScanFunctions.hpp"
 #include <random.h>
+#include <signaldata/DumpStateOrd.hpp>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -59,19 +63,10 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    // Don't drop test table
-    if (strcmp(tab->getName(), ctx->getTab()->getName()) == 0){
-      continue;
-    }
-	    
-    int res = GETNDB(step)->getDictionary()->dropTable(tab->getName());
-    if(res == -1){
-      return NDBT_FAILED;
-    }
+    GETNDB(step)->getDictionary()->dropTable(tab->getName());
   }
   return NDBT_OK;
 }
-
 
 int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
   
@@ -82,6 +77,7 @@ int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
     if (tab == NULL){ 
       return NDBT_FAILED;
     }
+    
     HugoTransactions hugoTrans(*tab);
     if (hugoTrans.loadTable(GETNDB(step), records) != 0){
       return NDBT_FAILED;
@@ -152,6 +148,40 @@ int runScanReadRandomTable(NDBT_Context* ctx, NDBT_Step* step){
     if (tab == NULL){
       g_info << "tab == NULL" << endl;
       return NDBT_FAILED;
+    }
+    
+    g_info << "Scan reading from table " << tab->getName() << endl;
+    HugoTransactions hugoTrans(*tab);
+    
+    g_info << i << ": ";
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism) != 0){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int runScanReadRandomTableExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int parallelism = ctx->getProperty("Parallelism", 240);
+  int abort = ctx->getProperty("AbortProb", 5);
+  
+  int i = 0;
+  while (i<loops) {
+    const NdbDictionary::Table* tab= NULL;
+    bool chosenTable=false;
+    while (!chosenTable)
+    {
+      int tabNum = myRandom48(NDBT_Tables::getNumTables());
+      tab = getTable(GETNDB(step), tabNum);
+      if (tab == NULL){
+        g_info << "tab == NULL" << endl;
+        return NDBT_FAILED;
+      }
+      // Skip test table
+      chosenTable= (strcmp(tab->getName(), ctx->getTab()->getName()));
     }
     
     g_info << "Scan reading from table " << tab->getName() << endl;
@@ -286,12 +316,19 @@ int runRandScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
   int tupscan = ctx->getProperty("TupScan", (Uint32)0);
+  int lmarg = ctx->getProperty("LockMode", ~Uint32(0));
+  int nocount = ctx->getProperty("NoCount", Uint32(0));
+
+  if (nocount)
+    records = 0;
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
     NdbOperation::LockMode lm = (NdbOperation::LockMode)(rand() % 3);
+    if (lmarg != ~0)
+      lm = (NdbOperation::LockMode)lmarg;
     int scan_flags = 0;
   
     if (tupscan == 1)
@@ -1009,94 +1046,6 @@ int runCheckInactivityBeforeClose(NDBT_Context* ctx, NDBT_Step* step){
 
 }
 
-int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb * pNdb = GETNDB(step);
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-
-  HugoCalculator calc(* pTab);
-  NDBT_ResultRow tmpRow(* pTab);
-
-  int i = 0;
-  while (i<loops && !ctx->isTestStopped()) {
-    g_info << i++ << ": ";
-    const int record = (rand() % records);
-    g_info << " row=" << record;
-
-    NdbConnection* pCon = pNdb->startTransaction();
-    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());	
-    if (pOp == NULL) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    if( pOp->readTuples() ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-  
-    int check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    // Define attributes to read  
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if((tmpRow.attributeStore(a) = 
-	  pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
-	ERR(pCon->getNdbError());
-	return NDBT_FAILED;
-      }
-    } 
-    
-    check = pCon->execute(NoCommit);
-    if( check == -1 ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-
-    int res;
-    int row = 0;
-    while(row < record && (res = pOp->nextResult()) == 0) {
-      if(calc.verifyRowValues(&tmpRow) != 0){
-	abort();
-	return NDBT_FAILED;
-      }
-      row++;
-    }
-    if(row != record){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }
-    g_info << " restarting" << endl;
-    if((res = pOp->restart()) != 0){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }      
-
-    row = 0;
-    while((res = pOp->nextResult()) == 0) {
-      if(calc.verifyRowValues(&tmpRow) != 0){
-	abort();
-	return NDBT_FAILED;
-      }
-      row++;
-    }
-    if(res != 1 || row != records){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }
-    pCon->close();
-  }
-  return NDBT_OK;
-}
-
-
 int 
 runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops() + 3;
@@ -1179,12 +1128,6 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 	    return NDBT_FAILED;
 	  }
 	  
-	  int check = pOp->interpret_exit_ok();
-	  if( check == -1 ) {
-	    ERR(pCon->getNdbError());
-	    return NDBT_FAILED;
-	  }
-	  
 	  // Define attributes to read  
 	  bool found_disk = false;
 	  for(int a = 0; a<pTab->getNoOfColumns(); a++){
@@ -1204,7 +1147,7 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 	  
 	  if (! (disk && !found_disk))
 	  {
-	    check = pCon->execute(NoCommit);
+	    int check = pCon->execute(NoCommit);
 	    if( check == -1 ) {
 	      ERR(pCon->getNdbError());
 	      return NDBT_FAILED;
@@ -1219,6 +1162,45 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
       }
     }
   }
+  return NDBT_OK;
+}
+
+int
+runBug36124(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+
+  NdbTransaction* pCon = pNdb->startTransaction();
+  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL) {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+  {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+  {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Old style interpreted code api should fail when 
+   * we try to use it 
+   */
+  if( pOp->interpret_exit_last_row() == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  pOp->close();
+
+  pCon->close();
+
   return NDBT_OK;
 }
 
@@ -1252,6 +1234,171 @@ runBug24447(NDBT_Context* ctx, NDBT_Step* step){
   }
   restarter.insertErrorInAllNodes(0);
   
+  return NDBT_OK;
+}
+
+int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
+
+  int loops = ctx->getNumLoops();
+
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  const NdbDictionary::Index * pIdx = 
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName, 
+					    ctx->getTab()->getName());
+  
+
+  int i = 0;
+  while (pIdx && i++ < loops && !ctx->isTestStopped()) 
+  {
+    g_info << i << ": ";
+    NdbTransaction* pTrans = pNdb->startTransaction();
+    int nodeId = pTrans->getConnectedNodeId();
+    
+    {
+      Uint32 cnt = 0;
+      Vector<NdbTransaction*> translist;
+      while (cnt < 3)
+      {
+        NdbTransaction* p2 = pNdb->startTransaction();
+        translist.push_back(p2);
+        if (p2->getConnectedNodeId() == (Uint32)nodeId)
+          cnt++;
+      }
+      
+      for (size_t t = 0; t < translist.size(); t++)
+        translist[t]->close();
+      translist.clear();
+    }
+
+    NdbIndexScanOperation* 
+      pOp = pTrans->getNdbIndexScanOperation(pIdx, ctx->getTab());
+    
+    int r0 = pOp->readTuples(NdbOperation::LM_CommittedRead,
+                             NdbScanOperation::SF_OrderBy);
+
+    ndbout << "Restart node " << nodeId << endl; 
+    res.restartOneDbNode(nodeId,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nodeId, 1);
+    res.startNodes(&nodeId, 1);
+    res.waitNodesStarted(&nodeId, 1);
+
+    int r1 = pTrans->execute(NdbTransaction::NoCommit);
+
+    int r2;
+    while ((r2 = pOp->nextResult()) == 0);
+
+    ndbout_c("r0: %d r1: %d r2: %d", r0, r1, r2);
+
+    pTrans->close();
+  }
+  
+  return NDBT_OK;
+}
+
+int
+initBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017  }; // Max LCP speed
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 1);
+
+  return NDBT_OK;
+}
+int
+finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
+  
+  int dump[] = { 7017, 1  }; // Restore config value
+  NdbRestarter res;
+  res.dumpStateAllNodes(dump, 2);
+
+  return NDBT_OK;
+}
+
+
+int
+runBug54945(NDBT_Context* ctx, NDBT_Step* step)
+{
+
+  int loops = ctx->getNumLoops();
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  while (loops--)
+  {
+    int node = res.getNode(NdbRestarter::NS_RANDOM);
+    int err = 0;
+    printf("node: %u ", node);
+    switch(loops % 2){
+    case 0:
+      if (res.getNumDbNodes() >= 2)
+      {
+        err = 8088;
+        int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+        res.dumpStateOneNode(node, val, 2);
+        res.insertErrorInNode(node, 8088);
+        ndbout_c("error 8088");
+        break;
+      }
+      // fall through
+    case 1:
+      err = 5057;
+      res.insertErrorInNode(node, 5057);
+      ndbout_c("error 5057");
+      break;
+    }
+
+    for (int i = 0; i< 25; i++)
+    {
+      NdbTransaction* pCon = pNdb->startTransaction();
+      NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+      if (pOp == NULL) {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+      {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+      {
+        ERR(pCon->getNdbError());
+        return NDBT_FAILED;
+      }
+      
+      pCon->execute(NoCommit);
+      pCon->close();
+    } 
+    if (err == 8088)
+    {
+      res.waitNodesNoStart(&node, 1);
+      res.startAll();
+      res.waitClusterStarted();
+    }
+  }
+
   return NDBT_OK;
 }
 
@@ -1456,12 +1603,12 @@ TESTCASE("ScanReadRandomPrepare",
 TESTCASE("ScanRead40RandomNoTableCreate", 
 	 "Verify scan requirement: Scan with 40 simultaneous threads. "\
 	 "Use random table for the scan. Dont create or load the tables."){
-  STEPS(runScanReadRandomTable, 40);
+  STEPS(runScanReadRandomTableExceptTestTable, 40);
 }
 TESTCASE("ScanRead100RandomNoTableCreate", 
 	 "Verify scan requirement: Scan with 100 simultaneous threads. "\
 	 "Use random table for the scan. Dont create or load the tables."){
-  STEPS(runScanReadRandomTable, 100);
+  STEPS(runScanReadRandomTableExceptTestTable, 100);
 }
 TESTCASE("ScanWithLocksAndInserts", 
 	 "TR457: This test is added to verify that an insert of a records "\
@@ -1644,6 +1791,13 @@ TESTCASE("ScanReadError5025",
   STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanReadError8081",
+	 "Scan and insert error 8081"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8081);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
 TESTCASE("ScanReadError5030", 
 	 "Scan and insert error 5030."\
 	 "Drop all SCAN_NEXTREQ signals in LQH until the node is "\
@@ -1707,6 +1861,17 @@ TESTCASE("InsertDelete",
   STEP(runInsertDelete);
   FINALIZER(runClearTable);
 }
+TESTCASE("Bug48700", 
+	 "Load and delete all while scan updating and scan reading\n"\
+	 "Alexander Lukas special"){
+  TC_PROPERTY("AbortProb", Uint32(0));
+  TC_PROPERTY("NoCount", 1);
+  TC_PROPERTY("LockMode", NdbOperation::LM_CommittedRead);
+  INITIALIZER(runClearTable);
+  STEPS(runRandScanRead, 10);
+  STEP(runInsertDelete);
+  FINALIZER(runClearTable);
+}
 TESTCASE("CheckAfterTerror", 
 	 "Check that we can still scan read after this terror of NdbApi"){
   INITIALIZER(runLoadTable);
@@ -1719,12 +1884,6 @@ TESTCASE("ScanReadWhileNodeIsDown",
   INITIALIZER(runLoadTable);
   STEP(runScanReadUntilStoppedPrintTime);
   STEP(runStopAndStartNode);
-  FINALIZER(runClearTable);
-}
-TESTCASE("ScanRestart", 
-	 "Verify restart functionallity"){
-  INITIALIZER(runLoadTable);
-  STEP(runScanRestart);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanParallelism", 
@@ -1745,12 +1904,42 @@ TESTCASE("Bug24447",
   STEP(runBug24447);
   FINALIZER(runClearTable);
 }
+TESTCASE("Bug36124",
+         "Old interpreted Api usage"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug36124);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug42545", "")
+{
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug42545);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug42559", "") 
+{
+  INITIALIZER(initBug42559);
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  STEPS(runScanReadIndex, 70);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(finalizeBug42559);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug54945", "")
+{
+  INITIALIZER(runBug54945);
+}
 NDBT_TESTSUITE_END(testScan);
 
 int main(int argc, const char** argv){
   ndb_init();
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
+  NDBT_TESTSUITE_INSTANCE(testScan);
   return testScan.execute(argc, argv);
 }
 
 template class Vector<Attrib*>;
+template class Vector<NdbTransaction*>;

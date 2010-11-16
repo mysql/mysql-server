@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBD_MALLOC_IMPL_H
 #define NDBD_MALLOC_IMPL_H
@@ -57,7 +60,7 @@ public:
   void set_resource_limit(const Resource_limit& rl);
   bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
 
-  bool init(bool allow_alloc_less_than_requested = true);
+  bool init(Uint32 *watchCounter, bool allow_alloc_less_than_requested = true);
   void* get_memroot() const { return (void*)m_base_page;}
   
   void dump() const ;
@@ -84,7 +87,7 @@ public:
 private:
   void grow(Uint32 start, Uint32 cnt);
 
-#define XX_RL_COUNT 4
+#define XX_RL_COUNT 7
   /**
    * Return pointer to free page data on page
    */

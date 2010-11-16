@@ -6,6 +6,8 @@
 #
 
 source include/have_ndb.inc;
+# test uses event scheduler, hence not embedded
+source include/not_embedded.inc;
 
 LET $ENGINE_TYPE= NDB;
 source extra/rpl_tests/rpl_tmp_table_and_DDL.test;

@@ -1,4 +1,6 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (C) 2005 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +13,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MGMAPI_INTERNAL_H
 #define MGMAPI_INTERNAL_H
 
+#include <portlib/NdbTCP.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <NdbTCP.h>
 
   /**
    * Set an integer parameter for a connection
@@ -69,6 +72,31 @@ extern "C" {
   NDB_SOCKET_TYPE ndb_mgm_convert_to_transporter(NdbMgmHandle *handle);
 
   int ndb_mgm_disconnect_quiet(NdbMgmHandle handle);
+
+  /**
+   * Set configuration
+   *
+   * @param   handle    NDB management handle.
+   * @param   config    The new configuration to set
+   */
+  int ndb_mgm_set_configuration(NdbMgmHandle handle,
+                                struct ndb_mgm_configuration* config);
+
+
+  NDB_SOCKET_TYPE _ndb_mgm_get_socket(NdbMgmHandle handle);
+
+  /**
+   * Get configuration
+   *
+   * @param   handle    NDB management handle.
+   * @param   version   version of this node
+   * @param   nodetype   type of this node
+   */
+  struct ndb_mgm_configuration *
+  ndb_mgm_get_configuration2(NdbMgmHandle handle,
+                             unsigned version,
+                             enum ndb_mgm_node_type nodetype);
+
 
 #ifdef __cplusplus
 }

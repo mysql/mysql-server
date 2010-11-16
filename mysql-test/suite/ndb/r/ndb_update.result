@@ -27,6 +27,12 @@ pk1	b	c
 0	0	0
 2	2	2
 4	1	1
+UPDATE t1 set pk1 = 2 where pk1 = 2;
+affected rows: 0
+info: Rows matched: 1  Changed: 0  Warnings: 0
+UPDATE t1 set c = 1 WHERE b IN(0,1,2,3,4);
+ERROR 23000: Duplicate entry '1' for key 'c'
+UPDATE IGNORE t1 set c = 1 WHERE b IN(0,1,2,3,4);
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
 ERROR 23000: Duplicate entry '2' for key 'c'
 UPDATE IGNORE t1 set pk1 = 1, c = 2 where pk1 = 4;
@@ -93,4 +99,22 @@ a	b
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+mytext CHAR(30) DEFAULT NULL,
+PRIMARY KEY (`id`) ) ENGINE=ndbcluster;
+insert into t1 values(NULL,"hello"),(NULL,"world"),(NULL,"hello"),(NULL,"world");
+select * from t1 order by id;
+id	mytext
+1	hello
+2	world
+3	hello
+4	world
+update t1 set mytext = "goodbye" where mytext = "world" order by mytext;
+select * from t1 order by id;
+id	mytext
+1	hello
+2	goodbye
+3	hello
+4	goodbye
+DROP TABLE IF EXISTS t1;
 End of 5.1 tests

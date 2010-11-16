@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
@@ -68,6 +71,8 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, MinRowsLow, MinRowsLow),
   DTIMAP(Table, MinRowsHigh, MinRowsHigh),
   DTIMAP(Table, SingleUserMode, SingleUserMode),
+  DTIMAP(Table, HashMapObjectId, HashMapObjectId),
+  DTIMAP(Table, HashMapVersion, HashMapVersion),
   DTIBREAK(AttributeName)
 };
 
@@ -89,13 +94,18 @@ DictTabInfo::AttributeMapping[] = {
   DTIMAP2(Attribute, AttributeNullableFlag, AttributeNullableFlag, 0, 1),
   DTIMAP2(Attribute, AttributeDKey, AttributeDKey, 0, 1),
   DTIMAP2(Attribute, AttributeStorageType, AttributeStorageType, 0, 1),
+  DTIMAP2(Attribute, AttributeDynamic, AttributeDynamic, 0, 1),
   DTIMAP(Attribute, AttributeExtType, AttributeExtType),
   DTIMAP(Attribute, AttributeExtPrecision, AttributeExtPrecision),
   DTIMAP(Attribute, AttributeExtScale, AttributeExtScale),
   DTIMAP(Attribute, AttributeExtLength, AttributeExtLength),
   DTIMAP2(Attribute, AttributeAutoIncrement, AttributeAutoIncrement, 0, 1),
-  DTIMAPS(Attribute, AttributeDefaultValue, AttributeDefaultValue,
-    0, MAX_ATTR_DEFAULT_VALUE_SIZE),
+
+  DTIMAP2(Attribute, AttributeDefaultValueLen, AttributeDefaultValueLen,
+          0, MAX_ATTR_DEFAULT_VALUE_SIZE),
+  DTIMAPB(Attribute, AttributeDefaultValue, AttributeDefaultValue,
+    0, MAX_ATTR_DEFAULT_VALUE_SIZE, AttributeDefaultValueLen),
+
   DTIBREAK(AttributeEnd)
 };
 
@@ -134,7 +144,7 @@ DictTabInfo::Table::init(){
   MinLoadFactor = 78;
   MaxLoadFactor = 80;
   KeyLength = 0;
-  FragmentType = DictTabInfo::AllNodesSmallTable;
+  FragmentType = DictTabInfo::HashMapPartition;
   TableType = DictTabInfo::UndefTableType;
   TableVersion = 0;
   IndexState = ~0;
@@ -169,6 +179,9 @@ DictTabInfo::Table::init(){
   MinRowsHigh = 0;
 
   SingleUserMode = 0;
+
+  HashMapObjectId = RNIL;
+  HashMapVersion = RNIL;
 }
 
 void
@@ -188,7 +201,9 @@ DictTabInfo::Attribute::init(){
   AttributeExtLength = 0,
   AttributeAutoIncrement = false;
   AttributeStorageType = 0;
-  memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));//AttributeDefaultValue[0] = 0;
+  AttributeDynamic = 0;                         // Default is not dynamic
+  AttributeDefaultValueLen = 0;                 //Default byte sizes of binary default value is 0
+  memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));
 }
 
 //static 
@@ -306,4 +321,32 @@ DictTabInfo::isBlobTableName(const char* name, Uint32* ptab_id, Uint32* pcol_no)
   if (pcol_no)
     *pcol_no = col_no;
   return true;
+}
+
+/**
+ * HashMap
+ */
+const
+SimpleProperties::SP2StructMapping
+DictHashMapInfo::Mapping[] = {
+  DHMIMAPS(HashMap, HashMapName, HashMapName, 0, MAX_TAB_NAME_SIZE),
+  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, 256),
+  DTIMAP(HashMap, HashMapObjectId, HashMapObjectId),
+  DTIMAP(HashMap, HashMapVersion, HashMapVersion),
+
+  /**
+   * This *should* change to Uint16 or similar once endian is pushed
+   */
+  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0, 256*2, HashMapBuckets)
+};
+
+//static
+const Uint32 DictHashMapInfo::MappingSize =
+  sizeof(DictHashMapInfo::Mapping) / sizeof(SimpleProperties::SP2StructMapping);
+
+
+void
+DictHashMapInfo::HashMap::init()
+{
+  bzero(this, sizeof(* this));
 }

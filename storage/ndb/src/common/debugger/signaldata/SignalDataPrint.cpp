@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -65,9 +68,6 @@ SignalDataPrintFunctions[] = {
   { GSN_CREATE_TRIG_REQ, printCREATE_TRIG_REQ },
   { GSN_CREATE_TRIG_CONF, printCREATE_TRIG_CONF },
   { GSN_CREATE_TRIG_REF, printCREATE_TRIG_REF },
-  { GSN_ALTER_TRIG_REQ, printALTER_TRIG_REQ },
-  { GSN_ALTER_TRIG_CONF, printALTER_TRIG_CONF },
-  { GSN_ALTER_TRIG_REF, printALTER_TRIG_REF },
   { GSN_DROP_TRIG_REQ, printDROP_TRIG_REQ },
   { GSN_DROP_TRIG_CONF, printDROP_TRIG_CONF },
   { GSN_DROP_TRIG_REF, printDROP_TRIG_REF },
@@ -198,14 +198,65 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_LQH_TRANSCONF, printLQH_TRANSCONF }
   ,{ GSN_SCAN_FRAGREQ, printSCAN_FRAGREQ }
   ,{ GSN_START_FRAGREQ, printSTART_FRAG_REQ }
+
+  ,{ GSN_SCHEMA_TRANS_BEGIN_REQ, printSCHEMA_TRANS_BEGIN_REQ }
+  ,{ GSN_SCHEMA_TRANS_BEGIN_CONF, printSCHEMA_TRANS_BEGIN_CONF }
+  ,{ GSN_SCHEMA_TRANS_BEGIN_REF, printSCHEMA_TRANS_BEGIN_REF }
+  ,{ GSN_SCHEMA_TRANS_END_REQ, printSCHEMA_TRANS_END_REQ }
+  ,{ GSN_SCHEMA_TRANS_END_CONF, printSCHEMA_TRANS_END_CONF }
+  ,{ GSN_SCHEMA_TRANS_END_REF, printSCHEMA_TRANS_END_REF }
+  ,{ GSN_SCHEMA_TRANS_END_REP, printSCHEMA_TRANS_END_REP }
+  ,{ GSN_SCHEMA_TRANS_IMPL_REQ, printSCHEMA_TRANS_IMPL_REQ }
+  ,{ GSN_SCHEMA_TRANS_IMPL_CONF, printSCHEMA_TRANS_IMPL_CONF }
+  ,{ GSN_SCHEMA_TRANS_IMPL_REF, printSCHEMA_TRANS_IMPL_REF }
+
+  ,{ GSN_GET_TABINFOREQ, printGET_TABINFO_REQ }
+  ,{ GSN_GET_TABINFOREF, printGET_TABINFO_REF }
+  ,{ GSN_GET_TABINFO_CONF, printGET_TABINFO_CONF }
+
+  ,{ GSN_CREATE_TABLE_REQ, printCREATE_TABLE_REQ }
+  ,{ GSN_CREATE_TABLE_CONF, printCREATE_TABLE_CONF }
+  ,{ GSN_CREATE_TABLE_REF, printCREATE_TABLE_REF }
+  ,{ GSN_CREATE_TAB_REQ, printCREATE_TAB_REQ }
+  ,{ GSN_CREATE_TAB_REF, printCREATE_TAB_REF }
+  ,{ GSN_CREATE_TAB_CONF, printCREATE_TAB_CONF }
+  ,{ GSN_DROP_TABLE_REQ,           printDROP_TABLE_REQ }
+  ,{ GSN_DROP_TABLE_REF,           printDROP_TABLE_REF }
+  ,{ GSN_DROP_TABLE_CONF,          printDROP_TABLE_CONF }
+
+  ,{ GSN_CREATE_TRIG_IMPL_REQ, printCREATE_TRIG_IMPL_REQ }
+  ,{ GSN_CREATE_TRIG_IMPL_CONF, printCREATE_TRIG_IMPL_CONF }
+  ,{ GSN_CREATE_TRIG_IMPL_REF, printCREATE_TRIG_IMPL_REF }
+  ,{ GSN_DROP_TRIG_IMPL_REQ, printDROP_TRIG_IMPL_REQ }
+  ,{ GSN_DROP_TRIG_IMPL_CONF, printDROP_TRIG_IMPL_CONF }
+  ,{ GSN_DROP_TRIG_IMPL_REF, printDROP_TRIG_IMPL_REF }
+
+  ,{ GSN_CREATE_INDX_IMPL_REQ, printCREATE_INDX_IMPL_REQ }
+  ,{ GSN_CREATE_INDX_IMPL_CONF, printCREATE_INDX_IMPL_CONF }
+  ,{ GSN_CREATE_INDX_IMPL_REF, printCREATE_INDX_IMPL_REF }
+  ,{ GSN_DROP_INDX_IMPL_REQ, printDROP_INDX_IMPL_REQ }
+  ,{ GSN_DROP_INDX_IMPL_CONF, printDROP_INDX_IMPL_CONF }
+  ,{ GSN_DROP_INDX_IMPL_REF, printDROP_INDX_IMPL_REF }
+  ,{ GSN_ALTER_INDX_IMPL_REQ, printALTER_INDX_IMPL_REQ }
+  ,{ GSN_ALTER_INDX_IMPL_CONF, printALTER_INDX_IMPL_CONF }
+  ,{ GSN_ALTER_INDX_IMPL_REF, printALTER_INDX_IMPL_REF }
+
+  ,{ GSN_BUILDINDXREQ, printBUILD_INDX_REQ }
+  ,{ GSN_BUILDINDXCONF, printBUILD_INDX_CONF }
+  ,{ GSN_BUILDINDXREF, printBUILD_INDX_REF }
+  ,{ GSN_BUILD_INDX_IMPL_REQ, printBUILD_INDX_IMPL_REQ }
+  ,{ GSN_BUILD_INDX_IMPL_CONF, printBUILD_INDX_IMPL_CONF }
+  ,{ GSN_BUILD_INDX_IMPL_REF, printBUILD_INDX_IMPL_REF }
+
+  ,{ GSN_API_VERSION_REQ, printAPI_VERSION_REQ }
+  ,{ GSN_API_VERSION_CONF, printAPI_VERSION_CONF }
+
+  ,{ GSN_LOCAL_ROUTE_ORD, printLOCAL_ROUTE_ORD }
+
+  ,{ GSN_DBINFO_SCANREQ, printDBINFO_SCAN }
+  ,{ GSN_DBINFO_SCANCONF, printDBINFO_SCAN }
+  ,{ GSN_DBINFO_SCANREF, printDBINFO_SCAN_REF }
+
   ,{ 0, 0 }
 };
 
-#include <Bitmask.hpp>
-
-template struct BitmaskPOD<1>;
-template struct BitmaskPOD<2>;
-template struct BitmaskPOD<4>;
-template class Bitmask<1>;
-template class Bitmask<2>;
-template class Bitmask<4>;

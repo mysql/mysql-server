@@ -8,20 +8,26 @@ INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=MYISAM;
 Warnings:
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=XYZ;
 Warnings:
-Warning	1286	Unknown storage engine 'XYZ'
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+Warning	1286	Unknown table engine 'XYZ'
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
 Warnings:
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 5K
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+ERROR HY000: Failed to create UNDOFILE
 set storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -204,6 +210,14 @@ PRIMARY KEY (ID)
 ) ENGINE=ndbcluster
 tablespace ts2
 storage disk;
+create table t1 (a int primary key, b int)
+engine = ndbcluster tablespace ts2 storage disk;
+insert into t1 values (1,1);
+alter tablespace ts2
+drop datafile 'datafile2_1.dat'
+engine ndb;
+ERROR HY000: Failed to alter:  DROP DATAFILE
+drop table t1;
 alter tablespace ts2
 drop datafile 'datafile2_1.dat'
 engine ndb;
@@ -521,7 +535,7 @@ TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster;
 insert into t1 values(1, 1, 3);
 insert into t1 values(2, 2, 3);
 update t1 set c1 = 1 where id = 2;
-ERROR 23000: Duplicate entry '1' for key 'c1'
+ERROR 23000: Can't write; duplicate key in table ''
 drop table t1;
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile.dat' 
@@ -533,3 +547,138 @@ DROP TABLESPACE ts1
 ENGINE = NDB;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
+=== bug#31712 ===
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 1M
+extent_size 2M
+engine ndb;
+ERROR HY000: Failed to create DATAFILE
+show warnings;
+Level	Code	Message
+Error	1296	Got error 1516 'File too small' from NDB
+Error	1528	Failed to create DATAFILE
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 1M
+engine ndb;
+ERROR HY000: Failed to alter:  CREATE DATAFILE
+show warnings;
+Level	Code	Message
+Error	1296	Got error 1516 'File too small' from NDB
+Error	1533	Failed to alter:  CREATE DATAFILE
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+drop tablespace ts1
+engine ndb;
+drop logfile group lg1
+engine ndb;
+=== bug#31782 ===
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 2M
+undo_buffer_size 1M
+engine ndb;
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 2M
+extent_size 2M
+engine ndb;
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+tablespace_name	file_type	file_name
+ts1	DATAFILE	datafile.dat
+ts1	TABLESPACE	NULL
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+select distinct tablespace_name, file_type, file_name
+from information_schema.files
+where tablespace_name is not null
+order by file_type, file_name;
+tablespace_name	file_type	file_name
+ts1	TABLESPACE	NULL
+drop tablespace ts1
+engine ndb;
+drop logfile group lg1
+engine ndb;
+=== bug#49709 ===
+create logfile group lg1
+add undofile 'undofile.dat'
+initial_size 3276801
+undo_buffer_size 294913
+engine ndb;
+Warnings:
+Warning	1	Undo buffer size rounded up to kernel page size
+Warning	2	Undofile size rounded down to kernel page size
+alter logfile group lg1
+add undofile 'undofile02.dat'
+initial_size 3309567
+engine ndb;
+Warnings:
+Warning	2	Undofile size rounded down to kernel page size
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 3276801
+extent_size 294913
+engine ndb;
+Warnings:
+Warning	4	Extent size rounded up to kernel page size
+Warning	8	Datafile size rounded down to extent size
+alter tablespace ts1
+add datafile 'datafile02.dat'
+initial_size 3342335
+engine ndb;
+Warnings:
+Warning	24	Datafile size rounded up to extent size
+select logfile_group_name, extra
+from information_schema.files
+where file_type = 'UNDO LOG' and file_name is null;
+logfile_group_name	extra
+lg1	UNDO_BUFFER_SIZE=327680
+select distinct file_name, initial_size
+from information_schema.files
+where file_type = 'UNDO LOG' and file_name is not null
+order by file_name;
+file_name	initial_size
+undofile.dat	3276800
+undofile02.dat	3276800
+select tablespace_name, logfile_group_name, extent_size
+from information_schema.files
+where file_type = 'TABLESPACE';
+tablespace_name	logfile_group_name	extent_size
+ts1	lg1	327680
+select distinct file_name, initial_size, extent_size, total_extents, free_extents
+from information_schema.files
+where file_type = 'DATAFILE'
+order by file_name;
+file_name	initial_size	extent_size	total_extents	free_extents
+datafile.dat	3276800	327680	10	10
+datafile02.dat	3604480	327680	11	11
+alter tablespace ts1
+drop datafile 'datafile02.dat'
+engine ndb;
+alter tablespace ts1
+drop datafile 'datafile.dat'
+engine ndb;
+drop tablespace ts1
+engine ndb;
+drop logfile group lg1
+engine ndb;

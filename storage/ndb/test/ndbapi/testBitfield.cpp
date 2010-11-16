@@ -10,28 +10,11 @@
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
 
-
-NDB_STD_OPTS_VARS;
-
-static struct my_option my_long_options[] =
+struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
-
-static void usage()
-{
-  ndb_std_print_version();
-}
-#if 0
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       const char *argument)
-{
-  return ndb_std_get_one_option(optid, opt, argument ? argument :
-				"d:t:O,/tmp/testBitfield.trace");
-}
-#endif
 
 static const NdbDictionary::Table* create_random_table(Ndb*);
 static int transactions(Ndb*, const NdbDictionary::Table* tab);
@@ -61,7 +44,7 @@ main(int argc, char** argv){
       return NDBT_ProgramExit(res);
   }
   
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
@@ -71,7 +54,7 @@ main(int argc, char** argv){
   Ndb* pNdb;
   pNdb = new Ndb(&con, _dbname);  
   pNdb->init();
-  while (pNdb->waitUntilReady() != 0);
+  while (pNdb->waitUntilReady() != 0) {};
 
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
@@ -132,7 +115,9 @@ create_random_table(Ndb* pNdb)
   do {
     NdbDictionary::Table tab;
     Uint32 cols = 1 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 1));
-    Uint32 length = 4090;
+    const Uint32 maxLength = 4090;
+    Uint32 length = maxLength;
+    Uint8  defbuf[(maxLength + 7)/8];
     
     BaseString name; 
     name.assfmt("TAB_%d", rand() & 65535);
@@ -155,6 +140,10 @@ create_random_table(Ndb* pNdb)
       col.setType(NdbDictionary::Column::Bit);
       
       Uint32 len = 1 + (rand() % (length - 1));
+      memset(defbuf, 0, (length + 7)/8);
+      for (Uint32 j = 0; j < len/8; j++)
+        defbuf[j] = 0x63;
+      col.setDefaultValue(defbuf, (len + 7)/8);
       col.setLength(len); length -= len;
       int nullable = (rand() >> 16) & 1;
       col.setNullable(nullable); length -= nullable;
@@ -259,6 +248,74 @@ void rand(Uint32 dst[], Uint32 len)
 {
   for(Uint32 i = 0; i<len; i++)
     BitmaskImpl::set((len + 31) >> 5, dst, i, (lrand() % 1000) > 500);
+}
+
+static
+int checkCopyField(const Uint32 totalTests)
+{
+  ndbout << "Testing : Checking Bitmaskimpl::copyField";
+
+  const Uint32 numWords= 95;
+  const Uint32 maxBitsToCopy= (numWords * 32);
+  
+  Uint32 sourceBuf[numWords];
+  Uint32 targetTest[numWords];
+  Uint32 targetCopy[numWords];
+
+  rand(sourceBuf, maxBitsToCopy);
+  
+  /* Set both target buffers to the same random values */
+  rand(targetTest, maxBitsToCopy);
+  for (Uint32 i=0; i<maxBitsToCopy; i++)
+    BitmaskImpl::set(numWords, targetCopy, i, 
+                     BitmaskImpl::get(numWords, targetTest, i));
+
+  if (!cmp(targetTest, targetCopy, maxBitsToCopy))
+  {
+    ndbout_c("copyField :: Initial setup mismatch");
+    return -1;
+  }
+
+  for (Uint32 test=0; test < totalTests; test++)
+  {
+    Uint32 len= rand() % maxBitsToCopy;
+    Uint32 slack= maxBitsToCopy - len;
+    Uint32 srcPos= slack ? rand() % slack : 0;
+    Uint32 dstPos= slack ? rand() % slack : 0;
+
+    if (BITMASK_DEBUG)
+      ndbout_c("copyField :: Running test with len=%u, srcPos=%u, dstPos=%u, "
+               "srcOff=%u, dstOff=%u",
+               len, srcPos, dstPos, srcPos & 31, dstPos & 31);
+
+    /* Run the copy */
+    BitmaskImpl::copyField(targetCopy, dstPos, sourceBuf, srcPos, len);
+
+    /* Do the equivalent action */
+    for (Uint32 i=0; i< len; i++)
+      BitmaskImpl::set(numWords, targetTest, dstPos + i,
+                       BitmaskImpl::get(numWords, sourceBuf, srcPos+i));
+
+    bool fail= false;
+    /* Compare results */
+    for (Uint32 i=0; i<maxBitsToCopy; i++)
+    {
+      if (BitmaskImpl::get(numWords, targetCopy, i) !=
+          BitmaskImpl::get(numWords, targetTest, i))
+      {
+        ndbout_c("copyField :: Mismatch at bit %u, should be %u but is %u",
+                 i, 
+                 BitmaskImpl::get(numWords, targetTest, i),
+                 BitmaskImpl::get(numWords, targetCopy, i));
+        fail=true;
+      }
+    }
+
+    if (fail)
+      return -1;
+  }
+
+  return 0;
 }
 
 static
@@ -530,7 +587,7 @@ testRanges(Uint32 bitmask_size)
 	BitmaskImpl::set(sz32, check.getBase(), j);
     }
 
-    BitmaskImpl::set_range(sz32, map.getBase(), start, stop);
+    BitmaskImpl::setRange(sz32, map.getBase(), start, stop - start + 1);
     if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
     {
       ndbout_c(" FAIL 1 sz: %d [ %d %d ]", sz, start, stop);
@@ -590,6 +647,9 @@ testBitmask()
   int res= 0;
 
   if ((res= checkNoTramplingGetSetField(100 /* totalTests */)) != 0)
+    return res;
+
+  if ((res= checkCopyField(1000)) != 0)
     return res;
 
   if ((res= simple(rand() % 33, // position

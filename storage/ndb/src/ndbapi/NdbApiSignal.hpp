@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**********************************************************************
  * Name:		NdbApiSignal.H
@@ -30,12 +33,10 @@
 #define NdbApiSignal_H
 
 #include <kernel_types.h>
-#include "TransporterFacade.hpp"
+#include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
-#include "Ndb.hpp"
 
-#define CAST_PTR(X,Y) static_cast<X*>(static_cast<void*>(Y))
-#define CAST_CONSTPTR(X,Y) static_cast<const X*>(static_cast<const void*>(Y))
+class Ndb;
 
 /**
  * A NdbApiSignal : public SignalHeader
@@ -62,7 +63,7 @@ public:
   Uint32 		readData(Uint32 aDataNo) const; // Read word in signal
   
   int 			setSignal(int NdbSignalType);  	// Set signal header  
-  int 			readSignalNumber();    		// Read signal number  
+  int 			readSignalNumber() const;	// Read signal number
   Uint32             	getLength() const;
   void	             	setLength(Uint32 aLength);
   void 			next(NdbApiSignal* anApiSignal);  
@@ -70,12 +71,14 @@ public:
  
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
+   STATIC_CONST(        MaxSignalWords = 25);
 
   NodeId                get_sender_node();
 
   /**
    * Fragmentation
    */
+  bool isFragmented() const { return m_fragmentInfo != 0;}
   bool isFirstFragment() const { return m_fragmentInfo <= 1;}
   bool isLastFragment() const { 
     return m_fragmentInfo == 0 || m_fragmentInfo == 3; 
@@ -86,22 +89,18 @@ public:
   }
   
 private:
-  friend void execute(void * callbackObj, 
-		      struct SignalHeader * const header, 
-		      Uint8 prio, Uint32 * const theData, 
-		      LinearSectionPtr ptr[3]);
-   
   void setDataPtr(Uint32 *);
   
   friend class NdbTransaction;
   friend class NdbScanReceiver;
   friend class Table;
+  friend class TransporterFacade;
   void copyFrom(const NdbApiSignal * src);
 
   /**
    * Only used when creating a signal in the api
    */
-  Uint32 theData[25];
+  Uint32 theData[MaxSignalWords];
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
 };
@@ -168,7 +167,7 @@ Remark:          Read signal number
 *****************************************************************************/
 inline
 int		
-NdbApiSignal::readSignalNumber()
+NdbApiSignal::readSignalNumber() const
 {
   return (int)theVerId_signalNumber;
 }

@@ -1,23 +1,24 @@
 # Copyright (C) 2004-2006 MySQL AB
-# 
+#  All rights reserved. Use is subject to license terms.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#SUBDIRS = signal-sender
+EXTRA_DIST = CMakeLists.txt
 
-noinst_PROGRAMS = ndberror_check
+noinst_PROGRAMS = ndberror_check-t
 
-ndberror_check_SOURCES = ndberror_check.c
+ndberror_check_t_SOURCES = ndberror_check.cpp
 
 noinst_LTLIBRARIES = libndbapi.la
 
@@ -56,31 +57,23 @@ libndbapi_la_SOURCES = \
 	NdbBlob.cpp \
 	NdbIndexStat.cpp \
         SignalSender.cpp \
-        ObjectMap.cpp
+        ObjectMap.cpp \
+	NdbInterpretedCode.cpp \
+	NdbInfo.cpp \
+	NdbInfoScanOperation.cpp \
+        ndb_internal.cpp \
+	trp_client.cpp \
+        trp_node.cpp \
+	trp_buffer.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
-
-# Ndbapi cannot handle -O3
-NDB_CXXFLAGS_RELEASE_LOC = -O2
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
-ndberror_check_LDFLAGS = \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+EXTRA_PROGRAMS = testSectionIterators
 
-windoze-dsp: libndbapi.dsp
-
-libndbapi.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libndbapi_la_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
+testSectionIterators_CXXFLAGS = -DUNIT_TEST
+testSectionIterators_SOURCES = TransporterFacade.cpp
+testSectionIterators_LDFLAGS = @ndb_bin_am_ldflags@	 \
+  $(top_builddir)/storage/ndb/src/libndbclient.la

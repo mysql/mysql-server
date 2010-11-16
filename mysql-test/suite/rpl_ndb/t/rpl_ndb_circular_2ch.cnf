@@ -1,22 +1,39 @@
 !include ../my.cnf
 
+# 2 clusters, each with 2 MySQLDs
+# All MySQLDs log-slave-updates
+# Potential infinite loops are broken by both servers 
+# on each cluster having the same server-id
+# To support > 2 clusters and/or different server-ids per
+# MySQLD server, we need some other loop breaking 
+# mechanism 
+
 [mysqld.1.1]
 server-id= 1
 log-bin
+log-slave-updates
 
 [mysqld.2.1]
 server-id= 1
 log-bin
+log-slave-updates
 
 [mysqld.1.slave]
 server-id= 2
 log-bin
+log-slave-updates
 skip-slave-start
 
 [mysqld.2.slave]
 server-id= 2
+master-host=		127.0.0.1
+master-port=		@mysqld.2.1.port
+master-password=	@mysqld.2.1.#password
+master-user=		@mysqld.2.1.#user
+master-connect-retry=	1
 init-rpl-role=		slave
 log-bin
+log-slave-updates
 skip-slave-start
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
 

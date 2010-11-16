@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
@@ -11,16 +10,18 @@ drop database if exists mysqltest;
 #
 
 # cannot have ROW_FORMAT=FIXED and var attrs mixed
---error 1005
 CREATE TABLE t1
   ( a INT KEY,
     b VARCHAR(10) )
   ROW_FORMAT=FIXED
   ENGINE=NDB;
 
-# warnings give more detail on the error
+# warnings give more detail on the conflict
 SHOW WARNINGS;
-
+source show_varpart.inc;
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
 
 #
 # Check force var part for different ROW_FORMAT
@@ -31,7 +32,7 @@ CREATE TABLE t1
   ( a INT KEY,
     b INT )
   ENGINE=NDB;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+source show_varpart.inc;
 DROP TABLE t1;
 
 # explicit DEFAULT => ForceVarPart: 1
@@ -40,7 +41,7 @@ CREATE TABLE t1
     b INT )
   ROW_FORMAT=DEFAULT
   ENGINE=NDB;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+source show_varpart.inc;
 DROP TABLE t1;
 
 # FIXED => ForceVarPart: 0
@@ -49,7 +50,7 @@ CREATE TABLE t1
     b INT )
   ROW_FORMAT=FIXED
   ENGINE=NDB;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+source show_varpart.inc;
 DROP TABLE t1;
 
 # DYNAMIC => ForceVarPart: 1
@@ -58,7 +59,7 @@ CREATE TABLE t1
     b INT )
   ROW_FORMAT=DYNAMIC
   ENGINE=NDB;
---exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep ForceVarPart
+source show_varpart.inc;
 DROP TABLE t1;
 
 # test of bug

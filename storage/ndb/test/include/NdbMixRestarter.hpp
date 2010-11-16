@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBT_MIX_RESTARTER_HPP
 #define NDBT_MIX_RESTARTER_HPP
@@ -54,7 +57,7 @@ public:
     SR_VALIDATING = 3
   };
   
-  NdbMixRestarter(const char* _addr = 0);
+  NdbMixRestarter(unsigned * seed = 0, const char* _addr = 0);
   ~NdbMixRestarter();
 
   void setRestartTypeMask(Uint32 mask);
@@ -66,6 +69,8 @@ public:
   int finish(NDBT_Context* ctx, NDBT_Step* step);
 
 private:
+  unsigned * seed;
+  unsigned ownseed;
   Uint32 m_mask;
   Vector<ndb_mgm_node_state> m_nodes;
   int restart_cluster(NDBT_Context* ctx, NDBT_Step* step, bool abort = true);

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUP_C
 #define DBTUP_SCAN_CPP
@@ -54,12 +57,13 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     // flags
     Uint32 bits = 0;
     
-
     if (AccScanReq::getLcpScanFlag(req->requestInfo))
     {
       jam();
       bits |= ScanOp::SCAN_LCP;
       c_scanOpPool.getPtr(scanPtr, c_lcp_scan_op);
+      ndbrequire(scanPtr.p->m_fragPtrI == fragPtr.i);
+      ndbrequire(scanPtr.p->m_state == ScanOp::First);
     }
     else
     {
@@ -69,22 +73,29 @@ Dbtup::execACC_SCANREQ(Signal* signal)
 	jam();
 	break;
       }
+      new (scanPtr.p) ScanOp;
     }
-     
+
     if (!AccScanReq::getNoDiskScanFlag(req->requestInfo)
         && tablePtr.p->m_no_of_disk_attributes)
     {
       bits |= ScanOp::SCAN_DD;
     }
-    
-    bool mm = (bits & ScanOp::SCAN_DD);
-    if (tablePtr.p->m_attributes[mm].m_no_of_varsize > 0) {
-      bits |= ScanOp::SCAN_VS;
       
-      // disk pages have fixed page format
-      ndbrequire(! (bits & ScanOp::SCAN_DD));
+    bool mm = (bits & ScanOp::SCAN_DD);
+    if ((tablePtr.p->m_attributes[mm].m_no_of_varsize +
+         tablePtr.p->m_attributes[mm].m_no_of_dynamic) > 0) 
+    {
+      if (bits & ScanOp::SCAN_DD)
+      {
+        // only dd scan varsize pages
+        // mm always has a fixed part
+        bits |= ScanOp::SCAN_VS;
+      }
     }
-    if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) {
+
+    if (! AccScanReq::getReadCommittedFlag(req->requestInfo)) 
+    {
       if (AccScanReq::getLockMode(req->requestInfo) == 0)
         bits |= ScanOp::SCAN_LOCK_SH;
       else
@@ -96,11 +107,12 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       bits |= ScanOp::SCAN_NR;
       scanPtr.p->m_endPage = req->maxPage;
-      if (req->maxPage != RNIL && req->maxPage > frag.noOfPages)
+      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_no)
       {
-         ndbout_c("%u %u endPage: %u (noOfPages: %u)", 
-                   tablePtr.i, fragId,
-                   req->maxPage, fragPtr.p->noOfPages);
+        ndbout_c("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
+                 tablePtr.i, fragId,
+                 req->maxPage, fragPtr.p->noOfPages,
+                 fragPtr.p->m_max_page_no);
       }
     }
     else
@@ -115,9 +127,14 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       ndbrequire((bits & ScanOp::SCAN_DD) == 0);
       ndbrequire((bits & ScanOp::SCAN_LOCK) == 0);
     }
+
+    if (bits & ScanOp::SCAN_VS)
+    {
+      ndbrequire((bits & ScanOp::SCAN_NR) == 0);
+      ndbrequire((bits & ScanOp::SCAN_LCP) == 0);
+    }
     
     // set up scan op
-    new (scanPtr.p) ScanOp();
     ScanOp& scan = *scanPtr.p;
     scan.m_state = ScanOp::First;
     scan.m_bits = bits;
@@ -269,6 +286,22 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
         signal, signalLength, JBB);
     return;     // stop
   }
+
+  const bool lcp = (scan.m_bits & ScanOp::SCAN_LCP);
+  Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
+
+  if (lcp && lcp_list != RNIL)
+  {
+    jam();
+    /**
+     * Handle lcp keep list already here
+     *   So that scan state is not alterer
+     *   if lcp_keep rows are found in ScanOp::First
+     */
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    return;
+  }
+
   if (scan.m_state == ScanOp::First) {
     jam();
     scanFirst(signal, scanPtr);
@@ -408,7 +441,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
           signal, signalLength, JBB);
     } else {
-      Uint32 blockNo = refToBlock(scan.m_userRef);
+      Uint32 blockNo = refToMain(scan.m_userRef);
       EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
       jamEntry();
     }
@@ -558,12 +591,23 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
-  // in the future should not pre-allocate pages
-  if (frag.noOfPages == 0 && ((bits & ScanOp::SCAN_NR) == 0)) {
+
+  if (bits & ScanOp::SCAN_NR)
+  { 
+    if (scan.m_endPage == 0 && frag.m_max_page_no == 0)
+    {
+      jam();
+      scan.m_state = ScanOp::Last;
+      return;
+    }
+  }
+  else if (frag.noOfPages == 0)
+  {
     jam();
     scan.m_state = ScanOp::Last;
     return;
   }
+
   if (! (bits & ScanOp::SCAN_DD)) {
     key.m_file_no = ZNIL;
     key.m_page_no = 0;
@@ -584,7 +628,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
     key.m_page_no = ext->m_first_page_no;
     pos.m_get = ScanPos::Get_page_dd;
   }
-  key.m_page_idx = 0;
+  key.m_page_idx = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
   // let scanNext() do the work
   scan.m_state = ScanOp::Next;
 }
@@ -617,24 +661,32 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   const bool lcp = (bits & ScanOp::SCAN_LCP);
   
   Uint32 lcp_list = fragPtr.p->m_lcp_keep_list;
-  Uint32 size = table.m_offsets[mm].m_fix_header_size;
+  const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
+    table.m_offsets[mm].m_fix_header_size : 1;
+  const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
   if (lcp && lcp_list != RNIL)
-    goto found_lcp_keep;
+  {
+    jam();
+    /**
+     * Handle lcp keep list here to, due to scanCont
+     */
+    handle_lcp_keep(signal, fragPtr.p, scanPtr.p, lcp_list);
+    return false;
+  }
 
   switch(pos.m_get){
   case ScanPos::Get_next_tuple:
-  case ScanPos::Get_next_tuple_fs:
     jam();
     key.m_page_idx += size;
     // fall through
   case ScanPos::Get_tuple:
-  case ScanPos::Get_tuple_fs:
     jam();
     /**
      * We need to refetch page after timeslice
      */
     pos.m_get = ScanPos::Get_page;
+    pos.m_realpid_mm = RNIL;
     break;
   default:
     break;
@@ -667,7 +719,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         key.m_page_no++;
-        if (key.m_page_no >= frag.noOfPages) {
+        if (key.m_page_no >= frag.m_max_page_no) {
           jam();
 
           if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
@@ -686,7 +738,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           return true;
         }
     cont:
-        key.m_page_idx = 0;
+        key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_mm;
         // clear cached value
         pos.m_realpid_mm = RNIL;
@@ -698,31 +750,23 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       {
         if (pos.m_realpid_mm == RNIL) {
           jam();
-          if (key.m_page_no < frag.noOfPages)
-            pos.m_realpid_mm = getRealpid(fragPtr.p, key.m_page_no);
-          else
+          pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
+          
+          if (pos.m_realpid_mm == RNIL)
           {
-            ndbassert(bits & ScanOp::SCAN_NR);
-            goto nopage;
+            jam();
+            if (bits & ScanOp::SCAN_NR)
+            {
+              jam();
+              goto nopage;
+            }
+            pos.m_get = ScanPos::Get_next_page_mm;
+            break; // incr loop count
           }
         }
         PagePtr pagePtr;
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
 
-        if (pagePtr.p->page_state == ZEMPTY_MM) {
-          // skip empty page
-          jam();
-          if (! (bits & ScanOp::SCAN_NR))
-          {
-            pos.m_get = ScanPos::Get_next_page_mm;
-            break; // incr loop count
-          }
-          else
-          {
-            jam();
-            pos.m_realpid_mm = RNIL;
-          }
-        }
     nopage:
         pos.m_page = pagePtr.p;
         pos.m_get = ScanPos::Get_tuple;
@@ -756,7 +800,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             key.m_page_no = ext->m_first_page_no;
           }
         }
-        key.m_page_idx = 0;
+        key.m_page_idx = first;
         pos.m_get = ScanPos::Get_page_dd;
         /*
           read ahead for scan in disk order
@@ -803,7 +847,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               preq.m_page.m_page_no = page_no;
               int flags = 0;
               // ignore result
-              m_pgman.get_page(signal, preq, flags);
+              Page_cache_client pgman(this, c_pgman);
+              pgman.get_page(signal, preq, flags);
+              m_pgman_ptr = pgman.m_ptr;
               jamEntry();
               page_no++;
             }
@@ -828,7 +874,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         // check if page is un-allocated or empty
 	if (likely(! (bits & ScanOp::SCAN_NR)))
 	{
-	  Tablespace_client tsman(signal, c_tsman,
+          D("Tablespace_client - scanNext");
+	  Tablespace_client tsman(signal, this, c_tsman,
 				  frag.fragTableId, 
 				  frag.fragmentId, 
 				  frag.m_tablespace_id);
@@ -850,7 +897,9 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         preq.m_callback.m_callbackFunction =
           safe_cast(&Dbtup::disk_page_tup_scan_callback);
         int flags = 0;
-        int res = m_pgman.get_page(signal, preq, flags);
+        Page_cache_client pgman(this, c_pgman);
+        int res = pgman.get_page(signal, preq, flags);
+        m_pgman_ptr = pgman.m_ptr;
         jamEntry();
         if (res == 0) {
           jam();
@@ -859,30 +908,36 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           return false;
         }
         ndbrequire(res > 0);
-        pos.m_page = (Page*)m_pgman.m_ptr.p;
+        pos.m_page = (Page*)m_pgman_ptr.p;
       }
       pos.m_get = ScanPos::Get_tuple;
       continue;
       // get tuple
       // move to next tuple
     case ScanPos::Get_next_tuple:
-    case ScanPos::Get_next_tuple_fs:
       // move to next fixed size tuple
       jam();
       {
         key.m_page_idx += size;
-        pos.m_get = ScanPos::Get_tuple_fs;
+        pos.m_get = ScanPos::Get_tuple;
       }
       /*FALLTHRU*/
     case ScanPos::Get_tuple:
-    case ScanPos::Get_tuple_fs:
       // get fixed size tuple
       jam();
+      if ((bits & ScanOp::SCAN_VS) == 0)
       {
         Fix_page* page = (Fix_page*)pos.m_page;
         if (key.m_page_idx + size <= Fix_page::DATA_WORDS) 
 	{
-	  pos.m_get = ScanPos::Get_next_tuple_fs;
+	  pos.m_get = ScanPos::Get_next_tuple;
+#ifdef VM_TRACE
+          if (! (bits & ScanOp::SCAN_DD))
+          {
+            Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
+            ndbassert(pos.m_realpid_mm == realpid);
+          }
+#endif
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
 	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
@@ -928,6 +983,29 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           jam();
           // no more tuples on this page
           pos.m_get = ScanPos::Get_next_page;
+        }
+      }
+      else
+      {
+        jam();
+        Var_page * page = (Var_page*)pos.m_page;
+        if (key.m_page_idx < page->high_index)
+        {
+          jam();
+          pos.m_get = ScanPos::Get_next_tuple;
+          if (!page->is_free(key.m_page_idx))
+          {
+            th = (Tuple_header*)page->get_ptr(key.m_page_idx);
+            thbits = th->m_header_bits;
+            goto found_tuple;
+          }
+        }
+        else
+        {
+          jam();
+          // no more tuples on this page
+          pos.m_get = ScanPos::Get_next_page;
+          break;
         }
       }
       break; // incr loop count
@@ -992,7 +1070,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	conf->localKey[1] = 0;
 	conf->localKeyLength = 1;
 	conf->gci = foundGCI;
-	Uint32 blockNo = refToBlock(scan.m_userRef);
+	Uint32 blockNo = refToMain(scan.m_userRef);
 	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
 	jamEntry();
 
@@ -1015,11 +1093,21 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   signal->theData[1] = scanPtr.i;
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   return false;
+}
 
-found_lcp_keep:
+void
+Dbtup::handle_lcp_keep(Signal* signal,
+                       Fragrecord* fragPtrP,
+                       ScanOp* scanPtrP,
+                       Uint32 lcp_list)
+{
+  TablerecPtr tablePtr;
+  tablePtr.i = scanPtrP->m_tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
   Local_key tmp;
   tmp.assref(lcp_list);
-  tmp.m_page_no = getRealpid(fragPtr.p, tmp.m_page_no);
+  tmp.m_page_no = getRealpid(fragPtrP, tmp.m_page_no);
   
   Ptr<Page> pagePtr;
   c_page_pool.getPtr(pagePtr, tmp.m_page_no);
@@ -1036,32 +1124,32 @@ found_lcp_keep:
     jam();
     setChecksum(ptr, tablePtr.p);
   }
-  
+
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-  conf->scanPtr = scan.m_userPtr;
+  conf->scanPtr = scanPtrP->m_userPtr;
   conf->accOperationPtr = (Uint32)-1;
-  conf->fragId = frag.fragmentId;
+  conf->fragId = fragPtrP->fragmentId;
   conf->localKey[0] = lcp_list;
   conf->localKey[1] = 0;
   conf->localKeyLength = 1;
   conf->gci = 0;
-  Uint32 blockNo = refToBlock(scan.m_userRef);
+  Uint32 blockNo = refToMain(scanPtrP->m_userRef);
   EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 7);
   
-  fragPtr.p->m_lcp_keep_list = next;
+  fragPtrP->m_lcp_keep_list = next;
   ptr->m_header_bits |= Tuple_header::FREED; // RESTORE free flag
   if (headerbits & Tuple_header::FREED)
   {
-    if (tablePtr.p->m_attributes[MM].m_no_of_varsize)
+    if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+        tablePtr.p->m_attributes[MM].m_no_of_dynamic)
     {
       jam();
-      free_var_rec(fragPtr.p, tablePtr.p, &tmp, pagePtr);
+      free_var_rec(fragPtrP, tablePtr.p, &tmp, pagePtr);
     } else {
       jam();
-      free_fix_rec(fragPtr.p, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
+      free_fix_rec(fragPtrP, tablePtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
   }
-  return false;
 }
 
 void
@@ -1179,30 +1267,26 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
 void
 Dbtup::execLCP_FRAG_ORD(Signal* signal)
 {
+  jamEntry();
   LcpFragOrd* req= (LcpFragOrd*)signal->getDataPtr();
   
   TablerecPtr tablePtr;
   tablePtr.i = req->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  if (tablePtr.p->m_no_of_disk_attributes)
-  {
-    jam();
-    FragrecordPtr fragPtr;
-    Uint32 fragId = req->fragmentId;
-    fragPtr.i = RNIL;
-    getFragmentrec(fragPtr, fragId, tablePtr.p);
-    ndbrequire(fragPtr.i != RNIL);
-    Fragrecord& frag = *fragPtr.p;
-    
-    ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
-    frag.m_lcp_scan_op = c_lcp_scan_op;
-    ScanOpPtr scanPtr;
-    c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
-    ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
-    scanPtr.p->m_fragPtrI = fragPtr.i;
-    
-    scanFirst(signal, scanPtr);
-    scanPtr.p->m_state = ScanOp::First;
-  }
+  FragrecordPtr fragPtr;
+  Uint32 fragId = req->fragmentId;
+  fragPtr.i = RNIL;
+  getFragmentrec(fragPtr, fragId, tablePtr.p);
+  ndbrequire(fragPtr.i != RNIL);
+  Fragrecord& frag = *fragPtr.p;
+  
+  ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
+  frag.m_lcp_scan_op = c_lcp_scan_op;
+  ScanOpPtr scanPtr;
+  c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+  ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
+  new (scanPtr.p) ScanOp;
+  scanPtr.p->m_fragPtrI = fragPtr.i;
+  scanPtr.p->m_state = ScanOp::First;
 }

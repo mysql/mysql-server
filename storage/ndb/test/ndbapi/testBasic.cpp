@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +13,18 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
-
-#define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
-
+#include <signaldata/DictTabInfo.hpp>
+#include <Bitmask.hpp>
+#include <random.h>
+#include <signaldata/DumpStateOrd.hpp>
 
 /**
  * TODO 
@@ -532,7 +536,7 @@ int runCommit_CommitAsMuchAsPossible630(NDBT_Context* ctx, NDBT_Step* step){
 
     CHECK(hugoOps.startTransaction(pNdb) == 0);
     CHECK(hugoOps.pkReadRecord(pNdb, 2) == 0);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    CHECK(hugoOps.execute_Commit(pNdb) == 626);
   } while(false);
 
   hugoOps.closeTransaction(pNdb);
@@ -1089,7 +1093,9 @@ struct TupError
     TE_VARSIZE  = 0x1,
     TE_MULTI_OP = 0x2,
     TE_DISK     = 0x4,
-    TE_REPLICA  = 0x8
+    TE_REPLICA  = 0x8,
+    TE_OI       = 0x10, // Ordered index
+    TE_UI       = 0x20  // Unique hash index
   };
   int op;
   int error;
@@ -1108,6 +1114,9 @@ f_tup_errors[] =
   { NdbOperation::InsertRequest, 4019, TupError::TE_REPLICA }, //Alloc rowid error
   { NdbOperation::InsertRequest, 4020, TupError::TE_MULTI_OP }, // Size change error
   { NdbOperation::InsertRequest, 4021, TupError::TE_DISK },    // Out of disk space
+  { NdbOperation::InsertRequest, 4022, TupError::TE_OI },
+  { NdbOperation::InsertRequest, 4023, TupError::TE_OI },
+  { NdbOperation::UpdateRequest, 4030, TupError::TE_UI },
   { -1, 0, 0 }
 };
 
@@ -1120,7 +1129,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   
   const NdbDictionary::Table * tab = ctx->getTab();
-  Uint32 i;
+  int i;
   int bits = TupError::TE_MULTI_OP;
   for(i = 0; i<tab->getNoOfColumns(); i++)
   {
@@ -1135,6 +1144,16 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     bits |= TupError::TE_REPLICA;
   }
 
+  NdbDictionary::Dictionary::List l;
+  pNdb->getDictionary()->listIndexes(l, tab->getName());
+  for (i = 0; i<(int)l.count; i++)
+  {
+    if (DictTabInfo::isOrderedIndex(l.elements[i].type))
+      bits |= TupError::TE_OI;
+    if (DictTabInfo::isUniqueIndex(l.elements[i].type))
+      bits |= TupError::TE_UI;
+  }
+
   /**
    * Insert
    */
@@ -1142,20 +1161,18 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   {
     if (f_tup_errors[i].op != NdbOperation::InsertRequest)
     {
-      g_info << "Skipping " << f_tup_errors[i].error 
-	     << " -  not insert" << endl;
       continue;
     }
 
     if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
     {
-      g_info << "Skipping " << f_tup_errors[i].error 
-	     << " - req bits: " << hex << f_tup_errors[i].bits
-	     << " bits: " << hex << bits << endl;
+      g_err << "Skipping " << f_tup_errors[i].error
+            << " - req bits: " << hex << f_tup_errors[i].bits
+            << " bits: " << hex << bits << endl;
       continue;
     }
     
-    g_info << "Testing error insert: " << f_tup_errors[i].error << endl;
+    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
     if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
     {
@@ -1170,6 +1187,42 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
+  }
+
+  /**
+   * update
+   */
+  hugoTrans.loadTable(pNdb, 5);
+  for(i = 0; f_tup_errors[i].op != -1; i++)
+  {
+    if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
+    {
+      continue;
+    }
+
+    if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
+    {
+      g_err << "Skipping " << f_tup_errors[i].error
+            << " - req bits: " << hex << f_tup_errors[i].bits
+            << " bits: " << hex << bits << endl;
+      continue;
+    }
+
+    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
+    restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+    if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
+    {
+
+    }
+    else
+    {
+      hugoTrans.scanUpdateRecords(pNdb, 5);
+    }
+    restarter.insertErrorInAllNodes(0);
+    if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
+    {
+      return NDBT_FAILED;
+    }
   }
   
   return NDBT_OK;
@@ -1443,22 +1496,21 @@ template class Vector<Uint64>;
 int
 runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 {
-  Uint32 i;
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * tab = ctx->getTab();
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
-  bool null = false;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  bool hasDefault = false;
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
-    if (tab->getColumn(i)->getNullable())
+    if (tab->getColumn(i)->getNullable() ||
+        tab->getColumn(i)->getDefaultValue())
     {
-      null = true;
+      hasDefault = true;
       break;
     }
   }
   
-  if (!null)
+  if (!hasDefault)
     return NDBT_OK;
 
   HugoTransactions hugoTrans(* tab);
@@ -1474,10 +1526,11 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp = pTrans->getNdbOperation(tab->getName());
   pOp->insertTuple();
   hugoTrans.equalForRow(pOp, 0);
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
-        !tab->getColumn(i)->getNullable())
+        !tab->getColumn(i)->getNullable() &&
+        !tab->getColumn(i)->getDefaultValue())
     {
       hugoTrans.setValueForAttr(pOp, i, 0, 1);
     }
@@ -1493,10 +1546,11 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   pOp->readTuple();
   hugoTrans.equalForRow(pOp, 0);
   Vector<NdbRecAttr*> values;
-  for (i = 0; i<tab->getNoOfColumns(); i++)
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
-        tab->getColumn(i)->getNullable())
+        (tab->getColumn(i)->getNullable() ||
+         tab->getColumn(i)->getDefaultValue()))
     {
       values.push_back(pOp->getValue(i));
     }
@@ -1505,25 +1559,636 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   if (pTrans->execute(Commit) != 0)
     return NDBT_FAILED;
 
-  null = true;
-  for (i = 0; i<values.size(); i++)
+  bool defaultOk = true;
+  for (unsigned int i = 0; i<values.size(); i++)
   {
-    if (!values[i]->isNULL())
+    const NdbRecAttr* recAttr = values[i];
+    const NdbDictionary::Column* col = recAttr->getColumn();
+    unsigned int defaultLen = 0;
+    const char* def = (const char*) col->getDefaultValue(&defaultLen);
+      
+    if (def)
     {
-      null = false;
-      ndbout_c("column %s is not NULL", values[i]->getColumn()->getName());
+      /* Column has a native default, check that it was set */
+
+      if (!recAttr->isNULL())
+      {
+        if (memcmp(def, recAttr->aRef(), defaultLen) != 0)
+        {
+          defaultOk = false;
+          ndbout_c("column %s does not have correct default value",
+                   recAttr->getColumn()->getName());
+        }
+      }
+      else
+      {
+        defaultOk = false;
+        ndbout_c("column %s is null, should have default value",
+                 recAttr->getColumn()->getName());
+      }
+    }
+    else
+    {
+      /* Column has Null as its default */      
+      if (!recAttr->isNULL())
+      {
+        defaultOk = false;
+        ndbout_c("column %s is not NULL", recAttr->getColumn()->getName());
+      }
     }
   }
   
   pTrans->close();  
   
-  if (null)
+  if (defaultOk)
     return NDBT_OK;
   else
     return NDBT_FAILED;
 }
 
+
+int
+runDDInsertFailUpdateBatch(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter restarter;
+  
+  const NdbDictionary::Table * tab = ctx->getTab();
+  
+  int errCode = 0;
+  int expectedError = 0;
+  {
+    bool tabHasDD = false;
+    for(int i = 0; i<tab->getNoOfColumns(); i++)
+    {
+      tabHasDD |= (tab->getColumn(i)->getStorageType() == 
+                   NdbDictionary::Column::StorageTypeDisk);
+    }
+    
+    if (tabHasDD)
+    {
+      errCode = 4021;
+      expectedError = 1601;
+    }
+    else
+    {
+      NdbDictionary::Dictionary::List l;
+      pNdb->getDictionary()->listIndexes(l, tab->getName());
+      for (Uint32 i = 0; i<l.count; i++)
+      {
+        if (DictTabInfo::isOrderedIndex(l.elements[i].type))
+        {
+          errCode = 4023;
+          expectedError = 9999;
+          break;
+        }
+      }
+    }
+
+    if (errCode == 0)
+    {
+      ndbout_c("Table %s has no disk attributes or ordered indexes, skipping",
+               tab->getName());
+      return NDBT_OK;
+    }
+  }
+
+  HugoOperations hugoOps(*ctx->getTab());
+
+  int result = NDBT_OK;
+  
+  for (Uint32 loop = 0; loop < 100; loop ++)
+  {
+    restarter.insertErrorInAllNodes(errCode);
+    CHECK(hugoOps.startTransaction(pNdb) == 0);
+    
+    /* Create batch with insert op (which will fail due to disk allocation issue)
+     * followed by update op on same pk
+     * Transaction will abort due to insert failure, and reason should be
+     * disk space exhaustion, not any issue with the update.
+     */
+    CHECK(hugoOps.pkInsertRecord(pNdb, loop, 1, 0) == 0);
+    
+    /* Add up to 16 updates after the insert */
+    Uint32 numUpdates = 1 + (loop % 15);
+    for (Uint32 updateCnt = 0; updateCnt < numUpdates; updateCnt++)
+      CHECK(hugoOps.pkUpdateRecord(pNdb, loop, 1, 1+updateCnt) == 0);
+    
+    CHECK(hugoOps.execute_Commit(pNdb) != 0); /* Expect failure */
+    
+    NdbError err= hugoOps.getTransaction()->getNdbError();
+    
+    CHECK(err.code == expectedError);
+    
+    hugoOps.closeTransaction(pNdb);
+  }  
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return result;
+}
+
+// Bug34348
+
+#define chk1(b) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << endl; result = NDBT_FAILED; continue; }
+#define chk2(b, e) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << ": " << e << endl; result = NDBT_FAILED; continue; }
+
+const char* tabname_bug34348 = "TBug34348";
+
+int
+runBug34348insert(NDBT_Context* ctx, NDBT_Step* step,
+                  HugoOperations& ops, int i, bool* rangeFull)
+{
+  const int rangeFullError = 633;
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  while (result == NDBT_OK)
+  {
+    int code = 0;
+    chk2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+    chk2(ops.pkInsertRecord(pNdb, i, 1) == 0, ops.getNdbError());
+    chk2(ops.execute_Commit(pNdb) == 0 || (code = ops.getNdbError().code) == rangeFullError, ops.getNdbError());
+    ops.closeTransaction(pNdb);
+    *rangeFull = (code == rangeFullError);
+    break;
+  }
+  return result;
+}
+
+int
+runBug34348delete(NDBT_Context* ctx, NDBT_Step* step,
+                  HugoOperations& ops, int i)
+{
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  while (result == NDBT_OK)
+  {
+    chk2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
+    chk2(ops.pkDeleteRecord(pNdb, i, 1) == 0, ops.getNdbError());
+    chk2(ops.execute_Commit(pNdb) == 0, ops.getNdbError());
+    ops.closeTransaction(pNdb);
+    break;
+  }
+  return result;
+}
+
+int
+runBug34348(NDBT_Context* ctx, NDBT_Step* step)
+{
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  const int loops = ctx->getNumLoops();
+  const int errInsDBACC = 3002;
+  const int errInsCLEAR = 0;
+  Uint32* rowmask = 0;
+
+  while (result == NDBT_OK)
+  {
+    chk1(restarter.insertErrorInAllNodes(errInsDBACC) == 0);
+    ndbout << "error insert " << errInsDBACC << " done" << endl;
+
+    const NdbDictionary::Table* pTab = 0;
+    while (result == NDBT_OK)
+    {
+      (void)pDict->dropTable(tabname_bug34348);
+      NdbDictionary::Table tab(tabname_bug34348);
+      {
+        NdbDictionary::Column col("a");
+        col.setType(NdbDictionary::Column::Unsigned);
+        col.setPrimaryKey(true);
+        tab.addColumn(col);
+      }
+      {
+        NdbDictionary::Column col("b");
+        col.setType(NdbDictionary::Column::Unsigned);
+        col.setNullable(false);
+        tab.addColumn(col);
+      }
+      chk2(pDict->createTable(tab) == 0, pDict->getNdbError());
+      chk2((pTab = pDict->getTable(tabname_bug34348)) != 0, pDict->getNdbError());
+      break;
+    }
+
+    HugoOperations ops(*pTab);
+    ops.setQuiet();
+
+    int rowmaxprev = 0;
+    int loop = 0;
+    while (result == NDBT_OK && loop < loops)
+    {
+      ndbout << "loop:" << loop << endl;
+      int rowcnt = 0;
+
+      // fill up
+      while (result == NDBT_OK)
+      {
+        bool rangeFull;
+        chk1(runBug34348insert(ctx, step, ops, rowcnt, &rangeFull) == NDBT_OK);
+        if (rangeFull)
+        {
+          // 360449 (1 fragment)
+          ndbout << "dir range full at " << rowcnt << endl;
+          break;
+        }
+        rowcnt++;
+      }
+      chk1(result == NDBT_OK);
+      const int rowmax = rowcnt;
+
+      if (loop == 0)
+        rowmaxprev = rowmax;
+      else
+        chk2(rowmaxprev == rowmax, "rowmaxprev:" << rowmaxprev << " rowmax:" << rowmax);
+
+      const int sz = (rowmax + 31) / 32;
+      delete [] rowmask;
+      rowmask = new Uint32 [sz];
+      BitmaskImpl::clear(sz, rowmask);
+      {
+        int i;
+        for (i = 0; i < rowmax; i++)
+          BitmaskImpl::set(sz, rowmask, i);
+      }
+
+      // random delete until insert succeeds
+      while (result == NDBT_OK)
+      {
+        int i = myRandom48(rowmax);
+        if (!BitmaskImpl::get(sz, rowmask, i))
+          continue;
+        chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+        BitmaskImpl::clear(sz, rowmask, i);
+        rowcnt--;
+        bool rangeFull;
+        chk1(runBug34348insert(ctx, step, ops, rowmax, &rangeFull) == NDBT_OK);
+        if (!rangeFull)
+        {
+          chk1(runBug34348delete(ctx, step, ops, rowmax) == NDBT_OK);
+          // 344063 (1 fragment)
+          ndbout << "dir range released at " << rowcnt << endl;
+          break;
+        }
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // delete about 1/2 remaining
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (!BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          if (myRandom48(100) < 50)
+            continue;
+          chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+          BitmaskImpl::clear(sz, rowmask, i);
+          rowcnt--;
+        }
+        ndbout << "deleted down to " << rowcnt << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // insert until full again
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          bool rangeFull;
+          chk1(runBug34348insert(ctx, step, ops, i, &rangeFull) == NDBT_OK);
+          // assume all can be inserted back
+          chk2(!rangeFull, "dir range full too early at " << rowcnt);
+          BitmaskImpl::set(sz, rowmask, i);
+          rowcnt++;
+        }
+        chk1(result == NDBT_OK);
+        ndbout << "inserted all back to " << rowcnt << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+
+      // delete all
+      while (result == NDBT_OK)
+      {
+        int i;
+        for (i = 0; result == NDBT_OK && i < rowmax; i++)
+        {
+          if (!BitmaskImpl::get(sz, rowmask, i))
+            continue;
+          chk1(runBug34348delete(ctx, step, ops, i) == NDBT_OK);
+          BitmaskImpl::clear(sz, rowmask, i);
+          rowcnt--;
+        }
+        ndbout << "deleted all" << endl;
+        break;
+      }
+      chk1(result == NDBT_OK);
+      assert(BitmaskImpl::count(sz, rowmask)== rowcnt);
+      assert(rowcnt == 0);
+
+      loop++;
+    }
+
+    chk2(pDict->dropTable(tabname_bug34348) == 0, pDict->getNdbError());
+
+    chk1(restarter.insertErrorInAllNodes(errInsCLEAR) == 0);
+    ndbout << "error insert clear done" << endl;
+    break;
+  }
+
+  if (result != NDBT_OK && restarter.insertErrorInAllNodes(errInsCLEAR) != 0)
+    g_err << "error insert clear failed" << endl;
+
+  delete [] rowmask;
+  rowmask = 0;
+  return result;
+}
+
+#define check(b, e) \
+  if (!(b)) { g_err << "ERR: " << step->getName() << " failed on line " << __LINE__ << ": " << e.getNdbError() << endl; return NDBT_FAILED; }
+
+int runUnlocker(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int batchSize = ctx->getProperty("Batchsize", 1);
+  int doubleUnlock = ctx->getProperty("DoubleUnlock", (Uint32)0);
+  int lm = ctx->getProperty("LockMode", NdbOperation::LM_Read);
+  int i = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* ndb = GETNDB(step);
+
+  g_err << "Unlocker : ";
+  g_err << "Loops = " << loops << " Records = " << records << " Batchsize = " 
+        << batchSize << endl;
+
+  while(i++ < loops) 
+  {
+    g_err << i << " ";
+
+    check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+
+    const int maxRetries = 10;
+    int retryAttempt = 0;
+    int r = records;
+    Vector<const NdbLockHandle*> lockHandles;
+
+    while(r > 0)
+    {
+      int batchContents = MIN(r, batchSize);
+
+      check(hugoOps.pkReadRecordLockHandle(ndb,
+                                           lockHandles,
+                                           records - r,
+                                           batchContents,
+                                           (NdbOperation::LockMode)lm) == 0, 
+            hugoOps);
+
+      r-= batchContents;
+
+      if (hugoOps.execute_NoCommit(ndb) != 0)
+      {
+        NdbError err = hugoOps.getNdbError();
+        if ((err.status == NdbError::TemporaryError) &&
+            retryAttempt < maxRetries){
+          ERR(err);
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          lockHandles.clear();
+          check(hugoOps.closeTransaction(ndb) == 0,
+                hugoOps);
+          check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+          continue;
+        }
+        ERR(err);
+        return NDBT_FAILED;
+      }
+
+      check(hugoOps.pkUnlockRecord(ndb,
+                                  lockHandles) == 0, 
+            hugoOps);
+      
+      check(hugoOps.execute_NoCommit(ndb) == 0, 
+            hugoOps);
+
+      if (doubleUnlock)
+      {
+        NdbOperation::AbortOption ao;
+        switch(rand() % 2)
+        {
+        case 0:
+          ao = NdbOperation::AbortOnError;
+          break;
+        case 1:
+        default:
+          ao = NdbOperation::AO_IgnoreError;
+          break;
+        }
+
+        g_err << "Double unlock, abort option is "
+              << ao << endl;
+
+        /* Failure scenario */
+        check(hugoOps.pkUnlockRecord(ndb,
+                                     lockHandles,
+                                     0,    // offset
+                                     ~(0), // NumRecords
+                                     ao) == 0, 
+              hugoOps);
+        
+        check(hugoOps.execute_NoCommit(ndb,
+                                       DefaultAbortOption) != 0, 
+              hugoOps);
+
+        /* 417 = Bad operation reference */
+        check(hugoOps.getNdbError().code == 417,
+              hugoOps);
+
+        
+        if (ao == NdbOperation::AbortOnError)
+        {
+          /* Restart transaction and continue with next loop iteration */
+          r = 0;
+          lockHandles.clear();
+          check(hugoOps.closeTransaction(ndb) == 0,
+                hugoOps);
+          check(hugoOps.startTransaction(ndb) == 0, (*ndb));
+          
+          continue;
+        }
+        /* Otherwise, IgnoreError, so let's attempt to
+         * continue
+         */
+      }
+      
+      check(hugoOps.releaseLockHandles(ndb,
+                                       lockHandles) == 0,
+            hugoOps);
+      
+      lockHandles.clear();
+    }
+    
+    switch(rand() % 3)
+    {
+    case 0:
+      check(hugoOps.execute_Commit(ndb) == 0,
+            hugoOps);
+      break;
+    case 1:
+      check(hugoOps.execute_Rollback(ndb) == 0,
+            hugoOps);
+      break;
+    default:
+      /* Do nothing, just close */
+      break;
+    }
+    
+    check(hugoOps.closeTransaction(ndb) == 0,
+          hugoOps);
+
+  }
+
+  g_err << endl;
+
+  return NDBT_OK;
+}
+
 template class Vector<NdbRecAttr*>;
+
+int
+runBug54986(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  NdbDictionary::Table copy = *pTab;
+
+  BaseString name;
+  name.assfmt("%s_COPY", copy.getName());
+  copy.setName(name.c_str());
+  pDict->createTable(copy);
+  const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
+
+  HugoTransactions hugoTrans(*pTab);
+  hugoTrans.loadTable(pNdb, 20);
+  hugoTrans.clearTable(pNdb);
+
+  const Uint32 rows = 5000;
+
+  HugoTransactions hugoTransCopy(*copyTab);
+  hugoTransCopy.loadTable(pNdb, rows);
+
+  {
+    restarter.getNumDbNodes(); // connect
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+    for (Uint32 i = 0; i<3; i++)
+    {
+      int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+
+      struct ndb_logevent event;
+
+      restarter.dumpStateAllNodes(dump, 1);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointStarted);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+            event.type != NDB_LE_LocalCheckpointCompleted);
+    }
+    ndb_mgm_destroy_logevent_handle(&handle);
+  }
+
+  for (int i = 0; i<5; i++)
+  {
+    int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
+    int val2 = 7099; // Force start
+
+    restarter.dumpStateAllNodes(&val1, 1);
+    int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val, 2);
+
+    restarter.insertErrorInAllNodes(932); // prevent arbit shutdown
+
+    HugoTransactions hugoTrans(*pTab);
+    hugoTrans.loadTable(pNdb, 20);
+
+    restarter.dumpStateAllNodes(&val2, 1);
+
+    NdbSleep_SecSleep(15);
+    hugoTrans.clearTable(pNdb);
+
+    hugoTransCopy.pkReadRecords(pNdb, rows);
+
+    HugoOperations hugoOps(*pTab);
+    hugoOps.startTransaction(pNdb);
+    hugoOps.pkInsertRecord(pNdb, 1);
+    hugoOps.execute_NoCommit(pNdb);
+
+    restarter.insertErrorInAllNodes(5056);
+    restarter.dumpStateAllNodes(&val2, 1);
+    restarter.waitClusterNoStart();
+    int vall = 11009;
+    restarter.dumpStateAllNodes(&vall, 1);
+    restarter.startAll();
+    restarter.waitClusterStarted();
+  }
+
+  pDict->dropTable(copy.getName());
+
+  // remove 25-page pgman
+  restarter.restartAll(false, true, true);
+  restarter.waitClusterNoStart();
+  restarter.startAll();
+  restarter.waitClusterStarted();
+  return NDBT_OK;
+}
+
+int
+runBug54944(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  NdbRestarter res;
+
+  for (Uint32 i = 0; i<5; i++)
+  {
+    Uint32 rows = 5000 + i * 2000;
+    HugoOperations hugoOps(*pTab);
+    hugoOps.startTransaction(pNdb);
+
+    for (Uint32 r = 0; r < rows; r++)
+    {
+      for (Uint32 b = 0; b<100; b++, r++)
+      {
+        hugoOps.pkInsertRecord(pNdb, r);
+      }
+      hugoOps.execute_NoCommit(pNdb);
+    }
+
+    res.insertErrorInAllNodes(8087);
+
+    HugoTransactions hugoTrans(*pTab);
+    hugoTrans.loadTableStartFrom(pNdb, 50000, 100);
+
+    hugoOps.execute_Rollback(pNdb);
+    hugoTrans.clearTable(pNdb);
+
+    res.insertErrorInAllNodes(0);
+  }
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -1796,9 +2461,7 @@ TESTCASE("InsertError2", "" ){
 }
 TESTCASE("Fill", 
 	 "Verify what happens when we fill the db" ){
-  INITIALIZER(runFillTable);
-  INITIALIZER(runPkRead);
-  FINALIZER(runClearTable2);
+  STEP(runFillTable);
 }
 TESTCASE("Bug25090", 
 	 "Verify what happens when we fill the db" ){
@@ -1822,6 +2485,50 @@ TESTCASE("Bug20535",
 	 "Verify what happens when we fill the db" ){
   STEP(runBug20535);
 }
+TESTCASE("DDInsertFailUpdateBatch",
+         "Verify DD insert failure effect on other ops in batch on same PK"){
+  STEP(runDDInsertFailUpdateBatch);
+}
+
+TESTCASE("Bug34348",
+         "Test fragment directory range full in ACC.\n"
+         "NOTE: If interrupted, must clear error insert 3002 manually"){
+  STEP(runBug34348);
+}
+TESTCASE("UnlockBatch",
+         "Test that batched unlock operations work ok"){
+  TC_PROPERTY("Batchsize", 33);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  FINALIZER(runClearTable);
+}
+TESTCASE("DoubleUnlock",
+         "Test that batched unlock operations work ok"){
+  TC_PROPERTY("DoubleUnlock", 1);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  FINALIZER(runClearTable);
+}
+TESTCASE("UnlockUpdateBatch",
+         "Test Unlock mixed with Update"){
+  TC_PROPERTY("Batchsize", 32);
+  INITIALIZER(runLoadTable);
+  STEP(runUnlocker);
+  STEP(runUnlocker);
+  STEP(runLocker);
+  STEP(runPkUpdate);
+  STEP(runPkUpdate);
+  STEP(runPkRead);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug54986", "")
+{
+  INITIALIZER(runBug54986);
+}
+TESTCASE("Bug54944", "")
+{
+  INITIALIZER(runBug54944);
+}
 NDBT_TESTSUITE_END(testBasic);
 
 #if 0
@@ -1842,6 +2549,7 @@ TESTCASE("Fill",
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testBasic);
   return testBasic.execute(argc, argv);
 }
 

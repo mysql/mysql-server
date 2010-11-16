@@ -91,8 +91,15 @@ select * from t1 where b in (1,6,10,21) order by b;
 select * from t1 where a in (1,2,5,6) order by b;
 select * from t1 where a=1 and b in (1,6,10,21) order by b;
 
+# test for bug#42443
+select * from t1 where b=6;
 DELETE from t1 WHERE b = 6;
+select * from t1 where b=6;
+select * from t1 where a=6;
+UPDATE t1 SET c=1001 WHERE a=6;
+select * from t1 where a=6;
 DELETE from t1 WHERE a = 6;
+select * from t1 where a=6;
 
 #
 # Test that explicit partition info _is_ shown in show create table
@@ -116,7 +123,7 @@ CREATE TABLE t1
         f FLOAT DEFAULT 0,
         total BIGINT UNSIGNED,
         y YEAR,
-        t DATE) ENGINE=NDB
+        t DATE PRIMARY KEY) ENGINE=NDB
    PARTITION BY RANGE (YEAR(t))
        (PARTITION p0 VALUES LESS THAN (1901),
         PARTITION p1 VALUES LESS THAN (1946),
@@ -125,7 +132,7 @@ CREATE TABLE t1
         PARTITION p4 VALUES LESS THAN (2005),
         PARTITION p5 VALUES LESS THAN MAXVALUE);
 
-INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO t1 VALUES (0,NULL,NULL,NULL,NULL,NULL,NULL,NULL, '2009-05-15');
 SELECT * FROM t1;
 ALTER TABLE t1 ENGINE=MYISAM;
 SELECT * FROM t1;
@@ -141,6 +148,7 @@ CREATE TABLESPACE ts1
   ADD DATAFILE 'datafile.dat'
   USE LOGFILE GROUP lg1
   INITIAL_SIZE 12M
+  EXTENT_SIZE 256k
   ENGINE NDB;
 
 CREATE TABLE test.t1 (
@@ -217,7 +225,7 @@ DROP LOGFILE GROUP lg1 ENGINE=NDB;
 #
 
 CREATE TABLE t1
-    (id MEDIUMINT NOT NULL,
+    (id MEDIUMINT NOT NULL PRIMARY KEY,
      b1 BIT(8),
      vc VARCHAR(255),
      bc CHAR(255),
@@ -242,7 +250,7 @@ DROP TABLE t1;
 # Bug #16385 Partitions: crash when updating a range partitioned NDB table
 #
 CREATE TABLE t1 (
-a int not null,
+a int not null PRIMARY KEY,
 b int not null,
 c int not null)
 partition by list(a)
@@ -255,7 +263,7 @@ UPDATE t1 SET a=8 WHERE a=5 AND b=1;
 select * from t1;
 drop table t1;
 
-CREATE TABLE t1 ( f1 INTEGER, f2 char(20)) engine=ndb
+CREATE TABLE t1 ( f1 INTEGER PRIMARY KEY, f2 char(20)) engine=ndb
 PARTITION BY RANGE(f1)
 ( PARTITION part1 VALUES LESS THAN (2),
 PARTITION part2 VALUES LESS THAN (1000));
@@ -266,4 +274,49 @@ UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 2;
 select * from t1 order by f1;
 UPDATE t1 SET f1 = f1 + 4 WHERE f1 = 1;
 select * from t1 order by f1;
+drop table t1;
+
+
+# Check partitioning at NdbApi level for range partitioned table
+#
+create table t1 ( a int, b int, c int, primary key (a,b)) engine=ndb 
+partition by range (a)
+(partition part0 values less than (3),
+ partition part1 values less than (6));
+
+insert into t1 values (0, 0, 0);
+insert into t1 values (0, 1, 1);
+insert into t1 values (0, 2, 2);
+insert into t1 values (1, 0, 3);
+insert into t1 values (1, 1, 4);
+insert into t1 values (1, 2, 5);
+insert into t1 values (4, 0, 6);
+insert into t1 values (4, 1, 7);
+insert into t1 values (4, 2, 8);
+
+--echo All partitions scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=0 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=4 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a<3 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo MRR single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a in (0, 2) order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
 drop table t1;

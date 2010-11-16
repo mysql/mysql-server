@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -22,19 +25,11 @@ Name:          Ndb.cpp
 
 #include <ndb_global.h>
 
-
-#include "NdbApiSignal.hpp"
-#include "NdbImpl.hpp"
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbEventOperation.hpp>
-#include <NdbEventOperationImpl.hpp>
-#include <NdbRecAttr.hpp>
+#include "API.hpp"
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <ndb_limits.h>
-#include "API.hpp"
 #include <NdbEnv.h>
 #include <BaseString.hpp>
 #include <NdbSqlUtil.hpp>
@@ -145,15 +140,16 @@ Ndb::NDB_connect(Uint32 tNode)
 //***************************************************************************
   
   int	         tReturnCode;
-  TransporterFacade *tp = theImpl->m_transporter_facade;
 
   DBUG_ENTER("Ndb::NDB_connect");
 
-  bool nodeAvail = tp->get_node_alive(tNode);
-  if(nodeAvail == false){
-    DBUG_RETURN(0);
+  {
+    if (theImpl->get_node_stopping(tNode))
+    {
+      DBUG_RETURN(0);
+    }
   }
-  
+
   NdbTransaction * tConArray = theConnectionArray[tNode];
   if (tConArray != NULL) {
     DBUG_RETURN(2);
@@ -195,19 +191,31 @@ Ndb::NDB_connect(Uint32 tNode)
     tNdbCon->theNext = tPrevFirst;
     DBUG_RETURN(1);
   } else {
-    releaseNdbCon(tNdbCon);
 //****************************************************************************
 // Unsuccessful connect is indicated by 3.
 //****************************************************************************
     DBUG_PRINT("info",
 	       ("unsuccessful connect tReturnCode %d, tNdbCon->Status() %d",
 		tReturnCode, tNdbCon->Status()));
+    releaseNdbCon(tNdbCon);
     if (theError.code == 299 || // single user mode
         theError.code == 281 )  // cluster shutdown in progress
     {
       // no need to retry with other node
       DBUG_RETURN(-1);
     }
+
+    /**
+     * If node was dead, report 0...
+     *
+     * Btw, the sendRecSignal-method should taken out and shot
+     */
+    switch(tReturnCode){
+    case -2:
+    case -3:
+      DBUG_RETURN(0);
+    }
+
     DBUG_RETURN(3);
   }//if
 }//Ndb::NDB_connect()
@@ -300,11 +308,12 @@ Ndb::waitUntilReady(int timeout)
 }
 
 /*****************************************************************************
-NdbTransaction* startTransaction();
+NdbTransaction* computeHash()
 
-Return Value:   Returns a pointer to a connection object.
-                Return NULL otherwise.
-Remark:         Start transaction. Synchronous.
+Return Value:   Returns 0 for success, NDBAPI error code otherwise
+Remark:         Computes the distribution hash value for a row with the
+                supplied distribtion key values.
+                Only relevant for natively partitioned tables.
 *****************************************************************************/ 
 int
 Ndb::computeHash(Uint32 *retval,
@@ -321,6 +330,15 @@ Ndb::computeHash(Uint32 *retval,
 
   Uint32 colcnt = impl->m_columns.size();
   Uint32 parts = impl->m_noOfDistributionKeys;
+
+  if (unlikely(impl->m_fragmentType == NdbDictionary::Object::UserDefined))
+  {
+    /* Calculating native hash on keys in user defined 
+     * partitioned table is probably part of a bug
+     */
+    goto euserdeftable;
+  }
+
   if (parts == 0)
   {
     parts = impl->m_noOfKeys;
@@ -345,6 +363,7 @@ Ndb::computeHash(Uint32 *retval,
       partcols[j++] = cols[i];
     }
   }
+  DBUG_ASSERT(j == parts);
 
   for (Uint32 i = 0; i<parts; i++)
   {
@@ -377,11 +396,13 @@ Ndb::computeHash(Uint32 *retval,
   
   if (buf)
   {
+    /* Get 64-bit aligned ptr required for hashing */
+    assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
     UintPtr use = (org + 7) & ~(UintPtr)7;
 
     buf = (void*)use;
-    bufLen -= (use - org);
+    bufLen -= Uint32(use - org);
 
     if (unlikely(sumlen > bufLen))
       goto ebuftosmall;
@@ -439,7 +460,7 @@ Ndb::computeHash(Uint32 *retval,
       pos += len;
     }
   }
-  len = UintPtr(pos) - UintPtr(buf);
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
 
   Uint32 values[4];
@@ -454,6 +475,9 @@ Ndb::computeHash(Uint32 *retval,
     free(buf);
   
   return 0;
+  
+euserdeftable:
+  return 4544;
   
 enullptr:
   return 4316;
@@ -480,6 +504,213 @@ enomem:
   return 4000;
 }
 
+int
+Ndb::computeHash(Uint32 *retval,
+                 const NdbRecord *keyRec,
+                 const char *keyData, 
+                 void* buf, Uint32 bufLen)
+{
+  Uint32 len;
+  char* pos = NULL;
+
+  Uint32 parts = keyRec->distkey_index_length;
+
+  if (unlikely(keyRec->flags & NdbRecord::RecHasUserDefinedPartitioning))
+  {
+    /* Calculating native hash on keys in user defined 
+     * partitioned table is probably part of a bug
+     */
+    goto euserdeftable;
+  }
+
+  if (buf)
+  {
+    /* Get 64-bit aligned address as required for hashing */
+    assert(bufLen != 0);
+    UintPtr org = UintPtr(buf);
+    UintPtr use = (org + 7) & ~(UintPtr)7;
+
+    buf = (void*)use;
+    bufLen -= Uint32(use - org);
+  }
+  else
+  {
+    /* We malloc buf here.  Don't have a handy 'Max distr key size'
+     * variable, so let's use the key length, which must include
+     * the Distr key.
+     */
+    buf= malloc(keyRec->m_keyLenInWords << 2);
+    if (unlikely(buf == 0))
+      goto enomem;
+    bufLen= 0; /* So we remember to deallocate */
+    assert((UintPtr(buf) & 7) == 0);
+  }
+  
+  pos= (char*) buf;
+
+  for (Uint32 i = 0; i < parts; i++)
+  {
+    const struct NdbRecord::Attr &keyAttr =
+      keyRec->columns[keyRec->distkey_indexes[i]];
+
+    Uint32 len;
+    Uint32 maxlen = keyAttr.maxSize;
+    unsigned char *src= (unsigned char*)keyData + keyAttr.offset;
+
+    if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
+    {
+      if (keyAttr.flags & NdbRecord::IsMysqldShrinkVarchar)
+      {
+        len = uint2korr(src);
+        src += 2;
+      }
+      else
+      {
+        len = *src;
+        src += 1;
+      }
+      maxlen -= 1;
+    }
+    else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
+    {
+      len = uint2korr(src);
+      src += 2;
+      maxlen -= 2;
+    }
+    else
+    {
+      len = maxlen;
+    }
+
+    const CHARSET_INFO* cs = keyAttr.charset_info;
+    if (cs)
+    {
+      Uint32 xmul = cs->strxfrm_multiply;
+      if (xmul == 0)
+        xmul = 1;
+      /*
+       * Varchar end-spaces are ignored in comparisons.  To get same hash
+       * we blank-pad to maximum length via strnxfrm.
+       */
+      Uint32 dstLen = xmul * maxlen;
+      int n = NdbSqlUtil::strnxfrm_bug7284((CHARSET_INFO*)cs,
+                                           (unsigned char*)pos,
+                                           dstLen, src,
+                                           len);
+      if (unlikely(n == -1))
+        goto emalformedstring;
+      len = n;
+    }
+    else
+    {
+      if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
+      {
+        *pos= (unsigned char)len;
+        memcpy(pos+1, src, len);
+        len += 1;
+      }
+      else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
+      {
+        len += 2;
+        memcpy(pos, src-2, len);
+      }
+      else
+        memcpy(pos, src, len);
+    }
+    while (len & 3)
+    {
+      * (pos + len++) = 0;
+    }
+    pos += len;
+  }
+  len = Uint32(UintPtr(pos) - UintPtr(buf));
+  assert((len & 3) == 0);
+
+  Uint32 values[4];
+  md5_hash(values, (const Uint64*)buf, len >> 2);
+  
+  if (retval)
+  {
+    * retval = values[1];
+  }
+  
+  if (bufLen == 0)
+    free(buf);
+
+  return 0;
+
+euserdeftable:
+  return 4544;
+
+enomem:
+  return 4000;
+  
+emalformedstring:
+  if (bufLen == 0)
+    free(buf);
+
+  return 4279;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbRecord *keyRec, const char *keyData,
+                      void* xfrmbuf, Uint32 xfrmbuflen)
+{
+  int ret;
+  Uint32 hash;
+  if ((ret = computeHash(&hash, keyRec, keyData, xfrmbuf, xfrmbuflen)) == 0)
+  {
+    return startTransaction(keyRec->table, keyRec->table->getPartitionId(hash));
+  }
+  theError.code = ret;
+  return 0;
+}
+
+NdbTransaction* 
+Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const struct Key_part_ptr * keyData, 
+		      void* buf, Uint32 bufLen)
+{
+  int ret;
+  Uint32 hash;
+  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
+  {
+    return startTransaction(table, table->getPartitionId(hash));
+  }
+
+  theError.code = ret;
+  return 0;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("table: %s partitionId: %u", table->getName(), partitionId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    Uint32 nodeId;
+    const Uint16 *nodes;
+    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
+                                                          &nodes);
+    if(cnt)
+      nodeId= nodes[0];
+    else
+      nodeId= 0;
+    
+    NdbTransaction *trans= startTransactionLocal(0, nodeId);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
+}
+
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const char * keyData, Uint32 keyLen)
@@ -494,35 +725,45 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
      * We will make a qualified quess to which node is the primary for the
      * the fragment and contact that node
      */
-    Uint32 nodeId;
-    NdbTableImpl* impl;
-    if(table != 0 && keyData != 0 && (impl= &NdbTableImpl::getImpl(*table))) 
+    Uint32 nodeId = 0;
+    
+    /**
+     * Make this unlikely...assume new interface(s) are prefered
+     */
+    if(unlikely(table != 0 && keyData != 0))
     {
+      NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
       Uint32 hashValue;
       {
 	Uint32 buf[4];
+        const Uint32 MaxKeySizeInLongWords= (NDB_MAX_KEY_SIZE + 7) / 8;
+        Uint64 tmp[ MaxKeySizeInLongWords ];
+
+        if (keyLen >= sizeof(tmp))
+        {
+          theError.code = 4207;
+          DBUG_RETURN(NULL);
+        }
 	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
 	{
 	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
 	}
 	else
 	{
-	  Uint64 tmp[1000];
-	  tmp[keyLen/8] = 0;
+          tmp[keyLen/8] = 0;    // Zero out any 64-bit padding
 	  memcpy(tmp, keyData, keyLen);
 	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
 	}
 	hashValue= buf[1];
       }
+      
       const Uint16 *nodes;
-      Uint32 cnt= impl->get_nodes(hashValue, &nodes);
+      Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       if(cnt)
-	nodeId= nodes[0];
-      else
-	nodeId= 0;
-    } else {
-      nodeId = 0;
-    }//if
+      {
+        nodeId= nodes[0];
+      }
+    }
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
@@ -632,7 +873,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId)
   }//if
 #ifdef VM_TRACE
   if (tConnection->theListState != NdbTransaction::NotInList) {
-    printState("startTransactionLocal %x", tConnection);
+    printState("startTransactionLocal %lx", (long)tConnection);
     abort();
   }
 #endif
@@ -722,11 +963,21 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     DBUG_VOID_RETURN;
   }
   
-  if (aConnection->theReleaseOnClose == false) {
+  /**
+   * NOTE: It's ok to call getNodeSequence() here wo/ having mutex,
+   */
+  Uint32 nodeId = aConnection->getConnectedNodeId();
+  Uint32 seq = theImpl->getNodeSequence(nodeId);
+  if (aConnection->theNodeSequence != seq)
+  {
+    aConnection->theReleaseOnClose = true;
+  }
+  
+  if (aConnection->theReleaseOnClose == false) 
+  {
     /**
      * Put it back in idle list for that node
      */
-    Uint32 nodeId = aConnection->getConnectedNodeId();
     aConnection->theNext = theConnectionArray[nodeId];
     theConnectionArray[nodeId] = aConnection;
     DBUG_VOID_RETURN;
@@ -736,171 +987,6 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   }//if
   DBUG_VOID_RETURN;
 }//Ndb::closeTransaction()
-
-/*****************************************************************************
-int* NdbTamper(int aAction, int aNode);
-
-Parameters: aAction     Specifies what action to be taken
-            1: Lock global checkpointing    Can only be sent to master DIH, Parameter aNode ignored.
-            2: UnLock global checkpointing    Can only be sent to master DIH, Parameter aNode ignored.
-	    3: Crash node
-
-           aNode        Specifies which node the action will be taken
-     	  -1: Master DIH 
-       	0-16: Nodnumber
-
-Return Value: -1 Error  .
-                
-Remark:         Sends a signal to DIH.
-*****************************************************************************/ 
-int 
-Ndb::NdbTamper(TamperType aAction, int aNode)
-{
-  NdbTransaction*	tNdbConn;
-  NdbApiSignal		tSignal(theMyRef);
-  int			tNode;
-  int                   tAction;
-  int			ret_code;
-
-#ifdef CUSTOMER_RELEASE
-  return -1;
-#else
-  DBUG_ENTER("Ndb::NdbTamper");
-  CHECK_STATUS_MACRO;
-  checkFailedNode();
-
-  theRestartGCI = 0;
-  switch (aAction) {
-// Translate enum to integer. This is done because the SCI layer
-// expects integers. 
-     case LockGlbChp:
-        tAction = 1;
-        break;
-     case UnlockGlbChp:
-        tAction = 2;
-	break;
-     case CrashNode:
-        tAction = 3;
-        break;
-     case ReadRestartGCI:
-	tAction = 4;
-	break;
-     default:
-        theError.code = 4102;
-        DBUG_RETURN(-1);
-  }
-
-  tNdbConn = getNdbCon();	// Get free connection object
-  if (tNdbConn == NULL) {
-    theError.code = 4000;
-    DBUG_RETURN(-1);
-  }
-  tSignal.setSignal(GSN_DIHNDBTAMPER);
-  tSignal.setData (tAction, 1);
-  tSignal.setData(tNdbConn->ptr2int(),2);
-  tSignal.setData(theMyRef,3);		// Set return block reference
-  tNdbConn->Status(NdbTransaction::Connecting); // Set status to connecting
-  TransporterFacade *tp = theImpl->m_transporter_facade;
-  if (tAction == 3) {
-    tp->lock_mutex();
-    tp->sendSignal(&tSignal, aNode);
-    tp->unlock_mutex();
-    releaseNdbCon(tNdbConn);
-  } else if ( (tAction == 2) || (tAction == 1) ) {
-    tp->lock_mutex();
-    tNode = tp->get_an_alive_node();
-    if (tNode == 0) {
-      theError.code = 4002;
-      releaseNdbCon(tNdbConn);
-      DBUG_RETURN(-1);
-    }//if
-    ret_code = tp->sendSignal(&tSignal,aNode);
-    tp->unlock_mutex();
-    releaseNdbCon(tNdbConn);
-    DBUG_RETURN(ret_code);
-  } else {
-    do {
-      tp->lock_mutex();
-      // Start protected area
-      tNode = tp->get_an_alive_node();
-      tp->unlock_mutex();
-      // End protected area
-      if (tNode == 0) {
-        theError.code = 4009;
-        releaseNdbCon(tNdbConn);
-        DBUG_RETURN(-1);
-      }//if
-      ret_code = sendRecSignal(tNode, WAIT_NDB_TAMPER, &tSignal, 0);
-      if (ret_code == 0) {  
-        if (tNdbConn->Status() != NdbTransaction::Connected) {
-          theRestartGCI = 0;
-        }//if
-        releaseNdbCon(tNdbConn);
-        DBUG_RETURN(theRestartGCI);
-      } else if ((ret_code == -5) || (ret_code == -2)) {
-        TRACE_DEBUG("Continue DIHNDBTAMPER when node failed/stopping");
-      } else {
-        DBUG_RETURN(-1);
-      }//if
-    } while (1);
-  }
-  DBUG_RETURN(0);
-#endif
-}
-#if 0
-/****************************************************************************
-NdbSchemaCon* startSchemaTransaction();
-
-Return Value:   Returns a pointer to a schema connection object.
-                Return NULL otherwise.
-Remark:         Start schema transaction. Synchronous.
-****************************************************************************/ 
-NdbSchemaCon* 
-Ndb::startSchemaTransaction()
-{
-  NdbSchemaCon* tSchemaCon;
-  if (theSchemaConToNdbList != NULL) {
-    theError.code = 4321;
-    return NULL;
-  }//if
-  tSchemaCon = new NdbSchemaCon(this);
-  if (tSchemaCon == NULL) {
-    theError.code = 4000;
-    return NULL;
-  }//if 
-  theSchemaConToNdbList = tSchemaCon;
-  return tSchemaCon;  
-}
-/*****************************************************************************
-void closeSchemaTransaction(NdbSchemaCon* aSchemaCon);
-
-Parameters:     aSchemaCon: the schemacon used in the transaction.
-Remark:         Close transaction by releasing the schemacon and all schemaop.
-*****************************************************************************/
-void
-Ndb::closeSchemaTransaction(NdbSchemaCon* aSchemaCon)
-{
-  if (theSchemaConToNdbList != aSchemaCon) {
-    abort();
-    return;
-  }//if
-  aSchemaCon->release();
-  delete aSchemaCon;
-  theSchemaConToNdbList = NULL;
-  return;
-}//Ndb::closeSchemaTransaction()
-#endif
-
-/*****************************************************************************
-void RestartGCI(int aRestartGCI);
-
-Remark:		Set theRestartGCI on the NDB object
-*****************************************************************************/
-void
-Ndb::RestartGCI(int aRestartGCI)
-{
-  theRestartGCI = aRestartGCI;
-}
 
 /****************************************************************************
 int getBlockNumber(void);
@@ -1353,7 +1439,11 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
   if (initAutoIncrement() == -1)
     goto error_handler;
 
-  tConnection = this->startTransaction();
+  // Start transaction with table id as hint
+  tConnection = this->startTransaction(m_sys_tab_0,
+                                       (const char *) &aTableId,
+                                       sizeof(Uint32));
+
   if (tConnection == NULL)
     goto error_handler;
 
@@ -1550,6 +1640,20 @@ int Ndb::setDatabaseAndSchemaName(const NdbDictionary::Table* t)
         setDatabaseName(buf);
         sprintf(buf, "%.*s", (int) (s2 - (s1 + 1)), s1 + 1);
         setDatabaseSchemaName(buf);
+#ifdef VM_TRACE
+        // verify that m_prefix looks like abc/def/
+        const char* s0 = theImpl->m_prefix.c_str();
+        const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
+        const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
+        if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
+        {
+          ndbout_c("t->m_impl.m_internalName.c_str(): %s", t->m_impl.m_internalName.c_str());
+          ndbout_c("s0: %s", s0);
+          ndbout_c("s1: %s", s1);
+          ndbout_c("s2: %s", s2);
+          assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+        }
+#endif
         return 0;
       }
     }
@@ -1626,7 +1730,13 @@ Ndb::internalize_table_name(const char *external_name) const
     const char* s0 = theImpl->m_prefix.c_str();
     const char* s1 = s0 ? strchr(s0, table_name_separator) : 0;
     const char* s2 = s1 ? strchr(s1 + 1, table_name_separator) : 0;
-    assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+    if (!(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0))
+    {
+      ndbout_c("s0: %s", s0);
+      ndbout_c("s1: %s", s1);
+      ndbout_c("s2: %s", s2);
+      assert(s1 && s1 != s0 && s2 && s2 != s1 + 1 && *(s2 + 1) == 0);
+    }
 #endif
     ret.assfmt("%s%s",
                theImpl->m_prefix.c_str(),
@@ -1771,19 +1881,7 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   DBUG_ENTER("Ndb::dropEventOperation");
   DBUG_PRINT("info", ("name: %s", tOp->getEvent()->getTable()->getName()));
   // remove it from list
-  NdbEventOperationImpl *op=
-    NdbEventBuffer::getEventOperationImpl(tOp);
-  if (op->m_next)
-    op->m_next->m_prev= op->m_prev;
-  if (op->m_prev)
-    op->m_prev->m_next= op->m_next;
-  else
-    theImpl->m_ev_op= op->m_next;
-
-  DBUG_PRINT("info", ("first: %s",
-                      theImpl->m_ev_op ? theImpl->m_ev_op->getEvent()->getTable()->getName() : "<empty>"));
-  assert(theImpl->m_ev_op == 0 || theImpl->m_ev_op->m_prev == 0);
-
+  
   theEventBuffer->dropEventOperation(tOp);
   DBUG_RETURN(0);
 }
@@ -1809,12 +1907,27 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 int
 Ndb::flushIncompleteEvents(Uint64 gci)
 {
-  return theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->lock();
+  int ret = theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->unlock();
+  return ret;
 }
 
 NdbEventOperation *Ndb::nextEvent()
 {
   return theEventBuffer->nextEvent();
+}
+
+bool
+Ndb::isConsistent(Uint64& gci)
+{
+  return theEventBuffer->isConsistent(gci);
+}
+
+bool
+Ndb::isConsistentGCI(Uint64 gci)
+{
+  return theEventBuffer->isConsistentGCI(gci);
 }
 
 const NdbEventOperation*
@@ -1834,11 +1947,9 @@ Uint64 Ndb::getLatestGCI()
 
 void Ndb::setReportThreshEventGCISlip(unsigned thresh)
 {
- if (theEventBuffer->m_free_thresh != thresh)
+ if (theEventBuffer->m_gci_slip_thresh != thresh)
  {
-   theEventBuffer->m_free_thresh= thresh;
-   theEventBuffer->m_min_free_thresh= thresh;
-   theEventBuffer->m_max_free_thresh= 100;
+   theEventBuffer->m_gci_slip_thresh= thresh;
  }
 }
 
@@ -1850,6 +1961,19 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
     theEventBuffer->m_min_free_thresh= thresh;
     theEventBuffer->m_max_free_thresh= 100;
   }
+}
+
+Uint64 Ndb::allocate_transaction_id()
+{
+  Uint64 ret= theFirstTransId;
+
+  if ((theFirstTransId & 0xFFFFFFFF) == 0xFFFFFFFF) {
+    theFirstTransId = (theFirstTransId >> 32) << 32;
+  } else {
+    theFirstTransId++;
+  }
+
+  return ret;
 }
 
 #ifdef VM_TRACE
@@ -1910,6 +2034,160 @@ Ndb::printState(const char* fmt, ...)
     theCompletedTransactionsArray[i]->printState();
   NdbMutex_Unlock(ndb_print_state_mutex);
 }
+
 #endif
 
+const char*
+Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
+{
+  DBUG_ENTER("Ndb::getNdbErrorDetail");
+  /* If err has non-null details member, prepare a string containing
+   * those details
+   */
+  if (!buff)
+    DBUG_RETURN(NULL);
 
+  if (err.details != NULL)
+  {
+    DBUG_PRINT("info", ("err.code is %u", err.code));
+    switch (err.code) {
+    case 893: /* Unique constraint violation */
+    {
+      /* err.details contains the violated Index's object id
+       * We'll map it to a name, then map the name to a 
+       * base table, schema and database, and put that in
+       * string form into the caller's buffer
+       */
+      UintPtr uip = (UintPtr) err.details;
+      Uint32 indexObjectId = (Uint32) (uip - (UintPtr(0)));
+      Uint32 primTableObjectId = ~ (Uint32) 0;
+      BaseString indexName;
+      char splitChars[2] = {table_name_separator, 0};
+      BaseString splitString(&splitChars[0]);
+      
+      {
+        DBUG_PRINT("info", ("Index object id is %u", indexObjectId));
+        NdbDictionary::Dictionary::List allIndices;
+        int rc = theDictionary->listObjects(allIndices, 
+                                            NdbDictionary::Object::UniqueHashIndex,
+                                            false); // FullyQualified names
+        if (rc)
+        {
+          DBUG_PRINT("info", ("listObjects call 1 failed with rc %u", rc));
+          DBUG_RETURN(NULL);
+        }
+        
+        DBUG_PRINT("info", ("Retrieved details for %u indices", allIndices.count));
+        
+        for (unsigned i = 0; i < allIndices.count; i++)
+        {
+          if (allIndices.elements[i].id == indexObjectId)
+          {
+            /* Found the index in question
+             * Expect fully qualified name to be in the form :
+             * <db>/<schema>/<primTabId>/<IndexName>
+             */
+            Vector<BaseString> idxNameComponents;
+            BaseString idxName(allIndices.elements[i].name);
+            
+            Uint32 components = idxName.split(idxNameComponents,
+                                              splitString);
+            
+            assert(components == 4);
+            
+            primTableObjectId = atoi(idxNameComponents[2].c_str());
+            indexName = idxNameComponents[3];
+            
+            DBUG_PRINT("info", ("Found index name : %s, primary table id : %u",
+                                indexName.c_str(), primTableObjectId));
+            
+            break;
+          }
+        }
+      }
+
+      if (primTableObjectId != (~(Uint32) 0))
+      {
+        NdbDictionary::Dictionary::List allTables;
+        int rc = theDictionary->listObjects(allTables,
+                                            NdbDictionary::Object::UserTable,
+                                            false); // FullyQualified names
+        
+        if (rc)
+        {
+          DBUG_PRINT("info", ("listObjects call 2 failed with rc %u", rc));
+          DBUG_RETURN(NULL);
+        }
+
+        DBUG_PRINT("info", ("Retrieved details for %u tables", allTables.count));
+
+        for (Uint32 t = 0; t < allTables.count; t++)
+        {
+          
+          if (allTables.elements[t].id == primTableObjectId)
+          {
+            /* Found table, name should be in format :
+             * <db>/<schema>/<tablename>
+             */
+            Vector<BaseString> tabNameComponents;
+            BaseString tabName(allTables.elements[t].name);
+            
+            Uint32 components = tabName.split(tabNameComponents,
+                                              splitString);
+            assert (components == 3);
+            
+            /* Now we generate a string of the format
+             * <dbname>/<schemaname>/<tabname>/<idxname>
+             * which should be usable by end users
+             */
+            BaseString result;
+            result.assfmt("%s/%s/%s/%s",
+                          tabNameComponents[0].c_str(),
+                          tabNameComponents[1].c_str(),
+                          tabNameComponents[2].c_str(),
+                          indexName.c_str());
+            
+            DBUG_PRINT("info", ("Found full index details : %s",
+                                result.c_str()));
+            
+            memcpy(buff, result.c_str(), 
+                   MIN(buffLen, 
+                       (result.length() + 1)));
+            buff[buffLen] = 0;
+
+            DBUG_RETURN(buff);
+          }
+        }
+
+        /* Primary table not found!  
+         * Strange - perhaps it's been dropped?
+         */          
+        DBUG_PRINT("info", ("Table id %u not found", primTableObjectId));
+        DBUG_RETURN(NULL);
+      }
+      else
+      {
+        /* Index not found from id - strange.
+         * Perhaps it has been dropped?
+         */
+        DBUG_PRINT("info", ("Index id %u not found", indexObjectId));
+        DBUG_RETURN(NULL);
+      }
+    }
+    default:
+    {
+      /* Unhandled details type */
+    }
+    }
+  }
+  
+  DBUG_PRINT("info", ("No details string for this error"));
+  DBUG_RETURN(NULL);
+}
+
+
+Uint32
+Ndb::getMinDbNodeVersion() const
+{
+  return theCachedMinDbNodeVersion;
+}

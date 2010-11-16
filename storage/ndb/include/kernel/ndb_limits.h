@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +13,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_LIMITS_H
 #define NDB_LIMITS_H
-
-#include <mysql.h>
 
 #define RNIL    0xffffff00
 
@@ -25,8 +26,9 @@
  *  since NodeId = 0 can not be used
  */
 #define MAX_NDB_NODES 49
-#define MAX_NODES     64
-#define UNDEF_NODEGROUP 0xFFFF
+#define MAX_NODES     256
+#define NDB_UNDEF_NODEGROUP 0xFFFF
+#define MAX_BACKUPS   0xFFFFFFFF
 
 /**************************************************************************
  * IT SHOULD BE (MAX_NDB_NODES - 1).
@@ -37,7 +39,7 @@
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_NODES_ID 63
+#define MAX_NODES_ID 255
 
 /**
  * MAX_API_NODES = MAX_NODES - No of NDB Nodes in use
@@ -54,6 +56,12 @@
 #define MAX_LCP_STORED 3
 
 /**
+ * Max LCP used (the reason for keeping MAX_LCP_STORED is that we
+ *   need to restore from LCP's with lcp no == 2
+ */
+#define MAX_LCP_USED 2
+
+/**
  * The maximum number of log execution rounds at system restart
  */
 #define MAX_LOG_EXEC 4
@@ -63,11 +71,11 @@
  **/
 #define MAX_TUPLES_PER_PAGE 8191
 #define MAX_TUPLES_BITS 13 		/* 13 bits = 8191 tuples per page */
-#define MAX_TABLES 20320                /* SchemaFile.hpp */
+#define NDB_MAX_TABLES 20320                /* SchemaFile.hpp */
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE NAME_LEN       /* From mysql_com.h */
-#define MAX_ATTR_DEFAULT_VALUE_SIZE 128
-#define MAX_ATTRIBUTES_IN_TABLE 128
+#define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
+#define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
 #define MAX_TUPLE_SIZE_IN_WORDS 2013
 #define MAX_KEY_SIZE_IN_WORDS 1023
@@ -132,7 +140,10 @@
 /*
  * Blobs.
  */
-#define NDB_BLOB_HEAD_SIZE 2        /* sizeof(NdbBlob::Head) >> 2 */
+#define NDB_BLOB_V1 1
+#define NDB_BLOB_V2 2
+#define NDB_BLOB_V1_HEAD_SIZE 2     /* sizeof(Uint64) >> 2 */
+#define NDB_BLOB_V2_HEAD_SIZE 4     /* 2 + 2 + 4 + 8 bytes, see NdbBlob.hpp */
 
 /*
  * Character sets.
@@ -151,6 +162,12 @@
 #define GLOBAL_PAGE_SIZE_WORDS 8192
 
 /*
+ * Schema transactions
+ */
+#define MAX_SCHEMA_TRANSACTIONS 5
+#define MAX_SCHEMA_OPERATIONS 256
+
+/*
  * Long signals
  */
 #define NDB_SECTION_SEGMENT_SZ 60
@@ -160,5 +177,29 @@
  *   4M
  */
 #define LCP_RESTORE_BUFFER (4*32)
+
+#define NDB_DEFAULT_HASHMAP_BUCKTETS 240
+
+/**
+ * Bits/mask used for coding/decoding blockno/blockinstance
+ */
+#define NDBMT_BLOCK_BITS 9
+#define NDBMT_BLOCK_MASK ((1 << NDBMT_BLOCK_BITS) - 1)
+#define NDBMT_BLOCK_INSTANCE_BITS 7
+
+#define MAX_NDBMT_LQH_WORKERS 4
+#define MAX_NDBMT_LQH_THREADS 4
+
+#define NDB_FILE_BUFFER_SIZE (256*1024)
+
+/**
+ * MAX_ATTRIBUTES_IN_TABLE old handling
+ */
+#define MAXNROFATTRIBUTESINWORDS_OLD (128 / 32)
+
+/**
+ * No of bits available for attribute mask in NDB$EVENTS_0
+ */
+#define MAX_ATTRIBUTES_IN_TABLE_NDB_EVENTS_0 4096
 
 #endif

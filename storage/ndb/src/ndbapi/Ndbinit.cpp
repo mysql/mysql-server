@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,31 +13,24 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
 
+#include "API.hpp"
 #include "NdbApiSignal.hpp"
 #include "NdbImpl.hpp"
-#include <NdbOperation.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbRecAttr.hpp>
-#include <IPCConfig.hpp>
-#include "TransporterFacade.hpp"
 #include <ConfigRetriever.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include "ObjectMap.hpp"
-#include <NdbIndexScanOperation.hpp>
-#include <NdbIndexOperation.hpp>
 #include "NdbUtil.hpp"
-#include <NdbBlob.hpp>
-#include "NdbEventOperationImpl.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
@@ -77,9 +72,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theFirstTransId= 0;
   theMyRef= 0;
 
-  cond_wait_index = TransporterFacade::MAX_NO_THREADS;
-  cond_signal_ndb = NULL;
-
   fullyQualifiedNames = true;
 
 #ifdef POORMANSPURIFY
@@ -93,6 +85,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
 
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
   theCommitAckSignal = NULL;
+  theCachedMinDbNodeVersion = 0;
   
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {
@@ -103,8 +96,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theImpl->m_dbname.assign(aDataBase);
   theImpl->m_schemaname.assign(aSchema);
   theImpl->update_prefix();
-
-  theImpl->theWaiter.m_mutex =  theImpl->m_transporter_facade->theMutexPtr;
 
   // Signal that the constructor has finished OK
   if (theInitState == NotConstructed)
@@ -118,6 +109,8 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
       exit(-1);
     }
   }
+
+  theImpl->m_ndb_cluster_connection.link_ndb_object(this);
 
   DBUG_VOID_RETURN;
 }
@@ -140,15 +133,13 @@ Ndb::~Ndb()
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
   {
     if (op->m_state == NdbEventOperation::EO_EXECUTING && op->stop())
-      g_eventLogger.error("stopping NdbEventOperation failed in Ndb destructor");
+      g_eventLogger->error("stopping NdbEventOperation failed in Ndb destructor");
     op->m_magic_number= 0;
   }
   doDisconnect();
 
   /* Disconnect from transporter to stop signals from coming in */
-  if (theImpl->m_transporter_facade != NULL && theNdbBlockNumber > 0){
-    theImpl->m_transporter_facade->close(theNdbBlockNumber, theFirstTransId);
-  }
+  theImpl->close();
 
   delete theEventBuffer;
 
@@ -159,6 +150,8 @@ Ndb::~Ndb()
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
   }
+
+  theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
 
   delete theImpl;
 
@@ -176,22 +169,22 @@ Ndb::~Ndb()
   DBUG_VOID_RETURN;
 }
 
-NdbWaiter::NdbWaiter(){
+NdbWaiter::NdbWaiter(trp_client* clnt)
+  : m_clnt(clnt)
+{
   m_node = 0;
   m_state = NO_WAIT;
-  m_mutex = 0;
-  m_poll_owner= false;
-  m_cond_wait_index= TransporterFacade::MAX_NO_THREADS;
-  m_condition = NdbCondition_Create();
 }
 
-NdbWaiter::~NdbWaiter(){
-  NdbCondition_Destroy(m_condition);
+NdbWaiter::~NdbWaiter()
+{
 }
 
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
   : m_ndb(ndb),
+    m_next_ndb_object(0),
+    m_prev_ndb_object(0),
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),
@@ -199,6 +192,7 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theNdbObjectIdMap(m_transporter_facade->theMutexPtr,
 		      1024,1024),
     theNoOfDBnodes(0),
+    theWaiter(this),
     m_ev_op(0)
 {
   int i;
@@ -210,6 +204,11 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 
   m_systemPrefix.assfmt("%s%c%s%c", NDB_SYSTEM_DATABASE, table_name_separator,
 			NDB_SYSTEM_SCHEMA, table_name_separator);
+
+  forceShortRequests = false;
+  const char* f= getenv("NDB_FORCE_SHORT_REQUESTS");
+  if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
+    forceShortRequests = true;
 }
 
 NdbImpl::~NdbImpl()

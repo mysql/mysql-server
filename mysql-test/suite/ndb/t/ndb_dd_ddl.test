@@ -340,7 +340,9 @@ ENGINE NDB;
 # inconsistant results on other OS
 # see #bug30559
 
---exec touch $MYSQLTEST_VARDIR/tmp/t1.frm
+# Create empty file
+--write_file $MYSQLTEST_VARDIR/tmp/t1.frm
+EOF
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_CREATE_FILEGROUP_FAILED
@@ -363,108 +365,7 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
-#drop table t1;
---exec rm $MYSQLTEST_VARDIR/tmp/t1.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.frm
 
 
---echo
---echo # -----------------------------------------------------------------
---echo # End 5.1 test
---echo # -----------------------------------------------------------------
-
---echo
---echo # --
---echo # -- WL#4300: Define privileges for tablespaces.
---echo # --
-
-GRANT CREATE TABLESPACE ON *.* TO mysqltest_u1@localhost;
-
---echo
-
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest2;
---enable_warnings
-
-CREATE DATABASE mysqltest2;
-
-GRANT ALL PRIVILEGES ON mysqltest2.* TO mysqltest_u2@localhost;
-
---echo
---echo # -- Connection: mysqltest_u1@localhost
---echo
---connect(con1, localhost, mysqltest_u1,,)
-
---echo # -- Grants for mysqltest_u1@localhost:
-SHOW GRANTS;
-
---echo
---echo # -- Check CREATE LOGFILE GROUP...
-CREATE LOGFILE GROUP lg1
-ADD UNDOFILE 'undofile.dat'
-INITIAL_SIZE 1M
-UNDO_BUFFER_SIZE = 1M
-ENGINE = NDB;
-
---echo
---echo # -- Check ALTER LOGFILE GROUP...
-ALTER LOGFILE GROUP lg1
-ADD UNDOFILE 'undofile02.dat'
-INITIAL_SIZE 1M
-ENGINE = NDB;
-
---echo
---echo # -- Check CREATE TABLESPACE...
-CREATE TABLESPACE ts1
-ADD DATAFILE 'datafile.dat'
-USE LOGFILE GROUP lg1
-INITIAL_SIZE 1M
-ENGINE = NDB;
-
---echo
---echo # -- Check ALTER TABLESPACE...
-ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-INITIAL_SIZE 1M
-ENGINE = NDB;
-
---echo
---echo # -- Connection: mysqltest_u2@localhost
---echo
---connect(con2, localhost, mysqltest_u2,,mysqltest2)
-
---echo # -- Grants for mysqltest_u2@localhost:
-SHOW GRANTS;
-
-CREATE TABLE t1(c INT) TABLESPACE ts1;
-
-DROP TABLE t1;
-
---echo
---echo # -- Connection: mysqltest_u1@localhost
---echo
---connection con1
-
---echo
---echo # -- Check DROP TABLESPACE...
-DROP TABLESPACE ts1 
-ENGINE = NDB;
-
---echo
---echo # -- Check DROP LOGFILE GROUP...
-DROP LOGFILE GROUP lg1 
-ENGINE = NDB;
-
---echo
---echo # -- Connection: root@localhost
---echo
---connection default
---disconnect con1
-
-DROP USER mysqltest_u1@localhost;
-DROP USER mysqltest_u2@localhost;
-DROP DATABASE mysqltest2;
-
---echo
---echo # -----------------------------------------------------------------
---echo # End 6.0 test
---echo # -----------------------------------------------------------------
+# End 5.1 test
