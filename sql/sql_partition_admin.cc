@@ -191,6 +191,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   update_create_info_from_table(&table_create_info, table);
   /* get the current auto_increment value */
   table->file->update_create_info(&table_create_info);
+  /* mark all columns used, since they are used when preparing the new table */
+  part_table->use_all_columns();
+  table->use_all_columns();
   if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
                                 &part_alter_info))
   {
