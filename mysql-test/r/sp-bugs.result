@@ -75,4 +75,40 @@ CALL p1 ();
 ERROR HY000: Trigger does not exist
 DROP TABLE t1;
 DROP PROCEDURE p1;
+#
+# Bug#54375: Error in stored procedure leaves connection
+# in different default schema
+#
+SET @@SQL_MODE = 'STRICT_ALL_TABLES';
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+USE db1;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 int NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1 (
+some_value int
+)
+RETURNS smallint
+DETERMINISTIC
+BEGIN
+INSERT INTO t1 SET c1 = some_value;
+RETURN(LAST_INSERT_ID());
+END$$
+DROP DATABASE IF EXISTS db2;
+CREATE DATABASE db2;
+USE db2;
+SELECT DATABASE();
+DATABASE()
+db2
+SELECT db1.f1(1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT DATABASE();
+DATABASE()
+db2
+USE test;
+DROP FUNCTION db1.f1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+DROP DATABASE db2;
 End of 5.1 tests

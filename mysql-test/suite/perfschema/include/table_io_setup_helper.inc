@@ -24,7 +24,7 @@
 # --source include/have_perfschema.inc
 # --source ../include/table_io_setup_helper.inc
 # ... more setup scripts as needed ...
-# update performance_schema.SETUP_CONSUMERS set enabled='YES';
+# update performance_schema.setup_consumers set enabled='YES';
 # ... test payload here ...
 # ... optionally, add this insert between statements
 # ... to make the final output more readable
@@ -34,7 +34,7 @@
 # let $schema_to_dump="db1", "db2", "db3";
 # --source ../include/table_io_result_helper.inc
 # Optional: Repeat several times
-#    update performance_schema.SETUP_CONSUMERS set enabled='YES';
+#    update performance_schema.setup_consumers set enabled='YES';
 #    ... test payload here ...
 #    --source ../include/table_io_result_helper.inc
 # ... cleanup
@@ -53,13 +53,13 @@ drop table if exists test.marker;
 # to separate table io events between statements.
 create table test.marker(a int);
 
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
+update performance_schema.setup_consumers set enabled='NO';
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
 
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 
 # Reset lost counters to a known state
 flush status;

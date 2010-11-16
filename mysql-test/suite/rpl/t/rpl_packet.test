@@ -9,9 +9,6 @@
 # BUG#55322: SHOW BINLOG EVENTS increases @@SESSION.MAX_ALLOWED_PACKET
 
 # max-out size db name 
-# The grep | tail stuff below fails on windows.
---source include/not_windows.inc
-
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
@@ -191,21 +188,56 @@ INSERT INTO t1 VALUES (REPEAT('a', 2048));
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 
---echo # Now Read_Master_Log_Pos is as following:
---let $status_items= Read_Master_Log_Pos
---source include/show_slave_status.inc
+--echo # Record Read_Master_Log_Pos for the Table_map_log_event
+--let $table_map_log_pos= query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
 
---echo # Test the Table_map_log_event is displayed at Read_Master_Log_Pos by MYSQLBINLOG
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let $MYSQLD_TMPDIR= `select @@tmpdir`
---echo Last event in relay log:
---let $binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
---replace_regex /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /mapped to number [0-9]*/mapped to number #/
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file 2> $MYSQLD_TMPDIR/warning.txt
- | grep 'end_log_pos'
- | tail -1;
---cat_file $MYSQLD_TMPDIR/warning.txt
---remove_file $MYSQLD_TMPDIR/warning.txt
+--let $MYSQLD_TMPDIR= `SELECT @@tmpdir`
+--let $start_pos= query_get_value("SHOW SLAVE STATUS", Relay_Log_Pos, 1)
+--let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+--let $outfile= $MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog
+--let $i= 2
+
+--let $old_slave_max_allowed_packet= `SELECT @@global.max_allowed_packet`
+SET @@global.max_allowed_packet=1048576;
+# Restart slave session for new settings to take effect.
+--connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT,)
+--connection slave2
+
+while($i)
+{
+  if(`SELECT $i=1`)
+  {
+    --let $flags=--start-position=$start_pos
+  }
+
+  if(`SELECT $i=2`)
+  {
+    --let $flags=--base64-output=decode-rows -v
+  }
+
+  --exec $MYSQL_BINLOG $flags $MYSQLD_DATADIR/$relay_log_file 1> $outfile.1 2> $outfile.2
+
+  # Load outputs into a variable
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --eval SET @b55790_output.1= LOAD_FILE('$outfile.1')
+
+  # Check Relay log contains the Table_map_log_event
+  if (!`SELECT INSTR(@b55790_output.1, 'end_log_pos $table_map_log_pos')`)
+  {
+    --echo **** ERROR **** Table map 'end_log_pos $table_map_log_pos' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
+    --cat_file $outfile.1
+  }
+
+  # Check the warning is caused
+  --cat_file $outfile.2
+
+  # Remove unecessary files
+  --remove_file $outfile.1
+  --remove_file $outfile.2
+
+  --dec $i
+}
 
 --echo ==== clean up ====
 connection master;
@@ -214,6 +246,7 @@ eval SET @@global.max_allowed_packet= $old_max_allowed_packet;
 eval SET @@global.net_buffer_length= $old_net_buffer_length;
 # slave is stopped
 connection slave;
+eval SET @@global.max_allowed_packet= $old_slave_max_allowed_packet;
 DROP TABLE t1;
 
 # End of tests

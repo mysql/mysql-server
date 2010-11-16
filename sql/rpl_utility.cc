@@ -225,10 +225,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
       /*
         We are reading the actual size from the master_data record
         because this field has the actual lengh stored in the first
-        byte.
+        one or two bytes.
       */
-      length= (uint) *master_data + 1;
-      DBUG_ASSERT(length != 0);
+      length= max_display_length_for_field(MYSQL_TYPE_STRING, m_field_metadata[col]) > 255 ? 2 : 1;
+
+      /* As in Field_string::unpack */
+      length+= ((length == 1) ? *master_data : uint2korr(master_data));
     }
     break;
   }
@@ -284,7 +286,6 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_VARCHAR:
   {
     length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
-    DBUG_ASSERT(uint2korr(master_data) > 0);
     length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
   }
