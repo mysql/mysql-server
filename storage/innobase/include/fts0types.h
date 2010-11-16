@@ -87,6 +87,32 @@ struct fts_stopword_struct {
 	ib_rbt_t*	cached_stopword;/* This stores all active stopwords */
 };
 
+/* The SYNC state of the cache. There is one instance of this struct
+associated with each ADD thread. */
+struct fts_sync_struct {
+	trx_t*          trx;            /* The transaction used for SYNCing
+					the cache to disk */
+	dict_table_t*   table;          /* Table with FTS index(es) */
+	ulint           max_cache_size; /* Max size in bytes of the cache */
+	ibool           cache_full;     /* flag, when true it indicates that
+					we need to sync the cache to disk */
+	ulint           lower_index;    /* the start index of the doc id
+					vector from where to start adding
+					documents to the FTS cache */
+	ulint           upper_index;    /* max index of the doc id vector to
+					add to the FTS cache */
+	ibool           interrupted;    /* TRUE if SYNC was interrupted */
+	doc_id_t        min_doc_id;     /* The smallest doc id added to the
+					cache. It should equal to
+					doc_ids[lower_index] */
+	doc_id_t        max_doc_id;     /* The doc id at which the cache was
+					noted as being full, we use this to
+					set the upper_limit field */
+	ib_time_t       start_time;     /* SYNC start time */
+};
+
+typedef struct	fts_sync_struct	fts_sync_t;
+
 /* The cache for the FTS system. It is a memory-based inverted index
 that new entries are added to, until it grows over the configured maximum
 size, at which time its contents are written to the INDEX table. */
@@ -114,7 +140,8 @@ struct fts_cache_struct {
 	ulint		total_size;	/* total size consumed by the ilist
 					field of all nodes. SYNC is run
 					whenever this gets too big */
-
+	fts_sync_t*	sync;		/* sync structure to sync data to
+					disk */
 	ib_alloc_t*	sync_heap;	/* The heap allocator, for indexes
 					and deleted_doc_ids, ie. transient
 					objects, they are recreated after

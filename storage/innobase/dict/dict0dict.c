@@ -52,6 +52,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "fts0fts.h"
+#include "fts0types.h"
 #include "row0merge.h"
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp() */
@@ -764,14 +765,19 @@ dict_table_get(
 
 		if (!table->ibd_file_missing
 		    && dict_table_has_fts_index(table)) {
-			fts_t*  fts = table->fts;
-
 			/* Create background thread for FTS table. */
+			/* FIXME: Background Add Queue will be
+			disabled. It will become a generic
+			server level fts purge thread rather
+			than per table */
+			/*
+			fts_t*  fts = table->fts;
 			if (fts && !(fts->fts_status & ADD_THREAD_STARTED)) {
 
 				mutex_enter(&fts->bg_threads_mutex);
 
 				ut_a(!fts->add_wq);
+
 				fts->add_wq = ib_wqueue_create();
 
 				++fts->bg_threads;
@@ -780,7 +786,7 @@ dict_table_get(
 				fts->fts_status |= ADD_THREAD_STARTED;
 
 				mutex_exit(&fts->bg_threads_mutex);
-			}
+			} */
 		}
 	}
 
@@ -2314,7 +2320,7 @@ dict_index_build_internal_fts(
 	new_index->cached = TRUE;
 
 	if (table->fts->cache == NULL) {
-		table->fts->cache = fts_cache_create(table->heap);
+		table->fts->cache = fts_cache_create(table);
 	}
 
 	/* Notify the FTS cache about this index. */

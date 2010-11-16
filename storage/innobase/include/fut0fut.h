@@ -44,6 +44,9 @@ typedef struct fts_stopword_struct fts_stopword_t;
 
 extern const char*	fts_default_stopword[];
 
+/* Variable specifying the maximum FTS cache size for each table */
+extern ulint		fts_max_cache_size;
+
 /********************************************************************//**
 Gets a pointer to a file address and latches the page.
 @return pointer to a byte in a frame; the file page in the frame is
@@ -103,8 +106,25 @@ fts_get_next_token(
         ulint*          offset);                /* out: offset to token,
                                                 measured as characters from
                                                 'start' */
-
-
+/****************************************************************//**
+Create the vector of fts_get_doc_t instances.
+@return vector of fts_get_doc_t instances */
+UNIV_INTERN
+ib_vector_t*
+fts_get_docs_create(
+/*================*/
+	fts_cache_t*	cache);			/*!< in: fts cache */
+/****************************************************************//**
+Add document to the cache. */
+UNIV_INTERN
+void
+fts_cache_add_doc(
+/*==============*/
+	fts_cache_t*    cache,			/*!< in: cache */
+	fts_index_cache_t*
+			index_cache,		/*!< in: index cache */
+	doc_id_t        doc_id,			/*!< in: doc id to add */
+	ib_rbt_t*       tokens);		/*!< in: document tokens */
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
 #endif
