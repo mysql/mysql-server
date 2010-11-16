@@ -3506,6 +3506,9 @@ bool select_insert::send_eof()
 
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
+  if (!error && thd->is_error())
+    error= thd->stmt_da->sql_errno();
+
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -4049,7 +4052,7 @@ bool select_create::send_eof()
 {
   bool tmp=select_insert::send_eof();
   if (tmp)
-    abort();
+    abort_result_set();
   else
   {
     /*
@@ -4081,7 +4084,7 @@ void select_create::abort_result_set()
   DBUG_ENTER("select_create::abort_result_set");
 
   /*
-    In select_insert::abort() we roll back the statement, including
+    In select_insert::abort_result_set() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.
