@@ -1594,8 +1594,8 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (MYSQL_LOG::open(log_name, log_type_arg, new_name,
-                      io_cache_type_arg))
+  if (MYSQL_LOG::open(key_file_binlog,
+                      log_name, log_type_arg, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
