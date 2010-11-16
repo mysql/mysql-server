@@ -29,6 +29,9 @@
 
 handlerton *binlog_hton;
 
+const char *log_bin_index= 0;
+const char *log_bin_basename= 0;
+
 MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
 
 static int binlog_init(void *p);
