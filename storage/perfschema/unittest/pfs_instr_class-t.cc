@@ -21,6 +21,8 @@
 #include <pfs_global.h>
 #include <tap.h>
 
+#include "stub_server_misc.h"
+
 void test_no_registration()
 {
   int rc;
