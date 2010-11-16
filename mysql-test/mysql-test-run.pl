@@ -705,22 +705,40 @@ sub run_test_server ($$$) {
 	    next;
 	  }
 
-	  # Prefer same configuration, or just use next if --noreorder
-	  if (!$opt_reorder or (defined $result and
-	      $result->{template_path} eq $t->{template_path}))
-	  {
-	    #mtr_report("Test uses same config => good match");
-	    # Test uses same config => good match
-	    $next= splice(@$tests, $i, 1);
-	    last;
-	  }
-
 	  # Second best choice is the first that does not fulfill
 	  # any of the above conditions
 	  if (!defined $second_best){
 	    #mtr_report("Setting second_best to $i");
 	    $second_best= $i;
 	  }
+
+	  # Smart allocation of next test within this thread.
+
+	  if ($opt_reorder and $opt_parallel > 1 and defined $result)
+	  {
+	    my $wid= $result->{worker};
+	    # Reserved for other thread, try next
+	    next if (defined $t->{reserved} and $t->{reserved} != $wid);
+	    if (! defined $t->{reserved})
+	    {
+	      # Force-restart not relevant when comparing *next* test
+	      $t->{criteria} =~ s/force-restart$/no-restart/;
+	      my $criteria= $t->{criteria};
+	      # Reserve similar tests for this worker, but not too many
+	      my $maxres= (@$tests - $i) / $opt_parallel + 1;
+	      for (my $j= $i+1; $j <= $i + $maxres; $j++)
+	      {
+		my $tt= $tests->[$j];
+		last unless defined $tt;
+		last if $tt->{criteria} ne $criteria;
+		$tt->{reserved}= $wid;
+	      }
+	    }
+	  }
+
+	  # At this point we have found next suitable test
+	  $next= splice(@$tests, $i, 1);
+	  last;
 	}
 
 	# Use second best choice if no other test has been found
@@ -729,10 +747,12 @@ sub run_test_server ($$$) {
 	  mtr_error("Internal error, second best too large($second_best)")
 	    if $second_best >  $#$tests;
 	  $next= splice(@$tests, $second_best, 1);
+	  delete $next->{reserved};
 	}
 
 	if ($next) {
-	  #$next->print_test();
+	  # We don't need this any more
+	  delete $next->{criteria};
 	  $next->write_test($sock, 'TESTCASE');
 	  $running{$next->key()}= $next;
 	  $num_ndb_tests++ if ($next->{ndb_test});
@@ -817,6 +837,11 @@ sub run_worker ($) {
       delete($test->{'comment'});
       delete($test->{'logfile'});
 
+      # A sanity check. Should this happen often we need to look at it.
+      if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
+	my $tres= $test->{reserved};
+	mtr_warning("Test reserved for w$tres picked up by w$thread_num");
+      }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
       run_testcase($test);
@@ -896,7 +921,7 @@ sub command_line_setup {
              'ssl|with-openssl'         => \$opt_ssl,
              'skip-ssl'                 => \$opt_skip_ssl,
              'compress'                 => \$opt_compress,
-             'vs-config'                => \$opt_vs_config,
+             'vs-config=s'              => \$opt_vs_config,
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
@@ -4465,7 +4490,13 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  my @defaults = grep(/^--defaults-file=/, @$extra_opts);
+  if (@defaults > 0) {
+    mtr_add_arg($args, pop(@defaults))
+  }
+  else {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
@@ -4501,6 +4532,9 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
+    # Skip --defaults-file option since it's handled above.
+    next if $arg =~ /^--defaults-file/;
+
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
     {
@@ -4732,17 +4766,6 @@ sub server_need_restart {
       mtr_verbose_restart($server, "different timezone");
       return 1;
     }
-  }
-
-  # Temporary re-enable the "always restart slave" hack
-  # this should be removed asap, but will require that each rpl
-  # testcase cleanup better after itself - ie. stop and reset
-  # replication
-  # Use the "#!use-slave-opt" marker to detect that this is a "slave"
-  # server
-  if ( $server->option("#!use-slave-opt") ){
-    mtr_verbose_restart($server, "Always restart slave(s)");
-    return 1;
   }
 
   my $is_mysqld= grep ($server eq $_, mysqlds());
@@ -5330,8 +5353,7 @@ sub gdb_arguments {
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "end\n");
   }
 
   if ( $opt_manual_gdb )

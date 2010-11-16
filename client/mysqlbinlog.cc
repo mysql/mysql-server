@@ -940,9 +940,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
 
       ev->print(result_file, print_event_info);
+      print_event_info->have_unflushed_events= TRUE;
       /* Flush head and body cache to result_file */
       if (stmt_end)
       {
+        print_event_info->have_unflushed_events= FALSE;
         if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
             copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
           goto err;
@@ -1437,7 +1439,7 @@ static Exit_status dump_log_entries(const char* logname)
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
 
-  if (my_b_tell(&print_event_info.body_cache))
+  if (print_event_info.have_unflushed_events)
     warning("The range of printed events ends with a row event or "
             "a table map event that does not have the STMT_END_F "
             "flag set. This might be because the last statement "

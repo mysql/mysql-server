@@ -1755,6 +1755,15 @@ public:
   }
 
   /**
+    Inject a character into the pre-processed stream.
+  */
+  char *cpp_inject(char ch)
+  {
+    *m_cpp_ptr= ch;
+    return ++m_cpp_ptr;
+  }
+
+  /**
     End of file indicator for the query text to parse.
     @return true if there are no more characters to parse
   */
