@@ -1494,7 +1494,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
             sprintf(buf+strlen(buf), " %02x", ptr[k]);
           }
           ptr+=key_part->store_length;
-          if (ptr - key->key >= key->length)
+          if (ptr - key->key >= (ptrdiff_t)key->length)
           {
             /*
               key_range has no count of parts so must test byte length.
@@ -1593,7 +1593,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
             DBUG_RETURN(1);
         }
         ptr+=key_part->store_length;
-        if (ptr - start_key->key >= start_key->length)
+        if (ptr - start_key->key >= (ptrdiff_t)start_key->length)
         {
           break;
         }
