@@ -19,3 +19,4 @@ log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
 read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#56927 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#37248 2010-11-15 mattiasj was not tested
+create-big               : Bug#37248 2010-11-15 mattiasj was not tested
