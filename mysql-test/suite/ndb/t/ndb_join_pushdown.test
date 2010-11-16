@@ -2915,6 +2915,24 @@ select straight_join * from t as a join t as b
 
 drop table t;
 
+########
+# JT_SYSTEM testcase, 'a.k is null' is known 'false' ->
+# Join condition will always fail, and all 'left joins' can be NULL complemented wo/
+# even requiring to access left table (b) which becomes 'system' -> No pushed joins !
+########
+create table t (k int primary key, uq int) engine = ndb;
+insert into t values (1,3), (3,NULL), (6,9), (9,1);
+
+explain extended
+select * from t as a left join t as b 
+  on a.k is null and a.uq=b.uq;
+
+--sorted_result
+select * from t as a left join t as b 
+  on a.k is null and a.uq=b.uq;
+
+drop table t;
+
 #######
 # Test of varchar query parameteres.
 #######

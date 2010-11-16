@@ -143,6 +143,8 @@ namespace AQP
   {
     /** For default initialization.*/
     AT_VOID,
+    /** Value has already been fetched / determined by optimizer.*/
+    AT_FIXED,
     /** Do a lookup of a single primary key.*/
     AT_PRIMARY_KEY,
     /** Do a lookup of a single unique index key.*/

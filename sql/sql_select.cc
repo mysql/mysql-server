@@ -11973,7 +11973,7 @@ join_read_system(JOIN_TAB *tab)
 					   table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
-	return report_error(table, error);
+	DBUG_RETURN(report_error(table, error));
       mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
       DBUG_RETURN(-1);
