@@ -47,11 +47,14 @@ Completed by Sunny Bains and Jimmy Yang
 /* Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
 
+/* This is maximum FTS cache for each table and would be
+a configurable variable */
+UNIV_INTERN ulint	fts_max_cache_size = 50000000;
+
 // FIXME: testing
 ib_time_t elapsed_time = 0;
 ulint n_nodes = 0;
 
-typedef struct fts_sync_struct fts_sync_t;
 typedef struct fts_schema_struct fts_schema_t;
 typedef struct fts_sys_table_struct fts_sys_table_t;
 
@@ -136,39 +139,6 @@ const char *fts_default_stopword[] =
 	"the",
 	"www",
 	NULL
-};
-
-/* The SYNC state of the cache. There is one instance of this struct
-associated with each ADD thread. */
-struct fts_sync_struct {
-	trx_t*		trx;		/* The transaction used for SYNCing
-					the cache to disk */
-
-	dict_table_t*	table;		/* Table with FTS index(es) */
-
-	ulint		max_cache_size;	/* Max size in bytes of the cache */
-
-	ibool		cache_full;	/* flag, when true it indicates that
-					we need to sync the cache to disk */
-
-	ulint		lower_index;	/* the start index of the doc id
-					vector from where to start adding
-					documents to the FTS cache */
-
-	ulint		upper_index;	/* max index of the doc id vector to
-					add to the FTS cache */
-
-	ibool		interrupted;	/* TRUE if SYNC was interrupted */
-
-	doc_id_t	min_doc_id;	/* The smallest doc id added to the
-					cache. It should equal to
-					doc_ids[lower_index] */
-
-	doc_id_t	max_doc_id;	/* The doc id at which the cache was
-					noted as being full, we use this to
-					set the upper_limit field */
-
-	ib_time_t	start_time;	/* SYNC start time */
 };
 
 /* For storing table info when checking for orphaned tables. */
@@ -290,31 +260,44 @@ static const char* fts_config_table_insert_values_sql =
 	"INSERT INTO %s VALUES ('"
 		FTS_TABLE_STATE "', '0');\n";
 
-/********************************************************************
+/****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
-FTS auxiliary INDEX table and clear the cache at the end. */
+FTS auxiliary INDEX table and clear the cache at the end.
+@return DB_SUCCESS if all OK */
 static
 ulint
 fts_sync(
 /*=====*/
-						/* out: DB_SUCCESS if all OK */
-	fts_sync_t*	sync);			/* in: sync state */
-
-/********************************************************************
-Check whether a particular word (term) exists in the FTS index. */
+	fts_sync_t*	sync);		/*!< in: sync state */
+/****************************************************************//**
+Add the document with the given id to the table's cache, and run
+SYNC if the cache grows too big. */
+static
+void
+fts_add_doc(
+/*========*/
+	fts_get_doc_t*	get_doc,	/*!< in: state */
+	doc_id_t	doc_id);	/*!< in: document id of document
+					to add */
+/****************************************************************//**
+Read the max cache size parameter from the config table. */
+static
+void
+fts_update_max_cache_size(
+/*======================*/
+	fts_sync_t*	sync);		/*!< in: sync state */
+/****************************************************************//**
+Check whether a particular word (term) exists in the FTS index.
+@return DB_SUCCESS if all went fine */
 static
 ulint
 fts_is_word_in_index(
 /*=================*/
-						/* out: DB_SUCCESS if all went
-						well else error code */
-	trx_t*		trx,			/* in: FTS query state */
-	que_t**		graph,			/* out: Query graph */
-	fts_table_t*	fts_table,		/* in: table instance */
-	const fts_string_t*
-			word,			/* in: the word to check */
-	ibool*		found);			/* out: TRUE if exists */
-
+	trx_t*		trx,		/*!< in: FTS query state */
+	que_t**		graph,		/*!< out: Query graph */
+	fts_table_t*	fts_table,	/*!< in: table instance */
+	const fts_string_t* word,	/*!< in: the word to check */
+	ibool*		found);		/*!< out: TRUE if exists */
 /********************************************************************
 Check if we should stop. */
 UNIV_INLINE
@@ -567,14 +550,15 @@ fts_cache_init(
 	}
 }
 
-/********************************************************************
+/****************************************************************//**
 Create a FTS cache. */
-
+UNIV_INTERN
 fts_cache_t*
 fts_cache_create(
 /*=============*/
-	mem_heap_t*		heap)		/* in: memory heap */
+	dict_table_t*		table)	/*!< table owns the FTS cache */
 {
+	mem_heap_t*	heap = table->heap;
 	fts_cache_t*	cache = mem_heap_alloc(heap, sizeof(*cache));
 
 	memset(cache, 0, sizeof(*cache));
@@ -592,6 +576,9 @@ fts_cache_create(
 	/* This is a transient heap, used for storing sync data. */
 	cache->sync_heap = ib_heap_allocator_create(heap);
 	cache->sync_heap->arg = NULL;
+	cache->sync = (fts_sync_t*) mem_heap_alloc(heap, sizeof(fts_sync_t));
+	memset(cache->sync, 0, sizeof(fts_sync_t));
+	cache->sync->table = table;
 
 	/* Create the index cache vector that will hold the inverted indexes. */
 	cache->indexes = ib_vector_create(
@@ -611,9 +598,9 @@ fts_cache_create(
 	return(cache);
 }
 
-/********************************************************************
+/****************************************************************//**
 Create an FTS index cache. */
-
+UNIV_INTERN
 void
 fts_cache_index_cache_create(
 /*=========================*/
@@ -844,7 +831,7 @@ fts_tokenizer_word_get(
 	return(word);
 }
 
-/********************************************************************
+/****************************************************************//**
 Add the given doc_id/word positions to the given node's ilist. */
 UNIV_INTERN
 void
@@ -950,17 +937,17 @@ fts_cache_node_add_positions(
 	++node->doc_count;
 }
 
-/********************************************************************
+/****************************************************************//**
 Add document to the cache. */
-static
+UNIV_INTERN
 void
 fts_cache_add_doc(
 /*==============*/
-	fts_cache_t*	cache,			/* in: cache */
+	fts_cache_t*	cache,			/*!< in: cache */
 	fts_index_cache_t*
-			index_cache,		/* in: index cache */
-	doc_id_t	doc_id,			/* in: doc id to add */
-	ib_rbt_t*	tokens)			/* in: document tokens */
+			index_cache,		/*!< in: index cache */
+	doc_id_t	doc_id,			/*!< in: doc id to add */
+	ib_rbt_t*	tokens)			/*!< in: document tokens */
 {
 	const ib_rbt_node_t*	node;
 	ulint			n_words;
@@ -1015,6 +1002,10 @@ fts_cache_add_doc(
 	/* Add the doc stats memory usage too. */
 	cache->total_size += sizeof(*doc_stats);
 
+	if (cache->total_size > fts_max_cache_size) {
+		fts_sync(cache->sync);
+	}
+ 
 	rw_lock_x_unlock(&cache->lock);
 }
 
@@ -2170,16 +2161,22 @@ fts_add_doc_id(
 	doc_id_t	doc_id,			/* in: doc id */
 	ib_vector_t*	fts_indexes)		/* in: affected fts indexes */
 {
-	fts_update_t*		update;
+	fts_cache_t*    	cache = ftt->table->fts->cache;
+	ulint			i;
 
-	if (!ftt->added_doc_ids) {
-		ftt->added_doc_ids = fts_doc_ids_create();
+	if (cache->get_docs == NULL) {
+		cache->get_docs = fts_get_docs_create(cache);
 	}
 
-	update = ib_vector_push(ftt->added_doc_ids->doc_ids, NULL);
+	/* Get the document, parse them and add to FTS ADD table
+	and FTS cache */
+	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
+		fts_get_doc_t*  get_doc;
+		get_doc = ib_vector_get(cache->get_docs, i);
 
-	update->doc_id = doc_id;
-	update->fts_indexes = fts_indexes;
+		fts_add_doc(get_doc, doc_id);
+	}
+
 }
 
 /********************************************************************
@@ -2203,13 +2200,6 @@ fts_add(
 	ut_a(row->state == FTS_INSERT || row->state == FTS_MODIFY);
 
 	fts_add_doc_id(ftt, doc_id, row->fts_indexes);
-
-	/* In the very rare cases when the background thread has not
-	finished reading the old entries from the ADDED table before we
-	arrive here, we must wait here until it does so, otherwise it will
-	crash trying to index the same document twice. Set the timeout to
-	0, so that we wait forever till it restarts. */
-	fts_wait_for_background_thread_to_start(ftt->table, 0);
 
 	graph = ftt->docs_added_graph;
 
@@ -2636,6 +2626,107 @@ fts_add_fetch_document(
 	doc->text.utf8[doc_len] = 0;
 	doc->text.len = doc_len;
 	return(FALSE);
+}
+
+
+/*************************************************************//**
+This function fetches the document just inserted right before
+we commit the transaction, and tokenize the inserted text data
+and insert into FTS auxiliary table and its cache. 
+@return TRUE if successful */
+static
+ulint
+fts_fetch_doc_by_id(
+/*================*/
+	fts_get_doc_t*	get_doc,	/*!< in: state */
+	doc_id_t	doc_id,		/*!< in: id of document to
+					fetch */
+	fts_doc_t*	doc)		/*!< out: Document fetched */
+{
+	mtr_t		mtr;
+	dict_index_t*   clust_index;
+	const rec_t*    clust_rec;
+	dict_table_t*	table = get_doc->index_cache->index->table;
+	dict_index_t*	index = get_doc->index_cache->index;
+	dtuple_t*	tuple; 
+	doc_id_t        temp_doc_id;
+	dfield_t*       dfield;
+	mem_heap_t*	heap = get_doc->index_cache->index->heap;
+	btr_pcur_t	pcur;
+	
+	clust_index = dict_table_get_first_index(table);
+
+	mtr_start(&mtr);
+
+	/* Search based on Doc ID. Here, we'll need to consider the case
+	there is no primary index on Doc ID */
+	tuple = dtuple_create(heap, 1);
+	dfield = dtuple_get_nth_field(tuple, 0);
+	dfield->type.mtype = DATA_INT;
+	dfield->type.prtype = DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE;
+	dfield->len = sizeof(doc_id_t);
+	mach_write_to_8((byte*) &temp_doc_id, doc_id);
+	dfield_set_data(dfield, &temp_doc_id, 8);
+
+	btr_pcur_open_with_no_init(clust_index, tuple, PAGE_CUR_LE,
+				   BTR_SEARCH_LEAF,
+			  	   &pcur, 0, &mtr);
+
+	/* If we have a match, add the data to doc structure */
+	if (btr_pcur_get_low_match(&pcur) == 1) {
+		ulint			len;
+		const byte*		data;
+		ulint			offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*			offsets = offsets_;
+		ulint			doc_len = 0;
+		ulint			num_field;
+		const dict_field_t*	ifield;
+		const dict_col_t*	col;
+		ulint			clust_pos;
+		ulint			i;
+
+		clust_rec = btr_pcur_get_rec(&pcur);
+
+		/* This row should not be deleted */
+		if (rec_get_deleted_flag(
+			clust_rec, dict_table_is_comp(table))) {
+				 ut_error;
+		}
+
+		offsets = rec_get_offsets(clust_rec, clust_index,
+					  offsets, ULINT_UNDEFINED, &heap);
+
+		num_field = dict_index_get_n_fields(index);
+
+		for (i = 0; i < num_field; i++) {
+			ifield = dict_index_get_nth_field(index, i);
+			col = dict_field_get_col(ifield);
+			clust_pos = dict_col_get_clust_pos(col, clust_index);
+			data = rec_get_nth_field(clust_rec, offsets,
+						 clust_pos, &len);
+			doc_len += len;
+		}
+
+		doc->text.utf8 = ib_heap_malloc(doc->self_heap, doc_len + 1);
+		doc_len = 0;
+
+		for (i = 0; i < num_field; i++) {
+			ifield = dict_index_get_nth_field(index, i);
+			col = dict_field_get_col(ifield);
+			clust_pos = dict_col_get_clust_pos(col, clust_index);
+			data = rec_get_nth_field(clust_rec, offsets,
+						 clust_pos, &len);
+			memcpy(doc->text.utf8 + doc_len, data, len);
+			doc_len += len;
+		}
+
+		doc->text.len = doc_len;
+		doc->found = TRUE;
+	}
+
+	mtr_commit(&mtr);
+
+	return(TRUE);
 }
 
 /*************************************************************//**
@@ -3639,7 +3730,8 @@ fts_add_doc(
 	dict_table_t*	table = get_doc->index_cache->index->table;
 
 	fts_doc_init(&doc);
-	fts_doc_fetch_by_doc_id(get_doc, doc_id, NULL, fts_add_fetch_document, &doc);
+
+	fts_fetch_doc_by_id(get_doc, doc_id, &doc);
 
 	if (doc.found) {
 		fts_tokenize_document(&doc, NULL);
@@ -3691,7 +3783,7 @@ fts_fetch_store_doc_ids(
 
 /********************************************************************
 Create the vector of fts_get_doc_t instances. */
-static
+UNIV_INTERN
 ib_vector_t*
 fts_get_docs_create(
 /*================*/

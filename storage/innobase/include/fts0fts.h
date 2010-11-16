@@ -114,7 +114,7 @@ Create a FTS cache. */
 fts_cache_t*
 fts_cache_create(
 /*=============*/
-	mem_heap_t*	heap);		/* in: memory heap */
+	dict_table_t*	table);		/*!< table owns the FTS cache */
 /********************************************************************
 Create a FTS index cache. */
 
