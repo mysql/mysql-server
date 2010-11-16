@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TRIX_H
 #define TRIX_H
@@ -41,8 +44,10 @@ public:
   // Subscription data, when communicating with SUMA
 
   enum RequestType {
-    TABLE_REORG = 0,
-    INDEX_BUILD = 1
+    REORG_COPY = 0
+    ,REORG_DELETE = 1
+    ,INDEX_BUILD = 2
+    //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
 
@@ -68,6 +73,7 @@ private:
 
   // Node data needed when communicating with remote TRIX:es
   struct NodeRecord {
+    NodeRecord() {}
     bool alive;
     BlockReference trixRef;
     union {
@@ -100,10 +106,17 @@ private:
     SubscriptionRecord(AttrOrderBuffer::DataBufferPool & aop):
       attributeOrder(aop)
     {}
+    enum RequestFlags {
+      RF_WAIT_GCP = 0x1
+      ,RF_NO_DISK = 0x2
+      ,RF_TUP_ORDER = 0x4
+    };
+    Uint32 m_flags;
     RequestType requestType;
     BlockReference userReference; // For user
     Uint32 connectionPtr; // For user
     Uint32 subscriptionId; // For Suma
+    Uint32 schemaTransId;
     Uint32 subscriptionKey; // For Suma
     Uint32 prepareId; // For DbUtil
     Uint32 indexType;
@@ -113,10 +126,14 @@ private:
     Uint32 noOfIndexColumns;
     Uint32 noOfKeyColumns;
     Uint32 parallelism;
+    Uint32 fragCount;
+    Uint32 syncPtr;
     BuildIndxRef::ErrorCode errorCode;
     bool subscriptionCreated;
     bool pendingSubSyncContinueConf;
     Uint32 expectedConf; // Count in n UTIL_EXECUTE_CONF + 1 SUB_SYNC_CONF
+    Uint64 m_rows_processed;
+    Uint64 m_gci;
     union {
       Uint32 nextPool;
       Uint32 nextList;
@@ -130,6 +147,7 @@ private:
    * The pool of node records
    */
   ArrayPool<SubscriptionRecord> c_theSubscriptionRecPool;
+  RSS_AP_SNAPSHOT(c_theSubscriptionRecPool);
 
   /**
    * The list of other subscriptions
@@ -149,10 +167,14 @@ private:
   // Debugging
   void execDUMP_STATE_ORD(Signal* signal);
 
+  void execDBINFO_SCANREQ(Signal* signal);
+
   // Build index
-  void execBUILDINDXREQ(Signal* signal);
-  void execBUILDINDXCONF(Signal* signal);
-  void execBUILDINDXREF(Signal* signal);
+  void execBUILD_INDX_IMPL_REQ(Signal* signal);
+  void execBUILD_INDX_IMPL_CONF(Signal* signal);
+  void execBUILD_INDX_IMPL_REF(Signal* signal);
+
+  void execCOPY_DATA_IMPL_REQ(Signal* signal);
 
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);
@@ -171,14 +193,18 @@ private:
   void execSUB_SYNC_CONTINUE_REQ(Signal* signal);
   void execSUB_TABLE_DATA(Signal* signal);
 
+  // GCP
+  void execWAIT_GCP_REF(Signal*);
+  void execWAIT_GCP_CONF(Signal*);
+
   // Utility functions
   void setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr);
   void startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr);
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
-  void executeInsertTransaction(Signal* signal, SubscriptionRecPtr subRecPtr,
-				SegmentedSectionPtr headerPtr,
-				SegmentedSectionPtr dataPtr);
+  void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
+  void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
+  void wait_gcp(Signal*, SubscriptionRecPtr subRecPtr, Uint32 delay = 0);
   void buildFailed(Signal* signal, 
 		   SubscriptionRecPtr subRecPtr, 
 		   BuildIndxRef::ErrorCode);

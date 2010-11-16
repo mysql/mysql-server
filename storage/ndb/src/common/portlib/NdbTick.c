@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -23,12 +26,41 @@
 #define MICROSEC_PER_MILLISEC 1000
 #define MILLISEC_PER_NANOSEC 1000000
 
-
 #ifdef HAVE_CLOCK_GETTIME
+
+#ifdef CLOCK_MONOTONIC
+static clockid_t NdbTick_clk_id = CLOCK_MONOTONIC;
+#else
+static clockid_t NdbTick_clk_id = CLOCK_REALTIME;
+#endif
+
+void NdbTick_Init(int need_monotonic)
+{
+  struct timespec tick_time;
+
+  if (!need_monotonic)
+    NdbTick_clk_id = CLOCK_REALTIME;
+
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+#ifdef CLOCK_MONOTONIC
+  fprintf(stderr, "Failed to use CLOCK_MONOTONIC for clock_realtime,"
+          " errno= %u\n", errno);
+  fflush(stderr);
+  NdbTick_clk_id = CLOCK_REALTIME;
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+#endif
+  fprintf(stderr, "Failed to use CLOCK_REALTIME for clock_realtime,"
+          " errno=%u.  Aborting\n", errno);
+  fflush(stderr);
+  abort();
+}
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
   struct timespec tick_time;
-  clock_gettime(CLOCK_REALTIME, &tick_time);
+  clock_gettime(NdbTick_clk_id, &tick_time);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
@@ -38,24 +70,52 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 int 
 NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   struct timespec t;
-  int res = clock_gettime(CLOCK_REALTIME, &t);
+  int res = clock_gettime(NdbTick_clk_id, &t);
   * secs   = t.tv_sec;
   * micros = t.tv_nsec / 1000;
   return res;
 }
 #else
+void NdbTick_Init(int need_monotonic)
+{
+}
+
 NDB_TICKS NdbTick_CurrentMillisecond(void)
 {
+#ifdef _WIN32
+  NDB_TICKS secs;
+  Uint32 micros;
+  NdbTick_CurrentMicrosecond(&secs, &micros);
+  return secs*1000 + micros/1000;
+#else
   struct timeval tick_time;
   gettimeofday(&tick_time, 0);
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
     ((NDB_TICKS)tick_time.tv_usec) / ((NDB_TICKS)MICROSEC_PER_MILLISEC);
+#endif
 }
 
 int 
-NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
+NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
+{
+#ifdef _WIN32
+  ulonglong time, timemicro, micropart, secpart;
+
+  GetSystemTimeAsFileTime((FILETIME*)&time);
+  timemicro = time/10;
+
+  secpart   = timemicro/1000000;
+  micropart = timemicro%1000000;
+  assert(micropart <= ULONG_MAX);
+  assert(secpart*1000000+micropart == timemicro);
+
+  *micros = (Uint32)micropart;
+  *secs = secpart;
+
+  return 0;
+#else
   struct timeval tick_time;
   int res = gettimeofday(&tick_time, 0);
 
@@ -68,9 +128,11 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
       * micros = tick_time.tv_usec;
     }
   return res;
+#endif
 }
 
 #endif
+
 int
 NdbTick_getMicroTimer(struct MicroSecondTimer* input_timer)
 {

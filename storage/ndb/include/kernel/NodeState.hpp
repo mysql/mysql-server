@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NODE_STATE_HPP
 #define NODE_STATE_HPP
@@ -19,8 +22,8 @@
 #include <NdbOut.hpp>
 #include <NodeBitmask.hpp>
 
-class NodeState {
-public:
+struct NodeStatePOD
+{
   enum StartLevel {
     /**
      * SL_NOTHING 
@@ -99,15 +102,11 @@ public:
   /**
    * Length in 32-bit words
    */
-  STATIC_CONST( DataLength = 8 + NdbNodeBitmask::Size );
+  STATIC_CONST( DataLength = 8 + NodeBitmask::Size );
   
   /**
    * Constructor(s)
    */
-  NodeState();
-  NodeState(StartLevel);
-  NodeState(StartLevel, bool systemShutdown);
-  NodeState(StartLevel, Uint32 startPhase, StartType);
   void init();
  
   /**
@@ -147,7 +146,7 @@ public:
   Uint32 singleUserMode;
   Uint32 singleUserApi;          //the single user node
 
-  BitmaskPOD<NdbNodeBitmask::Size> m_connected_nodes;
+  BitmaskPOD<NodeBitmask::Size> m_connected_nodes;
 
   void setDynamicId(Uint32 dynamic);
   void setNodeGroup(Uint32 group);
@@ -166,6 +165,13 @@ public:
   bool getSystemRestartInProgress() const;
 
   /**
+   * Are we started
+   */
+  bool getStarted() const {
+    return startLevel == SL_STARTED || startLevel == SL_SINGLEUSER;
+  }
+
+  /**
    * Is in single user mode?
    */
   bool getSingleUserMode() const;
@@ -174,8 +180,17 @@ public:
    * Is in single user mode
    */
   Uint32 getSingleUserApi() const;
+};
 
-  friend NdbOut & operator<<(NdbOut&, const NodeState&); 
+class NodeState : public NodeStatePOD
+{
+public:
+  NodeState();
+  NodeState(StartLevel);
+  NodeState(StartLevel, bool systemShutdown);
+  NodeState(StartLevel, Uint32 startPhase, StartType);
+
+  NodeState& operator=(const NodeStatePOD&);
 };
 
 inline
@@ -185,7 +200,7 @@ NodeState::NodeState(){
 
 inline
 void
-NodeState::init(){
+NodeStatePOD::init(){
   startLevel = SL_CMVMI;
   nodeGroup = 0xFFFFFFFF;
   dynamicId = 0xFFFFFFFF;
@@ -222,49 +237,49 @@ NodeState::NodeState(StartLevel sl, bool sys){
 }
 
 inline
-void NodeState::setDynamicId(Uint32 dynamic){
+void NodeStatePOD::setDynamicId(Uint32 dynamic){
   dynamicId = dynamic;
 }
   
 inline
-void NodeState::setNodeGroup(Uint32 group){
+void NodeStatePOD::setNodeGroup(Uint32 group){
   nodeGroup = group;
 }
 
 inline 
-void NodeState::setSingleUser(Uint32 s) {
+void NodeStatePOD::setSingleUser(Uint32 s) {
   singleUserMode = s;
 }
 
 inline 
-void NodeState::setSingleUserApi(Uint32 n) {
+void NodeStatePOD::setSingleUserApi(Uint32 n) {
   singleUserApi = n;
 }
 inline 
-bool NodeState::getNodeRestartInProgress() const {
+bool NodeStatePOD::getNodeRestartInProgress() const {
   return startLevel == SL_STARTING && 
     (starting.restartType == ST_NODE_RESTART || 
      starting.restartType == ST_INITIAL_NODE_RESTART);
 }
 
 inline 
-bool NodeState::getSingleUserMode() const {
+bool NodeStatePOD::getSingleUserMode() const {
   return singleUserMode;
 }
 
 inline 
-Uint32 NodeState::getSingleUserApi() const {
+Uint32 NodeStatePOD::getSingleUserApi() const {
   return singleUserApi;
 }
 
 inline 
-bool NodeState::getSystemRestartInProgress() const {
+bool NodeStatePOD::getSystemRestartInProgress() const {
   return startLevel == SL_STARTING && starting.restartType == ST_SYSTEM_RESTART;
 }
 
 inline
 NdbOut &
-operator<<(NdbOut& ndbout, const NodeState & state){
+operator<<(NdbOut& ndbout, const NodeStatePOD & state){
   ndbout << "[NodeState: startLevel: ";
   switch(state.startLevel){
   case NodeState::SL_NOTHING:
@@ -315,4 +330,22 @@ operator<<(NdbOut& ndbout, const NodeState & state){
   return ndbout;
 }
 
+inline
+NodeState&
+NodeState::operator=(const NodeStatePOD& ns)
+{
+  startLevel = ns.startLevel;
+  nodeGroup  = ns.nodeGroup;
+  dynamicId  = ns.dynamicId;
+  // masterNodeId is union with dynamicId
+  starting.startPhase = ns.starting.startPhase;
+  starting.restartType = ns.starting.restartType;
+  // stopping.systemShutdown is union with starting.startPhase
+  // stopping.timeout is union with starting.restartType
+  stopping.alarmTime = ns.stopping.alarmTime;
+  singleUserMode = ns.singleUserMode;
+  singleUserApi  = ns.singleUserApi;
+  m_connected_nodes.assign(ns.m_connected_nodes);
+  return * this;
+}
 #endif

@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
@@ -112,11 +111,11 @@ insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NU
 select * from t2 where c IS NULL order by a;
 select * from t2 where b = 3 AND c IS NULL order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
-set @old_optimizer_switch = @@session.optimizer_switch;
-set optimizer_switch = "engine_condition_pushdown=on";
+set @old_ecpd = @@session.engine_condition_pushdown;
+set engine_condition_pushdown = true;
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
-set optimizer_switch = @old_optimizer_switch;
+set engine_condition_pushdown = @old_ecpd;
 
 drop table t2;
 
@@ -359,3 +358,160 @@ alter table t1 add constraint uk_test unique (id) using hash;
 drop table t1;
 
 # End of 4.1 tests
+
+# bug#44132
+
+CREATE TABLE t1 (
+  pk0 INT,
+  pk1 VARCHAR(100),
+  col0 INT NOT NULL,
+  PRIMARY KEY(pk0, pk1),
+  UNIQUE (col0) USING HASH
+) engine = ndb;
+
+CREATE TABLE t2 (
+  pk0 VARCHAR(100),
+  pk1 INT,
+  col0 INT NOT NULL,
+  PRIMARY KEY(pk0, pk1),
+  UNIQUE (col0) USING HASH
+) engine = ndb;
+
+let $1=100 ;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1, 'a', $1);
+ eval insert into t2 values('a', $1, $1);
+ dec $1;
+}
+enable_query_log;
+
+drop table t1, t2;
+
+# bug#57827 : Don't load dd columns when building unique index
+# Build a unique index in a table with DD columns to give
+# some coverage of the scenario
+#
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 8M
+UNDO_BUFFER_SIZE = 1M engine=ndb;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 32M
+ENGINE NDB;
+
+use test;
+
+create table t1 (pk int primary key, un int, data varchar(500) storage disk) tablespace ts1 engine=ndb;
+
+insert into t1 values 
+        (1,1,repeat('B', 500)),
+        (2,2,repeat('B', 500)),
+        (3,3,repeat('B', 500)),
+        (4,4,repeat('B', 500)),
+        (5,5,repeat('B', 500)),
+        (6,6,repeat('B', 500)),
+        (7,7,repeat('B', 500)),
+        (8,8,repeat('B', 500)),
+        (9,9,repeat('B', 500)),
+        (10,10,repeat('B', 500)),
+        (11,11,repeat('B', 500)),
+        (12,12,repeat('B', 500)),
+        (13,13,repeat('B', 500)),
+        (14,14,repeat('B', 500)),
+        (15,15,repeat('B', 500));
+
+alter table t1 add unique(un);
+
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+
+# bug#57032 'NOT NULL' evaluation is incorrect when using an 'unique index
+
+--echo # bug#57032
+
+create table t1 (
+  a int not null,
+  b int,
+  primary key using hash (a),
+  unique key using hash (b)
+)
+engine ndb;
+
+insert into t1 values
+  (0,0),(1,1),(2,2),(3,3),(4,4),
+  (5,null),(6,null),(7,null),(8,null),(9,null);
+
+set @old_ecpd = @@session.engine_condition_pushdown;
+
+set engine_condition_pushdown = 0;
+# failed, empty result
+select a from t1 where b is not null order by a;
+# worked
+select a from t1 where b is null order by a;
+
+set engine_condition_pushdown = 1;
+# failed, empty result
+select a from t1 where b is not null order by a;
+# worked
+select a from t1 where b is null order by a;
+
+set engine_condition_pushdown = @old_ecpd;
+
+drop table t1;
+
+create table t1 (
+  a int not null,
+  b int,
+  c int,
+  primary key using hash (a),
+  unique key using hash (b,c)
+)
+engine ndb;
+
+insert into t1 values
+  (0,0,0),(1,1,1),(2,2,1),(3,3,1),(4,4,2),
+  (5,null,0),(6,null,1),(7,null,1),(8,null,1),(9,null,2),
+  (10,0,null),(11,1,null),(12,1,null),(13,1,null),(14,2,null),
+  (15,null,null),(16,null,null),(17,null,null),(18,null,null),(19,null,null);
+
+set @old_ecpd = @@session.engine_condition_pushdown;
+
+set engine_condition_pushdown = 0;
+# worked
+select a from t1 where b is not null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b is null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b = 1 and c is null order by a;
+# worked
+select a from t1 where b is null and c is null order by a;
+select a from t1 where b is not null and c is null order by a;
+select a from t1 where b is null and c is not null order by a;
+select a from t1 where b is not null and c is not null order by a;
+
+set engine_condition_pushdown = 1;
+# worked
+select a from t1 where b is not null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b is null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b = 1 and c is null order by a;
+# worked
+select a from t1 where b is null and c is null order by a;
+select a from t1 where b is not null and c is null order by a;
+select a from t1 where b is null and c is not null order by a;
+select a from t1 where b is not null and c is not null order by a;
+
+set engine_condition_pushdown = @old_ecpd;
+
+drop table t1;
+
+# end of tests

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "NDBT_Test.hpp"
 #include "NDBT_ReturnCodes.h"
@@ -73,34 +76,22 @@ int runInsertRememberGci(NDBT_Context* ctx, NDBT_Step* step){
 
     CHECK(hugoOps.closeTransaction(pNdb) == 0);
     i++;
+    /* Sleep so that records will have > 1 GCI between them */
+    NdbSleep_MilliSleep(10);
   };
 
   return result;
 }
 
-int runRestartGciControl(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
+int runRestart(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
-  UtilTransactions utilTrans(*ctx->getTab());
   NdbRestarter restarter;
-  
-  // Wait until we have enough records in db
-  int count = 0;
-  while (count < records){
-    if (utilTrans.selectCount(pNdb, 64, &count) != 0){
-      ctx->stopTest();
-      return NDBT_FAILED;
-    }
-  }
 
   // Restart cluster with abort
   if (restarter.restartAll(false, false, true) != 0){
     ctx->stopTest();
     return NDBT_FAILED;
   }
-
-  // Stop the other thread
-  ctx->stopTest();
 
   if (restarter.waitClusterStarted(300) != 0){
     return NDBT_FAILED;
@@ -113,6 +104,27 @@ int runRestartGciControl(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runRestartGciControl(NDBT_Context* ctx, NDBT_Step* step){
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  UtilTransactions utilTrans(*ctx->getTab());
+  
+  // Wait until we have enough records in db
+  int count = 0;
+  while (count < records){
+    if (utilTrans.selectCount(pNdb, 64, &count) != 0){
+      ctx->stopTest();
+      return NDBT_FAILED;
+    }
+    NdbSleep_MilliSleep(10);
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
+
+  return runRestart(ctx,step);
+}
+
 int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   Ndb* pNdb = GETNDB(step);
@@ -120,7 +132,14 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   HugoOperations hugoOps(*ctx->getTab());
   NdbRestarter restarter;
 
-  int restartGCI = pNdb->NdbTamper(Ndb::ReadRestartGCI, 0);    
+  Uint32 restartGCI;
+  int res = pNdb->getDictionary()->getRestartGCI(&restartGCI);
+  if (res != 0)
+  {
+    ndbout << "Failed to retreive restart gci" << endl;
+    ndbout << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
 
   ndbout << "restartGCI = " << restartGCI << endl;
   int count = 0;
@@ -133,7 +152,7 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   int recordsWithLowerOrSameGci = 0;
   unsigned i; 
   for (i = 0; i < savedRecords.size(); i++){
-    if (savedRecords[i].m_gci <= restartGCI)
+    if (savedRecords[i].m_gci <= (int)restartGCI)
       recordsWithLowerOrSameGci++;
   }
   if (recordsWithLowerOrSameGci != count){
@@ -144,16 +163,34 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 
   // RULE2: The records found in db should have same or lower 
   // gci as in the vector
+  int recordsWithIncorrectGci = 0;
   for (i = 0; i < savedRecords.size(); i++){
     CHECK(hugoOps.startTransaction(pNdb) == 0);
+    /* First read of row to check contents */
     CHECK(hugoOps.pkReadRecord(pNdb, i) == 0);
+    /* Second read of row to get GCI */
+    NdbTransaction* trans = hugoOps.getTransaction();
+    NdbOperation* readOp = trans->getNdbOperation(ctx->getTab());
+    CHECK(readOp != NULL);
+    CHECK(readOp->readTuple() == 0);
+    CHECK(hugoOps.equalForRow(readOp, i) == 0);
+    NdbRecAttr* rowGci = readOp->getValue(NdbDictionary::Column::ROW_GCI);
+    CHECK(rowGci != NULL);
     if (hugoOps.execute_Commit(pNdb) != 0){
       // Record was not found in db'
 
       // Check record gci
-      if (savedRecords[i].m_gci <= restartGCI){
+      if (savedRecords[i].m_gci <= (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should have existed" << endl;
 	result = NDBT_FAILED;
+      }
+      else
+      {
+        /* It didn't exist, but that was expected.
+         * Let's disappear it, so that it doesn't cause confusion
+         * after further restarts.
+         */
+        savedRecords[i].m_gci = (Uint32(1) << 31) -1; // Big number
       }
     } else {
       // Record was found in db
@@ -163,10 +200,18 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
 	ndbout << "ERR: Record "<<i<<" str did not match "<< endl;
 	result = NDBT_FAILED;
       }
-      // Check record gci
-      if (savedRecords[i].m_gci > restartGCI){
+      // Check record gci in range
+      if (savedRecords[i].m_gci > (int)restartGCI){
 	ndbout << "ERR: Record "<<i<<" should not have existed" << endl;
 	result = NDBT_FAILED;
+      }
+      // Check record gci is exactly correct
+      if (savedRecords[i].m_gci != rowGci->int32_value()){
+        ndbout << "ERR: Record "<<i<<" should have GCI " <<
+          savedRecords[i].m_gci << ", but has " << 
+          rowGci->int32_value() << endl;
+        recordsWithIncorrectGci++;
+        result = NDBT_FAILED;
       }
     }
 
@@ -181,6 +226,9 @@ int runVerifyInserts(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << "There are " << recordsWithLowerOrSameGci 
 	 << " records with lower or same gci than " << restartGCI <<  endl;
   
+  ndbout << "There are " << recordsWithIncorrectGci
+         << " records with incorrect Gci on recovery." << endl;
+
   return result;
 }
 
@@ -209,12 +257,18 @@ TESTCASE("InsertRestartGci",
   STEP(runInsertRememberGci);
   STEP(runRestartGciControl);
   VERIFIER(runVerifyInserts);
+  /* Restart again - LCP after first restart will mean that this
+   * time we recover from LCP, not Redo
+   */
+  VERIFIER(runRestart);
+  VERIFIER(runVerifyInserts);  // Check GCIs again
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testRestartGci);
 
 int main(int argc, const char** argv){
   ndb_init();
+  NDBT_TESTSUITE_INSTANCE(testRestartGci);
   return testRestartGci.execute(argc, argv);
 }
 

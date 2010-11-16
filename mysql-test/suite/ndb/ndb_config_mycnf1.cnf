@@ -1,0 +1,32 @@
+[cluster_config]
+NoOfReplicas=1
+DataMemory=50M
+
+[cluster_config.jonas]
+IndexMemory=50M
+ndbd = localhost,localhost,localhost,localhost
+ndb_mgmd = localhost
+mysqld = localhost
+
+[cluster_config.ndbd.1]
+DataMemory=25M
+
+[cluster_config.ndbd.2.jonas]
+DataMemory=35M
+
+[cluster_config.bug44689]
+NoOfReplicas=2
+ndbd = 192.168.0.1,192.168.0.2,192.168.0.3,192.168.0.4
+ndb_mgmd = 192.168.0.1
+mysqld = 192.168.0.1
+
+[cluster_config.bug56185]
+NoOfReplicas=1
+ndbd = localhost
+ndb_mgmd = localhost
+mysql = localhost, localhost
+
+[cluster_config.ndbd.1.bug56185]
+LockExecuteThreadToCPU=0-65535
+Arbitration=Disabled
+

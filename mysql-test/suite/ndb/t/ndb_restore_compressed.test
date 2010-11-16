@@ -1,0 +1,8 @@
+# Turn on compressed backup with magic DUMP command
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 13001 1" >> $NDB_TOOLS_OUTPUT
+
+# Run the ndb_restore test, should produce exactly the same output 
+source ndb_restore.test;
+
+# Turn off compressed backups
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 13001 0" >> $NDB_TOOLS_OUTPUT

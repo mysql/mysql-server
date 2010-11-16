@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +13,17 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NdbIndexStat_H
 #define NdbIndexStat_H
 
 #include <ndb_global.h>
-#include <NdbDictionary.hpp>
-#include <NdbError.hpp>
+#include "NdbDictionary.hpp"
+#include "NdbError.hpp"
+#include "NdbIndexScanOperation.hpp"
 class NdbIndexImpl;
-class NdbIndexScanOperation;
 
 /*
  * Statistics for an ordered index.
@@ -56,10 +59,14 @@ public:
    * returned as 1).
    */
   int records_in_range(const NdbDictionary::Index* index,
-                       NdbIndexScanOperation* op,
+                       NdbTransaction* trans,
+                       const NdbRecord* key_record,
+                       const NdbRecord* result_record,
+                       const NdbIndexScanOperation::IndexBound* ib,
                        Uint64 table_rows,
                        Uint64* count,
                        int flags);
+
   /*
    * Get latest error.
    */
@@ -100,6 +107,12 @@ private:
   };
   STATIC_CONST( EntrySize = sizeof(Entry) >> 2 );
   STATIC_CONST( PointerSize = sizeof(Pointer) >> 2 );
+  /* Need 2 words per column in a bound plus space for the
+   * bound data.
+   * Worst case is 32 cols in key and max key size used.
+   */
+  STATIC_CONST( BoundBufWords = (2 * NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY)
+                + NDB_MAX_KEYSIZE_IN_WORDS );
   struct Area {
     Uint32* m_data;
     Uint32 m_offset;
@@ -141,6 +154,12 @@ private:
   int stat_select(const Uint32* key1, Uint32 keylen1,
                   const Uint32* key2, Uint32 keylen2, float pct[2]);
   void set_error(int code);
+  int addKeyPartInfo(const NdbRecord* record,
+                     const char* keyRecordData,
+                     Uint32 keyPartNum,
+                     const NdbIndexScanOperation::BoundType boundType,
+                     Uint32* keyStatData,
+                     Uint32& keyLength);
 };
 
 #endif

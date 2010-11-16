@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUX_SEARCH_CPP
 #include "Dbtux.hpp"
@@ -22,7 +25,7 @@
  * Similar to searchToRemove (see below).
  */
 bool
-Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
@@ -30,7 +33,7 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
   currNode.m_loc = tree.m_root;
   if (currNode.m_loc == NullTupLoc) {
     // empty tree
-    jam();
+    thrjam(ctx.jamBuffer);
     return true;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
@@ -40,45 +43,45 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
    */
   NodeHandle bottomNode(frag);
   while (true) {
-    jam();
+    thrjam(ctx.jamBuffer);
     selectNode(currNode, currNode.m_loc);
     int ret;
     // compare prefix
     unsigned start = 0;
-    ret = cmpSearchKey(frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
+    ret = cmpSearchKey(ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
     if (ret == NdbSqlUtil::CmpUnknown) {
-      jam();
+      thrjam(ctx.jamBuffer);
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
-      readKeyAttrs(frag, currNode.getMinMax(0), start, c_entryKey);
-      ret = cmpSearchKey(frag, start, searchKey, c_entryKey);
+      readKeyAttrs(ctx, frag, currNode.getMinMax(0), start, ctx.c_entryKey);
+      ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret == 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getMinMax(0));
     }
     if (ret < 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(0);
       if (loc != NullTupLoc) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // continue to left subtree
         currNode.m_loc = loc;
         continue;
       }
       if (! glbNode.isNull()) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // move up to the g.l.b but remember the bottom node
         bottomNode = currNode;
         currNode = glbNode;
       }
     } else if (ret > 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       const TupLoc loc = currNode.getLink(1);
       if (loc != NullTupLoc) {
-        jam();
+        thrjam(ctx.jamBuffer);
         // save potential g.l.b
         glbNode = currNode;
         // continue to right subtree
@@ -86,7 +89,7 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
         continue;
       }
     } else {
-      jam();
+      thrjam(ctx.jamBuffer);
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
       // entry found - error
@@ -101,16 +104,17 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
   int hi = currNode.getOccup();
   int ret;
   while (1) {
-    jam();
+    thrjam(ctx.jamBuffer);
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
+
     // read and compare attributes
     unsigned start = 0;
-    readKeyAttrs(frag, currNode.getEnt(j), start, c_entryKey);
-    ret = cmpSearchKey(frag, start, searchKey, c_entryKey);
+    readKeyAttrs(ctx, frag, currNode.getEnt(j), start, ctx.c_entryKey);
+    ret = cmpSearchKey(ctx, frag, start, searchKey, ctx.c_entryKey);
     ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     if (ret == 0) {
-      jam();
+      thrjam(ctx.jamBuffer);
       // keys are equal, compare entry values
       ret = searchEnt.cmp(currNode.getEnt(j));
     }
@@ -127,21 +131,21 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
       break;
   }
   if (ret < 0) {
-    jam();
+    thrjam(ctx.jamBuffer);
     treePos.m_pos = hi;
     return true;
   }
   if ((uint) hi < currNode.getOccup()) {
-    jam();
+    thrjam(ctx.jamBuffer);
     treePos.m_pos = hi;
     return true;
   }
   if (bottomNode.isNull()) {
-    jam();
+    thrjam(ctx.jamBuffer);
     treePos.m_pos = hi;
     return true;
   }
-  jam();
+  thrjam(ctx.jamBuffer);
   // backwards compatible for now
   treePos.m_loc = bottomNode.m_loc;
   treePos.m_pos = 0;
@@ -176,13 +180,13 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
     int ret;
     // compare prefix
     unsigned start = 0;
-    ret = cmpSearchKey(frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
+    ret = cmpSearchKey(c_ctx, frag, start, searchKey, currNode.getPref(), tree.m_prefSize);
     if (ret == NdbSqlUtil::CmpUnknown) {
       jam();
       // read and compare remaining attributes
       ndbrequire(start < numAttrs);
-      readKeyAttrs(frag, currNode.getMinMax(0), start, c_entryKey);
-      ret = cmpSearchKey(frag, start, searchKey, c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), start, c_ctx.c_entryKey);
+      ret = cmpSearchKey(c_ctx, frag, start, searchKey, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret == 0) {
@@ -277,8 +281,8 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
     if (ret == NdbSqlUtil::CmpUnknown) {
       jam();
       // read and compare all attributes
-      readKeyAttrs(frag, currNode.getMinMax(0), 0, c_entryKey);
-      ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), 0, c_ctx.c_entryKey);
+      ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret < 0) {
@@ -322,8 +326,8 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
     jam();
     int ret;
     // read and compare attributes
-    readKeyAttrs(frag, currNode.getEnt(j), 0, c_entryKey);
-    ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_entryKey);
+    readKeyAttrs(c_ctx, frag, currNode.getEnt(j), 0, c_ctx.c_entryKey);
+    ret = cmpScanBound(frag, 0, boundInfo, boundCount, c_ctx.c_entryKey);
     ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     if (ret < 0) {
       // found first entry satisfying the bound
@@ -364,8 +368,8 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
     if (ret == NdbSqlUtil::CmpUnknown) {
       jam();
       // read and compare all attributes
-      readKeyAttrs(frag, currNode.getMinMax(0), 0, c_entryKey);
-      ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_entryKey);
+      readKeyAttrs(c_ctx, frag, currNode.getMinMax(0), 0, c_ctx.c_entryKey);
+      ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_ctx.c_entryKey);
       ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     }
     if (ret < 0) {
@@ -406,8 +410,8 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
     jam();
     int ret;
     // read and compare attributes
-    readKeyAttrs(frag, currNode.getEnt(j), 0, c_entryKey);
-    ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_entryKey);
+    readKeyAttrs(c_ctx, frag, currNode.getEnt(j), 0, c_ctx.c_entryKey);
+    ret = cmpScanBound(frag, 1, boundInfo, boundCount, c_ctx.c_entryKey);
     ndbrequire(ret != NdbSqlUtil::CmpUnknown);
     if (ret < 0) {
       if (j > 0) {

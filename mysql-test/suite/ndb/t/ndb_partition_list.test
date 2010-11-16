@@ -43,26 +43,41 @@ SELECT * FROM t1 ORDER BY f_int1;
 
 DROP TABLE t1;
 
+# Check partition pruning at NdbApi level for list partitioned table
 #
-# Partition by list, no pk
-#
+create table t1 ( a int, b int, c int, primary key (a,b)) engine=ndb 
+partition by list (a)
+(partition part0 values in (0,1,2),
+ partition part1 values in (3,4,5));
 
-CREATE TABLE t1 ( f_int1 INTEGER, f_int2 INTEGER, f_char1 CHAR(10), 
-                  f_char2 CHAR(10), f_charbig VARCHAR(1000))
-ENGINE = NDB
-PARTITION BY LIST(f_int1) 
-(PARTITION part_1 VALUES IN (-1),
- PARTITION part0 VALUES IN (0,1),
- PARTITION part1 VALUES IN (2));
+insert into t1 values (0, 0, 0);
+insert into t1 values (0, 1, 1);
+insert into t1 values (0, 2, 2);
+insert into t1 values (1, 0, 3);
+insert into t1 values (1, 1, 4);
+insert into t1 values (1, 2, 5);
+insert into t1 values (4, 0, 6);
+insert into t1 values (4, 1, 7);
+insert into t1 values (4, 2, 8);
 
-INSERT INTO t1 SET f_int1 = -1, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_charbig = '===20===';
-INSERT INTO t1 SET f_int1 = 0, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_charbig = '===20===';
-INSERT INTO t1 SET f_int1 = 1, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
-INSERT INTO t1 SET f_int1 = 2, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
---error ER_NO_PARTITION_FOR_GIVEN_VALUE
-INSERT INTO t1 SET f_int1 = 20, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+--echo All partitions scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
 
-SELECT * FROM t1 ORDER BY f_int1;
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=0 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
 
-DROP TABLE t1;
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=4 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
 
+--echo MRR single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a in (0, 2) order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+drop table t1;

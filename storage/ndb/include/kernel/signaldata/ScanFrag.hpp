@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SCAN_FRAG_HPP
 #define SCAN_FRAG_HPP
@@ -33,10 +36,20 @@ class ScanFragReq {
   friend class Dblqh;
 public:
   STATIC_CONST( SignalLength = 12 );
+
+  STATIC_CONST( AttrInfoSectionNum = 0 );
+  STATIC_CONST( KeyInfoSectionNum = 1 );
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
   
 public:
+  enum ReorgFlag
+  {
+    REORG_ALL = 0
+    ,REORG_NOT_MOVED = 1 // Only return not moved rows
+    ,REORG_MOVED = 2    // Only return moved rows
+  };
+
   Uint32 senderData;
   Uint32 resultRef;       // Where to send the result
   Uint32 savePointId;
@@ -73,8 +86,23 @@ public:
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
+
+  static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getReorgFlag(const Uint32 & requestInfo);
 };
 
+/*
+  The KEYINFO20 signal is sent from LQH to API for each row in a scan when the
+  ScanTabReq::getKeyinfoFlag() is set in requestInfo in the SCAN_TABREQ signal.
+
+  The '20' in the signal name refers to the number of keyInfo data words in
+  the signal, which is actually a bit misleading since now it is sent as a
+  single long signal if the keyinfo has more than 20 words.
+
+  The information in this signal is used in the NDB API to request the take
+  over of a lock from the scan with a TCKEYREQ, using the primary key info
+  sent as data and the scanInfo_Node word to identify the lock.
+*/
 class KeyInfo20 {
   /**
    * Sender(s)
@@ -99,10 +127,23 @@ public:
 public:
   Uint32 clientOpPtr;
   Uint32 keyLen;
+  /*
+    The scanInfo_Node word contains the information needed to identify the
+    row and lock to take over in the TCKEYREQ signal. It has two parts:
+     1. ScanInfo      Lower 20 bits
+     2. ScanFragment  Upper 14 bits
+  */
   Uint32 scanInfo_Node;
   Uint32 transId1;
   Uint32 transId2;
   Uint32 keyData[DataLength];
+  /*
+    Note that if the key info data does not fit within the maximum of 20
+    in-signal words, the entire key info is instead sent in long signal
+    section 0.
+    The data here is a word string suitable for sending as KEYINFO in
+    the TCKEYREQ signal.
+  */
 };
 
 class ScanFragConf {
@@ -153,6 +194,7 @@ public:
     ZNO_FREE_SCANREC_ERROR = 489,
     ZWRONG_BATCH_SIZE = 1230,
     ZSTANDBY_SCAN_ERROR = 1209,
+    NO_TC_CONNECT_ERROR = 1217,
     ZSCAN_BOOK_ACC_OP_ERROR = 1219,
     ZUNKNOWN_TRANS_ERROR = 1227
   };
@@ -188,17 +230,22 @@ public:
   
 public:
   Uint32 senderData;
-  Uint32 closeFlag;
+  Uint32 requestInfo; // 1 == close
   Uint32 transId1;
   Uint32 transId2;
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
+
+  STATIC_CONST( ZCLOSE = 1 );
+
+  Uint32 getCloseFlag(const Uint32&);
+  void setCloseFlag(Uint32&, Uint32);
 };
 
 /**
- * Request Info
+ * Request Info (SCANFRAGREQ)
  *
- * a = Length of attrinfo    - 16 Bits (16-31)
+ * a = Length of attrinfo    - 16 Bits (16-31) (Short only)
  * c = LCP scan              - 1  Bit 3
  * d = No disk               - 1  Bit 4
  * l = Lock Mode             - 1  Bit 5
@@ -209,10 +256,12 @@ public:
  * z = descending            - 1  Bit 10
  * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
+ * r = Reorg flag            - 2  Bits (1-2)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- *     dlxhkrztppppaaaaaaaaaaaaaaaa 
+ *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
+ *  rrcdlxhkrztpppp                   Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -231,6 +280,9 @@ public:
 
 #define SF_PRIO_SHIFT 12
 #define SF_PRIO_MASK 15
+
+#define SF_REORG_SHIFT      (1)
+#define SF_REORG_MASK       (3)
 
 inline 
 Uint32
@@ -393,6 +445,19 @@ inline
 Uint32
 KeyInfo20::getScanOp(Uint32 scanInfo){
   return (scanInfo >> 8) & 0x3FF;
+}
+
+inline
+Uint32
+ScanFragReq::getReorgFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_REORG_SHIFT) & SF_REORG_MASK;
+}
+
+inline
+void
+ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
+  ASSERT_MAX(val, SF_REORG_MASK, "ScanFragReq::setLcpScanFlag");
+  requestInfo |= (val << SF_REORG_SHIFT);
 }
 
 #endif

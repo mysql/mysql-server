@@ -1,14 +1,8 @@
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
--- source include/not_embedded.inc
 
---disable_warnings
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
---enable_warnings
-
-#NO.1 test output of backup
---exec $NDB_MGM --no-defaults -e "start backup" |sed -e 's/[0-9]//g' |sed -e 's/localhost//g' |sed -e 's/\.\.\.*//g'
+echo Start first backup;
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup"
 
 create table t1
  (pk int key
@@ -62,7 +56,8 @@ insert into t1 values
   ,NULL,NULL,NULL
  );
 
-#NO.2 test output of backup after some simple SQL operations
---exec $NDB_MGM --no-defaults -e "start backup" |sed -e 's/[0-9]//g' |sed -e 's/localhost//g' |sed -e 's/\.\.\.*//g'
+echo Start second backup;
+--replace_regex /[0-9]+/X/
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup"
 
 drop table t1;

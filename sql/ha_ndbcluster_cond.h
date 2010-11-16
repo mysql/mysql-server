@@ -1,7 +1,6 @@
-#ifndef HA_NDBCLUSTER_COND_INCLUDED
-#define HA_NDBCLUSTER_COND_INCLUDED
-
-/* Copyright (C) 2000-2007 MySQL AB
+/*
+   Copyright (C) 2000-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
   This file defines the data structures used by engine condition pushdown in
@@ -25,12 +25,7 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
-/*
-  It is necessary to include set_var.h instead of item.h because there
-  are dependencies on include order for set_var.h and item.h. This
-  will be resolved later.
-*/
-#include "set_var.h"                            /* Item, Item_field */
+#define round_up_byte(size) ((size + 7) >> 3) << 3
 
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
@@ -148,7 +143,7 @@ public:
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
   {
     NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
-    qualification.field_type= field->type();
+    qualification.field_type= field->real_type();
     field_value->field= field;
     field_value->column_no= column_no;
     value.field_value= field_value;
@@ -218,16 +213,24 @@ public:
 
   void save_in_field(Ndb_item *field_item)
   {
+    DBUG_ENTER("save_in_field");
     Field *field = field_item->value.field_value->field;
     const Item *item= value.item;
-
     if (item && field)
     {
+      DBUG_PRINT("info", ("item length %u, field length %u",
+                          item->max_length, field->field_length));
+      if (item->max_length > field->field_length)
+      {
+        DBUG_PRINT("info", ("Comparing field with longer value"));
+        DBUG_PRINT("info", ("Field can store %u", field->field_length));
+      }
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
       ((Item *)item)->save_in_field(field, FALSE);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
     }
+    DBUG_VOID_RETURN;
   };
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)
@@ -318,6 +321,178 @@ class Ndb_cond_stack : public Sql_alloc
   Ndb_cond_stack *next;
 };
 
+/*
+  This class implements look-ahead during the parsing
+  of the item tree. It contains bit masks for expected
+  items, field types and field results. It also contains
+  expected collation. The parse context (Ndb_cond_traverse_context)
+  always contains one expect_stack instance (top of the stack).
+  More expects (deeper look-ahead) can be pushed to the expect_stack
+  to check specific order (currently used for detecting support for
+  <field> LIKE <string>|<func>, but not <string>|<func> LIKE <field>).
+ */
+class Ndb_expect_stack : public Sql_alloc
+{
+ public:
+Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL) 
+  {
+    // Allocate type checking bitmaps   
+    bitmap_init(&expect_mask,
+                0, round_up_byte(Item::MAX_NUM_ITEMS), FALSE);
+    bitmap_init(&expect_field_type_mask,
+                0, round_up_byte(MYSQL_NUM_FIELD_TYPES), FALSE);
+    bitmap_init(&expect_field_result_mask,
+                0, round_up_byte(MYSQL_NUM_ITEM_RESULTS), FALSE);
+  };
+  ~Ndb_expect_stack()
+  {
+    bitmap_free(&expect_mask);
+    bitmap_free(&expect_field_type_mask);
+    bitmap_free(&expect_field_result_mask);
+    if (next)
+      delete next;
+    next= NULL;
+  }
+  void push(Ndb_expect_stack* expect_next)
+  {
+    next= expect_next;
+  }
+  void pop()
+  {
+    if (next)
+    {
+      Ndb_expect_stack* expect_next= next;
+      bitmap_clear_all(&expect_mask);
+      bitmap_union(&expect_mask, &next->expect_mask);
+      bitmap_clear_all(&expect_field_type_mask);
+      bitmap_union(&expect_field_type_mask, &next->expect_field_type_mask);
+      bitmap_clear_all(&expect_field_result_mask);
+      bitmap_union(&expect_field_result_mask, &next->expect_field_result_mask);
+      collation= next->collation;
+      next= next->next;
+      delete expect_next;
+    }
+  }
+  void expect(Item::Type type)
+  {
+    bitmap_set_bit(&expect_mask, (uint) type);
+    if (type == Item::FIELD_ITEM)
+      expect_all_field_types();
+  }
+  void dont_expect(Item::Type type)
+  {
+    bitmap_clear_bit(&expect_mask, (uint) type);
+  }
+  bool expecting(Item::Type type)
+  {
+    return bitmap_is_set(&expect_mask, (uint) type);
+  }
+  void expect_nothing()
+  {
+    bitmap_clear_all(&expect_mask);
+  }
+  bool expecting_nothing()
+  {
+    return bitmap_is_clear_all(&expect_mask);
+  }
+  void expect_only(Item::Type type)
+  {
+    expect_nothing();
+    expect(type);
+  }
+
+  void expect_field_type(enum_field_types type)
+  {
+    bitmap_set_bit(&expect_field_type_mask, (uint) type);
+  }
+  void expect_all_field_types()
+  {
+    bitmap_set_all(&expect_field_type_mask);
+  }
+  bool expecting_field_type(enum_field_types type)
+  {
+    return bitmap_is_set(&expect_field_type_mask, (uint) type);
+  }
+  void expect_no_field_type()
+  {
+    bitmap_clear_all(&expect_field_type_mask);
+  }
+  bool expecting_no_field_type()
+  {
+    return bitmap_is_clear_all(&expect_field_type_mask);
+  }
+  void expect_only_field_type(enum_field_types result)
+  {
+    expect_no_field_type();
+    expect_field_type(result);
+  }
+
+  void expect_field_result(Item_result result)
+  {
+    bitmap_set_bit(&expect_field_result_mask, (uint) result);
+  }
+  bool expecting_field_result(Item_result result)
+  {
+    return bitmap_is_set(&expect_field_result_mask,
+                         (uint) result);
+  }
+  void expect_no_field_result()
+  {
+    bitmap_clear_all(&expect_field_result_mask);
+  }
+  bool expecting_no_field_result()
+  {
+    return bitmap_is_clear_all(&expect_field_result_mask);
+  }
+  void expect_only_field_result(Item_result result)
+  {
+    expect_no_field_result();
+    expect_field_result(result);
+  }
+  void expect_collation(CHARSET_INFO* col)
+  {
+    collation= col;
+  }
+  bool expecting_collation(CHARSET_INFO* col)
+  {
+    bool matching= (!collation)
+      ? true
+      : (collation == col);
+    collation= NULL;
+
+    return matching;
+  }
+  void expect_length(Uint32 len)
+  {
+    length= len;
+  }
+  void expect_max_length(Uint32 max)
+  {
+    max_length= max;
+  }
+  bool expecting_length(Uint32 len)
+  {
+    return max_length == 0 || len <= max_length;
+  }
+  bool expecting_max_length(Uint32 max)
+  {
+    return max >= length;
+  }
+  void expect_no_length()
+  {
+    length= max_length= 0;
+  }
+
+private:
+  MY_BITMAP expect_mask;
+  MY_BITMAP expect_field_type_mask;
+  MY_BITMAP expect_field_result_mask;
+  CHARSET_INFO* collation;
+  Uint32 length;
+  Uint32 max_length;
+  Ndb_expect_stack* next;
+};
+
 class Ndb_rewrite_context : public Sql_alloc
 {
 public:
@@ -346,120 +521,123 @@ class Ndb_cond_traverse_context : public Sql_alloc
    Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
 			     Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
-    supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    skip(0), collation(NULL), rewrite_stack(NULL)
-  {
-    // Allocate type checking bitmaps   
-    bitmap_init(&expect_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_type_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_result_mask, 0, 512, FALSE);
-
-    if (stack)
+    supported(TRUE), cond_stack(stack), cond_ptr(NULL),
+    skip(0), rewrite_stack(NULL)
+  { 
+   if (stack)
       cond_ptr= stack->ndb_cond;
-  };
+  }
   ~Ndb_cond_traverse_context()
   {
-    bitmap_free(&expect_mask);
-    bitmap_free(&expect_field_type_mask);
-    bitmap_free(&expect_field_result_mask);
     if (rewrite_stack) delete rewrite_stack;
   }
-  void expect(Item::Type type)
+  inline void expect(Item::Type type)
   {
-    bitmap_set_bit(&expect_mask, (uint) type);
-    if (type == Item::FIELD_ITEM) expect_all_field_types();
-  };
-  void dont_expect(Item::Type type)
-  {
-    bitmap_clear_bit(&expect_mask, (uint) type);
-  };
-  bool expecting(Item::Type type)
-  {
-    return bitmap_is_set(&expect_mask, (uint) type);
-  };
-  void expect_nothing()
-  {
-    bitmap_clear_all(&expect_mask);
-  };
-  bool expecting_nothing()
-  {
-    return bitmap_is_clear_all(&expect_mask);
+    expect_stack.expect(type);
   }
-  void expect_only(Item::Type type)
+  inline void dont_expect(Item::Type type)
   {
-    expect_nothing();
-    expect(type);
-  };
-
-  void expect_field_type(enum_field_types type)
-  {
-    bitmap_set_bit(&expect_field_type_mask, (uint) type);
-  };
-  void expect_all_field_types()
-  {
-    bitmap_set_all(&expect_field_type_mask);
-  };
-  bool expecting_field_type(enum_field_types type)
-  {
-    return bitmap_is_set(&expect_field_type_mask, (uint) type);
-  };
-  void expect_no_field_type()
-  {
-    bitmap_clear_all(&expect_field_type_mask);
-  };
-  bool expecting_no_field_type()
-  {
-    return bitmap_is_clear_all(&expect_field_type_mask);
+    expect_stack.dont_expect(type);
   }
-  void expect_only_field_type(enum_field_types result)
+  inline bool expecting(Item::Type type)
   {
-    expect_no_field_type();
-    expect_field_type(result);
-  };
-
-  void expect_field_result(Item_result result)
-  {
-    bitmap_set_bit(&expect_field_result_mask, (uint) result);
-  };
-  bool expecting_field_result(Item_result result)
-  {
-    return bitmap_is_set(&expect_field_result_mask, (uint) result);
-  };
-  void expect_no_field_result()
-  {
-    bitmap_clear_all(&expect_field_result_mask);
-  };
-  bool expecting_no_field_result()
-  {
-    return bitmap_is_clear_all(&expect_field_result_mask);
+    return expect_stack.expecting(type);
   }
-  void expect_only_field_result(Item_result result)
+  inline void expect_nothing()
   {
-    expect_no_field_result();
-    expect_field_result(result);
-  };
-  void expect_collation(CHARSET_INFO* col)
+    expect_stack.expect_nothing();
+  }
+  inline bool expecting_nothing()
   {
-    collation= col;
-  };
-  bool expecting_collation(CHARSET_INFO* col)
+    return expect_stack.expecting_nothing();
+  }
+  inline void expect_only(Item::Type type)
   {
-    bool matching= (!collation) ? true : (collation == col);
-    collation= NULL;
+    expect_stack.expect_only(type);
+  }
 
-    return matching;
-  };
+  inline void expect_field_type(enum_field_types type)
+  {
+    expect_stack.expect_field_type(type);
+  }
+  inline void expect_all_field_types()
+  {
+    expect_stack.expect_all_field_types();
+  }
+  inline bool expecting_field_type(enum_field_types type)
+  {
+    return expect_stack.expecting_field_type(type);
+  }
+  inline void expect_no_field_type()
+  {
+    expect_stack.expect_no_field_type();
+  }
+  inline bool expecting_no_field_type()
+  {
+    return expect_stack.expecting_no_field_type();
+  }
+  inline void expect_only_field_type(enum_field_types result)
+  {
+    expect_stack.expect_only_field_type(result);
+  }
+
+  inline void expect_field_result(Item_result result)
+  {
+    expect_stack.expect_field_result(result);
+  }
+  inline bool expecting_field_result(Item_result result)
+  {
+    return expect_stack.expecting_field_result(result);
+  }
+  inline void expect_no_field_result()
+  {
+    expect_stack.expect_no_field_result();
+  }
+  inline bool expecting_no_field_result()
+  {
+    return expect_stack.expecting_no_field_result();
+  }
+  inline void expect_only_field_result(Item_result result)
+  {
+    expect_stack.expect_only_field_result(result);
+  }
+  inline void expect_collation(CHARSET_INFO* col)
+  {
+    expect_stack.expect_collation(col);
+  }
+  inline bool expecting_collation(CHARSET_INFO* col)
+  {
+    return expect_stack.expecting_collation(col);
+  }
+  inline void expect_length(Uint32 length)
+  {
+    expect_stack.expect_length(length);
+  }
+  inline void expect_max_length(Uint32 max)
+  {
+    expect_stack.expect_max_length(max);
+  }
+  inline bool expecting_length(Uint32 length)
+  {
+    return expect_stack.expecting_length(length);
+  }
+  inline bool expecting_max_length(Uint32 max)
+  {
+    return expect_stack.expecting_max_length(max);
+  }
+  inline void expect_no_length()
+  {
+    expect_stack.expect_no_length();
+  }
+  
 
   TABLE* table;
   const NdbDictionary::Table *ndb_table;
   bool supported;
-  Ndb_cond_stack* stack_ptr;
+  Ndb_cond_stack* cond_stack;
   Ndb_cond* cond_ptr;
-  MY_BITMAP expect_mask;
-  MY_BITMAP expect_field_type_mask;
-  MY_BITMAP expect_field_result_mask;
+  Ndb_expect_stack expect_stack;
   uint skip;
-  CHARSET_INFO* collation;
   Ndb_rewrite_context *rewrite_stack;
 };
 
@@ -477,12 +655,14 @@ public:
                         TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
-  int generate_scan_filter(NdbScanOperation* op);
+  int generate_scan_filter(NdbInterpretedCode* code, 
+                           NdbScanOperation::ScanOptions* options);
   int generate_scan_filter_from_cond(NdbScanFilter& filter);
-  int generate_scan_filter_from_key(NdbScanOperation* op,
+  int generate_scan_filter_from_key(NdbInterpretedCode* code,
+                                    NdbScanOperation::ScanOptions* options,
                                     const KEY* key_info, 
-                                    const uchar *key, 
-                                    uint key_len,
+                                    const key_range *start_key,
+                                    const key_range *end_key,
                                     uchar *buf);
 private:
   bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
@@ -496,5 +676,3 @@ private:
 
   Ndb_cond_stack *m_cond_stack;
 };
-
-#endif /* HA_NDBCLUSTER_COND_INCLUDED */

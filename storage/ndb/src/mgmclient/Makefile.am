@@ -1,17 +1,20 @@
 # Copyright (C) 2004 MySQL AB
-# 
+#  All rights reserved. Use is subject to license terms.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+EXTRA_DIST = CMakeLists.txt
 
 noinst_LTLIBRARIES = libndbmgmclient.la
 ndbtools_PROGRAMS = ndb_mgm
@@ -37,35 +40,10 @@ LDADD_LOC = $(noinst_LTLIBRARIES) \
 	    ../common/portlib/libportlib.la \
             @readline_link@ \
             $(top_builddir)/storage/ndb/src/libndbclient.la \
-            $(top_builddir)/dbug/libdbug.a \
-            $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a \
+            $(top_builddir)/dbug/libdbuglt.la \
+            $(top_builddir)/mysys/libmysyslt.la \
+            $(top_builddir)/strings/libmystringslt.la \
             @TERMCAP_LIB@ @NDB_SCI_LIBS@
 
 ndb_mgm_LDFLAGS = @ndb_bin_am_ldflags@
 
-windoze-dsp: ndb_mgm.dsp libndbmgmclient.dsp
-
-ndb_mgm.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(ndbtools_PROGRAMS)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndb_mgm_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-libndbmgmclient.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-lib.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-lib.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ $(noinst_LTLIBRARIES)
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libndbmgmclient_la_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB

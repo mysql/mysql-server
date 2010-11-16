@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef QMGR_H
 #define QMGR_H
@@ -30,15 +33,12 @@
 #include <signaldata/FailRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
 
-#include <SafeCounter.hpp>
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
 
 #include "timer.hpp"
 
 #ifdef QMGR_C
-
-#define NO_REG_APP 1
 
 /* Delay values, ms -----------------------------*/
 #define ZDELAY_REGREQ 1000
@@ -89,9 +89,12 @@ public:
   
   enum FailState {
     NORMAL = 0,
-    WAITING_FOR_FAILCONF1 = 1,
-    WAITING_FOR_FAILCONF2 = 2,
-    WAITING_FOR_NDB_FAILCONF = 3
+    WAITING_FOR_CLOSECOMCONF_ACTIVE = 1,     /* Node had phase ZAPI_ACTIVE */
+    WAITING_FOR_CLOSECOMCONF_NOTACTIVE = 2,  /* Node had phase != ZAPI_ACTIVE */
+    WAITING_FOR_FAILCONF1 = 3,
+    WAITING_FOR_FAILCONF2 = 4,
+    WAITING_FOR_FAILCONF3 = 5,
+    WAITING_FOR_NDB_FAILCONF = 6
   };
 
   enum Phase {
@@ -147,15 +150,29 @@ public:
   
   // Records
   struct NodeRec {
+    /*
+     * Dynamic id is received from president.  Lower half is next
+     * c_maxDynamicId and upper half is hbOrder.  Heartbeat circle is
+     * ordered by full dynamic id.  When president fails, only the lower
+     * half of dynamic id is used by other nodes to agree on next
+     * president (the one with minimum value).
+     */
     UintR ndynamicId;
+    /*
+     * HeartbeatOrder from config.ini.  Takes effect when this node
+     * becomes president and starts handing out dynamic ids to starting
+     * nodes.  To define a new order, two rolling restarts is required.
+     */
+    Uint32 hbOrder;
     Phase phase;
 
     QmgrState sendPrepFailReqStatus;
     QmgrState sendCommitFailReqStatus;
     QmgrState sendPresToStatus;
     FailState failState;
-    BlockReference rcv[2];        // remember which failconf we have received
     BlockReference blockRef;
+    Uint64 m_secret;
+    Uint64 m_alloc_timeout;
 
     NodeRec() { }
   }; /* p2c: size = 52 bytes */
@@ -176,16 +193,24 @@ public:
 
   struct ArbitRec {
     ArbitRec() {}
+
+    enum Method {
+      DISABLED = ARBIT_METHOD_DISABLED, // Arbitration disabled
+      METHOD_DEFAULT = ARBIT_METHOD_DEFAULT, // Default arbitration
+      // Delay commit to give "external" time to arbitrate
+      METHOD_EXTERNAL = ARBIT_METHOD_WAITEXTERNAL
+    } method;
+
     ArbitState state;		// state
     bool newstate;		// flag to initialize new state
     unsigned thread;		// identifies a continueB "thread"
     NodeId node;		// current arbitrator candidate
     ArbitTicket ticket;		// ticket
     NodeBitmask apiMask[1+2];	// arbitrators 0=all 1,2=per rank
-    NodeBitmask newMask;	// new nodes to process in RUN state
+    NdbNodeBitmask newMask;	// new nodes to process in RUN state
     Uint8 sendCount;		// control send/recv of signals
     Uint8 recvCount;
-    NodeBitmask recvMask;	// left to recv
+    NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
     Uint32 failureNr;            // cfailureNr at arbitration start
     Uint32 timeout;             // timeout for CHOOSE state
@@ -207,6 +232,13 @@ public:
     }
   };
   
+  /* State values for handling ENABLE_COMREQ / ENABLE_COMCONF. */
+  enum EnableComState {
+    ENABLE_COM_CM_ADD_COMMIT = 0,
+    ENABLE_COM_CM_COMMIT_NEW = 1,
+    ENABLE_COM_API_REGREQ = 2
+  };
+
 public:
   Qmgr(Block_context&);
   virtual ~Qmgr();
@@ -242,6 +274,7 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
   void execCONNECT_REP(Signal* signal);
   void execNDB_FAILCONF(Signal* signal);
+  void execNF_COMPLETEREP(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCM_INFOCONF(Signal* signal);
@@ -265,6 +298,11 @@ private:
   void execALLOC_NODEID_CONF(Signal *);
   void execALLOC_NODEID_REF(Signal *);
   void completeAllocNodeIdReq(Signal *);
+  void execENABLE_COMCONF(Signal *signal);
+  void handleEnableComAddCommit(Signal *signal, Uint32 node);
+  void handleEnableComCommitNew(Signal *signal);
+  void handleEnableComApiRegreq(Signal *signal, Uint32 node);
+  void sendApiRegConf(Signal *signal, Uint32 node);
   
   void execSTART_ORD(Signal*);
 
@@ -279,24 +317,26 @@ private:
   void execARBIT_CHOOSEREF(Signal* signal);
   void execARBIT_STOPREP(Signal* signal);
 
+  void execUPGRADE_PROTOCOL_ORD(Signal*);
+  
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
 
   void api_failed(Signal* signal, Uint32 aFailedNode);
   void node_failed(Signal* signal, Uint16 aFailedNode);
-  void checkStartInterface(Signal* signal);
+  void checkStartInterface(Signal* signal, Uint64 now);
   void failReport(Signal* signal,
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
                   FailRep::FailCause failCause);
-  void findNeighbours(Signal* signal);
+  void findNeighbours(Signal* signal, Uint32 from);
   Uint16 translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId);
 
   void initData(Signal* signal);
   void sendCloseComReq(Signal* signal, BlockReference TBRef, Uint16 TfailNo);
   void sendPrepFailReq(Signal* signal, Uint16 aNode);
-  void sendApiFailReq(Signal* signal, Uint16 aFailedNode);
+  void sendApiFailReq(Signal* signal, Uint16 aFailedNode, bool sumaOnly);
   void sendApiRegRef(Signal*, Uint32 ref, ApiRegRef::ErrorCode);
 
   // Generated statement blocks
@@ -304,7 +344,7 @@ private:
   void electionWon(Signal* signal);
   void cmInfoconf010Lab(Signal* signal);
   
-  void apiHbHandlingLab(Signal* signal);
+  void apiHbHandlingLab(Signal* signal, Uint64 now);
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
@@ -354,9 +394,10 @@ private:
   void stateArbitRun(Signal* signal);
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
-  void computeArbitNdbMask(NodeBitmask& aMask);
-  void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
-
+  void computeArbitNdbMask(NodeBitmaskPOD& aMask);
+  void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
+  void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
+                        const NodeBitmask mask = NodeBitmask());
   // Initialisation
   void initData();
   void initRecords();
@@ -381,7 +422,8 @@ private:
 			  Uint32 failNo,
 			  Uint32 noOfNodes,
 			  const NodeId theNodes[]);
-    
+
+  void handleApiCloseComConf(Signal* signal);
 
   
   /* Wait this time until we try to join the       */
@@ -417,6 +459,7 @@ private:
   Uint16 cnoPrepFailedNodes;
   Uint16 cnoCommitFailedNodes;
   Uint16 cactivateApiCheck;
+  Uint16 c_allow_api_connect;
   UintR chbApiDelay;
 
   UintR ccommitFailureNr;
@@ -425,14 +468,13 @@ private:
   UintR cfailureNr;
 
   QmgrState ctoStatus;
-  UintR cLqhTimeSignalCount;
   bool cHbSent;
   NDB_TICKS clatestTransactionCheck;
 
-  class Timer interface_check_timer;
-  class Timer hb_check_timer;
-  class Timer hb_send_timer;
-  class Timer hb_api_timer;
+  Timer interface_check_timer;
+  Timer hb_check_timer;
+  Timer hb_send_timer;
+  Timer hb_api_timer;
 
 
   Uint16 cfailedNodes[MAX_NDB_NODES];
@@ -451,10 +493,6 @@ private:
   StopReq c_stopReq;
   bool check_multi_node_shutdown(Signal* signal);
 
-#ifdef ERROR_INSERT
-  Uint32 c_error_insert_extra;
-#endif
-
   void recompute_version_info(Uint32 type);
   void recompute_version_info(Uint32 type, Uint32 version);
   void execNODE_VERSION_REP(Signal* signal);
@@ -465,6 +503,12 @@ private:
                        Uint32 length, 
                        JobBufferLevel jbuf,
                        Uint32 minversion);
+
+  bool m_micro_gcp_enabled;
+
+  // user-defined hbOrder must set all values non-zero and distinct
+  int check_hb_order_config();
+  bool m_hb_order_config_used;
 };
 
 #endif

@@ -1,6 +1,6 @@
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
 
 # note: server2 is another "master" connected to the master cluster
 
@@ -11,6 +11,8 @@
 
 # create a table with one row, and make sure the other "master" gets it
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
+# a dummy table such that we can make sure data gets into binlog on server2
+CREATE TABLE t2 (a int key) ENGINE = NDB ;
 connection server2;
 reset master;
 SHOW TABLES;
@@ -31,16 +33,25 @@ stop slave;
 
 # get the master binlog pos from the epoch, from the _other_ "master", server2
 connection server2;
+# insert some data to t1 which should not come into the binlog
+# just so that we can do "show binlog events" to make sure the t1
+# update is actually in the server2 binlog
+set SQL_LOG_BIN=0;
+insert into t2 values (1);
+-- source include/show_binlog_events2.inc
+set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
-eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+--disable_query_log
+eval SELECT @the_pos:=Position,
+   @the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\\\','/'), '/', -1)
    FROM mysql.ndb_binlog_index WHERE epoch = $the_epoch ;
+--enable_query_log
 let $the_pos= `SELECT @the_pos` ;
 let $the_file= `SELECT @the_file` ;
 
 # now connect the slave to the _other_ "master"
 connection slave;
---replace_result $MASTER_MYPORT1 <MASTER_PORT1>
---replace_regex /master_log_pos = [0-9]+/master_log_pos = BINLOG_START/
+--replace_result $MASTER_MYPORT1 <MASTER_PORT1> $the_pos MASTER_LOG_POS $the_file MASTER_LOG_FILE
 eval CHANGE MASTER TO
   master_port=$MASTER_MYPORT1,
   master_log_file = '$the_file',
@@ -68,6 +79,7 @@ SELECT * FROM t1 ORDER BY c3;
 --echo ==== clean up ====
 connection server2;
 DROP TABLE t1;
+DROP TABLE t2;
 sync_slave_with_master;
 
 STOP SLAVE;

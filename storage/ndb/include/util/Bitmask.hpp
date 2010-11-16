@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_BITMASK_H
 #define NDB_BITMASK_H
@@ -19,7 +22,7 @@
 #include <ndb_global.h>
 
 /**
- * Bitmask implementation.  Size is given explicitly
+ * Bitmask implementation.  Size (in 32-bit words) is given explicitly
  * (as first argument).  All methods are static.
  */
 class BitmaskImpl {
@@ -47,9 +50,10 @@ public:
   static void set(unsigned size, Uint32 data[]);
 
   /**
-   * set bit from <em>start</em> to <em>last</em>
+   * set <em>len</em> bist from <em>start</em>
    */
-  static void set_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
+  static void setRange(unsigned size, Uint32 data[], unsigned start,
+                       unsigned len);
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
@@ -122,6 +126,11 @@ public:
   static void bitXORC(unsigned size, Uint32 data[], const Uint32 data2[]);
 
   /**
+   * bitNOT - Bitwise (~x) into first operand.
+   */
+  static void bitNOT(unsigned size, Uint32 data[]);
+
+  /**
    * contains - Check if all bits set in data2 are set in data
    */
   static bool contains(unsigned size, Uint32 data[], const Uint32 data2[]);
@@ -159,9 +168,21 @@ public:
 		       unsigned pos, unsigned len, const Uint32 src[]);
   
   /**
+   * copyField - Copy bitfield from one position and length
+   * to another position and length.
+   * Undefined for overlapping bitfields
+   */
+  static void copyField(Uint32 dst[], unsigned destPos,
+                        const Uint32 src[], unsigned srcPos, unsigned len);
+  
+  /**
    * getText - Return as hex-digits (only for debug routines).
    */
   static char* getText(unsigned size, const Uint32 data[], char* buf);
+
+  /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
+  static inline Uint32 count_bits(Uint32 x);
+
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -196,9 +217,10 @@ BitmaskImpl::set(unsigned size, Uint32 data[])
 }
 
 inline void
-BitmaskImpl::set_range(unsigned size, Uint32 data[], 
-		       unsigned start, unsigned last)
+BitmaskImpl::setRange(unsigned size, Uint32 data[],
+                      unsigned start, unsigned len)
 {
+  Uint32 last = start + len - 1;
   Uint32 *ptr = data + (start >> 5);
   Uint32 *end =  data + (last >> 5);
   assert(start <= last);
@@ -304,11 +326,7 @@ BitmaskImpl::count(unsigned size, const Uint32 data[])
 {
   unsigned cnt = 0;
   for (unsigned i = 0; i < size; i++) {
-    Uint32 x = data[i];
-    while (x) {
-      x &= (x - 1);
-      cnt++;
-    }
+    cnt += count_bits(data[i]);
   }
   return cnt;
 }
@@ -375,6 +393,14 @@ BitmaskImpl::bitXORC(unsigned size, Uint32 data[], const Uint32 data2[])
   }
 }
 
+inline void
+BitmaskImpl::bitNOT(unsigned size, Uint32 data[])
+{
+  for (unsigned i = 0; i < size; i++) {
+    data[i] = ~data[i];
+  }
+}
+
 inline bool
 BitmaskImpl::contains(unsigned size, Uint32 data[], const Uint32 data2[])
 {
@@ -428,6 +454,17 @@ BitmaskImpl::getText(unsigned size, const Uint32 data[], char* buf)
   return org;
 }
 
+inline
+Uint32
+BitmaskImpl::count_bits(Uint32 x)
+{
+  x= x - ((x>>1) & 0x55555555);
+  x= (x & 0x33333333) + ((x>>2) & 0x33333333);
+  x= (x + (x>>4)) & 0x0f0f0f0f;
+  x= (x*0x01010101) >> 24;
+  return x;
+}
+
 /**
  * Bitmasks.  The size is number of 32-bit words (Uint32).
  * Unused bits in the last word must be zero.
@@ -449,13 +486,16 @@ public:
     }
 #endif
   };
-private:
   
   Data rep;
 public:
   STATIC_CONST( Size = size );
   STATIC_CONST( NotFound = BitmaskImpl::NotFound );
   STATIC_CONST( TextLength = size * 8 );
+
+  Uint32 getSizeInWords() const { return Size;}
+
+  unsigned max_size() const { return (size * 32) - 1; }
 
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
@@ -480,6 +520,9 @@ public:
   void assign(unsigned sz, const Uint32 src[]);
 
   /**
+   * start of static members
+   */
+  /**
    * get - Check if bit n is set.
    */
   static bool get(const Uint32 data[], unsigned n);
@@ -502,6 +545,12 @@ public:
    */
   static void set(Uint32 data[]);
   void set();
+
+  /**
+   * set - set a range of bits
+   */
+  static void setRange(Uint32 data[], Uint32 pos, Uint32 len);
+  void setRange(Uint32 pos, Uint32 len);
 
   /**
    * clear - Clear bit n.
@@ -578,6 +627,12 @@ public:
   BitmaskPOD<size>& bitXORC(const BitmaskPOD<size>& mask2);
 
   /**
+   * bitNOT - Bitwise (~x) in first operand.
+   */
+  static void bitNOT(Uint32 data[]);
+  BitmaskPOD<size>& bitNOT();
+
+  /**
    * contains - Check if all bits set in data2 (that) are also set in data (this)
    */
   static bool contains(Uint32 data[], const Uint32 data2[]);
@@ -594,6 +649,7 @@ public:
    */
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
+
 };
 
 template <unsigned size>
@@ -696,6 +752,21 @@ BitmaskPOD<size>::set()
 
 template <unsigned size>
 inline void
+BitmaskPOD<size>::setRange(Uint32 data[], Uint32 pos, Uint32 len)
+{
+  BitmaskImpl::setRange(size, data, pos, len);
+}
+
+
+template <unsigned size>
+inline void
+BitmaskPOD<size>::setRange(Uint32 pos, Uint32 len)
+{
+  BitmaskPOD<size>::setRange(rep.data, pos, len);
+}
+
+template <unsigned size>
+inline void
 BitmaskPOD<size>::clear(Uint32 data[], unsigned n)
 {
   BitmaskImpl::clear(size, data, n);
@@ -751,7 +822,7 @@ BitmaskPOD<size>::isclear() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::count(const Uint32 data[])
 {
   return BitmaskImpl::count(size, data);
@@ -765,7 +836,7 @@ BitmaskPOD<size>::count() const
 }
 
 template <unsigned size>
-unsigned
+inline unsigned
 BitmaskPOD<size>::find(const Uint32 data[], unsigned n)
 {
   return BitmaskImpl::find(size, data, n);
@@ -868,7 +939,22 @@ BitmaskPOD<size>::bitXORC(const BitmaskPOD<size>& mask2)
 }
 
 template <unsigned size>
-char *
+inline void
+BitmaskPOD<size>::bitNOT(Uint32 data[])
+{
+  BitmaskImpl::bitNOT(size,data);
+}
+
+template <unsigned size>
+inline BitmaskPOD<size>&
+BitmaskPOD<size>::bitNOT()
+{
+  BitmaskPOD<size>::bitNOT(rep.data);
+  return *this;
+}
+
+template <unsigned size>
+inline char *
 BitmaskPOD<size>::getText(const Uint32 data[], char* buf)
 {
   return BitmaskImpl::getText(size, data, buf);
@@ -913,6 +999,44 @@ template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
+
+  template<unsigned sz2> Bitmask& operator=(const Bitmask<sz2>& src){
+    if (size >= sz2)
+    {
+      for (unsigned i = 0; i < sz2; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    else
+    {
+      assert(src.find(32*size+1) == BitmaskImpl::NotFound);
+      for (unsigned i = 0; i < size; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    return * this;
+  }
+
+  template<unsigned sz2> Bitmask& operator=(const BitmaskPOD<sz2>& src){
+    if (size >= sz2)
+    {
+      for (unsigned i = 0; i < sz2; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    else
+    {
+      assert(src.find(32*size+1) == BitmaskImpl::NotFound);
+      for (unsigned i = 0; i < size; i++) 
+      {
+	this->rep.data[i] = src.rep.data[i];
+      }
+    }
+    return * this;
+  }
 };
 
 inline void
@@ -961,5 +1085,58 @@ BitmaskImpl::setField(unsigned size, Uint32 dst[],
   setFieldImpl(dst+1, used & 31, len-used, src+(used >> 5));
 }
 
+/* Three way min utiltiy for copyField below */
+inline unsigned minLength(unsigned a, unsigned b, unsigned c)
+{
+  return (a < b ? 
+          (a < c ? a : c) : 
+          (b < c ? b : c ));
+}
+
+inline void
+BitmaskImpl::copyField(Uint32 _dst[], unsigned dstPos,
+                       const Uint32 _src[], unsigned srcPos, unsigned len)
+{
+  /* Algorithm
+   * While (len > 0)
+   *  - Find the longest bit length we can copy from one 32-bit word
+   *    to another (which is the miniumum of remaining length, 
+   *    space in current src word and space in current dest word)
+   *  - Extract that many bits from src, and shift them to the correct
+   *    position to insert into dest
+   *  - Mask out the to-be-written words from dest (and any irrelevant 
+   *    words in src) and or them together
+   *  - Move onto next chunk
+   */
+  while (len > 0)
+  {
+    const Uint32* src= _src + (srcPos >> 5);
+    Uint32* dst= _dst + (dstPos >> 5);
+    unsigned srcOffset= srcPos & 31;
+    unsigned dstOffset= dstPos & 31;
+    unsigned srcBitsInWord= 32 - srcOffset; 
+    unsigned dstBitsInWord= 32 - dstOffset;
+    
+    /* How many bits can we copy at once? */
+    unsigned bits= minLength(dstBitsInWord, srcBitsInWord, len);
+    
+    /* Create mask for affected bits in dest */
+    Uint32 destMask= (~(Uint32)0 >> (32-bits) << dstOffset);
+    
+    /* Grab source data and shift to dest offset */
+    Uint32 data= ((*src) >> srcOffset) << dstOffset;
+    
+    /* Mask out affected bits in dest and irrelevant bits in source
+     * and combine
+     */
+    *dst= (*dst  & ~destMask) | (data & destMask);
+    
+    srcPos+= bits;
+    dstPos+= bits;
+    len-= bits;
+  }
+  
+  return;
+}
 
 #endif

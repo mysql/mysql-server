@@ -1,18 +1,9 @@
-dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_CHECK_NDBCLUSTER
-dnl ---------------------------------------------------------------------------
-
-# The version of NDB in this version of MySQL is currently fixed
-# and not supposed to be changed unless major changes happen in
-# storage/ndb directory.
-# NOTE! To avoid mixup with MySQL Cluster's version numbers
-# this version of NDB is set to 5.5.7 although it's basically
-# a copy of MySQL Cluster 6.2.18
-NDB_VERSION_MAJOR=5
-NDB_VERSION_MINOR=5
-NDB_VERSION_BUILD=7
+# The NDB version number and status.
+# Should be updated when creating a new NDB version
+NDB_VERSION_MAJOR=7
+NDB_VERSION_MINOR=0
+NDB_VERSION_BUILD=21
 NDB_VERSION_STATUS=""
-TEST_NDBCLUSTER=""
 
 dnl for build ndb docs
 
@@ -24,6 +15,165 @@ AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
 
+dnl ---------------------------------------------------------------------------
+dnl Check if ndbmtd should/can be built
+dnl - skipped if with --without-ndbmtd specified
+dnl - skipped if the ndbmtd assembler can't be compiled
+dnl
+dnl ---------------------------------------------------------------------------
+# Dummy define of BUILD_NDBMTD to satisfy builds without ndb
+AM_CONDITIONAL([BUILD_NDBMTD], [ false ])
+AC_DEFUN([NDB_CHECK_NDBMTD], [
+
+  build_ndbmtd=
+
+  AC_ARG_WITH([ndbmtd],
+              [AC_HELP_STRING([--without-ndbmtd],
+                              [Dont build ndbmtd])],
+              [ndb_ndbmtd="$withval"],
+              [ndb_ndbmtd=yes])
+
+  if test X"$ndb_ndbmtd" = Xyes
+  then
+    # checking atomic.h needed for spinlock's on sparc and Sun Studio
+    AC_CHECK_HEADERS(atomic.h)
+
+    # checking assembler needed for ndbmtd
+    SAVE_CFLAGS="$CFLAGS"
+    if test "x${ac_cv_header_atomic_h}" = xyes; then
+      CFLAGS="$CFLAGS -DHAVE_ATOMIC_H"
+    fi
+    AC_CACHE_CHECK([assembler needed for ndbmtd],
+                   [ndb_cv_ndbmtd_asm],[
+      AC_TRY_RUN(
+        [
+        #include "storage/ndb/src/kernel/vm/mt-asm.h"
+        int main()
+        {
+          unsigned int a = 0;
+          volatile unsigned int *ap = (volatile unsigned int*)&a;
+        #ifdef NDB_HAVE_XCNG
+          a = xcng(ap, 1);
+          cpu_pause();
+        #endif
+          mb();
+          * ap = 2;
+          rmb();
+          * ap = 1;
+          wmb();
+          * ap = 0;
+          read_barrier_depends();
+          return a;
+        }
+        ],
+        [ndb_cv_ndbmtd_asm=yes],
+        [ndb_cv_ndbmtd_asm=no],
+        [ndb_cv_ndbmtd_asm=no]
+      )]
+    )
+    CFLAGS="$SAVE_CFLAGS"
+
+    if test X"$ndb_cv_ndbmtd_asm" = Xyes
+    then
+      build_ndbmtd=yes
+      AC_MSG_RESULT([Including ndbmtd])
+    fi
+  fi
+
+  # Redefine BUILD_NDBMTD now when result is known(otherwise the test
+  # is evaluated too early in configure)
+  AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
+
+])
+
+
+AC_DEFUN([MYSQL_CHECK_NDB_JTIE], [
+
+case "$host_os" in
+darwin*)        INC="Headers";;
+*)              INC="include";;
+esac
+
+dnl
+dnl Search for JAVA_HOME
+dnl
+
+for D in $JAVA_HOME $JDK_HOME /usr/lib/jvm/java /usr/lib64/jvm/java /usr/local/jdk /usr/local/java /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK ; do
+        AC_CHECK_FILE([$D/$INC/jni.h],[found=yes])
+        if test X$found = Xyes
+        then
+                JINC=$D/$INC
+                break;
+        fi
+done
+
+if test -f "${JINC}/jni.h"
+then
+        JNI_INCLUDE_DIRS="-I${JINC}"
+else
+        AC_MSG_RESULT([-- Unable to locate jni.h!])
+fi
+
+dnl try to add extra include path
+case "$host_os" in
+bsdi*)    JNI_SUBDIRS="bsdos";;
+linux*)   JNI_SUBDIRS="linux genunix";;
+osf*)     JNI_SUBDIRS="alpha";;
+solaris*) JNI_SUBDIRS="solaris";;
+mingw*)   JNI_SUBDIRS="win32";;
+cygwin*)  JNI_SUBDIRS="win32";;
+*)        JNI_SUBDIRS="genunix";;
+esac
+
+dnl add any subdirectories that are present
+for S in ${JNI_SUBDIRS}
+do
+        if test -d "${JINC}/${S}"
+        then
+                JNI_INCLUDE_DIRS="${JNI_INCLUDE_DIRS} -I${JINC}/${S}"
+        fi
+done
+
+CPPFLAGS_save="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS ${JNI_INCLUDE_DIRS}"
+AC_CHECK_HEADERS(jni.h)
+CPPFLAGS="$CPPFLAGS_save"
+
+AC_CHECK_PROG(JAVAC, javac, javac, no)
+AC_CHECK_PROG(JAVAH, javah, javah, no)
+AC_CHECK_PROG(JAR, jar, jar, no)
+AC_SUBST(JNI_INCLUDE_DIRS)
+
+ndb_jtie_supported=no
+if test "$JAVAC" &&
+   test "$JAVAH" &&
+   test "$JAR" &&
+   test X"$ac_cv_header_jni_h" = Xyes
+then
+        ndb_jtie_supported=yes
+fi
+])
+
+AC_DEFUN([NDB_COMPILER_FEATURES],
+[
+  AC_LANG_PUSH([C++])
+  AC_MSG_CHECKING([checking __is_pod(typename)])
+  AC_TRY_COMPILE([struct A{};],[ int a = __is_pod(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___IS_POD], [1],
+              [Compiler supports __is_pod(typename)])],
+    AC_MSG_RESULT([no])
+  )
+
+  AC_MSG_CHECKING([checking __has_trivial_constructor(typename)])
+  AC_TRY_COMPILE([struct A{};], [ int a = __has_trivial_constructor(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___HAS_TRIVIAL_CONSTRUCTOR], [1],
+              [Compiler supports __has_trivial_constructor(typename)])],
+    AC_MSG_RESULT([no])
+  )
+  AC_LANG_POP([C++])
+])
 
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   AC_ARG_WITH([ndb-sci],
@@ -59,40 +209,60 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   esac
 
   AC_ARG_WITH([ndb-test],
-              [
-  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [AC_HELP_STRING([--with-ndb-test],
+                              [Include the NDB Cluster ndbapi test programs])],
               [ndb_test="$withval"],
               [ndb_test=no])
   AC_ARG_WITH([ndb-docs],
-              [
-  --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
+              [AC_HELP_STRING([--with-ndb-docs],
+              [Include the NDB Cluster ndbapi and mgmapi documentation])],
               [ndb_docs="$withval"],
               [ndb_docs=no])
   AC_ARG_WITH([ndb-port],
-              [
-  --with-ndb-port       Port for NDB Cluster management server],
-              [ndb_port="$withval"],
-              [ndb_port="default"])
+              [AC_HELP_STRING([--with-ndb-port=port-number],
+              [Default port used by NDB Cluster management server])],
+              [ndb_port="$withval"],[ndb_port="no"])
+  case "$ndb_port" in
+    "yes" )
+      AC_MSG_ERROR([--with-ndb-port=<port-number> needs an argument])
+      ;;
+    "no" )
+      ;;
+    * )
+      AC_DEFINE_UNQUOTED([NDB_PORT], [$ndb_port],
+                         [Default port used by NDB Cluster management server])
+      ;;
+  esac
+
   AC_ARG_WITH([ndb-port-base],
-              [
-  --with-ndb-port-base  Base port for NDB Cluster transporters],
-              [ndb_port_base="$withval"],
-              [ndb_port_base="default"])
+              [AC_HELP_STRING([--with-ndb-port-base],
+                              [Deprecated option])],
+              [ndb_port_base="$withval"], [])
+  if test "$ndb_port_base"
+  then
+     AC_MSG_WARN([Ignoring deprecated option --with-ndb-port-base])
+  fi
+
   AC_ARG_WITH([ndb-debug],
-              [
-  --without-ndb-debug   Disable special ndb debug features],
+              [AC_HELP_STRING([--without-ndb-debug],
+                              [Disable special ndb debug features])],
               [ndb_debug="$withval"],
               [ndb_debug="default"])
   AC_ARG_WITH([ndb-ccflags],
-              AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
-                           [Extra CFLAGS for ndb compile]),
+              [AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
+                              [Extra CFLAGS for ndb compile])],
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
   AC_ARG_WITH([ndb-binlog],
-              [
-  --without-ndb-binlog       Disable ndb binlog],
+              [AC_HELP_STRING([--without-ndb-binlog],
+                              [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
+  AC_ARG_WITH([ndb-jtie],
+              [AC_HELP_STRING([--with-ndb-jtie],
+                              [Include the NDB Cluster java-bindings for ClusterJ])],
+              [ndb_jtie="$withval"],
+              [ndb_jtie="no"])
 
   case "$ndb_ccflags" in
     "yes")
@@ -146,6 +316,35 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
+  AC_MSG_CHECKING([for java needed for ndb-jtie])
+  AC_MSG_RESULT([])
+  MYSQL_CHECK_NDB_JTIE
+  have_ndb_jtie=no
+  case "$ndb_jtie" in
+    yes )
+      if test X"$ndb_jtie_supported" = Xyes
+      then
+        AC_MSG_RESULT([-- including ndb-jtie])
+        have_ndb_jtie=yes
+      else
+        AC_MSG_ERROR([Unable to locate java needed for ndb-jtie])
+      fi
+      ;;
+    default )
+      if test X"$ndb_jtie_supported" = Xyes
+      then
+         AC_MSG_RESULT([-- including ndbjtie])
+         have_ndb_jtie=yes
+      else
+         AC_MSG_RESULT([-- not including ndb-jtie])
+         have_ndb_jtie=no
+      fi
+      ;;
+    * )
+      AC_MSG_RESULT([-- not including ndb-jtie])
+      ;;
+  esac
+ 
   AC_MSG_RESULT([done.])
 ])
 
@@ -181,20 +380,88 @@ AC_DEFUN([NDBCLUSTER_WORKAROUNDS], [
   esac
 ])
 
+
 AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
 
   AC_MSG_RESULT([Using NDB Cluster])
   with_partition="yes"
   ndb_cxxflags_fix=""
-  TEST_NDBCLUSTER="--ndbcluster"
-
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
   ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
-  ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
 
   MYSQL_CHECK_NDB_OPTIONS
+  NDB_CHECK_NDBMTD
+
+  # checking CLOCK_MONOTONIC support
+  AC_CHECK_FUNCS(clock_gettime pthread_condattr_setclock)
+
+  # checking various functions
+  AC_CHECK_FUNCS(pthread_self \
+    sched_get_priority_min sched_get_priority_max sched_setaffinity \
+    sched_setscheduler processor_bind epoll_create \
+    posix_memalign memalign sysconf directio atomic_swap_32)
+
+  AC_MSG_CHECKING(for Linux scheduling and locking support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <sched.h>
+     #include <sys/syscall.h>],
+    [const cpu_set_t *p= (const cpu_set_t*)0;
+     struct sched_param loc_sched_param;
+     int policy = 0;
+     pid_t tid = (unsigned)syscall(SYS_gettid);
+     tid = getpid();
+     int ret = sched_setaffinity(tid, sizeof(* p), p);
+     ret = sched_setscheduler(tid, policy, &loc_sched_param);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_SCHEDULING, [1], [Linux scheduling/locking function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Solaris affinity support)
+  AC_TRY_LINK(
+    [#include <sys/types.h>
+     #include <sys/lwp.h>
+     #include <sys/processor.h>
+     #include <sys/procset.h>],
+    [processorid_t cpu_id = (processorid_t)0;
+     id_t tid = _lwp_self();
+     int ret = processor_bind(P_LWPID, tid, cpu_id, 0);],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
+    AC_MSG_RESULT(no))
+
+  AC_MSG_CHECKING(for Linux futex support)
+  AC_TRY_LINK(
+    [#ifndef _GNU_SOURCE
+     #define _GNU_SOURCE
+     #endif
+     #include <sys/types.h>
+     #include <unistd.h>
+     #include <errno.h>
+     #include <sys/syscall.h>],
+     #define FUTEX_WAIT        0
+     #define FUTEX_WAKE        1
+     #define FUTEX_FD          2
+     #define FUTEX_REQUEUE     3
+     #define FUTEX_CMP_REQUEUE 4
+     #define FUTEX_WAKE_OP     5
+    [
+     int a = 0; int * addr = &a;
+     return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
+    ],
+    AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
+    AC_MSG_RESULT(no))
+
+  AC_CHECK_HEADERS(sun_prefetch.h)
+
   NDBCLUSTER_WORKAROUNDS
+  NDB_COMPILER_FEATURES
 
   MAKE_BINARY_DISTRIBUTION_OPTIONS="$MAKE_BINARY_DISTRIBUTION_OPTIONS --with-ndbcluster"
 
@@ -209,10 +476,10 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$have_ndb_debug" = "full"
   then
-    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD -DAPI_TRACE"
   else
     # no extra ndb debug but still do asserts if debug version
-    if test "$with_debug" = "yes"
+    if test "$with_debug" = "yes" -o "$with_debug" = "full"
     then
       NDB_DEFS=""
     else
@@ -220,11 +487,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     fi
   fi
 
-  if test X"$ndb_port" = Xdefault
-  then
-    ndb_port="1186"
-  fi
-  
   have_ndb_binlog="no"
   if test X"$ndb_binlog" = Xdefault ||
      test X"$ndb_binlog" = Xyes
@@ -263,7 +525,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   then
     ndb_transporter_opt_objs="$ndb_transporter_opt_objs SCI_Transporter.lo"
   fi
-  
+
   ndb_opt_subdirs=
   ndb_bin_am_ldflags="-static"
   if test X"$have_ndb_test" = Xyes
@@ -276,6 +538,11 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   then
     ndb_opt_subdirs="$ndb_opt_subdirs docs"
     ndb_bin_am_ldflags=""
+  fi
+
+  if test X"$have_ndb_jtie" = Xyes
+  then
+    ndb_opt_subdirs="$ndb_opt_subdirs ndbjtie"
   fi
 
   # building dynamic breaks on AIX. (If you want to try it and get unresolved
@@ -295,11 +562,13 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_SHARED_LIB_MAJOR_VERSION)
   AC_SUBST(NDB_SHARED_LIB_VERSION)
 
-
+  # Replace @NDB_VERSION_XX@ variables in the generated ndb_version.h
   AC_SUBST(NDB_VERSION_MAJOR)
   AC_SUBST(NDB_VERSION_MINOR)
   AC_SUBST(NDB_VERSION_BUILD)
   AC_SUBST(NDB_VERSION_STATUS)
+
+  # Define NDB_VERSION_XX variables in config.h/my_config.h
   AC_DEFINE_UNQUOTED([NDB_VERSION_MAJOR], [$NDB_VERSION_MAJOR],
                      [NDB major version])
   AC_DEFINE_UNQUOTED([NDB_VERSION_MINOR], [$NDB_VERSION_MINOR],
@@ -309,14 +578,15 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
                      [NDB status version])
 
+  # Generate ndb_version.h from ndb_version.h.in
+  AC_CONFIG_FILES([storage/ndb/include/ndb_version.h])
+
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
-  AC_SUBST(ndb_mgmclient_libs)
   AC_SUBST(NDB_SCI_LIBS)
 
   AC_SUBST(ndb_transporter_opt_objs)
-  AC_SUBST(ndb_port)
   AC_SUBST(ndb_bin_am_ldflags)
   AC_SUBST(ndb_opt_subdirs)
 
@@ -336,14 +606,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST([NDB_SIZEOF_LONG])
   AC_SUBST([NDB_SIZEOF_LONG_LONG])
 
-  AC_CONFIG_FILES([
-   storage/ndb/include/ndb_version.h
-   storage/ndb/include/ndb_global.h
-   storage/ndb/include/ndb_types.h
-  ])
+  AC_CONFIG_FILES([storage/ndb/include/ndb_types.h])
+
 ])
 
-AC_SUBST(TEST_NDBCLUSTER)                                                                                
-dnl ---------------------------------------------------------------------------
-dnl END OF MYSQL_CHECK_NDBCLUSTER SECTION
-dnl ---------------------------------------------------------------------------

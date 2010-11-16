@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -117,6 +120,7 @@ print(const char * filename, const Sysfile * sysfile){
 
 NDB_COMMAND(printSysfile, 
 	    "printSysfile", "printSysfile", "Prints a sysfile", 16384){ 
+  ndb_init();
   if(argc < 2){
     usage(argv[0]);
     return 0;
@@ -125,9 +129,10 @@ NDB_COMMAND(printSysfile,
   for(int i = 1; i<argc; i++){
     const char * filename = argv[i];
     
-    struct stat sbuf;
-    const int res = stat(filename, &sbuf);
-    if(res != 0){
+    MY_STAT sbuf,*st;
+
+    if(!st=my_stat(filename, &sbuf,0))
+    {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }

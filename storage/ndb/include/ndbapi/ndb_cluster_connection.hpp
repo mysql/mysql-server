@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #ifndef CLUSTER_CONNECTION_HPP
@@ -30,6 +33,8 @@ private:
   unsigned char init_pos;
   unsigned char cur_pos;
 };
+
+class Ndb;
 
 /**
  * @class Ndb_cluster_connection
@@ -51,6 +56,22 @@ public:
    *                      management server
    */
   Ndb_cluster_connection(const char * connectstring = 0);
+
+  /**
+   * Create a connection to a cluster of storage nodes
+   *
+   * @param connectstring The connectstring for where to find the
+   *                      management server
+   * @param force_api_node The nodeid to use for this API node, will
+   *                       override any nodeid=<nodeid> specified in
+   *                       connectstring
+   */
+  Ndb_cluster_connection(const char * connectstring, int force_api_nodeid);
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  Ndb_cluster_connection(const char * connectstring,
+                         Ndb_cluster_connection *main_connection);
+#endif
   ~Ndb_cluster_connection();
 
   /**
@@ -117,6 +138,36 @@ public:
   int wait_until_ready(int timeout_for_first_alive,
 		       int timeout_after_first_alive);
 
+  /**
+   * Lock creation of ndb-objects
+   *   Needed to iterate over created ndb objects
+   */
+  void lock_ndb_objects();
+
+  /**
+   * Unlock creation of ndb-objects
+   */
+  void unlock_ndb_objects();
+
+  /**
+   * Iterator of ndb-objects
+   * @param p Pointer to last returned ndb-object
+   *          NULL - returns first object
+   * @note lock_ndb_objects should be used before using this function
+   *       and unlock_ndb_objects should be used after
+   */
+  const Ndb* get_next_ndb_object(const Ndb* p);
+  
+  int get_latest_error() const;
+  const char *get_latest_error_msg() const;
+
+  /**
+   * Enable/disable auto-reconnect
+   * @param value 0 = false, 1 = true
+   */
+  void set_auto_reconnect(int value);
+  int get_auto_reconnect() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;
@@ -131,6 +182,7 @@ public:
 
   void init_get_next_node(Ndb_cluster_connection_node_iter &iter);
   unsigned int get_next_node(Ndb_cluster_connection_node_iter &iter);
+  unsigned int get_next_alive_node(Ndb_cluster_connection_node_iter &iter);
   unsigned get_active_ndb_objects() const;
   
   Uint64 *get_latest_trans_gci();
@@ -140,8 +192,12 @@ private:
   friend class Ndb;
   friend class NdbImpl;
   friend class Ndb_cluster_connection_impl;
+  friend class SignalSender;
   class Ndb_cluster_connection_impl & m_impl;
   Ndb_cluster_connection(Ndb_cluster_connection_impl&);
+
+  Ndb_cluster_connection(const Ndb_cluster_connection&); // Not impl.
+  Ndb_cluster_connection& operator=(const Ndb_cluster_connection&);
 };
 
 #endif

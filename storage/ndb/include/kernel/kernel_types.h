@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,17 +13,19 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_KERNEL_TYPES_H
 #define NDB_KERNEL_TYPES_H
 
-#include <my_config.h>
+#include <my_global.h>
 #include <ndb_types.h>
 #include "ndb_limits.h"
 
 typedef Uint16 NodeId; 
 typedef Uint16 BlockNumber;
+typedef Uint16 BlockInstance;
 typedef Uint32 BlockReference;
 typedef Uint16 GlobalSignalNumber;
 
@@ -35,6 +39,7 @@ enum Operation_t {
 #if 0
   ,ZREAD_CONSISTENT = 6
 #endif
+  ,ZUNLOCK  = 7
 };
 
 /**

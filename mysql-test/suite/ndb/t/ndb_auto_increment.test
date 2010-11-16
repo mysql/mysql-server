@@ -6,6 +6,9 @@ connection server1;
 DROP TABLE IF EXISTS t1,t2;
 connection server2;
 DROP TABLE IF EXISTS t1;
+set @old_auto_increment_offset = @@session.auto_increment_offset;
+set @old_auto_increment_increment = @@session.auto_increment_increment;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
 connection server1;
 --enable_warnings
 
@@ -289,5 +292,115 @@ select * from t1 order by a;
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+
+drop table t1;
+
+connection server2;
+set auto_increment_offset = @old_auto_increment_offset;
+set auto_increment_increment = @old_auto_increment_increment;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+
+# bug#46712 Auto_increment work incorrectly when using triggers and NDB Cluster
+#
+# Testing that auto_increment values are set correctly when inserting from
+# multiple SQL-nodes
+
+connection server1;
+
+CREATE TABLE `t1` (
+ `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+ `k` int(10) unsigned NOT NULL DEFAULT '0',
+ `c` char(120) NOT NULL DEFAULT '',
+ `pad` char(60) NOT NULL DEFAULT '',
+ PRIMARY KEY (`id`),
+ KEY `k` (`k`)
+) ENGINE=ndbcluster;
+
+CREATE TABLE `t2` (
+  `evend_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `timestamp` int(11) NOT NULL,
+  `server_id` int(11) NOT NULL,
+   PRIMARY KEY (`evend_id`)
+) ENGINE=ndbcluster;
+
+
+insert into t1 values (null,1,'',''),(null,2,'','');
+
+DELIMITER |;
+
+CREATE TRIGGER tr1
+  AFTER UPDATE ON t1
+  FOR EACH ROW
+  BEGIN
+    insert into t2(timestamp, server_id) values(UNIX_TIMESTAMP(),@@global.server_id);
+  end;
+|
+
+DELIMITER ;|
+
+connection server2;
+
+DELIMITER |;
+
+CREATE TRIGGER tr1
+  AFTER UPDATE ON t1
+  FOR EACH ROW
+  BEGIN
+    insert into t2(timestamp, server_id) values(UNIX_TIMESTAMP(),@@global.server_id);
+  end;
+|
+
+DELIMITER ;|
+
+connection server1;
+update t1 set c='foobar' where id=1;
+connection server2;
+update t1 set c='foobar' where id=1;
+connection server1;
+update t1 set c='foobar' where id=1;
+connection server2;
+update t1 set c='foobar' where id=1;
+connection server1;
+update t1 set c='foobar' where id=1;
+connection server2;
+update t1 set c='foobar' where id=1;
+connection server1;
+update t1 set c='foobar' where id=1;
+connection server2;
+update t1 set c='foobar' where id=1;
+connection server1;
+select evend_id,server_id from t2 order by evend_id;
+
+drop trigger tr1;
+drop table t1, t2;
+
+connection server2;
+--disable_warnings
+drop trigger if exists tr1;
+--enable_warnings
+
+connection server1;
+
+#
+# Bug #47865  	SHOW CREATE TABLE does not show the current auto_increment number for ndb tables
+#
+
+create table t1 (a int primary key auto_increment, b int) engine=ndb;
+
+insert into t1 values (null,1),(null,2),(null,3);
+
+show create table t1;
+
+drop table t1;
+
+#
+# Bug #50247      ALTER TABLE cannot change auto_increment
+#
+create table t1 (a int primary key auto_increment, b int) auto_increment=5
+engine=ndb;
+
+alter table t1 auto_increment=32000000;
+
+show create table t1;
 
 drop table t1;

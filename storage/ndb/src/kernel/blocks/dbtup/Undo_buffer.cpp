@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "Undo_buffer.hpp"
 #define DBTUP_C
@@ -24,19 +27,26 @@
 struct UndoPage
 {
   File_formats::Page_header m_page_header;
-  Uint32 _tupdata1;
-  Uint32 m_state; // Used by buddy alg
   Uint32 m_words_used;
   Uint32 m_ref_count;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-4-(sizeof(File_formats::Page_header)>>2)];
+  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2-(sizeof(File_formats::Page_header)>>2)];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-4-(sizeof(File_formats::Page_header)>>2) );
+  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2-(sizeof(File_formats::Page_header)>>2) );
 };
 
-Undo_buffer::Undo_buffer(Dbtup* tup)
+static
+inline
+UndoPage* 
+get_page(Ndbd_mem_manager* mm, Uint32 no)
 {
-  m_tup= tup;
-  m_first_free= RNIL;
+  return ((UndoPage*)mm->get_memroot()) + no;
+}
+
+Undo_buffer::Undo_buffer(Ndbd_mem_manager* mm)
+{
+  m_mm = mm;
+  m_first_free = RNIL;
+  assert(sizeof(UndoPage) == 4*GLOBAL_PAGE_SIZE_WORDS);
 }
 
 Uint32 *
@@ -46,19 +56,18 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   assert(words);
   if(m_first_free == RNIL)
   {
-    Uint32 count;
-    m_tup->allocConsPages(1, count, m_first_free);
-    if(count == 0)
+    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
+                                      &m_first_free,
+                                      Ndbd_mem_manager::NDB_ZONE_ANY);
+    if(page == 0)
       return 0;
-    page= (UndoPage*)m_tup->c_page_pool.getPtr(m_first_free);
-    page->m_state= ~ZFREE_COMMON;
     page->m_words_used= 0;
     page->m_ref_count= 0;
   }
   
-  page= (UndoPage*)m_tup->c_page_pool.getPtr(m_first_free);
-  
+  page = get_page(m_mm, m_first_free);
   Uint32 pos= page->m_words_used;
+
   if(words + pos > UndoPage::DATA_WORDS)
   {
     m_first_free= RNIL;
@@ -77,7 +86,7 @@ void
 Undo_buffer::shrink_copy_tuple(Local_key* key, Uint32 words)
 {
   assert(key->m_page_no == m_first_free);
-  UndoPage* page= (UndoPage*)m_tup->c_page_pool.getPtr(key->m_page_no); 
+  UndoPage* page= get_page(m_mm, key->m_page_no); 
   assert(page->m_words_used >= words);
   page->m_words_used -= words;
 }
@@ -85,7 +94,7 @@ Undo_buffer::shrink_copy_tuple(Local_key* key, Uint32 words)
 void
 Undo_buffer::free_copy_tuple(Local_key* key)
 {
-  UndoPage* page= (UndoPage*)m_tup->c_page_pool.getPtr(key->m_page_no);
+  UndoPage* page= get_page(m_mm, key->m_page_no);
   Uint32 cnt= page->m_ref_count;
   assert(cnt);
 
@@ -101,15 +110,15 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     else 
     {
       //ndbout_c("returning page");
-      m_tup->returnCommonArea(key->m_page_no, 1);
+      m_mm->release_page(RG_DATAMEM, key->m_page_no);
     }
   }
   key->setNull();
 }
 
 Uint32 *
-Undo_buffer::get_ptr(Local_key* key)
+Undo_buffer::get_ptr(const Local_key* key)
 {
-  return ((UndoPage*)(m_tup->c_page_pool.getPtr(key->m_page_no)))->m_data+key->m_page_idx;
+  return get_page(m_mm, key->m_page_no)->m_data+key->m_page_idx;
 }
-  
+

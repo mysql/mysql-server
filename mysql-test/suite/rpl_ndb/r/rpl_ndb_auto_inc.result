@@ -104,7 +104,7 @@ a
 600
 set @@insert_id=600;
 insert into t1 values(600),(NULL),(NULL);
-ERROR 23000: Can't write; duplicate key in table 't1'
+ERROR 23000: Can't write; duplicate key in table ''
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
 ******* Select from Master *************
@@ -168,3 +168,31 @@ a
 32
 42
 drop table t1;
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT KEY) ENGINE=ndb;
+INSERT INTO t1 () VALUES (),(),();
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 32;
+select * from t1 order by id;
+id
+1
+2
+3
+INSERT INTO t1 () VALUES (),(),();
+select * from t1 order by id;
+id
+1
+2
+3
+4
+5
+6
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+select * from t1 order by id;
+id
+1
+2
+3
+drop table t1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;

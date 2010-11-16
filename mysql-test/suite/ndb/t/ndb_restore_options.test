@@ -1,0 +1,551 @@
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+# Bug#40429 Ignore tables when restoring
+
+--echo *************************************
+--echo Creating various databases and tables
+--echo *************************************
+create database db1;
+create database db2;
+
+use db1;
+create table tab1 (a int primary key) engine=ndb;
+create table tab2 (a int primary key,
+        b varchar(20),
+        c int,
+        d text,
+        unique(c)) engine=ndb;
+insert into tab1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into tab2 values (1, "Donnington", 1, repeat("O", 1000)),
+(2, "Basingstoke", 2, repeat("P", 1000)),
+(3, "George", 3, repeat("Q", 1000)),
+(4, "Spottiswoode", 4, repeat("R", 1000)),
+(5, "Sciennes", 5, repeat("S", 1000)),
+(6, "Cairns", 6, repeat("T", 1000)),
+(7, "Highlea", 7, repeat("U", 1000));
+
+# checksum table tab1;
+# checksum table tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+use db2;
+
+create table tab1 (a int primary key) engine=ndb;
+create table tab2 (a int primary key, b varchar(20), c int, unique(c), d text) engine=ndb;
+
+insert into tab1 select * from db1.tab1;
+insert into tab2 select * from db1.tab2;
+
+# checksum table tab1;
+# checksum table tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+--echo ***********************
+--echo Backing up created data
+--echo ***********************
+--source include/ndb_backup.inc
+
+drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+
+--echo **************************************
+--echo Check various include/exclude variants
+--echo **************************************
+--echo Normal full restore
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+
+--echo ****************
+--echo Include only db2
+--echo ****************
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db2>> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db2 >> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+drop table db2.tab1, db2.tab2;
+
+--echo ****************
+--echo Exclude only db2
+--echo ****************
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2>> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+use db2;
+--sorted_result
+show tables;
+
+drop table db1.tab1, db1.tab2;
+
+--echo ************
+--echo Exclude both
+--echo ************
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1>> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+
+--echo **********************************
+--echo Include only db1.tab1 and db2.tab2
+--echo **********************************
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1;
+select * from tab1 order by a;
+
+use db2;
+--sorted_result
+show tables;
+# checksum table tab2;
+select * from tab2 order by a;
+
+
+drop table db1.tab1, db2.tab2;
+
+--echo *****************************
+--echo Exclude db1.tab1 and db2.tab2
+--echo *****************************
+--echo Should result in db1.tab2 and db2.tab1 being restored
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab2;
+select * from tab2 order by a;
+
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1;
+select * from tab1 order by a;
+
+drop table db1.tab2, db2.tab1;
+
+--echo *********************************
+--echo Include db1.tab1, but exclude db1
+--echo *********************************
+
+--echo Should result in only db1.tab1 being restored
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id  --exclude-databases db1 --include-tables db1.tab1>> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1;
+select * from tab1 order by a;
+
+use db2;
+--sorted_result
+show tables;
+
+drop table db1.tab1;
+
+--echo *********************************
+--echo Exclude db1.tab1, but include db1
+--echo *********************************
+--echo Should result in only db1.tab2 being restored
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id  --include-databases db1 --exclude-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id  --include-databases db1 --exclude_tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab2;
+select * from tab2 order by a;
+
+use db2;
+--sorted_result
+show tables;
+
+drop table db1.tab2;
+
+--echo **************************************
+--echo Exclude db1.tab1, and include db1.tab1
+--echo **************************************
+--echo Should result in db1.tab1 only restored.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1;
+select * from tab1 order by a;
+
+use db2;
+--sorted_result
+show tables;
+
+drop table db1.tab1;
+
+--echo ****************************
+--echo Exclude db2, and include db2
+--echo ****************************
+--echo Should result in db2 only restored.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+drop table db2.tab1, db2.tab2;
+
+--echo *********************************
+--echo Include db1, and include db2.tab1
+--echo *********************************
+--echo Should result in all tables in db1 and db2.tab1 being restored.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
+
+
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1;
+select * from tab1 order by a;
+
+drop table db1.tab1,db1.tab2,db2.tab1;
+
+
+--echo ************************
+--echo Include unknown database
+--echo ************************
+--echo Should result in nothing restored
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases unhappy_customer >> $NDB_TOOLS_OUTPUT
+
+show databases like "db%";
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+
+--echo *********************
+--echo Exclude unknown table
+--echo *********************
+--echo Should result in everything restored
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
+
+show databases like "db%";
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+use db2;
+--sorted_result
+show tables;
+# checksum table tab1, tab2;
+select * from tab1 order by a;
+select * from tab2 order by a;
+
+drop table db1.tab1, db1.tab2;
+drop table db2.tab1, db2.tab2;
+
+--echo ************************************
+--echo Check accumulative include arguments
+--echo ************************************
+--echo Should result in both db1.tab1 and db1.tab2 restored.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+# checksum table tab2;
+select * from tab2 order by a;
+
+use db2;
+--sorted_result
+show tables;
+
+drop table db1.tab1, db1.tab2;
+
+--echo ************************************
+--echo Check accumulative exclude arguments
+--echo ************************************
+--echo Should result in both db2.tab1 and db2.tab2 restored.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE  --no-defaults -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
+
+use db1;
+--sorted_result
+show tables;
+use db2;
+--sorted_result
+show tables;
+
+drop table db2.tab1, db2.tab2;
+
+drop database db1;
+drop database db2;
+
+# End of bug 40429
+
+
+--echo Test ndb_restore ability to ignore some schema differences
+
+use test;
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  e varchar(200),
+  f int,
+  g char(20),
+  h text,
+  i int,
+  primary key(a,b)) TABLESPACE ts1 engine = ndb;
+
+insert into t1 values
+        (1, 1, 1, 1, '1', 1, 'Rankin', 'Rebus', 1),
+        (2, 2, 2, 2, '2', 2, 'Doyle', 'Holmes', 2),
+        (3, 3, 3, 3, '3', 3, 'Burns', 'Mouse', 3),
+        (4, 4, 4, 4, '4', 4, 'Gibbon', 'Chris', 4),
+        (5, 5, 5, 5, '5', 5, 'Gray', 'Lanark', 5);
+
+select * from t1 order by a;
+
+--echo Backing up data
+--source include/ndb_backup.inc
+
+drop table t1;
+
+--echo Normal restore
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+show create table t1;
+
+select * from t1 order by a;
+
+truncate t1;
+
+--echo Column name change, should fail without --exclude-missing-columns
+
+alter table t1 change c cc int;
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Retry with --exclude-missing-columns
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --exclude-missing-columns $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --exclude-missing-columns $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+truncate t1;
+
+--echo Column type change, should fail
+
+alter table t1 change cc c bigint;
+show create table t1; #REMOVE!
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Retry with --promote-attribute
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --promote-attribute $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --promote-attribute $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+truncate t1;
+
+--echo Column nullability change, should fail
+
+alter table t1 change c c int not null;
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+alter table t1 change c c int;
+
+# Skip Precision and scale differences - should fail
+
+--echo Column length change, should fail
+
+alter table t1 change g g char(22);
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Character set difference, should fail
+
+alter table t1 change g g char(20) character set binary;
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+alter table t1 change g g char(20);
+
+--echo AutoIncrement difference, should fail
+
+alter table t1 change b b int auto_increment;
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Default difference, should pass 
+alter table t1 change b b int default 22;
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+truncate t1;
+
+alter table t1 change b b int;
+
+--echo ArrayType difference, should fail
+alter table t1 change e e varchar(300);
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+alter table t1 change e e varchar(200);
+
+--echo StorageType difference, should pass
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+alter table t1 change i i int storage disk;
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+
+alter table t1 change i i int storage memory;
+truncate t1;
+
+# Skip BlobType difference (should fail)
+
+--echo Dynamic property difference, should pass
+
+alter table t1 change c c int column_format dynamic;
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+
+--echo Different PK columns, should fail
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  e varchar(200),
+  f int,
+  g char(20),
+  h text,
+  i int,
+  primary key (a)) TABLESPACE ts1 engine = ndb;
+
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+drop table t1;
+
+--echo Different distribution keys, should pass
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  e varchar(200),
+  f int,
+  g char(20),
+  h text,
+  i int,
+  primary key(a,b)) TABLESPACE ts1 engine = ndb partition by key(a);
+
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select * from t1 order by a;
+
+drop table t1;

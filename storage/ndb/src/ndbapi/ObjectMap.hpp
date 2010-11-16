@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_OBJECT_ID_MAP_HPP
 #define NDB_OBJECT_ID_MAP_HPP
@@ -21,7 +24,7 @@
 #include <NdbOut.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 //#define DEBUG_OBJECTMAP
 
@@ -85,8 +88,8 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
       m_map[i].m_next = m_firstFree;
       m_firstFree = i;
     } else {
-      g_eventLogger.error("NdbObjectIdMap::unmap(%u, 0x%x) obj=0x%x",
-                          id, (long) object, (long) obj);
+      g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
+                           id, (long) object, (long) obj);
       DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                           id, (long) object, (long) obj));
       return 0;

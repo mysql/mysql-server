@@ -1,25 +1,27 @@
 # Copyright (C) 2004-2006 MySQL AB
-# 
+#  All rights reserved. Use is subject to license terms.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SUBDIRS = bank
+EXTRA_DIST = CMakeLists.txt
 
 ndbtest_PROGRAMS = \
 flexBench \
 drop_all_tabs \
 create_all_tabs \
-create_tab \
+create_tab reorg_tab \
 flexAsynch \
 flexBench \
 flexHammer \
@@ -31,9 +33,14 @@ testBlobs \
 testDataBuffers \
 testDict \
 testIndex \
+testLimits \
 testMgm \
+testMgmd \
+testSingleUserMode \
+testNativeDefault \
 testNdbApi \
 testNodeRestart \
+testUpgrade \
 testOIBasic \
 testOperations \
 testRestartGci \
@@ -53,8 +60,13 @@ DbCreate DbAsyncGenerator \
 testSRBank \
 test_event_merge \
 testIndexStat \
+ndbapi_50compat0 \
+ndbapi_50compat1 \
 testNDBT \
-NdbRepStress
+testReconnect \
+testNdbinfo \
+NdbRepStress \
+msa
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -80,9 +92,24 @@ testBlobs_SOURCES = testBlobs.cpp
 testDataBuffers_SOURCES = testDataBuffers.cpp
 testDict_SOURCES = testDict.cpp
 testIndex_SOURCES = testIndex.cpp
-testMgm_SOURCES = testMgm.cpp
+testLimits_SOURCES = testLimits.cpp
+testMgm_SOURCES = testMgm.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
+testMgm_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
+testMgmd_SOURCES = testMgmd.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/Config.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/ConfigInfo.cpp \
+	$(top_srcdir)/storage/ndb/src/mgmsrv/InitConfigFileParser.cpp
+testMgmd_LDFLAGS = -static
+testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
+testSingleUserMode_SOURCES = testSingleUserMode.cpp
+testNativeDefault_SOURCES = testNativeDefault.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
+testUpgrade_SOURCES = testUpgrade.cpp
+testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
@@ -102,6 +129,9 @@ testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testNDBT_SOURCES = testNDBT.cpp
 testNDBT_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
+testReconnect_SOURCES = testReconnect.cpp
+testReconnect_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
+testNdbinfo_SOURCES = testNdbinfo.cpp
 testBitfield_SOURCES = testBitfield.cpp
 NdbRepStress_SOURCES = acrt/NdbRepStress.cpp
 DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
@@ -110,82 +140,23 @@ testSRBank_SOURCES = testSRBank.cpp
 test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testIndexStat_SOURCES = testIndexStat.cpp
+reorg_tab_SOURCES = reorg_tab.cpp
+msa_SOURCES = msa.cpp
+
+ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
+ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp
+ndbapi_50compat0_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
+
+ndbapi_50compat1_CPPFLAGS = -DNDBAPI_50_COMPAT
+ndbapi_50compat1_SOURCES = ndbapi_50compat1.cpp
+ndbapi_50compat1_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 
-##testDict_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testIndex_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testSystemRestart_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-##testTransactions_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
-NdbRepStress_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/test/include -I$(top_srcdir)/include
 testBackup_LDADD = $(LDADD) bank/libbank.a
 testSRBank_LDADD = bank/libbank.a $(LDADD) 
 NdbRepStress_LDADD = $(LDADD) $(top_builddir)/libmysql_r/libmysqlclient_r.la
-
-windoze-dsp: flexBench.dsp testBasic.dsp testBlobs.dsp \
-             testScan.dsp
-
-flexBench.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ flexBench
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(flexBench_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-testBasic.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ testBasic
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testBasic_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-testOIBasic.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ testOIBasic
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testOIBasic_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-testBlobs.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ testBlobs
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testBlobs_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-testScan.dsp: Makefile \
-               $(top_srcdir)/storage/ndb/config/win-prg.am \
-               $(top_srcdir)/storage/ndb/config/win-name \
-               $(top_srcdir)/storage/ndb/config/win-includes \
-               $(top_srcdir)/storage/ndb/config/win-sources \
-               $(top_srcdir)/storage/ndb/config/win-libraries
-	cat $(top_srcdir)/storage/ndb/config/win-prg.am > $@
-	@$(top_srcdir)/storage/ndb/config/win-name $@ testScan
-	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
-	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testScan_SOURCES)
-	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
 

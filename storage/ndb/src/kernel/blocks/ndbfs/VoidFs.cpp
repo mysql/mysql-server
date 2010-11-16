@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +13,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
-
-#include <limits.h>
-#include <errno.h>
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "Ndbfs.hpp"
+
 #include "AsyncFile.hpp"
-#include "Filename.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -31,28 +31,24 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <RefConvert.hpp>
-#include <NdbSleep.h>
-#include <NdbOut.hpp>
 #include <Configuration.hpp>
 
-#define DEBUG(x) { ndbout << "FS::" << x << endl; }
-
 VoidFs::VoidFs(Block_context & ctx) :
-  SimulatedBlock(NDBFS, ctx)
+  Ndbfs(ctx)
 {
-  BLOCK_CONSTRUCTOR(VoidFs);
-  
   // Set received signals
-  addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ);
-  addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD);
-  addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR);
-  addRecSignal(GSN_FSOPENREQ, &VoidFs::execFSOPENREQ);
-  addRecSignal(GSN_FSCLOSEREQ, &VoidFs::execFSCLOSEREQ);
-  addRecSignal(GSN_FSWRITEREQ, &VoidFs::execFSWRITEREQ);
-  addRecSignal(GSN_FSREADREQ, &VoidFs::execFSREADREQ);
-  addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ);
-  addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ);
-  addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ);
+  addRecSignal(GSN_SEND_PACKED, &VoidFs::execSEND_PACKED, true);
+  addRecSignal(GSN_READ_CONFIG_REQ, &VoidFs::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DUMP_STATE_ORD,  &VoidFs::execDUMP_STATE_ORD, true);
+  addRecSignal(GSN_STTOR,  &VoidFs::execSTTOR, true);
+  addRecSignal(GSN_FSOPENREQ, &VoidFs::execFSOPENREQ, true);
+  addRecSignal(GSN_FSCLOSEREQ, &VoidFs::execFSCLOSEREQ, true);
+  addRecSignal(GSN_FSWRITEREQ, &VoidFs::execFSWRITEREQ, true);
+  addRecSignal(GSN_FSREADREQ, &VoidFs::execFSREADREQ, true);
+  addRecSignal(GSN_FSSYNCREQ, &VoidFs::execFSSYNCREQ, true);
+  addRecSignal(GSN_FSAPPENDREQ, &VoidFs::execFSAPPENDREQ, true);
+  addRecSignal(GSN_FSREMOVEREQ, &VoidFs::execFSREMOVEREQ, true);
+  addRecSignal(GSN_FSSUSPENDORD, &VoidFs::execFSSUSPENDORD, true);
    // Set send signals
 }
 
@@ -73,6 +69,9 @@ VoidFs::execREAD_CONFIG_REQ(Signal* signal)
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
+
+  signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY;
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 1);
 }
 
 void
@@ -87,6 +86,12 @@ VoidFs::execSTTOR(Signal* signal)
     return;
   }
   ndbrequire(0);
+}
+
+void
+VoidFs::execSEND_PACKED(Signal* signal)
+{
+  jamEntry();
 }
 
 void 
@@ -201,6 +206,15 @@ VoidFs::execFSAPPENDREQ(Signal * signal)
   signal->theData[0] = userPointer;
   signal->theData[1] = size << 2;
   sendSignal(userRef, GSN_FSAPPENDCONF, signal, 2, JBB);
+}
+
+/*
+ * PR0: File Pointer DR0: User reference DR1: User Pointer
+ */
+void
+VoidFs::execFSSUSPENDORD(Signal * signal)
+{
+  jamEntry();
 }
 
 void

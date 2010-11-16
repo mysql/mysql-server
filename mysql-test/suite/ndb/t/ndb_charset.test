@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -253,5 +252,23 @@ select * from t1;
 replace into t1 set a = 'aaabb';
 select * from t1;
 drop table t1;
+
+# bug#33158 NDB table name problem(sensitive/insensitive)
+# Check that tables with same letters, but different case
+# don't conflict
+create table t1(a int) engine = ndbcluster;
+
+if (`SELECT @@lower_case_table_names = 0`)
+{
+  create table T1(a int) engine = ndbcluster;
+  drop table T1;
+}
+if (`SELECT @@lower_case_table_names <> 0`)
+{
+  --echo create table T1(a int) engine = ndbcluster;
+  --echo drop table T1;
+}
+drop table t1;
+
 
 # End of 4.1 tests
