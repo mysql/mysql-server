@@ -2899,8 +2899,15 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
 
 bool Select_fetch_protocol_binary::send_eof()
 {
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_eof(thd);
-  return FALSE;
+  return false;
 }
 
 
