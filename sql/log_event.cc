@@ -594,7 +594,6 @@ const char* Log_event::get_type_str(Log_event_type type)
   case INTVAR_EVENT: return "Intvar";
   case LOAD_EVENT:   return "Load";
   case NEW_LOAD_EVENT:   return "New_load";
-  case SLAVE_EVENT:  return "Slave";
   case CREATE_FILE_EVENT: return "Create_file";
   case APPEND_BLOCK_EVENT: return "Append_block";
   case DELETE_FILE_EVENT: return "Delete_file";
@@ -1186,11 +1185,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     case ROTATE_EVENT:
       ev = new Rotate_log_event(buf, event_len, description_event);
       break;
-#ifdef HAVE_REPLICATION
-    case SLAVE_EVENT: /* can never happen (unused event) */
-      ev = new Slave_log_event(buf, event_len, description_event);
-      break;
-#endif /* HAVE_REPLICATION */
     case CREATE_FILE_EVENT:
       ev = new Create_file_log_event(buf, event_len, description_event);
       break;
@@ -3797,7 +3791,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[ROTATE_EVENT-1]= ROTATE_HEADER_LEN;
       post_header_len[INTVAR_EVENT-1]= INTVAR_HEADER_LEN;
       post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= SLAVE_HEADER_LEN;
+      post_header_len[SLAVE_EVENT-1]= 0;   /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
       post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
       post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
       post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
@@ -3880,7 +3874,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[ROTATE_EVENT-1]= (binlog_ver==1) ? 0 : ROTATE_HEADER_LEN;
       post_header_len[INTVAR_EVENT-1]= 0;
       post_header_len[LOAD_EVENT-1]= LOAD_HEADER_LEN;
-      post_header_len[SLAVE_EVENT-1]= 0;
+      post_header_len[SLAVE_EVENT-1]= 0;  /* Unused because the code for Slave log event was removed. (15th Oct. 2010) */
       post_header_len[CREATE_FILE_EVENT-1]= CREATE_FILE_HEADER_LEN;
       post_header_len[APPEND_BLOCK_EVENT-1]= APPEND_BLOCK_HEADER_LEN;
       post_header_len[EXEC_LOAD_EVENT-1]= EXEC_LOAD_HEADER_LEN;
@@ -5956,7 +5950,7 @@ User_var_log_event::do_shall_skip(Relay_log_info *rli)
 
 
 /**************************************************************************
-  Slave_log_event methods
+  Unknown_log_event methods
 **************************************************************************/
 
 #ifdef HAVE_REPLICATION
@@ -5969,150 +5963,6 @@ void Unknown_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info
   my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
 }
 #endif  
-
-#ifndef MYSQL_CLIENT
-void Slave_log_event::pack_info(Protocol *protocol)
-{
-  char buf[256+HOSTNAME_LENGTH], *pos;
-  pos= strmov(buf, "host=");
-  pos= strnmov(pos, master_host, HOSTNAME_LENGTH);
-  pos= strmov(pos, ",port=");
-  pos= int10_to_str((long) master_port, pos, 10);
-  pos= strmov(pos, ",log=");
-  pos= strmov(pos, master_log);
-  pos= strmov(pos, ",pos=");
-  pos= longlong10_to_str(master_pos, pos, 10);
-  protocol->store(buf, pos-buf, &my_charset_bin);
-}
-#endif /* !MYSQL_CLIENT */
-
-
-#ifndef MYSQL_CLIENT
-/**
-  @todo
-  re-write this better without holding both locks at the same time
-*/
-Slave_log_event::Slave_log_event(THD* thd_arg,
-				 Relay_log_info* rli)
-  :Log_event(thd_arg, 0, 0) , mem_pool(0), master_host(0)
-{
-  DBUG_ENTER("Slave_log_event");
-  if (!rli->inited)				// QQ When can this happen ?
-    DBUG_VOID_RETURN;
-
-  Master_info* mi = rli->mi;
-  // TODO: re-write this better without holding both locks at the same time
-  mysql_mutex_lock(&mi->data_lock);
-  mysql_mutex_lock(&rli->data_lock);
-  master_host_len = strlen(mi->host);
-  master_log_len = strlen(rli->get_group_master_log_name());
-  // on OOM, just do not initialize the structure and print the error
-  if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
-                                   MYF(MY_WME))))
-  {
-    master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
-    memcpy(master_host, mi->host, master_host_len + 1);
-    master_log = master_host + master_host_len + 1;
-    memcpy(master_log, rli->get_group_master_log_name(), master_log_len + 1);
-    master_port = mi->port;
-    master_pos = rli->get_group_master_log_pos();
-    DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
-                        (ulong) master_pos));
-  }
-  else
-    sql_print_error("Out of memory while recording slave event");
-  mysql_mutex_unlock(&rli->data_lock);
-  mysql_mutex_unlock(&mi->data_lock);
-  DBUG_VOID_RETURN;
-}
-#endif /* !MYSQL_CLIENT */
-
-
-Slave_log_event::~Slave_log_event()
-{
-  my_free(mem_pool);
-}
-
-
-#ifdef MYSQL_CLIENT
-void Slave_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
-{
-  char llbuff[22];
-  if (print_event_info->short_form)
-    return;
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
-  my_b_printf(&print_event_info->head_cache, "\n\
-Slave: master_host: '%s'  master_port: %d  master_log: '%s'  master_pos: %s\n",
-	  master_host, master_port, master_log, llstr(master_pos, llbuff));
-}
-#endif /* MYSQL_CLIENT */
-
-
-int Slave_log_event::get_data_size()
-{
-  return master_host_len + master_log_len + 1 + SL_MASTER_HOST_OFFSET;
-}
-
-
-#ifndef MYSQL_CLIENT
-bool Slave_log_event::write(IO_CACHE* file)
-{
-  ulong event_length= get_data_size();
-  int8store(mem_pool + SL_MASTER_POS_OFFSET, master_pos);
-  int2store(mem_pool + SL_MASTER_PORT_OFFSET, master_port);
-  // log and host are already there
-
-  return (write_header(file, event_length) ||
-          my_b_safe_write(file, (uchar*) mem_pool, event_length));
-}
-#endif
-
-
-void Slave_log_event::init_from_mem_pool(int data_size)
-{
-  master_pos = uint8korr(mem_pool + SL_MASTER_POS_OFFSET);
-  master_port = uint2korr(mem_pool + SL_MASTER_PORT_OFFSET);
-  master_host = mem_pool + SL_MASTER_HOST_OFFSET;
-  master_host_len = (uint) strlen(master_host);
-  // safety
-  master_log = master_host + master_host_len + 1;
-  if (master_log > mem_pool + data_size)
-  {
-    master_host = 0;
-    return;
-  }
-  master_log_len = (uint) strlen(master_log);
-}
-
-
-/** This code is not used, so has not been updated to be format-tolerant. */
-/* We are using description_event so that slave does not crash on Log_event
-  constructor */
-Slave_log_event::Slave_log_event(const char* buf, 
-                                 uint event_len,
-                                 const Format_description_log_event* description_event)
-  :Log_event(buf,description_event),mem_pool(0),master_host(0)
-{
-  if (event_len < LOG_EVENT_HEADER_LEN)
-    return;
-  event_len -= LOG_EVENT_HEADER_LEN;
-  if (!(mem_pool = (char*) my_malloc(event_len + 1, MYF(MY_WME))))
-    return;
-  memcpy(mem_pool, buf + LOG_EVENT_HEADER_LEN, event_len);
-  mem_pool[event_len] = 0;
-  init_from_mem_pool(event_len);
-}
-
-
-#ifndef MYSQL_CLIENT
-int Slave_log_event::do_apply_event(Relay_log_info const *rli)
-{
-  if (mysql_bin_log.is_open())
-    return mysql_bin_log.write(this);
-  return 0;
-}
-#endif /* !MYSQL_CLIENT */
-
 
 /**************************************************************************
 	Stop_log_event methods
@@ -10153,7 +10003,8 @@ st_print_event_info::st_print_event_info()
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
-   base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
+   base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
+   have_unflushed_events(FALSE)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

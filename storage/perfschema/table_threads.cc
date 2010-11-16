@@ -103,7 +103,7 @@ table_threads::m_field_def=
 PFS_engine_table_share
 table_threads::m_share=
 {
-  { C_STRING_WITH_LEN("THREADS") },
+  { C_STRING_WITH_LEN("threads") },
   &pfs_updatable_acl,
   &table_threads::create,
   NULL, /* write_row */
