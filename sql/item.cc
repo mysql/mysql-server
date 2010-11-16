@@ -226,8 +226,6 @@ bool Item::val_bool()
 */
 String *Item::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-
   if (!(collation.collation->state & MY_CS_NONASCII))
     return val_str(str);
   
@@ -3459,19 +3457,16 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-    param_type= MYSQL_TYPE_STRING;
 
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
-      param_type= MYSQL_TYPE_DOUBLE;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
-    param_type= MYSQL_TYPE_LONG;
     break;
 
   case DECIMAL_RESULT:
@@ -3483,8 +3478,6 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
-    param_type= MYSQL_TYPE_NEWDECIMAL;
-
     break;
   }
 
@@ -3516,6 +3509,7 @@ void
 Item_param::set_out_param_info(Send_field *info)
 {
   m_out_param_info= info;
+  param_type= m_out_param_info->type;
 }
 
 
@@ -3561,6 +3555,7 @@ void Item_param::make_field(Send_field *field)
   field->org_table_name= m_out_param_info->org_table_name;
   field->col_name= m_out_param_info->col_name;
   field->org_col_name= m_out_param_info->org_col_name;
+
   field->length= m_out_param_info->length;
   field->charsetnr= m_out_param_info->charsetnr;
   field->flags= m_out_param_info->flags;
