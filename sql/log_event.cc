@@ -3353,6 +3353,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
         log_slow_statement(thd);
       }
 

@@ -1034,11 +1034,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
     {
-      char *beginning_of_next_stmt= (char*)
-        parser_state.m_lip.found_semicolon;
       /*
         Multiple queries exits, execute them individually
       */
+      char *beginning_of_next_stmt= (char*) parser_state.m_lip.found_semicolon;
+
+      /* Finalize server status flags after executing a statement. */
+      thd->update_server_status();
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
@@ -1384,6 +1386,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
 
+  /* Finalize server status flags after executing a command. */
+  thd->update_server_status();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -5504,8 +5508,6 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
-    /* Finalize server status flags after executing a statement. */
-    thd->update_server_status();
   }
 
   DBUG_VOID_RETURN;
