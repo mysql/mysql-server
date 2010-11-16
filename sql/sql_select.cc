@@ -6010,9 +6010,9 @@ bool JOIN_TAB::hash_join_is_possible()
 int JOIN_TAB::make_scan_filter()
 {
   COND *tmp;
-  DBUG_ENTER("make_join_select");
+  DBUG_ENTER("make_scan_filter");
 
-  Item *cond= is_last_inner_table() ?
+  Item *cond= is_inner_table_of_outer_join() ?
                 *get_first_inner_table()->on_expr_ref : join->conds;
 
   if (cond &&
