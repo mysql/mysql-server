@@ -1359,7 +1359,11 @@ bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
     1   error
 */
 
-bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
+bool MYSQL_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                     PSI_file_key log_file_key,
+#endif
+                     const char *log_name, enum_log_type log_type_arg,
                      const char *new_name, enum cache_type io_cache_type_arg)
 {
   char buff[FN_REFLEN];
@@ -1387,7 +1391,12 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   db[0]= 0;
 
-  if ((file= mysql_file_open(key_file_MYSQL_LOG,
+#ifdef HAVE_PSI_INTERFACE
+  /* Keep the key for reopen */
+  m_log_file_key= log_file_key;
+#endif
+
+  if ((file= mysql_file_open(log_file_key,
                              log_file_name, open_flags,
                              MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
@@ -1571,7 +1580,11 @@ void MYSQL_QUERY_LOG::reopen_file()
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(save_name, log_type, 0, io_cache_type);
+  open(
+#ifdef HAVE_PSI_INTERFACE
+       m_log_file_key,
+#endif
+       save_name, log_type, 0, io_cache_type);
   my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
