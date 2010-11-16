@@ -1413,9 +1413,9 @@ drop table tmp;
 
 # big table done
 
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 select distinct concat(fld3," ",fld3) as namn from t2,t3 where t2.fld1=t3.t2nr order by namn limit 10;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct concat(fld3," ",fld3) from t2,t3 where t2.fld1=t3.t2nr order by fld3 limit 10;
 select distinct fld5 from t2 limit 10;
 
@@ -1424,9 +1424,9 @@ select distinct fld5 from t2 limit 10;
 #
 
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
-SET SQL_BIG_TABLES=1; # Force use of MyISAM
+SET BIG_TABLES=1; # Force use of MyISAM
 select distinct fld3,count(*) from t2 group by companynr,fld3 limit 10;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 
 #
@@ -4187,3 +4187,21 @@ DROP TABLE t1;
 
 --echo # End of test BUG#54515
 
+--echo #
+--echo # Bug #57203 Assertion `field_length <= 255' failed.
+--echo #
+
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
+UNION ALL 
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+AS foo
+;
+
+CREATE table t1(a text);
+INSERT INTO t1 VALUES (''), ('');
+SELECT avg(distinct(t1.a)) FROM t1, t1 t2
+GROUP BY t2.a ORDER BY t1.a;
+
+DROP TABLE t1;
+
+--echo # End of test BUG#57203

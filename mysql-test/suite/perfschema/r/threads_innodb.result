@@ -1,7 +1,7 @@
 SELECT name, type, processlist_user, processlist_host, processlist_db,
 processlist_command, processlist_time, processlist_state, processlist_info,
 parent_thread_id, role, instrumented
-FROM performance_schema.THREADS
+FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 GROUP BY name;
 name	type	processlist_user	processlist_host	processlist_db	processlist_command	processlist_time	processlist_state	processlist_info	parent_thread_id	role	instrumented

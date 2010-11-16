@@ -249,7 +249,9 @@ trx_sys_create_doublewrite_buf(void)
 {
 	buf_block_t*	block;
 	buf_block_t*	block2;
+#ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
+#endif /* UNIV_SYNC_DEBUG */
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -352,8 +354,11 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_block = buf_page_get(TRX_SYS_SPACE, 0, page_no,
-						 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			new_block =
+#endif /* UNIV_SYNC_DEBUG */
+			buf_page_get(TRX_SYS_SPACE, 0, page_no,
+				     RW_X_LATCH, &mtr);
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
 

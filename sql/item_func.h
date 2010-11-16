@@ -120,7 +120,8 @@ public:
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
-  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -1423,6 +1424,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_result();
   longlong val_int_result();
+  bool val_bool_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();

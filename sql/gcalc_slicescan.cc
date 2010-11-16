@@ -172,7 +172,8 @@ void Gcalc_heap::reset()
   if (!m_hook)
   {
     m_hook= &m_first;
-    for (; *m_hook; m_hook= &(*m_hook)->next);
+    for (; *m_hook; m_hook= &(*m_hook)->next)
+    {}
   }
 
   *m_hook= m_free;
@@ -354,7 +355,8 @@ int Gcalc_scan_iterator::insert_top_point()
      but structures used aren't suitable, and the
      scan is usually not really long */
   for (; sp && slice_first(sp, sp0);
-       prev_hook= &sp->next, sp=sp->get_next());
+       prev_hook= &sp->next, sp=sp->get_next())
+  {}
 
   if (m_cur_pi->right)
   {

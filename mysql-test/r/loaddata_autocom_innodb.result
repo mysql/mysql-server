@@ -1,4 +1,4 @@
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists t1;
 create table t1 (id int unsigned not null auto_increment primary key, a text, b text);
 start transaction;

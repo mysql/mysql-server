@@ -6473,8 +6473,8 @@ proc_25411_b
 select p1, p2;
 end
 proc_25411_c		begin
-select 1,2,3;
-select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
@@ -6486,8 +6486,8 @@ show create procedure proc_25411_c;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_25411_c		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_c`()
 begin
-select 1,2,3;
-select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;

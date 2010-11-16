@@ -13,8 +13,48 @@ GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3
 GRANT SELECT ON `mysqltest`.* TO 'mysqltest_1'@'localhost'
 grant delete on mysqltest.* to mysqltest_1@localhost;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	SPECIFIED	EDH-RSA-DES-CBC3-SHA			0	0	0	0
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	SPECIFIED
+ssl_cipher	EDH-RSA-DES-CBC3-SHA
+x509_issuer	
+x509_subject	
+max_questions	0
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -44,15 +84,95 @@ delete from mysql.user where user='mysqltest_1';
 flush privileges;
 grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	0	0	0
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	10
+max_updates	0
+max_connections	0
+max_user_connections	0
+plugin	
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
 grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
 select * from mysql.user where user="mysqltest_1";
-Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections
-localhost	mysqltest_1		N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N					10	20	30	0
+Host	localhost
+User	mysqltest_1
+Password	
+Select_priv	N
+Insert_priv	N
+Update_priv	N
+Delete_priv	N
+Create_priv	N
+Drop_priv	N
+Reload_priv	N
+Shutdown_priv	N
+Process_priv	N
+File_priv	N
+Grant_priv	N
+References_priv	N
+Index_priv	N
+Alter_priv	N
+Show_db_priv	N
+Super_priv	N
+Create_tmp_table_priv	N
+Lock_tables_priv	N
+Execute_priv	N
+Repl_slave_priv	N
+Repl_client_priv	N
+Create_view_priv	N
+Show_view_priv	N
+Create_routine_priv	N
+Alter_routine_priv	N
+Create_user_priv	N
+Event_priv	N
+Trigger_priv	N
+Create_tablespace_priv	N
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_questions	10
+max_updates	20
+max_connections	30
+max_user_connections	0
+plugin	
+authentication_string	
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -164,6 +284,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
@@ -625,16 +746,19 @@ show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 flush privileges;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 GRANT SELECT ON `ÂÄ`.* TO 'root'@'localhost'
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop database ÂÄ;
 revoke all privileges on ÂÄ.* from root@localhost;
 show grants for root@localhost;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 set names latin1;
 create user mysqltest_7@;
 set password for mysqltest_7@ = password('systpass');
@@ -1324,8 +1448,6 @@ CREATE USER 'userbug33464'@'localhost';
 GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 	
 userbug33464@localhost	dbbug33464
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from dbbug33464.t6 where t6.f2= 'xyz';
@@ -1453,6 +1575,17 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+#
+# Bug #36742
+#
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+host	user
+localhost	myuser
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;
 #########################################################################
 #
 # Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.
