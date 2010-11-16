@@ -309,6 +309,11 @@ namespace AQP
     */
     switch (join_tab->type)
     {
+    case JT_SYSTEM:
+      DBUG_PRINT("info", ("Operation %d is const-optimized.", m_tab_no));
+      m_access_type= AT_FIXED;
+      break;
+
     case JT_EQ_REF:
     case JT_CONST:
       m_index_no= join_tab->ref.key;

@@ -874,6 +874,12 @@ ndb_pushed_builder_ctx::init_pushability()
       DBUG_ASSERT(false);
       break;
 
+    case AQP::AT_FIXED:
+      EXPLAIN_NO_PUSH("Table '%s' was const-table optimized, no runtime access required",
+                      table_access->get_table()->alias);
+      m_tables[i].m_maybe_pushable= 0;
+      break;
+
     case AQP::AT_OTHER:
       EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
                       table_access->get_table()->alias, 
@@ -7544,6 +7550,9 @@ int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 
   This is actually (yet) never called for ndbcluster tables, as these table types
   does not set HA_STATS_RECORDS_IS_EXACT.
+
+  UPDATE: Might be called if the predicate contain '<column> IS NULL', and
+          <column> is defined as 'NOT NULL' (or is part of primary key)
 
   Implemented regardless of this as the default implememtation would break 
   any pushed joins as it calls ha_rnd_end() / ha_index_end() at end of execution.
