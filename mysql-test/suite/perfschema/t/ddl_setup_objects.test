@@ -25,7 +25,7 @@ alter table performance_schema.setup_objects add column foo integer;
 drop table if exists test.setup_objects;
 --enable_warnings
 
-create table test.SETUP_OBJECTS as
+create table test.setup_objects as
   select * from performance_schema.setup_objects;
 
 truncate table performance_schema.setup_objects;
