@@ -1265,7 +1265,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
 hex(concat(IsSimple(GeomFromText('POINT(1 1)'))))
-30
+31
 create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
