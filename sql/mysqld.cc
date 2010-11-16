@@ -7828,9 +7828,10 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_MYSQL_LOG, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
+PSI_file_key key_file_query_log, key_file_slow_log;
 
 static PSI_file_info all_server_files[]=
 {
@@ -7853,11 +7854,12 @@ static PSI_file_info all_server_files[]=
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_master_info, "master_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_MYSQL_LOG, "MYSQL_LOG", 0},
   { &key_file_partition, "partition", 0},
   { &key_file_pid, "pid", 0},
+  { &key_file_query_log, "query_log", 0},
   { &key_file_relay_log_info, "relay_log_info", 0},
   { &key_file_send_file, "send_file", 0},
+  { &key_file_slow_log, "slow_log", 0},
   { &key_file_tclog, "tclog", 0},
   { &key_file_trg, "trigger_name", 0},
   { &key_file_trn, "trigger", 0},

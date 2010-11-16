@@ -174,6 +174,8 @@
 /*
   These bits are set if different kinds of indexes can be created
   off-line without re-create of the table (but with a table lock).
+  Partitioning needs both ADD and DROP to be supported by its underlying
+  handlers, due to error handling, see bug#57778.
 */
 #define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
 #define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
