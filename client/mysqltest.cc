@@ -8331,10 +8331,11 @@ int main(int argc, char **argv)
 	do_sync_with_master2(command, 0);
 	break;
       }
-#ifdef MCP_RESULT_FORMAT_VERSION
       case Q_COMMENT:				/* Ignore row */
+#ifdef MCP_RESULT_FORMAT_VERSION
         command->last_argument= command->end;
 #else
+      /* Don't ignore comment row */
       {
         const char* p= command->query;
         command->last_argument= command->end;
