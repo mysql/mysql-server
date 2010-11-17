@@ -1138,6 +1138,11 @@ if (!$counter)
 {
   echo Counter is not 0, (counter=10);
 }
+if (! $counter)
+{
+  let $counter=5;
+}
+echo Counter should still be 10, is $counter;
 let $counter=0;
 if($counter)
 {
@@ -1146,6 +1151,10 @@ if($counter)
 if (!$counter)
 {
   echo Counter is not 0, (counter=0);
+}
+if (! $counter)
+{
+  echo Not space var works;
 }
 
 # ----------------------------------------------------------------------------

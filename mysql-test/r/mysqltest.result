@@ -402,7 +402,9 @@ true-inner
 true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
+Counter should still be 10, is 10
 Counter is not 0, (counter=0)
+Not space var works
 Counter is true, (counter=alpha)
 Beta is true
 while with string, only once
