@@ -269,7 +269,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&lock_sys_mutex_key, "lock_mutex", 0},
 	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
 	{&trx_mutex_key, "trx_mutex", 0},
-	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0}
+	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
+	{&read_view_mutex_key, "read_view_mutex", 0}
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -294,8 +295,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
-	{&trx_sys_rw_lock_key, "trx_sys_lock", 0},
-	{&read_view_mutex_key, "read_view_mutex", 0}
+	{&trx_sys_rw_lock_key, "trx_sys_lock", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
