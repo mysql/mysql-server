@@ -862,7 +862,6 @@ ndb_pushed_builder_ctx::init_pushability()
     const AQP::Table_access* const table_access = m_plan.get_table_access(i);
     if (table_access->get_table()->file->ht != ndbcluster_hton)
     {
-      m_tables[i].m_maybe_pushable= 0;
       EXPLAIN_NO_PUSH("Table '%s' not in ndb engine, not pushable", 
                       table_access->get_table()->alias);
       continue;
@@ -875,16 +874,14 @@ ndb_pushed_builder_ctx::init_pushability()
       break;
 
     case AQP::AT_FIXED:
-      EXPLAIN_NO_PUSH("Table '%s' was const-table optimized, no runtime access required",
+      EXPLAIN_NO_PUSH("Table '%s' was optimized away, or const'ified by optimizer",
                       table_access->get_table()->alias);
-      m_tables[i].m_maybe_pushable= 0;
       break;
 
     case AQP::AT_OTHER:
       EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
                       table_access->get_table()->alias, 
                       table_access->get_other_access_reason());
-      m_tables[i].m_maybe_pushable= 0;
       break;
 
     case AQP::AT_UNDECIDED:
@@ -892,7 +889,6 @@ ndb_pushed_builder_ctx::init_pushability()
                       " execution time and '%s' is therefore not pushable.",
                       table_access->get_table()->alias,
                       table_access->get_table()->alias);
-      m_tables[i].m_maybe_pushable= 0;
       break;
   
     default:
