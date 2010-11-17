@@ -40,6 +40,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
     # Util library includes

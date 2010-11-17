@@ -16,7 +16,6 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv)
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_mgmapiclient.cmake)
 
 ADD_LIBRARY(ndbmgmsrv STATIC
