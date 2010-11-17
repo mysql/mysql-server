@@ -298,6 +298,16 @@ namespace AQP
       DBUG_VOID_RETURN;
     }
 
+    /* Tables below 'const_tables' has been const'ified, or entirely
+     * optimized away due to 'impossible WHERE/ON'
+     */
+    if (join_tab < join->join_tab+join->const_tables)
+    {
+      DBUG_PRINT("info", ("Operation %d is const-optimized.", m_tab_no));
+      m_access_type= AT_FIXED;
+      DBUG_VOID_RETURN;
+    }
+
     /* First non-const table may provide 'simple' ordering for entire join */
     if (join_tab == join->join_tab+join->const_tables)
     {
@@ -309,11 +319,6 @@ namespace AQP
     */
     switch (join_tab->type)
     {
-    case JT_SYSTEM:
-      DBUG_PRINT("info", ("Operation %d is const-optimized.", m_tab_no));
-      m_access_type= AT_FIXED;
-      break;
-
     case JT_EQ_REF:
     case JT_CONST:
       m_index_no= join_tab->ref.key;
