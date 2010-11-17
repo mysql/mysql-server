@@ -34,7 +34,7 @@ let $slave_error_message= Failed while waiting for slave to stop the SQL thread 
 source include/wait_for_slave_param.inc;
 
 let $_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-if (`SELECT '$_error' != '$slave_sql_errno'`) {
+if ($_error != $slave_sql_errno) {
   --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****
   source include/show_rpl_debug_info.inc;
   --echo **** Slave stopped with wrong error code: $_error (expected $slave_sql_errno) ****

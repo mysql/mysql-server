@@ -121,7 +121,7 @@ if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 
 # The second INSERT DELAYED statement is the 5 item if two INSERT DELAYED are
 # handled separately
-  if (`SELECT '$stmt' = 'COMMIT'`)
+  if ($stmt == COMMIT)
   {
     --let $stmt= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' FROM $_start, Info, 5)
   }
