@@ -1,9 +1,14 @@
 #
 # Bug#17733 Flushing logs causes daily server crash
 #
+
+--source include/not_embedded.inc
+
 flush logs;
 set global expire_logs_days = 3;
 show variables like 'log_bin%';
+show variables like 'relay_log%';
 flush logs;
 show variables like 'log_bin%';
+show variables like 'relay_log%';
 set global expire_logs_days = 0;

@@ -264,4 +264,7 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 void check_binlog_cache_size(THD *thd);
 
+extern const char *log_bin_index;
+extern const char *log_bin_basename;
+
 #endif /* BINLOG_H_INCLUDED */

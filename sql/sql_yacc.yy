@@ -6595,7 +6595,6 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          opt_ignore
         ;
 
 remove_partitioning:
