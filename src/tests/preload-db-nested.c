@@ -61,7 +61,8 @@ int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
 
 // max depth of nested transactions for this test
-#define MAXDEPTH 128
+//#define MAXDEPTH 128
+#define MAXDEPTH 64
 
 static void
 nested_insert(DB ** dbs, uint depth,  DB_TXN *parent_txn, uint k, uint generated_value);
@@ -251,10 +252,6 @@ static void run_test(void)
     r = env->close(env, 0);                                                                                   CKERR(r);
     toku_free(dbs);
 
-    // reopen, then close environment to trim logfiles
-    r = db_env_create(&env, 0);                                                                               CKERR(r);
-    r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                           CKERR(r);
-    r = env->close(env, 0);                                                                                   CKERR(r);
 }
 
 // ------------ infrastructure ----------
