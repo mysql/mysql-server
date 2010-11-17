@@ -9,7 +9,7 @@
 # --source extra/rpl_tests/rpl_stop_slave.test
 #
 
-if (`SELECT "$tmp_table_stm" = ''`)
+if (!$tmp_table_stm)
 {
   --echo \$tmp_table_stm is NULL
   --die $tmp_table_stm is NULL

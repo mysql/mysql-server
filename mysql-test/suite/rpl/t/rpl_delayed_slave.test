@@ -72,7 +72,7 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 #  - If we execute a query on master and wait $time3 seconds, then the
 #    query has been executed.
 --let $time1= 10
-if (`SELECT '$max_query_execution_time' > 0`) {
+if ($max_query_execution_time) {
   --let $time1= $max_query_execution_time
 }
 --let $time2= `SELECT 2 * $time1`

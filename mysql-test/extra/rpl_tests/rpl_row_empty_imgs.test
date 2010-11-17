@@ -278,7 +278,7 @@ SELECT * FROM t1;
 -- connection mysqld_b
 
 -- let $lower_engine= `SELECT LOWER('$engine')`
-if (`SELECT '$lower_engine' = 'ndb'`)
+if ($lower_engine == ndb)
 {
   if ($verbose)
   {
@@ -298,7 +298,7 @@ SET SQL_LOG_BIN=1;
 #       wait forever.
 -- source include/wait_for_slave_sql_to_stop.inc
 -- let $errno=query_get_value("show slave status", Last_SQL_Errno, 1)
-if (`SELECT $errno <> 1032`)
+if ($errno != 1032)
 {
   -- echo ### UNEXPECTED ERROR AT THE SLAVE: $errno
   SHOW SLAVE STATUS;

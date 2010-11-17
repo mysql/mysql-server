@@ -18,9 +18,7 @@ RESET SLAVE;
 
 # the old version of relay_log.info comes in two versions: with path
 # separator '/' (most systems) and with path separator '\' (windows)
---let $escaped_path_separator= \
---let $escaped_path_separator= $escaped_path_separator$SYSTEM_PATH_SEPARATOR
-if (`SELECT '$escaped_path_separator' != '/'`) {
+if ($SYSTEM_PATH_SEPARATOR != /) {
   --let $file_suffix= -win
 }
 --copy_file $MYSQL_TEST_DIR/std_data/old-format-relay-log$file_suffix.info $MYSQLD_DATADIR/relay-log.info

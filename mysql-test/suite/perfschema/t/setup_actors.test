@@ -100,7 +100,7 @@ let $con2_thread_id= `select THREAD_ID from performance_schema.threads
 --echo # Switch to connection default
 --connection default
 # If a thread dies, we don't expect its THREAD_ID value will be re-used.
-if (`SELECT $con2_thread_id <= $con1_thread_id`)
+if ($con2_thread_id <= $con1_thread_id)
 {
    --echo ERROR: THREAD_ID of con2 is not bigger than THREAD_ID of con1
    eval SELECT $con2_thread_id as THREAD_ID_con2, $con1_thread_id THREAD_ID_con1;
