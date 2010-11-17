@@ -6346,10 +6346,13 @@ int Field_str::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint local_char_length= field_length / charset()->mbmaxlen;
-  size_t length;
-  my_bool error;
+  size_t length= 0;
+  my_bool error= (local_char_length == 0);
 
-  length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+  // my_gcvt() requires width > 0, and we may have a CHAR(0) column.
+  if (!error)
+    length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+
   if (error)
   {
     if (table->in_use->abort_on_warning)
