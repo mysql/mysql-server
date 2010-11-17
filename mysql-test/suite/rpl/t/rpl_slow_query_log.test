@@ -233,7 +233,7 @@ let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text 
 -- sync_slave_with_master
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
-if (`SELECT $master_slow_query != $slave_slow_query`)
+if ($master_slow_query != $slave_slow_query)
 {
   -- connection master
   -- echo ***********************************************
@@ -250,7 +250,7 @@ if (`SELECT $master_slow_query != $slave_slow_query`)
   -- die "Assertion failed! Master and slave slow log contents differ. Bailing out!"
 }
 
-if (`SELECT $master_slow_query = $slave_slow_query`)
+if ($master_slow_query == $slave_slow_query)
 {
   -- echo ### Assertion is good. Both Master and Slave exhibit the 
   -- echo ### same number of queries in slow log: $master_slow_query
@@ -276,7 +276,7 @@ let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text 
 -- sync_slave_with_master
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
-if (`SELECT $master_slow_query != $slave_slow_query`)
+if ($master_slow_query != $slave_slow_query)
 {
   -- connection master
   -- echo ***********************************************
@@ -293,7 +293,7 @@ if (`SELECT $master_slow_query != $slave_slow_query`)
   -- die "Assertion failed! Master and slave slow log contents differ. Bailing out!"
 }
 
-if (`SELECT $master_slow_query = $slave_slow_query`)
+if ($master_slow_query == $slave_slow_query)
 {
   -- echo ### Assertion is good. Both Master and Slave exhibit the 
   -- echo ### same number of queries in slow log: $master_slow_query
