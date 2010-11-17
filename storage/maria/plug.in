@@ -1,10 +1,9 @@
 MYSQL_STORAGE_ENGINE(maria,, [Maria Storage Engine],
         [Crash-safe tables with MyISAM heritage], [default,max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
-MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
+MYSQL_PLUGIN_STATIC(maria,     [libmaria_s.la], [libmaria_embedded.la])
 # Maria will probably go first into max builds, not all builds,
 # so we don't declare it mandatory.
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(maria, [ha_maria.cc])
 
 MYSQL_PLUGIN_ACTIONS(maria,  [
 # AC_CONFIG_FILES(storage/maria/unittest/Makefile)

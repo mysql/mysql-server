@@ -34,10 +34,10 @@ INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
 			$(openssl_includes) @ZLIB_INCLUDES@ \
-			@condition_dependent_plugin_includes@
+			@condition_dependent_plugin_includes@ \
+			@ndbcluster_includes@
 
-noinst_LIBRARIES =	libmysqld_int.a
-pkglib_LIBRARIES =	libmysqld.a
+pkglib_LTLIBRARIES =	libmysqld.la
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
@@ -79,104 +79,28 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	rpl_injector.cc my_user.c partition_info.cc \
 	sql_servers.cc event_parse_data.cc opt_table_elimination.cc
 
-libmysqld_int_a_SOURCES= $(libmysqld_sources)
-nodist_libmysqld_int_a_SOURCES= $(libmysqlsources) $(sqlsources)
-libmysqld_a_SOURCES=
-
-sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
-storagesources = @condition_dependent_plugin_modules@
-storageobjects = @condition_dependent_plugin_objects@
-storagesourceslinks = @condition_dependent_plugin_links@
-
 # automake misses these
 sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
-INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/mysys/libmysys.a \
-		$(top_builddir)/strings/libmystrings.a \
-		$(top_builddir)/dbug/libdbug.a \
-		$(top_builddir)/vio/libvio.a \
-                @NDB_SCI_LIBS@ \
-		@mysql_plugin_libs@ \
+INC_LIB=	$(top_builddir)/regex/libregex.la \
+		$(top_builddir)/mysys/libmysys.la \
+		$(top_builddir)/strings/libmystrings.la \
+		$(top_builddir)/dbug/libdbug.la \
+		$(top_builddir)/vio/libvio.la \
+                @ndbcluster_libs@ @NDB_SCI_LIBS@ \
+		@mysql_embedded_plugin_libs@ \
 		$(libevent_inc_libs) \
 		$(yassl_inc_libs)
 
 if HAVE_YASSL
-yassl_inc_libs=	$(top_builddir)/extra/yassl/src/.libs/libyassl.a \
-		$(top_builddir)/extra/yassl/taocrypt/src/.libs/libtaocrypt.a
+yassl_inc_libs=	$(top_builddir)/extra/yassl/src/libyassl.la \
+		$(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 endif
 
-# Storage engine specific compilation options
-ha_ndbcluster.o:ha_ndbcluster.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-# Until we can remove dependency on ha_ndbcluster.h
-handler.o:	handler.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
-
-# We need rules to compile these as no good way
-# found to append fileslists that collected by configure
-# to the sources list
-
-ha_federatedx.o:ha_federatedx.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
-ha_heap.o:ha_heap.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
-ha_innodb.o:ha_innodb.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
-ha_myisam.o:ha_myisam.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
-ha_myisammrg.o:ha_myisammrg.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
-#
-# To make it easy for the end user to use the embedded library we
-# generate a total libmysqld.a from all library files,
-
-# note - InnoDB libraries have circular dependencies, so in INC_LIB
-# few libraries are present two times. Metrowerks linker doesn't like
-# it at all. Traditional ar has no problems with it, but still there's no
-# need to add the same file twice to the library, so 'sort -u' save us
-# some time and spares unnecessary work.
-
-libmysqld.a:	libmysqld_int.a $(INC_LIB) $(libmysqld_a_DEPENDENCIES) $(storageobjects)
-if DARWIN_MWCC
-	mwld -lib -o $@ libmysqld_int.a `echo $(INC_LIB) | sort -u` $(storageobjects)
-else
-		-rm -f libmysqld.a
-		if test "$(host_os)" = "netware" ; \
-		then \
-		  $(libmysqld_a_AR) libmysqld.a $(INC_LIB) libmysqld_int.a $(storageobjects); \
-		else \
-		  current_dir=`pwd`; \
-		  rm -rf tmp; mkdir tmp; \
-		  (for arc in $(INC_LIB) ./libmysqld_int.a; do \
-		    arpath=`echo $$arc|sed 's|[^/]*$$||'|sed 's|\.libs/$$||'`; \
-		    artmp=`echo $$arc|sed 's|^.*/|tmp/lib-|'`; \
-		    for F in `$(AR) t $$arc | grep -v SYMDEF`; do \
-		      if test -e "$$arpath/$$F" ; then echo "$$arpath/$$F"; else \
-		      mkdir $$artmp; cd $$artmp > /dev/null; \
-		      $(AR) x ../../$$arc; \
-		      cd $$current_dir > /dev/null; \
-		      ls $$artmp/* | grep -v SYMDEF; \
-		      continue 2; fi; done; \
-		  done; echo $(libmysqld_a_DEPENDENCIES) ) | sort -u | xargs $(AR) cq libmysqld.a ; \
-		  $(AR) r libmysqld.a $(storageobjects); \
-		  $(RANLIB) libmysqld.a	; \
-		  rm -rf tmp; \
-		fi
-endif
+libmysqld_la_SOURCES= $(libmysqld_sources)
+nodist_libmysqld_la_SOURCES= $(libmysqlsources) $(sqlsources)
+libmysqld_la_LIBADD =	$(INC_LIB)
 
 ## XXX: any time the client interface changes, we'll need to bump
 ## the version info for libmysqld; however, it's possible for the
@@ -184,7 +108,7 @@ endif
 ## libmysqlclient interface.  Should we make a separate version
 ## string for the two?
 #libmysqld_la_LDFLAGS = -version-info @SHARED_LIB_VERSION@
-#CLEANFILES =		$(libmysqld_la_LIBADD) libmysqld.la
+#CLEANFILES =		libmysqld.la
 
 BUILT_SOURCES = link_sources
 
@@ -209,20 +133,6 @@ link_sources:
 	      @LN_CP_F@ $(top_builddir)/libmysql/$$f $$f; \
 	    fi ; \
 	  done; \
-	  if test -n "$(sqlstoragesources)" ; \
-	  then \
-	    for f in "$(sqlstoragesources)"; do \
-	      rm -f "$$f"; \
-	      @LN_CP_F@ `find $(srcdir)/../sql -name "$$f"` "$$f"; \
-	    done; \
-	  fi; \
-	  if test -n "$(storagesources)" ; \
-	  then \
-	    rm -f $(storagesources); \
-	    for f in $(storagesourceslinks); do \
-	      @LN_CP_F@ $(top_srcdir)/$$f . ; \
-	    done; \
-	  fi; \
 	  rm -f client_settings.h; \
 	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h \
                                           client_settings.h; \
@@ -230,5 +140,5 @@ link_sources:
 
 
 clean-local:
-	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"`; \
+	rm -f `echo $(sqlsources) $(libmysqlsources) | sed "s;\.lo;.c;g"`; \
 	rm -f client_settings.h

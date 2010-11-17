@@ -26,25 +26,31 @@ noinst_HEADERS =		bsearch_xt.h cache_xt.h ccutils_xt.h database_xt.h \
 						pbms.h xt_config.h xt_defs.h xt_errno.h locklist_xt.h
 EXTRA_LTLIBRARIES =	libpbxt.la
 
-libpbxt_la_SOURCES =	bsearch_xt.cc cache_xt.cc ccutils_xt.cc database_xt.cc \
+non_mysql_internal_sources =	bsearch_xt.cc cache_xt.cc ccutils_xt.cc database_xt.cc \
 						datadic_xt.cc datalog_xt.cc filesys_xt.cc hashtab_xt.cc \
-						ha_pbxt.cc heap_xt.cc index_xt.cc linklist_xt.cc \
-						memory_xt.cc myxt_xt.cc pthread_xt.cc restart_xt.cc \
+						heap_xt.cc index_xt.cc linklist_xt.cc \
+						memory_xt.cc pthread_xt.cc restart_xt.cc \
 						sortedlist_xt.cc strutil_xt.cc \
 						tabcache_xt.cc table_xt.cc trace_xt.cc thread_xt.cc \
-						systab_xt.cc ha_xtsys.cc discover_xt.cc backup_xt.cc \
+						systab_xt.cc ha_xtsys.cc backup_xt.cc \
 						util_xt.cc xaction_xt.cc xactlog_xt.cc lock_xt.cc locklist_xt.cc
-
-libpbxt_la_LDFLAGS =	-module
+mysql_internal_sources =	ha_pbxt.cc myxt_xt.cc discover_xt.cc
+libpbxt_la_SOURCES =	$(non_mysql_internal_sources) $(mysql_internal_sources)
 
 # These are the warning Drizzle uses:
 # DRIZZLE_WARNINGS =		-W -Wall -Wextra -pedantic -Wundef -Wredundant-decls -Wno-strict-aliasing -Wno-long-long -Wno-unused-parameter
 
-libpbxt_la_CXXFLAGS =	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-libpbxt_la_CFLAGS =		$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
+libpbxt_la_CXXFLAGS =		-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+libpbxt_la_CFLAGS =		-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -std=c99
+libpbxt_la_LDFLAGS =		-module 
 
-EXTRA_LIBRARIES =		libpbxt.a
-noinst_LIBRARIES = 		libpbxt.a
-libpbxt_a_SOURCES =		$(libpbxt_la_SOURCES)
+noinst_LTLIBRARIES = 		libpbxt_s.la libpbxt_s_embedded.la libpbxt_s_common.la
+
+libpbxt_s_common_la_SOURCES =	$(non_mysql_internal_sources)
+libpbxt_s_la_SOURCES =		$(mysql_internal_sources)
+libpbxt_s_la_LIBADD =		libpbxt_s_common.la
+libpbxt_s_embedded_la_SOURCES =	$(mysql_internal_sources)
+libpbxt_s_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
+libpbxt_s_embedded_la_LIBADD =	libpbxt_s_common.la
 
 EXTRA_DIST =			pbms_enabled.cc win_inttypes.h

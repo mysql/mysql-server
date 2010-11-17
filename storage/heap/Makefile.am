@@ -27,8 +27,11 @@ LDADD =
 
 DEFS =                  @DEFS@
 pkglib_LIBRARIES =	libheap.a
+noinst_LTLIBRARIES =	libheap.la libheap_s.la \
+			@plugin_heap_embedded_static_target@
+EXTRA_LTLIBRARIES =	libheap_embedded.la
+
 noinst_PROGRAMS	=	hp_test1 hp_test2
-noinst_LIBRARIES =	libheap.a
 hp_test1_LDFLAGS = @NOINST_LDFLAGS@
 hp_test1_LDADD =	libheap.a \
 			$(top_builddir)/mysys/libmysys.a \
@@ -40,13 +43,24 @@ hp_test2_LDADD =	libheap.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a
 noinst_HEADERS =	heapdef.h ha_heap.h
-libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
+libheap_la_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_rrnd.c hp_scan.c hp_update.c hp_write.c hp_delete.c \
 			hp_rsame.c hp_create.c hp_rename.c hp_rfirst.c \
 			hp_rnext.c hp_rlast.c hp_rprev.c hp_clear.c \
 			hp_rkey.c hp_block.c \
-			ha_heap.cc \
 			hp_hash.c _check.c _rectest.c hp_static.c
+
+libheap_s_la_SOURCES =	ha_heap.cc
+libheap_s_la_CFLAGS =	$(AM_CFLAGS)
+libheap_s_la_CXXFLAGS =	$(AM_CXXFLAGS)
+libheap_s_la_LIBADD =	libheap.la
+libheap_embedded_la_SOURCES =	ha_heap.cc
+libheap_embedded_la_LIBADD =	libheap.la
+libheap_embedded_la_CXXFLAGS =	@plugin_embedded_defs@
+
+libheap_a_SOURCES=
+libheap.a: libheap.la
+	$(CP) .libs/libheap.a $@
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in

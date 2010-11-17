@@ -15,8 +15,10 @@
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ ../mysys/libmysys.a \
-			../dbug/libdbug.a ../strings/libmystrings.a \
+LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/strings/libmystrings.a \
+			$(top_builddir)/dbug/libdbug.a \
 			$(ZLIB_LIBS)
 BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
                         $(top_builddir)/include/sql_state.h \

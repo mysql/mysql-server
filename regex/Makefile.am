@@ -16,10 +16,10 @@
 # MA 02111-1307, USA
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
-noinst_LIBRARIES =	libregex.a
-LDADD=			libregex.a $(top_builddir)/strings/libmystrings.a
+noinst_LTLIBRARIES =	libregex.la
+LDADD=			libregex.la $(top_builddir)/strings/libmystrings.la
 noinst_HEADERS =	cclass.h cname.h regex2.h utils.h engine.c my_regex.h
-libregex_a_SOURCES =	regerror.c regcomp.c regexec.c regfree.c reginit.c
+libregex_la_SOURCES =	regerror.c regcomp.c regexec.c regfree.c reginit.c
 noinst_PROGRAMS =	re
 re_SOURCES =		split.c debug.c main.c
 re_LDFLAGS= @NOINST_LDFLAGS@

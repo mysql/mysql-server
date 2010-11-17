@@ -74,8 +74,7 @@ mysqlimport_SOURCES=		mysqlimport.c
 mysqlimport_CFLAGS=		-DTHREAD -UUNDEF_THREADS_HACK
 mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
-				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(LIBMYSQLCLIENT_LA)
 
 mysqlshow_SOURCES=		mysqlshow.c
 
@@ -83,16 +82,15 @@ mysqlslap_SOURCES=		mysqlslap.c
 mysqlslap_CFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
-				$(LIBMYSQLCLIENT_LA) \
-				$(top_builddir)/mysys/libmysys.a
+				$(LIBMYSQLCLIENT_LA)
 
 mysqltest_SOURCES=		mysqltest.cc
 mysqltest_CXXFLAGS=		-DTHREAD -UMYSQL_CLIENT_NO_THREADS
 mysqltest_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
-				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a \
-				$(top_builddir)/regex/libregex.a \
+				$(LIBMYSQLCLIENT_LA) \
+				$(top_builddir)/regex/libregex.la
 				$(CLIENT_THREAD_LIBS)
 
 mysql_upgrade_SOURCES=          mysql_upgrade.c \

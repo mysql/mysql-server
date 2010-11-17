@@ -17,6 +17,7 @@
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 pkglib_LIBRARIES =	libmystrings.a
+noinst_LTLIBRARIES =	libmystrings.la
 
 # Exact one of ASSEMBLER_X
 if ASSEMBLER_x86
@@ -37,7 +38,7 @@ CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.
 endif
 endif
 
-libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
+libmystrings_la_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
 CLEANFILES = str_test uctypedump test_decimal
 # Default charset definitions
@@ -56,9 +57,9 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			t_ctype.h my_strchr.c CMakeLists.txt \
 			CHARSET_INFO.txt strmov_overlapp.c
 
-libmystrings_a_LIBADD=
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
-conf_to_src_LDADD=
+libmystrings_la_LIBADD=
+conf_to_src_SOURCES =	conf_to_src.c
+conf_to_src_LDADD =	libmystrings.a
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
 conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
@@ -66,6 +67,9 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 # This is because the dependency tracking misses @FOO@ vars in sources.
 #strtoull.o:		@CHARSET_OBJS@
 
+libmystrings_a_SOURCES=
+libmystrings.a: libmystrings.la
+	$(CP) .libs/libmystrings.a $@
 
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 

@@ -17,9 +17,15 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			$(openssl_includes)
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ $(openssl_libs) $(yassl_libs)
 pkglib_LIBRARIES =	libvio.a
+noinst_LTLIBRARIES =	libvio.la
 
 noinst_HEADERS =	vio_priv.h
 
-libvio_a_SOURCES =	vio.c viosocket.c viossl.c viosslfactories.c
+libvio_la_SOURCES =	vio.c viosocket.c viossl.c viosslfactories.c
 
 EXTRA_DIST=		CMakeLists.txt
+
+libvio_a_SOURCES=
+libvio.a: libvio.la
+	$(CP) .libs/libvio.a $@
+

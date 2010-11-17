@@ -65,9 +65,8 @@ TARGET_LINK_LIBRARIES(maria_read_log maria myisam mysys dbug strings zlib wsock3
 ADD_EXECUTABLE(maria_pack maria_pack.c)
 TARGET_LINK_LIBRARIES(maria_pack maria myisam mysys dbug strings zlib wsock32)
 
-ADD_EXECUTABLE(maria_dump_log ma_loghandler.c unittest/ma_loghandler_examples.c)
+ADD_EXECUTABLE(maria_dump_log maria_dump_log.c unittest/ma_loghandler_examples.c)
 TARGET_LINK_LIBRARIES(maria_dump_log maria myisam mysys dbug strings zlib wsock32)
-SET_TARGET_PROPERTIES(maria_dump_log PROPERTIES COMPILE_FLAGS "-DMARIA_DUMP_LOG")
 
 ADD_EXECUTABLE(ma_test1 ma_test1.c)
 TARGET_LINK_LIBRARIES(ma_test1 maria myisam mysys dbug strings zlib wsock32)
