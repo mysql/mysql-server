@@ -3788,11 +3788,12 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     }
     if (r == 0) {
         //Do the actual deleting.
-        num_deletes++;       // accountability 
         r = toku_brt_delete(db->i->brt, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
     }
 
-    if (r) 
+    if (r == 0) 
+        num_deletes++;       // accountability 
+    else
         num_deletes_fail++;
 
     return r;
@@ -3849,7 +3850,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
         DB *db = db_array[which_db];
 	int do_delete = TRUE;
 	DB_INDEXER *indexer = toku_db_get_indexer(db);
-	if (indexer) {
+	if (indexer) { // if this db is the index under construction
             DB *src_db = toku_indexer_get_src_db(indexer);
             invariant(src_db != NULL);
             uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
@@ -3859,7 +3860,6 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[]) {
                 do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
         }
 	if (r == 0 && do_delete) {
-            num_deletes++;
             r = toku_brt_maybe_delete(db->i->brt, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         }
     }
@@ -4497,7 +4497,6 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
 
-    num_inserts++;
     u_int32_t lock_flags = get_prelocked_flags(flags);
     flags &= ~lock_flags;
 
@@ -4523,7 +4522,9 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
         r = toku_brt_maybe_insert(db->i->brt, key, val, ttxn, FALSE, ZERO_LSN, TRUE, type);
     }
 
-    if (r)
+    if (r == 0)
+	num_inserts++;
+    else
         num_inserts_fail++;
 
     return r;
@@ -4555,7 +4556,7 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
         DB *db = db_array[which_db];
 	int do_put = TRUE;
 	DB_INDEXER *indexer = toku_db_get_indexer(db);
-	if (indexer) {
+	if (indexer) { // if this db is the index under construction
             DB *src_db = toku_indexer_get_src_db(indexer);
             invariant(src_db != NULL);
             uint32_t which_src_db = lookup_src_db(num_dbs, db_array, src_db);
@@ -4565,7 +4566,6 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
                 do_put = !toku_indexer_is_key_right_of_le_cursor(indexer, src_db, &keys[which_src_db]);
         }
         if (r == 0 && do_put) {
-            num_inserts++;
             r = toku_brt_maybe_insert(db->i->brt, &keys[which_db], &vals[which_db], ttxn, FALSE, ZERO_LSN, FALSE, BRT_INSERT);
         }
     }
