@@ -97,3 +97,23 @@ void ndb_std_print_version()
   printf("MySQL distrib %s%s, for %s (%s)\n",
          NDB_VERSION_STRING,suffix,SYSTEM_TYPE,MACHINE_TYPE);
 }
+
+my_bool ndb_is_load_default_arg_separator(const char* arg)
+{
+#ifndef MYSQL_VERSION_ID
+#error "Need MYSQL_VERSION_ID defined"
+#endif
+
+#if MYSQL_VERSION_ID >= 50501
+  /*
+    load_default() in 5.5+ returns an extra arg which has to
+    be skipped when processing the argv array
+   */
+  if (arg == args_separator)
+    return TRUE;
+#else
+  (void)arg;
+#endif
+  return FALSE;
+}
+
