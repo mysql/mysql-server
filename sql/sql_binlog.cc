@@ -151,8 +151,7 @@ void mysql_client_binlog_statement(THD* thd)
   Relay_log_info *rli= thd->rli_fake;
   if (!rli)
   {
-    Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE, &rli);
-    if (rli)
+    if ((rli= Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE)))
     {
       thd->rli_fake= rli;
       rli->info_thd= thd;
