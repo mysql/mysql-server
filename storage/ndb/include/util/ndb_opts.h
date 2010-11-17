@@ -131,9 +131,10 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options);
 void ndb_short_usage_sub(const char* extra);
 
-
+my_bool ndb_is_load_default_arg_separator(const char* arg);
 
 #ifdef __cplusplus
 }
 #endif
+
 #endif /*_NDB_OPTS_H */
