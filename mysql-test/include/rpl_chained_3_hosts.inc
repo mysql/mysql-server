@@ -13,17 +13,17 @@ connect (mysqld_c,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
 
 while($i)
 {
-  if(`SELECT $i= 3`)
+  if($i == 3)
   {
     -- connection mysqld_a
   }
 
-  if(`SELECT $i= 2`)
+  if($i == 2)
   {
     -- connection mysqld_b
   }
 
-  if(`SELECT $i= 1`)
+  if($i == 1)
   {
     -- connection mysqld_c
   }

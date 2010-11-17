@@ -57,7 +57,7 @@ while($i)
   # binlog_row_image configured as NOBLOB.
   #
 
-  if (`SELECT $i=1`) {
+  if ($i == 1) {
     -- echo ### Asserts that declaring a blob as part of a primary key does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_a_engine;
@@ -66,7 +66,7 @@ while($i)
     -- connection mysqld_c 
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=2`)
+  if ($i == 2)
   { 
     -- echo ### Asserts that declaring a blob as part of a unique (not null) key does not break replication
     -- connection mysqld_a
@@ -76,7 +76,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=3`)
+  if ($i == 3)
   {
     -- echo ### Asserts that declaring a blob in a key does not break replication
     -- connection mysqld_a
@@ -87,7 +87,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=4`) {
+  if ($i == 4) {
     -- echo ### Asserts that updates without blobs in the BI (PK exists int the table)
     -- echo ### will not break replication
     -- connection mysqld_a
@@ -98,7 +98,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=5`)
+  if ($i == 5)
   { 
     -- echo ### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
     -- echo ### will not break replication
@@ -110,7 +110,7 @@ while($i)
     --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=6`)
+  if ($i == 6)
   { 
     -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
     -- echo ### will not break replication (check even if there is a key in the table)
@@ -122,7 +122,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=7`)
+  if ($i == 7)
   { 
     -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
     -- echo ### will not break replication (check when there is no key in the table)

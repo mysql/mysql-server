@@ -48,7 +48,7 @@ while($i)
   -- connection mysqld_c
   SET SQL_LOG_BIN=0;
 
-  if (`SELECT $i=1`) {
+  if ($i == 1) {
     let $step= No keys;
     --echo ******* TEST: $step
     -- connection mysqld_a
@@ -59,7 +59,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=2`)
+  if ($i == 2)
   { 
     let $step= One key;
     --echo ******* TEST: $step
@@ -71,7 +71,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= $mysqld_c_engine;
 
   }
-  if (`SELECT $i=3`)
+  if ($i == 3)
   {
     let $step= One Composite key;
     --echo ****** TEST: $step
@@ -82,7 +82,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= $mysqld_c_engine;
   }  
-  if (`SELECT $i=4`)
+  if ($i == 4)
   {
     let $step= One Unique key;
     --echo ****** TEST: $step
@@ -94,7 +94,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= $mysqld_c_engine;
 
   }  
-  if (`SELECT $i=5`)
+  if ($i == 5)
   {
     let $step= One Composite Unique key;
     --echo ****** TEST: $step
@@ -106,7 +106,7 @@ while($i)
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= $mysqld_c_engine;
 
   }  
-  if (`SELECT $i=6`)
+  if ($i == 6)
   {
     let $step= One Primary key;
     --echo ****** TEST: $step
@@ -117,7 +117,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= $mysqld_c_engine;
   }  
-  if (`SELECT $i=7`)
+  if ($i == 7)
   {
     let $step= One Composite Primary Key;
     --echo ****** TEST: $step
@@ -128,7 +128,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= $mysqld_c_engine;
   } 
-  if (`SELECT $i=8`)
+  if ($i == 8)
   {
     let $step= One Composite key with holes;
     --echo ****** TEST: $step
@@ -139,7 +139,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= $mysqld_c_engine;
   }  
-  if (`SELECT $i=9`)
+  if ($i == 9)
   {
     let $step= One Composite Unique key with holes;
     --echo ****** TEST: $step
@@ -150,7 +150,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= $mysqld_c_engine;
   }  
-  if (`SELECT $i=10`)
+  if ($i == 10)
   {
     let $step= One Composite Primary Key with holes;
     --echo ****** TEST: $step
@@ -161,7 +161,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= $mysqld_c_engine;
   } 
-  if (`SELECT $i=11`)
+  if ($i == 11)
   {
     let $step= One Composite NOT NULL Unique key with holes;
     --echo ****** TEST: $step
@@ -172,7 +172,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_c_engine;
   }  
-  if (`SELECT $i=12`)
+  if ($i == 12)
   {
     let $step= One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave;
     --echo ****** TEST: $step
