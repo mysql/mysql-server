@@ -106,6 +106,13 @@ enum column_format_type {
 /* No support for --ndb-wait_setup */
 #define NDB_NO_WAIT_SETUP
 
+/*
+  The enum open_table_mode has been removed and 'open_table_from_share'
+  now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
+  to false since it's not a create table
+*/
+#define OTM_OPEN false
+
 #endif
 
 /* extract the bitmask of options from THD */
