@@ -117,7 +117,7 @@ DROP TABLE t1;
 SET GLOBAL log_warnings = @old_log_warnings;
 
 let $log_error_= `SELECT @@GLOBAL.log_error`;
-if(!`select LENGTH('$log_error_')`)
+if(!$log_error_)
 {
   # MySQL Server on windows is started with --console and thus
   # does not know the location of its .err log, use default location

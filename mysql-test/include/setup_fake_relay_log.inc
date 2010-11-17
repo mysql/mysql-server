@@ -40,9 +40,16 @@ let $_fake_relay_log_printable= `SELECT REPLACE('$fake_relay_log', '$MYSQL_TEST_
 --echo Setting up fake replication from $_fake_relay_log_printable
 
 # Sanity check.
+let $running= 0;
 let $_sql_running= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
 let $_io_running= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);
-if (`SELECT "$_sql_running" = "Yes" OR "$_io_running" = "Yes"`) {
+if ($_sql_running == Yes) {
+  let $running= 1;
+}
+if ($_io_running == Yes) {
+  let $running= 1;
+}
+if ($running) {
   --echo Error: Slave was running when test case sourced
   --echo include/setup_fake_replication.inc
   --echo Slave_IO_Running = $_io_running; Slave_SQL_Running = $_sql_running

@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos = $exec_pos`)
+if ($read_pos == $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
@@ -32,7 +32,7 @@ if (`SELECT $read_pos = $exec_pos`)
 change master to master_user='root';
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos <> $exec_pos`)
+if ($read_pos != $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';

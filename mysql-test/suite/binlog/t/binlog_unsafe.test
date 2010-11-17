@@ -141,11 +141,11 @@ END|
 # In each iteration of this loop, we select one method to make the
 # statement unsafe.
 --let $unsafe_type= 0
-while (`SELECT $unsafe_type < 9`) {
+while ($unsafe_type < 9) {
 
   --echo
 
-  if (`SELECT $unsafe_type = 0`) {
+  if ($unsafe_type == 0) {
     --echo ==== Testing UUID() unsafeness ====
     --let $desc_0= unsafe UUID() function
     --let $stmt_sidef_0= INSERT INTO t0 VALUES (UUID())
@@ -155,7 +155,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 1`) {
+  if ($unsafe_type == 1) {
     --echo ==== Testing @@hostname unsafeness ====
     --let $desc_0= unsafe @@hostname variable
     --let $stmt_sidef_0= INSERT INTO t0 VALUES (@@hostname)
@@ -168,7 +168,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 2`) {
+  if ($unsafe_type == 2) {
     --echo ==== Testing SELECT...LIMIT unsafeness ====
     --let $desc_0= unsafe SELECT...LIMIT statement
     --let $stmt_sidef_0= INSERT INTO t0 SELECT * FROM data_table LIMIT 1
@@ -178,7 +178,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 3`) {
+  if ($unsafe_type == 3) {
     --echo ==== Testing INSERT DELAYED safeness after BUG#54579 is fixed ====
     --let $desc_0= unsafe INSERT DELAYED statement
     --let $stmt_sidef_0= INSERT DELAYED INTO t0 VALUES (1), (2)
@@ -188,7 +188,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 0
   }
 
-  if (`SELECT $unsafe_type = 4`) {
+  if ($unsafe_type == 4) {
     --echo ==== Testing unsafeness of insert of two autoinc values ====
     --let $desc_0= unsafe update of two autoinc columns
     --let $stmt_sidef_0= INSERT INTO double_autoinc_table VALUES (NULL)
@@ -198,7 +198,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 5`) {
+  if ($unsafe_type == 5) {
     --echo ==== Testing unsafeness of UDF's ====
     --let $desc_0= unsafe UDF
     --let $stmt_sidef_0= INSERT INTO t0 VALUES (myfunc_int(10))
@@ -208,7 +208,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 6`) {
+  if ($unsafe_type == 6) {
     --echo ==== Testing unsafeness of access to mysql.general_log ====
     --let $desc_0= unsafe use of mysql.general_log
     --let $stmt_sidef_0= INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log
@@ -218,7 +218,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 1
   }
 
-  if (`SELECT $unsafe_type = 7`) {
+  if ($unsafe_type == 7) {
     --echo ==== Testing a statement that is unsafe in many ways ====
     --let $desc_0= statement that is unsafe in many ways
     # Concatenate three unsafe values, and then concatenate NULL to
@@ -230,7 +230,7 @@ while (`SELECT $unsafe_type < 9`) {
     --let $CRC_ARG_expected_number_of_warnings= 6
   }
 
-  if (`SELECT $unsafe_type = 8`) {
+  if ($unsafe_type == 8) {
     --echo ==== Testing a statement that is unsafe several times ====
     --let $desc_0= statement that is unsafe several times
     --let $stmt_sidef_0= INSERT INTO ta0 VALUES (multi_unsafe_func())
@@ -249,7 +249,7 @@ while (`SELECT $unsafe_type < 9`) {
   # construct. Instead, we just invoke the unsafe statement directly.
 
   --let $call_type_1= 0
-  while (`SELECT $call_type_1 < 8`) {
+  while ($call_type_1 < 8) {
     #--echo debug: level 1, types $call_type_1 -> $unsafe_type
     --let $CRC_ARG_level= 1
     --let $CRC_ARG_type= $call_type_1
@@ -280,7 +280,7 @@ while (`SELECT $unsafe_type < 9`) {
       # construct.
 
       --let $call_type_2= 0
-      while (`SELECT $call_type_2 < 7`) {
+      while ($call_type_2 < 7) {
         #--echo debug: level 2, types $call_type_2 -> $call_type_1 -> $unsafe_type
         --let $CRC_ARG_level= 2
         --let $CRC_ARG_type= $call_type_2
@@ -309,7 +309,7 @@ while (`SELECT $unsafe_type < 9`) {
           # construct.
 
           --let $call_type_3= 0
-          while (`SELECT $call_type_3 < 7`) {
+          while ($call_type_3 < 7) {
             #--echo debug: level 3, types $call_type_2 -> $call_type_2 -> $call_type_1 -> $unsafe_type
             --let $CRC_ARG_level= 3
             --let $CRC_ARG_type= $call_type_3
