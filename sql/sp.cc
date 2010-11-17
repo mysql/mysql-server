@@ -1361,6 +1361,106 @@ err:
 
 
 /**
+  This internal handler is used to trap errors from opening mysql.proc.
+*/
+
+class Lock_db_routines_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE ||
+        sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED)
+      return true;
+    return false;
+  }
+};
+
+
+/**
+   Acquires exclusive metadata lock on all stored routines in the
+   given database.
+
+   @note Will also return false (=success) if mysql.proc can't be opened
+         or is outdated. This allows DROP DATABASE to continue in these
+         cases.
+ */
+
+bool lock_db_routines(THD *thd, char *db)
+{
+  TABLE *table;
+  uint key_len;
+  int nxtres= 0;
+  Open_tables_backup open_tables_state_backup;
+  MDL_request_list mdl_requests;
+  Lock_db_routines_error_handler err_handler;
+  DBUG_ENTER("lock_db_routines");
+
+  /*
+    mysql.proc will be re-opened during deletion, so we can ignore
+    errors when opening the table here. The error handler is
+    used to avoid getting the same warning twice.
+  */
+  thd->push_internal_handler(&err_handler);
+  table= open_proc_table_for_read(thd, &open_tables_state_backup);
+  thd->pop_internal_handler();
+  if (!table)
+  {
+    /*
+      DROP DATABASE should not fail even if mysql.proc does not exist
+      or is outdated. We therefore only abort mysql_rm_db() if we
+      have errors not handled by the error handler.
+    */
+    DBUG_RETURN(thd->is_error() || thd->killed);
+  }
+
+  table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
+  key_len= table->key_info->key_part[0].store_length;
+  table->file->ha_index_init(0, 1);
+
+  if (! table->file->index_read_map(table->record[0],
+                                    table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  {
+    do
+    {
+      char *sp_name= get_field(thd->mem_root,
+                               table->field[MYSQL_PROC_FIELD_NAME]);
+      longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+      MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+      mdl_request->init(sp_type == TYPE_ENUM_FUNCTION ?
+                        MDL_key::FUNCTION : MDL_key::PROCEDURE,
+                        db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+      mdl_requests.push_front(mdl_request);
+    } while (! (nxtres= table->file->index_next_same(table->record[0],
+                                         table->field[MYSQL_PROC_FIELD_DB]->ptr,
+						     key_len)));
+  }
+  table->file->ha_index_end();
+  if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(nxtres, MYF(0));
+    close_system_tables(thd, &open_tables_state_backup);
+    DBUG_RETURN(true);
+  }
+  close_system_tables(thd, &open_tables_state_backup);
+
+  /* We should already hold a global IX lock and a schema X lock. */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                             MDL_INTENTION_EXCLUSIVE) &&
+              thd->mdl_context.is_lock_owner(MDL_key::SCHEMA, db, "",
+                                             MDL_EXCLUSIVE));
+  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
+                                             thd->variables.lock_wait_timeout));
+}
+
+
+/**
   Drop all routines in database 'db'
 
   @note Close the thread tables, the calling code might want to
