@@ -17,3 +17,4 @@ query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails spo
 ctype_utf8mb4_ndb	: Bug#55799, Bug#51907, disabled by Konstantin 2010-08-06
 main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
+events_restart           : Bug#58258 2010-11-17 VasilDimov Valgrind: possibly lost from ib_bh_create()
