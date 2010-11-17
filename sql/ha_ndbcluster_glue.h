@@ -106,6 +106,13 @@ enum column_format_type {
 /* No support for --ndb-wait_setup */
 #define NDB_NO_WAIT_SETUP
 
+/*
+  The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
+  now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
+  to false since it's not a create table
+*/
+#define OTM_OPEN false
+
 #endif
 
 /* extract the bitmask of options from THD */
@@ -209,13 +216,6 @@ int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
   return pthread_cond_timedwait(cond, mutex, abstime);
 }
 
-/*  mysql_truncate_table emulation, added in 5.5 */
-static inline
-bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
-{
-  return mysql_truncate(thd, table_ref, 0);
-}
-
 #endif
 
 static inline
@@ -270,6 +270,19 @@ uint partition_info_num_subparts(const partition_info* part_info)
 #else
   /* renamed to 'num_subparts' and no accessor function */
   return part_info->num_subparts;
+#endif
+}
+
+/*  mysql_truncate_table emulation */
+static inline
+bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
+{
+#if MYSQL_VERSION_ID < 50500
+  return mysql_truncate(thd, table_ref, 0);
+#else
+  /* mysql_truncate support removed in 5.5.7 */
+  abort();
+  return false;
 #endif
 }
 
