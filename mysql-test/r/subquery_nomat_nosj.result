@@ -6134,6 +6134,18 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
 DROP TABLE t2;
 DROP TABLE t1;
+#
+# Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
+#             Assertion `file' failed.
+#
+CREATE TABLE t1 (a INT);
+SELECT 1 FROM 
+(SELECT ROW(
+(SELECT 1 FROM t1 RIGHT JOIN 
+(SELECT 1 FROM t1, t1 t2) AS d ON 1),
+1) FROM t1) AS e;
+ERROR 21000: Operand should contain 1 column(s)
+DROP TABLE t1;
 End of 5.5 tests.
 #
 # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
