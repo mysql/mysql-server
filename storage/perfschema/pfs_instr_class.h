@@ -229,6 +229,8 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
+const char *sanitize_table_schema_name(const char *unsafe);
+const char *sanitize_table_object_name(const char *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
