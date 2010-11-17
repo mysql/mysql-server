@@ -4393,16 +4393,16 @@ brt_cursor_update(BRT_CURSOR brtcursor) {
 // Returns true if the value that is to be read is empty.
 //
 static inline int 
-is_le_val_empty(LEAFENTRY le, BRT_CURSOR brtcursor) {
+is_le_val_del(LEAFENTRY le, BRT_CURSOR brtcursor) {
     if (brtcursor->is_snapshot_read) {
-        BOOL is_empty;
-        le_iterate_is_empty(
+        BOOL is_del;
+        le_iterate_is_del(
             le, 
             does_txn_read_entry, 
-            &is_empty, 
+            &is_del, 
             brtcursor->ttxn
             );
-        return is_empty;
+        return is_del;
     }
     else {
         return le_latest_is_del(le);
@@ -4434,7 +4434,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTI
     if (r!=0) return r;
 
     LEAFENTRY le = datav;
-    if (!toku_brt_cursor_is_leaf_mode(brtcursor) && is_le_val_empty(le,brtcursor)) {
+    if (!toku_brt_cursor_is_leaf_mode(brtcursor) && is_le_val_del(le,brtcursor)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
         while (1) {
@@ -4459,7 +4459,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTI
             r = toku_omt_fetch(node->u.l.buffer, idx, &datav, NULL);
             lazy_assert_zero(r); // we just validated the index
             le = datav;
-            if (!is_le_val_empty(le,brtcursor)) goto got_a_good_value;
+            if (!is_le_val_del(le,brtcursor)) goto got_a_good_value;
         }
     }
 got_a_good_value:
@@ -4843,7 +4843,7 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             r = toku_omt_fetch(omt, index, &le, NULL);
             lazy_assert_zero(r);
 
-            if (toku_brt_cursor_is_leaf_mode(cursor) || !is_le_val_empty(le, cursor)) {
+            if (toku_brt_cursor_is_leaf_mode(cursor) || !is_le_val_del(le, cursor)) {
                 maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
                 void     *key;

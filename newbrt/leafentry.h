@@ -184,7 +184,7 @@ le_clean(uint8_t *key, uint32_t keylen,
 //      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r, because something unexpected went wrong (error case)
 typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 
-int le_iterate_is_empty(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
+int le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_empty, TOKUTXN context);
 
 int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *vallenp, TOKUTXN context);
 
