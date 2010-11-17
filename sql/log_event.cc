@@ -3504,6 +3504,14 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
   else
     ret= Log_event::do_update_pos(rli);
 
+  DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
+       if (!strcmp("COMMIT", query))
+       {
+         rli->flush_info(TRUE);
+         DBUG_SUICIDE();
+       }
+  );
+  
   return ret;
 }
 
@@ -5508,12 +5516,75 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
 
+  Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
+
+  /*
+    If the repository is transactional, i.e., created over a
+    transactional table, we need to update the positions within
+    the context of the current transaction in order to provide
+    data integrity. See sql/rpl_rli.h for further details.
+  */
+  bool is_trans_repo= rli_ptr->is_transactional();
+
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
+
+  if (is_trans_repo)
+  {
+    mysql_mutex_lock(&rli_ptr->data_lock);
+  }
+
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_SUICIDE(););
+
+  /*
+    We need to update the positions in here to make it transactional.  
+  */
+  if (is_trans_repo)
+  {
+    rli_ptr->inc_event_relay_log_pos();
+    rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
+    rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
+
+    rli_ptr->notify_group_relay_log_name_update();
+
+    if (log_pos) // 3.23 binlogs don't have log_posx
+    {
+      rli_ptr->set_group_master_log_pos(log_pos);
+    }
+  
+    if ((error= rli_ptr->flush_info(TRUE)))
+      goto err;
+  }
+
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_SUICIDE(););
+
   error= trans_commit(thd); /* Automatically rolls back on error. */
+  DBUG_EXECUTE_IF("crash_after_apply", DBUG_SUICIDE(););
   thd->mdl_context.release_transactional_locks();
 
+err:
+  if (is_trans_repo)
+  {
+    mysql_cond_broadcast(&rli_ptr->data_cond);
+    mysql_mutex_unlock(&rli_ptr->data_lock);
+  }
   return error;
 }
 

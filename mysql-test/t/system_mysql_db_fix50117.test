@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, 
 -- disable_query_log
 
 # Drop all tables created by this test
-DROP TABLE db, host, user, func, plugin, tables_priv, columns_priv, procs_priv, servers, help_category, help_keyword, help_relation, help_topic, proc, time_zone, time_zone_leap_second, time_zone_name, time_zone_transition, time_zone_transition_type, general_log, slow_log, event, ndb_binlog_index, proxies_priv;
+DROP TABLE db, host, user, func, plugin, tables_priv, columns_priv, procs_priv, servers, help_category, help_keyword, help_relation, help_topic, proc, time_zone, time_zone_leap_second, time_zone_name, time_zone_transition, time_zone_transition_type, general_log, slow_log, event, ndb_binlog_index, proxies_priv, slave_master_info, slave_relay_log_info;
 
 -- enable_query_log
 

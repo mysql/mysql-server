@@ -108,7 +108,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			rpl_reporting.h sql_locale.h sql_parse.h \
 			rpl_info_handler.h \
 			log.h sql_show.h rpl_info.h rpl_info_file.h \
-			rpl_rli.h rpl_mi.h \
+			rpl_info_table.h rpl_rli.h rpl_mi.h rpl_info_values.h \
+			rpl_info_table_access.h \
 			rpl_info_factory.h server_ids.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
@@ -194,7 +195,8 @@ librpl_la_SOURCES    =  rpl_handler.cc rpl_tblmap.cc
 libmaster_la_SOURCES =	rpl_master.cc
 libslave_la_SOURCES = 	rpl_slave.cc rpl_reporting.cc rpl_rli.cc rpl_mi.cc \
 			rpl_info.cc rpl_info_factory.cc rpl_info_file.cc \
-			rpl_info_handler.cc
+			rpl_info_handler.cc rpl_info_table.cc \
+			rpl_info_table_access.cc rpl_info_values.cc
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_binlog.cc \

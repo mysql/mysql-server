@@ -127,6 +127,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   be open do not acquire global and schema-scope IX locks.
 */
 #define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
+/**
+  When opening or locking a replication table through an internal
+  operation rather than explicitly through an user thread.
+*/
+#define MYSQL_LOCK_RPL_INFO_TABLE               0x2000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
