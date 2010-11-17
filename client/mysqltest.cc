@@ -488,7 +488,7 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end,
-               bool open_end=false);
+               bool open_end=false, bool backtick=true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -2338,7 +2338,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(var, result.str, (const char**) &end);
+    /* Evaluation should not recurse via backtick */
+    eval_expr(var, result.str, (const char**) &end, false, false);
     dynstr_free(&result);
   }
   else
@@ -2548,7 +2549,8 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end)
+void eval_expr(VAR *v, const char *p, const char **p_end,
+               bool open_end, bool backtick)
 {
 
   DBUG_ENTER("eval_expr");
@@ -2573,7 +2575,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end)
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`')
+  if (*p == '`' && backtick)
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
