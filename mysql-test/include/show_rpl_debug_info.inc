@@ -50,7 +50,7 @@ eval SHOW BINLOG EVENTS IN '$binlog_name';
 let $_master_con= $master_connection;
 if (!$_master_con)
 {
-  if (`SELECT '$_con' = 'slave'`)
+  if ($_con == slave)
   {
     let $_master_con= master;
   }
@@ -80,7 +80,7 @@ if ($_master_con)
   --echo
   --echo **** SHOW BINLOG EVENTS on $_master_con ****
   eval SHOW BINLOG EVENTS IN '$master_binlog_name_sql';
-  if (`SELECT '$master_binlog_name_io' != '$master_binlog_name_sql'`)
+  if ($master_binlog_name_io != $master_binlog_name_sql)
   {
     eval SHOW BINLOG EVENTS IN '$master_binlog_name_io';
   }
