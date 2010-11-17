@@ -144,7 +144,11 @@ real_main(int argc, char** argv)
   const char* progname = argv[0];
   Vector<BaseString> original_args;
   for (int i = 0; i < argc; i++)
+  {
+    if (ndb_is_load_default_arg_separator(argv[i]))
+      continue;
     original_args.push_back(argv[i]);
+  }
 
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
