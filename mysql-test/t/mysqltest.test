@@ -2612,15 +2612,15 @@ let $count= 0;
 while ($run)
 {
    let $Field=   query_get_value($show_statement, Field,   $rowno);
-   if (`SELECT '$Field' = 'No such row'`)
+   if ($Field == No such row)
    {
       let $run= 0;
    }
-   if (`SELECT '$Field' <> 'No such row'`)
+   if ($Field != No such row)
    {
       let $Type=    query_get_value($show_statement, Type,    $rowno);
       let $Null=    query_get_value($show_statement, Null,    $rowno);
-      if (`SELECT '$Null' = 'YES'`)
+      if ($Null == YES)
       {
          inc $count;
       }

@@ -5,7 +5,7 @@
 
 # Only run this test if named pipe is avaliable
 let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
-if (`SELECT '$nmp' != 'ON'`){
+if ($nmp != ON){
   skip No named pipe support;
 }
 
