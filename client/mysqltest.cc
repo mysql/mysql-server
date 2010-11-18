@@ -5628,7 +5628,9 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (*expr_start == '!')
   {
     not_expr= TRUE;
-    expr_start++; /* Step past the '!' */
+    expr_start++; /* Step past the '!', then any whitespace */
+    while (*expr_start && my_isspace(charset_info, *expr_start))
+      expr_start++;
   }
   /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
