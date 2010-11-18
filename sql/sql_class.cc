@@ -2625,8 +2625,6 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   db(NULL),
   db_length(0)
 {
-  query_string.length= 0;
-  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2662,15 +2660,6 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
-}
-
-
-/** Assign a new value to thd->query.  */
-
-void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
-{
-  query_string.str= query_arg;
-  query_string.length= query_length_arg;
 }
 
 
@@ -3206,7 +3195,7 @@ extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
 */
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query_string.str);
+  return (&thd->query_string.string.str);
 }
 
 /**
@@ -3217,7 +3206,7 @@ extern "C" char **thd_query(MYSQL_THD thd)
 */
 extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
 {
-  return(&thd->query_string);
+  return(&thd->query_string.string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3462,20 +3451,21 @@ void THD::set_statement(Statement *stmt)
 
 /** Assign a new value to thd->query.  */
 
-void THD::set_query(char *query_arg, uint32 query_length_arg)
+void THD::set_query(const CSET_STRING &string_arg)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(query_arg, query_length_arg);
+  set_query_inner(string_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */
 
 void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
+                           CHARSET_INFO *cs,
                            query_id_t new_query_id)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  set_query_inner(query_arg, query_length_arg);
+  set_query_inner(query_arg, query_length_arg, cs);
   query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
 }
