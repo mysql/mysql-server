@@ -45,23 +45,28 @@ a	b
 4	abcd
 select * from foo;
 a	b
+commit;
 select * from foo;
 a	b
 1	a
+commit;
 select * from foo;
 a	b
 1	ab
 2	ab
+commit;
 select * from foo;
 a	b
 1	abc
 2	abc
 3	abc
+commit;
 select * from foo;
 a	b
 1	abcd
 2	abcd
 3	abcd
 4	abcd
+commit;
 set session transaction isolation level serializable;
 DROP TABLE foo;
