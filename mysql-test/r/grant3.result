@@ -21,123 +21,108 @@ grant select on test.* to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
 user	host	db	select_priv
-CUser	LOCALHOST	test	Y
 CUser	localhost	test	Y
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
 user	host	db	select_priv
-CUser	localhost	test	Y
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser' order by 1,2;
 user	host	db	select_priv
 DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
+ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 create table t1 (a int);
 grant select on test.t1 to CUser@localhost;
 grant select on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
-CUser	LOCALHOST	test	t1	Select	
 CUser	localhost	test	t1	Select	
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
-CUser	localhost	test	t1	Select	
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
 DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
+ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 grant select(a) on test.t1 to CUser@localhost;
 grant select(a) on test.t1 to CUser@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
-CUser	LOCALHOST	test	t1		Select
 CUser	localhost	test	t1		Select
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'LOCALHOST';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
-CUser	localhost	test	t1		Select
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'CUser'@'localhost';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser' order by 1,2;
 user	host
-CUser	LOCALHOST
 CUser	localhost
 SELECT user, host, db, Table_name, Table_priv, Column_priv FROM mysql.tables_priv where user = 'CUser' order by 1,2;
 user	host	db	Table_name	Table_priv	Column_priv
 DROP USER CUser@localhost;
 DROP USER CUser@LOCALHOST;
+ERROR HY000: Operation DROP USER failed for 'CUser'@'localhost'
 drop table t1;
 grant select on test.* to CUser2@localhost;
 grant select on test.* to CUser2@LOCALHOST;
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
 user	host
-CUser2	LOCALHOST
 CUser2	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
 user	host	db	select_priv
-CUser2	LOCALHOST	test	Y
 CUser2	localhost	test	Y
 REVOKE SELECT ON test.* FROM 'CUser2'@'LOCALHOST';
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
 user	host
-CUser2	LOCALHOST
 CUser2	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
 user	host	db	select_priv
-CUser2	localhost	test	Y
 REVOKE SELECT ON test.* FROM 'CUser2'@'localhost';
+ERROR 42000: There is no such grant defined for user 'CUser2' on host 'localhost'
 flush privileges;
 SELECT user, host FROM mysql.user where user = 'CUser2' order by 1,2;
 user	host
-CUser2	LOCALHOST
 CUser2	localhost
 SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 1,2;
 user	host	db	select_priv
 DROP USER CUser2@localhost;
 DROP USER CUser2@LOCALHOST;
+ERROR HY000: Operation DROP USER failed for 'CUser2'@'localhost'
 CREATE DATABASE mysqltest_1;
 CREATE TABLE mysqltest_1.t1 (a INT);
 CREATE USER 'mysqltest1'@'%';

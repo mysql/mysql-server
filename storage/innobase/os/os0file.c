@@ -1138,9 +1138,12 @@ Tries to disable OS caching on an opened file descriptor. */
 void
 os_file_set_nocache(
 /*================*/
-	int		fd,		/* in: file descriptor to alter */
-	const char*	file_name,	/* in: used in the diagnostic message */
-	const char*	operation_name)	/* in: used in the diagnostic message,
+	int		fd		/* in: file descriptor to alter */
+	__attribute__((unused)),
+	const char*	file_name	/* in: used in the diagnostic message */
+	__attribute__((unused)),
+	const char*	operation_name __attribute__((unused)))
+					/* in: used in the diagnostic message,
 					we call os_file_set_nocache()
 					immediately after opening or creating
 					a file, so this is either "open" or
@@ -2204,7 +2207,10 @@ os_file_read(
 	ibool		retry;
 	ulint		i;
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2321,7 +2327,10 @@ os_file_read_no_error_handling(
 	ibool		retry;
 	ulint		i;
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2444,7 +2453,10 @@ os_file_write(
 	ulint		n_retries	= 0;
 	ulint		err;
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_writes++;
 
@@ -3242,14 +3254,16 @@ os_aio_array_reserve_slot(
 	ulint		len)	/* in: length of the block to read or write */
 {
 	os_aio_slot_t*	slot;
+	ulint		i;
 #ifdef WIN_ASYNC_IO
 	OVERLAPPED*	control;
 
+	ut_a((len & 0xFFFFFFFFUL) == len);
 #elif defined(POSIX_ASYNC_IO)
 
 	struct aiocb*	control;
 #endif
-	ulint		i;
+
 loop:
 	os_mutex_enter(array->mutex);
 
@@ -3514,6 +3528,9 @@ os_aio(
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
+#ifdef WIN_ASYNC_IO
+	ut_ad((n & 0xFFFFFFFFUL) == n);
+#endif
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
@@ -3762,16 +3779,18 @@ os_aio_windows_handle(
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
 
+		ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
-					slot->len, &len,
+					(DWORD) slot->len, &len,
 					&(slot->control));
 
 			break;
 		case OS_FILE_READ:
 			ret = ReadFile(slot->file, slot->buf,
-				       slot->len, &len,
+				       (DWORD) slot->len, &len,
 				       &(slot->control));
 
 			break;
