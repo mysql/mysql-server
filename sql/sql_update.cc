@@ -1026,9 +1026,17 @@ int mysql_multi_update_prepare(THD *thd)
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
-  /* open tables and create derived ones, but do not lock and fill them */
+  /*
+    Open tables and create derived ones, but do not lock and fill them yet.
+
+    During prepare phase acquire only S metadata locks instead of SW locks to
+    keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
+    and global read lock.
+  */
   if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count, 0)) ||
+       open_tables(thd, &table_list, &table_count,
+                   (thd->stmt_arena->is_stmt_prepare() ?
+                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
   /*
