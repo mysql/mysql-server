@@ -118,10 +118,11 @@ def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	Grantor
-def	mysql	proxy_priv	mysql	PRIMARY
-def	mysql	proxy_priv	mysql	PRIMARY
-def	mysql	proxy_priv	mysql	PRIMARY
-def	mysql	proxy_priv	mysql	PRIMARY
+def	mysql	proxies_priv	mysql	PRIMARY
+def	mysql	proxies_priv	mysql	PRIMARY
+def	mysql	proxies_priv	mysql	PRIMARY
+def	mysql	proxies_priv	mysql	PRIMARY
+def	mysql	proxies_priv	mysql	Grantor
 def	mysql	servers	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY
 def	mysql	tables_priv	mysql	PRIMARY

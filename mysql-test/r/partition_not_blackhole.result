@@ -11,6 +11,6 @@ t1
 SHOW CREATE TABLE t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 t1.frm
 t1.par

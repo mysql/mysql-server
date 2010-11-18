@@ -1308,8 +1308,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   :ptr(ptr_arg), null_ptr(null_ptr_arg),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
-   key_start(0), part_of_key(0), part_of_key_not_clustered(0),
-   part_of_sortkey(0), unireg_check(unireg_check_arg),
+   unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
    is_created_from_null_item(FALSE)
 {
@@ -1734,8 +1733,8 @@ my_decimal *Field_str::val_decimal(my_decimal *decimal_value)
 uint Field::fill_cache_field(CACHE_FIELD *copy)
 {
   uint store_length;
-  copy->str=ptr;
-  copy->length=pack_length();
+  copy->str= ptr;
+  copy->length= pack_length();
   copy->field= this;
   if (flags & BLOB_FLAG)
   {
@@ -1747,8 +1746,14 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
   {
-    copy->type= CACHE_STRIPPED;
+    copy->type= CACHE_STRIPPED;			    /* Remove end space */
     store_length= 2;
+  }
+  else if (type() ==  MYSQL_TYPE_VARCHAR)
+  {
+    copy->type= pack_length()-row_pack_length() == 1 ? CACHE_VARSTR1:
+                                                      CACHE_VARSTR2;
+    store_length= 0;
   }
   else
   {
@@ -6341,10 +6346,13 @@ int Field_str::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint local_char_length= field_length / charset()->mbmaxlen;
-  size_t length;
-  my_bool error;
+  size_t length= 0;
+  my_bool error= (local_char_length == 0);
 
-  length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+  // my_gcvt() requires width > 0, and we may have a CHAR(0) column.
+  if (!error)
+    length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+
   if (error)
   {
     if (table->in_use->abort_on_warning)
@@ -8431,6 +8439,8 @@ uchar *Field_enum::pack(uchar *to, const uchar *from,
   default:
     DBUG_ASSERT(0);
   }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
 }
 
 const uchar *Field_enum::unpack(uchar *to, const uchar *from,
@@ -8453,6 +8463,8 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from,
   default:
     DBUG_ASSERT(0);
   }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
 }
 
 

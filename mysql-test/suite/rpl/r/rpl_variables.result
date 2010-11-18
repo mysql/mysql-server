@@ -47,6 +47,34 @@ include/start_slave.inc
 [on slave]
 SET @@global.init_slave = 'SELECT 1';
 [on master]
+SELECT @@pid_file, @@datadir;
+@@pid_file	MYSQLTEST_VARDIR/run/mysqld.1.pid
+@@datadir	MYSQLTEST_VARDIR/mysqld.1/data/
+**** Relay log variables
+SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
+@@relay_log	NULL
+@@relay_log_index	NULL
+@@relay_log_basename	NULL
+**** Binary log variables
+SELECT @@log_bin, @@log_bin_index, @@log_bin_basename;
+@@log_bin	1
+@@log_bin_index	MYSQLTEST_VARDIR/mysqld.1/data/master-bin.index
+@@log_bin_basename	MYSQLTEST_VARDIR/mysqld.1/data/master-bin
+[on slave]
+SELECT @@pid_file, @@datadir;
+@@pid_file	MYSQLTEST_VARDIR/run/mysqld.2.pid
+@@datadir	MYSQLTEST_VARDIR/mysqld.2/data/
+**** Relay log variables
+SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
+@@relay_log	slave-relay-bin
+@@relay_log_index	MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.index
+@@relay_log_basename	MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin
+**** Binary log variables
+SELECT @@log_bin, @@log_bin_index, @@log_bin_basename;
+@@log_bin	1
+@@log_bin_index	MYSQLTEST_VARDIR/mysqld.2/data/slave-bin.index
+@@log_bin_basename	MYSQLTEST_VARDIR/mysqld.2/data/slave-bin
+[on master]
 CREATE TABLE tstmt (id INT AUTO_INCREMENT PRIMARY KEY,
 truth BOOLEAN,
 num INT,

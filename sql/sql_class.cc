@@ -278,6 +278,10 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
   thd->proc_info= info;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_state(info);
+#endif
   return old_info;
 }
 
@@ -594,7 +598,7 @@ THD::THD()
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   slave_net = 0;
-  command=COM_CONNECT;
+  set_command(COM_CONNECT);
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
@@ -1842,8 +1846,9 @@ void select_to_file::send_error(uint errcode,const char *err)
 bool select_to_file::send_eof()
 {
   int error= test(end_io_cache(&cache));
-  if (mysql_file_close(file, MYF(MY_WME)))
-    error= 1;
+  if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
+    error= true;
+
   if (!error)
   {
     ::my_ok(thd,row_count);
@@ -2884,6 +2889,13 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_ok(thd,row_count);
   return 0;
 }
@@ -2901,6 +2913,7 @@ void TMP_TABLE_PARAM::init()
   quick_group= 1;
   table_charset= 0;
   precomputed_group_by= 0;
+  bit_fields_as_long= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -3413,6 +3426,16 @@ void THD::set_statement(Statement *stmt)
 }
 
 
+void THD::set_command(enum enum_server_command command)
+{
+  m_command= command;
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_command(m_command);
+#endif
+}
+
+
 /** Assign a new value to thd->query.  */
 
 void THD::set_query(char *query_arg, uint32 query_length_arg)
@@ -3420,6 +3443,11 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg);
   mysql_mutex_unlock(&LOCK_thd_data);
+
+#ifdef HAVE_PSI_INTERFACE
+  if (PSI_server)
+    PSI_server->set_thread_info(query_arg, query_length_arg);
+#endif
 }
 
 /** Assign a new value to thd->query and thd->query_id.  */

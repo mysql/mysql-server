@@ -1,0 +1,44 @@
+SET @start_global_value = @@global.optimizer_join_cache_level;
+select @@global.optimizer_join_cache_level;
+@@global.optimizer_join_cache_level
+1
+select @@session.optimizer_join_cache_level;
+@@session.optimizer_join_cache_level
+1
+show global variables like 'optimizer_join_cache_level';
+Variable_name	Value
+optimizer_join_cache_level	1
+show session variables like 'optimizer_join_cache_level';
+Variable_name	Value
+optimizer_join_cache_level	1
+select * from information_schema.global_variables where variable_name='optimizer_join_cache_level';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_JOIN_CACHE_LEVEL	1
+select * from information_schema.session_variables where variable_name='optimizer_join_cache_level';
+VARIABLE_NAME	VARIABLE_VALUE
+OPTIMIZER_JOIN_CACHE_LEVEL	1
+set global optimizer_join_cache_level=2;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_join_cache_level value: '2'
+select @@global.optimizer_join_cache_level;
+@@global.optimizer_join_cache_level
+1
+set session optimizer_join_cache_level=4;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_join_cache_level value: '4'
+select @@session.optimizer_join_cache_level;
+@@session.optimizer_join_cache_level
+1
+set session optimizer_join_cache_level=9;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_join_cache_level value: '9'
+select @@session.optimizer_join_cache_level;
+@@session.optimizer_join_cache_level
+1
+set global optimizer_join_cache_level=1.1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_join_cache_level'
+set global optimizer_join_cache_level=1e1;
+ERROR 42000: Incorrect argument type to variable 'optimizer_join_cache_level'
+set global optimizer_join_cache_level="foo";
+ERROR 42000: Incorrect argument type to variable 'optimizer_join_cache_level'
+SET @@global.optimizer_join_cache_level = @start_global_value;

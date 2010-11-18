@@ -1755,7 +1755,7 @@ set global innodb_thread_sleep_delay=10000;
 show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
-set storage_engine=INNODB;
+set default_storage_engine=INNODB;
 set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
@@ -2353,7 +2353,7 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
@@ -3071,7 +3071,7 @@ c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(
 id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
@@ -3090,8 +3090,8 @@ SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 DROP TABLE IF EXISTS t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 CREATE TABLE t2 LIKE t1;
 SELECT * FROM t2;

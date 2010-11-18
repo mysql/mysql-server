@@ -172,7 +172,7 @@ IF(UNIX)
       SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
     ENDIF() 
   ENDMACRO()
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r.a mysqlclient ${INSTALL_LIBDIR} Development)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
@@ -210,7 +210,7 @@ IF(NOT DISABLE_SHARED)
       "${CMAKE_SHARED_LIBRARY_SUFFIX}"
       ""
       linkname)
-    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
     SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
@@ -219,7 +219,7 @@ IF(NOT DISABLE_SHARED)
         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
         "${ver}"
         linkname)
-      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} SharedLibraries)
     ENDFOREACH()
   ENDIF()
 ENDIF()

@@ -349,13 +349,18 @@ struct dict_index_struct{
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
-	ib_int64_t*	stat_n_diff_key_vals;
+	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
 				n-column prefix where n <=
 				dict_get_n_unique(index); we
 				periodically calculate new
 				estimates */
+	ib_uint64_t*	stat_n_sample_sizes;
+				/*!< number of pages that were sampled
+				to calculate each of stat_n_diff_key_vals[],
+				e.g. stat_n_sample_sizes[3] pages were sampled
+				to get the number stat_n_diff_key_vals[3]. */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */

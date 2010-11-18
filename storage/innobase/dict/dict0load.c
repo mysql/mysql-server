@@ -37,6 +37,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
@@ -345,9 +346,10 @@ dict_process_sys_tables_rec(
 	if ((status & DICT_TABLE_UPDATE_STATS)
 	    && dict_table_get_first_index(*table)) {
 
-		/* Update statistics if DICT_TABLE_UPDATE_STATS
-		is set */
-		dict_update_statistics_low(*table, TRUE);
+		/* Update statistics member fields in *table if
+		DICT_TABLE_UPDATE_STATS is set */
+		ut_ad(mutex_own(&dict_sys->mutex));
+		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
 	}
 
 	return(NULL);

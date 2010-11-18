@@ -28,6 +28,7 @@
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
 #include "pfs_events_waits.h"
+#include "pfs_setup_actor.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -1042,9 +1043,25 @@ void* pfs_spawn_thread(void *arg)
   /* First, attach instrumentation to this newly created pthread. */
   PFS_thread_class *klass= find_thread_class(typed_arg->m_child_key);
   if (likely(klass != NULL))
+  {
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
+    if (likely(pfs != NULL))
+    {
+      PFS_thread *parent= typed_arg->m_parent_thread;
+
+      pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
+
+      memcpy(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
+      pfs->m_username_length= parent->m_username_length;
+
+      memcpy(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
+      pfs->m_hostname_length= parent->m_hostname_length;
+    }
+  }
   else
+  {
     pfs= NULL;
+  }
   my_pthread_setspecific_ptr(THR_PFS, pfs);
 
   /*
@@ -1113,6 +1130,188 @@ get_thread_v1(void)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   return reinterpret_cast<PSI_thread*> (pfs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user.
+*/
+static void set_thread_user_v1(const char *user, int user_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((user != NULL) || (user_len == 0));
+  DBUG_ASSERT(user_len >= 0);
+  DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
+
+  if (unlikely(pfs == NULL))
+    return;
+
+  pfs->m_lock.allocated_to_dirty();
+  if (user_len > 0)
+    memcpy(pfs->m_username, user, user_len);
+  pfs->m_username_length= user_len;
+
+  bool enabled= false;
+
+  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  {
+    /*
+      TODO: performance improvement.
+      Once performance_schema.USERS is exposed,
+      we can use PFS_user::m_enabled instead of looking up
+      SETUP_ACTORS every time.
+    */
+    lookup_setup_actor(pfs,
+                       pfs->m_username, pfs->m_username_length,
+                       pfs->m_hostname, pfs->m_hostname_length,
+                       &enabled);
+  }
+
+  pfs->m_enabled= enabled;
+
+  pfs->m_lock.dirty_to_allocated();
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user_host.
+*/
+static void set_thread_user_host_v1(const char *user, int user_len,
+                                    const char *host, int host_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((user != NULL) || (user_len == 0));
+  DBUG_ASSERT(user_len >= 0);
+  DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
+  DBUG_ASSERT((host != NULL) || (host_len == 0));
+  DBUG_ASSERT(host_len >= 0);
+  DBUG_ASSERT((uint) host_len <= sizeof(pfs->m_hostname));
+
+  if (unlikely(pfs == NULL))
+    return;
+
+  pfs->m_lock.allocated_to_dirty();
+
+  if (host_len > 0)
+    memcpy(pfs->m_hostname, host, host_len);
+  pfs->m_hostname_length= host_len;
+
+  if (user_len > 0)
+    memcpy(pfs->m_username, user, user_len);
+  pfs->m_username_length= user_len;
+
+  bool enabled= false;
+  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  {
+    /*
+      TODO: performance improvement.
+      Once performance_schema.USERS is exposed,
+      we can use PFS_user::m_enabled instead of looking up
+      SETUP_ACTORS every time.
+    */
+    lookup_setup_actor(pfs,
+                       pfs->m_username, pfs->m_username_length,
+                       pfs->m_hostname, pfs->m_hostname_length,
+                       &enabled);
+  }
+  pfs->m_enabled= enabled;
+
+  pfs->m_lock.dirty_to_allocated();
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_db.
+*/
+static void set_thread_db_v1(const char* db, int db_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((db != NULL) || (db_len == 0));
+  DBUG_ASSERT(db_len >= 0);
+  DBUG_ASSERT((uint) db_len <= sizeof(pfs->m_dbname));
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    if (db_len > 0)
+      memcpy(pfs->m_dbname, db, db_len);
+    pfs->m_dbname_length= db_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_command.
+*/
+static void set_thread_command_v1(int command)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT(command >= 0);
+  DBUG_ASSERT(command <= (int) COM_END);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_command= command;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_start_time.
+*/
+static void set_thread_start_time_v1(time_t start_time)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_start_time= start_time;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_state.
+*/
+static void set_thread_state_v1(const char* state)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    int state_len= state ? strlen(state) : 0;
+
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_processlist_state_ptr= state;
+    pfs->m_processlist_state_length= state_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_info.
+*/
+static void set_thread_info_v1(const char* info, int info_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_processlist_info_ptr= info;
+    pfs->m_processlist_info_length= info_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
 }
 
 static void set_thread_v1(PSI_thread* thread)
@@ -2186,6 +2385,13 @@ PSI_v1 PFS_v1=
   new_thread_v1,
   set_thread_id_v1,
   get_thread_v1,
+  set_thread_user_v1,
+  set_thread_user_host_v1,
+  set_thread_db_v1,
+  set_thread_command_v1,
+  set_thread_start_time_v1,
+  set_thread_state_v1,
+  set_thread_info_v1,
   set_thread_v1,
   delete_current_thread_v1,
   delete_thread_v1,

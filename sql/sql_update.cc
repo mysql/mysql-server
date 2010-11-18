@@ -252,7 +252,7 @@ int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
 		 List<Item> &values,
-                 COND *conds,
+                 Item *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates, bool ignore,
@@ -395,6 +395,7 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
+  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
   if (error || !limit ||
       (select && select->check_quick(thd, safe_update, limit)))
@@ -428,8 +429,6 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, select_lex, 1);
-
-  table->mark_columns_needed_for_update();
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
@@ -1200,7 +1199,7 @@ bool mysql_multi_update(THD *thd,
                         TABLE_LIST *table_list,
                         List<Item> *fields,
                         List<Item> *values,
-                        COND *conds,
+                        Item *conds,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         bool ignore,
@@ -1810,11 +1809,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
       {
         if (error &&
             create_myisam_from_heap(thd, tmp_table,
-                                    tmp_table_param + offset, error, 1))
+                                         tmp_table_param[offset].start_recinfo,
+                                         &tmp_table_param[offset].recinfo,
+                                         error, TRUE, NULL))
         {
           do_update= 0;
-          DBUG_RETURN(1);			// Not a table_is_full error
-        }
+	  DBUG_RETURN(1);			// Not a table_is_full error
+	}
         found++;
       }
     }
@@ -2064,7 +2065,9 @@ bool multi_update::send_eof()
      Does updates for the last n - 1 tables, returns 0 if ok;
      error takes into account killed status gained in do_updates()
   */
-  int local_error = (table_count) ? do_updates() : 0;
+  int local_error= thd->is_error();
+  if (!local_error)
+    local_error = (table_count) ? do_updates() : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.
