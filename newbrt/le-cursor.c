@@ -10,8 +10,10 @@
 
 struct le_cursor {
     BRT_CURSOR brt_cursor;
+    BRT brt;
     DBT key;
-    BOOL neg_infinity, pos_infinity;
+    BOOL neg_infinity;
+    BOOL pos_infinity;
 };
 
 int 
@@ -24,7 +26,9 @@ le_cursor_create(LE_CURSOR *le_cursor_result, BRT brt, TOKUTXN txn) {
         result = toku_brt_cursor(brt, &le_cursor->brt_cursor, txn, FALSE);
         if (result == 0) {
             toku_brt_cursor_set_leaf_mode(le_cursor->brt_cursor);
-            toku_init_dbt(&le_cursor->key); le_cursor->key.flags = DB_DBT_REALLOC;
+            le_cursor->brt = brt;
+            toku_init_dbt(&le_cursor->key); 
+            le_cursor->key.flags = DB_DBT_REALLOC;
             le_cursor->neg_infinity = TRUE;
             le_cursor->pos_infinity = FALSE;
         }
@@ -71,14 +75,15 @@ le_cursor_next(LE_CURSOR le_cursor, DBT *key, DBT *val) {
 }
 
 int
-is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, int (*keycompare)(DB *, const DBT *, const DBT *), DB *db) {
+is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db) {
     int result;
     if (le_cursor->neg_infinity)
         result = TRUE;
     else if (le_cursor->pos_infinity)
         result = FALSE;
     else {
-        int r = keycompare(db, &le_cursor->key, key);
+        brt_compare_func keycompare = toku_brt_get_bt_compare(le_cursor->brt);
+        int r = keycompare(keycompare_db, &le_cursor->key, key);
         if (r < 0)
             result = TRUE;
         else

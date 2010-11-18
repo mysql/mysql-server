@@ -35,6 +35,6 @@ int le_cursor_next(LE_CURSOR le_cursor, DBT *key, DBT *val);
 // The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns TRUE.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
 // returns FALSE.
-int is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, int (*keycompare)(DB *extra, const DBT *, const DBT *), DB *extra);
+int is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db);
 
 #endif
