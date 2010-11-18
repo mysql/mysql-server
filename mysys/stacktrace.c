@@ -318,6 +318,9 @@ end:
 /* Produce a core for the thread */
 void my_write_core(int sig)
 {
+#ifdef HAVE_gcov
+  extern void __gcov_flush(void);
+#endif
   signal(sig, SIG_DFL);
 #ifdef HAVE_gcov
   /*
@@ -325,7 +328,6 @@ void my_write_core(int sig)
     information from this process, causing gcov output to be incomplete.
     So we force the writing of coverage information here before terminating.
   */
-  extern void __gcov_flush(void);
   __gcov_flush();
 #endif
   pthread_kill(pthread_self(), sig);

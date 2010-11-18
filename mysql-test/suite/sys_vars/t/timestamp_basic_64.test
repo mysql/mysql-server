@@ -7,3 +7,8 @@
 --source include/have_64bit.inc
 --source suite/sys_vars/inc/timestamp_basic.inc
 
+SET @@timestamp = 123456789123456;
+SELECT @@timestamp;
+SET @@timestamp = 60*60*60*60*365;
+SELECT @@timestamp;
+

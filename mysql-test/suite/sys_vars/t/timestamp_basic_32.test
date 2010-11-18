@@ -7,3 +7,7 @@
 --source include/have_32bit.inc
 --source suite/sys_vars/inc/timestamp_basic.inc
 
+--error ER_UNKNOWN_ERROR
+SET @@timestamp = 123456789123456;
+--error ER_UNKNOWN_ERROR
+SET @@timestamp = 60*60*60*60*365;
