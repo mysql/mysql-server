@@ -758,9 +758,26 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 */
 PFS_thread *sanitize_thread(PFS_thread *unsafe)
 {
-  if ((&thread_array[0] <= unsafe) &&
-      (unsafe < &thread_array[thread_max]))
-    return unsafe;
+  SANITIZE_ARRAY_BODY(PFS_thread, thread_array, thread_max, unsafe);
+}
+
+const char *sanitize_file_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &file_array[0];
+  intptr last= (intptr) &file_array[file_max];
+
+  /* Check if unsafe points inside file_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    /* Check if unsafe points to PFS_file::m_filename */
+    intptr offset= (ptr - first) % sizeof(PFS_file);
+    intptr valid_offset= my_offsetof(PFS_file, m_filename[0]);
+    if (likely(offset == valid_offset))
+    {   
+      return unsafe;
+    }   
+  }
   return NULL;
 }
 
