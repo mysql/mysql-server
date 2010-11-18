@@ -101,8 +101,7 @@ try
                          GetValue(configureIn, "DOT_FRM_VERSION") + "\")");
     configfile.WriteLine("SET (MYSQL_TCP_PORT_DEFAULT \"" + default_port + "\")");
     configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\")");
-    configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"" +
-                         GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\")");
+    configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"MySQL\")");
     var version = GetVersion(configureIn);
     configfile.WriteLine("SET (VERSION \"" + version + "\")");
     configfile.WriteLine("SET (MYSQL_BASE_VERSION \"" +
