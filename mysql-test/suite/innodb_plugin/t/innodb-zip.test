@@ -173,9 +173,7 @@ set innodb_strict_mode = on;
 
 #Test different values of KEY_BLOCK_SIZE
 
---error ER_CANT_CREATE_TABLE
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
-show warnings;
 
 --error ER_CANT_CREATE_TABLE
 create table t2 (id int primary key) engine = innodb key_block_size = 9;
@@ -196,7 +194,7 @@ create table t11(id int primary key) engine = innodb row_format = redundant;
 
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
-drop table t3, t4, t5, t6, t7, t8, t9, t10, t11;
+drop table t1, t3, t4, t5, t6, t7, t8, t9, t10, t11;
 
 #test different values of ROW_FORMAT with KEY_BLOCK_SIZE
 create table t1 (id int primary key) engine = innodb
@@ -217,14 +215,12 @@ create table t4 (id int primary key) engine = innodb
 key_block_size = 8 row_format = dynamic;
 show warnings;
 
---error ER_CANT_CREATE_TABLE
 create table t5 (id int primary key) engine = innodb
 key_block_size = 8 row_format = default;
-show warnings;
 
 SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
-drop table t1;
+drop table t1, t5;
 
 #test multiple errors
 --error ER_CANT_CREATE_TABLE

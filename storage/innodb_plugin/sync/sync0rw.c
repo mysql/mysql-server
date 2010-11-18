@@ -335,10 +335,13 @@ rw_lock_validate(
 /*=============*/
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
+	ulint	waiters;
+	lint	lock_word;
+
 	ut_a(lock);
 
-	ulint waiters = rw_lock_get_waiters(lock);
-	lint lock_word = lock->lock_word;
+	waiters = rw_lock_get_waiters(lock);
+	lock_word = lock->lock_word;
 
 	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
 	ut_a(waiters == 0 || waiters == 1);
@@ -988,7 +991,7 @@ rw_lock_debug_print(
 
 	rwt	  = info->lock_type;
 
-	fprintf(stderr, "Locked: thread %ld file %s line %ld  ",
+	fprintf(stderr, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
