@@ -104,6 +104,12 @@ enum db_err {
 	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
 					cascading delete/update exceeds
 					maximum allowed depth */
+	DB_CHILD_NO_INDEX,		/* the child (foreign) table does not
+					have an index that contains the
+					foreign keys as its prefix columns */
+	DB_PARENT_NO_INDEX,		/* the parent table does not
+					have an index that contains the
+					foreign keys as its prefix columns */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
