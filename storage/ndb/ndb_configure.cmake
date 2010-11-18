@@ -130,6 +130,13 @@ IF(WITH_NDBMTD)
 
 ENDIF()
 
+SET(WITH_NDB_PORT "" CACHE INTEGER
+  "Default port used by MySQL Cluster management server")
+IF(WITH_NDB_PORT GREATER 0)
+  SET(NDB_PORT ${WITH_NDB_PORT})
+  MESSAGE(STATUS "Setting MySQL Cluster management server port to ${NDB_PORT}")
+ENDIF()
+
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)
 

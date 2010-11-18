@@ -34,3 +34,4 @@
 #cmakedefine HAVE_LINUX_FUTEX 1
 #cmakedefine HAVE_ATOMIC_H 1
 #cmakedefine HAVE_SUN_PREFETCH_H 1
+#cmakedefine NDB_PORT @NDB_PORT@

@@ -58,14 +58,6 @@ IF(WITH_NDB_TEST)
   MESSAGE(STATUS "Building NDB test programs")
 ENDIF()
 
-SET(WITH_NDB_PORT "" CACHE INTEGER
-  "Default port used by NDB Cluster management server")
-IF(WITH_NDB_PORT GREATER 0)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDB_PORT=\"${WITH_NDB_PORT}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNDB_PORT=\"${WITH_NDB_PORT}\"")
-  MESSAGE ( STATUS "Setting management server port to ${WITH_NDB_PORT}" )
-ENDIF()
-
 OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
 
