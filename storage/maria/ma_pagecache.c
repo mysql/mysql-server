@@ -3496,8 +3496,9 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
     {
       PAGECACHE_FILE *filedesc= &block->hash_link->file;
       /* We are not going to write the page but have to call callbacks */
-      DBUG_PRINT("info", ("flush_callback :0x%lx  data: 0x%lx"
+      DBUG_PRINT("info", ("flush_callback :0x%lx"
                           "write_callback: 0x%lx  data: 0x%lx",
+                          (ulong) filedesc->flush_log_callback,
                           (ulong) filedesc->write_callback,
                           (ulong) filedesc->callback_data));
       if ((*filedesc->flush_log_callback)
