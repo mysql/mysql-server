@@ -738,7 +738,7 @@ THD::THD()
   thr_lock_owner_init(&main_lock_id, &lock_info);
 
   m_internal_handler= NULL;
-  current_user_used= FALSE;
+  m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
 }
@@ -1247,7 +1247,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  clean_current_user_used();
+  m_binlog_invoker= FALSE;
 }
 
 
@@ -3281,7 +3281,7 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
 
 void THD::get_definer(LEX_USER *definer)
 {
-  set_current_user_used();
+  binlog_invoker();
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   if (slave_thread && has_invoker())
   {

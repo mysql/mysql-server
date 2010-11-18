@@ -39,7 +39,7 @@ extern ibool	panic_shutdown;
 void ut_dbg_panic(void);
 # define UT_DBG_PANIC ut_dbg_panic()
 /* Stop threads in ut_a(). */
-# define UT_DBG_STOP	while (0)	/* We do not do this on NetWare */
+# define UT_DBG_STOP	do {} while (0)	/* We do not do this on NetWare */
 #else /* __NETWARE__ */
 # if defined(__WIN__) || defined(__INTEL_COMPILER)
 #  undef UT_DBG_USE_ABORT
@@ -71,7 +71,7 @@ ut_dbg_stop_thread(
 /* Abort the execution. */
 #  define UT_DBG_PANIC abort()
 /* Stop threads (null operation) */
-#  define UT_DBG_STOP while (0)
+#  define UT_DBG_STOP do {} while (0)
 # else /* UT_DBG_USE_ABORT */
 /* Abort the execution. */
 #  define UT_DBG_PANIC					\
