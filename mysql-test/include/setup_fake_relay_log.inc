@@ -56,7 +56,7 @@ if (`SELECT "$_sql_running" = "Yes" OR "$_io_running" = "Yes"`) {
 # Read server variables.
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $_fake_filename= query_get_value(SHOW VARIABLES LIKE 'relay_log', Value, 1);
-if (`SELECT '$_fake_filename' = ''`) {
+if (!$_fake_filename) {
   --echo Badly written test case: relay_log variable is empty. Please use the
   --echo server option --relay-log=FILE.
 }
