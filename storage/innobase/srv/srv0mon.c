@@ -568,27 +568,29 @@ srv_mon_set_module_control(
 }
 
 /****************************************************************//**
-Get transaction system's rollback segment size
+Get transaction system's rollback segment size in pages
 @return size in pages */
 static
 ulint
-srv_mon_get_rseg_size()
-/*===================*/
+srv_mon_get_rseg_size(void)
+/*=======================*/
 {
-	trx_rseg_t*	rseg;
+	ulint		i;
 	ulint		value = 0;
 
-	/* rseg_list is a static list, so we can go through it without
+	/* rseg_array is a static array, so we can go through it without
 	mutex protection. In addition, we provide an estimate of the
 	total rollback segment size and to avoid mutex contention we
 	don't acquire the rseg->mutex" */
-	for (rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-	     rseg; rseg = UT_LIST_GET_NEXT(rseg_list, rseg)) {
-			value += rseg->curr_size;
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		const trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+
+		value += rseg->curr_size;
 	}
 
 	return(value);
 }
+
 /****************************************************************//**
 This function consolidates some existing server counters used
 by "system status variables". These existing system variables do not have
@@ -660,13 +662,13 @@ srv_mon_process_existing_counter(
 
 	/* innodb_buffer_pool_pages_total */
 	case MONITOR_OVLD_BUF_POOL_PAGE_TOTAL:
-		value = buf_pool_get_curr_size();
+		value = buf_pool_get_n_pages();
 		break;
 
 	/* innodb_buffer_pool_pages_misc */
 	case MONITOR_OVLD_BUF_POOL_PAGE_MISC:
 		buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
-		value = buf_pool_get_curr_size() - LRU_len - free_len;
+		value = buf_pool_get_n_pages() - LRU_len - free_len;
 		break;
 
 	/* innodb_buffer_pool_pages_data */

@@ -106,6 +106,18 @@ row_sel_sec_rec_is_for_blob(
 	ulint	len;
 	byte	buf[DICT_MAX_INDEX_COL_LEN];
 
+	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(FALSE);
+	}
+
 	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
 						      zip_size,
 						      clust_field, clust_len);
@@ -971,7 +983,7 @@ sel_set_rec_lock(
 
 	trx = thr_get_trx(thr);
 
-	if (UT_LIST_GET_LEN(trx->trx_locks) > 10000) {
+	if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
 		if (buf_LRU_buf_pool_running_out()) {
 
 			return(DB_LOCK_TABLE_FULL);
@@ -2035,7 +2047,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr));
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -2514,13 +2526,23 @@ row_sel_store_row_id_to_prebuilt(
 	ut_memcpy(prebuilt->row_id, data, len);
 }
 
+#ifdef UNIV_DEBUG
+/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
+# define row_sel_field_store_in_mysql_format(dest,templ,field,src,len)	\
+	row_sel_field_store_in_mysql_format_func(dest,templ,field,src,len)
+#else /* UNIV_DEBUG */
+/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
+# define row_sel_field_store_in_mysql_format(dest,templ,field,src,len)	\
+	row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
+#endif /* UNIV_DEBUG */
+
 /**************************************************************//**
 Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.c. */
-static
+static __attribute__((nonnull))
 void
-row_sel_field_store_in_mysql_format(
-/*================================*/
+row_sel_field_store_in_mysql_format_func(
+/*=====================================*/
 	byte*		dest,	/*!< in/out: buffer where to store; NOTE
 				that BLOBs are not in themselves
 				stored here: the caller must allocate
@@ -2532,6 +2554,10 @@ row_sel_field_store_in_mysql_format(
 				Its following fields are referenced:
 				type, is_unsigned, mysql_col_len,
 				mbminlen, mbmaxlen */
+#ifdef UNIV_DEBUG
+	const dict_field_t* field,
+				/*!< in: InnoDB index field */
+#endif /* UNIV_DEBUG */
 	const byte*	data,	/*!< in: data to store */
 	ulint		len)	/*!< in: length of the data */
 {
@@ -2659,27 +2685,42 @@ row_sel_field_store_in_mysql_format(
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 #endif /* UNIV_DEBUG */
-		ut_ad(templ->mysql_col_len == len);
+		ut_ad(field->prefix_len
+		      ? field->prefix_len == len
+		      : templ->mysql_col_len == len);
 		memcpy(dest, data, len);
 	}
 }
 
+#ifdef UNIV_DEBUG
+/** Convert a field from Innobase format to MySQL format. */
+# define row_sel_store_mysql_field(m,p,r,i,o,f,t) \
+	row_sel_store_mysql_field_func(m,p,r,i,o,f,t)
+#else /* UNIV_DEBUG */
+/** Convert a field from Innobase format to MySQL format. */
+# define row_sel_store_mysql_field(m,p,r,i,o,f,t) \
+	row_sel_store_mysql_field_func(m,p,r,o,f,t)
+#endif /* UNIV_DEBUG */
 /**************************************************************//**
 Convert a field in the Innobase format to a field in the MySQL format. */
 static __attribute__((warn_unused_result))
 ibool
-row_sel_store_mysql_field(
-/*======================*/
+row_sel_store_mysql_field_func(
+/*===========================*/
 	byte*			mysql_rec,	/*!< out: record in the
 						MySQL format */
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt struct */
 	const rec_t*		rec,		/*!< in: InnoDB record;
 						must be protected by
 						a page latch */
+#ifdef UNIV_DEBUG
+	const dict_index_t*	index,		/*!< in: index of rec */
+#endif
 	const ulint*		offsets,	/*!< in: array returned by
 						rec_get_offsets() */
 	ulint			field_no,	/*!< in: templ->rec_field_no or
-						templ->clust_rec_field_no */
+						templ->clust_rec_field_no or
+						templ->icp_rec_field_no */
 	const mysql_row_templ_t*templ)		/*!< in: row template */
 {
 	const byte*	data;
@@ -2692,7 +2733,7 @@ row_sel_store_mysql_field(
 	ut_ad(field_no == templ->clust_rec_field_no
 	      || field_no == templ->rec_field_no
 	      || field_no == templ->icp_rec_field_no);
-	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
 
@@ -2741,7 +2782,8 @@ row_sel_store_mysql_field(
 
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, data, len);
+			templ, dict_index_get_nth_field(index, field_no),
+			data, len);
 
 		if (heap != prebuilt->blob_heap) {
 			mem_heap_free(heap);
@@ -2790,7 +2832,8 @@ row_sel_store_mysql_field(
 
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, data, len);
+			templ, dict_index_get_nth_field(index, field_no),
+			data, len);
 	}
 
 	ut_ad(len != UNIV_SQL_NULL);
@@ -2805,6 +2848,16 @@ row_sel_store_mysql_field(
 	return(TRUE);
 }
 
+#ifdef UNIV_DEBUG
+/** Convert a record from Innobase format to MySQL format. */
+# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
+	row_sel_store_mysql_rec_func(m,p,r,c,i,o)
+#else /* UNIV_DEBUG */
+/** Convert a record from Innobase format to MySQL format. */
+# define row_sel_store_mysql_rec(m,p,r,c,i,o) \
+	row_sel_store_mysql_rec_func(m,p,r,c,o)
+#endif /* UNIV_DEBUG */
+
 /**************************************************************//**
 Convert a row in the Innobase format to a row in the MySQL format.
 Note that the template in prebuilt may advise us to copy only a few
@@ -2813,8 +2866,8 @@ be needed in the query.
 @return TRUE on success, FALSE if not all columns could be retrieved */
 static __attribute__((warn_unused_result))
 ibool
-row_sel_store_mysql_rec(
-/*====================*/
+row_sel_store_mysql_rec_func(
+/*=========================*/
 	byte*		mysql_rec,	/*!< out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct */
 	const rec_t*	rec,		/*!< in: Innobase record in the index
@@ -2824,10 +2877,16 @@ row_sel_store_mysql_rec(
 	ibool		rec_clust,	/*!< in: TRUE if rec is in the
 					clustered index instead of
 					prebuilt->index */
+#ifdef UNIV_DEBUG
+	const dict_index_t* index,	/*!< in: index of rec */
+#endif
 	const ulint*	offsets)	/*!< in: array returned by
 					rec_get_offsets(rec) */
 {
 	ulint	i;
+
+	ut_ad(rec_clust || index == prebuilt->index);
+	ut_ad(!rec_clust || dict_index_is_clust(index));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
@@ -2836,13 +2895,18 @@ row_sel_store_mysql_rec(
 
 	for (i = 0; i < prebuilt->n_template; i++) {
 		const mysql_row_templ_t*templ = &prebuilt->mysql_template[i];
+		const ulint		field_no
+			= rec_clust
+			? templ->clust_rec_field_no
+			: templ->rec_field_no;
+		/* We should never deliver column prefixes to MySQL,
+		except for evaluating innobase_index_cond(). */
+		ut_ad(dict_index_get_nth_field(index, field_no)->prefix_len
+		      == 0);
 
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
-					       rec, offsets,
-					       rec_clust
-					       ? templ->clust_rec_field_no
-					       : templ->rec_field_no,
-					       templ)) {
+					       rec, index, offsets,
+					       field_no, templ)) {
 			return(FALSE);
 		}
 	}
@@ -2968,7 +3032,9 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
+			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
@@ -3365,7 +3431,7 @@ row_search_idx_cond_check(
 		const mysql_row_templ_t*templ = &prebuilt->mysql_template[i];
 
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
-					       rec, offsets,
+					       rec, prebuilt->index, offsets,
 					       templ->icp_rec_field_no,
 					       templ)) {
 			return(ICP_NO_MATCH);
@@ -3386,9 +3452,9 @@ row_search_idx_cond_check(
 		this until we have fetched the clustered index record. */
 		if (!prebuilt->need_to_access_clustered
 		    || dict_index_is_clust(prebuilt->index)) {
-			if (!row_sel_store_mysql_rec(mysql_rec, prebuilt,
-						     rec,
-						     FALSE, offsets)) {
+			if (!row_sel_store_mysql_rec(
+				    mysql_rec, prebuilt, rec, FALSE,
+				    prebuilt->index, offsets)) {
 				ut_ad(dict_index_is_clust(prebuilt->index));
 				result = ICP_NO_MATCH;
 			}
@@ -3445,7 +3511,6 @@ row_search_for_mysql(
 	const rec_t*	clust_rec;
 	ulint		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
-	ibool		unique_search_from_clust_index	= FALSE;
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	ibool		moves_up			= FALSE;
 	ibool		set_also_gap_locks		= TRUE;
@@ -3469,7 +3534,8 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
 		ut_print_timestamp(stderr);
@@ -3523,7 +3589,9 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
+		rw_lock_s_unlock(&trx_sys->lock);
 		fputc('\n', stderr);
 	}
 #endif
@@ -3681,8 +3749,6 @@ row_search_for_mysql(
 
 		mode = PAGE_CUR_GE;
 
-		unique_search_from_clust_index = TRUE;
-
 		if (trx->mysql_n_tables_locked == 0
 		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
@@ -3722,9 +3788,9 @@ row_search_for_mysql(
 				mtr_commit(&mtr). */
 				ut_ad(!rec_get_deleted_flag(rec, comp));
 
-				if (!row_sel_store_mysql_rec(buf, prebuilt,
-							     rec, FALSE,
-							     offsets)) {
+				if (!row_sel_store_mysql_rec(
+					    buf, prebuilt,
+					    rec, FALSE, index, offsets)) {
 					/* Only fresh inserts may contain
 					incomplete externally stored
 					columns. Pretend that such
@@ -3791,9 +3857,12 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
-	ut_ad(prebuilt->sql_stat_start || trx->conc_state == TRX_ACTIVE);
-	ut_ad(trx->conc_state == TRX_NOT_STARTED
-	      || trx->conc_state == TRX_ACTIVE);
+	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
+
+	/* FIXME: These are now protected by the lock mutex, we can't
+	just add assertions will-nilly.  */
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED || trx->state == TRX_STATE_ACTIVE);
+
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
 	      || trx->read_view);
@@ -4270,37 +4339,36 @@ no_gap_lock:
 				goto lock_wait_or_error;
 			}
 
-			mutex_enter(&kernel_mutex);
-			if (trx->was_chosen_as_deadlock_victim) {
-				mutex_exit(&kernel_mutex);
-				err = DB_DEADLOCK;
+			/* Check whether it was a deadlock or not, if not
+			a deadlock and the transaction had to wait then
+			release the lock it is waiting on. */
 
-				goto lock_wait_or_error;
-			}
-			if (UNIV_LIKELY(trx->wait_lock != NULL)) {
-				lock_cancel_waiting_and_release(
-					trx->wait_lock);
-				mutex_exit(&kernel_mutex);
+			err = lock_trx_handle_wait(trx);
 
-				if (old_vers == NULL) {
-					/* The row was not yet committed */
-
-					goto next_rec;
-				}
-
-				did_semi_consistent_read = TRUE;
-				rec = old_vers;
-			} else {
-				mutex_exit(&kernel_mutex);
-
+			if (err == DB_SUCCESS) {
 				/* The lock was granted while we were
 				searching for the last committed version.
 				Do a normal locking read. */
 
-				offsets = rec_get_offsets(rec, index, offsets,
-							  ULINT_UNDEFINED,
-							  &heap);
+				offsets = rec_get_offsets(
+					rec, index, offsets, ULINT_UNDEFINED,
+					&heap);
+				break;
+			} else if (err == DB_DEADLOCK) {
+				goto lock_wait_or_error;
+ 			} else {
+				ut_a(err == DB_LOCK_WAIT);
+				err = DB_SUCCESS;
 			}
+
+			if (old_vers == NULL) {
+				/* The row was not yet committed */
+
+				goto next_rec;
+			}
+
+			did_semi_consistent_read = TRUE;
+			rec = old_vers;
 			break;
 		default:
 
@@ -4505,14 +4573,21 @@ requires_clust_rec:
 		ut_ad(rec_offs_validate(result_rec, clust_index, offsets));
 
 		if (prebuilt->idx_cond) {
-			/* Convert the remaining fields to
-			MySQL format. We were unable to do
-			this in row_search_idx_cond_check(),
-			because the condition is on the
-			secondary index and the requested
-			column is in the clustered index. */
-			if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec,
-						     TRUE, offsets)) {
+			/* Convert the record to MySQL format. We were
+			unable to do this in row_search_idx_cond_check(),
+			because the condition is on the secondary index
+			and the requested column is in the clustered index.
+			We convert all fields, including those that
+			may have been used in ICP, because the
+			secondary index may contain a column prefix
+			rather than the full column. Also, as noted
+			in Bug #56680, the column in the secondary
+			index may be in the wrong case, and the
+			authoritative case is in result_rec, the
+			appropriate version of the clustered index record. */
+			if (!row_sel_store_mysql_rec(
+				    buf, prebuilt, result_rec,
+				    TRUE, clust_index, offsets)) {
 				goto next_rec;
 			}
 		}
@@ -4551,8 +4626,11 @@ requires_clust_rec:
 		cursor. */
 
 		if (!prebuilt->idx_cond
-		    && !row_sel_store_mysql_rec(buf, prebuilt, result_rec,
-						result_rec != rec, offsets)) {
+		    && !row_sel_store_mysql_rec(
+			    buf, prebuilt, result_rec,
+			    result_rec != rec,
+			    result_rec != rec ? clust_index : index,
+			    offsets)) {
 			/* Only fresh inserts may contain incomplete
 			externally stored columns. Pretend that such
 			records do not exist. Such records may only be
@@ -4587,8 +4665,10 @@ requires_clust_rec:
 		} else if (!prebuilt->idx_cond) {
 			/* The record was not yet converted to MySQL format. */
 			if (!row_sel_store_mysql_rec(
-				    buf, prebuilt,
-				    result_rec, result_rec != rec, offsets)) {
+				    buf, prebuilt, result_rec,
+				    result_rec != rec,
+				    result_rec != rec ? clust_index : index,
+				    offsets)) {
 				/* Only fresh inserts may contain
 				incomplete externally stored
 				columns. Pretend that such records do
@@ -4621,7 +4701,9 @@ requires_clust_rec:
 	err = DB_SUCCESS;
 
 idx_cond_failed:
-	if (!unique_search_from_clust_index
+	if (!unique_search
+	    || !dict_index_is_clust(index)
+	    || direction != 0
 	    || prebuilt->select_lock_type != LOCK_NONE
 	    || prebuilt->used_in_HANDLER) {
 
@@ -4848,18 +4930,16 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	mutex_enter(&kernel_mutex);
-
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started_low(trx);
+	trx_start_if_not_started(trx);
 
 	/* If there are locks on the table or some trx has invalidated the
 	cache up to our trx id, then ret = FALSE.
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
 
-	if (UT_LIST_GET_LEN(table->locks) == 0
+	if (lock_table_get_n_locks(table) == 0
 	    && trx->id >= table->query_cache_inv_trx_id) {
 
 		ret = TRUE;
@@ -4872,11 +4952,10 @@ row_search_check_if_query_cache_permitted(
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
+
 			trx->global_read_view = trx->read_view;
 		}
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	dict_table_close(table, FALSE);
 
