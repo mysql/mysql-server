@@ -1,4 +1,5 @@
 use performance_schema;
+update performance_schema.setup_instruments set enabled='YES';
 grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
 flush privileges;
 connect (con1, localhost, pfsuser, , test);
@@ -21,9 +22,9 @@ select event_name,
 left(source, locate(":", source)) as short_source,
 timer_end, timer_wait, operation
 from performance_schema.events_waits_current
-where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 event_name	short_source	timer_end	timer_wait	operation
-wait/synch/cond/sql/COND_global_read_lock	lock.cc:	NULL	NULL	wait
+wait/synch/cond/sql/MDL_context::COND_wait_status	mdl.cc:	NULL	NULL	timed_wait
 unlock tables;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';

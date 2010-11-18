@@ -21,7 +21,7 @@
 #include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock
+#include "lock.h"        // MYSQL_OPEN_SKIP_TEMPORARY 
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -648,13 +648,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    res= TRUE;
-    goto err;
-  }
-
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -703,7 +696,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 
