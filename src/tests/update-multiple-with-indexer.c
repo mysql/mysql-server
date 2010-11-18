@@ -1,16 +1,31 @@
 #include "test.h"
 
-// verify that update_multiple where new row = old row
+// verify that update_multiple where we change the data in row[i] col[j] from x to x+1
 
 static int
 get_key(int i, int dbnum) {
-    return htonl(i + dbnum);
+    return htonl(2*(i + dbnum));
+}
+
+static int
+get_new_key(int i, int dbnum) {
+    return htonl(2*(i + dbnum) + 1);
 }
 
 static void
 get_data(int *v, int i, int ndbs) {
     for (int dbnum = 0; dbnum < ndbs; dbnum++) {
         v[dbnum] = get_key(i, dbnum);
+    }
+}
+
+static void
+get_new_data(int *v, int i, int ndbs) {
+    for (int dbnum = 0; dbnum < ndbs; dbnum++) {
+        if ((i % ndbs) == dbnum)
+            v[dbnum] = get_new_key(i, dbnum);
+        else
+            v[dbnum] = get_key(i, dbnum);
     }
 }
 
@@ -23,17 +38,18 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
     memcpy(&dbnum, dest_db->descriptor->dbt.data, sizeof dbnum);
     assert(dbnum < src_data->size / sizeof (int));
 
+    int *pri_key = (int *) src_key->data;
     int *pri_data = (int *) src_data->data;
 
     switch (dest_key->flags) {
     case 0:
         dest_key->size = sizeof (int);
-        dest_key->data = &pri_data[dbnum];
+        dest_key->data = dbnum == 0 ? &pri_key[dbnum] : &pri_data[dbnum];
         break;
     case DB_DBT_REALLOC:
         dest_key->size = sizeof (int);
         dest_key->data = toku_realloc(dest_key->data, dest_key->size);
-        memcpy(dest_key->data, &pri_data[dbnum], dest_key->size);
+        memcpy(dest_key->data, dbnum == 0 ? &pri_key[dbnum] : &pri_data[dbnum], dest_key->size);
         break;
     default:
         assert(0);
@@ -118,38 +134,48 @@ verify_seq(DB_ENV *env, DB *db, int dbnum, int ndbs, int nrows) {
         if (r != 0)
             break;
         int k;
+        int expectk;
+        if (dbnum == 0 || (i % ndbs) != dbnum)
+            expectk = get_key(i, dbnum);
+        else
+            expectk = get_new_key(i, dbnum);
+     
         assert(key.size == sizeof k);
         memcpy(&k, key.data, key.size);
-        assert(k == get_key(i, dbnum));
+        assert(k == expectk);
 
         if (dbnum == 0) {
             assert(val.size == ndbs * sizeof (int));
-            int v[ndbs]; get_data(v, i, ndbs);
+            int v[ndbs]; get_new_data(v, i, ndbs);
             assert(memcmp(val.data, v, val.size) == 0);
         } else
             assert(val.size == 0);
     }
-    assert(i == nrows);
+    assert(i == nrows); // if (i != nrows) printf("%s:%d %d %d\n", __FUNCTION__, __LINE__, i, nrows); // assert(i == nrows);
     r = cursor->c_close(cursor); assert_zero(r);
     r = txn->commit(txn, 0); assert_zero(r);
 }
 
 static void
-verify(DB_ENV *env, DB *db[], int ndbs, int nrows) {
+update_diagonal(DB_ENV *env, DB *db[], int ndbs, int nrows) {
+    assert(ndbs > 0);
     int r;
     DB_TXN *txn = NULL;
     r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
     for (int i = 0; i < nrows; i++) {
 
-        // update where new row = old row
+        // update the data i % ndbs col from x to x+1
 
         int k = get_key(i, 0);
         DBT old_key; dbt_init(&old_key, &k, sizeof k);
         DBT new_key = old_key;
+
         int v[ndbs]; get_data(v, i, ndbs);
         DBT old_data; dbt_init(&old_data, &v[0], sizeof v);
-        DBT new_data = old_data;
         
+        int newv[ndbs]; get_new_data(newv, i, ndbs);
+        DBT new_data; dbt_init(&new_data, &newv[0], sizeof newv);
+  
         int ndbts = 2 * ndbs;
         DBT keys[ndbts]; memset(keys, 0, sizeof keys);
         DBT vals[ndbts]; memset(vals, 0, sizeof vals);
@@ -159,8 +185,6 @@ verify(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         assert_zero(r);
     }
     r = txn->commit(txn, 0); assert_zero(r);
-    for (int dbnum = 0; dbnum < ndbs; dbnum++) 
-        verify_seq(env, db[dbnum], dbnum, ndbs, nrows);
 }
 
 static void
@@ -220,15 +244,29 @@ run_test(int ndbs, int nrows) {
         r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
     }
 
-    for (int dbnum = 0; dbnum < ndbs; dbnum++) {
+    for (int dbnum = 0; dbnum < ndbs-1; dbnum++) {
         if (dbnum == 0)
             populate_primary(env, db[dbnum], ndbs, nrows);
         else
             populate_secondary(env, db[dbnum], dbnum, nrows);
     }
 
-    verify(env, db, ndbs, nrows);
+    DB_TXN *indexer_txn = NULL;
+    r = env->txn_begin(env, NULL, &indexer_txn, 0); assert_zero(r);
 
+    DB_INDEXER *indexer = NULL;
+    uint32_t db_flags = 0;
+    r = env->create_indexer(env, indexer_txn, &indexer, db[0], 1, &db[ndbs-1], &db_flags, 0); assert_zero(r);
+
+    update_diagonal(env, db, ndbs, nrows);
+
+    r = indexer->build(indexer); assert_zero(r);
+    r = indexer->close(indexer); assert_zero(r);
+
+    r = indexer_txn->commit(indexer_txn, 0); assert_zero(r);
+
+    for (int dbnum = 0; dbnum < ndbs; dbnum++) 
+        verify_seq(env, db[dbnum], dbnum, ndbs, nrows);
     for (int dbnum = 0; dbnum < ndbs; dbnum++) 
         r = db[dbnum]->close(db[dbnum], 0); assert_zero(r);
 

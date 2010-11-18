@@ -32,7 +32,6 @@ get_new_data(int *v, int i, int ndbs) {
 static int
 put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
     dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
-    assert(src_db == NULL);
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
@@ -182,7 +181,7 @@ update_diagonal(DB_ENV *env, DB *db[], int ndbs, int nrows) {
         DBT vals[ndbts]; memset(vals, 0, sizeof vals);
         uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
 
-        r = env->update_multiple(env, NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
+        r = env->update_multiple(env, ndbs > 0 ? db[0] : NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
         assert_zero(r);
     }
     r = txn->commit(txn, 0); assert_zero(r);

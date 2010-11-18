@@ -1,6 +1,7 @@
 #include "test.h"
 
-// verify that update_multiple where new row = old row
+// verify that del_multiple deletes the correct key from N dictionaries
+// verify that del_multiple locks the correct key for N dictionaries
 
 static int
 get_key(int i, int dbnum) {
@@ -15,8 +16,8 @@ get_data(int *v, int i, int ndbs) {
 }
 
 static int
-put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
-    dest_db = dest_db; src_db = src_db; dest_key = dest_key; dest_data = dest_data; src_key = src_key; src_data = src_data;
+del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
+    dest_db = dest_db; src_db = src_db; dest_key = dest_key; src_key = src_key; src_data = src_data;
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
@@ -25,51 +26,13 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 
     int *pri_data = (int *) src_data->data;
 
-    switch (dest_key->flags) {
-    case 0:
-        dest_key->size = sizeof (int);
-        dest_key->data = &pri_data[dbnum];
-        break;
-    case DB_DBT_REALLOC:
-        dest_key->size = sizeof (int);
-        dest_key->data = toku_realloc(dest_key->data, dest_key->size);
-        memcpy(dest_key->data, &pri_data[dbnum], dest_key->size);
-        break;
-    default:
-        assert(0);
-    }
-
-    if (dest_data) {
-        switch (dest_data->flags) {
-        case 0:
-            if (dbnum == 0) {
-                dest_data->size = src_data->size;
-                dest_data->data = src_data->data;
-            } else
-                dest_data->size = 0;
-            break;
-        case DB_DBT_REALLOC:
-            if (dbnum == 0) {
-                dest_data->size = src_data->size;
-                dest_data->data = toku_realloc(dest_data->data, dest_data->size);
-                memcpy(dest_data->data, src_data->data, dest_data->size);
-            } else
-                dest_data->size = 0;
-            break;
-        default:
-            assert(0);
-        }
-    }
+    assert(dest_key->flags == 0);
+    dest_key->size = sizeof (int);
+    dest_key->data = &pri_data[dbnum];
     
     return 0;
 }
 
-static int
-del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
-    return put_callback(dest_db, src_db, dest_key, NULL, src_key, src_data);
-}
-
-#if 0
 static void
 verify_locked(DB_ENV *env, DB *db, int k) {
     int r;
@@ -100,67 +63,26 @@ verify_empty(DB_ENV *env, DB *db) {
     r = cursor->c_close(cursor); assert_zero(r);
     r = txn->commit(txn, 0); assert_zero(r);
 }
-#endif
 
 static void
-verify_seq(DB_ENV *env, DB *db, int dbnum, int ndbs, int nrows) {
+verify_del_multiple(DB_ENV *env, DB *db[], int ndbs, int nrows) {
     int r;
-    DB_TXN *txn = NULL;
-    r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
-
-    DBC *cursor = NULL;
-    r = db->cursor(db, txn, &cursor, 0); assert_zero(r);
-    int i;
-    for (i = 0; ; i++) {
-        DBT key; memset(&key, 0, sizeof key);
-        DBT val; memset(&val, 0, sizeof val);
-        r = cursor->c_get(cursor, &key, &val, DB_NEXT);
-        if (r != 0)
-            break;
-        int k;
-        assert(key.size == sizeof k);
-        memcpy(&k, key.data, key.size);
-        assert(k == get_key(i, dbnum));
-
-        if (dbnum == 0) {
-            assert(val.size == ndbs * sizeof (int));
-            int v[ndbs]; get_data(v, i, ndbs);
-            assert(memcmp(val.data, v, val.size) == 0);
-        } else
-            assert(val.size == 0);
-    }
-    assert(i == nrows);
-    r = cursor->c_close(cursor); assert_zero(r);
-    r = txn->commit(txn, 0); assert_zero(r);
-}
-
-static void
-verify(DB_ENV *env, DB *db[], int ndbs, int nrows) {
-    int r;
-    DB_TXN *txn = NULL;
-    r = env->txn_begin(env, NULL, &txn, 0); assert_zero(r);
+    DB_TXN *deltxn = NULL;
+    r = env->txn_begin(env, NULL, &deltxn, 0); assert_zero(r);
     for (int i = 0; i < nrows; i++) {
-
-        // update where new row = old row
-
         int k = get_key(i, 0);
-        DBT old_key; dbt_init(&old_key, &k, sizeof k);
-        DBT new_key = old_key;
+        DBT pri_key; dbt_init(&pri_key, &k, sizeof k);
         int v[ndbs]; get_data(v, i, ndbs);
-        DBT old_data; dbt_init(&old_data, &v[0], sizeof v);
-        DBT new_data = old_data;
-        
-        int ndbts = 2 * ndbs;
-        DBT keys[ndbts]; memset(keys, 0, sizeof keys);
-        DBT vals[ndbts]; memset(vals, 0, sizeof vals);
-        uint32_t flags_array[ndbs]; memset(flags_array, 0, sizeof(flags_array));
-
-        r = env->update_multiple(env, ndbs > 0 ? db[0] : NULL, txn, &old_key, &old_data, &new_key, &new_data, ndbs, db, flags_array, ndbts, keys, ndbts, vals);
-        assert_zero(r);
+        DBT pri_data; dbt_init(&pri_data, &v[0], sizeof v);
+        DBT keys[ndbs]; memset(keys, 0, sizeof keys);
+        uint32_t flags[ndbs]; memset(flags, 0, sizeof flags);
+        r = env->del_multiple(env, ndbs > 0 ? db[0] : NULL, deltxn, &pri_key, &pri_data, ndbs, db, keys, flags); assert_zero(r);
+        for (int dbnum = 0; dbnum < ndbs; dbnum++) 
+            verify_locked(env, db[dbnum], get_key(i, dbnum));
     }
-    r = txn->commit(txn, 0); assert_zero(r);
+    r = deltxn->commit(deltxn, 0); assert_zero(r);
     for (int dbnum = 0; dbnum < ndbs; dbnum++) 
-        verify_seq(env, db[dbnum], dbnum, ndbs, nrows);
+        verify_empty(env, db[dbnum]);
 }
 
 static void
@@ -204,7 +126,6 @@ run_test(int ndbs, int nrows) {
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0); assert_zero(r);
 
-    r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
     r = env->set_generate_row_callback_for_del(env, del_callback); assert_zero(r);
 
     r = env->open(env, ENVDIR, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
@@ -227,7 +148,7 @@ run_test(int ndbs, int nrows) {
             populate_secondary(env, db[dbnum], dbnum, nrows);
     }
 
-    verify(env, db, ndbs, nrows);
+    verify_del_multiple(env, db, ndbs, nrows);
 
     for (int dbnum = 0; dbnum < ndbs; dbnum++) 
         r = db[dbnum]->close(db[dbnum], 0); assert_zero(r);
