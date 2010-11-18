@@ -46,7 +46,11 @@
 #define NDB_WIN 1
 #define PATH_MAX 256
 #define DIR_SEPARATOR "\\"
-#pragma warning(disable: 4503 4786)
+
+/* Disable a few compiler warnings on Windows */
+/* 4355: 'this': used in base member initializer list */
+#pragma warning(disable: 4355)
+
 #else
 #undef NDB_WIN32
 #undef NDB_WIN
