@@ -3011,7 +3011,7 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
   {
@@ -3401,7 +3401,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     variables is supposed to set them to 0 before terminating)).
   */
   thd->catalog= 0;
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   mysql_mutex_lock(&rli->run_lock);
