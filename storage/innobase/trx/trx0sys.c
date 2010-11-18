@@ -1687,6 +1687,8 @@ trx_sys_close(void)
 
 	rw_lock_free(&trx_sys->lock);
 
+	ib_bh_free(trx_sys->ib_bh);
+
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
