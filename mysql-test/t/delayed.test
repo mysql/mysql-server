@@ -539,6 +539,21 @@ connection con1;
 --echo # Reaping: INSERT DELAYED INTO t1 VALUES (5)
 --reap
 
+--echo # Connection default
+connection default;
+
+--echo # Test 5: LOCK TABLES + INSERT DELAYED in one connection.
+--echo # This test has triggered some asserts in metadata locking
+--echo # subsystem at some point in time..
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (7);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 0;
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (8);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 1;
+
 --echo # Connection con2
 connection con2;
 disconnect con2;

@@ -991,6 +991,9 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
+
   clear_tables_to_lock();
 }
 /**

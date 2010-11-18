@@ -505,11 +505,11 @@ void Protocol::end_statement()
                       thd->stmt_da->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
-    error= send_eof(thd->stmt_da->server_status(),
+    error= send_eof(thd->server_status,
                     thd->stmt_da->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
-    error= send_ok(thd->stmt_da->server_status(),
+    error= send_ok(thd->server_status,
                    thd->stmt_da->statement_warn_count(),
                    thd->stmt_da->affected_rows(),
                    thd->stmt_da->last_insert_id(),

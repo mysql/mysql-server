@@ -3326,6 +3326,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
         log_slow_statement(thd);
       }
 
@@ -4938,6 +4940,8 @@ error:
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
                   thd->is_slave_error= 0; thd->is_fatal_error= 1;);
