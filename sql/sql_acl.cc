@@ -9298,8 +9298,8 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   2. client sends the encrypted password back to the server
   3. the server checks the password.
 */
-static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
-                                              MYSQL_SERVER_AUTH_INFO *info)
+static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
+                                        MYSQL_SERVER_AUTH_INFO *info)
 {
   uchar *pkt;
   int pkt_len;
@@ -9313,7 +9313,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* send it to the client */
   if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_ERROR;
+    DBUG_RETURN(CR_ERROR);
 
   /* reply and authenticate */
 
