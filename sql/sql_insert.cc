@@ -2099,7 +2099,8 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       mysql_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name,
-                                  MYF(MY_WME | ME_FATALERROR)), 0);
+                                  MYF(MY_WME | ME_FATALERROR)),
+                        0, system_charset_info);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
