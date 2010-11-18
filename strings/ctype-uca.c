@@ -9461,7 +9461,7 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
     8,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
-    3,                   /* mbminlen     */
+    1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
