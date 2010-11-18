@@ -120,7 +120,7 @@ verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN 
     return r;
 }
     
-// from_version is version of lognumber_newest, which contains last_lsn
+
 static int
 upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn) { // the real deal
     int r;
