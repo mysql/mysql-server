@@ -2071,6 +2071,20 @@ predicted_order	hex(utf8_encoding)
 100	E0B78AE2808DE0B6BA
 101	E0B78AE2808DE0B6BB
 DROP TABLE t1;
+SET NAMES utf8 COLLATE utf8_sinhala_ci;
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_sinhala_ci);
+INSERT INTO t1 VALUES ('a'),('ae'),('af');
+SELECT s1,hex(s1) FROM t1 ORDER BY s1;
+s1	hex(s1)
+a	61
+ae	6165
+af	6166
+SELECT * FROM t1 ORDER BY s1;
+s1
+a
+ae
+af
+DROP TABLE t1;
 End of 5.4 tests
 #
 # Start of 5.5 tests
@@ -3542,7 +3556,7 @@ create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
