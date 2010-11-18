@@ -109,6 +109,41 @@ extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
 
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
+extern "C" char **thd_query(MYSQL_THD thd);
+
+/**
+  @class CSET_STRING
+  @brief Character set armed LEX_STRING
+*/
+class CSET_STRING
+{
+private:
+  LEX_STRING string;
+  CHARSET_INFO *cs;
+public:
+  CSET_STRING() : cs(&my_charset_bin)
+  {
+    string.str= NULL;
+    string.length= 0;
+  }
+  CSET_STRING(char *str_arg, size_t length_arg, CHARSET_INFO *cs_arg) :
+  cs(cs_arg)
+  {
+    DBUG_ASSERT(cs_arg != NULL);
+    string.str= str_arg;
+    string.length= length_arg;
+  }
+
+  inline char *str() const { return string.str; }
+  inline uint32 length() const { return string.length; }
+  CHARSET_INFO *charset() const { return cs; }
+
+  friend LEX_STRING * thd_query_string (MYSQL_THD thd);
+  friend char **thd_query(MYSQL_THD thd);
+};
+
+
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
@@ -722,12 +757,24 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  LEX_STRING query_string;
+  CSET_STRING query_string;
 
-  inline char *query() { return query_string.str; }
-  inline uint32 query_length() { return query_string.length; }
-  void set_query_inner(char *query_arg, uint32 query_length_arg);
-
+  inline char *query() const { return query_string.str(); }
+  inline uint32 query_length() const { return query_string.length(); }
+  CHARSET_INFO *query_charset() const { return query_string.charset(); }
+  void set_query_inner(const CSET_STRING &string_arg)
+  {
+    query_string= string_arg;
+  }
+  void set_query_inner(char *query_arg, uint32 query_length_arg,
+                       CHARSET_INFO *cs_arg)
+  {
+    set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
+  }
+  void reset_query_inner()
+  {
+    set_query_inner(CSET_STRING());
+  }
   /**
     Name of the current (default) database.
 
@@ -2676,9 +2723,20 @@ public:
     Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
-  void set_query(char *query_arg, uint32 query_length_arg);
+  void set_query(char *query_arg, uint32 query_length_arg,
+                 CHARSET_INFO *cs_arg)
+  {
+    set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
+  }
+  void set_query(char *query_arg, uint32 query_length_arg) /*Mutex protected*/
+  {
+    set_query(CSET_STRING(query_arg, query_length_arg, charset()));
+  }
+  void set_query(const CSET_STRING &str); /* Mutex protected */
+  void reset_query()               /* Mutex protected */
+  { set_query(CSET_STRING()); }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        query_id_t new_query_id);
+                        CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
   void set_open_tables(TABLE *open_tables_arg)
   {

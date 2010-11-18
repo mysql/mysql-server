@@ -1526,7 +1526,7 @@ end:
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 
