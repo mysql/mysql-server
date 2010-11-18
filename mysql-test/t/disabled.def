@@ -13,3 +13,5 @@ kill                     : Bug#37780 2008-12-03 HHunger need some changes to be 
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
 main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
+log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
+read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
