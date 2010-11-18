@@ -21,22 +21,6 @@ toku_log_upgrade_get_footprint(void) {
 #define FOOTPRINTSETUP(increment) uint64_t function_footprint = 0; uint64_t footprint_increment=increment;
 #define FOOTPRINTCAPTURE footprint+=function_footprint;
 
-// The lock file is used to detect a failed upgrade.  It is created at the start
-// of the upgrade procedure and deleted at the end of the upgrade procedure.  If
-// it exists at startup, then there was a crash during an upgrade, and the previous
-// upgrade attempt must be undone.
-static const char upgrade_lock_file_suffix[]  = "/__tokudb_upgrade_dont_delete_me";
-static const char upgrade_commit_file_suffix[]  = "/__tokudb_upgrade_commit_dont_delete_me";
-
-//This will be the base information needed.
-//Future 'upgrade in progress' files that need more information
-//should store it AFTER the prefix checksum, and have its own checksum.
-static const int upgrade_lock_prefix_size = 8  // magic ("tokuupgr")
-                                           +4  // version upgrading to
-                                           +4  // upgrading from version
-                                           +4  // size of suffix (data following prefix checksum)
-                                           +4; // prefix checksum
-
 
 static int 
 verify_clean_shutdown_of_log_version_current(const char *log_dir, LSN * last_lsn) {
