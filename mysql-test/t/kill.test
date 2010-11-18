@@ -141,7 +141,7 @@ KILL @id;
 SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 
 connection con1;
---error 1053,2006,2013
+--error 1317,1053,2006,2013
 reap;
 SELECT 1;
 
