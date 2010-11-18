@@ -82,13 +82,6 @@ ELSE()
   ENDIF()
 ENDIF()
 
-IF(MSVC)
-  # Disable some warnings for NDB build on Windows
-  # 4355: 'this': used in base member initializer list
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
-  SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
-ENDIF()
-
 IF(NOT SOURCE_SUBLIBS)
   ADD_SUBDIRECTORY(include)
   ADD_SUBDIRECTORY(src)
