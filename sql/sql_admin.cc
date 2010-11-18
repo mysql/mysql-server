@@ -85,7 +85,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE);
+                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout,
