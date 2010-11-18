@@ -3069,8 +3069,6 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
-  char *query;
-  uint32 query_length;
   int res;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
@@ -3078,8 +3076,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     DBUG_RETURN(TRUE);
 
-  query= thd->query();
-  query_length= thd->query_length();
+  const CSET_STRING query_backup= thd->query_string;
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -3114,7 +3111,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->set_query(query, query_length);
+    thd->set_query(query_backup);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())

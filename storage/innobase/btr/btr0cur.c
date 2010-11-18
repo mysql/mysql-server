@@ -1071,7 +1071,7 @@ btr_cur_ins_lock_and_undo(
 				not zero, the parameters index and thr
 				should be specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
+	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ibool*		inherit)/*!< out: TRUE if the inserted new record maybe
@@ -3248,7 +3248,7 @@ btr_estimate_n_rows_in_range_on_level(
 	performance with this code which is just an estimation. If we read
 	this many pages before reaching slot2->page_no then we estimate the
 	average from the pages scanned so far */
-	#define N_PAGES_READ_LIMIT	10
+#	define N_PAGES_READ_LIMIT	10
 
 	page_no = slot1->page_no;
 	level = slot1->page_level;
@@ -3277,6 +3277,7 @@ btr_estimate_n_rows_in_range_on_level(
 		    || btr_page_get_level_low(page) != level) {
 
 			/* The page got reused for something else */
+			mtr_commit(&mtr);
 			goto inexact;
 		}
 
@@ -3632,8 +3633,6 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	dict_index_stat_mutex_enter(index);
-
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3662,8 +3661,6 @@ btr_estimate_number_of_different_key_vals(
 
 		index->stat_n_diff_key_vals[j] += add_on;
 	}
-
-	dict_index_stat_mutex_exit(index);
 
 	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -4072,7 +4069,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or error */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
 btr_store_big_rec_extern_fields(
