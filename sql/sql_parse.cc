@@ -577,7 +577,7 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
-    thd->set_query_and_id(query, length, next_query_id());
+    thd->set_query_and_id(query, length, thd->charset(), next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -1092,7 +1092,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         thd->security_ctx->priv_user,
                         (char *) thd->security_ctx->host_or_ip);
 
-      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
+      thd->set_query_and_id(beginning_of_next_stmt, length,
+                            thd->charset(), next_query_id());
       /*
         Count each statement from the client.
       */
@@ -1417,7 +1418,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
   thd_proc_info(thd, 0);
@@ -5519,7 +5520,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           if (found_semicolon && (ulong) (found_semicolon - thd->query()))
             thd->set_query_inner(thd->query(),
                                  (uint32) (found_semicolon -
-                                           thd->query() - 1));
+                                           thd->query() - 1),
+                                 thd->charset());
           /* Actually execute the query */
           if (found_semicolon)
           {
