@@ -711,12 +711,12 @@ ha_innobase::add_index(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
 
@@ -872,8 +872,7 @@ ha_innobase::add_index(
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
-	ut_a(trx->n_active_thrs == 0);
-	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	ut_a(trx->lock.n_active_thrs == 0);
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
@@ -1108,12 +1107,13 @@ ha_innobase::prepare_drop_index(
 		index->to_be_dropped = TRUE;
 	}
 
-	/* If FOREIGN_KEY_CHECK = 1 you may not drop an index defined
+	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
 	for a foreign key constraint because InnoDB requires that both
-	tables contain indexes for the constraint.  Note that CREATE
-	INDEX id ON table does a CREATE INDEX and DROP INDEX, and we
-	can ignore here foreign keys because a new index for the
-	foreign key has already been created.
+	tables contain indexes for the constraint. Such index can
+	be dropped only if FOREIGN_KEY_CHECKS is set to 0.
+	Note that CREATE INDEX id ON table does a CREATE INDEX and
+	DROP INDEX, and we can ignore here foreign keys because a
+	new index for the foreign key has already been created.
 
 	We check for the foreign key constraints after marking the
 	candidate indexes for deletion, because when we check for an
@@ -1257,12 +1257,12 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */

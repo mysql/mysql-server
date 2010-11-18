@@ -3111,11 +3111,12 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_uint64_t	lsn;
-	ulint		arch_log_no;
-	ulint		count = 0;
-	ulint		pending_io;
-	ulint		active_thd;
+	ib_uint64_t		lsn;
+	ulint			arch_log_no;
+	ulint			count = 0;
+	ulint			total_trx;
+	ulint			pending_io;
+	enum srv_thread_type	active_thd;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3130,70 +3131,53 @@ loop:
 
 	count++;
 
-	mutex_enter(&kernel_mutex);
-
 	/* We need the monitor threads to stop before we proceed with a
 	normal shutdown. In case of very fast shutdown, however, we can
 	proceed without waiting for monitor threads. */
 
-	if (srv_fast_shutdown < 2
-	    && (srv_error_monitor_active
-		|| srv_lock_timeout_active
-		|| srv_monitor_active)) {
+	if (srv_fast_shutdown < 2) {
+	       	const char*	thread_name;
+		
+		thread_name = srv_any_background_threads_are_active();
 
-		mutex_exit(&kernel_mutex);
+		if (thread_name != NULL) {
+			/* Print a message every 60 seconds if we are waiting
+			for the monitor thread to exit. Master and worker
+		       	threads check will be done later. */
 
-		/* Print a message every 60 seconds if we are waiting
-		for the monitor thread to exit. Master and worker threads
-		check will be done later. */
-		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_active = NULL;
-
-			if (srv_error_monitor_active) {
-				thread_active = "srv_error_monitor_thread";
-			} else if (srv_lock_timeout_active) {
-				thread_active = "srv_lock_timeout thread";
-			} else if (srv_monitor_active) {
-				thread_active = "srv_monitor_thread";
-			}
-
-			if (thread_active) {
+			if (srv_print_verbose_log && count > 600) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr, "  InnoDB: Waiting for %s "
-					"to exit\n", thread_active);
+					"to exit\n", thread_name);
 				count = 0;
 			}
+
+			goto loop;
 		}
-
-		os_event_set(srv_error_event);
-		os_event_set(srv_monitor_event);
-		os_event_set(srv_timeout_event);
-
-		goto loop;
 	}
 
 	/* Check that there are no longer transactions. We need this wait even
 	for the 'very fast' shutdown, because the InnoDB layer may have
 	committed or prepared transactions and we don't want to lose them. */
 
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		ulint	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
-				    + trx_n_mysql_transactions;
+	total_trx = trx_sys_any_active_transactions();
 
-		mutex_exit(&kernel_mutex);
+	if (total_trx > 0) {
 
 		if (srv_print_verbose_log && count > 600) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: Waiting for %lu "
 				"active transactions to finish\n",
 				(ulong) total_trx);
+
 			count = 0;
 		}
+
 		goto loop;
 	}
 
 	if (srv_fast_shutdown == 2) {
+
 		/* In this fastest shutdown we do not flush the buffer pool:
 		it is essentially a 'crash' of the InnoDB server. Make sure
 		that the log is all flushed to disk, so that we can recover
@@ -3204,17 +3188,14 @@ loop:
 
 		log_buffer_flush_to_disk();
 
-		mutex_exit(&kernel_mutex);
-
 		return; /* We SKIP ALL THE REST !! */
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	/* Check that the background threads are suspended */
 
 	active_thd = srv_get_active_thread_type();
-	if (active_thd != ULINT_UNDEFINED) {
+
+	if (active_thd != SRV_NONE) {
 
 		/* The srv_lock_timeout_thread, srv_error_monitor_thread
 		and srv_monitor_thread should already exit by now. The
@@ -3222,23 +3203,23 @@ loop:
 		and worker threads (purge threads). Print the thread
 		type if any of such threads not in suspended mode */
 		if (srv_print_verbose_log && count > 600) {
-			const char*	thread_type;
+			const char*	thread_type = "<null>";
 
 			switch (active_thd) {
-			case SRV_COM:
-				thread_type = "communication thread";
-				break;
-			case SRV_CONSOLE:
-				thread_type = "console thread";
-				break;
+			case SRV_NONE:
+				/* This shouldn't happen because we've already
+				checked for this case before entering the if().
+				We handle it here to avoid a compiler worning. */
+				ut_error;
 			case SRV_WORKER:
 				thread_type = "worker threads";
 				break;
 			case SRV_MASTER:
-				thread_type = "master threads";
+				thread_type = "master thread";
 				break;
-			default:
-				ut_error;
+			case SRV_PURGE:
+				thread_type = "purge thread";
+				break;
 			}
 
 			ut_print_timestamp(stderr);
@@ -3326,7 +3307,7 @@ loop:
 	mutex_exit(&(log_sys->mutex));
 
 	/* Check that the background threads stay suspended */
-	if (srv_get_active_thread_type() != ULINT_UNDEFINED) {
+	if (srv_get_active_thread_type() != SRV_NONE) {
 		fprintf(stderr,
 			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
@@ -3357,7 +3338,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3379,7 +3360,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);

@@ -52,18 +52,16 @@ must be closed with ..._close.
 @return	own: read view struct */
 UNIV_INTERN
 read_view_t*
-read_view_oldest_copy_or_open_new(
-/*==============================*/
-	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or 0 used in purge */
+read_view_purge_open(
+/*=================*/
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
-Closes a read view. */
+Remove read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
-read_view_close(
-/*============*/
+read_view_remove(
+/*=============*/
 	read_view_t*	view);	/*!< in: read view */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL

@@ -36,6 +36,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "lock0types.h"
 #include "read0types.h"
 #include "hash0hash.h"
+#include "srv0srv.h"
 #include "ut0vec.h"
 
 #ifdef UNIV_DEBUG
@@ -64,17 +65,6 @@ UNIV_INTERN
 void
 lock_sys_close(void);
 /*================*/
-/*********************************************************************//**
-Checks if some transaction has an implicit x-lock on a record in a clustered
-index.
-@return	transaction which has the x-lock, or NULL */
-UNIV_INLINE
-trx_t*
-lock_clust_rec_some_has_impl(
-/*=========================*/
-	const rec_t*	rec,	/*!< in: user record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
 /*********************************************************************//**
 Gets the heap_no of the smallest user record on a page.
 @return	heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
@@ -483,22 +473,14 @@ lock_rec_unlock(
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode);/*!< in: LOCK_S or LOCK_X */
 /*********************************************************************//**
-Releases transaction locks, and releases possible other transactions waiting
-because of these locks. */
+Releases a transaction's locks, and releases possible other transactions
+waiting because of these locks. Change the state of the transaction to
+TRX_STATE_COMMITTED_IN_MEMORY. */
 UNIV_INTERN
 void
-lock_release_off_kernel(
-/*====================*/
+lock_trx_release_locks(
+/*===================*/
 	trx_t*	trx);	/*!< in: transaction */
-/*********************************************************************//**
-Cancels a waiting lock request and releases possible other transactions
-waiting behind it. */
-UNIV_INTERN
-void
-lock_cancel_waiting_and_release(
-/*============================*/
-	lock_t*	lock);	/*!< in: waiting lock request */
-
 /*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
@@ -595,9 +577,7 @@ lock_check_trx_id_sanity(
 	trx_id_t	trx_id,		/*!< in: trx id */
 	const rec_t*	rec,		/*!< in: user record */
 	dict_index_t*	index,		/*!< in: clustered index */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
-	ibool		has_kernel_mutex);/*!< in: TRUE if the caller owns the
-					kernel mutex */
+	const ulint*	offsets);	/*!< in: rec_get_offsets(rec, index) */
 /*********************************************************************//**
 Prints info of a table lock. */
 UNIV_INTERN
@@ -616,16 +596,18 @@ lock_rec_print(
 	const lock_t*	lock);	/*!< in: record type lock */
 /*********************************************************************//**
 Prints info of locks for all transactions.
-@return FALSE if not able to obtain kernel mutex
-and exits without printing info */
+@return FALSE if not able to obtain lock mutex and exits without
+printing info */
 UNIV_INTERN
 ibool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
-	ibool   nowait);/*!< in: whether to wait for the kernel mutex */
-/*************************************************************************
-Prints info of locks for each transaction. */
+	ibool   nowait);/*!< in: whether to wait for the lock mutex */
+/*********************************************************************//**
+Prints info of locks for each transaction. This function assumes that the
+caller holds the lock mutex and more importantly it will reease the lock
+lock mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
 lock_print_info_all_transactions(
@@ -750,19 +732,76 @@ ulint
 lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock);	/*!< in: lock */
-#ifdef UNIV_DEBUG
 /*******************************************************************//**
 Check if there are any locks (table or rec) against table.
-@return	lock if found */
+@return	TRUE if locks exist */
 UNIV_INTERN
-lock_t*
+ibool
 lock_table_has_locks(
 /*=================*/
 	const dict_table_t*	table);	/*!< in: check if there are any locks
 					held on records in this table or on the
 					table itself */
-#endif /* UNIV_DEBUG */
 
+/*********************************************************************//**
+A thread which wakes up threads whose lock wait may have lasted too long.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+lock_wait_timeout_thread(
+/*====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+
+/********************************************************************//**
+Releases a user OS thread waiting for a lock to be released, if the
+thread is already suspended. */
+UNIV_INTERN
+void
+lock_wait_release_thread_if_suspended(
+/*==================================*/
+	que_thr_t*	thr);	/*!< in: query thread associated with the
+				user OS thread	 */
+
+/***************************************************************//**
+Puts a user OS thread to wait for a lock to be released. If an error
+occurs during the wait trx->error_state associated with thr is
+!= DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+are possible errors. DB_DEADLOCK is returned if selective deadlock
+resolution chose this transaction as a victim. */
+UNIV_INTERN
+void
+lock_wait_suspend_thread(
+/*=====================*/
+	que_thr_t*	thr);	/*!< in: query thread associated with the
+				user OS thread */
+/*********************************************************************//**
+Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
+function should be called at the the end of an SQL statement, by the
+connection thread that owns the transaction (trx->mysql_thd). */
+UNIV_INTERN
+void
+lock_unlock_table_autoinc(
+/*======================*/
+	trx_t*	trx);			/*!< in/out: transaction */
+/*********************************************************************//**
+Check whether the transaction has already been rolled back because it
+was selected as a deadlock victim, or if it has to wait then cancel
+the wait lock.
+@return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
+UNIV_INTERN
+enum db_err
+lock_trx_handle_wait(
+/*=================*/
+	trx_t*		trx);	/*!< in, out: trx lock state */
+/*********************************************************************//**
+Get the number of locks on a table.
+@return number of locks */
+UNIV_INTERN
+ulint
+lock_table_get_n_locks(
+/*===================*/
+	dict_table_t*	table);
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
@@ -826,12 +865,63 @@ struct lock_op_struct{
 
 /** The lock system struct */
 struct lock_sys_struct{
-	hash_table_t*	rec_hash;	/*!< hash table of the record locks */
+	mutex_t		mutex;			/*!< Mutex protecting the
+						locks */
+	hash_table_t*	rec_hash;		/*!< hash table of the record
+						locks */
+	mutex_t		wait_mutex;		/*!< Mutex protecting the
+						next two fields */
+	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
+						suspended while waiting for
+						locks within InnoDB, protected
+						by the lock mutex  */
+	srv_slot_t*	last_slot;		/*!< highest slot ever used
+						in the waiting_threads array */
+	ibool		rollback_complete;
+						/*!< TRUE if rollback of all recovered
+						transactions is complete. Protected by the
+						lock sys mutex */
 };
 
 /** The lock system */
 extern lock_sys_t*	lock_sys;
 
+/** Test if lock_sys->mutex can be acquired without waiting. */
+#define lock_mutex_enter_nowait() mutex_enter_nowait(&lock_sys->mutex)
+
+/** Test if lock_sys->mutex is owned. */
+#define lock_mutex_own() mutex_own(&lock_sys->mutex)
+
+/** Acquire the lock_sys->mutex. */
+#define lock_mutex_enter() do {			\
+	mutex_enter(&lock_sys->mutex);		\
+} while (0)
+
+/** Release the lock_sys->mutex. */
+#define lock_mutex_exit() do {			\
+	mutex_exit(&lock_sys->mutex);		\
+} while (0)
+
+/** Test if lock_sys->wait_mutex is owned. */
+#define lock_wait_mutex_own() mutex_own(&lock_sys->wait_mutex)
+
+/** Acquire the lock_sys->wait_mutex. */
+#define lock_wait_mutex_enter() do {		\
+	mutex_enter(&lock_sys->wait_mutex);	\
+} while (0)
+
+/** Release the lock_sys->wait_mutex. */
+#define lock_wait_mutex_exit() do {		\
+	mutex_exit(&lock_sys->wait_mutex);	\
+} while (0)
+
+// FIXME: Move these to lock_sys_t
+extern	ibool		srv_lock_timeout_active;
+extern	ulint		srv_n_lock_wait_count;
+extern	ulint		srv_n_lock_wait_current_count;
+extern	ib_int64_t	srv_n_lock_wait_time;
+extern	ulint		srv_n_lock_max_wait_time;
+extern	os_event_t	srv_lock_timeout_thread_event;
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

@@ -62,18 +62,18 @@ UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
-	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
-	mem_heap_t*	heap)	/*!< in: memory heap where created */
+	que_thr_t*	parent,		/*!< in: parent node  */
+	mem_heap_t*	heap)		/*!< in: memory heap where created */
 {
 	purge_node_t*	node;
 
 	ut_ad(parent && heap);
 
-	node = mem_heap_alloc(heap, sizeof(purge_node_t));
+	node = mem_heap_zalloc(heap, sizeof(purge_node_t));
 
 	node->common.type = QUE_NODE_PURGE;
 	node->common.parent = parent;
-
+	node->done = TRUE;
 	node->heap = mem_heap_create(256);
 
 	return(node);
@@ -91,23 +91,22 @@ row_purge_reposition_pcur(
 	purge_node_t*	node,	/*!< in: row purge node */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ibool	found;
-
 	if (node->found_clust) {
-		found = btr_pcur_restore_position(mode, &(node->pcur), mtr);
+		ibool	found;
+
+		found = btr_pcur_restore_position(mode, &node->pcur, mtr);
 
 		return(found);
+	} else {
+		node->found_clust = row_search_on_row_ref(
+			&node->pcur, mode, node->table, node->ref, mtr);
+
+		if (node->found_clust) {
+			btr_pcur_store_position(&node->pcur, mtr);
+		}
 	}
 
-	found = row_search_on_row_ref(&(node->pcur), mode, node->table,
-				      node->ref, mtr);
-	node->found_clust = found;
-
-	if (found) {
-		btr_pcur_store_position(&(node->pcur), mtr);
-	}
-
-	return(found);
+	return(node->found_clust);
 }
 
 /***********************************************************//**
@@ -134,7 +133,7 @@ row_purge_remove_clust_if_poss_low(
 
 	index = dict_table_get_first_index(node->table);
 
-	pcur = &(node->pcur);
+	pcur = &node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
 	log_free_check();
@@ -492,7 +491,8 @@ static
 void
 row_purge_upd_exist_or_extern(
 /*==========================*/
-	purge_node_t*	node)	/*!< in: row purge node */
+	purge_node_t*	node,		/*!< in: row purge node */
+	trx_undo_rec_t*	undo_rec)	/*!< in: record to purge */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	entry;
@@ -543,7 +543,7 @@ skip_secondaries:
 			byte*		data_field;
 
 			/* We use the fact that new_val points to
-			node->undo_rec and get thus the offset of
+			undo_rec and get thus the offset of
 			dfield data inside the undo record. Then we
 			can calculate from node->roll_ptr the file
 			address of the new_val data */
@@ -551,7 +551,7 @@ skip_secondaries:
 			internal_offset
 				= ((const byte*)
 				   dfield_get_data(&ufield->new_val))
-				- node->undo_rec;
+				- undo_rec;
 
 			ut_a(internal_offset < UNIV_PAGE_SIZE);
 
@@ -601,17 +601,16 @@ skip_secondaries:
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
-@return TRUE if purge operation required: NOTE that then the CALLER
-must unfreeze data dictionary! */
+@return TRUE if purge operation required */
 static
 ibool
 row_purge_parse_undo_rec(
 /*=====================*/
-	purge_node_t*	node,	/*!< in: row undo node */
-	ibool*		updated_extern,
-				/*!< out: TRUE if an externally stored field
-				was updated */
-	que_thr_t*	thr)	/*!< in: query thread */
+	purge_node_t*		node,		/*!< in: row undo node */
+	trx_undo_rec_t*		undo_rec,	/*!< in: record to purge */
+	ibool*			updated_extern, /*!< out: TRUE if an externally
+						stored field was updated */
+	que_thr_t*		thr)		/*!< in: query thread */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
@@ -626,13 +625,13 @@ row_purge_parse_undo_rec(
 
 	ut_ad(node && thr);
 
-	trx = thr_get_trx(thr);
+	ptr = trx_undo_rec_get_pars(
+		undo_rec, &type, &cmpl_info, updated_extern,
+		&undo_no, &table_id);
 
-	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-				    updated_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	if (type == TRX_UNDO_UPD_DEL_REC && !(*updated_extern)) {
+	if (type == TRX_UNDO_UPD_DEL_REC && !*updated_extern) {
 
 		return(FALSE);
 	}
@@ -642,7 +641,7 @@ row_purge_parse_undo_rec(
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-	    && cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
+	    && (cmpl_info & UPD_NODE_NO_ORD_CHANGE) && !*updated_extern) {
 
 		/* Purge requires no changes to indexes: we may return */
 
@@ -652,14 +651,14 @@ row_purge_parse_undo_rec(
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
 
-	row_mysql_freeze_data_dictionary(trx);
+	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
 
 	node->table = dict_table_open_on_id(table_id, FALSE);
 
 	if (node->table == NULL) {
-		/* The table has been dropped: no need to do purge */
 err_exit:
-		row_mysql_unfreeze_data_dictionary(trx);
+		/* The table has been dropped: no need to do purge */
+		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 		return(FALSE);
 	}
 
@@ -687,6 +686,8 @@ err_exit:
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 				       node->heap);
 
+	trx = thr_get_trx(thr);
+
 	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
 					     roll_ptr, info_bits, trx,
 					     node->heap, &(node->update));
@@ -704,84 +705,96 @@ err_exit:
 }
 
 /***********************************************************//**
+Purges the parsed record. */
+static
+void
+row_purge_record(
+/*=============*/
+	purge_node_t*	node,		/*!< in: row purge node */
+	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
+	ibool		updated_extern)	/*!< in: TRUE if external columns
+					were updated */
+{
+	dict_index_t*	clust_index;
+
+	clust_index = dict_table_get_first_index(node->table);
+
+	node->index = dict_table_get_next_index(clust_index);
+
+	if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
+		row_purge_del_mark(node);
+
+	} else if (updated_extern
+		   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
+
+		row_purge_upd_exist_or_extern(node, undo_rec);
+	}
+
+	MONITOR_INC(MONITOR_NUM_ROW_PURGE);
+
+	if (node->found_clust) {
+		btr_pcur_close(&node->pcur);
+	}
+
+	if (node->table != NULL) {
+		dict_table_close(node->table, FALSE);
+		node->table = NULL;
+	}
+
+}
+
+/***********************************************************//**
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
-parent node, which is always a query thread node.
-@return	DB_SUCCESS if operation successfully completed, else error code */
+parent node, which is always a query thread node. */
 static
-ulint
+void
 row_purge(
 /*======*/
-	purge_node_t*	node,	/*!< in: row purge node */
-	que_thr_t*	thr)	/*!< in: query thread */
+	purge_node_t*	node,		/*!< in: row purge node */
+	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
+	que_thr_t*	thr)		/*!< in: query thread */
 {
-	roll_ptr_t	roll_ptr;
-	ibool		purge_needed;
-	ibool		updated_extern;
-	trx_t*		trx;
-
 	ut_ad(node && thr);
 
-	trx = thr_get_trx(thr);
+	if (undo_rec != &trx_purge_dummy_rec) {
+		ibool	updated_extern;
 
-	node->undo_rec = trx_purge_fetch_next_rec(&roll_ptr,
-						  &(node->reservation),
-						  node->heap);
-	if (!node->undo_rec) {
-		/* Purge completed for this query thread */
+		if (row_purge_parse_undo_rec(
+			node, undo_rec, &updated_extern, thr)) {
 
-		thr->run_node = que_node_get_parent(node);
+			row_purge_record(node, undo_rec, updated_extern);
 
-		return(DB_SUCCESS);
-	}
-
-	node->roll_ptr = roll_ptr;
-
-	if (node->undo_rec == &trx_purge_dummy_rec) {
-		purge_needed = FALSE;
-	} else {
-		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
-							thr);
-		/* If purge_needed == TRUE, we must also remember to unfreeze
-		data dictionary! */
-	}
-
-	if (purge_needed) {
-		node->found_clust = FALSE;
-
-		node->index = dict_table_get_next_index(
-			dict_table_get_first_index(node->table));
-
-		if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
-			row_purge_del_mark(node);
-
-		} else if (updated_extern
-			   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
-
-			row_purge_upd_exist_or_extern(node);
+			rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 		}
-
-		if (node->found_clust) {
-			btr_pcur_close(&(node->pcur));
-		}
-
-		MONITOR_INC(MONITOR_NUM_ROW_PURGE);
-
-		if (node->table != NULL) {
-			dict_table_close(node->table, FALSE);
-		}
-
-		row_mysql_unfreeze_data_dictionary(trx);
 	}
+}
 
-	/* Do some cleanup */
-	trx_purge_rec_release(node->reservation);
+/***********************************************************//**
+Reset the purge query thread. */
+UNIV_INLINE
+void
+row_purge_end(
+/*==========*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	purge_node_t*	node;
+
+	ut_ad(thr);
+
+	node = thr->run_node;
+
+	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
+
+	thr->run_node = que_node_get_parent(node);
+
+	node->undo_recs = NULL;
+
+	node->done = TRUE;
+
+	ut_a(thr->run_node != NULL);
 
 	mem_heap_empty(node->heap);
-
-	thr->run_node = node;
-
-	return(DB_SUCCESS);
 }
 
 /***********************************************************//**
@@ -795,22 +808,41 @@ row_purge_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
-#ifdef UNIV_DEBUG
-	ulint		err;
-#endif /* UNIV_DEBUG */
 
 	ut_ad(thr);
 
 	node = thr->run_node;
 
+	node->table = NULL;
+	node->row = NULL;
+	node->ref = NULL;
+	node->index = NULL;
+	node->update = NULL;
+	node->found_clust = FALSE;
+	node->rec_type = ULINT_UNDEFINED;
+	node->cmpl_info = ULINT_UNDEFINED;
+
+	ut_a(!node->done);
+
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-#ifdef UNIV_DEBUG
-	err =
-#endif /* UNIV_DEBUG */
-	row_purge(node, thr);
+	if (!(node->undo_recs == NULL || ib_vector_is_empty(node->undo_recs))) {
+		trx_purge_rec_t*purge_rec;
 
-	ut_ad(err == DB_SUCCESS);
+		purge_rec = ib_vector_pop(node->undo_recs);
+
+		node->roll_ptr = purge_rec->roll_ptr;
+
+		row_purge(node, purge_rec->undo_rec, thr);
+
+		if (ib_vector_is_empty(node->undo_recs)) {
+			row_purge_end(thr);
+		} else {
+			thr->run_node = node;
+		}
+	} else {
+		row_purge_end(thr);
+	}
 
 	return(thr);
 }

@@ -4059,7 +4059,7 @@ ibuf_delete(
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		offsets	= offsets_;
 		mem_heap_t*	heap = NULL;
-		ulint		max_ins_size;
+		ulint		max_ins_size = 0;
 
 		rec_offs_init(offsets_);
 

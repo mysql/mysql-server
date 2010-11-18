@@ -369,8 +369,8 @@ UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	const dtuple_t*	entry,	/*!< in: index entry, where the memory buffers
-				for sys fields are already allocated:
+	dtuple_t*	entry,	/*!< in/out: index entry, where the memory
+				buffers for sys fields are already allocated:
 				the function just copies the new values to
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -1520,7 +1520,9 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
@@ -1613,12 +1615,12 @@ static
 ulint
 row_upd_clust_rec_by_insert(
 /*========================*/
-	upd_node_t*	node,	/*!< in: row update node */
+	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
 	ibool		referenced,/*!< in: TRUE if index may be referenced in
 				a foreign key constraint */
-	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
+	mtr_t*		mtr)	/*!< in/out: mtr; gets committed here */
 {
 	mem_heap_t*	heap	= NULL;
 	btr_pcur_t*	pcur;
@@ -2141,7 +2143,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 
