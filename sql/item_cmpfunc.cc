@@ -4720,6 +4720,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     String *escape_str= escape_item->val_str(&cmp.value1);
     if (escape_str)
     {
+      const char *escape_str_ptr= escape_str->ptr();
       if (escape_used_in_parsing && (
              (((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
                 escape_str->numchars() != 1) ||
@@ -4734,9 +4735,9 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
         int rc= cs->cset->mb_wc(cs, &wc,
-                                (const uchar*) escape_str->ptr(),
-                                (const uchar*) escape_str->ptr() +
-                                               escape_str->length());
+                                (const uchar*) escape_str_ptr,
+                                (const uchar*) escape_str_ptr +
+                                escape_str->length());
         escape= (int) (rc > 0 ? wc : '\\');
       }
       else
@@ -4753,13 +4754,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         {
           char ch;
           uint errors;
-          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str->ptr(),
+          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
                                           escape_str->length(),
                                           escape_str->charset(), &errors);
           escape= cnvlen ? ch : '\\';
         }
         else
-          escape= *(escape_str->ptr());
+          escape= escape_str_ptr ? *escape_str_ptr : '\\';
       }
     }
     else
