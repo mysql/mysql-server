@@ -11,59 +11,10 @@ enum {NUM_INDEXER_INDEXES=1};
 static const int NUM_DBS = NUM_INDEXER_INDEXES + 1; // 1 for source DB
 static const int NUM_ROWS = 10;
 int num_rows;
-enum {MAX_CLIENTS=10};
 typedef enum {FORWARD = 0, BACKWARD} Direction;
 typedef enum {TXN_NONE = 0, TXN_CREATE = 1, TXN_END = 2} TxnWork;
 
 DB_ENV *env;
-float last_progress = 0.0;
-
-
-static int poll_print(void *extra, float progress) {
-    if ( verbose ) {
-        if ( last_progress + 0.01 < progress ) {
-            printf("  progress : %3.0f%%\n", progress * 100.0);
-            last_progress = progress;
-        }
-    }    
-    extra = extra;
-    return 0;
-}
-
-static inline uint32_t key_to_put(int iter, int offset)
-{
-    return (uint32_t)(((iter+1) * MAX_CLIENTS) + offset);
-}
-
-static int generate_initial_table(DB *db, DB_TXN *txn, uint32_t rows) 
-{
-    struct timeval start, now;
-    if ( verbose ) {
-        printf("generate_initial_table\n");
-        gettimeofday(&start,0);
-    }
-    int r = 0;
-    DBT key, val;
-    uint32_t k, v, i;
-    // create keys of stride MAX_CLIENTS
-    for (i=0; i<rows; i++)
-    {
-        k = key_to_put(i, 0);
-        v = generate_val(k, 0);
-        dbt_init(&key, &k, sizeof(k));
-        dbt_init(&val, &v, sizeof(v));
-        r = db->put(db, txn, &key, &val, 0);
-        if ( r != 0 ) break;
-    }
-    if ( verbose ) {
-        gettimeofday(&now,0);
-        int duration = (int)(now.tv_sec - start.tv_sec);
-        if ( duration > 0 )
-            printf("generate_initial_table : %u rows in %d sec = %d rows/sec\n", rows, duration, rows/duration);
-    }
-    
-    return r;
-}
 
 /*
  *  client() is a routine intended to be run in a separate thread from index creation
@@ -266,8 +217,11 @@ static void check_results(DB *src, DB *db)
     r = cursor->c_close(cursor); CKERR(r);
     toku_free(db_keys);
     r = txn->commit(txn, 0);  CKERR(r);
-    if ( pass ) printf("check_results : pass\n");
-    else printf("check_results : fail\n");
+    if ( verbose ) {
+        if ( pass ) printf("check_results : pass\n");
+        else printf("check_results : fail\n");
+    }
+    assert(pass);
     return;
 }
 
