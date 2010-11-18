@@ -359,6 +359,52 @@ user_comment	MySQL Foreign Servers table
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	slave_master_info
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Dynamic
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	Master Information
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	mysql
+TABLE_NAME	slave_relay_log_info
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Dynamic
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	Relay Log Information
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	mysql
 TABLE_NAME	slow_log
 TABLE_TYPE	BASE TABLE
 ENGINE	CSV
@@ -903,6 +949,52 @@ TABLE_COMMENT	#TC#
 user_comment	MySQL Foreign Servers table
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
+TABLE_NAME	slave_master_info
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Dynamic
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	Master Information
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	mysql
+TABLE_NAME	slave_relay_log_info
+TABLE_TYPE	BASE TABLE
+ENGINE	MyISAM
+VERSION	10
+ROW_FORMAT	Dynamic
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	Relay Log Information
+Separator	-----------------------------------------------------
+TABLE_CATALOG	NULL
 TABLE_SCHEMA	mysql
 TABLE_NAME	slow_log
 TABLE_TYPE	BASE TABLE

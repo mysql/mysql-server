@@ -2004,7 +2004,7 @@ static int add_part_field_list(File fptr, List<char> field_list)
     String field_string("", 0, system_charset_info);
     THD *thd= current_thd;
     ulonglong save_options= thd->variables.option_bits;
-    thd->variables.option_bits= 0;
+    thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
     append_identifier(thd, &field_string, field_str,
                       strlen(field_str));
     thd->variables.option_bits= save_options;
@@ -2023,8 +2023,7 @@ static int add_name_string(File fptr, const char *name)
   String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
   ulonglong save_options= thd->variables.option_bits;
-
-  thd->variables.option_bits= 0;
+  thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE;
   append_identifier(thd, &name_string, name,
                     strlen(name));
   thd->variables.option_bits= save_options;
@@ -7623,8 +7622,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            PARTITION_ITERATOR *part_iter)
 {
   Field *field= part_info->part_field_array[0];
-  uint32             max_endpoint_val;
-  get_endpoint_func  get_endpoint;
+  uint32             UNINIT_VAR(max_endpoint_val);
+  get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   DBUG_ENTER("get_part_iter_for_interval_via_mapping");

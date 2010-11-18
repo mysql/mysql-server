@@ -23,13 +23,13 @@
 ################################################################################
 
 # Set the session storage engine
-eval SET @@session.storage_engine = $engine;
+eval SET @@session.default_storage_engine = $engine;
 
 ##### Disabled/affected testcases, because of open bugs #####
 # --echo
 # --echo #------------------------------------------------------------------------
 # --echo # There are several testcases disabled because of the open bugs
-# if (`SELECT @@session.storage_engine IN('ndbcluster')`)
+# if (`SELECT @@session.default_storage_engine IN('ndbcluster')`)
 # {
 # --echo # #18730
 # }
@@ -135,7 +135,7 @@ f_charbig VARCHAR(1000);
 # in partition_methods[1|2].inc and partition_alter_1[1|3].inc
 # when $sub_part_no is set to >= 3.
 let $sub_part_no= 3;
-if (`SELECT @@session.storage_engine = 'ndbcluster'`)
+if (`SELECT @@session.default_storage_engine = 'ndbcluster'`)
 {
   let $sub_part_no= 2;
 }
@@ -316,7 +316,7 @@ if (0)
 #         --source inc/have_partition.inc
 #      b) Engine specific settings and requirements
 #         $do_pk_tests, $MAX_VALUE, $engine
-#         SET SESSION storage_engine
+#         SET SESSION default_storage_engine
 #         $engine_other
 #      c) Generate the prerequisites ($variables, @variables, tables) needed
 #         via

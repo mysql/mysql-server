@@ -693,6 +693,12 @@ void destroy_cond(PFS_cond *pfs)
   pfs->m_lock.allocated_to_free();
 }
 
+PFS_thread* PFS_thread::get_current_thread()
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  return pfs;
+}
+
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
@@ -722,6 +728,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         {
           pfs->m_thread_internal_id=
             PFS_atomic::add_u32(&thread_internal_id_counter, 1);
+          pfs->m_parent_thread_internal_id= 0;
           pfs->m_thread_id= thread_id;
           pfs->m_event_id= 1;
           pfs->m_enabled= true;
@@ -736,6 +743,16 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
             reset_single_stat_link(stat);
           pfs->m_filename_hash_pins= NULL;
           pfs->m_table_share_hash_pins= NULL;
+          pfs->m_setup_actor_hash_pins= NULL;
+
+          pfs->m_username_length= 0;
+          pfs->m_hostname_length= 0;
+          pfs->m_dbname_length= 0;
+          pfs->m_command= 0;
+          pfs->m_start_time= 0;
+          pfs->m_processlist_state_length= 0;
+          pfs->m_processlist_info_length= 0;
+
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
@@ -758,9 +775,26 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 */
 PFS_thread *sanitize_thread(PFS_thread *unsafe)
 {
-  if ((&thread_array[0] <= unsafe) &&
-      (unsafe < &thread_array[thread_max]))
-    return unsafe;
+  SANITIZE_ARRAY_BODY(PFS_thread, thread_array, thread_max, unsafe);
+}
+
+const char *sanitize_file_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &file_array[0];
+  intptr last= (intptr) &file_array[file_max];
+
+  /* Check if unsafe points inside file_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    /* Check if unsafe points to PFS_file::m_filename */
+    intptr offset= (ptr - first) % sizeof(PFS_file);
+    intptr valid_offset= my_offsetof(PFS_file, m_filename[0]);
+    if (likely(offset == valid_offset))
+    {   
+      return unsafe;
+    }   
+  }
   return NULL;
 }
 

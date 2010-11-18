@@ -1,0 +1,44 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- error ER_DBACCESS_DENIED_ERROR
+alter table performance_schema.setup_actors add column foo integer;
+
+--disable_warnings
+drop table if exists test.setup_actors;
+--enable_warnings
+
+create table test.setup_actors as
+  select * from performance_schema.setup_actors;
+
+truncate table performance_schema.setup_actors;
+
+select count(*) from performance_schema.setup_actors;
+
+insert into performance_schema.setup_actors
+  select * from test.setup_actors;
+drop table test.setup_actors;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.setup_actors ADD INDEX test_index(HOST);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.setup_actors(HOST);
+

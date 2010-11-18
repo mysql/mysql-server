@@ -54,11 +54,12 @@ table_file_instances::m_field_def=
 PFS_engine_table_share
 table_file_instances::m_share=
 {
-  { C_STRING_WITH_LEN("FILE_INSTANCES") },
+  { C_STRING_WITH_LEN("file_instances") },
   &pfs_readonly_acl,
   &table_file_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,

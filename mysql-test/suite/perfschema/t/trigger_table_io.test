@@ -48,7 +48,7 @@ create trigger t1_ad after delete on t1
 for each row insert into test.t2 set b = old.a, v = 99;
 
 # Start recording events
-update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.setup_consumers set enabled = 'YES';
 
 # Code to test
 

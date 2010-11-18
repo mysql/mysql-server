@@ -194,11 +194,12 @@ public:
      be set to 1, otherwise 0.
 
      @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
+     @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced);
+  bool flush_and_sync(bool *synced, const bool force=FALSE);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -261,5 +262,9 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
+void check_binlog_cache_size(THD *thd);
+
+extern const char *log_bin_index;
+extern const char *log_bin_basename;
 
 #endif /* BINLOG_H_INCLUDED */

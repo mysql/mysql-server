@@ -1507,12 +1507,11 @@ dict_create_add_foreign_to_dictionary(
 		}
 	}
 
-	error = dict_foreign_eval_sql(NULL,
-				      "PROCEDURE P () IS\n"
-				      "BEGIN\n"
-				      "COMMIT WORK;\n"
-				      "END;\n"
-				      , table, foreign, trx);
+	trx->op_info = "committing foreign key definitions";
+	mutex_enter(&kernel_mutex);
+	trx_commit_off_kernel(trx);
+	mutex_exit(&kernel_mutex);
+	trx->op_info = "";
 
 	return(error);
 }

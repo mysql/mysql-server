@@ -35,6 +35,7 @@
 #include <signal.h>
 #include <my_dir.h>
 #include "log_event.h"
+#include "log_event_old.h"
 #include "sql_common.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
@@ -67,7 +68,7 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static my_bool one_database=0, disable_log_bin= 0;
 static my_bool opt_hexdump= 0;
 const char *base64_output_mode_names[]=
-{"NEVER", "AUTO", "ALWAYS", "UNSPEC", "DECODE-ROWS", NullS};
+{"NEVER", "AUTO", "UNSPEC", "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib=
   { array_elements(base64_output_mode_names) - 1, "",
     base64_output_mode_names, NULL };
@@ -90,6 +91,7 @@ static char *shared_memory_base_name= 0;
 #endif
 static char* user = 0;
 static char* pass = 0;
+static char *opt_bind_addr = NULL;
 static char *charset= 0;
 
 static uint verbose= 0;
@@ -632,45 +634,6 @@ static bool shall_skip_database(const char *log_dbname)
 
 
 /**
-  Prints the given event in base64 format.
-
-  The header is printed to the head cache and the body is printed to
-  the body cache of the print_event_info structure.  This allows all
-  base64 events corresponding to the same statement to be joined into
-  one BINLOG statement.
-
-  @param[in] ev Log_event to print.
-  @param[in,out] result_file FILE to which the output will be written.
-  @param[in,out] print_event_info Parameters and context state
-  determining how to print.
-
-  @retval ERROR_STOP An error occurred - the program should terminate.
-  @retval OK_CONTINUE No error, the program should continue.
-*/
-static Exit_status
-write_event_header_and_base64(Log_event *ev, FILE *result_file,
-                              PRINT_EVENT_INFO *print_event_info)
-{
-  IO_CACHE *head= &print_event_info->head_cache;
-  IO_CACHE *body= &print_event_info->body_cache;
-  DBUG_ENTER("write_event_header_and_base64");
-
-  /* Write header and base64 output to cache */
-  ev->print_header(head, print_event_info, FALSE);
-  ev->print_base64(body, print_event_info, FALSE);
-
-  /* Read data from cache and write to result file */
-  if (copy_event_cache_to_file_and_reinit(head, result_file) ||
-      copy_event_cache_to_file_and_reinit(body, result_file))
-  {
-    error("Error writing event to file.");
-    DBUG_RETURN(ERROR_STOP);
-  }
-  DBUG_RETURN(OK_CONTINUE);
-}
-
-
-/**
   Print the given event, and either delete it or delegate the deletion
   to someone else.
 
@@ -729,7 +692,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       goto end;
     }
     if (!short_form)
-      fprintf(result_file, "# at %s\n",llstr(pos,ll_buff));
+      my_b_printf(&print_event_info->head_cache,
+                  "# at %s\n",llstr(pos,ll_buff));
 
     if (!opt_hexdump)
       print_event_info->hexdump_from= 0; /* Disabled */
@@ -745,15 +709,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
-      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
-      {
-        if ((retval= write_event_header_and_base64(ev, result_file,
-                                                   print_event_info)) !=
-            OK_CONTINUE)
-          goto end;
-      }
-      else
-        ev->print(result_file, print_event_info);
+      ev->print(result_file, print_event_info);
       break;
 
     case CREATE_FILE_EVENT:
@@ -774,15 +730,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
-      if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
-      {
-        if ((retval= write_event_header_and_base64(ce, result_file,
-                                                   print_event_info)) !=
-            OK_CONTINUE)
-          goto end;
-      }
-      else
-        ce->print(result_file, print_event_info, TRUE);
+      ce->print(result_file, print_event_info, TRUE);
 
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
@@ -906,6 +854,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       }
     }
+    case ROWS_QUERY_LOG_EVENT:
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
@@ -913,47 +862,60 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
     {
-      if (ev_type != TABLE_MAP_EVENT)
+      bool stmt_end= FALSE;
+      Table_map_log_event *ignored_map= NULL;
+      if (ev_type == WRITE_ROWS_EVENT ||
+          ev_type == DELETE_ROWS_EVENT ||
+          ev_type == UPDATE_ROWS_EVENT)
       {
-        Rows_log_event *e= (Rows_log_event*) ev;
-        Table_map_log_event *ignored_map= 
-          print_event_info->m_table_map_ignored.get_table(e->get_table_id());
-        bool skip_event= (ignored_map != NULL);
-
-        /* 
-           end of statement check:
-             i) destroy/free ignored maps
-            ii) if skip event, flush cache now
-         */
-        if (e->get_flags(Rows_log_event::STMT_END_F))
-        {
-          /* 
-            Now is safe to clear ignored map (clear_tables will also
-            delete original table map events stored in the map).
-          */
-          if (print_event_info->m_table_map_ignored.count() > 0)
-            print_event_info->m_table_map_ignored.clear_tables();
-
-          /* 
-             One needs to take into account an event that gets
-             filtered but was last event in the statement. If this is
-             the case, previous rows events that were written into
-             IO_CACHEs still need to be copied from cache to
-             result_file (as it would happen in ev->print(...) if
-             event was not skipped).
-          */
-          if (skip_event)
-          {
-            if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-                copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
-              goto err;
-          }
-        }
-
-        /* skip the event check */
-        if (skip_event)
-          goto end;
+        Rows_log_event *new_ev= (Rows_log_event*) ev;
+        if (new_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
       }
+      else if (ev_type == PRE_GA_WRITE_ROWS_EVENT ||
+               ev_type == PRE_GA_DELETE_ROWS_EVENT ||
+               ev_type == PRE_GA_UPDATE_ROWS_EVENT)
+      {
+        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
+        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
+          stmt_end= TRUE;
+        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
+      }
+
+      bool skip_event= (ignored_map != NULL);
+      /*
+        end of statement check:
+           i) destroy/free ignored maps
+          ii) if skip event, flush cache now
+      */
+      if (stmt_end)
+      {
+        /*
+          Now is safe to clear ignored map (clear_tables will also
+          delete original table map events stored in the map).
+        */
+        if (print_event_info->m_table_map_ignored.count() > 0)
+          print_event_info->m_table_map_ignored.clear_tables();
+
+        /*
+           One needs to take into account an event that gets
+           filtered but was last event in the statement. If this is
+           the case, previous rows events that were written into
+           IO_CACHEs still need to be copied from cache to
+           result_file (as it would happen in ev->print(...) if
+           event was not skipped).
+        */
+        if (skip_event)
+          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+            goto err;
+      }
+
+      /* skip the event check */
+      if (skip_event)
+        goto end;
+
       /*
         These events must be printed in base64 format, if printed.
         base64 format requires a FD event to be safe, so if no FD
@@ -961,7 +923,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         passed --short-form, because --short-form disables printing
         row events.
       */
-      if (!print_event_info->printed_fd_event && !short_form)
+      if (!print_event_info->printed_fd_event && !short_form &&
+          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
@@ -976,11 +939,27 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                 type_str);
         goto err;
       }
-      /* FALL THROUGH */
+
+      ev->print(result_file, print_event_info);
+      print_event_info->have_unflushed_events= TRUE;
+      /* Flush head and body cache to result_file */
+      if (stmt_end)
+      {
+        print_event_info->have_unflushed_events= FALSE;
+        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+          goto err;
+        goto end;
+      }
+      break;
     }
     default:
       ev->print(result_file, print_event_info);
     }
+    /* Flush head cache to result_file for every event */
+    if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                            result_file))
+      goto err;
   }
 
   goto end;
@@ -1015,12 +994,13 @@ static struct my_option my_long_options[] =
    "row-based events; 'decode-rows' decodes row events into commented SQL "
    "statements if the --verbose option is also given; 'auto' prints base64 "
    "only when necessary (i.e., for row-based events and format description "
-   "events); 'always' prints base64 whenever possible. 'always' is for "
-   "debugging only and should not be used in a production system. If this "
-   "argument is not given, the default is 'auto'; if it is given with no "
-   "argument, 'always' is used.",
+   "events).  If no --base64-output[=name] option is given at all, the "
+   "default is 'auto'.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
-   0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   /*
     mysqlbinlog needs charsets knowledge, to be able to convert a charset
     number found in binlog to a charset name (to be able to print things
@@ -1347,13 +1327,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     stop_datetime= convert_str_to_timestamp(stop_datetime_str);
     break;
   case OPT_BASE64_OUTPUT_MODE:
-    if (argument == NULL)
-      opt_base64_output_mode= BASE64_OUTPUT_ALWAYS;
-    else
-    {
-      opt_base64_output_mode= (enum_base64_output_mode)
-        (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
-    }
+    opt_base64_output_mode= (enum_base64_output_mode)
+      (find_type_or_exit(argument, &base64_output_mode_typelib, opt->name)-1);
     break;
   case 'v':
     if (argument == disabled_my_option)
@@ -1413,6 +1388,8 @@ static Exit_status safe_connect()
 
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
@@ -1462,6 +1439,15 @@ static Exit_status dump_log_entries(const char* logname)
 
   rc= (remote_opt ? dump_remote_log_entries(&print_event_info, logname) :
        dump_local_log_entries(&print_event_info, logname));
+
+  if (print_event_info.have_unflushed_events)
+    warning("The range of printed events ends with a row event or "
+            "a table map event that does not have the STMT_END_F "
+            "flag set. This might be because the last statement "
+            "was not fully written to the log, or because you are "
+            "using a --stop-position or --stop-datetime that refers "
+            "to an event in the middle of a statement. The event(s) "
+            "from the partial statement have not been written to output.");
 
   /* Set delimiter back to semicolon */
   if (!raw_mode)
@@ -1621,9 +1607,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
   for (;;)
   {
-    const char *error_msg;
-    Log_event *UNINIT_VAR(ev);
-    Log_event_type type;
+    const char *error_msg= NULL;
+    Log_event *ev= NULL;
+    Log_event_type type= UNKNOWN_EVENT;
 
     len= cli_safe_read(mysql);
     if (len == packet_error)
@@ -1928,8 +1914,7 @@ static Exit_status check_header(IO_CACHE* file,
                 (ulonglong)tmp_pos);
           return ERROR_STOP;
         }
-        if (opt_base64_output_mode == BASE64_OUTPUT_AUTO
-            || opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+        if (opt_base64_output_mode == BASE64_OUTPUT_AUTO)
         {
           /*
             process_event will delete *description_event and set it to

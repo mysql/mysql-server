@@ -181,12 +181,12 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
   @retval  > 0  Error code.
 */
 
-int Truncate_statement::handler_truncate(THD *thd, TABLE_LIST *table_ref,
-                                         bool is_tmp_table)
+int Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
+                                             bool is_tmp_table)
 {
   int error= 0;
   uint flags;
-  DBUG_ENTER("Truncate_statement::handler_truncate");
+  DBUG_ENTER("Sql_cmd_truncate_table::handler_truncate");
 
   /*
     Can't recreate, the engine must mechanically delete all rows
@@ -301,11 +301,11 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   @retval  TRUE   Error.
 */
 
-bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
-                                    bool *hton_can_recreate)
+bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
+                                        bool *hton_can_recreate)
 {
   TABLE *table= NULL;
-  DBUG_ENTER("Truncate_statement::lock_table");
+  DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
 
   /* Lock types are set in the parser. */
   DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
@@ -390,12 +390,12 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
   @retval  TRUE   Error.
 */
 
-bool Truncate_statement::truncate_table(THD *thd, TABLE_LIST *table_ref)
+bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 {
   int error;
   TABLE *table;
   bool binlog_stmt;
-  DBUG_ENTER("Truncate_statement::truncate_table");
+  DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   /* Initialize, or reinitialize in case of reexecution (SP). */
   m_ticket_downgrade= NULL;
@@ -505,12 +505,11 @@ bool Truncate_statement::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   @return FALSE on success.
 */
-
-bool Truncate_statement::execute(THD *thd)
+bool Sql_cmd_truncate_table::execute(THD *thd)
 {
   bool res= TRUE;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
-  DBUG_ENTER("Truncate_statement::execute");
+  DBUG_ENTER("Sql_cmd_truncate_table::execute");
 
   if (check_one_table_access(thd, DROP_ACL, first_table))
     DBUG_RETURN(res);

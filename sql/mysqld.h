@@ -143,6 +143,7 @@ extern char *opt_backup_history_logname, *opt_backup_progress_logname,
 extern const char *log_output_str;
 extern const char *log_backup_output_str;
 extern char *mysql_home_ptr, *pidfile_name_ptr;
+extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
@@ -274,9 +275,10 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_MYSQL_LOG, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
+extern PSI_file_key key_file_query_log, key_file_slow_log;
 
 void init_server_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
@@ -367,8 +369,9 @@ enum options_mysqld
   OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_BLOCK_SIZE,
   OPT_KEY_CACHE_DIVISION_LIMIT,
+  OPT_LC_MESSAGES_DIRECTORY,
   OPT_LOWER_CASE_TABLE_NAMES,
-  OPT_ONE_THREAD,
+  OPT_MASTER_RETRY_COUNT,
   OPT_POOL_OF_THREADS,
   OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_DO_TABLE,
@@ -382,11 +385,9 @@ enum options_mysqld
   OPT_SKIP_HOST_CACHE,
   OPT_SKIP_LOCK,
   OPT_SKIP_NEW,
-  OPT_SKIP_PRIOR,
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
   OPT_SKIP_SYMLINKS,
-  OPT_SLOW_QUERY_LOG,
   OPT_SSL_CA,
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
@@ -395,7 +396,8 @@ enum options_mysqld
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
-  OPT_LOG_ERROR
+  OPT_LOG_ERROR,
+  OPT_AUTOCOMMIT
 };
 
 

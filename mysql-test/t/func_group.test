@@ -1099,6 +1099,7 @@ DROP TABLE t1;
 --echo #
 --echo End of 5.1 tests
 
+###
 --echo #
 --echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 --echo #           file .\item_sum.cc, line 587

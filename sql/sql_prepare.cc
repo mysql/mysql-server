@@ -1185,7 +1185,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   uint32 length= 0;
   THD *thd= stmt->thd;
 
-  DBUG_ENTER("insert_params_from_vars");
+  DBUG_ENTER("insert_params_from_vars_with_log");
 
   if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
@@ -1475,6 +1475,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
+  thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
     JOIN::prepare calls
@@ -2727,7 +2728,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   my_ok(thd);
 
@@ -2760,7 +2761,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2864,7 +2865,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2898,8 +2899,15 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
 
 bool Select_fetch_protocol_binary::send_eof()
 {
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_eof(thd);
-  return FALSE;
+  return false;
 }
 
 

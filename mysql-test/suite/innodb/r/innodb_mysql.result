@@ -1,6 +1,6 @@
 set global innodb_support_xa=default;
 set session innodb_support_xa=default;
-SET SESSION STORAGE_ENGINE = InnoDB;
+SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3,t1m,t1i,t2m,t2i,t4;
 drop procedure if exists p1;
 create table t1 (
@@ -187,7 +187,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, regular buffers)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -203,7 +203,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, regular buffers)
 select max(7) from t2i join t1i;
 max(7)
 NULL
@@ -356,7 +356,7 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY,name	name	23	NULL	3	Using where; Using index
-1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using where; Using index
+1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using index
 EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%' OR FALSE;
@@ -435,7 +435,7 @@ set global query_cache_size=10*1024*1024;
 set global query_cache_type=1;
 drop table if exists `test`;
 Warnings:
-Note	1051	Unknown table 'test'
+Note	1051	Unknown table 'test.test'
 CREATE TABLE `test` (`test1` varchar(3) NOT NULL,
 `test2` varchar(4) NOT NULL,PRIMARY KEY  (`test1`))
 ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -633,7 +633,7 @@ select * from bug29807;
 ERROR 42S02: Table 'test.bug29807' doesn't exist
 drop table t1;
 drop table bug29807;
-ERROR 42S02: Unknown table 'bug29807'
+ERROR 42S02: Unknown table 'test.bug29807'
 create table bug29807 (a int);
 drop table bug29807;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
@@ -710,12 +710,12 @@ CREATE TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 drop table if exists t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t2 (a int, b int, primary key (a));
 BEGIN;
 INSERT INTO t2 values(100,100);
@@ -1771,6 +1771,33 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t1;
 End of 5.1 tests
 #
+# Bug#43600: Incorrect type conversion caused wrong result.
+#
+CREATE TABLE t1 (
+a int NOT NULL
+) engine= innodb;
+CREATE TABLE t2 (
+a int NOT NULL,
+b int NOT NULL,
+filler char(100) DEFAULT NULL,
+KEY a (a,b)
+) engine= innodb;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
+explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using where
+select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+a	a	b	filler
+0	0	1	filler
+1	1	1	filler
+2	2	1	filler
+3	3	1	filler
+4	4	1	filler
+drop table t1,t2;
+# End of test case for the bug#43600
+#
 # Bug#42643: InnoDB does not support replication of TRUNCATE TABLE
 #
 # Check that a TRUNCATE TABLE statement, needing an exclusive meta
@@ -2644,6 +2671,38 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
 #
+# Bug#49604 "6.0 processing compound WHERE clause incorrectly 
+#            with Innodb - extra rows"
+#
+CREATE TABLE t1 (
+c1 INT NOT NULL,
+c2 INT,
+PRIMARY KEY (c1),
+KEY k1 (c2)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (12,1);
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (16,1);
+INSERT INTO t1 VALUES (22,1);
+INSERT INTO t1 VALUES (20,2);
+CREATE TABLE t2 (
+c1 INT NOT NULL,
+c2 INT,
+PRIMARY KEY (c1)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,9);
+SELECT STRAIGHT_JOIN t2.c2, t1.c2, t2.c1
+FROM t1 JOIN t2 ON t1.c2 = t2.c1  
+WHERE t2.c1 IN (2, 1, 6) OR t2.c1 NOT IN (1);
+c2	c2	c1
+2	1	1
+2	1	1
+2	1	1
+2	1	1
+9	2	2
+DROP TABLE t1, t2;
+#
 # Bug#44613 SELECT statement inside FUNCTION takes a shared lock
 #
 DROP TABLE IF EXISTS t1;
@@ -2669,12 +2728,65 @@ COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
 #
+# BUG#42744: Crash when using a join buffer to join a table with a blob
+# column and an additional column used for duplicate elimination.
+#
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+set optimizer_join_cache_level=1;
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+b
+1
+set optimizer_join_cache_level=default;
+DROP TABLE t1,t2;
+#
+# BUG#48093: 6.0 Server not processing equivalent IN clauses properly 
+#            with Innodb tables
+#
+CREATE TABLE t1 (
+i int(11) DEFAULT NULL,
+v1 varchar(1) DEFAULT NULL,
+v2 varchar(20) DEFAULT NULL,
+KEY i (i),
+KEY v (v1,i)
+) ENGINE=innodb;
+INSERT INTO t1 VALUES (1,'f','no');
+INSERT INTO t1 VALUES (2,'u','yes-u');
+INSERT INTO t1 VALUES (2,'h','yes-h');
+INSERT INTO t1 VALUES (3,'d','no');
+
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+v2
+yes-u
+yes-h
+
+# Should not use index_merge
+EXPLAIN
+SELECT v2  
+FROM t1
+WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i,v	i	5	const	2	Using where
+DROP TABLE t1;
+#
 # Bug#54606 innodb fast alter table + pack_keys=0 
 #           prevents adding new indexes
 #
+DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
 ENGINE=InnoDB 
 PACK_KEYS=0;
 CREATE INDEX a ON t1 (a);
 CREATE INDEX c on t1 (c);
 DROP TABLE t1;
+End of 6.0 tests

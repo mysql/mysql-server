@@ -47,7 +47,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int) engine= myisam
 /*!*/;
 # at 203
-DELIMITER ;
+<#>DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;

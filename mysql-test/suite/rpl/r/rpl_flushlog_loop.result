@@ -7,8 +7,10 @@ start slave;
 show variables like 'relay_log%';
 Variable_name	Value
 relay_log	MYSQLD_DATADIR/relay-log
-relay_log_index	
+relay_log_basename	MYSQLD_DATADIR/relay-log
+relay_log_index	MYSQLD_DATADIR/relay-log.index
 relay_log_info_file	relay-log.info
+relay_log_info_repository	FILE
 relay_log_purge	ON
 relay_log_recovery	OFF
 relay_log_space_limit	0

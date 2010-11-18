@@ -115,17 +115,26 @@ ENDIF()
 # Control aspects of the development environment which are
 # specific to MySQL maintainers and developers.
 #
+INCLUDE (CheckCCompilerFlag)
 OPTION(MYSQL_MAINTAINER_MODE "MySQL maintainer-specific development environment" OFF)
 # Whether the maintainer mode should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
   IF(CMAKE_COMPILER_IS_GNUCC)
+    CHECK_C_COMPILER_FLAG("-Wdeclaration-after-statement" HAVE_DECLARATION_AFTER_STATEMENT)
+    IF(HAVE_DECLARATION_AFTER_STATEMENT)
+      SET(MY_MAINTAINER_DECLARATION_AFTER_STATEMENT "-Wdeclaration-after-statement")
+    ENDIF()
     SET(MY_MAINTAINER_C_WARNINGS
-        "-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
-        CACHE STRING "C warning options used in maintainer builds.")
+        "-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
     SET(MY_MAINTAINER_CXX_WARNINGS "${MY_MAINTAINER_C_WARNINGS} -Wno-unused-parameter"
         CACHE STRING "C++ warning options used in maintainer builds.")
+  ENDIF()
+  IF(CMAKE_COMPILER_IS_GNUCC)
+    SET(MY_MAINTAINER_C_WARNINGS
+        "${MY_MAINTAINER_C_WARNINGS} ${MY_MAINTAINER_DECLARATION_AFTER_STATEMENT}"
+        CACHE STRING "C warning options used in maintainer builds.")
   ENDIF()
   # Do not make warnings in checks into errors.
   IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
@@ -326,23 +335,33 @@ ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
+
+# Create a single package with "make package"
+# (see http://public.kitware.com/Bug/view.php?id=11452)
+SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
+
 INCLUDE(CPack)
 IF(UNIX)
-  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
+  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
 ENDIF()
 #
 # RPM installs documentation directly from the source tree
 #
 IF(NOT INSTALL_LAYOUT MATCHES "RPM")
-  INSTALL(FILES COPYING EXCEPTIONS-CLIENT LICENSE.mysql DESTINATION ${INSTALL_DOCREADMEDIR} OPTIONAL)
-  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR})
+  INSTALL(FILES COPYING EXCEPTIONS-CLIENT LICENSE.mysql 
+  DESTINATION ${INSTALL_DOCREADMEDIR} 
+  COMPONENT Readme
+  OPTIONAL
+  )
+  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   IF(UNIX)
-    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR})
+    INSTALL(FILES Docs/INSTALL-BINARY DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   ENDIF()
   # MYSQL_DOCS_LOCATON is used in "make dist", points to the documentation directory
   SET(MYSQL_DOCS_LOCATION "" CACHE PATH "Location from where documentation is copied")
   MARK_AS_ADVANCED(MYSQL_DOCS_LOCATION)
   INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}
+    COMPONENT Documentation
     PATTERN "INSTALL-BINARY" EXCLUDE
     PATTERN "Makefile.*" EXCLUDE
     PATTERN "glibc*" EXCLUDE

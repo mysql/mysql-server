@@ -90,7 +90,7 @@ enum {
   OPT_PS_PROTOCOL=OPT_MAX_CLIENT_OPTION, OPT_SP_PROTOCOL,
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
-  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION
+  OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_EXPLAIN_PROTOCOL
 };
 
 static int record= 0, opt_sleep= -1;
@@ -110,6 +110,7 @@ static my_bool opt_mark_progress= 0;
 static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
+static my_bool explain_protocol= 0, explain_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
@@ -6252,6 +6253,9 @@ static struct my_option my_long_options[] =
   {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
    &view_protocol, &view_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"explain-protocol", OPT_EXPLAIN_PROTOCOL, "Explains all select.",
+   &explain_protocol, &explain_protocol, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"connect_timeout", OPT_CONNECT_TIMEOUT,
    "Number of seconds before connection timeout.",
    &opt_connect_timeout, &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG,
@@ -7728,6 +7732,35 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_VOID_RETURN;
 }
 
+
+void run_explain(struct st_connection *cn, struct st_command *command, int flags)
+{
+  if (explain_protocol_enabled &&
+      !command->expected_errors.count &&
+      match_re(&view_re, command->query))
+  {
+    st_command save_command= *command;
+    DYNAMIC_STRING query_str;
+    DYNAMIC_STRING ds_warning_messages;
+
+    init_dynamic_string(&ds_warning_messages, "", 0, 2048);
+    init_dynamic_string(&query_str, "EXPLAIN EXTENDED ", 256, 256);
+    dynstr_append_mem(&query_str, command->query,
+                      command->end - command->query);
+    command->query= query_str.str;
+    command->query_len= query_str.length;
+    command->end= strend(command->query);
+
+    run_query(cn, command, flags);
+
+    dynstr_free(&query_str);
+    dynstr_free(&ds_warning_messages);
+
+    *command= save_command;
+  }
+}
+
+
 /****************************************************************************/
 /*
   Functions to detect different SQL statements
@@ -8126,6 +8159,7 @@ int main(int argc, char **argv)
   var_set_int("$PS_PROTOCOL", ps_protocol);
   var_set_int("$SP_PROTOCOL", sp_protocol);
   var_set_int("$VIEW_PROTOCOL", view_protocol);
+  var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
   DBUG_PRINT("info",("result_file: '%s'",
@@ -8148,6 +8182,7 @@ int main(int argc, char **argv)
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
   view_protocol_enabled= view_protocol;
+  explain_protocol_enabled= explain_protocol;
   cursor_protocol_enabled= cursor_protocol;
   /* Cursor protcol implies ps protocol */
   if (cursor_protocol_enabled)
@@ -8384,6 +8419,7 @@ int main(int argc, char **argv)
 	  save_file[0]= 0;
 	}
 	run_query(cur_con, command, flags);
+	run_explain(cur_con, command, flags);
 	command_executed++;
         command->last_argument= command->end;
 

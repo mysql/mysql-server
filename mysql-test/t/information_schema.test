@@ -301,7 +301,6 @@ create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
-
 create table t1 (s1 int);
 insert into t1 values (0),(9),(0);
 select s1 from t1 where s1 in (select version from
@@ -486,11 +485,14 @@ drop table t_crashme;
 # Bug#7215 information_schema: columns are longtext instead of varchar
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
+
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
