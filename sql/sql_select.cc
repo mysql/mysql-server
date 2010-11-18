@@ -15210,6 +15210,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*

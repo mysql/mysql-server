@@ -55,7 +55,7 @@ DROP TABLE t1;
 eval SELECT @@global.init_slave = $my_init_slave;
 --echo Expect 1
 # wait for the slave threads have set the global variable.
-let $wait_timeout= 90;
+let $wait_timeout= 240;
 let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
 --source include/wait_condition_sp.inc
 # check that the action in init_slave does not happen immediately
