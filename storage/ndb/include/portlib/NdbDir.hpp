@@ -16,7 +16,7 @@
 #ifndef NdbDir_HPP
 #define NdbDir_HPP
 
-#ifdef __WIN32
+#ifdef _WIN32
 #ifndef mode_t /* MySQL 5.5+ defines mode_t */
 typedef int mode_t;
 #endif
