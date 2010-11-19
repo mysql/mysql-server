@@ -7890,137 +7890,6 @@ record_compare_exit:
   DBUG_RETURN(result);
 }
 
-/**
-   Hashing commodity structures and functions.
- */ 
-
-struct row_entry
-{
-  uchar* key;
-
-  /**
-     Length of the key.
-   */
-  uint length;
-
-  my_hash_value_type hash_value;
-
-  /** 
-     Points at the position where the row starts in the
-     event buffer (ie, area in memory before unpacking takes
-     place).
-  */
-  const uchar *m_curr_row;
-
-} typedef row_entry;
-
-extern "C" uchar *rows_log_event_get_key(const uchar *record, size_t *length,
-                          my_bool not_used __attribute__((unused)))
-{
-  DBUG_ENTER("get_key");
-
-  row_entry *entry=(row_entry *) record;
-  *length= entry->length;
-
-  DBUG_RETURN((uchar*) entry->key);
-}
-
-static void rows_log_event_free_entry(row_entry *entry)
-{
-  DBUG_ENTER("free_entry");
-  my_free(entry);
-  DBUG_VOID_RETURN;
-}
-
-int remove_blobs_from_record(TABLE* table)
-{ 
-  
-  DBUG_ENTER("remove_blobs_from_record");
-
-  int res= 0;
-
-  if (table->s->blob_fields)
-  {
-    for (Field **ptr=table->field ; *ptr ; ptr++)
-    {
-      Field *field= *ptr;
-      if (field->type() == MYSQL_TYPE_BLOB)
-      {
-        field->reset();
-        field->set_null(); // careful the table may have a not null constraint on this field
-        res++;
-      }
-    }
-  }
-
-  DBUG_RETURN(res);
-}
-
-bool
-row_hash_insert(HASH* info, uchar* record, int reclength, const uchar* curr_row)
-{
-  row_entry *entry= (row_entry*) malloc(sizeof(row_entry));
-  if (!entry)
-  {
-    return true;
-  }
-
-  entry->key= (uchar*)&entry->hash_value;
-  entry->length= sizeof(my_hash_value_type);
-
-  entry->hash_value= my_calc_hash(info, record, reclength);
-  entry->m_curr_row=(const uchar *) curr_row;
-  my_hash_insert(info, (uchar *) entry);
-
-  return false;
-}
-
-int Rows_log_event::hash_row(Relay_log_info const *rli)
-{
-  int error= 0;
-
-  /**
-     Unpack the row to be hashed.
-   */ 
-  if (!(error= unpack_current_row(rli, &m_cols)))
-  {
-    /**
-       Save a copy of the original record unpacked.
-     */ 
-    store_record(m_table, record[1]);
-
-    /**
-       Remove the blobs from the record.
-     */
-    remove_blobs_from_record(m_table);
-
-    row_hash_insert(&m_hash, m_table->record[0], m_table->s->reclength, m_curr_row);
-
-    /**
-       Restore back record[0], just to be safe.
-     */
-    memcpy(m_table->record[0], m_table->record[1], m_table->s->reclength);
-
-    if (get_type_code() == UPDATE_ROWS_EVENT)
-    {
-      /*
-        This is the situation after locating BI:
-
-        ===|=== before image ====|=== after image ===|===
-           ^                     ^
-           m_curr_row            m_curr_row_end
-
-         We need to skip the AI as well, before moving on to the
-         next row.
-       */
-      m_curr_row=m_curr_row_end;
-      error= unpack_current_row(rli, &m_cols_ai);
-    }
-  }
-
-  return error;
-}
-
 void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error)
 {
         
@@ -8073,7 +7942,7 @@ int Rows_log_event::handle_idempotent_errors(Relay_log_info const *rli, int *err
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
-        return *err;
+        return ignored_error;
     }
   }
 
@@ -8346,7 +8215,7 @@ end:
     table->file->ha_index_end();
 
   if ((get_type_code() == UPDATE_ROWS_EVENT) && 
-      (saved_m_curr_row== m_curr_row)) // we need to unpack the AI
+      (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
   {
     m_curr_row= m_curr_row_end;
     unpack_current_row(rli, &m_cols);
@@ -8360,12 +8229,45 @@ end:
 int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 {
   int error= 0;
+  const uchar *saved_last_m_curr_row= NULL;
+  const uchar *bi_start= NULL;
+  const uchar *bi_ends= NULL;
+  const uchar *ai_start= NULL;
+  const uchar *ai_ends= NULL;
 
   DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
 
-  if ((error= hash_row(rli)))
+  bi_start= m_curr_row;
+  if ((error= unpack_current_row(rli, &m_cols, 0)))
     goto err;
+  bi_ends= m_curr_row_end;
 
+  store_record(m_table, record[1]);
+
+  if (get_type_code() == UPDATE_ROWS_EVENT)
+  {
+    /*
+      This is the situation after hashing the BI:
+      
+      ===|=== before image ====|=== after image ===|===
+         ^                     ^
+         m_curr_row            m_curr_row_end
+      
+      We need to skip the AI as well, before moving on to the
+      next row.
+    */
+    ai_start= m_curr_row= m_curr_row_end;
+    error= unpack_current_row(rli, &m_cols_ai);
+    ai_ends= m_curr_row_end;
+  }
+
+  /* move BI to index 0 */
+  memcpy(m_table->record[0], m_table->record[1], m_table->s->reclength);
+  
+  m_hash.add_row(m_table, &m_cols, 
+                 bi_start, bi_ends, 
+                 ai_start, ai_ends);
+  
   /**
     Last row hashed. We are handling the last (pair of) row(s).  So
     now we do the table scan and match against the entries in the hash
@@ -8373,8 +8275,10 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
    */
   if (m_curr_row_end == m_rows_end)
   {
+    saved_last_m_curr_row=m_curr_row;
+
+    DBUG_PRINT("info",("Hash was populated with %d records!", m_hash.size()));
     TABLE* table= m_table;
-    MY_BITMAP* read_set= &m_cols;
 
     if ((error= table->file->ha_rnd_init(1)))
     {
@@ -8394,71 +8298,25 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       switch (error) {
         case 0:
         {
-          bool found_in_hash= false;
-          HASH_SEARCH_STATE state;
-          my_hash_value_type se_key; /* storage engine record based row key */
-
-          /* save a copy from the record got from the engine. */
+          m_hash.search_and_remove_row(table, &m_cols, &bi_start, &bi_ends, &ai_start, &ai_ends);
           store_record(table, record[1]);
-          
-          /**
-             Remove the blobs from the record so that we can compare
-             the hash against the hash from record got from the
-             binlog, which was calculated without blobs as well.
-          */
-          remove_blobs_from_record(table);
-          
-          /* calculate the key */
-          se_key= my_calc_hash(&m_hash, m_table->record[0], m_table->s->reclength);
-          
-          /**
-             This is only needed because records are hashed without blobs, so
-             we may have false positives.
-           */
-          row_entry *entry= (row_entry *) my_hash_first(&m_hash, 
-                                                        (const uchar*) &se_key, 
-                                                        sizeof(my_hash_value_type), 
-                                                        &state);
-          while (entry)
-          {                        
-            const uchar* key= (const uchar*) &entry->key;
 
-            /**
-               unpack again the full record to table->record[0]. Now,
-               both table->record[0] and table->record[1] should have
-               approximately the same contents (except maybe for blobs
-               - thence we need to do full comparison below).
-            */
-            m_curr_row= entry->m_curr_row;
-            if ((error= unpack_current_row(rli, &m_cols))) 
-              /* unpack errors are not elegible for idempotency */                 
-              goto close_table;
-
-            else
-            {              
-              /*
-                compare the row_entry with row taking into account
-                blobs, if there is any. If there is a match do the
-                operation and remove the entry from the hash table.
-              */
-              if (!record_compare(table, read_set))
-              {
-                found_in_hash= true;
-
-                my_hash_delete(&m_hash, (uchar *)entry);
-                break;
-              }
-            }
-
-            /* Next row for the loop... */
-            entry= (row_entry *)my_hash_next(&m_hash, 
-                                             key, 
-                                             sizeof(my_hash_value_type),  
-                                             &state);
-          }
-
-          if (found_in_hash)
+          if (bi_start != NULL)
           {
+            /* At this point, both table->record[0] and
+               table->record[1] have the SE row that matched the one
+               in the hash table.
+               
+               Thence if this is a DELETE we wouldn't need to mess
+               around with positions anymore, but since this can be an
+               update, we need to provide positions so that AI is
+               unpacked correctly to table->record[0] in UPDATE
+               implementation of do_exec_row().
+            */
+
+            m_curr_row= bi_start;
+            m_curr_row_end= bi_ends;
+
             if ((error= do_apply_row(rli)))
             {
               if (handle_idempotent_errors(rli, &error) || error)
@@ -8485,20 +8343,25 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       }
     }
 
-    while ((m_hash.records > 0) && 
+    while ((!m_hash.is_empty()) && 
            (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
     m_table->file->print_error(error, MYF(0));
     m_table->file->ha_rnd_end();
-
-    /* set back the pointer to the end of the rows */
-//    if (!error || (error == HA_ERR_RECORD_DELETED))
-//      m_curr_row= m_curr_row_end= m_rows_end;
   }
 
 err:
-  DBUG_ASSERT((m_hash.records == 0) ? (error == 0) : (m_hash.records > 0));
+  if (m_hash.is_empty() && !error)
+  {
+    /**
+       Reset the last positions, because the positions are lost while
+       handling entries in the hash.
+     */
+    m_curr_row= saved_last_m_curr_row;
+    m_curr_row_end= m_rows_end;
+  }
+  DBUG_ASSERT((m_hash.is_empty()) ? (error == 0) : (!m_hash.is_empty()));
   DBUG_RETURN(error);  
 }
 
@@ -8833,48 +8696,66 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        then find_row will return an error (and the error is then
        propagated as it was already).
      */
-    if (get_type_code() != UPDATE_ROWS_EVENT ||
-        is_any_column_signaled_for_table(table, &m_cols_ai))
+    uint row_lookup_method= decide_row_lookup_method(table, &m_cols, get_type_code());
+    int (Rows_log_event::*do_apply_row_ptr)(Relay_log_info const *)= NULL;
+    switch (row_lookup_method)
     {
-      uint row_lookup_method= decide_row_lookup_method(table, &m_cols, get_type_code());
+      case ROW_LOOKUP_HASH_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_hash_scan_and_update;
+        break;
+
+      case ROW_LOOKUP_INDEX_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_index_scan_and_update;
+        break;
+
+      case ROW_LOOKUP_TABLE_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_table_scan_and_update;
+        break;
       
-      int (Rows_log_event::*do_apply_row_ptr)(Relay_log_info const *)= NULL;
-      switch (row_lookup_method)
-      {
-        case ROW_LOOKUP_HASH_SCAN:
-          do_apply_row_ptr= &Rows_log_event::do_hash_scan_and_update;
-          break;
-        
-        case ROW_LOOKUP_INDEX_SCAN:
-          do_apply_row_ptr= &Rows_log_event::do_index_scan_and_update;
-          break;
-        
-        case ROW_LOOKUP_TABLE_SCAN:
-          do_apply_row_ptr= &Rows_log_event::do_table_scan_and_update;
-          break;
-        
-        case ROW_LOOKUP_NOT_NEEDED:
-          DBUG_ASSERT(get_type_code() == WRITE_ROWS_EVENT);
-        
-          /* No need to scan for rows, just apply it */
-          do_apply_row_ptr= &Rows_log_event::do_apply_row;
-          break;
-      }
-
-      // row processing loop
-      while (!error && (m_curr_row != m_rows_end))
-      {
-
-        error= (this->*do_apply_row_ptr)(rli);
-
-        if (handle_idempotent_errors(rli, &error))
-          break;
-
-        /* this advances m_curr_row */
-        do_post_row_operations(rli, error);
-
-      }
+      case ROW_LOOKUP_NOT_NEEDED:
+        DBUG_ASSERT(get_type_code() == WRITE_ROWS_EVENT);
+      
+        /* No need to scan for rows, just apply it */
+        do_apply_row_ptr= &Rows_log_event::do_apply_row;
+        break;
     }
+    
+    /**
+       Skip update rows events that don't have data for this slave's
+       table.
+     */
+    if ((get_type_code() == UPDATE_ROWS_EVENT) &&
+        !is_any_column_signaled_for_table(table, &m_cols_ai))
+      goto AFTER_MAIN_EXEC_ROW_LOOP;
+
+    /**
+       If there are no columns marked in the read_set for this table,
+       that means that we cannot lookup any row using the available BI
+       in the binary log. Thence, we immediatly raise an error:
+       HA_ERR_END_OF_FILE.
+     */
+    if ((row_lookup_method != ROW_LOOKUP_NOT_NEEDED) && 
+        !is_any_column_signaled_for_table(table, &m_cols))
+    {
+      error= HA_ERR_END_OF_FILE;
+      goto AFTER_MAIN_EXEC_ROW_LOOP;
+    }
+        
+    // row processing loop
+
+    do {
+      
+      error= (this->*do_apply_row_ptr)(rli);
+      
+      if (handle_idempotent_errors(rli, &error))
+        break;
+      
+      /* this advances m_curr_row */
+      do_post_row_operations(rli, error);
+      
+    } while (!error && (m_curr_row != m_rows_end));
+
+AFTER_MAIN_EXEC_ROW_LOOP:
 
     {/**
          The following failure injecion works in cooperation with tests 
@@ -10128,14 +10009,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
   /* we will be using a hash to lookup rows, initialize it */
   if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
-    my_hash_init(&m_hash,
-        &my_charset_bin,            /* the charater set information */
-        16 /* FIXME */,             /* growth size */
-        0,                          /* key offset */
-        0,                          /* key length */
-        rows_log_event_get_key,     /* get function pointer */
-        (my_hash_free_key) rows_log_event_free_entry,  /* freefunction pointer */
-        MYF(0));                    /* flags */
+    m_hash.init();
 
   return 0;
 }
@@ -10150,9 +10024,8 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN) &&
-      my_hash_inited(&m_hash))
-    my_hash_free(&m_hash);
+  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+    m_hash.deinit();
 
   return error;
 }
@@ -10164,7 +10037,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   /* m_table->record[0] contains the BI */
   m_table->mark_columns_per_binlog_row_image();
-  error= m_table->file->ha_delete_row(m_table->record[1]);
+  error= m_table->file->ha_delete_row(m_table->record[0]);
   m_table->default_column_bitmaps();
 
   return error;
@@ -10253,15 +10126,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
-    my_hash_init(&m_hash,
-        &my_charset_bin,            /* the charater set information */
-        16 /* FIXME */,             /* growth size */
-        0,                          /* key offset */
-        0,                          /* key length */
-        rows_log_event_get_key,     /* get function pointer */
-        (my_hash_free_key) rows_log_event_free_entry,  /* freefunction pointer */
-        MYF(0));                    /* flags */
-
+    m_hash.init();
   return 0;
 }
 
@@ -10275,9 +10140,8 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN) &&
-      my_hash_inited(&m_hash))
-    my_hash_free(&m_hash);
+  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+    m_hash.deinit();
 
   return error;
 }

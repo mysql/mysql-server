@@ -26,8 +26,81 @@
 #include "table.h"                              /* TABLE_LIST */
 #endif
 #include "mysql_com.h"
+#include <hash.h>
+
 
 class Relay_log_info;
+
+
+/**
+   Hash table used when applying row events on the slave and there is
+   no index on the slave's table.
+ */
+
+struct hash_slave_rows_entry
+{
+  uchar* key;
+  
+  /**
+     Length of the key.
+  */
+  uint length;
+  
+  my_hash_value_type hash_value;
+  
+  /** 
+      Points at the position where the row starts in the
+      event buffer (ie, area in memory before unpacking takes
+      place).
+  */
+  const uchar *bi_start;
+  const uchar *bi_ends;
+
+  const uchar *ai_start;
+  const uchar *ai_ends;
+};
+
+class Hash_slave_rows 
+{
+public:
+  /**
+     @param table            The table that is being scanned.
+     @param cols             The read_set bitmap signaling which columns are used.
+     @param unpacked_record  The position in memory where the unpacked record is.
+   */
+
+  bool add_row(TABLE* table, 
+               MY_BITMAP *cols, 
+               const uchar *bi_start, const uchar *bi_end,
+               const uchar *ai_start, const uchar *ai_end);
+
+  /**
+     @param table
+     @param cols
+     @param unpacked_record 
+   */
+  bool search_and_remove_row(TABLE *table,
+                             MY_BITMAP *cols,
+                             const uchar **bi_start, const uchar **bi_ends,
+                             const uchar **ai_start, const uchar **ai_ends);
+
+  bool init(void);
+  bool deinit(void);
+  bool is_empty(void);
+  int size();
+  
+private:
+
+  HASH m_hash;
+
+  /**
+     @param table  The table that is being scanned
+     @param cols   The read_set bitmap signaling which columns are used.
+     @param key    Output parameter where the key will be stored.
+   */
+  bool make_hash_key(TABLE *table, MY_BITMAP* cols, my_hash_value_type *key);
+
+};
 
 
 /**
@@ -275,3 +348,4 @@ CPP_UNNAMED_NS_END
   } while (0)
 
 #endif /* RPL_UTILITY_H */
+
