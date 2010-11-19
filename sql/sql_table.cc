@@ -4003,6 +4003,46 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   (void) prepare_blob_field(thd, sql_field);
 }
 
+
+/**
+  Auxiliary function which allows to check if freshly created .FRM
+  file for table can be opened.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
+*/
+
+static bool check_if_created_table_can_be_opened(THD *thd,
+                                                 const char *path,
+                                                 const char *db,
+                                                 const char *table_name,
+                                                 HA_CREATE_INFO *create_info,
+                                                 handler *file)
+{
+  TABLE table;
+  TABLE_SHARE share;
+  bool result;
+
+  /*
+    It is impossible to open definition of partitioned table without .par file.
+  */
+  if (file->ha_create_handler_files(path, NULL, CHF_CREATE_FLAG, create_info))
+    return TRUE;
+
+  init_tmp_table_share(thd, &share, db, 0, table_name, path);
+
+  result= (open_table_def(thd, &share, 0) ||
+           open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
+                                 0, &table, TRUE));
+  if (! result)
+    (void) closefrm(&table, 0);
+
+  free_table_share(&share);
+  (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
+  return result;
+}
+
+
 /*
   Create a table
 
@@ -4429,6 +4469,29 @@ bool mysql_create_table_no_lock(THD *thd,
 
     thd->thread_specific_used= TRUE;
   }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  else if (part_info && create_info->frm_only)
+  {
+    /*
+      For partitioned tables we can't find some problems with table
+      until table is opened. Therefore in order to disallow creation
+      of corrupted tables we have to try to open table as the part
+      of its creation process.
+      In cases when both .FRM and SE part of table are created table
+      is implicitly open in ha_create_table() call.
+      In cases when we create .FRM without SE part we have to open
+      table explicitly.
+    */
+    if (check_if_created_table_can_be_opened(thd, path, db, table_name,
+                                             create_info, file))
+    {
+      char frm_name[FN_REFLEN];
+      strxmov(frm_name, path, reg_ext, NullS);
+      (void) mysql_file_delete(key_file_frm, frm_name, MYF(0));
+      goto err;
+    }
+  }
+#endif
 
   error= FALSE;
 err:
