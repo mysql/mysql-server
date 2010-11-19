@@ -897,7 +897,7 @@ a	b	SUBS
 5	6	1
 4	5	1
 7	8	NULL
-9	NULL	NULL
+9	NULL	1
 show status like "subquery_cache%";
 Variable_name	Value
 Subquery_cache_hit	0
@@ -916,7 +916,7 @@ a	b	SUBS
 5	6	1
 4	5	1
 7	8	NULL
-9	NULL	NULL
+9	NULL	1
 show status like "subquery_cache%";
 Variable_name	Value
 Subquery_cache_hit	6
@@ -977,7 +977,7 @@ a	b	SUBS
 5	6	0
 4	5	0
 7	8	NULL
-9	NULL	NULL
+9	NULL	0
 show status like "subquery_cache%";
 Variable_name	Value
 Subquery_cache_hit	0
@@ -996,7 +996,7 @@ a	b	SUBS
 5	6	0
 4	5	0
 7	8	NULL
-9	NULL	NULL
+9	NULL	0
 show status like "subquery_cache%";
 Variable_name	Value
 Subquery_cache_hit	6
