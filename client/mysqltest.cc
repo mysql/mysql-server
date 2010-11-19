@@ -5721,6 +5721,8 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     case GE_OP:
       v.int_val= (v.int_val >= v2.int_val);
       break;
+    case ILLEG_OP:
+      die("Impossible operator, this cannot happen");
     }
 
     v.is_int= TRUE;
