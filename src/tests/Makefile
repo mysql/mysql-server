@@ -204,6 +204,7 @@ BDB_DONTRUN_TESTS = \
 	upgrade-test-2 \
 	upgrade-test-3 \
 	upgrade-test-4 \
+	upgrade-test-5 \
         zombie_db \
 #\ ends prev line
 

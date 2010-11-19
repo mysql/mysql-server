@@ -112,16 +112,16 @@ walk_tree(const char *fname, int n) {
 
     int i;
     for (i = 0; ; i++) {
-        error = le_cursor_next(cursor, &key, &val);
+        error = le_cursor_next(cursor, &val);
         if (error != 0) 
             break;
-        assert(key.size == sizeof (int));
-        int ii;
-        memcpy(&ii, key.data, key.size);
-        assert((int) toku_htonl(i) == ii);
         
         LEAFENTRY le = (LEAFENTRY) val.data;
         assert(le->type == LE_MVCC);
+        assert(le->keylen == sizeof (int));
+        int ii;
+        memcpy(&ii, le->u.mvcc.key_xrs, le->keylen);
+        assert((int) toku_htonl(i) == ii);
     }
     assert(i == n);
 
@@ -151,19 +151,28 @@ init_logdir(const char *logdir) {
     assert(error == 0);
 }
 
+static void
+run_test(const char *logdir, const char *brtfile, int n) {
+    init_logdir(logdir);
+    int error = chdir(logdir);
+    assert(error == 0);
+
+    create_populate_tree(".", brtfile, n);
+    walk_tree(brtfile, n);
+
+    error = chdir("..");
+    assert(error == 0);
+}
+    
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
     const char *logdir = "dir." __FILE__;
-    init_logdir(logdir);
-    int error = chdir(logdir);
-    assert(error == 0);
-
-    const int n = 1000;
     const char *brtfile =  __FILE__ ".brt";
-    create_populate_tree(".", brtfile, n);
-    walk_tree(brtfile, n);
+
+    run_test(logdir, brtfile, 0);
+    run_test(logdir, brtfile, 1000);
 
     return 0;
 }
