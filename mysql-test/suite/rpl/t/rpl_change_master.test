@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos = $exec_pos`)
+if ($read_pos == $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
@@ -32,7 +32,7 @@ if (`SELECT $read_pos = $exec_pos`)
 change master to master_user='root';
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos <> $exec_pos`)
+if ($read_pos != $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';
@@ -141,7 +141,7 @@ if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 
 -- let $retry_count2= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it shows no changes
-if (`SELECT $retry_count2 <> $retry_count1`)
+if ($retry_count2 != $retry_count1)
 {
   -- echo Unexpected retry count value! Got: $retry_count2, expected: $retry_count1
   -- die
@@ -156,7 +156,7 @@ CHANGE MASTER TO master_retry_count=1;
 
 -- let $retry_count3= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it should show 1
-if (`SELECT $retry_count3 <> 1`)
+if ($retry_count3 != 1)
 {
   -- echo Unexpected retry count value! Got: $retry_count3, expected: 1
   -- die
@@ -171,7 +171,7 @@ if (`SELECT $retry_count3 <> 1`)
 
 -- let $retry_count4= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it should show 1
-if (`SELECT $retry_count4 <> $retry_count0`)
+if ($retry_count4 != $retry_count0)
 {
   -- echo Unexpected retry count value! Got: $retry_count4, expected: $retry_count0
   -- die
@@ -200,7 +200,7 @@ if (`SELECT $retry_count4 <> $retry_count0`)
 -- let $retry_count_before= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 -- eval CHANGE MASTER TO master_connect_retry= $connect_retry_new
 -- let $retry_count_after= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
-if (`SELECT $retry_count_before <> $retry_count_after`)
+if ($retry_count_before != $retry_count_after)
 {
   -- echo Unexpected retry count value! Got: $retry_count_after, expected: $retry_count_before
   -- die
@@ -226,7 +226,7 @@ EOF
 -- source include/start_slave.inc
 
 -- let $retry_count5= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
-if (`SELECT $retry_count5 <> $retry_count_expected`)
+if ($retry_count5 != $retry_count_expected)
 {
   -- echo Unexpected retry count value! Got: $retry_count5, expected: $retry_count_expected
   -- die
