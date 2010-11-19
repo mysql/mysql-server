@@ -641,11 +641,9 @@ setup_thd(char * stackptr)
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
 #endif
-  thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
-  thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user= 0;
   thd->lex->start_transaction_opt= 0;
+  thd->security_ctx->skip_grants();
 
   CHARSET_INFO *charset_connection= get_charset_by_csname("utf8",
                                                           MY_CS_PRIMARY,
@@ -5988,11 +5986,9 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
 #endif
-  thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities= 0;
+  thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
-  thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user= 0;
 
   /*
     Set up ndb binlog

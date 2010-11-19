@@ -14741,11 +14741,9 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
 #endif
-  thd->main_security_ctx.host_or_ip= "";
   thd->client_capabilities = 0;
+  thd->security_ctx->skip_grants();
   my_net_init(&thd->net, 0);
-  thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user = 0;
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",
