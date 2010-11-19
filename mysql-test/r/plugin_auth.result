@@ -255,3 +255,67 @@ GRANT PROXY ON standard_user TO ''@'';
 DROP USER ''@'';
 DROP USER standard_user;
 DROP DATABASE shared;
+#
+# Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
+#
+CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
+DROP TABLE mysql.proxies_priv;
+# Must come back with mysql.proxies_priv absent.
+SELECT * FROM mysql.proxies_priv;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+CREATE USER u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+CREATE USER u2@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
+# access denied because of no privileges to root
+GRANT PROXY ON u2@localhost TO u1@localhost;
+ERROR 28000: Access denied for user 'root'@'localhost'
+# access denied because of no privileges to root
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+ERROR 28000: Access denied for user 'root'@'localhost'
+# go try graning proxy on itself, so that it will need the table
+GRANT PROXY ON u2@localhost TO u1@localhost;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+# test if REVOKE works without the proxies_priv table
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
+# test if DROP USER work without the proxies_priv table
+DROP USER u1@localhost,u2@localhost;
+# test if FLUSH PRIVILEGES works without the proxies_priv table
+FLUSH PRIVILEGES;
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
+Host	localhost
+User	root
+Proxied_host	
+Proxied_user	
+With_grant	1
+FLUSH PRIVILEGES;
+End of 5.5 tests
