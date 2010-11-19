@@ -117,7 +117,7 @@ let $before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
 
 let $after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
 
-if (`select $after != $before`){
+if ($after != $before){
   SHOW GLOBAL STATUS LIKE 'com_select';
   die The value of com_select changed during change_user;
 }

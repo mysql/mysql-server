@@ -4,7 +4,7 @@
 
 # Only run this test if shared memory is avaliable
 let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
-if (`SELECT '$shm' != 'ON'`){
+if ($shm != ON){
   skip No shm support;
 }
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
