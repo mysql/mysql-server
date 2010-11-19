@@ -1663,6 +1663,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     case BRT_OPTIMIZE_FOR_UPGRADE:
 	node->dirty = 1;
 	node->u.l.optimized_for_upgrade = *((uint32_t*)(cmd->u.id.val->data)); // record version of software that sent the optimize_for_upgrade message
+	// fall through so that optimize_for_upgrade performs rest of the optimize logic
     case BRT_OPTIMIZE:
         // Apply to all leafentries
         idx = 0;
