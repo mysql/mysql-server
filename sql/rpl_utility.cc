@@ -1056,3 +1056,263 @@ table_def::~table_def()
 #endif
 }
 
+
+/**
+  Utility methods for handling row based operations.
+ */ 
+
+static uchar * hash_slave_rows_get_key(const uchar *record, 
+                                       size_t *length,
+                                       my_bool not_used __attribute__((unused)))
+{
+  DBUG_ENTER("get_key");
+
+  hash_slave_rows_entry *entry=(hash_slave_rows_entry *) record;
+  *length= entry->length;
+
+  DBUG_RETURN((uchar*) entry->key);
+}
+
+static void 
+hash_slave_rows_free_entry(hash_slave_rows_entry *entry)
+{
+  DBUG_ENTER("free_entry");
+  my_free(entry);
+  DBUG_VOID_RETURN;
+}
+
+
+bool Hash_slave_rows::is_empty(void)
+{
+  return (m_hash.records == 0);
+}
+
+/**
+   Hashing commodity structures and functions.
+ */ 
+
+bool Hash_slave_rows::init(void)
+{
+  my_hash_init(&m_hash,
+               &my_charset_bin,                /* the charater set information */
+               16 /* FIXME */,                 /* growth size */
+               0,                              /* key offset */
+               0,                              /* key length */
+               hash_slave_rows_get_key,                        /* get function pointer */
+               (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
+               MYF(0));                        /* flags */
+
+  return 0;
+
+}
+
+bool Hash_slave_rows::deinit(void)
+{
+  if (my_hash_inited(&m_hash))
+    my_hash_free(&m_hash);
+
+  return 0;
+}
+
+int Hash_slave_rows::size()
+{
+  return m_hash.records;
+}
+
+
+bool
+Hash_slave_rows::search_and_remove_row(TABLE *table,
+                                       MY_BITMAP *cols,
+                                       const uchar **bi_start, const uchar **bi_ends,
+                                       const uchar **ai_start, const uchar **ai_ends)
+{
+  DBUG_ENTER("Hash_slave_rows::search_row");
+
+  HASH_SEARCH_STATE state;
+  my_hash_value_type se_key; /* storage engine record based row key */
+  *bi_start= *bi_ends= *ai_start= *ai_ends= NULL;
+          
+  make_hash_key(table, cols, &se_key);
+
+  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", se_key));
+                    
+  /**
+     This is only needed because records are hashed without blobs, so
+     we may have false positives.
+  */
+  hash_slave_rows_entry *entry= (hash_slave_rows_entry *) my_hash_first(&m_hash, 
+                                                                        (const uchar*) &se_key, 
+                                                                        sizeof(my_hash_value_type), 
+                                                                        &state);
+  while (entry)
+  {                        
+    const uchar* key= (const uchar*) &entry->key;
+    
+    /**
+       unpack again the full BI record to table->record[0]. Now,
+       both table->record[0] and table->record[1] should have
+       approximately the same contents (except maybe for blobs
+       - thence we need to do full comparison below).
+    */
+/*    event->m_curr_row= entry->m_curr_row;
+    if (!(error= event->unpack_current_row(rli, &cols)))
+    {*/
+      /*
+        compare the row_entry with row taking into account
+        blobs, if there is any. If there is a match do the
+        operation and remove the entry from the hash table.
+      */
+/*      if (!record_compare(table, cols))
+        {*/
+        *bi_start= entry->bi_start;
+        *bi_ends= entry->bi_ends;
+        *ai_start= entry->ai_start;
+        *ai_ends= entry->ai_ends;
+
+        my_hash_delete(&m_hash, (uchar *)entry);
+        DBUG_RETURN(0);
+/*      }
+        }
+    else
+    DBUG_RETURN(error);*/
+
+    /* Next row for the loop... */
+    entry= (hash_slave_rows_entry *)my_hash_next(&m_hash, 
+                                                 key, 
+                                                 sizeof(my_hash_value_type),  
+                                                 &state);
+  }
+
+  DBUG_RETURN(0);
+}
+
+bool
+Hash_slave_rows::make_hash_key(TABLE *table, 
+                               MY_BITMAP *cols, 
+                               my_hash_value_type *key)
+{ 
+  DBUG_ENTER("Hash_slave_rows::make_hash_key");
+  ha_checksum crc= 0L;
+
+  uchar *record= table->record[0];
+  uchar saved_x= 0, saved_filler= 0;
+
+  if (table->s->null_bytes > 0)
+  {
+    /*
+      If we have an X bit then we need to take care of it.
+    */
+    if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+    {
+      saved_x= record[0];
+      record[0]|= 1U;
+    }
+
+    /*
+      If (last_null_bit_pos == 0 && null_bytes > 1), then:
+      
+      X bit (if any) + N nullable fields + M Field_bit fields = 8 bits
+      
+      Ie, the entire byte is used.
+    */
+    if (table->s->last_null_bit_pos > 0)
+    {
+      saved_filler= record[table->s->null_bytes - 1];
+      record[table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+    }
+  }
+
+  /* initialize crc */
+  crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+
+  for (Field **ptr=table->field ;
+       *ptr && ((*ptr)->field_index < cols->n_bits);
+       ptr++)
+  {
+    Field *f= (*ptr);
+    /* field is set in the read_set and is not a blob */
+
+    if (bitmap_is_set(cols, f->field_index))
+    {
+      if (f->type() == MYSQL_TYPE_BLOB)
+      {
+        Field_blob *fb= (Field_blob*) f;
+        uchar* ptr;
+        uint32 length= fb->get_length();
+        if (length)
+        {
+          fb->get_ptr(&ptr);
+          crc= my_checksum(crc, ptr, length);
+        }
+      }
+      else
+        crc= my_checksum(crc, f->ptr, f->data_length());
+
+      // TODO: what if the table only has blobs ?
+      // Maybe don't use hash_scan approach or include 
+      // blobs in this calculation.
+    }
+  }
+  
+  /*
+    Restore the saved bytes.
+
+    TODO[record format ndb]: Remove this code once NDB returns the
+    correct record format.
+  */
+  if (table->s->null_bytes > 0)
+  {
+    if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      record[0]= saved_x;
+
+    if (table->s->last_null_bit_pos)
+      record[table->s->null_bytes - 1]= saved_filler;
+  }
+
+
+
+  DBUG_PRINT("debug", ("Created key=%u", crc));
+
+  DBUG_ASSERT(crc > 0);
+  *key= crc;
+  DBUG_RETURN(false);
+}
+
+bool 
+Hash_slave_rows::add_row(TABLE *table, 
+                         MY_BITMAP *cols,
+                         const uchar *bi_start, const uchar *bi_ends,
+                         const uchar *ai_start, const uchar *ai_ends)
+{
+  DBUG_ENTER("Hash_slave_rows::add_row");
+
+  /**
+     Insert the actual entry.
+  */
+  hash_slave_rows_entry *entry= (hash_slave_rows_entry*) malloc(sizeof(hash_slave_rows_entry));
+  if (!entry)
+    DBUG_RETURN(1);
+  
+  entry->key= (uchar*)&entry->hash_value;
+  entry->length= sizeof(my_hash_value_type);
+
+  /**
+     Skip blobs from key calculation.
+     Handle X bits.
+     Handle nulled fields.
+     Handled fields not signaled.
+  */  
+  make_hash_key(table, cols, &entry->hash_value);
+
+  entry->bi_start= (const uchar *) bi_start;
+  entry->bi_ends= (const uchar *) bi_ends;
+  entry->ai_start= (const uchar *) ai_start;
+  entry->ai_ends= (const uchar *) ai_ends;
+
+  DBUG_PRINT("debug", ("Added record to hash with key=%u", entry->hash_value));
+
+  my_hash_insert(&m_hash, (uchar *) entry);
+  
+  DBUG_RETURN(0);
+}
