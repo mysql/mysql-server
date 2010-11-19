@@ -396,3 +396,19 @@ EXPLAIN
 SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
 SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
 drop table t1, t2, t3, t4;
+
+--echo #
+--echo # BUG#52317: Assertion failing in Field_varstring::store() 
+--echo # 	    at field.cc:6833
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+
+DROP TABLE t2;
+DROP TABLE t1;
