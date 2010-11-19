@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
 ctype_utf8mb4_ndb	: Bug#55799, Bug#51907, disabled by Konstantin 2010-08-06

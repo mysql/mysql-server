@@ -607,3 +607,12 @@ SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
 as foo;
 foo
 2
+#
+# Bug #58137 char(0) column cause:
+#            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
+#
+CREATE TABLE t1(a char(0));
+INSERT INTO t1 (SELECT -pi());
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+DROP TABLE t1;

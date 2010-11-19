@@ -1384,7 +1384,8 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     mdl_request.init(MDL_key::TABLE, db, table_name,
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                     MDL_SHARED_WRITE : MDL_SHARED_READ);
+                     MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     MDL_TRANSACTION);
   }
 
   /*

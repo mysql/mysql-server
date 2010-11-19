@@ -159,7 +159,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 my_bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(handlerton *base, char *path);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
-                             MDL_ticket *start_of_statement_svp);
+                             const MDL_savepoint &start_of_statement_svp);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
                                TABLE_LIST *TABLE_LIST::*link,
                                const char *db_name,
@@ -243,7 +243,6 @@ bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           bool derived, uint flags,
                           Prelocking_strategy *prelocking_strategy);
-int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags,
@@ -508,7 +507,7 @@ public:
     the statement, so that we can rollback to it before waiting on
     locks.
   */
-  MDL_ticket *start_of_statement_svp() const
+  const MDL_savepoint &start_of_statement_svp() const
   {
     return m_start_of_statement_svp;
   }
@@ -519,6 +518,21 @@ public:
   }
 
   uint get_flags() const { return m_flags; }
+
+  /**
+    Set flag indicating that we have already acquired metadata lock
+    protecting this statement against GRL while opening tables.
+  */
+  void set_has_protection_against_grl()
+  {
+    m_has_protection_against_grl= TRUE;
+  }
+
+  bool has_protection_against_grl() const
+  {
+    return m_has_protection_against_grl;
+  }
+
 private:
   /**
     For OT_DISCOVER and OT_REPAIR actions, the table list element for
@@ -526,7 +540,7 @@ private:
     should be repaired.
   */
   TABLE_LIST *m_failed_table;
-  MDL_ticket *m_start_of_statement_svp;
+  MDL_savepoint m_start_of_statement_svp;
   /**
     Lock timeout in seconds. Initialized to LONG_TIMEOUT when opening system
     tables or to the "lock_wait_timeout" system variable for regular tables.
@@ -542,6 +556,11 @@ private:
     and we can't safely do back-off (and release them).
   */
   bool m_has_locks;
+  /**
+    Indicates that in the process of opening tables we have acquired
+    protection against global read lock.
+  */
+  bool m_has_protection_against_grl;
 };
 
 
