@@ -359,6 +359,19 @@ typedef struct st_join_table {
     return (first_inner && first_inner->last_inner == this) ||
            last_sj_inner_tab == this;
   }
+  /*
+    Check whether the table belongs to a nest of inner tables of an
+    outer join or to a nest of inner tables of a semi-join
+  */
+  bool is_nested_inner()
+  {
+    if (first_inner && 
+        (first_inner != first_inner->last_inner || first_inner->first_upper))
+      return TRUE;
+    if (first_sj_inner_tab && first_sj_inner_tab != last_sj_inner_tab)
+      return TRUE;
+    return FALSE;
+  }
   struct st_join_table *get_first_inner_table()
   {
     if (first_inner)

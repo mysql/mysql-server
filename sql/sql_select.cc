@@ -7635,8 +7635,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (cache_level == 0 || i == join->const_tables || !prev_tab)
     return 0;
 
-  if (force_unlinked_cache && 
-      (cache_level & JOIN_CACHE_INCREMENTAL_BIT))
+  if (force_unlinked_cache && (cache_level%2 == 0))
     cache_level--;
 
   if (options & SELECT_NO_JOIN_CACHE)
@@ -7658,13 +7657,14 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   /*
     Non-linked join buffers can't guarantee one match
   */
-  if ((force_unlinked_cache || cache_level == 1) &&  
-      ((tab->is_inner_table_of_semi_join_with_first_match() &&
-        !tab->is_single_inner_of_semi_join_with_first_match()) ||
-       (tab->is_inner_table_of_outer_join() &&
-        !tab->is_single_inner_of_outer_join())))
-   goto no_join_cache;
-
+  if (tab->is_nested_inner())
+  {
+    if (force_unlinked_cache || cache_level == 1)
+      goto no_join_cache;
+    if (cache_level & 1)
+      cache_level--;
+  }
+    
   /*
     Don't use join buffering if we're dictated not to by no_jbuf_after (this
     ...)
@@ -7757,9 +7757,6 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 	(cache_level <= 6 || no_hashed_cache))
       goto no_join_cache;
 
-    if (prev_tab->cache && cache_level==7)
-      cache_level= 6;
-    
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL))
     {
       if (cache_level <= 6 || no_hashed_cache)

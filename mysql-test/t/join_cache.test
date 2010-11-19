@@ -2625,5 +2625,35 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # Bug #660963: nested outer join with join_cache_level set to 5
+--echo #
+
+CREATE TABLE t1 (a1 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (a2 int, b2 int, PRIMARY KEY (a2)) ;
+INSERT INTO t2 VALUES (2,1);
+
+CREATE TABLE t3 (a3 int, b3 int, PRIMARY KEY (a3)) ;
+INSERT INTO t3 VALUES (2,1);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION join_cache_level = 5;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
