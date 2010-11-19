@@ -3821,6 +3821,7 @@ private:
 
   int hash_row(Relay_log_info const *rli);
   int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+  void do_post_row_operations(Relay_log_info const *rli, int err);
   int do_apply_row(Relay_log_info const *rli);
   int do_index_scan_and_update(Relay_log_info const *rli);
   int do_hash_scan_and_update(Relay_log_info const *rli);
