@@ -17,6 +17,8 @@
 #include "unireg.h"
 #include "event_queue.h"
 #include "event_data_objects.h"
+#include "event_db_repository.h"
+#include "events.h"
 #include "sql_audit.h"
 #include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
 #include "log.h"        // sql_print_error
@@ -444,7 +446,6 @@ Event_queue::recalculate_activation_times(THD *thd)
   for (i= 0; i < queue.elements; i++)
   {
     ((Event_queue_element*)queue_element(&queue, i))->compute_next_execution_time();
-    ((Event_queue_element*)queue_element(&queue, i))->update_timing_fields(thd);
   }
   queue_fix(&queue);
   /*
@@ -567,6 +568,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 {
   bool ret= FALSE;
   *event_name= NULL;
+  my_time_t UNINIT_VAR(last_executed);
+  int UNINIT_VAR(status);
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
   LOCK_QUEUE_DATA();
@@ -632,8 +635,14 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     top->execution_count++;
     (*event_name)->dropped= top->dropped;
+    /*
+      Save new values of last_executed timestamp and event status on stack
+      in order to be able to update event description in system table once
+      QUEUE_DATA lock is released.
+    */
+    last_executed= top->last_executed;
+    status= top->status;
 
-    top->update_timing_fields(thd);
     if (top->status == Event_parse_data::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
@@ -656,8 +665,15 @@ end:
                       ret, (long) *event_name));
 
   if (*event_name)
+  {
     DBUG_PRINT("info", ("db: %s  name: %s",
                         (*event_name)->dbname.str, (*event_name)->name.str));
+
+    Event_db_repository *db_repository= Events::get_db_repository();
+    (void) db_repository->update_timing_fields_for_event(thd,
+                            (*event_name)->dbname, (*event_name)->name,
+                            last_executed, (ulonglong) status);
+  }
 
   DBUG_RETURN(ret);
 }
@@ -741,11 +757,13 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, msg);
 
-  DBUG_PRINT("info", ("mysql_cond_%swait", abstime? "timed":""));
-  if (!abstime)
-    mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
-  else
-    mysql_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  if (!thd->killed)
+  {
+    if (!abstime)
+      mysql_cond_wait(&COND_queue_state, &LOCK_event_queue);
+    else
+      mysql_cond_timedwait(&COND_queue_state, &LOCK_event_queue, abstime);
+  }
 
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;

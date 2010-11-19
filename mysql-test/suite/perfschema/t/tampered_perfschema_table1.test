@@ -27,18 +27,18 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-# The message prints 'mysql.SETUP_INSTRUMENTS'
-# instead of 'performance_schema.SETUP_INSTRUMENTS',
+# The message prints 'mysql.setup_instruments'
+# instead of 'performance_schema.setup_instruments',
 # due to Bug#46792
 
 call mtr.add_suppression(
-"Column count of mysql.SETUP_INSTRUMENTS is wrong. "
+"Column count of mysql.setup_instruments is wrong. "
 "Expected 4, found 3. The table is probably corrupted");
 
 --error ER_WRONG_NATIVE_TABLE_STRUCTURE
-select * from performance_schema.SETUP_INSTRUMENTS limit 1;
+select * from performance_schema.setup_instruments limit 1;
 
 --disable_result_log
-select * from performance_schema.SETUP_CONSUMERS limit 1;
+select * from performance_schema.setup_consumers limit 1;
 --enable_result_log
 

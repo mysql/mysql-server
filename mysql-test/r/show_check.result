@@ -1514,3 +1514,27 @@ ALTER TABLE t1 CHARACTER SET = utf8;
 COMMIT;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
+#
+# Bug#57306 SHOW PROCESSLIST does not display string literals well.
+#
+SET NAMES latin1;
+SELECT GET_LOCK('t', 1000);
+GET_LOCK('t', 1000)
+1
+SET NAMES latin1;
+SELECT GET_LOCK('t',1000) AS 'óóóó';;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
+SET NAMES utf8;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
+SELECT RELEASE_LOCK('t');
+RELEASE_LOCK('t')
+1
+óóóó
+1
+SET NAMES latin1;
