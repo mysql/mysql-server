@@ -101,8 +101,10 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 IF(WIN32)
-  # Sign executables with authenticode certificate
-  SET(SIGNCODE 1 CACHE BOOL "")
+  IF(NOT CMAKE_USING_VC_FREE_TOOLS)
+    # Sign executables with authenticode certificate
+    SET(SIGNCODE 1 CACHE BOOL "")
+  ENDIF()
 ENDIF()
 
 IF(UNIX)
