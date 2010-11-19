@@ -339,7 +339,7 @@ public:
         (hostname_requires_resolving(host.hostname) ||
          hostname_requires_resolving(proxied_host.hostname)))
     {
-      sql_print_warning("'proxes_priv' entry '%s@%s %s@%s' "
+      sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         proxied_user ? proxied_user : "",
                         proxied_host.hostname ? proxied_host.hostname : "",
