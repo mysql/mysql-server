@@ -397,3 +397,42 @@ pk
 # Restore old value for Index condition pushdown
 SET SESSION engine_condition_pushdown=@old_icp;
 DROP TABLE t1,t2;
+#
+# LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
+#
+CREATE TABLE t1 (c1 varchar(1) DEFAULT NULL);
+CREATE TABLE t2 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('k'), ('d');
+CREATE TABLE t3 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t3 VALUES ('a'), ('b'), ('c');
+CREATE TABLE t4 (c1 varchar(1) primary key);
+INSERT INTO t4 VALUES ('k'), ('d');
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+EXPLAIN
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1	c1
+EXPLAIN
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+drop table t1, t2, t3, t4;

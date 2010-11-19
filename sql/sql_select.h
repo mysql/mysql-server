@@ -1593,6 +1593,12 @@ public:
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
   COND_EQUAL *having_equal;
+  /*
+    Constant codition computed during optimization, but evaluated during
+    join execution. Typically expensive conditions that should not be
+    evaluated at optimization time.
+  */
+  Item *exec_const_cond;
   SQL_SELECT *select;                ///<created in optimisation phase
   JOIN_TAB *return_tab;              ///<used only for outer joins
   Item **ref_pointer_array; ///<used pointer reference for this select
@@ -1689,6 +1695,7 @@ public:
     initialized= 0;
     cond_equal= 0;
     having_equal= 0;
+    exec_const_cond= 0;
     group_optimized_away= 0;
     no_rows_in_result_called= 0;
 

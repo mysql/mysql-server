@@ -1821,6 +1821,9 @@ JOIN::exec()
   if (tables)
     thd->limit_found_rows= 0;
 
+  if (exec_const_cond && !exec_const_cond->val_int())
+    zero_result_cause= "Impossible WHERE noticed after reading const tables";
+
   if (zero_result_cause)
   {
     (void) return_zero_rows(this, result, select_lex->leaf_tables,
@@ -6626,11 +6629,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
            there inside the triggers.
       */
       {						// Check const tables
-        COND *const_cond=
+        join->exec_const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
-                              (table_map) 0, TRUE);
-        DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
+                              (table_map) 0, FALSE);
+        DBUG_EXECUTE("where",print_where(join->exec_const_cond, "constants",
+                                         QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
         {
@@ -6639,7 +6643,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             JOIN_TAB *cond_tab= tab->first_inner;
             COND *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
-                                         (  table_map) 0, FALSE);
+                                           (table_map) 0, FALSE);
             if (!tmp)
               continue;
             tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -6655,10 +6659,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             cond_tab->select_cond->quick_fix_field();
           }       
         }
-        if (const_cond && !const_cond->val_int())
+
+        if (join->exec_const_cond && !join->exec_const_cond->is_expensive() &&
+            !join->exec_const_cond->val_int())
         {
-	  DBUG_PRINT("info",("Found impossible WHERE condition"));
-	  DBUG_RETURN(1);	 // Impossible const condition
+          DBUG_PRINT("info",("Found impossible WHERE condition"));
+          join->exec_const_cond= NULL;
+          DBUG_RETURN(1);	 // Impossible const condition
         }
       }
     }
@@ -14622,7 +14629,6 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 }
 
 
-
 /*
   Extract a condition that can be checked after reading given table
   
@@ -14658,32 +14664,17 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 
 static Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
-                    bool exclude_expensive_cond)
+                    bool exclude_expensive_cond __attribute__((unused)))
 {
   return make_cond_for_table_from_pred(cond, cond, tables, used_table,
                                        exclude_expensive_cond);
 }
-               
+
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
-                              bool exclude_expensive_cond)
-
+                              bool exclude_expensive_cond __attribute__((unused)))
 {
-  if (used_table && !(cond->used_tables() & used_table) &&
-      /*
-        Exclude constant conditions not checked at optimization time if
-        the table we are pushing conditions to is the first one.
-        As a result, such conditions are not considered as already checked
-        and will be checked at execution time, attached to the first table.
-
-        psergey: TODO: "used_table & 1" doesn't make sense in nearly any
-        context. Look at setup_table_map(), table bits reflect the order 
-        the tables were encountered by the parser. Check what we should
-        replace this condition with.
-      */
-      !((used_table & 1) && cond->is_expensive()))
-    return (COND*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -14751,12 +14742,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
     table_count times, we mark each item that we have examined with the result
     of the test
   */
-  if (cond->marker == 3 || (cond->used_tables() & ~tables) ||
-      /*
-        When extracting constant conditions, treat expensive conditions as
-        non-constant, so that they are not evaluated at optimization time.
-      */
-      (!used_table && exclude_expensive_cond && cond->is_expensive()))
+  if (cond->marker == 3 || (cond->used_tables() & ~tables))
     return (COND*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
@@ -14782,7 +14768,6 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   cond->marker=2;
   return cond;
 }
-
 
 
 static COND *
