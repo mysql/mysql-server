@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  SET(localstatedir "C:\\mysql\\data")
+  SET(localstatedir "C:\\\\mysql\\\\data\\\\")
   SET(ini_file_extension "ini")
 ELSE()
   SET(localstatedir "${MYSQL_DATADIR}")
