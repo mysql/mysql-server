@@ -63,7 +63,8 @@ SET (SQL_SOURCE
                sql_cache.cc sql_class.cc sql_client.cc sql_crypt.cc sql_crypt.h 
                sql_cursor.cc sql_db.cc sql_delete.cc sql_derived.cc sql_do.cc 
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc
-               sql_join_cache.cc sql_lex.cc sql_list.cc sql_load.cc sql_manager.cc
+               sql_join_cache.h sql_join_cache.cc
+               sql_lex.cc sql_list.cc sql_load.cc sql_manager.cc
                sql_map.cc sql_parse.cc  sql_partition.cc sql_plugin.cc
                sql_prepare.cc sql_rename.cc 
                debug_sync.cc debug_sync.h

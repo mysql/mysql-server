@@ -81,6 +81,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_partition.h partition_info.h partition_element.h \
 			contributors.h sql_servers.h \
                         multi_range_read.h \
+                        sql_join_cache.h \
 			create_options.h \
 			sql_expression_cache.h
 
