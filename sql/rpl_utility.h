@@ -31,6 +31,7 @@
 
 class Relay_log_info;
 
+#ifndef MYSQL_CLIENT
 
 /**
    Hash table used when applying row events on the slave and there is
@@ -102,6 +103,7 @@ private:
 
 };
 
+#endif
 
 /**
   A table definition from the master.

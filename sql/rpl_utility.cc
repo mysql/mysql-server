@@ -1056,6 +1056,7 @@ table_def::~table_def()
 #endif
 }
 
+#ifndef MYSQL_CLIENT
 
 /**
   Utility methods for handling row based operations.
@@ -1316,3 +1317,5 @@ Hash_slave_rows::add_row(TABLE *table,
   
   DBUG_RETURN(0);
 }
+
+#endif
