@@ -2655,5 +2655,50 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug #675922: incremental buffer for BKA with access from previous
+--echo #      buffers from non-nullable columns whose values may be null
+--echo #
+
+CREATE TABLE t1 (a1 varchar(32)) ;
+INSERT INTO t1 VALUES ('s'),('k');
+
+CREATE TABLE t2 (a2 int PRIMARY KEY, b2 varchar(32)) ;
+INSERT INTO t2 VALUES (7,'s');
+
+CREATE TABLE t3 (a3 int PRIMARY KEY, b3 varchar(32)) ;
+INSERT INTO t3 VALUES (7,'s');
+
+CREATE TABLE t4 (a4 int) ;
+INSERT INTO t4 VALUES (9);
+
+CREATE TABLE t5(a5 int PRIMARY KEY, b5 int) ;
+INSERT INTO t5 VALUES (7,0);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
