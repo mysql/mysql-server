@@ -617,4 +617,14 @@ FROM t1 ORDER BY t1.id;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57279 updatexml dies with: Assertion failed: str_arg[length] == 0
+--echo #
+
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT UPDATEXML(NULL, (LPAD(0.1111E-15, '2011', 1)), 1);
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT EXTRACTVALUE('', LPAD(0.1111E-15, '2011', 1));
+
+
 --echo End of 5.1 tests

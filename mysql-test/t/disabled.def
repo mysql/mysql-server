@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
 mysqlhotcopy_myisam      : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 mysqlhotcopy_archive     : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
