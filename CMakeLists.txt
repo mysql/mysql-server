@@ -79,12 +79,12 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(BUILD_CONFIG)
-  SET(CMAKE_USER_MAKE_RULES_OVERRIDE 
-    ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
-ENDIF()
 
 PROJECT(MySQL)
+IF(BUILD_CONFIG)
+  INCLUDE(
+  ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
+ENDIF()
 
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
