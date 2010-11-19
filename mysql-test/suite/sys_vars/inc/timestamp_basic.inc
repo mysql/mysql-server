@@ -66,10 +66,6 @@ SET @@timestamp = 0;
 
 --echo 'Setting 0 resets timestamp to session default timestamp'
 
-SET @@timestamp = 123456789123456;
-SELECT @@timestamp;
-SET @@timestamp = 60*60*60*60*365;
-SELECT @@timestamp;
 SET @@timestamp = -1000000000;
 SELECT @@timestamp;
 
