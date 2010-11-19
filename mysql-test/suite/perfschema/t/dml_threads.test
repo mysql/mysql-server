@@ -19,43 +19,36 @@
 --source include/have_perfschema.inc
 
 --replace_column 1 # 2 # 3 #
-select * from performance_schema.THREADS
+select * from performance_schema.threads
   where name like 'Thread/%' limit 1;
 
-select * from performance_schema.THREADS
+select * from performance_schema.threads
   where name='FOO';
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.THREADS
+insert into performance_schema.threads
   set name='FOO', thread_id=1, processlist_id=2;
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.THREADS
+update performance_schema.threads
   set thread_id=12;
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.THREADS
+update performance_schema.threads
   set thread_id=12 where name like "FOO";
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.THREADS
+delete from performance_schema.threads
   where id=1;
 
---replace_result '\'threads' '\'THREADS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.THREADS;
+delete from performance_schema.threads;
 
---replace_result '\'threads' '\'THREADS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.THREADS READ;
+LOCK TABLES performance_schema.threads READ;
 UNLOCK TABLES;
 
---replace_result '\'threads' '\'THREADS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.THREADS WRITE;
+LOCK TABLES performance_schema.threads WRITE;
 UNLOCK TABLES;
 

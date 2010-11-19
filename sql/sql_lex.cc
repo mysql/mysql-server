@@ -417,7 +417,6 @@ void lex_start(THD *thd)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  lex->protect_against_global_read_lock= FALSE;
   /*
     ok, there must be a better solution for this, long-term
     I tried "bzero" in the sql_yacc.yy code, but that for

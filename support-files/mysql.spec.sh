@@ -335,6 +335,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
+Provides:       mysql-shared
 Obsoletes:      MySQL-shared-community
 
 %description -n MySQL-shared%{product_suffix}

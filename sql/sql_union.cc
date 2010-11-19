@@ -434,6 +434,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
 err:
   thd_arg->lex->current_select= lex_select_save;
+  (void) cleanup();
   DBUG_RETURN(TRUE);
 }
 

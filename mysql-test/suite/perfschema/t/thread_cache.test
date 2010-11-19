@@ -30,14 +30,14 @@ connect (con1, localhost, root, , );
 
 let $con1_ID=`select connection_id()`;
 
-let $con1_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con1_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 connect (con2, localhost, root, , );
 
 let $con2_ID=`select connection_id()`;
 
-let $con2_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con2_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 connection default;
@@ -58,7 +58,7 @@ connect (con3, localhost, root, , );
 
 let $con3_ID=`select connection_id()`;
 
-let $con3_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con3_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 disconnect con3;
@@ -82,14 +82,14 @@ connect (con1, localhost, root, , );
 
 let $con1_ID=`select connection_id()`;
 
-let $con1_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con1_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 connect (con2, localhost, root, , );
 
 let $con2_ID=`select connection_id()`;
 
-let $con2_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con2_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 connection default;
@@ -108,7 +108,7 @@ connect (con3, localhost, root, , );
 
 let $con3_ID=`select connection_id()`;
 
-let $con3_THREAD_ID=`select thread_id from performance_schema.THREADS
+let $con3_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
 disconnect con3;

@@ -464,3 +464,11 @@ SELECT -9223372036854775808 MOD -1;
 --echo #
 SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
 as foo;
+
+--echo #
+--echo # Bug #58137 char(0) column cause:
+--echo #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
+--echo #
+CREATE TABLE t1(a char(0));
+INSERT INTO t1 (SELECT -pi());
+DROP TABLE t1;

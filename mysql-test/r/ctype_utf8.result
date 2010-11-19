@@ -2040,6 +2040,20 @@ predicted_order	hex(utf8_encoding)
 100	E0B78AE2808DE0B6BA
 101	E0B78AE2808DE0B6BB
 DROP TABLE t1;
+SET NAMES utf8 COLLATE utf8_sinhala_ci;
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_sinhala_ci);
+INSERT INTO t1 VALUES ('a'),('ae'),('af');
+SELECT s1,hex(s1) FROM t1 ORDER BY s1;
+s1	hex(s1)
+a	61
+ae	6165
+af	6166
+SELECT * FROM t1 ORDER BY s1;
+s1
+a
+ae
+af
+DROP TABLE t1;
 End of 5.4 tests
 #
 # Start of 5.5 tests

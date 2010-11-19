@@ -226,8 +226,6 @@ bool Item::val_bool()
 */
 String *Item::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-
   if (!(collation.collation->state & MY_CS_NONASCII))
     return val_str(str);
   
@@ -3459,19 +3457,16 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-    param_type= MYSQL_TYPE_STRING;
 
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
-      param_type= MYSQL_TYPE_DOUBLE;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
-    param_type= MYSQL_TYPE_LONG;
     break;
 
   case DECIMAL_RESULT:
@@ -3483,8 +3478,6 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
-    param_type= MYSQL_TYPE_NEWDECIMAL;
-
     break;
   }
 
@@ -3516,6 +3509,7 @@ void
 Item_param::set_out_param_info(Send_field *info)
 {
   m_out_param_info= info;
+  param_type= m_out_param_info->type;
 }
 
 
@@ -3561,6 +3555,7 @@ void Item_param::make_field(Send_field *field)
   field->org_table_name= m_out_param_info->org_table_name;
   field->col_name= m_out_param_info->col_name;
   field->org_col_name= m_out_param_info->org_col_name;
+
   field->length= m_out_param_info->length;
   field->charsetnr= m_out_param_info->charsetnr;
   field->flags= m_out_param_info->flags;
@@ -5541,8 +5536,17 @@ static uint nr_of_decimals(const char *str, const char *end)
 
 
 /**
-  This function is only called during parsing. We will signal an error if
-  value is not a true double value (overflow)
+  This function is only called during parsing:
+  - when parsing SQL query from sql_yacc.yy
+  - when parsing XPath query from item_xmlfunc.cc
+  We will signal an error if value is not a true double value (overflow):
+  eng: Illegal %s '%-.192s' value found during parsing
+  
+  Note: the string is NOT null terminated when called from item_xmlfunc.cc,
+  so this->name will contain some SQL query tail behind the "length" bytes.
+  This is Ok for now, as this Item is never seen in SHOW,
+  or EXPLAIN, or anywhere else in metadata.
+  Item->name should be fixed to use LEX_STRING eventually.
 */
 
 Item_float::Item_float(const char *str_arg, uint length)
@@ -5553,12 +5557,9 @@ Item_float::Item_float(const char *str_arg, uint length)
                     &error);
   if (error)
   {
-    /*
-      Note that we depend on that str_arg is null terminated, which is true
-      when we are in the parser
-    */
-    DBUG_ASSERT(str_arg[length] == 0);
-    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
+    char tmp[NAME_LEN + 1];
+    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);
