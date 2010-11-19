@@ -250,7 +250,7 @@ AC_PROG_LIBTOOL
 
 # Ensure that we have --preserve-dup-deps defines, otherwise we get link
 # problems of 'mysql' with CXX=g++
-LIBTOOL="$LIBTOOL --preserve-dup-deps"
+#LIBTOOL="$LIBTOOL --preserve-dup-deps"
 AC_SUBST(LIBTOOL)dnl
 
 AC_SUBST(NM)dnl
@@ -2531,9 +2531,8 @@ MYSQL_CHECK_LIBEVENT
 MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
         [Traditional non-transactional MySQL tables])
 MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
-MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam_s.la], [libmyisam_embedded.la])
 MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(myisam, [ha_myisam.cc])
 
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
@@ -2856,9 +2855,6 @@ if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
-  # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o mf_keycaches.o waiting_threads.o"
-  AC_SUBST(THREAD_LOBJECTS)
 fi
 AM_CONDITIONAL(NEED_THREAD, test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2887,6 +2883,7 @@ AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
 AC_SUBST(mysql_plugin_libs)
+AC_SUBST(mysql_embedded_plugin_libs)
 AC_SUBST(maria_plugin_defs)
 
 

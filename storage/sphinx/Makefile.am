@@ -30,7 +30,7 @@ DEFS= @DEFS@ -D_REENTRANT -D_PTHREADS -DMYSQL_SERVER
 
 noinst_HEADERS =	ha_sphinx.h
 
-EXTRA_LTLIBRARIES =	ha_sphinx.la
+EXTRA_LTLIBRARIES =	libsphinx.la ha_sphinx.la
 pkgplugin_LTLIBRARIES = @plugin_sphinx_shared_target@ sphinx.la
 
 ha_sphinx_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir) \
@@ -44,11 +44,10 @@ sphinx_la_CXXFLAGS = $(AM_CFLAGS)
 sphinx_la_CFLAGS = $(AM_CFLAGS)
 sphinx_la_SOURCES = snippets_udf.cc
 
-EXTRA_LIBRARIES =	libsphinx.a
-noinst_LIBRARIES =	@plugin_sphinx_static_target@
-libsphinx_a_CXXFLAGS =	$(AM_CFLAGS)
-libsphinx_a_CFLAGS =	$(AM_CFLAGS)
-libsphinx_a_SOURCES=	ha_sphinx.cc
+noinst_LTLIBRARIES =	@plugin_sphinx_static_target@
+libsphinx_la_CXXFLAGS =	$(AM_CFLAGS)
+libsphinx_la_CFLAGS =	$(AM_CFLAGS)
+libsphinx_la_SOURCES=	ha_sphinx.cc
 
 EXTRA_DIST =		CMakeLists.txt
 # Don't update the files from bitkeeper

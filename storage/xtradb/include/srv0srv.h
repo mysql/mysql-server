@@ -57,8 +57,8 @@ extern const char	srv_mysql50_table_name_prefix[9];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
-/* This event is set to tell the purge thread to shut down */
-extern os_event_t	srv_purge_thread_event;
+/* This event is set at shutdown to wakeup threads from sleep */
+extern os_event_t	srv_shutdown_event;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */

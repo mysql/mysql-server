@@ -1,7 +1,6 @@
 MYSQL_STORAGE_ENGINE(oqgraph,,[Graph Storage Engine],
         [Open Query Graph Computation Engine], [])
 MYSQL_PLUGIN_DYNAMIC(oqgraph,   [ha_oqgraph.la])
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(oqgraph, [ha_oqgraph.cc])
 MYSQL_PLUGIN_ACTIONS(oqgraph,[
   AC_LANG_PUSH([C++])
   AC_MSG_CHECKING([whether compiler supports  -fvisibility-inlines-hidden])

@@ -30,7 +30,7 @@ DEFS =                  @DEFS@
 
 noinst_HEADERS =	ha_federated.h
 
-EXTRA_LTLIBRARIES =	ha_federated.la
+EXTRA_LTLIBRARIES =	libfederated.la libfederated_embedded.la ha_federated.la
 pkgplugin_LTLIBRARIES =	@plugin_federated_shared_target@
 ha_federated_la_LDFLAGS =	-module -rpath $(pkgplugindir) \
 				-L$(top_builddir)/libservices -lmysqlservices
@@ -39,10 +39,13 @@ ha_federated_la_CFLAGS =	-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_federated_la_SOURCES =	ha_federated.cc $(top_srcdir)/mysys/string.c
 
 
-EXTRA_LIBRARIES =	libfederated.a
-noinst_LIBRARIES =	@plugin_federated_static_target@
-libfederated_a_CXXFLAGS =	$(AM_CXXFLAGS)
-libfederated_a_SOURCES=	ha_federated.cc
+noinst_LTLIBRARIES =	@plugin_federated_static_target@ @plugin_federated_embedded_static_target@
+libfederated_la_CXXFLAGS =	$(AM_CXXFLAGS)
+libfederated_la_SOURCES=	ha_federated.cc
+
+libfederated_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
+libfederated_embedded_la_CFLAGS =	$(AM_CFLAGS) @plugin_embedded_defs@
+libfederated_embedded_la_SOURCES=	ha_federated.cc
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in

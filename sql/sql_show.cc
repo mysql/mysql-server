@@ -4329,7 +4329,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       base_type [(dimension)] [unsigned] [zerofill].
       For DATA_TYPE column we extract only base type.
     */
-    tmp_buff= strchr(type.ptr(), '(');
+    tmp_buff= strchr(type.c_ptr_safe(), '(');
     if (!tmp_buff)
       /*
         if there is no dimention part then check the presence of

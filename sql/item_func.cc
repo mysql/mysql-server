@@ -6165,8 +6165,8 @@ void uuid_short_init()
 longlong Item_func_uuid_short::val_int()
 {
   ulonglong val;
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  pthread_mutex_lock(&LOCK_short_uuid_generator);
   val= uuid_value++;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  pthread_mutex_unlock(&LOCK_short_uuid_generator);
   return (longlong) val;
 }

@@ -229,9 +229,8 @@ noinst_HEADERS=		\
 			handler/innodb_patch_info.h	\
 			mem/mem0dbg.c
 
-EXTRA_LIBRARIES=	libxtradb.a
-noinst_LIBRARIES=	@plugin_xtradb_static_target@
-libxtradb_a_SOURCES=	\
+noinst_LTLIBRARIES=	@plugin_xtradb_static_target@
+libxtradb_la_SOURCES=	\
 			btr/btr0btr.c			\
 			btr/btr0cur.c			\
 			btr/btr0pcur.c			\
@@ -326,16 +325,16 @@ libxtradb_a_SOURCES=	\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libxtradb_a_CXXFLAGS=	$(AM_CXXFLAGS)
-libxtradb_a_CFLAGS=	$(AM_CFLAGS)
+libxtradb_la_CXXFLAGS=	$(AM_CXXFLAGS)
+libxtradb_la_CFLAGS=	$(AM_CFLAGS)
 
-EXTRA_LTLIBRARIES=	ha_xtradb.la
+EXTRA_LTLIBRARIES=	libxtradb.la ha_xtradb.la
 pkgplugin_LTLIBRARIES=	@plugin_xtradb_shared_target@
 
 ha_xtradb_la_LDFLAGS=	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 ha_xtradb_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_xtradb_la_CFLAGS=	-shared $(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
-ha_xtradb_la_SOURCES=	$(libxtradb_a_SOURCES)
+ha_xtradb_la_SOURCES=	$(libxtradb_la_SOURCES)
 
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
