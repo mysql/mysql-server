@@ -628,3 +628,18 @@ SELECT EXTRACTVALUE('', LPAD(0.1111E-15, '2011', 1));
 
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug#58175 xml functions read initialized bytes when conversions happen
+--echo #
+SET NAMES latin1;
+SELECT UPDATEXML(CONVERT('' USING swe7), TRUNCATE('',1), 0);
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
