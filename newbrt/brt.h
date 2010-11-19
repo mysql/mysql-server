@@ -210,6 +210,12 @@ void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 int maybe_preallocate_in_file (int fd, u_int64_t size) __attribute__ ((warn_unused_result));
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
+
+void toku_brt_require_local_checkpoint (BRT brt, TOKUTXN txn);
+// Require that dictionary specified by brt is fully written to disk before
+// transaction txn is committed.
+
+
 void toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn);
 //Effect: suppresses rollback logs
 
