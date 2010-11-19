@@ -95,7 +95,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
-		   sql_binlog.cc rpl_injector.cc)
+		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
