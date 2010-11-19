@@ -3711,7 +3711,9 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+#ifndef MYSQL_CLIENT
   Hash_slave_rows m_hash;
+#endif
   /*
     Bitmap for columns available in the after image, if present. These
     fields are only available for Update_rows events. Observe that the
