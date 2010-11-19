@@ -207,7 +207,7 @@ while($i)
 {
   --let $flags=--start-position=$start_pos
 
-  if(`SELECT $i=2`)
+  if($i==2)
   {
     --let $flags= $flags --base64-output=decode-rows -v
   }
