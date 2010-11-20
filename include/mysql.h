@@ -17,11 +17,10 @@
   This file defines the client API to MySQL and also the ABI of the
   dynamically linked libmysqlclient.
 
-  The ABI should never be changed in a released product of MySQL
+  The ABI should never be changed in a released product of MySQL,
   thus you need to take great care when changing the file. In case
-  the file is changed so the ABI is broken, you must also
-  update the SHAREDLIB_MAJOR_VERSION in configure.in .
-
+  the file is changed so the ABI is broken, you must also update
+  the SHARED_LIB_MAJOR_VERSION in cmake/mysql_version.cmake
 */
 
 #ifndef _mysql_h
