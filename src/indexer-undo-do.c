@@ -192,7 +192,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
 
-    TXNID outermost_xid;
+    TXNID outermost_xid = TXNID_NONE;
     BOOL outermost_is_live = FALSE;
 
     // scan the provisional stack from bottom to top
