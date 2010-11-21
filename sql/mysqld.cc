@@ -323,7 +323,8 @@ static PSI_rwlock_key key_rwlock_openssl;
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
-static bool volatile ready_to_exit;
+/* See Bug#56666 and Bug#56760 */;
+volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
