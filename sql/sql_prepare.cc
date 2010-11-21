@@ -3179,7 +3179,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
-  MDL_ticket *mdl_savepoint= NULL;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3251,7 +3250,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     Marker used to release metadata locks acquired while the prepared
     statement is being checked.
   */
-  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* 
    The only case where we should have items in the thd->free_list is
@@ -3742,7 +3741,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     to point at it even after we restore from backup. This is ok, as
     expanded query was allocated in thd->mem_root.
   */
-  stmt_backup.set_query_inner(thd->query(), thd->query_length());
+  stmt_backup.set_query_inner(thd->query_string);
 
   /*
     At first execution of prepared statement we may perform logical
