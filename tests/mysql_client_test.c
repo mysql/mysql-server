@@ -1199,7 +1199,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1221,7 +1221,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -6447,7 +6447,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
@@ -19310,7 +19310,7 @@ static void test_bug49972()
   my_bool is_null;
 
   DBUG_ENTER("test_bug49972");
-  myheader("test_49972");
+  myheader("test_bug49972");
 
   rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
   myquery(rc);
@@ -19396,6 +19396,45 @@ static void test_bug49972()
 
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Bug#57058 SERVER_QUERY_WAS_SLOW not wired up.
+*/
+
+static void test_bug57058()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  DBUG_ENTER("test_bug57058");
+  myheader("test_bug57058");
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=0.1");
+  myquery(rc);
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_QUERY_WAS_SLOW));
+
+  rc= mysql_query(mysql, "select sleep(1)");
+  myquery(rc);
+
+  /*
+    Important: the flag is sent in the last EOF packet of
+    the query, the one which ends the result. Read the
+    result to see the "slow" status.
+  */
+  res= mysql_store_result(mysql);
+
+  DIE_UNLESS(mysql->server_status & SERVER_QUERY_WAS_SLOW);
+
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -19731,6 +19770,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
   { "test_bug47485", test_bug47485 },
+  { "test_bug57058", test_bug57058 },
   { 0, 0 }
 };
 

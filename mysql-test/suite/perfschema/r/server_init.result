@@ -88,10 +88,6 @@ where name like "wait/synch/mutex/sql/LOCK_manager";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_global_read_lock";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_global_system_variables";
 count(name)
 1
@@ -117,10 +113,6 @@ count(name)
 1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_event_metadata";
 count(name)
 1
 select count(name) from mutex_instances
@@ -181,10 +173,6 @@ count(name)
 1
 select count(name) from cond_instances
 where name like "wait/synch/cond/sql/COND_manager";
-count(name)
-1
-select count(name) from cond_instances
-where name like "wait/synch/cond/sql/COND_global_read_lock";
 count(name)
 1
 select count(name) from cond_instances
