@@ -1,6 +1,6 @@
 # truncate a giving file, all contents of the file are be cleared
 
-if (`SELECT 'x$file' = 'x'`)
+if (!$file)
 {
   --echo Please assign a file name to $file!!
   exit;

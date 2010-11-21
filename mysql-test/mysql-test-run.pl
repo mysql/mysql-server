@@ -1811,17 +1811,17 @@ sub executable_setup () {
   if ( ! $opt_skip_ndbcluster )
   {
     $exe_ndbd=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbd");
 
     $exe_ndb_mgmd=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
     $exe_ndb_waiter=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/tools/", "bin"],
 		  "ndb_waiter");
 
@@ -2193,12 +2193,12 @@ sub environment_setup {
   if ( ! $opt_skip_ndbcluster )
   {
     $ENV{'NDB_MGM'}=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
     $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($basedir,
+      my_find_dir($bindir,
 		  ["storage/ndb/tools", "bin"]);
 
     $ENV{'NDB_EXAMPLES_DIR'}=
@@ -2206,7 +2206,7 @@ sub environment_setup {
 		  ["storage/ndb/ndbapi-examples", "bin"]);
 
     $ENV{'NDB_EXAMPLES_BINARY'}=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
 		  "ndbapi_simple", NOT_REQUIRED);
 
