@@ -967,7 +967,7 @@ sync_array_print_long_waits(void)
 			(ulong)os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 
 		os_thread_sleep(30000000);
 

@@ -47,7 +47,7 @@ while($i)
   SET SQL_LOG_BIN=0;
 
 
-  if (`SELECT $i=1`) {
+  if ($i == 1) {
     -- echo ### Different PKs on master and first slave
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
@@ -56,7 +56,7 @@ while($i)
     -- connection mysqld_c 
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=2`)
+  if ($i == 2)
   { 
     -- echo ### Different PKs on master and first slave (which has unique NOT NULL key instead of PK)
     -- connection mysqld_a
@@ -66,7 +66,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=3`)
+  if ($i == 3)
   { 
     -- echo ### Master with PK and first slave with KEY only
     -- connection mysqld_a
@@ -76,7 +76,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=4`)
+  if ($i == 4)
   { 
     -- echo ### Master with PK and no keys on the slaves
     -- connection mysqld_a
@@ -86,7 +86,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=5`) {
+  if ($i == 5) {
     -- echo ### Master with UK NOT NULL and slaves with PK on different fields
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int NOT NULL, c2 blob, c3 int, unique key(c1)) engine= $mysqld_a_engine;
@@ -95,7 +95,7 @@ while($i)
     -- connection mysqld_c 
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=6`)
+  if ($i == 6)
   { 
     -- echo ### Master with UK NOT NULL, first slave with UK NOT NULL on different field
     -- connection mysqld_a
@@ -105,7 +105,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=7`)
+  if ($i == 7)
   { 
     -- echo ### Master with UK NULLABLE, first slave with K on different field second slave with key on yet another different field
       
@@ -116,7 +116,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=8`)
+  if ($i == 8)
   { 
     -- echo ### Master with UK NULLABLE, slaves with no keys
     -- connection mysqld_a
@@ -126,7 +126,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=9`) {
+  if ($i == 9) {
     -- echo ### Master with Key, slaves with PKs on different fields
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
@@ -135,7 +135,7 @@ while($i)
     -- connection mysqld_c 
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=10`)
+  if ($i == 10)
   { 
     -- echo ### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
     -- connection mysqld_a
@@ -145,7 +145,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=11`)
+  if ($i == 11)
   { 
     -- echo ### Master with Key, first slave with key on different field and second slave with key on yet another different field.
     -- connection mysqld_a
@@ -155,7 +155,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=12`)
+  if ($i == 12)
   { 
     -- echo ### Master with Key, slaves with no keys
     -- connection mysqld_a
@@ -165,7 +165,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=13`) {
+  if ($i == 13) {
     -- echo ### Master with no key, slaves with PKs on different fields
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
@@ -174,7 +174,7 @@ while($i)
     -- connection mysqld_c 
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=14`)
+  if ($i == 14)
   { 
     -- echo ### Master with no key, slaves with PKs on different fields (first slave with UK NOT NULL, second with PK)
     -- connection mysqld_a
@@ -184,7 +184,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=15`)
+  if ($i == 15)
   { 
     -- echo ### Master with no key, slaves with keys
     -- connection mysqld_a
@@ -194,7 +194,7 @@ while($i)
     -- connection mysqld_c
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c2(512))) engine= $mysqld_c_engine;
   }
-  if (`SELECT $i=16`)
+  if ($i == 16)
   { 
     -- echo ### Master with no keys slaves with no keys as well
     -- connection mysqld_a

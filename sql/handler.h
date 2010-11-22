@@ -1792,7 +1792,6 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
-protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle. Fetches the
@@ -1806,6 +1805,7 @@ protected:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle. Fetches the
@@ -1823,8 +1823,8 @@ protected:
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
 public:
+  virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
      @brief
      The following functions works like index_read, but it find the last

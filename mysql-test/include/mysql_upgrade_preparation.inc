@@ -17,7 +17,7 @@ select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
 # Therefore, truncate the log table in advance and issue a statement
 # that should be logged.
 #
-if (`SELECT $VALGRIND_TEST`)
+if ($VALGRIND_TEST)
 {
   --disable_query_log
   --disable_result_log

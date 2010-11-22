@@ -68,8 +68,6 @@ static void init_mdl_psi_keys(void)
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket);
-
 
 /**
   Thread state names to be used in case when we have to wait on resource
@@ -78,12 +76,14 @@ void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket);
 
 const char *MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
 {
-  "Waiting for global metadata lock",
+  "Waiting for global read lock",
   "Waiting for schema metadata lock",
   "Waiting for table metadata lock",
   "Waiting for stored function metadata lock",
   "Waiting for stored procedure metadata lock",
-  NULL
+  "Waiting for trigger metadata lock",
+  "Waiting for event metadata lock",
+  "Waiting for commit lock"
 };
 
 static bool mdl_initialized= 0;
@@ -100,7 +100,6 @@ class MDL_map
 public:
   void init();
   void destroy();
-  MDL_lock *find(const MDL_key *key);
   MDL_lock *find_or_insert(const MDL_key *key);
   void remove(MDL_lock *lock);
 private:
@@ -110,6 +109,10 @@ private:
   HASH m_locks;
   /* Protects access to m_locks hash. */
   mysql_mutex_t m_mutex;
+  /** Pre-allocated MDL_lock object for GLOBAL namespace. */
+  MDL_lock *m_global_lock;
+  /** Pre-allocated MDL_lock object for COMMIT namespace. */
+  MDL_lock *m_commit_lock;
 };
 
 
@@ -354,24 +357,15 @@ public:
 
   inline static MDL_lock *create(const MDL_key *key);
 
-  void notify_shared_locks(MDL_context *ctx)
-  {
-    Ticket_iterator it(m_granted);
-    MDL_ticket *conflicting_ticket;
-
-    while ((conflicting_ticket= it++))
-    {
-      if (conflicting_ticket->get_ctx() != ctx)
-        notify_shared_lock(ctx->get_thd(), conflicting_ticket);
-    }
-  }
-
   void reschedule_waiters();
 
   void remove_ticket(Ticket_list MDL_lock::*queue, MDL_ticket *ticket);
 
   bool visit_subgraph(MDL_ticket *waiting_ticket,
                       MDL_wait_for_graph_visitor *gvisitor);
+
+  virtual bool needs_notification(const MDL_ticket *ticket) const = 0;
+  virtual void notify_conflicting_locks(MDL_context *ctx) = 0;
 
   /** List of granted tickets for this lock. */
   Ticket_list m_granted;
@@ -442,6 +436,11 @@ public:
   {
     return m_waiting_incompatible;
   }
+  virtual bool needs_notification(const MDL_ticket *ticket) const
+  {
+    return (ticket->get_type() == MDL_SHARED);
+  }
+  virtual void notify_conflicting_locks(MDL_context *ctx);
 
 private:
   static const bitmap_t m_granted_incompatible[MDL_TYPE_END];
@@ -469,6 +468,11 @@ public:
   {
     return m_waiting_incompatible;
   }
+  virtual bool needs_notification(const MDL_ticket *ticket) const
+  {
+    return ticket->is_upgradable_or_exclusive();
+  }
+  virtual void notify_conflicting_locks(MDL_context *ctx);
 
 private:
   static const bitmap_t m_granted_incompatible[MDL_TYPE_END];
@@ -536,9 +540,14 @@ void mdl_destroy()
 
 void MDL_map::init()
 {
+  MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
+  MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
+
   mysql_mutex_init(key_MDL_map_mutex, &m_mutex, NULL);
   my_hash_init(&m_locks, &my_charset_bin, 16 /* FIXME */, 0, 0,
                mdl_locks_key, 0, 0);
+  m_global_lock= MDL_lock::create(&global_lock_key);
+  m_commit_lock= MDL_lock::create(&commit_lock_key);
 }
 
 
@@ -552,6 +561,8 @@ void MDL_map::destroy()
   DBUG_ASSERT(!m_locks.records);
   mysql_mutex_destroy(&m_mutex);
   my_hash_free(&m_locks);
+  MDL_lock::destroy(m_global_lock);
+  MDL_lock::destroy(m_commit_lock);
 }
 
 
@@ -569,6 +580,29 @@ MDL_lock* MDL_map::find_or_insert(const MDL_key *mdl_key)
   MDL_lock *lock;
   my_hash_value_type hash_value;
 
+  if (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
+      mdl_key->mdl_namespace() == MDL_key::COMMIT)
+  {
+    /*
+      Avoid locking m_mutex when lock for GLOBAL or COMMIT namespace is
+      requested. Return pointer to pre-allocated MDL_lock instance instead.
+      Such an optimization allows to save one mutex lock/unlock for any
+      statement changing data.
+
+      It works since these namespaces contain only one element so keys
+      for them look like '<namespace-id>\0\0'.
+    */
+    DBUG_ASSERT(mdl_key->length() == 3);
+
+    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
+                                                          m_commit_lock;
+
+    mysql_prlock_wrlock(&lock->m_rwlock);
+
+    return lock;
+  }
+
+
   hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
 
 retry:
@@ -585,39 +619,6 @@ retry:
       MDL_lock::destroy(lock);
       return NULL;
     }
-  }
-
-  if (move_from_hash_to_lock_mutex(lock))
-    goto retry;
-
-  return lock;
-}
-
-
-/**
-  Find MDL_lock object corresponding to the key.
-
-  @retval non-NULL - MDL_lock instance for the key with locked
-                     MDL_lock::m_rwlock.
-  @retval NULL     - There was no MDL_lock for the key.
-*/
-
-MDL_lock* MDL_map::find(const MDL_key *mdl_key)
-{
-  MDL_lock *lock;
-  my_hash_value_type hash_value;
-
-  hash_value= my_calc_hash(&m_locks, mdl_key->ptr(), mdl_key->length());
-
-retry:
-  mysql_mutex_lock(&m_mutex);
-  if (!(lock= (MDL_lock*) my_hash_search_using_hash_value(&m_locks,
-                                                          hash_value,
-                                                          mdl_key->ptr(),
-                                                          mdl_key->length())))
-  {
-    mysql_mutex_unlock(&m_mutex);
-    return NULL;
   }
 
   if (move_from_hash_to_lock_mutex(lock))
@@ -684,6 +685,17 @@ void MDL_map::remove(MDL_lock *lock)
 {
   uint ref_usage, ref_release;
 
+  if (lock->key.mdl_namespace() == MDL_key::GLOBAL ||
+      lock->key.mdl_namespace() == MDL_key::COMMIT)
+  {
+    /*
+      Never destroy pre-allocated MDL_lock objects for GLOBAL and
+      COMMIT namespaces.
+    */
+    mysql_prlock_unlock(&lock->m_rwlock);
+    return;
+  }
+
   /*
     Destroy the MDL_lock object, but ensure that anyone that is
     holding a reference to the object is not remaining, if so he
@@ -719,8 +731,7 @@ void MDL_map::remove(MDL_lock *lock)
 */
 
 MDL_context::MDL_context()
-  :m_trans_sentinel(NULL),
-  m_thd(NULL),
+  : m_thd(NULL),
   m_needs_thr_lock_abort(FALSE),
   m_waiting_for(NULL)
 {
@@ -742,7 +753,9 @@ MDL_context::MDL_context()
 
 void MDL_context::destroy()
 {
-  DBUG_ASSERT(m_tickets.is_empty());
+  DBUG_ASSERT(m_tickets[MDL_STATEMENT].is_empty());
+  DBUG_ASSERT(m_tickets[MDL_TRANSACTION].is_empty());
+  DBUG_ASSERT(m_tickets[MDL_EXPLICIT].is_empty());
 
   mysql_prlock_destroy(&m_LOCK_waiting_for);
 }
@@ -771,10 +784,12 @@ void MDL_context::destroy()
 void MDL_request::init(MDL_key::enum_mdl_namespace mdl_namespace,
                        const char *db_arg,
                        const char *name_arg,
-                       enum enum_mdl_type mdl_type_arg)
+                       enum_mdl_type mdl_type_arg,
+                       enum_mdl_duration mdl_duration_arg)
 {
   key.mdl_key_init(mdl_namespace, db_arg, name_arg);
   type= mdl_type_arg;
+  duration= mdl_duration_arg;
   ticket= NULL;
 }
 
@@ -789,45 +804,13 @@ void MDL_request::init(MDL_key::enum_mdl_namespace mdl_namespace,
 */
 
 void MDL_request::init(const MDL_key *key_arg,
-                       enum enum_mdl_type mdl_type_arg)
+                       enum_mdl_type mdl_type_arg,
+                       enum_mdl_duration mdl_duration_arg)
 {
   key.mdl_key_init(key_arg);
   type= mdl_type_arg;
+  duration= mdl_duration_arg;
   ticket= NULL;
-}
-
-
-/**
-  Allocate and initialize one lock request.
-
-  Same as mdl_init_lock(), but allocates the lock and the key buffer
-  on a memory root. Necessary to lock ad-hoc tables, e.g.
-  mysql.* tables of grant and data dictionary subsystems.
-
-  @param  mdl_namespace  Id of namespace of object to be locked
-  @param  db             Name of database to which object belongs
-  @param  name           Name of of object
-  @param  root           MEM_ROOT on which object should be allocated
-
-  @note The allocated lock request will have MDL_SHARED type.
-
-  @retval 0      Error if out of memory
-  @retval non-0  Pointer to an object representing a lock request
-*/
-
-MDL_request *
-MDL_request::create(MDL_key::enum_mdl_namespace mdl_namespace, const char *db,
-                    const char *name, enum_mdl_type mdl_type,
-                    MEM_ROOT *root)
-{
-  MDL_request *mdl_request;
-
-  if (!(mdl_request= (MDL_request*) alloc_root(root, sizeof(MDL_request))))
-    return NULL;
-
-  mdl_request->init(mdl_namespace, db, name, mdl_type);
-
-  return mdl_request;
 }
 
 
@@ -846,6 +829,7 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key)
   {
     case MDL_key::GLOBAL:
     case MDL_key::SCHEMA:
+    case MDL_key::COMMIT:
       return new MDL_scoped_lock(mdl_key);
     default:
       return new MDL_object_lock(mdl_key);
@@ -867,9 +851,17 @@ void MDL_lock::destroy(MDL_lock *lock)
         on memory allocation by reusing released objects.
 */
 
-MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg)
+MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
+#ifndef DBUG_OFF
+                               , enum_mdl_duration duration_arg
+#endif
+                               )
 {
-  return new MDL_ticket(ctx_arg, type_arg);
+  return new MDL_ticket(ctx_arg, type_arg
+#ifndef DBUG_OFF
+                        , duration_arg
+#endif
+                        );
 }
 
 
@@ -1438,13 +1430,11 @@ bool MDL_ticket::is_incompatible_when_waiting(enum_mdl_type type) const
 /**
   Check whether the context already holds a compatible lock ticket
   on an object.
-  Start searching the transactional locks. If not
-  found in the list of transactional locks, look at LOCK TABLES
-  and HANDLER locks.
+  Start searching from list of locks for the same duration as lock
+  being requested. If not look at lists for other durations.
 
   @param mdl_request  Lock request object for lock to be acquired
-  @param[out] is_transactional FALSE if we pass beyond m_trans_sentinel
-                      while searching for ticket, otherwise TRUE.
+  @param[out] result_duration  Duration of lock which was found.
 
   @note Tickets which correspond to lock types "stronger" than one
         being requested are also considered compatible.
@@ -1454,24 +1444,28 @@ bool MDL_ticket::is_incompatible_when_waiting(enum_mdl_type type) const
 
 MDL_ticket *
 MDL_context::find_ticket(MDL_request *mdl_request,
-                         bool *is_transactional)
+                         enum_mdl_duration *result_duration)
 {
   MDL_ticket *ticket;
-  Ticket_iterator it(m_tickets);
+  int i;
 
-  *is_transactional= TRUE;
-
-  while ((ticket= it++))
+  for (i= 0; i < MDL_DURATION_END; i++)
   {
-    if (ticket == m_trans_sentinel)
-      *is_transactional= FALSE;
+    enum_mdl_duration duration= (enum_mdl_duration)((mdl_request->duration+i) %
+                                                    MDL_DURATION_END);
+    Ticket_iterator it(m_tickets[duration]);
 
-    if (mdl_request->key.is_equal(&ticket->m_lock->key) &&
-        ticket->has_stronger_or_equal_type(mdl_request->type))
-      break;
+    while ((ticket= it++))
+    {
+      if (mdl_request->key.is_equal(&ticket->m_lock->key) &&
+          ticket->has_stronger_or_equal_type(mdl_request->type))
+      {
+        *result_duration= duration;
+        return ticket;
+      }
+    }
   }
-
-  return ticket;
+  return NULL;
 }
 
 
@@ -1549,7 +1543,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   MDL_lock *lock;
   MDL_key *key= &mdl_request->key;
   MDL_ticket *ticket;
-  bool is_transactional;
+  enum_mdl_duration found_duration;
 
   DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
               is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
@@ -1563,7 +1557,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     Check whether the context already holds a shared lock on the object,
     and if so, grant the request.
   */
-  if ((ticket= find_ticket(mdl_request, &is_transactional)))
+  if ((ticket= find_ticket(mdl_request, &found_duration)))
   {
     DBUG_ASSERT(ticket->m_lock);
     DBUG_ASSERT(ticket->has_stronger_or_equal_type(mdl_request->type));
@@ -1585,7 +1579,9 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
       a different alias.
     */
     mdl_request->ticket= ticket;
-    if (!is_transactional && clone_ticket(mdl_request))
+    if ((found_duration != mdl_request->duration ||
+         mdl_request->duration == MDL_EXPLICIT) &&
+        clone_ticket(mdl_request))
     {
       /* Clone failed. */
       mdl_request->ticket= NULL;
@@ -1594,7 +1590,11 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     return FALSE;
   }
 
-  if (!(ticket= MDL_ticket::create(this, mdl_request->type)))
+  if (!(ticket= MDL_ticket::create(this, mdl_request->type
+#ifndef DBUG_OFF
+                                   , mdl_request->duration
+#endif
+                                   )))
     return TRUE;
 
   /* The below call implicitly locks MDL_lock::m_rwlock on success. */
@@ -1612,7 +1612,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
 
     mysql_prlock_unlock(&lock->m_rwlock);
 
-    m_tickets.push_front(ticket);
+    m_tickets[mdl_request->duration].push_front(ticket);
 
     mdl_request->ticket= ticket;
   }
@@ -1647,7 +1647,11 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     we effectively downgrade the cloned lock to the level of
     the request.
   */
-  if (!(ticket= MDL_ticket::create(this, mdl_request->type)))
+  if (!(ticket= MDL_ticket::create(this, mdl_request->type
+#ifndef DBUG_OFF
+                                   , mdl_request->duration
+#endif
+                                   )))
     return TRUE;
 
   /* clone() is not supposed to be used to get a stronger lock. */
@@ -1660,36 +1664,74 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
   ticket->m_lock->m_granted.add_ticket(ticket);
   mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
 
-  m_tickets.push_front(ticket);
+  m_tickets[mdl_request->duration].push_front(ticket);
 
   return FALSE;
 }
 
 
 /**
-  Notify a thread holding a shared metadata lock which
-  conflicts with a pending exclusive lock.
+  Notify threads holding a shared metadata locks on object which
+  conflict with a pending X, SNW or SNRW lock.
 
-  @param thd               Current thread context
-  @param conflicting_ticket  Conflicting metadata lock
+  @param  ctx  MDL_context for current thread.
 */
 
-void notify_shared_lock(THD *thd, MDL_ticket *conflicting_ticket)
+void MDL_object_lock::notify_conflicting_locks(MDL_context *ctx)
 {
-  /* Only try to abort locks on which we back off. */
-  if (conflicting_ticket->get_type() < MDL_SHARED_NO_WRITE)
-  {
-    MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
-    THD *conflicting_thd= conflicting_ctx->get_thd();
-    DBUG_ASSERT(thd != conflicting_thd); /* Self-deadlock */
+  Ticket_iterator it(m_granted);
+  MDL_ticket *conflicting_ticket;
 
-    /*
-      If thread which holds conflicting lock is waiting on table-level
-      lock or some other non-MDL resource we might need to wake it up
-      by calling code outside of MDL.
-    */
-    mysql_notify_thread_having_shared_lock(thd, conflicting_thd,
-                               conflicting_ctx->get_needs_thr_lock_abort());
+  while ((conflicting_ticket= it++))
+  {
+    /* Only try to abort locks on which we back off. */
+    if (conflicting_ticket->get_ctx() != ctx &&
+        conflicting_ticket->get_type() < MDL_SHARED_NO_WRITE)
+
+    {
+      MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
+
+      /*
+        If thread which holds conflicting lock is waiting on table-level
+        lock or some other non-MDL resource we might need to wake it up
+        by calling code outside of MDL.
+      */
+      mysql_notify_thread_having_shared_lock(ctx->get_thd(),
+                                 conflicting_ctx->get_thd(),
+                                 conflicting_ctx->get_needs_thr_lock_abort());
+    }
+  }
+}
+
+
+/**
+  Notify threads holding scoped IX locks which conflict with a pending S lock.
+
+  @param  ctx  MDL_context for current thread.
+*/
+
+void MDL_scoped_lock::notify_conflicting_locks(MDL_context *ctx)
+{
+  Ticket_iterator it(m_granted);
+  MDL_ticket *conflicting_ticket;
+
+  while ((conflicting_ticket= it++))
+  {
+    if (conflicting_ticket->get_ctx() != ctx &&
+        conflicting_ticket->get_type() == MDL_INTENTION_EXCLUSIVE)
+
+    {
+      MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
+
+      /*
+        Thread which holds global IX lock can be a handler thread for
+        insert delayed. We need to kill such threads in order to get
+        global shared lock. We do this my calling code outside of MDL.
+      */
+      mysql_notify_thread_having_shared_lock(ctx->get_thd(),
+                                 conflicting_ctx->get_thd(),
+                                 conflicting_ctx->get_needs_thr_lock_abort());
+    }
   }
 }
 
@@ -1747,8 +1789,8 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   */
   m_wait.reset_status();
 
-  if (ticket->is_upgradable_or_exclusive())
-    lock->notify_shared_locks(this);
+  if (lock->needs_notification(ticket))
+    lock->notify_conflicting_locks(this);
 
   mysql_prlock_unlock(&lock->m_rwlock);
 
@@ -1759,7 +1801,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   find_deadlock();
 
-  if (ticket->is_upgradable_or_exclusive())
+  if (lock->needs_notification(ticket))
   {
     struct timespec abs_shortwait;
     set_timespec(abs_shortwait, 1);
@@ -1775,7 +1817,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
         break;
 
       mysql_prlock_wrlock(&lock->m_rwlock);
-      lock->notify_shared_locks(this);
+      lock->notify_conflicting_locks(this);
       mysql_prlock_unlock(&lock->m_rwlock);
       set_timespec(abs_shortwait, 1);
     }
@@ -1818,7 +1860,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   */
   DBUG_ASSERT(wait_status == MDL_wait::GRANTED);
 
-  m_tickets.push_front(ticket);
+  m_tickets[mdl_request->duration].push_front(ticket);
 
   mdl_request->ticket= ticket;
 
@@ -1859,7 +1901,7 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
 {
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **sort_buf, **p_req;
-  MDL_ticket *mdl_svp= mdl_savepoint();
+  MDL_savepoint mdl_svp= mdl_savepoint();
   ssize_t req_count= static_cast<ssize_t>(mdl_requests->elements());
 
   if (req_count == 0)
@@ -1928,7 +1970,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
                                               ulong lock_wait_timeout)
 {
   MDL_request mdl_xlock_request;
-  MDL_ticket *mdl_svp= mdl_savepoint();
+  MDL_savepoint mdl_svp= mdl_savepoint();
   bool is_new_ticket;
 
   DBUG_ENTER("MDL_ticket::upgrade_shared_lock_to_exclusive");
@@ -1945,7 +1987,8 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
   DBUG_ASSERT(mdl_ticket->m_type == MDL_SHARED_NO_WRITE ||
               mdl_ticket->m_type == MDL_SHARED_NO_READ_WRITE);
 
-  mdl_xlock_request.init(&mdl_ticket->m_lock->key, MDL_EXCLUSIVE);
+  mdl_xlock_request.init(&mdl_ticket->m_lock->key, MDL_EXCLUSIVE,
+                         MDL_TRANSACTION);
 
   if (acquire_lock(&mdl_xlock_request, lock_wait_timeout))
     DBUG_RETURN(TRUE);
@@ -1969,7 +2012,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
 
   if (is_new_ticket)
   {
-    m_tickets.remove(mdl_xlock_request.ticket);
+    m_tickets[MDL_TRANSACTION].remove(mdl_xlock_request.ticket);
     MDL_ticket::destroy(mdl_xlock_request.ticket);
   }
 
@@ -2230,10 +2273,12 @@ void MDL_context::find_deadlock()
 /**
   Release lock.
 
-  @param ticket Ticket for lock to be released.
+  @param duration Lock duration.
+  @param ticket   Ticket for lock to be released.
+
 */
 
-void MDL_context::release_lock(MDL_ticket *ticket)
+void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
 {
   MDL_lock *lock= ticket->m_lock;
   DBUG_ENTER("MDL_context::release_lock");
@@ -2243,15 +2288,27 @@ void MDL_context::release_lock(MDL_ticket *ticket)
   DBUG_ASSERT(this == ticket->get_ctx());
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  if (ticket == m_trans_sentinel)
-    m_trans_sentinel= ++Ticket_list::Iterator(m_tickets, ticket);
-
   lock->remove_ticket(&MDL_lock::m_granted, ticket);
 
-  m_tickets.remove(ticket);
+  m_tickets[duration].remove(ticket);
   MDL_ticket::destroy(ticket);
 
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Release lock with explicit duration.
+
+  @param ticket   Ticket for lock to be released.
+
+*/
+
+void MDL_context::release_lock(MDL_ticket *ticket)
+{
+  DBUG_ASSERT(ticket->m_duration == MDL_EXPLICIT);
+
+  release_lock(MDL_EXPLICIT, ticket);
 }
 
 
@@ -2260,46 +2317,37 @@ void MDL_context::release_lock(MDL_ticket *ticket)
   is not NULL, do not release locks stored in the list after and
   including the sentinel.
 
-  Transactional locks are added to the beginning of the list, i.e.
-  stored in reverse temporal order. This allows to employ this
-  function to:
+  Statement and transactional locks are added to the beginning of
+  the corresponding lists, i.e. stored in reverse temporal order.
+  This allows to employ this function to:
   - back off in case of a lock conflict.
-  - release all locks in the end of a transaction
+  - release all locks in the end of a statment or transaction
   - rollback to a savepoint.
-
-  The sentinel semantics is used to support LOCK TABLES
-  mode and HANDLER statements: locks taken by these statements
-  survive COMMIT, ROLLBACK, ROLLBACK TO SAVEPOINT.
 */
 
-void MDL_context::release_locks_stored_before(MDL_ticket *sentinel)
+void MDL_context::release_locks_stored_before(enum_mdl_duration duration,
+                                              MDL_ticket *sentinel)
 {
   MDL_ticket *ticket;
-  Ticket_iterator it(m_tickets);
+  Ticket_iterator it(m_tickets[duration]);
   DBUG_ENTER("MDL_context::release_locks_stored_before");
 
-  if (m_tickets.is_empty())
+  if (m_tickets[duration].is_empty())
     DBUG_VOID_RETURN;
 
   while ((ticket= it++) && ticket != sentinel)
   {
     DBUG_PRINT("info", ("found lock to release ticket=%p", ticket));
-    release_lock(ticket);
+    release_lock(duration, ticket);
   }
-  /*
-    If all locks were released, then the sentinel was not present
-    in the list. It must never happen because the sentinel was
-    bogus, i.e. pointed to a ticket that no longer exists.
-  */
-  DBUG_ASSERT(! m_tickets.is_empty() || sentinel == NULL);
 
   DBUG_VOID_RETURN;
 }
 
 
 /**
-  Release all locks in the context which correspond to the same name/
-  object as this lock request.
+  Release all explicit locks in the context which correspond to the
+  same name/object as this lock request.
 
   @param ticket    One of the locks for the name/object for which all
                    locks should be released.
@@ -2312,17 +2360,13 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
 
   /* Remove matching lock tickets from the context. */
   MDL_ticket *ticket;
-  Ticket_iterator it_ticket(m_tickets);
+  Ticket_iterator it_ticket(m_tickets[MDL_EXPLICIT]);
 
   while ((ticket= it_ticket++))
   {
     DBUG_ASSERT(ticket->m_lock);
-    /*
-      We rarely have more than one ticket in this loop,
-      let's not bother saving on pthread_cond_broadcast().
-    */
     if (ticket->m_lock == lock)
-      release_lock(ticket);
+      release_lock(MDL_EXPLICIT, ticket);
   }
 }
 
@@ -2377,9 +2421,10 @@ MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
                            enum_mdl_type mdl_type)
 {
   MDL_request mdl_request;
-  bool is_transactional_unused;
-  mdl_request.init(mdl_namespace, db, name, mdl_type);
-  MDL_ticket *ticket= find_ticket(&mdl_request, &is_transactional_unused);
+  enum_mdl_duration not_unused;
+  /* We don't care about exact duration of lock here. */
+  mdl_request.init(mdl_namespace, db, name, mdl_type, MDL_TRANSACTION);
+  MDL_ticket *ticket= find_ticket(&mdl_request, &not_unused);
 
   DBUG_ASSERT(ticket == NULL || ticket->m_lock);
 
@@ -2408,18 +2453,15 @@ bool MDL_ticket::has_pending_conflicting_lock() const
   @note It's safe to iterate and unlock any locks after taken after this
         savepoint because other statements that take other special locks
         cause a implicit commit (ie LOCK TABLES).
-
-  @param mdl_savepont  The last acquired MDL lock when the
-                       savepoint was set.
 */
 
-void MDL_context::rollback_to_savepoint(MDL_ticket *mdl_savepoint)
+void MDL_context::rollback_to_savepoint(const MDL_savepoint &mdl_savepoint)
 {
   DBUG_ENTER("MDL_context::rollback_to_savepoint");
 
   /* If savepoint is NULL, it is from the start of the transaction. */
-  release_locks_stored_before(mdl_savepoint ?
-                              mdl_savepoint : m_trans_sentinel);
+  release_locks_stored_before(MDL_STATEMENT, mdl_savepoint.m_stmt_ticket);
+  release_locks_stored_before(MDL_TRANSACTION, mdl_savepoint.m_trans_ticket);
 
   DBUG_VOID_RETURN;
 }
@@ -2437,65 +2479,150 @@ void MDL_context::rollback_to_savepoint(MDL_ticket *mdl_savepoint)
 void MDL_context::release_transactional_locks()
 {
   DBUG_ENTER("MDL_context::release_transactional_locks");
-  release_locks_stored_before(m_trans_sentinel);
+  release_locks_stored_before(MDL_STATEMENT, NULL);
+  release_locks_stored_before(MDL_TRANSACTION, NULL);
+  DBUG_VOID_RETURN;
+}
+
+
+void MDL_context::release_statement_locks()
+{
+  DBUG_ENTER("MDL_context::release_transactional_locks");
+  release_locks_stored_before(MDL_STATEMENT, NULL);
   DBUG_VOID_RETURN;
 }
 
 
 /**
   Does this savepoint have this lock?
-  
-  @retval TRUE  The ticket is older than the savepoint and
-                is not LT, HA or GLR ticket. Thus it belongs
-                to the savepoint.
-  @retval FALSE The ticket is newer than the savepoint
-                or is an LT, HA or GLR ticket.
+
+  @retval TRUE  The ticket is older than the savepoint or
+                is an LT, HA or GLR ticket. Thus it belongs
+                to the savepoint or has explicit duration.
+  @retval FALSE The ticket is newer than the savepoint.
+                and is not an LT, HA or GLR ticket.
 */
 
-bool MDL_context::has_lock(MDL_ticket *mdl_savepoint,
+bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
                            MDL_ticket *mdl_ticket)
 {
   MDL_ticket *ticket;
   /* Start from the beginning, most likely mdl_ticket's been just acquired. */
-  MDL_context::Ticket_iterator it(m_tickets);
-  bool found_savepoint= FALSE;
+  MDL_context::Ticket_iterator s_it(m_tickets[MDL_STATEMENT]);
+  MDL_context::Ticket_iterator t_it(m_tickets[MDL_TRANSACTION]);
 
-  while ((ticket= it++) && ticket != m_trans_sentinel)
+  while ((ticket= s_it++) && ticket != mdl_savepoint.m_stmt_ticket)
   {
-    /*
-      First met the savepoint. The ticket must be
-      somewhere after it.
-    */
-    if (ticket == mdl_savepoint)
-      found_savepoint= TRUE;
-    /*
-      Met the ticket. If we haven't yet met the savepoint,
-      the ticket is newer than the savepoint.
-    */
     if (ticket == mdl_ticket)
-      return found_savepoint;
+      return FALSE;
   }
-  /* Reached m_trans_sentinel. The ticket must be LT, HA or GRL ticket. */
-  return FALSE;
+
+  while ((ticket= t_it++) && ticket != mdl_savepoint.m_trans_ticket)
+  {
+    if (ticket == mdl_ticket)
+      return FALSE;
+  }
+  return TRUE;
 }
 
 
 /**
-  Rearrange the ticket to reside in the part of the list that's
-  beyond m_trans_sentinel. This effectively changes the ticket
-  life cycle, from automatic to manual: i.e. the ticket is no
-  longer released by MDL_context::release_transactional_locks() or
-  MDL_context::rollback_to_savepoint(), it must be released manually.
+  Change lock duration for transactional lock.
+
+  @param ticket   Ticket representing lock.
+  @param duration Lock duration to be set.
+
+  @note This method only supports changing duration of
+        transactional lock to some other duration.
 */
 
-void MDL_context::move_ticket_after_trans_sentinel(MDL_ticket *mdl_ticket)
+void MDL_context::set_lock_duration(MDL_ticket *mdl_ticket,
+                                    enum_mdl_duration duration)
 {
-  m_tickets.remove(mdl_ticket);
-  if (m_trans_sentinel == NULL)
+  DBUG_ASSERT(mdl_ticket->m_duration == MDL_TRANSACTION &&
+              duration != MDL_TRANSACTION);
+
+  m_tickets[MDL_TRANSACTION].remove(mdl_ticket);
+  m_tickets[duration].push_front(mdl_ticket);
+#ifndef DBUG_OFF
+  mdl_ticket->m_duration= duration;
+#endif
+}
+
+
+/**
+  Set explicit duration for all locks in the context.
+*/
+
+void MDL_context::set_explicit_duration_for_all_locks()
+{
+  int i;
+  MDL_ticket *ticket;
+
+  /*
+    In the most common case when this function is called list
+    of transactional locks is bigger than list of locks with
+    explicit duration. So we start by swapping these two lists
+    and then move elements from new list of transactional
+    locks and list of statement locks to list of locks with
+    explicit duration.
+  */
+
+  m_tickets[MDL_EXPLICIT].swap(m_tickets[MDL_TRANSACTION]);
+
+  for (i= 0; i < MDL_EXPLICIT; i++)
   {
-    m_trans_sentinel= mdl_ticket;
-    m_tickets.push_back(mdl_ticket);
+    Ticket_iterator it_ticket(m_tickets[i]);
+
+    while ((ticket= it_ticket++))
+    {
+      m_tickets[i].remove(ticket);
+      m_tickets[MDL_EXPLICIT].push_front(ticket);
+    }
   }
-  else
-    m_tickets.insert_after(m_trans_sentinel, mdl_ticket);
+
+#ifndef DBUG_OFF
+  Ticket_iterator exp_it(m_tickets[MDL_EXPLICIT]);
+
+  while ((ticket= exp_it++))
+    ticket->m_duration= MDL_EXPLICIT;
+#endif
+}
+
+
+/**
+  Set transactional duration for all locks in the context.
+*/
+
+void MDL_context::set_transaction_duration_for_all_locks()
+{
+  MDL_ticket *ticket;
+
+  /*
+    In the most common case when this function is called list
+    of explicit locks is bigger than two other lists (in fact,
+    list of statement locks is always empty). So we start by
+    swapping list of explicit and transactional locks and then
+    move contents of new list of explicit locks to list of
+    locks with transactional duration.
+  */
+
+  DBUG_ASSERT(m_tickets[MDL_STATEMENT].is_empty());
+
+  m_tickets[MDL_TRANSACTION].swap(m_tickets[MDL_EXPLICIT]);
+
+  Ticket_iterator it_ticket(m_tickets[MDL_EXPLICIT]);
+
+  while ((ticket= it_ticket++))
+  {
+    m_tickets[MDL_EXPLICIT].remove(ticket);
+    m_tickets[MDL_TRANSACTION].push_front(ticket);
+  }
+
+#ifndef DBUG_OFF
+  Ticket_iterator trans_it(m_tickets[MDL_TRANSACTION]);
+
+  while ((ticket= trans_it++))
+    ticket->m_duration= MDL_TRANSACTION;
+#endif
 }

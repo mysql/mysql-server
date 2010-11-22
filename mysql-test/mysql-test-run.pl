@@ -1813,17 +1813,17 @@ sub executable_setup () {
   if ( ! $opt_skip_ndbcluster )
   {
     $exe_ndbd=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbd");
 
     $exe_ndb_mgmd=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
 
     $exe_ndb_waiter=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/tools/", "bin"],
 		  "ndb_waiter");
 
@@ -2195,12 +2195,12 @@ sub environment_setup {
   if ( ! $opt_skip_ndbcluster )
   {
     $ENV{'NDB_MGM'}=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
     $ENV{'NDB_TOOLS_DIR'}=
-      my_find_dir($basedir,
+      my_find_dir($bindir,
 		  ["storage/ndb/tools", "bin"]);
 
     $ENV{'NDB_EXAMPLES_DIR'}=
@@ -2208,7 +2208,7 @@ sub environment_setup {
 		  ["storage/ndb/ndbapi-examples", "bin"]);
 
     $ENV{'NDB_EXAMPLES_BINARY'}=
-      my_find_bin($basedir,
+      my_find_bin($bindir,
 		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
 		  "ndbapi_simple", NOT_REQUIRED);
 
@@ -4721,6 +4721,10 @@ sub stop_all_servers () {
 sub server_need_restart {
   my ($tinfo, $server)= @_;
 
+  # Mark the tinfo so slaves will restart if server restarts
+  # This assumes master will be considered first.
+  my $is_master= $server->option("#!run-master-sh");
+
   if ( using_extern() )
   {
     mtr_verbose_restart($server, "no restart for --extern server");
@@ -4729,29 +4733,34 @@ sub server_need_restart {
 
   if ( $tinfo->{'force_restart'} ) {
     mtr_verbose_restart($server, "forced in .opt file");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $opt_force_restart ) {
     mtr_verbose_restart($server, "forced restart turned on");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{template_path} ne $current_config_name)
   {
     mtr_verbose_restart($server, "using different config file");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( $tinfo->{'master_sh'}  || $tinfo->{'slave_sh'} )
   {
     mtr_verbose_restart($server, "sh script to run");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
   if ( ! started($server) )
   {
     mtr_verbose_restart($server, "not started");
+    $tinfo->{master_restart}= 1 if $is_master;
     return 1;
   }
 
@@ -4764,6 +4773,7 @@ sub server_need_restart {
     if ( timezone($started_tinfo) ne timezone($tinfo) )
     {
       mtr_verbose_restart($server, "different timezone");
+      $tinfo->{master_restart}= 1 if $is_master;
       return 1;
     }
   }
@@ -4788,6 +4798,7 @@ sub server_need_restart {
 	mtr_verbose_restart($server, "running with different options '" .
 			    join(" ", @{$extra_opts}) . "' != '" .
 			    join(" ", @{$started_opts}) . "'" );
+	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
@@ -4804,12 +4815,18 @@ sub server_need_restart {
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$started_opts}) . "'" );
+	$tinfo->{master_restart}= 1 if $is_master;
 	return 1;
       }
 
       # Remember the dynamically set options
       $server->{'started_opts'}= $extra_opts;
     }
+  }
+
+  if ($server->option("#!use-slave-opt") && $tinfo->{master_restart}) {
+    mtr_verbose_restart($server, "master will be restarted");
+    return 1;
   }
 
   # Default, no restart
