@@ -1875,6 +1875,34 @@ static Sys_var_set Slave_type_conversions(
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
        slave_type_conversions_name,
        DEFAULT(0));
+
+
+static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
+{
+  String str;
+  bool res= false;
+
+  res= !var->value ||
+       check_not_null(self, thd, var) ||
+       var->value->val_str(&str)->is_empty();
+
+  return res;
+}
+
+static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};
+static Sys_var_set Slave_rows_search_algorithms(
+       "slave_rows_search_algorithms", 
+       "Set of searching algorithms that the slave will use while "
+       "searching for records from the storage engine to either "
+       "updated or deleted them. Possible values are: INDEX_SCAN, "
+       "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and "
+       "the slave will always pick the most suitable algorithm for "
+       "any given scenario. "
+       "(Default: INDEX_SCAN, TABLE_SCAN).",
+       GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
+       slave_rows_search_algorithms_names,
+       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(slave_rows_search_algorithms_check), ON_UPDATE(NULL));
 #endif
 
 

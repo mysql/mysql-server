@@ -7758,33 +7758,50 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
   DBUG_RETURN(res);
 }
 
-static uint decide_row_lookup_method(TABLE* table, MY_BITMAP *cols, uint event_type)
+static uint decide_row_lookup_algorithm(TABLE* table, MY_BITMAP *cols, uint event_type)
 {
+  DBUG_ENTER("decide_row_lookup_algorithm");
+
   uint res= Rows_log_event::ROW_LOOKUP_NOT_NEEDED;
+  uint key_index;
   if (event_type == WRITE_ROWS_EVENT)
-    return res;
+    DBUG_RETURN(res);
 
-  uint key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
+  key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | 
+                                               UNIQUE_KEY_FLAG | 
+                                               MULTIPLE_KEY_FLAG));
 
-  /**
-     Blackhole always uses a table scan, because, the BI is always
-     assured to match the one got from the engine.
-  */
-  if (table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB) 
-    res= Rows_log_event::ROW_LOOKUP_TABLE_SCAN;
-
-  /* No index */
-  else if ((key_index == MAX_KEY || key_index > table->s->keys))
-    // TODO: change so that it takes into account the slave_exec_mode flag
-    //res= slave_exec_mode & TABLE_SCAN ? TABLE_SCAN : HASH_SCAN;
-    res= Rows_log_event::ROW_LOOKUP_HASH_SCAN;
-
-  else
-    // TODO: change so that it takes into account the slave_exec_mode flag
-    //res= slave_exec_mode & INDEX_SEARCH ? INDEX_SEARCH : HASH_SCAN;
+  if (((key_index != MAX_KEY) && (key_index < table->s->keys)) &&
+      (slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
     res= Rows_log_event::ROW_LOOKUP_INDEX_SCAN;
+  else
+  {
+    /**
+       Blackhole does not use hash scan.  (NOTE: This is a hackish
+       implementation and I know it).
 
-  return res;
+       TODO: remove this DB_TYPE_BLACKHOLE_DB dependency.
+    */
+    if ((slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) &&
+        (table->s->db_type()->db_type != DB_TYPE_BLACKHOLE_DB))
+      res=  Rows_log_event::ROW_LOOKUP_HASH_SCAN;
+    else
+    {
+      DBUG_ASSERT((table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB) || 
+                  slave_rows_search_algorithms_options & SLAVE_ROWS_TABLE_SCAN);
+      res= Rows_log_event::ROW_LOOKUP_TABLE_SCAN;
+    }
+  }
+
+#ifndef DBUG_OFF
+  const char* s= ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
+                  ((res == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" : 
+                   "INDEX_SCAN"));
+  DBUG_PRINT("debug", ("Row lookup method: %s", s));
+#endif
+
+  
+  DBUG_RETURN(res);
 }
 
 /*
@@ -8217,20 +8234,18 @@ end:
   if (error && error != HA_ERR_RECORD_DELETED)
     table->file->print_error(error, MYF(0));
   else
-  {
-    if ((error= do_apply_row(rli)))
-    {
-      if ((get_type_code() == UPDATE_ROWS_EVENT) && 
-          (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
-      {
-        m_curr_row= m_curr_row_end;
-        unpack_current_row(rli, &m_cols);
-      }
-    }
-  }
+    error= do_apply_row(rli);
 
   if (table->file->inited)
     table->file->ha_index_end();
+
+  if ((get_type_code() == UPDATE_ROWS_EVENT) && 
+      (saved_m_curr_row == m_curr_row)) 
+  {
+    /* we need to unpack the AI so that positions get updated */
+    m_curr_row= m_curr_row_end;
+    unpack_current_row(rli, &m_cols);
+  }
 
   table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -8442,7 +8457,6 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
-      m_table->file->print_error(error, MYF(0));
       goto end;
     }
     
@@ -8460,9 +8474,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
         break;
 
       case HA_ERR_RECORD_DELETED:
-        // get next
-        continue;
-      
+        // fetch next
       case 0:
         // we're good, check if record matches
         break;
@@ -8474,7 +8486,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     }
     while ((error == HA_ERR_END_OF_FILE && restart_count < 2) ||
            (error == HA_ERR_RECORD_DELETED) ||
-           record_compare(m_table, &m_cols));
+           (!error && record_compare(m_table, &m_cols)));
   }
 
 end:
@@ -8489,21 +8501,18 @@ end:
     m_table->file->print_error(error, MYF(0));
   }
   else 
-  {
-    if ((error= do_apply_row(rli)))
-    {
-      if ((get_type_code() == UPDATE_ROWS_EVENT) && 
-          (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
-      {
-        m_curr_row= m_curr_row_end;
-        unpack_current_row(rli, &m_cols);
-      }
-    }
-  }
+    error= do_apply_row(rli);
 
   /* close the index */
   if (table->file->inited)
     table->file->ha_rnd_end();
+
+  if ((get_type_code() == UPDATE_ROWS_EVENT) && 
+      (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
+  {
+    m_curr_row= m_curr_row_end;
+    unpack_current_row(rli, &m_cols);
+  }
 
   table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -8738,28 +8747,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     error= do_before_row_operations(rli);
 
-    /**
-       Check if update contains only values in AI for columns that do
-       not exist on the slave. If it does, we can just unpack the rows
-       and return (do nothing on the local table).
-
-       NOTE: We do the following optimization and check only if there
-       are usable values on the AI and disregard the fact that there
-       might be usable values in the BI. In practice this means that
-       the slave will not go through find_row (since we have nothing
-       on the record to update, why go looking for it?).
-
-       If we wanted find_row to run anyway, we could move this
-       check after find_row, but then we would have to face the fact
-       that the slave might stop without finding the proper record
-       (because it might have incomplete BI), even though there were
-       no values in AI.
-
-       On the other hand, if AI has usable values but BI has not,
-       then find_row will return an error (and the error is then
-       propagated as it was already).
-     */
-    uint row_lookup_method= decide_row_lookup_method(table, &m_cols, get_type_code());
+    uint row_lookup_method= decide_row_lookup_algorithm(table, &m_cols, get_type_code());
     int (Rows_log_event::*do_apply_row_ptr)(Relay_log_info const *)= NULL;
     switch (row_lookup_method)
     {
@@ -10071,7 +10059,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
   }
 
   /* we will be using a hash to lookup rows, initialize it */
-  if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+  if (decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
     m_hash.init();
 
   return 0;
@@ -10087,7 +10075,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+  if ((decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
     m_hash.deinit();
 
   return error;
@@ -10188,7 +10176,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  if (decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+  if (decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
     m_hash.init();
   return 0;
 }
@@ -10203,7 +10191,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_method(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+  if ((decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
     m_hash.deinit();
 
   return error;

@@ -460,6 +460,7 @@ ulong slave_trans_retries;
 uint  slave_net_timeout;
 ulong slave_exec_mode_options;
 ulonglong slave_type_conversions_options;
+ulonglong slave_rows_search_algorithms_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
