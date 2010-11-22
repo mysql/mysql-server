@@ -69,7 +69,7 @@ while ($_diff_i) {
 # and connect the appropriate server.
   let $_pos= `SELECT LOCATE(':', '$_diff_table')`;
   let $_diff_conn=`SELECT SUBSTR('$_diff_table', 1, $_pos-1)`;
-  if (`SELECT 'XX$_diff_conn' <> 'XX'`) {
+  if ($_diff_conn) {
     let $_diff_table=`SELECT SUBSTR('$_diff_table', $_pos+1)`;
     connection $_diff_conn;
   }

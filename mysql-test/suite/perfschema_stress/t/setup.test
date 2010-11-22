@@ -23,10 +23,10 @@ if (`SELECT VERSION() LIKE '%embedded%'`)
 --disable_query_log
 --disable_result_log
 
-if (`SELECT LENGTH('$engine_type') = 0`) {
+if (!$engine_type) {
   let $engine_type= $default_engine_type;
 }
-if (`SELECT '$engine_type' = 'Falcon'`) {
+if ($engine_type == Falcon) {
   --source include/have_falcon.inc
 }
 
