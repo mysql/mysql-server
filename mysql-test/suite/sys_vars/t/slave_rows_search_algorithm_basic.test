@@ -1,0 +1,44 @@
+--source include/not_embedded.inc
+
+set @saved_slave_rows_search_algorithm = @@global.slave_rows_search_algorithm;
+
+
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+
+# checking that setting variable to a non existing value raises error
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_5CAN';
+SELECT @@global.slave_rows_search_algorithm;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='';
+SELECT @@global.slave_rows_search_algorithm;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='1';
+SELECT @@global.slave_rows_search_algorithm;
+
+set global slave_rows_search_algorithm = @saved_slave_rows_search_algorithm;
+SELECT @@global.slave_rows_search_algorithm;

@@ -1070,17 +1070,19 @@ table_def::~table_def()
    preamble_ptr= malloc (sizeof(preamble)+sizeof(entry));
    entry_ptr= preamble_ptr+1;
    
-   preamble_ptr  -----> |-------------------------|
-                        | hash_slave_row_preamble |
+   preamble_ptr  -----> |-HASH_ROWS_POS_PREAMBLE--|
                         | - key                   |
                         | - length                |
-                        | - state                 |
-   entry_ptr     -----> |-------------------------|
-                        | HASH_ROW_POS_ENTRY      |
+                        | - hash_value            |
+                        | - is_search_state_inited|
+                        | - search_state          |
+                        |                         |
+   entry_ptr     -----> |-HASH_ROW_POS_ENTRY------|
                         | - bi_start              |
                         | - bi_ends               |
                         | - ai_start              |
                         | - ai_ends               |
+                        |                         |
                         |-------------------------|
 
                      

@@ -1,0 +1,51 @@
+set @saved_slave_rows_search_algorithm = @@global.slave_rows_search_algorithm;
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN,INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN,INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN,INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='TABLE_5CAN';
+ERROR 42000: Variable 'slave_rows_search_algorithm' can't be set to the value of 'TABLE_5CAN'
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='';
+ERROR 42000: Variable 'slave_rows_search_algorithm' can't be set to the value of ''
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHM='1';
+ERROR 42000: Variable 'slave_rows_search_algorithm' can't be set to the value of '1'
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+INDEX_SCAN,HASH_SCAN
+set global slave_rows_search_algorithm = @saved_slave_rows_search_algorithm;
+SELECT @@global.slave_rows_search_algorithm;
+@@global.slave_rows_search_algorithm
+TABLE_SCAN,INDEX_SCAN
