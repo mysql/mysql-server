@@ -1,3 +1,0 @@
-insert_committed [100] v100 k1 
-delete_committed [100] v100 
-commit_any [100] v100 

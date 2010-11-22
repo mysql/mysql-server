@@ -1,5 +1,0 @@
-insert_provisional [100] v100 k1 
-lock [100] v100 
-delete_provisional [100,200] v100 
-lock [100] v100 
-lock [100] v100 

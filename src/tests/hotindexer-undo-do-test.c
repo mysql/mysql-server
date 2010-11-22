@@ -359,6 +359,13 @@ read_test(char *testname, ULE ule) {
                 ule_add_provisional(ule, &uxr_s);
                 continue;
             }
+            // placeholder provisional XID
+            if (strcmp(fields[0], "placeholder") == 0 && nfields == 3 && fields[1][0] == 'p') {
+                UXR_S uxr_s; 
+                uxr_init(&uxr_s, XR_PLACEHOLDER, NULL, 0, atoll(fields[2]));
+                ule_add_provisional(ule, &uxr_s);
+                continue;
+            }
             fprintf(stderr, "%s???\n", line);
             r = EINVAL;
         }

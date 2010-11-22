@@ -1,6 +1,5 @@
 insert_committed [100] v10 k1 
 commit_any [100] v10 
-delete_committed [300,301,302] v10 
-insert_committed [300,301,302] v20 k1 
-commit_any [300,301,302] v10 
-commit_any [300,301,302] v20 
+delete_committed [300] v10 
+insert_committed [300] v20 k1 
+commit_any [300] v10 
