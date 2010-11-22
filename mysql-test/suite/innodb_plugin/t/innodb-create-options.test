@@ -1,0 +1,575 @@
+# Tests for various combinations of ROW_FORMAT and KEY_BLOCK_SIZE
+# Related bugs; 
+# Bug#54679: ALTER TABLE causes compressed row_format to revert to compact
+# Bug#56628: ALTER TABLE .. KEY_BLOCK_SIZE=0 produces untrue warning or unnecessary error
+# Bug#56632: ALTER TABLE implicitly changes ROW_FORMAT to COMPRESSED
+# Rules for interpreting CREATE_OPTIONS
+# 1) Create options on an ALTER are added to the options on the
+#    previous CREATE or ALTER statements.
+# 2) KEY_BLOCK_SIZE=0 is considered a unspecified value.
+#    If the current ROW_FORMAT has explicitly been set to COMPRESSED,
+#    InnoDB will use a default value of 8.  Otherwise KEY_BLOCK_SIZE
+#    will not be used.
+# 3) ROW_FORMAT=DEFAULT allows InnoDB to choose its own default, COMPACT.
+# 4) ROW_FORMAT=DEFAULT and KEY_BLOCK_SIZE=0 can be used at any time to
+#    unset or erase the values persisted in the MySQL dictionary and
+#    by SHOW CTREATE TABLE.
+# 5) When incompatible values for ROW_FORMAT and KEY_BLOCK_SIZE are
+#    both explicitly given, the ROW_FORMAT is always used in non-strict
+#    mode.
+# 6) InnoDB will automatically convert a table to COMPRESSED only if a
+#    valid non-zero KEY_BLOCK_SIZE has been given and ROW_FORMAT=DEFAULT
+#    or has not been used on a previous CREATE TABLE or ALTER TABLE.
+# 7) InnoDB strict mode is designed to prevent incompatible create
+#    options from being used together.
+# 8) The non-strict behavior is intended to permit you to import a
+#    mysqldump file into a database that does not support compressed
+#    tables, even if the source database contained compressed tables.
+#    All invalid values and/or incompatible combinations of ROW_FORMAT
+#    and KEY_BLOCK_SIZE are automatically corrected
+#
+# *** innodb_strict_mode=ON ***
+# 1) Valid ROW_FORMATs are COMPRESSED, COMPACT, DEFAULT, DYNAMIC
+#    & REDUNDANT. All others are rejected.
+# 2) Valid KEY_BLOCK_SIZEs are 0,1,2,4,8,16.  All others are rejected.
+# 3) KEY_BLOCK_SIZE=0 can be used to set it to 'unspecified'.
+# 4) KEY_BLOCK_SIZE=1,2,4,8 & 16 are incompatible with COMPACT, DYNAMIC &
+#    REDUNDANT.
+# 5) KEY_BLOCK_SIZE=1,2,4,8 & 16 as well as ROW_FORMAT=COMPRESSED and
+#    ROW_FORMAT=DYNAMIC are incompatible with innodb_file_format=Antelope
+#    and innodb_file_per_table=OFF
+# 6) KEY_BLOCK_SIZE on an ALTER must occur with ROW_FORMAT=COMPRESSED
+#    or ROW_FORMAT=DEFAULT if the ROW_FORMAT was previously specified
+#    as COMPACT, DYNAMIC or REDUNDANT.
+# 7) KEY_BLOCK_SIZE on an ALTER can occur without a ROW_FORMAT if the
+#    previous ROW_FORMAT was DEFAULT, COMPRESSED, or unspecified.
+#
+# *** innodb_strict_mode=OFF ***
+# 1. Ignore a bad KEY_BLOCK_SIZE, defaulting it to 8.
+# 2. Ignore a bad ROW_FORMAT, defaulting to COMPACT.
+# 3. Ignore a valid KEY_BLOCK_SIZE when an incompatible but valid
+#    ROW_FORMAT is specified.
+# 4. If innodb_file_format=Antelope or innodb_file_per_table=OFF
+#    it will ignore ROW_FORMAT=COMPRESSED or DYNAMIC and it will
+#    ignore all non-zero KEY_BLOCK_SIZEs.
+#
+# See InnoDB documentation page "SQL Compression Syntax Warnings and Errors"
+
+-- source include/have_innodb_plugin.inc
+SET storage_engine=InnoDB;
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_format_orig=`select @@innodb_file_format`;
+LET $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+--enable_query_log
+
+SET GLOBAL innodb_file_format=`Barracuda`;
+SET GLOBAL innodb_file_per_table=ON;
+
+# The first half of these tests are with strict mode ON.
+SET SESSION innodb_strict_mode = ON;
+
+--echo # Test 1) StrictMode=ON, CREATE and ALTER with each ROW_FORMAT & KEY_BLOCK_SIZE=0
+--echo #         KEY_BLOCK_SIZE=0 means 'no KEY_BLOCK_SIZE is specified'
+DROP TABLE IF EXISTS t1;
+--echo #         'FIXED' is sent to InnoDB since it is used by MyISAM.
+--echo #         But it is an invalid mode in InnoDB
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=FIXED;
+SHOW WARNINGS;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+
+--echo # Test 2) StrictMode=ON, CREATE with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
+--echo #         KEY_BLOCK_SIZE is incompatible with COMPACT, REDUNDANT, & DYNAMIC
+DROP TABLE IF EXISTS t1;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+--echo # Test 3) StrictMode=ON, ALTER with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=2;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=8;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+--echo # Test 4) StrictMode=ON, CREATE with ROW_FORMAT=COMPACT, ALTER with a valid non-zero KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 KEY_BLOCK_SIZE=4;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 KEY_BLOCK_SIZE=8;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 5) StrictMode=ON, CREATE with a valid KEY_BLOCK_SIZE
+--echo #         ALTER with each ROW_FORMAT
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=2;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW CREATE TABLE t1;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 6) StrictMode=ON, CREATE with an invalid KEY_BLOCK_SIZE.
+DROP TABLE IF EXISTS t1;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=9;
+SHOW WARNINGS;
+
+--echo # Test 7) StrictMode=ON, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and
+--echo #         and a valid non-zero KEY_BLOCK_SIZE are rejected with Antelope
+--echo #         and that they can be set to default values during strict mode.
+SET GLOBAL innodb_file_format=Antelope;
+DROP TABLE IF EXISTS t1;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT;
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 KEY_BLOCK_SIZE=8;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+SET GLOBAL innodb_file_format=Barracuda;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+SET GLOBAL innodb_file_format=Antelope;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ADD COLUMN f1 INT;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SET GLOBAL innodb_file_format=Barracuda;
+
+--echo # Test 8) StrictMode=ON, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and
+--echo #         and a valid non-zero KEY_BLOCK_SIZE are rejected with
+--echo #         innodb_file_per_table=OFF and that they can be set to default
+--echo #         values during strict mode.
+SET GLOBAL innodb_file_per_table=OFF;
+DROP TABLE IF EXISTS t1;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT;
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 KEY_BLOCK_SIZE=1;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DEFAULT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_per_table=ON;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+SET GLOBAL innodb_file_per_table=OFF;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE t1 ADD COLUMN f1 INT;
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW WARNINGS;
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SET GLOBAL innodb_file_per_table=ON;
+
+--echo ##################################################
+SET SESSION innodb_strict_mode = OFF;
+
+--echo # Test 9) StrictMode=OFF, CREATE and ALTER with each ROW_FORMAT & KEY_BLOCK_SIZE=0
+--echo #         KEY_BLOCK_SIZE=0 means 'no KEY_BLOCK_SIZE is specified'
+--echo #         'FIXED' is sent to InnoDB since it is used by MyISAM.
+--echo #         It is an invalid mode in InnoDB, use COMPACT
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=FIXED;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 10) StrictMode=OFF, CREATE with each ROW_FORMAT & a valid KEY_BLOCK_SIZE
+--echo #          KEY_BLOCK_SIZE is ignored with COMPACT, REDUNDANT, & DYNAMIC
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+--echo # Test 11) StrictMode=OFF, ALTER with each ROW_FORMAT & a valid KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT );
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+--echo # Test 12) StrictMode=OFF, CREATE with ROW_FORMAT=COMPACT, ALTER with a valid KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 KEY_BLOCK_SIZE=4;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=8;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 13) StrictMode=OFF, CREATE with a valid KEY_BLOCK_SIZE
+--echo #          ALTER with each ROW_FORMAT
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=16;
+SHOW WARNINGS;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 14) StrictMode=OFF, CREATE with an invalid KEY_BLOCK_SIZE, it defaults to 8
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=15;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 15) StrictMode=OFF, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and a
+--echo            valid KEY_BLOCK_SIZE are remembered but not used when ROW_FORMAT
+--echo            is reverted to Antelope and then used again when ROW_FORMAT=Barracuda.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_format=Antelope;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_format=Barracuda;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_format=Antelope;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_format=Barracuda;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+--echo # Test 16) StrictMode=OFF, Make sure ROW_FORMAT= COMPRESSED & DYNAMIC and a
+--echo            valid KEY_BLOCK_SIZE are remembered but not used when innodb_file_per_table=OFF
+--echo            and then used again when innodb_file_per_table=ON.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_per_table=OFF;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_per_table=ON;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_per_table=OFF;
+ALTER TABLE t1 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+SET GLOBAL innodb_file_per_table=ON;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+SHOW WARNINGS;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
+
+
+--echo # Cleanup
+DROP TABLE IF EXISTS t1;
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+EVAL SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
+
