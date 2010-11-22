@@ -1062,26 +1062,89 @@ table_def::~table_def()
   Utility methods for handling row based operations.
  */ 
 
-static uchar * hash_slave_rows_get_key(const uchar *record, 
-                                       size_t *length,
-                                       my_bool not_used __attribute__((unused)))
+/**
+
+   Internal structure that acts as a preamble for HASH_ROW_POS_ENTRY
+   in memory structure. Allocation in make_entry is done as follows:
+
+   preamble_ptr= malloc (sizeof(preamble)+sizeof(entry));
+   entry_ptr= preamble_ptr+1;
+   
+   preamble_ptr  -----> |-------------------------|
+                        | hash_slave_row_preamble |
+                        | - key                   |
+                        | - length                |
+                        | - state                 |
+   entry_ptr     -----> |-------------------------|
+                        | HASH_ROW_POS_ENTRY      |
+                        | - bi_start              |
+                        | - bi_ends               |
+                        | - ai_start              |
+                        | - ai_ends               |
+                        |-------------------------|
+
+                     
+   return entry_ptr;
+
+   When iterating over an entry with multiple records, we can just use
+   pointer arithmetic to retrieve the preamble pointer. This way we
+   hide from the hash table user the gory details of key bookeeping
+   for the hash (including collision handling).
+
+*/
+typedef struct hash_row_pos_preamble
+{
+  
+  /**
+     The pointer to the hash table key.
+  */
+  uchar* key;
+  
+  /**
+     Length of the key.
+  */
+  uint length;
+  
+  /**
+     The actual key.
+  */
+  my_hash_value_type hash_value;
+  
+  /**
+     The search state used to iterate over multiple entries for a
+     given key.
+  */
+  HASH_SEARCH_STATE search_state;
+
+  /**
+     Wether this search_state is usable or not.
+   */
+  bool is_search_state_inited;
+  
+} HASH_ROW_POS_PREAMBLE;
+
+
+static uchar* 
+hash_slave_rows_get_key(const uchar *record, 
+                        size_t *length,
+                        my_bool not_used __attribute__((unused)))
 {
   DBUG_ENTER("get_key");
 
-  hash_slave_rows_entry *entry=(hash_slave_rows_entry *) record;
-  *length= entry->length;
+  HASH_ROW_POS_PREAMBLE *preamble=(HASH_ROW_POS_PREAMBLE *) record;
+  *length= preamble->length;
 
-  DBUG_RETURN((uchar*) entry->key);
+  DBUG_RETURN((uchar*) preamble->key);
 }
 
 static void 
-hash_slave_rows_free_entry(hash_slave_rows_entry *entry)
+hash_slave_rows_free_entry(HASH_ROW_POS_PREAMBLE *preamble)
 {
   DBUG_ENTER("free_entry");
-  my_free(entry);
+  if (preamble)
+    my_free(preamble);
   DBUG_VOID_RETURN;
 }
-
 
 bool Hash_slave_rows::is_empty(void)
 {
@@ -1096,7 +1159,7 @@ bool Hash_slave_rows::init(void)
 {
   my_hash_init(&m_hash,
                &my_charset_bin,                /* the charater set information */
-               16 /* FIXME */,                 /* growth size */
+               16 /* TODO */,                  /* growth size */
                0,                              /* key offset */
                0,                              /* key length */
                hash_slave_rows_get_key,                        /* get function pointer */
@@ -1104,7 +1167,6 @@ bool Hash_slave_rows::init(void)
                MYF(0));                        /* flags */
 
   return 0;
-
 }
 
 bool Hash_slave_rows::deinit(void)
@@ -1120,71 +1182,160 @@ int Hash_slave_rows::size()
   return m_hash.records;
 }
 
+HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
+                                                const uchar* ai_start, const uchar* ai_ends)
+{
+  DBUG_ENTER("Hash_slave_rows::make_entry");
+  
+  size_t size= sizeof(struct hash_row_pos_preamble) + 
+               sizeof(struct hash_row_pos_entry);
+  
+  HASH_ROW_POS_PREAMBLE *preamble= 
+    (HASH_ROW_POS_PREAMBLE*) my_malloc(size, MYF(0));
+
+  if (!preamble)
+    DBUG_RETURN(NULL);
+
+  HASH_ROW_POS_ENTRY* entry= (HASH_ROW_POS_ENTRY*) (preamble+1);  
+  
+  /**
+     Filling in the preamble.
+   */
+  preamble->key= (uchar*)&preamble->hash_value;
+  preamble->length= sizeof(my_hash_value_type);
+  preamble->search_state= -1;
+  preamble->hash_value= -1;
+  preamble->is_search_state_inited= false;
+    
+  /**
+     Filling in the values.
+   */
+  entry->bi_start= (const uchar *) bi_start;
+  entry->bi_ends= (const uchar *) bi_ends;
+  entry->ai_start= (const uchar *) ai_start;
+  entry->ai_ends= (const uchar *) ai_ends;
+
+  DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
+  
+  /**
+     Return the pointer to the entry. The caller should not
+     be exposed to the internal preamble.
+   */
+  DBUG_RETURN(entry);
+}
+
+bool 
+Hash_slave_rows::put(TABLE *table, 
+                     MY_BITMAP *cols,
+                     HASH_ROW_POS_ENTRY* entry)
+{
+  DBUG_ENTER("Hash_slave_rows::put");
+
+  HASH_ROW_POS_PREAMBLE* preamble= ((HASH_ROW_POS_PREAMBLE*)entry)-1;
+
+  /**
+     Skip blobs from key calculation.
+     Handle X bits.
+     Handle nulled fields.
+     Handled fields not signaled.
+  */  
+  make_hash_key(table, cols, &preamble->hash_value);
+  my_hash_insert(&m_hash, (uchar *) preamble);
+  DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
+  DBUG_RETURN(false);
+}
 
 bool
-Hash_slave_rows::search_and_remove_row(TABLE *table,
-                                       MY_BITMAP *cols,
-                                       const uchar **bi_start, const uchar **bi_ends,
-                                       const uchar **ai_start, const uchar **ai_ends)
+Hash_slave_rows::get(TABLE *table,
+                     MY_BITMAP *cols,
+                     HASH_ROW_POS_ENTRY** entry)
 {
-  DBUG_ENTER("Hash_slave_rows::search_row");
-
+  DBUG_ENTER("Hash_slave_rows::get");
   HASH_SEARCH_STATE state;
-  my_hash_value_type se_key; /* storage engine record based row key */
-  *bi_start= *bi_ends= *ai_start= *ai_ends= NULL;
+  HASH_ROW_POS_PREAMBLE* preamble;
+  my_hash_value_type key;
           
-  make_hash_key(table, cols, &se_key);
+  make_hash_key(table, cols, &key);
 
-  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", se_key));
-                    
-  /**
-     This is only needed because records are hashed without blobs, so
-     we may have false positives.
-  */
-  hash_slave_rows_entry *entry= (hash_slave_rows_entry *) my_hash_first(&m_hash, 
-                                                                        (const uchar*) &se_key, 
-                                                                        sizeof(my_hash_value_type), 
-                                                                        &state);
-  while (entry)
-  {                        
-    const uchar* key= (const uchar*) &entry->key;
-    
+  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
+
+  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_first(&m_hash, 
+                                                   (const uchar*) &key, 
+                                                   sizeof(my_hash_value_type), 
+                                                   &state);
+  if (preamble)
+  {
+    DBUG_PRINT("debug", ("Found record with key=%u in the hash.", key));
+
     /**
-       unpack again the full BI record to table->record[0]. Now,
-       both table->record[0] and table->record[1] should have
-       approximately the same contents (except maybe for blobs
-       - thence we need to do full comparison below).
+       Save the search state in case we need to go through entries for
+       the given key.
     */
-/*    event->m_curr_row= entry->m_curr_row;
-    if (!(error= event->unpack_current_row(rli, &cols)))
-    {*/
-      /*
-        compare the row_entry with row taking into account
-        blobs, if there is any. If there is a match do the
-        operation and remove the entry from the hash table.
-      */
-/*      if (!record_compare(table, cols))
-        {*/
-        *bi_start= entry->bi_start;
-        *bi_ends= entry->bi_ends;
-        *ai_start= entry->ai_start;
-        *ai_ends= entry->ai_ends;
-
-        my_hash_delete(&m_hash, (uchar *)entry);
-        DBUG_RETURN(0);
-/*      }
-        }
-    else
-    DBUG_RETURN(error);*/
-
-    /* Next row for the loop... */
-    entry= (hash_slave_rows_entry *)my_hash_next(&m_hash, 
-                                                 key, 
-                                                 sizeof(my_hash_value_type),  
-                                                 &state);
+    preamble->search_state= state;
+    preamble->is_search_state_inited= true;
+    
+    *entry= (HASH_ROW_POS_ENTRY*) (preamble+1);
   }
+  else
+    *entry= NULL;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
+}
+
+bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
+{
+  DBUG_ENTER("Hash_slave_rows::next");
+
+  if (*entry)
+  {
+    HASH_ROW_POS_PREAMBLE* preamble= 
+      ((HASH_ROW_POS_PREAMBLE*) *entry) - 1;
+
+    if (preamble->is_search_state_inited)
+    {
+      my_hash_value_type key= preamble->hash_value;
+      HASH_SEARCH_STATE state= preamble->search_state;
+      preamble->search_state= -1;
+      preamble->is_search_state_inited= false;
+
+      DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
+      
+      preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash, 
+                                                      (const uchar*) &key, 
+                                                      sizeof(my_hash_value_type),
+                                                      &state);
+      if (preamble)
+      {
+        DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
+        preamble->search_state= state;
+        preamble->is_search_state_inited= true;
+        *entry= (HASH_ROW_POS_ENTRY*) (preamble+1);
+      }
+      else
+        *entry= NULL;
+    }
+    else
+      DBUG_RETURN(true);
+  }
+  else
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool
+Hash_slave_rows::del(HASH_ROW_POS_ENTRY* entry)
+{
+  DBUG_ENTER("Hash_slave_rows::del");
+  if (entry)
+  {
+    HASH_ROW_POS_PREAMBLE* preamble= 
+      ((HASH_ROW_POS_PREAMBLE*)entry)-1;
+    my_hash_delete(&m_hash, (uchar *) preamble);
+  }
+  else
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 bool
@@ -1232,28 +1383,11 @@ Hash_slave_rows::make_hash_key(TABLE *table,
        ptr++)
   {
     Field *f= (*ptr);
+
     /* field is set in the read_set and is not a blob */
-
-    if (bitmap_is_set(cols, f->field_index))
-    {
-      if (f->type() == MYSQL_TYPE_BLOB)
-      {
-        Field_blob *fb= (Field_blob*) f;
-        uchar* ptr;
-        uint32 length= fb->get_length();
-        if (length)
-        {
-          fb->get_ptr(&ptr);
-          crc= my_checksum(crc, ptr, length);
-        }
-      }
-      else
-        crc= my_checksum(crc, f->ptr, f->data_length());
-
-      // TODO: what if the table only has blobs ?
-      // Maybe don't use hash_scan approach or include 
-      // blobs in this calculation.
-    }
+    if (bitmap_is_set(cols, f->field_index) && 
+        (f->type() != MYSQL_TYPE_BLOB))
+      crc= my_checksum(crc, f->ptr, f->data_length());
   }
   
   /*
@@ -1271,8 +1405,6 @@ Hash_slave_rows::make_hash_key(TABLE *table,
       record[table->s->null_bytes - 1]= saved_filler;
   }
 
-
-
   DBUG_PRINT("debug", ("Created key=%u", crc));
 
   DBUG_ASSERT(crc > 0);
@@ -1280,42 +1412,5 @@ Hash_slave_rows::make_hash_key(TABLE *table,
   DBUG_RETURN(false);
 }
 
-bool 
-Hash_slave_rows::add_row(TABLE *table, 
-                         MY_BITMAP *cols,
-                         const uchar *bi_start, const uchar *bi_ends,
-                         const uchar *ai_start, const uchar *ai_ends)
-{
-  DBUG_ENTER("Hash_slave_rows::add_row");
-
-  /**
-     Insert the actual entry.
-  */
-  hash_slave_rows_entry *entry= (hash_slave_rows_entry*) malloc(sizeof(hash_slave_rows_entry));
-  if (!entry)
-    DBUG_RETURN(1);
-  
-  entry->key= (uchar*)&entry->hash_value;
-  entry->length= sizeof(my_hash_value_type);
-
-  /**
-     Skip blobs from key calculation.
-     Handle X bits.
-     Handle nulled fields.
-     Handled fields not signaled.
-  */  
-  make_hash_key(table, cols, &entry->hash_value);
-
-  entry->bi_start= (const uchar *) bi_start;
-  entry->bi_ends= (const uchar *) bi_ends;
-  entry->ai_start= (const uchar *) ai_start;
-  entry->ai_ends= (const uchar *) ai_ends;
-
-  DBUG_PRINT("debug", ("Added record to hash with key=%u", entry->hash_value));
-
-  my_hash_insert(&m_hash, (uchar *) entry);
-  
-  DBUG_RETURN(0);
-}
 
 #endif
