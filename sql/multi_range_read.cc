@@ -341,14 +341,14 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
-  while (1)
+  for(;;)
   {
     bool have_record= FALSE;
     if (scanning_key_val_iter)
     {
       if ((res= kv_it.get_next()))
       {
-        kv_it.close();
+        kv_it.close_();
         scanning_key_val_iter= FALSE;
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res);
@@ -439,24 +439,22 @@ int Mrr_ordered_index_reader::refill_buffer()
     }
     
     /* Put key, or {key, range_id} pair into the buffer */
-    if (keypar.use_key_pointers)
-      key_ptr=(uchar*) &cur_range.start_key.key;
-    else
-      key_ptr=(uchar*) cur_range.start_key.key;
+    key_ptr= (keypar.use_key_pointers)? (uchar*)&cur_range.start_key.key : 
+                                        (uchar*)cur_range.start_key.key;
 
     key_buffer->write();
   }
-
-  bool no_more_keys= test(res);
+  
+  /* Force get_next() to start with kv_it.init() call: */
   scanning_key_val_iter= FALSE;
 
-  if (no_more_keys && (!know_key_tuple_params || key_buffer->is_empty()))
+  if (test(res) && (!know_key_tuple_params || key_buffer->is_empty()))
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
                      (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp_reverse : 
                      (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp, 
-                   (void*)this);
+                   this);
   DBUG_RETURN(0);
 }
 
@@ -558,7 +556,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
   if (index_reader_exhausted)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  while ((res= refill_from_key_buffer() == HA_ERR_END_OF_FILE))
+  while ((res= refill_from_key_buffer()) == HA_ERR_END_OF_FILE)
   {
     if ((res= index_reader->refill_buffer()))
     {
@@ -603,11 +601,16 @@ int Mrr_ordered_rndpos_reader::refill_from_key_buffer()
     res= index_reader->get_next(&range_info);
 
     if (res)
+    {
+      if (res != HA_ERR_END_OF_FILE)
+        DBUG_RETURN(res);
+      index_reader_exhausted= TRUE;     
       break;
+    }
 
-    /* Put rowid, or {rowid, range_id} pair into the buffer */
     index_reader->position();
 
+    /* Put rowid, or {rowid, range_id} pair into the buffer */
     rowid_buffer->write();
   }
    
@@ -658,7 +661,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
     }
   }
 
-  while (1)
+  for(;;)
   {
     last_identical_rowid= NULL;
 
@@ -1052,8 +1055,8 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
     Ok if we got here we need to allocate one part of the buffer 
     for keys and another part for rowids.
   */
-  uint rowid_buf_elem_size= h->ref_length + 
-                            (int)is_mrr_assoc * sizeof(char*);
+  ulonglong rowid_buf_elem_size= h->ref_length + 
+                                 (int)is_mrr_assoc * sizeof(char*);
   
   /*
     Use rec_per_key statistics as a basis to find out how many rowids 
@@ -1070,8 +1073,8 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
   }
 
   double fraction_for_rowids=
-    ((double) rowid_buf_elem_size / 
-         ((double)rowid_buf_elem_size + key_buff_elem_size));
+    (ulonglong2double(rowid_buf_elem_size) / 
+     (ulonglong2double(rowid_buf_elem_size) + key_buff_elem_size));
 
   size_t bytes_for_rowids= 
     round(fraction_for_rowids * (full_buf_end - full_buf));
@@ -1080,7 +1083,7 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
 
   if (bytes_for_keys < key_buff_elem_size + 1)
   {
-    uint add= key_buff_elem_size + 1 - bytes_for_keys;
+    ulong add= key_buff_elem_size + 1 - bytes_for_keys;
     bytes_for_keys= key_buff_elem_size + 1;
     bytes_for_rowids -= add;
     DBUG_ASSERT(bytes_for_rowids >=  rowid_buf_elem_size + 1);
@@ -1088,7 +1091,7 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
 
   if (bytes_for_rowids < rowid_buf_elem_size + 1)
   {
-    uint add= rowid_buf_elem_size + 1 - bytes_for_rowids;
+    ulong add= rowid_buf_elem_size + 1 - bytes_for_rowids;
     bytes_for_rowids= rowid_buf_elem_size + 1;
     bytes_for_keys -= add;
     DBUG_ASSERT(bytes_for_keys >=  key_buff_elem_size + 1);
@@ -1185,7 +1188,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 
   if (res)
   {
-    close();
+    close_();
     return res;
   }
   get_next_row= FALSE;
@@ -1223,7 +1226,7 @@ int Key_value_records_iterator::get_next()
 }
 
 
-void Key_value_records_iterator::close()
+void Key_value_records_iterator::close_()
 {
   while (!owner->key_buffer->read() && 
          (cur_index_tuple != last_identical_key_ptr)) {}

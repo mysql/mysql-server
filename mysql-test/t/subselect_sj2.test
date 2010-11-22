@@ -586,7 +586,6 @@ if (`select @@join_cache_level=6`)
   --echo # Not anymore:
   --echo # The following query gives wrong result due to Bug#49129
 }
-
 select * from t0 where t0.a in 
   (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 

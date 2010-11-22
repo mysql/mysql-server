@@ -150,7 +150,7 @@ public:
   enum_direction type() { return FORWARD; }
   size_t used_size()
   {
-    return pos - start;
+    return (size_t)(pos - start);
   }
   void reset()
   {
@@ -243,7 +243,7 @@ public:
  
   size_t used_size()
   {
-    return end - pos;
+    return (size_t)(end - pos);
   }
   void reset()
   {

@@ -137,7 +137,7 @@ class Key_value_records_iterator
 public:
   int init(Mrr_ordered_index_reader *owner_arg);
   int get_next();
-  void close();
+  void close_();
 };
 
 
