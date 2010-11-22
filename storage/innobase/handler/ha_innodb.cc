@@ -2164,13 +2164,13 @@ innobase_init(
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
-#ifdef UNIV_DEBUG
+#ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
 				+ sizeof srv_mysql50_table_name_prefix];
 	if ((sizeof test_tablename) - 1
 			!= filename_to_tablename(test_filename, test_tablename,
-			sizeof test_tablename)
+			sizeof test_tablename, true)
 			|| strncmp(test_tablename,
 			srv_mysql50_table_name_prefix,
 			sizeof srv_mysql50_table_name_prefix)
@@ -2180,7 +2180,7 @@ innobase_init(
 		sql_print_error("tablename encoding has been changed");
 		goto error;
 	}
-#endif /* UNIV_DEBUG */
+#endif /* DBUG_OFF */
 
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
