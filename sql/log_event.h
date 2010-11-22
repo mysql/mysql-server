@@ -3753,7 +3753,6 @@ protected:
   uchar    *m_key;      /* Buffer to keep key value during searches */
 
   int find_row(const Relay_log_info *const);
-  int write_row(const Relay_log_info *const, const bool);
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
@@ -3922,6 +3921,9 @@ public:
                                  after_record);
   }
 #endif
+
+protected:
+  int write_row(const Relay_log_info *const, const bool);
 
 private:
   virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }

@@ -9763,8 +9763,8 @@ is_duplicate_key_error(int errcode)
 */ 
 
 int
-Rows_log_event::write_row(const Relay_log_info *const rli,
-                          const bool overwrite)
+Write_rows_log_event::write_row(const Relay_log_info *const rli,
+                                const bool overwrite)
 {
   DBUG_ENTER("write_row");
   DBUG_ASSERT(m_table != NULL && thd != NULL);
