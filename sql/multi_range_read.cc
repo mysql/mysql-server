@@ -348,7 +348,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
     {
       if ((res= kv_it.get_next()))
       {
-        kv_it.close_();
+        kv_it.move_to_next_key_value();
         scanning_key_val_iter= FALSE;
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res);
@@ -360,10 +360,12 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
     {
       while ((res= kv_it.init(this)))
       {
-        if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE) ||
-            key_buffer->is_empty())
+        if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
+          DBUG_RETURN(res); /* Some fatal error */
+        
+        if (key_buffer->is_empty())
         {
-          DBUG_RETURN(res);
+          DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
       }
       scanning_key_val_iter= TRUE;
@@ -452,8 +454,8 @@ int Mrr_ordered_index_reader::refill_buffer()
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
-                     (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp_reverse : 
-                     (qsort2_cmp)Mrr_ordered_index_reader::key_tuple_cmp, 
+                     (qsort2_cmp)Mrr_ordered_index_reader::compare_keys_reverse : 
+                     (qsort2_cmp)Mrr_ordered_index_reader::compare_keys, 
                    this);
   DBUG_RETURN(0);
 }
@@ -965,60 +967,30 @@ void DsMrr_impl::dsmrr_close()
 
 
 /* 
-  my_qsort2-compatible function to compare key tuples 
+  my_qsort2-compatible static member function to compare key tuples 
 */
 
-int Mrr_ordered_index_reader::key_tuple_cmp(void* arg, uchar* key1, uchar* key2)
+int Mrr_ordered_index_reader::compare_keys(void* arg, uchar* key1, uchar* key2)
 {
-  Mrr_ordered_index_reader *this_= (Mrr_ordered_index_reader*)arg;
-  TABLE *table= this_->h->get_table();
-  int res;
-  KEY_PART_INFO *part= table->key_info[this_->h->active_index].key_part;
+  Mrr_ordered_index_reader *reader= (Mrr_ordered_index_reader*)arg;
+  TABLE *table= reader->h->get_table();
+  KEY_PART_INFO *part= table->key_info[reader->h->active_index].key_part;
   
-  if (this_->keypar.use_key_pointers)
+  if (reader->keypar.use_key_pointers)
   {
     /* the buffer stores pointers to keys, get to the keys */
     key1= *((uchar**)key1);
     key2= *((uchar**)key2);  // todo is this alignment-safe?
   }
 
-  uchar *key1_end= key1 + this_->keypar.key_tuple_length;
-
-  while (key1 < key1_end)
-  {
-    Field* f = part->field;
-    int len = part->store_length;
-    if (part->null_bit)
-    {
-      if (*key1) // key1 == NULL
-      {
-        if (!*key2) // key1(NULL) < key2(notNULL)
-          return -1;
-        goto equals;
-      }
-      else if (*key2) // key1(notNULL) > key2 (NULL)
-        return 1;
-      // Step over NULL byte for f->cmp().
-      key1++;
-      key2++;
-      len--;
-    }
-    
-    if ((res= f->key_cmp(key1, key2)))
-      return res;
-equals:
-    key1 += len;
-    key2 += len;
-    part++;
-  }
-  return 0;
+  return key_tuple_cmp(part, key1, key2, reader->keypar.key_tuple_length);
 }
 
 
-int Mrr_ordered_index_reader::key_tuple_cmp_reverse(void* arg, uchar* key1, 
-                                                    uchar* key2)
+int Mrr_ordered_index_reader::compare_keys_reverse(void* arg, uchar* key1, 
+                                                   uchar* key2)
 {
-  return -key_tuple_cmp(arg, key1, key2);
+  return -compare_keys(arg, key1, key2);
 }
 
 
@@ -1174,8 +1146,8 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   while (!identical_key_it.read())
   {
     if (owner->disallow_identical_key_handling ||
-        Mrr_ordered_index_reader::key_tuple_cmp(owner, key_in_buf, 
-                                                cur_index_tuple))
+        Mrr_ordered_index_reader::compare_keys(owner, key_in_buf, 
+                                               cur_index_tuple))
       break;
     last_identical_key_ptr= cur_index_tuple;
   }
@@ -1188,7 +1160,8 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 
   if (res)
   {
-    close_();
+    /* Failed to find any matching records */
+    move_to_next_key_value();
     return res;
   }
   get_next_row= FALSE;
@@ -1203,7 +1176,10 @@ int Key_value_records_iterator::get_next()
   if (get_next_row)
   {
     if (owner->keypar.index_ranges_unique)
-      return HA_ERR_END_OF_FILE;  /* Max one match */
+    {
+      /* We're using a full unique key, no point to call index_next_same */
+      return HA_ERR_END_OF_FILE;
+    }
     
     handler *h= owner->h;
     if ((res= h->ha_index_next_same(h->get_table()->record[0], 
@@ -1220,13 +1196,18 @@ int Key_value_records_iterator::get_next()
   identical_key_it.read(); /* This gets us next range_id */
   if (!last_identical_key_ptr || (cur_index_tuple == last_identical_key_ptr))
   {
+    /* 
+      We've reached the last of the identical keys that current record is a
+      match for.  Set get_next_row=TRUE so that we read the next index record
+      on the next call to this function.
+    */
     get_next_row= TRUE;
   }
   return 0;
 }
 
 
-void Key_value_records_iterator::close_()
+void Key_value_records_iterator::move_to_next_key_value()
 {
   while (!owner->key_buffer->read() && 
          (cur_index_tuple != last_identical_key_ptr)) {}

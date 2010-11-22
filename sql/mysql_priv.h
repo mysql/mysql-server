@@ -1883,6 +1883,7 @@ void key_unpack(String *to,TABLE *form,uint index);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
+int key_tuple_cmp(KEY_PART_INFO *part, uchar *key1, uchar *key2, uint tuple_length);
 
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */

@@ -548,3 +548,53 @@ next_loop:
   } while (key_info); /* no more keys to test */
   DBUG_RETURN(0);
 }
+
+
+/*
+  Compare two key tuples.
+
+  @brief
+    Compare two key tuples, i.e. two key values in KeyTupleFormat.
+
+  @param part          KEY_PART_INFO with key description
+  @param key1          First key to compare
+  @param key2          Second key to compare 
+  @param tuple_length  Length of key1 (and key2, they are the same) in bytes.
+
+  @return
+    @retval  0  key1 == key2
+    @retval -1  key1 < key2
+    @retval +1  key1 > key2 
+*/
+
+int key_tuple_cmp(KEY_PART_INFO *part, uchar *key1, uchar *key2, 
+                  uint tuple_length)
+{
+  uchar *key1_end= key1 + tuple_length;
+  int len;
+  int res;
+  LINT_INIT(len);
+  for (;key1 < key1_end; key1 += len, key2 += len, part++)
+  {
+    len= part->store_length;
+    if (part->null_bit)
+    {
+      if (*key1) // key1 == NULL
+      {
+        if (!*key2) // key1(NULL) < key2(notNULL)
+          return -1;
+        continue;
+      }
+      else if (*key2) // key1(notNULL) > key2 (NULL)
+        return 1;
+      /* Step over the NULL bytes for key_cmp() call */
+      key1++;
+      key2++;
+    }
+    if ((res= part->field->key_cmp(key1, key2)))
+      return res;
+  }
+  return 0;
+}
+
+

@@ -137,7 +137,7 @@ class Key_value_records_iterator
 public:
   int init(Mrr_ordered_index_reader *owner_arg);
   int get_next();
-  void close_();
+  void move_to_next_key_value();
 };
 
 
@@ -299,8 +299,8 @@ private:
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
 
-  static int key_tuple_cmp(void* arg, uchar* key1, uchar* key2);
-  static int key_tuple_cmp_reverse(void* arg, uchar* key1, uchar* key2);
+  static int compare_keys(void* arg, uchar* key1, uchar* key2);
+  static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);
   
   friend class Key_value_records_iterator; 
   friend class DsMrr_impl;
