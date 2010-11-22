@@ -4222,6 +4222,8 @@ lock_remove_recovered_trx_record_locks(
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
@@ -4254,6 +4256,8 @@ lock_remove_recovered_trx_record_locks(
 
 		++n_recovered_trx;
 	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(n_recovered_trx);
 }
