@@ -59,7 +59,7 @@ echo [ on master ];
 
 disable_query_log;
 let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
@@ -124,7 +124,7 @@ echo [ on slave ];
 
 disable_query_log;
 let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';

@@ -848,9 +848,17 @@ int start_slave_thread(
     while (start_id == *slave_run_id)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char* old_msg = thd->enter_cond(start_cond,cond_lock,
-                                            "Waiting for slave thread to start");
-      mysql_cond_wait(start_cond, cond_lock);
+      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
+                                           "Waiting for slave thread to start");
+      /*
+        It is not sufficient to test this at loop bottom. We must test
+        it after registering the mutex in enter_cond(). If the kill
+        happens after testing of thd->killed and before the mutex is
+        registered, we could otherwise go waiting though thd->killed is
+        set.
+      */
+      if (!thd->killed)
+        mysql_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
@@ -3307,7 +3315,7 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
   {
@@ -3695,7 +3703,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     variables is supposed to set them to 0 before terminating)).
   */
   thd->catalog= 0;
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   mysql_mutex_lock(&rli->run_lock);

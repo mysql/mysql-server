@@ -9,7 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
 mysqlhotcopy_myisam      : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 mysqlhotcopy_archive     : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
@@ -22,3 +21,4 @@ read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#56927 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#37248 2010-11-15 mattiasj was not tested
 create-big               : Bug#37248 2010-11-15 mattiasj was not tested
+events_restart           : Bug#58258 2010-11-17 VasilDimov Valgrind: possibly lost from ib_bh_create()
