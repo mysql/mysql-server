@@ -8234,6 +8234,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   const uchar *bi_ends= NULL;
   const uchar *ai_start= NULL;
   const uchar *ai_ends= NULL;
+  HASH_ROW_POS_ENTRY* entry;
 
   DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
 
@@ -8263,11 +8264,13 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 
   /* move BI to index 0 */
   memcpy(m_table->record[0], m_table->record[1], m_table->s->reclength);
-  
-  m_hash.add_row(m_table, &m_cols, 
-                 bi_start, bi_ends, 
-                 ai_start, ai_ends);
-  
+
+  /* create an entry to add to the hash table */
+  entry= m_hash.make_entry(bi_start, bi_ends, ai_start, ai_ends);
+
+  /* add it to the hash table */
+  m_hash.put(m_table, &m_cols, entry);
+            
   /**
     Last row hashed. We are handling the last (pair of) row(s).  So
     now we do the table scan and match against the entries in the hash
@@ -8288,7 +8291,10 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       goto err;
     }
 
-    /* Continue until we find the right record or reached the end of the table */
+    /* 
+       Scan the table only once and compare against entries in hash.
+       When a match is found, apply the changes.
+     */
     do
     {
       /* get the first record from the table */
@@ -8298,12 +8304,40 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       switch (error) {
         case 0:
         {
-          m_hash.search_and_remove_row(table, &m_cols, &bi_start, &bi_ends, &ai_start, &ai_ends);
+          entry= NULL;
+          m_hash.get(table, &m_cols, &entry);
           store_record(table, record[1]);
 
-          if (bi_start != NULL)
+          /**
+             If there are collisions we need to be sure that this is
+             indeed the record we want.  Loop through all records for
+             the given key and explicitly compare them against the
+             record we got from the storage engine.
+           */
+          while(entry)
           {
-            /* At this point, both table->record[0] and
+            m_curr_row= entry->bi_start;
+            m_curr_row_end= entry->bi_ends;
+            
+            if ((error= unpack_current_row(rli, &m_cols)))
+              goto close_table;
+            
+            if (record_compare(m_table, &m_cols))
+              m_hash.next(&entry);
+            else
+              break;   // we found a match
+          }
+
+          /**
+             We found the entry we needed, just apply the changes.
+           */
+          if (entry)
+          {
+            // just to be safe, copy the record from the SE to table->record[0]
+            memcpy(table->record[0], table->record[1], table->s->reclength);
+
+            /**
+               At this point, both table->record[0] and
                table->record[1] have the SE row that matched the one
                in the hash table.
                
@@ -8313,10 +8347,12 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
                unpacked correctly to table->record[0] in UPDATE
                implementation of do_exec_row().
             */
+            m_curr_row= entry->bi_start;
+            m_curr_row_end= entry->bi_ends;
 
-            m_curr_row= bi_start;
-            m_curr_row_end= bi_ends;
-
+            /* we don't need this entry anymore, just delete it */
+            m_hash.del(entry);
+            
             if ((error= do_apply_row(rli)))
             {
               if (handle_idempotent_errors(rli, &error) || error)
@@ -8347,7 +8383,8 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
            (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
-    m_table->file->print_error(error, MYF(0));
+    if (error)
+      m_table->file->print_error(error, MYF(0));
     m_table->file->ha_rnd_end();
   }
 
