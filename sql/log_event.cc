@@ -8747,9 +8747,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     error= do_before_row_operations(rli);
 
-    uint row_lookup_method= decide_row_lookup_algorithm(table, &m_cols, get_type_code());
     int (Rows_log_event::*do_apply_row_ptr)(Relay_log_info const *)= NULL;
-    switch (row_lookup_method)
+    switch (m_rows_lookup_algorithm)
     {
       case ROW_LOOKUP_HASH_SCAN:
         do_apply_row_ptr= &Rows_log_event::do_hash_scan_and_update;
@@ -8769,6 +8768,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         /* No need to scan for rows, just apply it */
         do_apply_row_ptr= &Rows_log_event::do_apply_row;
         break;
+
+      default:
+        DBUG_ASSERT(0);
+        error= 1;
+        goto AFTER_MAIN_EXEC_ROW_LOOP;
+        break;
     }
     
     /**
@@ -8785,7 +8790,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        in the binary log. Thence, we immediatly raise an error:
        HA_ERR_END_OF_FILE.
      */
-    if ((row_lookup_method != ROW_LOOKUP_NOT_NEEDED) && 
+    if ((m_rows_lookup_algorithm != ROW_LOOKUP_NOT_NEEDED) && 
         !is_any_column_signaled_for_table(table, &m_cols))
     {
       error= HA_ERR_END_OF_FILE;
@@ -9658,6 +9663,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
    * In RBR, auto_increment fields never are NULL.
    */
   m_table->auto_increment_field_not_null= TRUE;
+
+  /**
+     Sets it to ROW_LOOKUP_NOT_NEEDED.
+   */
+  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  DBUG_ASSERT(m_rows_lookup_algorithm==ROW_LOOKUP_NOT_NEEDED);
   return error;
 }
 
@@ -9685,6 +9696,9 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   {
     m_table->file->print_error(local_error, MYF(0));
   }
+
+  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
+
   return error? error : local_error;
 }
 
@@ -10058,8 +10072,9 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
       return HA_ERR_OUT_OF_MEM;
   }
 
-  /* we will be using a hash to lookup rows, initialize it */
-  if (decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+  /* will we be using a hash to lookup rows? If so, initialize it. */
+  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
     m_hash.init();
 
   return 0;
@@ -10075,8 +10090,9 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
     m_hash.deinit();
+  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
 
   return error;
 }
@@ -10176,7 +10192,9 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  if (decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN)
+  /* will we be using a hash to lookup rows? If so, initialize it. */
+  m_rows_lookup_algorithm= decide_row_lookup_algorithm(m_table, &m_cols, get_type_code());
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
     m_hash.init();
   return 0;
 }
@@ -10191,8 +10209,9 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_key= NULL;
 
   /* we don't need the hash anymore, free it */
-  if ((decide_row_lookup_algorithm(m_table, &m_cols, get_type_code()) == ROW_LOOKUP_HASH_SCAN))
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)  
     m_hash.deinit();
+  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
 
   return error;
 }
