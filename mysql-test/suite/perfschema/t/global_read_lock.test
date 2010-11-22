@@ -22,6 +22,10 @@
 
 use performance_schema;
 
+# Make test robust against errors in other tests.
+# Ensure that instrumentation is turned on when we create new connection.
+update performance_schema.setup_instruments set enabled='YES';
+
 grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
 flush privileges;
 
@@ -60,7 +64,7 @@ lock tables performance_schema.setup_instruments write;
 --echo connection default;
 connection default;
 
-let $wait_condition= select 1 from performance_schema.events_waits_current where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+let $wait_condition= select 1 from performance_schema.events_waits_current where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 
 --source include/wait_condition.inc
 
@@ -69,7 +73,7 @@ select event_name,
   left(source, locate(":", source)) as short_source,
   timer_end, timer_wait, operation
   from performance_schema.events_waits_current
-  where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+  where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 
 unlock tables;
 
