@@ -690,6 +690,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
 // If the recovery log is of the current version, then there is no upgrade to be done.  
 // If the recovery log is of an old version, then replacing it with a new recovery log
 // of the current version is how the upgrade is done.  
+// Note, the upgrade procedure takes a checkpoint, so we must release the ydb lock.
 static int
 ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, BOOL * upgrade_in_progress) {
     int r = 0;
