@@ -504,4 +504,15 @@ SELECT DISTINCT GREATEST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
 
 DROP TABLE t1;
 
---echo End of 5.1 tests
+--echo #
+--echo # Bug #58199: name_const in the having clause crashes
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+# NAME_CONST() would seg.fault when used wrongly in a HAVING clause
+--error ER_WRONG_ARGUMENTS
+SELECT 1 from t1 HAVING NAME_CONST('', a);
+
+DROP TABLE t1;
+
