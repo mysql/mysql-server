@@ -419,6 +419,38 @@ WHERE f1 IN (SELECT t1.f2 FROM t1 JOIN t3 ON t3.f4);
 drop table t1, t2, t3;
 
 --echo #
+--echo # LP BUG#680005 Second assertion `cache != __null' failed in
+--echo #                sub_select_cache() on EXPLAIN
+--echo #
+
+CREATE TABLE t1 (f1 int,f2 int,f4 int,f6 int,KEY (f4)) ;
+INSERT IGNORE INTO t1 VALUES
+('1','5','1','0'),('2','1','1','0'),('2','2','2','0'),('0',NULL,'0','0'),
+('2','1','2','0'),('2','0','0','0'),('2','2','2','0'),('2','8','2','0'),
+('2','7','2','0'),('2','5','2','0'),('2',NULL,'1','0');
+
+CREATE TABLE t2 (f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('7');
+
+CREATE TABLE t3 (f3 int) ;
+INSERT IGNORE INTO t3 VALUES ('2');
+
+EXPLAIN
+SELECT t1.f4
+FROM t2 JOIN t1 ON t1.f6
+WHERE
+( t1.f2 ) IN (SELECT SUBQUERY2_t1.f3
+              FROM t3 AS SUBQUERY2_t1
+                   JOIN
+                   (t1 AS SUBQUERY2_t2
+                      JOIN
+                    t1 AS SUBQUERY2_t3 ON SUBQUERY2_t3.f1)
+                   ON SUBQUERY2_t3.f2)
+GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
+
+drop table t1, t2, t3;
+
+--echo #
 --echo # BUG#52317: Assertion failing in Field_varstring::store() 
 --echo # 	    at field.cc:6833
 --echo #

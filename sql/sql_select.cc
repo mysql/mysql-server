@@ -1747,9 +1747,6 @@ JOIN::exec()
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
-  if (!initialized && init_execution())
-    DBUG_VOID_RETURN;
-
   thd_proc_info(thd, "executing");
   error= 0;
   if (procedure)
@@ -1879,6 +1876,9 @@ JOIN::exec()
                     !tables ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
+
+  if (!initialized && init_execution())
+    DBUG_VOID_RETURN;
 
   JOIN *curr_join= this;
   List<Item> *curr_all_fields= &all_fields;
