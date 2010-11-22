@@ -8,7 +8,7 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable SIMPLE_PARSER is set
 #
-if (`SELECT LENGTH('$SIMPLE_PARSER') = 0`) {
+if (!$SIMPLE_PARSER) {
   --skip simple parser requires the environment variable \$SIMPLE_PARSER to be set (normally done by mtr)
 }
 

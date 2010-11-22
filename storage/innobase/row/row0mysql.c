@@ -930,7 +930,8 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table);
+		dict_update_statistics(table, FALSE /* update even if stats
+						    are initialized */);
 	}
 }
 
@@ -3022,7 +3023,8 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table);
+	dict_update_statistics(table, FALSE /* update even if stats are
+					    initialized */);
 
 	trx_commit_for_mysql(trx);
 
