@@ -329,14 +329,15 @@ fil_get_space_id_for_table(
 /*******************************************************************//**
 Frees a space object from the tablespace memory cache. Closes the files in
 the chain but does not delete them. There must not be any pending i/o's or
-flushes on the files. */
+flushes on the files.
+@return TRUE on success */
 static
 ibool
 fil_space_free(
 /*===========*/
-				/* out: TRUE if success */
-	ulint		id,	/* in: space id */
-	ibool		own_mutex);/* in: TRUE if own system->mutex */
+	ulint		id,		/* in: space id */
+	ibool		x_latched);	/* in: TRUE if caller has space->latch
+					in X mode */
 /********************************************************************//**
 Reads data from a space to a buffer. Remember that the possible incomplete
 blocks at the end of file are ignored: they are not taken into account when
@@ -1123,6 +1124,7 @@ try_again:
 	space = fil_space_get_by_name(name);
 
 	if (UNIV_LIKELY_NULL(space)) {
+		ibool	success;
 		ulint	namesake_id;
 
 		ut_print_timestamp(stderr);
@@ -1161,9 +1163,10 @@ try_again:
 
 		namesake_id = space->id;
 
-		mutex_exit(&fil_system->mutex);
+		success = fil_space_free(namesake_id, FALSE);
+		ut_a(success);
 
-		fil_space_free(namesake_id, FALSE);
+		mutex_exit(&fil_system->mutex);
 
 		goto try_again;
 	}
@@ -1314,15 +1317,14 @@ fil_space_free(
 /*===========*/
 					/* out: TRUE if success */
 	ulint		id,		/* in: space id */
-	ibool		own_mutex)	/* in: TRUE if own system->mutex */
+	ibool		x_latched)	/* in: TRUE if caller has space->latch
+					in X mode */
 {
 	fil_space_t*	space;
 	fil_space_t*	namespace;
 	fil_node_t*	fil_node;
 
-	if (!own_mutex) {
-		mutex_enter(&fil_system->mutex);
-	}
+	ut_ad(mutex_own(&fil_system->mutex));
 
 	space = fil_space_get_by_id(id);
 
@@ -1332,8 +1334,6 @@ fil_space_free(
 			"  InnoDB: Error: trying to remove tablespace %lu"
 			" from the cache but\n"
 			"InnoDB: it is not there.\n", (ulong) id);
-
-		mutex_exit(&fil_system->mutex);
 
 		return(FALSE);
 	}
@@ -1369,8 +1369,8 @@ fil_space_free(
 
 	ut_a(0 == UT_LIST_GET_LEN(space->chain));
 
-	if (!own_mutex) {
-		mutex_exit(&fil_system->mutex);
+	if (x_latched) {
+		rw_lock_x_unlock(&space->latch);
 	}
 
 	rw_lock_free(&(space->latch));
@@ -1615,25 +1615,27 @@ fil_close_all_files(void)
 /*=====================*/
 {
 	fil_space_t*	space;
-	fil_node_t*	node;
 
 	mutex_enter(&fil_system->mutex);
 
 	space = UT_LIST_GET_FIRST(fil_system->space_list);
 
 	while (space != NULL) {
+		fil_node_t*	node;
 		fil_space_t*	prev_space = space;
 
-		node = UT_LIST_GET_FIRST(space->chain);
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
 
-		while (node != NULL) {
 			if (node->open) {
 				fil_node_close_file(node, fil_system);
 			}
-			node = UT_LIST_GET_NEXT(chain, node);
 		}
+
 		space = UT_LIST_GET_NEXT(space_list, space);
-		fil_space_free(prev_space->id, TRUE);
+
+		fil_space_free(prev_space->id, FALSE);
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -2253,6 +2255,19 @@ try_again:
 	path = mem_strdup(space->name);
 
 	mutex_exit(&fil_system->mutex);
+
+	/* Important: We rely on the data dictionary mutex to ensure
+	that a race is not possible here. It should serialize the tablespace
+	drop/free. We acquire an X latch only to avoid a race condition
+	when accessing the tablespace instance via:
+
+	  fsp_get_available_space_in_free_extents().
+
+	There our main motivation is to reduce the contention on the
+	dictionary mutex. */
+
+	rw_lock_x_lock(&space->latch);
+
 #ifndef UNIV_HOTBACKUP
 	/* Invalidate in the buffer pool all pages belonging to the
 	tablespace. Since we have set space->is_being_deleted = TRUE, readahead
@@ -2265,7 +2280,11 @@ try_again:
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
-	success = fil_space_free(id, FALSE);
+	mutex_enter(&fil_system->mutex);
+
+	success = fil_space_free(id, TRUE);
+
+	mutex_exit(&fil_system->mutex);
 
 	if (success) {
 		success = os_file_delete(path);
@@ -2273,6 +2292,8 @@ try_again:
 		if (!success) {
 			success = os_file_delete_if_exists(path);
 		}
+	} else {
+		rw_lock_x_unlock(&space->latch);
 	}
 
 	if (success) {
@@ -2298,6 +2319,31 @@ try_again:
 	mem_free(path);
 
 	return(FALSE);
+}
+
+/*******************************************************************//**
+Returns TRUE if a single-table tablespace is being deleted.
+@return TRUE if being deleted */
+UNIV_INTERN
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+	ulint		id)	/*!< in: space id */
+{
+	fil_space_t*	space;
+	ibool		is_being_deleted;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space != NULL);
+
+	is_being_deleted = space->is_being_deleted;
+
+	mutex_exit(&fil_system->mutex);
+
+	return(is_being_deleted);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -4763,7 +4809,7 @@ fil_page_get_type(
 	return(mach_read_from_2(page + FIL_PAGE_TYPE));
 }
 
-/********************************************************************
+/****************************************************************//**
 Initializes the tablespace memory cache. */
 UNIV_INTERN
 void
