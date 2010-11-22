@@ -3534,6 +3534,7 @@ public:
        ROW_LOOKUP_INDEX_SCAN= 1,
        ROW_LOOKUP_TABLE_SCAN= 2,
        ROW_LOOKUP_HASH_SCAN= 3,
+       ROW_LOOKUP_UNDEFINED= 4,
   };
 
   /**
