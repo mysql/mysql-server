@@ -194,6 +194,7 @@ public:
   */
   bool is_evaluated() const;
   bool is_uncacheable() const;
+  bool is_expensive() { return TRUE; }
 
   /*
     Used by max/min subquery to initialize value presence registration
@@ -210,6 +211,16 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor("subselect");
   }
+  /**
+    Callback to test if an IN predicate is expensive.
+
+    @notes
+    The return value affects the behavior of make_cond_for_table().
+
+    @retval TRUE  if the predicate is expensive
+    @retval FALSE otherwise
+  */
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 
   /**
@@ -484,8 +495,6 @@ public:
   bool init_left_expr_cache();
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
-  bool is_expensive_processor(uchar *arg);
-  bool is_expensive() { return TRUE; }
   bool expr_cache_is_needed(THD *thd);
   
   /* 

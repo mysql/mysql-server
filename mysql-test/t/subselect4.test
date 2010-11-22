@@ -451,6 +451,32 @@ GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
 drop table t1, t2, t3;
 
 --echo #
+--echo # LP BUG#680038 bool close_thread_table(THD*, TABLE**):
+--echo #               Assertion `table->key_read == 0' failed in EXPLAIN
+--echo #
+
+CREATE TABLE t1 (f1 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (NULL,1,0);
+
+CREATE TABLE t2 (f2 int,f4 int,f5 int) ;
+INSERT IGNORE INTO t2 VALUES (8,0,0),(5,0,0);
+
+CREATE TABLE t3 (f4 int,KEY (f4)) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+
+set @@optimizer_switch='semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+(SELECT f2 FROM t2
+ WHERE f4 <= ALL
+       (SELECT SQ1_t1.f4
+        FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
+        GROUP BY SQ1_t1.f4));
+
+drop table t1, t2, t3;
+
+--echo #
 --echo # BUG#52317: Assertion failing in Field_varstring::store() 
 --echo # 	    at field.cc:6833
 --echo #

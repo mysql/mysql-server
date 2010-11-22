@@ -2381,23 +2381,6 @@ bool Item_in_subselect::init_cond_guards()
 }
 
 
-/*
-  Callback to test if an IN predicate is expensive.
-
-  @details
-    The return value affects the behavior of make_cond_for_table().
-
-  @retval TRUE  if the predicate is expensive
-  @retval FALSE otherwise
-*/
-
-bool Item_in_subselect::is_expensive_processor(uchar *arg)
-{
-  /* TIMOUR: TODO: decide on a cost basis whether it is expensive or not. */
-  return TRUE;
-}
-
-
 Item_subselect::trans_res
 Item_allany_subselect::select_transformer(JOIN *join)
 {
