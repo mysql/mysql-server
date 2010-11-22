@@ -7766,8 +7766,15 @@ static uint decide_row_lookup_method(TABLE* table, MY_BITMAP *cols, uint event_t
 
   uint key_index= search_key_in_table(table, cols, (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG));
 
+  /**
+     Blackhole always uses a table scan, because, the BI is always
+     assured to match the one got from the engine.
+  */
+  if (table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB) 
+    res= Rows_log_event::ROW_LOOKUP_TABLE_SCAN;
+
   /* No index */
-  if (key_index == MAX_KEY || key_index > table->s->keys)
+  else if ((key_index == MAX_KEY || key_index > table->s->keys))
     // TODO: change so that it takes into account the slave_exec_mode flag
     //res= slave_exec_mode & TABLE_SCAN ? TABLE_SCAN : HASH_SCAN;
     res= Rows_log_event::ROW_LOOKUP_HASH_SCAN;
@@ -8049,7 +8056,6 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
       if (error == HA_ERR_RECORD_DELETED)
         error= HA_ERR_KEY_NOT_FOUND;
-      table->file->print_error(error, MYF(0));
     }
     
     goto end;
@@ -8084,7 +8090,6 @@ INDEX_SCAN:
     if (!table->file->inited && (error= table->file->ha_index_init(key, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
-      table->file->print_error(error, MYF(0));
       goto end;
     }
 
@@ -8118,7 +8123,6 @@ INDEX_SCAN:
       DBUG_PRINT("info",("no record matching the key found in the table"));
       if (error == HA_ERR_RECORD_DELETED)
         error= HA_ERR_KEY_NOT_FOUND;
-      table->file->print_error(error, MYF(0));
       goto end;
     }
 
@@ -8201,25 +8205,32 @@ INDEX_SCAN:
         if (error == HA_ERR_RECORD_DELETED)
           continue;
         DBUG_PRINT("info",("no record matching the given row found"));
-        table->file->print_error(error, MYF(0));
         goto end;
       }
     }
   }
 
 end:
-  if (!error)
-    error= do_apply_row(rli);
+
+  DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+
+  if (error && error != HA_ERR_RECORD_DELETED)
+    table->file->print_error(error, MYF(0));
+  else
+  {
+    if ((error= do_apply_row(rli)))
+    {
+      if ((get_type_code() == UPDATE_ROWS_EVENT) && 
+          (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
+      {
+        m_curr_row= m_curr_row_end;
+        unpack_current_row(rli, &m_cols);
+      }
+    }
+  }
 
   if (table->file->inited)
     table->file->ha_index_end();
-
-  if ((get_type_code() == UPDATE_ROWS_EVENT) && 
-      (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
-  {
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols);
-  }
 
   table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -8318,7 +8329,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
           {
             m_curr_row= entry->bi_start;
             m_curr_row_end= entry->bi_ends;
-            
+
             if ((error= unpack_current_row(rli, &m_cols)))
               goto close_table;
             
@@ -8364,17 +8375,14 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
         }
         break;
 
-          /*
-            If the record was deleted, we pick the next one without doing
-            any comparisons.
-          */
         case HA_ERR_RECORD_DELETED:
-          break;
+          // get next
+          continue;
 
         case HA_ERR_END_OF_FILE:
         default:
-          DBUG_PRINT("info", ("Failed to get next record"
-              " (ha_rnd_next returns %d)",error));
+          // exception (hash is not empty and we have reached EOF or
+          // other error happened)
           goto close_table;
       }
     }
@@ -8384,7 +8392,11 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 
 close_table:
     if (error)
+    {
       m_table->file->print_error(error, MYF(0));
+      DBUG_PRINT("info", ("Failed to get next record"
+                          " (ha_rnd_next returns %d)",error));
+    }
     m_table->file->ha_rnd_end();
   }
 
@@ -8405,82 +8417,96 @@ err:
 int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
 {
   int error= 0;
+  const uchar* saved_m_curr_row= m_curr_row;
+  TABLE* table= m_table;
+
   DBUG_ENTER("Rows_log_event::do_table_scan_and_update");
   DBUG_ASSERT(m_curr_row != m_rows_end);
   DBUG_PRINT("info",("locating record using table scan (ha_rnd_next)"));
 
-  int restart_count= 0; // Number of times scanning has restarted from top
+  saved_m_curr_row= m_curr_row;
 
-  /* We don't have a key: search the table using ha_rnd_next() */
-  if ((error= m_table->file->ha_rnd_init(1)))
+  /** unpack the before image */
+  prepare_record(table, &m_cols, FALSE);
+  if (!(error= unpack_current_row(rli, &m_cols, 0)))
   {
-    DBUG_PRINT("info",("error initializing table scan"
-                       " (ha_rnd_init returns %d)",error));
-    m_table->file->print_error(error, MYF(0));
-    goto err;
+    // Temporary fix to find out why it fails [/Matz]
+    memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
+
+    /** save a copy so that we can compare against it later */
+    store_record(m_table, record[1]);
+
+    int restart_count= 0; // Number of times scanning has restarted from top
+    
+    if ((error= m_table->file->ha_rnd_init(1)))
+    {
+      DBUG_PRINT("info",("error initializing table scan"
+                         " (ha_rnd_init returns %d)",error));
+      m_table->file->print_error(error, MYF(0));
+      goto end;
+    }
+    
+    /* Continue until we find the right record or have made a full loop */
+    do
+    {
+      error= m_table->file->ha_rnd_next(m_table->record[0]);
+      
+      DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
+      switch (error) {
+      case HA_ERR_END_OF_FILE:
+        // restart scan from top
+        if (++restart_count < 2)
+          error= m_table->file->ha_rnd_init(1);
+        break;
+
+      case HA_ERR_RECORD_DELETED:
+        // get next
+        continue;
+      
+      case 0:
+        // we're good, check if record matches
+        break;
+
+      default:
+        // exception
+        goto end;
+      }
+    }
+    while ((error == HA_ERR_END_OF_FILE && restart_count < 2) ||
+           (error == HA_ERR_RECORD_DELETED) ||
+           record_compare(m_table, &m_cols));
   }
 
-  /* Continue until we find the right record or have made a full loop */
-  do
+end:
+
+  DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+  
+  /* either we report error or apply the changes */
+  if (error && error != HA_ERR_RECORD_DELETED)
   {
-  restart_ha_rnd_next:
-    error= m_table->file->ha_rnd_next(m_table->record[0]);
-
-    DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
-    switch (error) {
-
-    case 0:
-      break;
-
-    /*
-      If the record was deleted, we pick the next one without doing
-      any comparisons.
-    */
-    case HA_ERR_RECORD_DELETED:
-      goto restart_ha_rnd_next;
-
-    case HA_ERR_END_OF_FILE:
-      if (++restart_count < 2)
-        m_table->file->ha_rnd_init(1);
-      break;
-
-    default:
-      DBUG_PRINT("info", ("Failed to get next record"
-                          " (ha_rnd_next returns %d)",error));
-      m_table->file->print_error(error, MYF(0));
-      m_table->file->ha_rnd_end();
-      goto err;
+    DBUG_PRINT("info", ("Failed to get next record"
+                        " (ha_rnd_next returns %d)",error));
+    m_table->file->print_error(error, MYF(0));
+  }
+  else 
+  {
+    if ((error= do_apply_row(rli)))
+    {
+      if ((get_type_code() == UPDATE_ROWS_EVENT) && 
+          (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
+      {
+        m_curr_row= m_curr_row_end;
+        unpack_current_row(rli, &m_cols);
+      }
     }
   }
-  while (restart_count < 2 && record_compare(m_table, &m_cols));
 
-  /*
-    Note: above record_compare will take into accout all record fields
-    which might be incorrect in case a partial row was given in the event
-   */
+  /* close the index */
+  if (table->file->inited)
+    table->file->ha_rnd_end();
 
-  /*
-    Have to restart the scan to be able to fetch the next row.
-  */
-  if (restart_count == 2)
-    DBUG_PRINT("info", ("Record not found"));
-  else
-    DBUG_DUMP("record found", m_table->record[0], m_table->s->reclength);
-  m_table->file->ha_rnd_end();
-
-  DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
-
-  /* If the row was found, apply it */
-  if (!error)
-  {
-    DBUG_ASSERT(restart_count < 2);
-    error= do_apply_row(rli);
-  }
-
-err:
-  m_table->default_column_bitmaps();
+  table->default_column_bitmaps();
   DBUG_RETURN(error);
-
 }
 
 int Rows_log_event::do_apply_event(Relay_log_info const *rli)
