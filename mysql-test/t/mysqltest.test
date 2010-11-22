@@ -854,6 +854,13 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+let $a= `select * from t1`;
+# This should output `select 42`, not evaluate it again to 42
+echo $a;
+drop table t1;
+
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/let.sql 2>&1
 
@@ -1134,6 +1141,11 @@ if (!$counter)
 {
   echo Counter is not 0, (counter=10);
 }
+if (! $counter)
+{
+  let $counter=5;
+}
+echo Counter should still be 10, is $counter;
 let $counter=0;
 if($counter)
 {
@@ -1142,6 +1154,10 @@ if($counter)
 if (!$counter)
 {
   echo Counter is not 0, (counter=0);
+}
+if (! $counter)
+{
+  echo Not space var works;
 }
 
 # ----------------------------------------------------------------------------
@@ -1163,15 +1179,189 @@ if ($counter)
 {
   echo oops, -0 is true;
 }
-if (beta)
-{
-  echo Beta is true;
-}
+# This is no longer allowed, as a precaution against mistyped conditionals
+# if (beta)
+# {
+#   echo Beta is true;
+# }
 let $counter=gamma;
 while ($counter)
 {
   echo while with string, only once;
   let $counter=000;
+}
+
+# ----------------------------------------------------------------------------
+# Test if with compare conditions
+# ----------------------------------------------------------------------------
+
+let $ifvar= 5;
+let $ifvar2= 6;
+
+if ($ifvar < 7)
+{
+  echo 5<7;
+}
+if ($ifvar< 7)
+{
+  echo 5<7 again;
+}
+if ($ifvar<7)
+{
+  echo 5<7 still;
+}
+if ($ifvar < $ifvar2)
+{
+  echo 5<6;
+}
+if ($ifvar <= 4)
+{
+  echo 5<=4;
+}
+if ($ifvar >= 5)
+{
+  echo 5>=5;
+}
+if ($ifvar>=5)
+{
+  echo 5>=5 again;
+}
+if ($ifvar > 3)
+{
+  echo 5>3;
+}
+if ($ifvar == 4)
+{
+  echo 5==4;
+}
+if ($ifvar == 5)
+{
+  echo 5==5;
+}
+if ($ifvar != 8)
+{
+  echo 5!=8;
+}
+# Any number should compare unequal to any string
+if ($ifvar != five)
+{
+  echo 5!=five;
+}
+if ($ifvar == `SELECT 3+2`)
+{
+  echo 5==3+2;
+}
+if ($ifvar    ==       5)
+{
+  echo 5   ==   5;
+}
+let $ifvar= hello;
+if ($ifvar == hello there)
+{
+  echo hello == hello there;
+}
+if ($ifvar == hello)
+{
+  echo hello == hello;
+}
+if ($ifvar == hell)
+{
+  echo hello == hell;
+}
+if ($ifvar    ==    hello)
+{
+  echo hello   ==   hello;
+}
+if ($ifvar != goodbye)
+{
+  echo hello != goodbye;
+}
+
+let $ifvar= two words;
+if ($ifvar == two words)
+{
+  echo two words;
+}
+if ($ifvar == `SELECT 'two words'`)
+{
+  echo two words are two words;
+}
+if (42)
+{
+  echo right answer;
+}
+if (0)
+{
+  echo wrong answer;
+}
+# Non-empty string treated as 'true'
+if (`SELECT 'something'`)
+{
+  echo anything goes;
+}
+# Make sure 0 and string compare right
+let $ifvar= 0;
+if ($ifvar == string)
+{
+  echo 0 == string;
+}
+if ($ifvar != string)
+{
+  echo 0 != string;
+}
+--write_file $MYSQL_TMP_DIR/mysqltest.sql
+let $var= 5;
+if ($var >= four)
+{
+ echo 5>=four;
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
+remove_file $MYSQL_TMP_DIR/mysqltest.sql;
+
+--write_file $MYSQL_TMP_DIR/mysqltest.sql
+let $var= 5;
+if ($var ~= 6)
+{
+ echo 5~=6;
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
+remove_file $MYSQL_TMP_DIR/mysqltest.sql;
+
+--write_file $MYSQL_TMP_DIR/mysqltest.sql
+let $var= text;
+if (var == text)
+{
+ echo Oops I forgot the $;
+}
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
+remove_file $MYSQL_TMP_DIR/mysqltest.sql;
+
+# ----------------------------------------------------------------------------
+# Test while with compare conditions
+# ----------------------------------------------------------------------------
+
+let $counter= 2;
+
+while ($counter < 5)
+{
+  echo counter is $counter;
+  inc $counter;
+}
+let $ifvar=;
+while ($ifvar != stop)
+{
+  if ($counter >= 7)
+  {
+    let $ifvar= stop;
+  }
+  echo counter is $counter;
+  inc $counter;
 }
 
 # ----------------------------------------------------------------------------
@@ -2438,15 +2628,15 @@ let $count= 0;
 while ($run)
 {
    let $Field=   query_get_value($show_statement, Field,   $rowno);
-   if (`SELECT '$Field' = 'No such row'`)
+   if ($Field == No such row)
    {
       let $run= 0;
    }
-   if (`SELECT '$Field' <> 'No such row'`)
+   if ($Field != No such row)
    {
       let $Type=    query_get_value($show_statement, Type,    $rowno);
       let $Null=    query_get_value($show_statement, Null,    $rowno);
-      if (`SELECT '$Null' = 'YES'`)
+      if ($Null == YES)
       {
          inc $count;
       }
@@ -2528,26 +2718,6 @@ rmdir $MYSQLTEST_VARDIR/tmp/testdir;
 
 --replace_result c:\\a.txt z
 SELECT 'c:\\a.txt' AS col;
-
-#
-# Bug#32307 mysqltest - does not detect illegal if syntax
-#
-
-let $test= 1;
-if ($test){
-  echo hej;
-}
-
---write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
-if ($mysql_errno != 1436)
-{
- echo ^ Should not be allowed!
-}
-EOF
---error 1
---exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
-remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
-
 
 # ----------------------------------------------------------------------------
 # Test that -- is not allowed as comment, only as mysqltest builtin command
