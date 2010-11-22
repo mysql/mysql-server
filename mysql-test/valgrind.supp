@@ -777,6 +777,14 @@
    fun:my_malloc
    fun:initialize_bucket
    fun:lf_hash_search
-   fun:_Z19find_or_create_fileP10PFS_threadP14PFS_file_classPKcj
+}
+
+{
+   missing shutdown_performance_schema 4
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
 }
 
