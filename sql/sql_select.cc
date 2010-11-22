@@ -1821,7 +1821,14 @@ JOIN::exec()
   if (tables)
     thd->limit_found_rows= 0;
 
-  if (exec_const_cond && !exec_const_cond->val_int())
+  /*
+    Evaluate expensive constant conditions that were not evaluated during
+    optimization. Do not evaluate them for EXPLAIN statements as these
+    condtions may be arbitrarily costly, and because the optimize phase
+    might not have produced a complete executable plan for EXPLAINs.
+  */
+  if (exec_const_cond && !(select_options & SELECT_DESCRIBE) &&
+      !exec_const_cond->val_int())
     zero_result_cause= "Impossible WHERE noticed after reading const tables";
 
   if (zero_result_cause)
