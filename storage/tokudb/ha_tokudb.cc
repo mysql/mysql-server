@@ -329,7 +329,7 @@ int ai_poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting add index.");
-        return 1;
+        return ER_ABORTING_CONNECTION;
     }
     sprintf(context->write_status_msg, "Adding of indexes about %.1f%% done", progress*100);
     thd_proc_info(context->thd, context->write_status_msg);
@@ -340,7 +340,7 @@ int poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting bulk load.");
-        return 1;
+        return ER_ABORTING_CONNECTION;
     }
     sprintf(context->write_status_msg, "Loading of data about %.1f%% done", progress*100);
     thd_proc_info(context->thd, context->write_status_msg);
