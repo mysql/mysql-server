@@ -952,4 +952,55 @@ a	b	a	b
 0	0	0	0
 1	1	1	1
 DROP TABLE t1;
+#
+# Bug #55568: user variable assignments crash server when used within
+#             query
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (1);
+SELECT MULTIPOINT(
+1,
+(
+SELECT MULTIPOINT(
+MULTIPOINT(
+1,
+(SELECT COUNT(*) FROM (SELECT 1 FROM t1 GROUP BY a,a) d)
+)
+) FROM t1
+)
+) != COUNT(*) q FROM t1 GROUP BY a;
+q
+NULL
+NULL
+SELECT MULTIPOINT(
+1,
+(
+SELECT MULTIPOINT(
+MULTIPOINT(
+1,
+(SELECT COUNT(*) FROM (SELECT 1 FROM t1 GROUP BY a,a) d)
+)
+) FROM t1
+)
+) != COUNT(*) q FROM t1 GROUP BY a;
+q
+NULL
+NULL
+DROP TABLE t1;
+#
+# Bug #54468: crash after item's print() function when ordering/grouping 
+#             by subquery
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (), ();
+SELECT 1 FROM t1
+GROUP BY
+GREATEST(t1.a,
+(SELECT 1 FROM
+(SELECT t1.b FROM t1,t1 t2
+ORDER BY t1.a, t1.a LIMIT 1) AS d)
+);
+1
+1
+DROP TABLE t1;
 End of 5.0 tests.
