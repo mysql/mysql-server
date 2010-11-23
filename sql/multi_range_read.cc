@@ -343,18 +343,16 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
 
   for(;;)
   {
-    bool have_record= FALSE;
     if (scanning_key_val_iter)
     {
       if ((res= kv_it.get_next()))
       {
-        kv_it.move_to_next_key_value();
         scanning_key_val_iter= FALSE;
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res);
+        kv_it.move_to_next_key_value();
+        continue;
       }
-      else
-        have_record= TRUE;
     }
     else
     {
@@ -363,16 +361,16 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res); /* Some fatal error */
         
-        if (key_buffer->is_empty())
+        if (key_buffer->is_empty()) //psergey-todo: the problem is here?
         {
           DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
       }
       scanning_key_val_iter= TRUE;
+      continue;
     }
 
-    if (have_record &&
-        !skip_index_tuple(*(char**)cur_range_info) &&
+    if (!skip_index_tuple(*(char**)cur_range_info) &&
         !skip_record(*(char**)cur_range_info, NULL))
     {
       break;
@@ -566,6 +564,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer()
         index_reader_exhausted= TRUE;
       break;
     }
+    index_reader_exhausted= FALSE;
   }
   DBUG_RETURN(res);
 }
@@ -637,7 +636,11 @@ int Mrr_ordered_rndpos_reader::refill_from_key_buffer()
 int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 {
   int res;
-
+  
+  /* 
+    First, check if rowid buffer has elements with the same rowid value as
+    the previous.
+  */
   while (last_identical_rowid)
   {
     /*
@@ -645,28 +648,25 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
       from a rowid that matched multiple range_ids. Return this record again,
       with next matching range_id.
     */
-    bool UNINIT_VAR(bres);
-    bres= rowid_buffer->read();
-    DBUG_ASSERT(!bres);
-
-    if (is_mrr_assoc)
-      memcpy(range_info, rowids_range_id, sizeof(uchar*));
+    (void)rowid_buffer->read();
 
     if (rowid == last_identical_rowid)
-    {
       last_identical_rowid= NULL; /* reached the last of identical rowids */
-    }
 
-    if (!index_reader->skip_record((char*)*range_info, rowid))
-    {
+    if (!is_mrr_assoc)
       return 0;
-    }
-  }
 
+    memcpy(range_info, rowids_range_id, sizeof(uchar*));
+    if (!index_reader->skip_record((char*)*range_info, rowid))
+      return 0;
+  }
+  
+  /* 
+     Ok, last_identical_rowid==NULL, it's time to read next different rowid
+     value and get record for it.
+  */
   for(;;)
   {
-    last_identical_rowid= NULL;
-
     /* Return eof if there are no rowids in the buffer after re-fill attempt */
     if (rowid_buffer->read())
       return HA_ERR_END_OF_FILE;
@@ -674,41 +674,44 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
     if (is_mrr_assoc)
     {
       memcpy(range_info, rowids_range_id, sizeof(uchar*));
-    }
 
-    if (index_reader->skip_record(*range_info, rowid))
-      continue;
+      if (index_reader->skip_record(*range_info, rowid))
+        continue;
+    }
 
     res= h->ha_rnd_pos(h->get_table()->record[0], rowid);
 
     if (res == HA_ERR_RECORD_DELETED)
-      continue;
-    
-    /* 
-      Check if subsequent buffer elements have the same rowid value as this
-      one. If yes, remember this fact so that we don't make any more rnd_pos()
-      calls with this value.
-    */
-    if (!res)
     {
-      uchar *cur_rowid= rowid;
-      /* 
-        Note: this implies that SQL layer doesn't touch table->record[0]
-        between calls.
-      */
-      Lifo_buffer_iterator it;
-      it.init(rowid_buffer);
-      while (!it.read()) // reads to (rowid, ...)
-      {
-        if (h->cmp_ref(rowid, cur_rowid))
-          break;
-        last_identical_rowid= rowid;
-      }
+      /* not likely to get this code with current storage engines, but still */
+      continue;
     }
-    return 0;
+
+    if (res)
+      return res; /* Some fatal error */
+
+    break; /* Got another record */
   }
 
-  return res;
+  /* 
+    Check if subsequent buffer elements have the same rowid value as this
+    one. If yes, remember this fact so that we don't make any more rnd_pos()
+    calls with this value.
+  */
+  uchar *cur_rowid= rowid;
+  /* 
+    Note: this implies that SQL layer doesn't touch table->record[0]
+    between calls.
+  */
+  Lifo_buffer_iterator it;
+  it.init(rowid_buffer);
+  while (!it.read()) // reads to (rowid, ...)
+  {
+    if (h->cmp_ref(rowid, cur_rowid))
+      break;
+    last_identical_rowid= rowid;
+  }
+  return 0;
 }
 
 
@@ -749,27 +752,24 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   h= h_arg;
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
 
-  if ((mode & HA_MRR_USE_DEFAULT_IMPL) || (mode & HA_MRR_SORTED))
+  if (mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))
   {
     DBUG_ASSERT(h->inited == handler::INDEX);
+    /* Call correct init function and assign to top level object */
     Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
     res= s->init(h, seq_funcs, seq_init_param, n_ranges, mode, this);
     strategy= s;
     DBUG_RETURN(res);
   }
   
-  /* Neither of strategies used below can handle sorting */
-  DBUG_ASSERT(!(mode & HA_MRR_SORTED));
-
   /*
     Determine whether we'll need to do key sorting and/or rnd_pos() scan
   */
   index_strategy= NULL;
-  Mrr_ordered_index_reader *ordered_idx_reader= NULL;
   if ((mode & HA_MRR_SINGLE_POINT) &&
       optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS))
   {
-    index_strategy= ordered_idx_reader= &reader_factory.ordered_index_reader;
+    index_strategy= &reader_factory.ordered_index_reader;
   }
   else
     index_strategy= &reader_factory.simple_index_reader;
@@ -817,7 +817,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     rowid_buffer.set_buffer_space(buf->buffer, buf->buffer_end);
 
     if ((res= setup_two_handlers()))
-      DBUG_RETURN(res);
+      goto error;
 
     if ((res= index_strategy->init(h2, seq_funcs, seq_init_param, n_ranges, 
                                    mode, this)) || 
@@ -842,6 +842,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   DBUG_RETURN(0);
 error:
   close_second_handler();
+   /* Safety, not really needed but: */
   strategy= NULL;
   DBUG_RETURN(1);
 }
@@ -860,7 +861,7 @@ error:
 int DsMrr_impl::setup_two_handlers()
 {
   int res;
-  THD *thd= current_thd;
+  THD *thd= h->get_table()->in_use;
   DBUG_ENTER("DsMrr_impl::setup_two_handlers");
   if (!h2)
   {

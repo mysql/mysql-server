@@ -590,6 +590,7 @@ int key_tuple_cmp(KEY_PART_INFO *part, uchar *key1, uchar *key2,
       /* Step over the NULL bytes for key_cmp() call */
       key1++;
       key2++;
+      len--;
     }
     if ((res= part->field->key_cmp(key1, key2)))
       return res;
