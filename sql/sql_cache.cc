@@ -1349,6 +1349,57 @@ end:
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+/**
+  Send a single memory block from the query cache.
+
+  Respects the client/server protocol limits for the
+  size of the network packet, and splits a large block
+  in pieces to ensure that individual piece doesn't exceed
+  the maximal allowed size of the network packet (16M).
+
+  @param[in] net NET handler
+  @param[in] packet packet to send
+  @param[in] len packet length
+
+  @return Operation status
+    @retval FALSE On success
+    @retval TRUE On error
+*/
+static bool
+send_data_in_chunks(NET *net, const uchar *packet, ulong len)
+{
+  /*
+    On the client we may require more memory than max_allowed_packet
+    to keep, both, the truncated last logical packet, and the
+    compressed next packet.  This never (or in practice never)
+    happens without compression, since without compression it's very
+    unlikely that a) a truncated logical packet would remain on the
+    client when it's time to read the next packet b) a subsequent
+    logical packet that is being read would be so large that
+    size-of-new-packet + size-of-old-packet-tail >
+    max_allowed_packet.  To remedy this issue, we send data in 1MB
+    sized packets, that's below the current client default of 16MB
+    for max_allowed_packet, but large enough to ensure there is no
+    unnecessary overhead from too many syscalls per result set.
+  */
+  static const ulong MAX_CHUNK_LENGTH= 1024*1024;
+
+  while (len > MAX_CHUNK_LENGTH)
+  {
+    if (net_real_write(net, packet, MAX_CHUNK_LENGTH))
+      return TRUE;
+    packet+= MAX_CHUNK_LENGTH;
+    len-= MAX_CHUNK_LENGTH;
+  }
+  if (len && net_real_write(net, packet, len))
+    return TRUE;
+
+  return FALSE;
+}
+#endif
+
+
 /*
   Check if the query is in the cache. If it was cached, send it
   to the user.
@@ -1660,11 +1711,11 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                    ALIGN_SIZE(sizeof(Query_cache_result)))));
     
     Query_cache_result *result = result_block->result();
-    if (net_real_write(&thd->net, result->data(),
-		       result_block->used -
-		       result_block->headers_len() -
-		       ALIGN_SIZE(sizeof(Query_cache_result))))
-      break;					// Client aborted
+    if (send_data_in_chunks(&thd->net, result->data(),
+                            result_block->used -
+                            result_block->headers_len() -
+                            ALIGN_SIZE(sizeof(Query_cache_result))))
+      break;                                    // Client aborted
     result_block = result_block->next;
     thd->net.pkt_nr= query->last_pkt_nr; // Keep packet number updated
   } while (result_block != first_result_block);
