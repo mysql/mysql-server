@@ -1568,7 +1568,7 @@ public:
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
-    register_item_tree_change() in memory root of THD, and freed in
+    nocheck_register_item_tree_change() in memory root of THD, and freed in
     rollback_item_tree_changes(). For conventional execution it's always
     empty.
   */
@@ -2175,8 +2175,26 @@ public:
       nocheck_register_item_tree_change(place, *place, mem_root);
     *place= new_value;
   }
+  /**
+    Make change in item tree after checking whether it needs registering
+
+
+    @param place         place where we should assign new value
+    @param new_value     place of the new value
+
+    @details
+    see check_and_register_item_tree_change details
+  */
+  void check_and_register_item_tree(Item **place, Item **new_value)
+  {
+    if (!stmt_arena->is_conventional())
+      check_and_register_item_tree_change(place, new_value, mem_root);
+    *place= *new_value;
+  }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
+  void check_and_register_item_tree_change(Item **place, Item **new_value,
+                                           MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();
 
   /*
