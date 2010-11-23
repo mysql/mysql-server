@@ -1472,7 +1472,11 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
    * Parent operation is not defined before we have found the first 
    * appendable child.
    */
-  NdbQueryBuilder builder(*m_thd_ndb->ndb);
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create(*m_thd_ndb->ndb);
+  if (unlikely (builder==NULL))
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
 
   uint push_cnt= 0;
   uint fld_refs= 0;
@@ -1507,9 +1511,13 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
         for (uint i= 0; i < key->key_parts; i++)
         {
-          root_key[map[i]]= builder.paramValue();
+          root_key[map[i]]= builder->paramValue();
           if (unlikely(!root_key[map[i]]))
-            ERR_RETURN(builder.getNdbError());
+          {
+            const NdbError error = builder->getNdbError();
+            builder->destroy();
+            ERR_RETURN(error);
+          }
         }
         root_key[key->key_parts]= NULL;
 
@@ -1519,7 +1527,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
                       static_cast<int>(table->s->primary_key));
-          query_op= builder.readTuple(m_table, root_key);
+          query_op= builder->readTuple(m_table, root_key);
         }
         else
         {
@@ -1527,7 +1535,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           const NdbDictionary::Index* index 
             = m_index[join_root->get_index_no()].unique_index;
           DBUG_ASSERT(index);
-          query_op= builder.readTuple(index, m_table, root_key);
+          query_op= builder->readTuple(index, m_table, root_key);
         }
       }
       /**
@@ -1548,12 +1556,12 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
                             m_index[join_root->get_index_no()].index->getName()));
 
         // Bounds will be generated and supplied during execute
-        query_op= builder.scanIndex(m_index[join_root->get_index_no()].index, m_table);
+        query_op= builder->scanIndex(m_index[join_root->get_index_no()].index, m_table);
       }
       else if (access_type == AQP::AT_TABLE_SCAN) 
       {
         DBUG_PRINT("info", ("Root operation is 'table scan'"));
-        query_op= builder.scanTable(m_table);
+        query_op= builder->scanTable(m_table);
       }
       else
       {
@@ -1561,7 +1569,11 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
       }
 
       if (unlikely(!query_op))
-        ERR_RETURN(builder.getNdbError());
+      {
+        const NdbError error = builder->getNdbError();
+        builder->destroy();
+        ERR_RETURN(error);
+      }
 
       context.add_pushed(join_root, NULL, query_op);
       push_cnt= 1;
@@ -1611,18 +1623,20 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
         if (unlikely(error))
         {
           DBUG_PRINT("info", ("Failed to store constant Item into Field -> not pushable"));
+          builder->destroy();
           DBUG_RETURN(0);
         }
         if (field->is_real_null())
         {
           DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
+          builder->destroy();
           DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
         }
         const uchar* const ptr= (field->real_type() == MYSQL_TYPE_VARCHAR)
                 ? field->ptr + ((Field_varstring*)field)->length_bytes
                 : field->ptr;
 
-        linked_key[map[i]]= builder.constValue(ptr, field->data_length());
+        linked_key[map[i]]= builder->constValue(ptr, field->data_length());
       }
       else
       {
@@ -1650,7 +1664,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
           // TODO use field_index ??
           linked_key[map[i]]=
-              builder.linkedValue(parent_op, get_referred_field_name(field_item));
+              builder->linkedValue(parent_op, get_referred_field_name(field_item));
         }
         else
         {
@@ -1660,14 +1674,19 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           if (unlikely(fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS))
           {
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
+            builder->destroy();
             DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
           }
           referred_fields[fld_refs++]= field_item->field;
-          linked_key[map[i]]= builder.paramValue();
+          linked_key[map[i]]= builder->paramValue();
         }
       }
       if (unlikely(!linked_key[map[i]]))
-        ERR_RETURN(builder.getNdbError());
+      {
+        const NdbError error = builder->getNdbError();
+        builder->destroy();
+        ERR_RETURN(error);
+      }
     } // for (uint i= 0; i < key->key_parts; i++, key_part++)
 
     const NdbDictionary::Table* const table= handler->m_table;
@@ -1687,12 +1706,12 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
       NdbQueryIndexBound bounds(linked_key);
-      query_op= builder.scanIndex(handler->m_index[join_tab->get_index_no()].index, table, &bounds, &options);
+      query_op= builder->scanIndex(handler->m_index[join_tab->get_index_no()].index, table, &bounds, &options);
     }
     // Link on primary key or an unique index
     else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
     {
-      query_op= builder.readTuple(table, linked_key, &options);
+      query_op= builder->readTuple(table, linked_key, &options);
     }
     else
     {
@@ -1700,23 +1719,34 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
       const NdbDictionary::Index* index
         = handler->m_index[join_tab->get_index_no()].unique_index;
       DBUG_ASSERT(index != NULL);
-      query_op= builder.readTuple(index, table, linked_key, &options);
+      query_op= builder->readTuple(index, table, linked_key, &options);
     }
 
 //  DBUG_ASSERT(query_op);
     if (unlikely(!query_op))
-      ERR_RETURN(builder.getNdbError());
+    {
+      const NdbError error = builder->getNdbError();
+      builder->destroy();
+      ERR_RETURN(error);
+    }
 
     context.add_pushed(join_tab, join_parent, query_op);
     push_cnt++;
   } // for (uint join_cnt= 1; join_cnt<plan.get_access_count(); join_cnt++)
 
   if (push_cnt < 2)
+  {
+    builder->destroy();
     DBUG_RETURN(0);
+  }
 
-  const NdbQueryDef* const query_def= builder.prepare();
+  const NdbQueryDef* const query_def= builder->prepare();
   if (unlikely(!query_def))
-    ERR_RETURN(builder.getNdbError());
+  {
+    const NdbError error = builder->getNdbError();
+    builder->destroy();
+    ERR_RETURN(error);
+  }
 
   m_thd_ndb->m_pushed_queries_defined++;
   /* 
@@ -1726,11 +1756,19 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
   const ndb_query_def_list* const list_item = 
     new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
   if (unlikely(list_item == NULL))
-    DBUG_RETURN(0);
+  {
+    builder->destroy();
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
   m_thd_ndb->m_query_defs = list_item;
   
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
   m_pushed_join= new ndb_pushed_join(context.plan(), context.join_scope(), fld_refs, referred_fields, query_def);
+  if (unlikely (m_pushed_join == NULL))
+  {
+    builder->destroy();
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
 
   for (uint i = 0; i < push_cnt; i++)
   {
@@ -1740,6 +1778,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     handler->m_pushed_join_member= this;
   }
 
+  builder->destroy();
   DBUG_RETURN(0);
 } // ha_ndbcluster::make_pushed_join()
 
@@ -2723,7 +2762,7 @@ Thd_ndb::release_query_defs()
   const ndb_query_def_list* current = m_query_defs;
   while (current != NULL)
   {
-    current->get_def()->release();
+    current->get_def()->destroy();
     const ndb_query_def_list* const previous = current;
     current = current->get_next();
     delete previous;

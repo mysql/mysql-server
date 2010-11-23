@@ -634,6 +634,7 @@ private:
 
   bool contains(const NdbQueryOperationDefImpl*);
 
+  NdbQueryBuilder m_interface;
   Ndb& m_ndb;
   NdbError m_error;
 

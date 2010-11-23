@@ -450,7 +450,8 @@ private:
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
              NdbTransaction& trans,
-             const NdbQueryDefImpl& queryDef);
+             const NdbQueryDefImpl& queryDef,
+             int& errorCode);
 
   ~NdbQueryImpl();
 

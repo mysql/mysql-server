@@ -339,9 +339,28 @@ private:
  */
 class NdbQueryBuilder 
 {
-public:
-  explicit NdbQueryBuilder(Ndb&);    // Or getQueryBuilder() from Ndb..
+  friend class NdbQueryBuilderImpl;
+private:
+  // Constructor is private, since application should use 'create()'.
+  explicit NdbQueryBuilder(NdbQueryBuilderImpl& impl);
+  // Destructor is private, since application should use 'destroy()'
  ~NdbQueryBuilder();
+
+  // No copying of NdbQueryBuilder objects.
+  NdbQueryBuilder(const NdbQueryBuilder&);
+  NdbQueryBuilder& operator=(const NdbQueryBuilder&);
+
+public:
+  /**
+   * Allocate an instance.
+   * @return New instance, or NULL if allocation failed.
+   */
+  static NdbQueryBuilder* create(Ndb& ndb);
+
+  /**
+   * Release this object and any resources held by it.
+   */
+  void destroy();
 
   const NdbQueryDef* prepare();    // Complete building a queryTree from 'this' NdbQueryBuilder
 
@@ -426,7 +445,7 @@ public:
   NdbQueryBuilderImpl& getImpl() const;
 
 private:
-  NdbQueryBuilderImpl* const m_pimpl;
+  NdbQueryBuilderImpl& m_impl;
 
 }; // class NdbQueryBuilder
 
@@ -457,12 +476,6 @@ class NdbQueryDef
 
 public:
 
-  // Copy construction of the NdbQueryDef IS defined.
-  // May be convenient to take a copy when the same query is used from
-  // multiple threads.
-  NdbQueryDef(const NdbQueryDef& other);
-  NdbQueryDef& operator = (const NdbQueryDef& other);
-
   Uint32 getNoOfOperations() const;
 
   // Get a specific NdbQueryOperationDef by ident specified
@@ -475,7 +488,7 @@ public:
   bool isScanQuery() const;
 
   // Remove this NdbQueryDef including operation and operands it contains
-  void release() const;
+  void destroy() const;
 
   NdbQueryDefImpl& getImpl() const;
 
@@ -488,6 +501,11 @@ private:
 
   explicit NdbQueryDef(NdbQueryDefImpl& impl);
   ~NdbQueryDef();
+
+  /** Private and undefined. */
+  NdbQueryDef(const NdbQueryDef& other);
+  /** Private and undefined.*/
+  NdbQueryDef& operator = (const NdbQueryDef& other);
 };
 
 

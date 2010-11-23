@@ -57,7 +57,7 @@ HugoQueryBuilder::init()
 HugoQueryBuilder::~HugoQueryBuilder()
 {
   for (size_t i = 0; i<m_queries.size(); i++)
-    m_queries[i]->release();
+    m_queries[i]->destroy();
 }
 
 void
@@ -565,7 +565,12 @@ loop:
 const NdbQueryDef *
 HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
 {
-  NdbQueryBuilder builder(*pNdb);
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create(*pNdb);
+  if (builder == NULL)
+  {
+    ndbout << "Failed to create NdbQueryBuilder." << endl;
+    return 0;
+  }
 
   {
     OptionMask save = m_options;
@@ -574,7 +579,7 @@ HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
       clearOption(O_PK_INDEX);
       clearOption(O_UNIQUE_INDEX);
     }
-    const NdbQueryOperationDef * rootOp = createOp(builder);
+    const NdbQueryOperationDef * rootOp = createOp(*builder);
     assert(rootOp != 0);
     m_options = save;
   }
@@ -597,12 +602,13 @@ HugoQueryBuilder::createQuery(Ndb* pNdb, bool takeOwnership)
   int levels = getJoinLevel();
   while (levels --)
   {
-    createOp(builder);
+    createOp(*builder);
   }
 
   m_options = save;
 
-  const NdbQueryDef * def = builder.prepare();
+  const NdbQueryDef * def = builder->prepare();
+  builder->destroy();
   if (def != 0 && !takeOwnership)
   {
     m_queries.push_back(def);

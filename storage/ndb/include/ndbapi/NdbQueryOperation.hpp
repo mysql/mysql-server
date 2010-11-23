@@ -96,10 +96,10 @@ class NdbQueryOperationImpl;
  ************************************************************************/
 class NdbQuery
 {
-protected:
+private:
   // Only constructable through ::buildQuery() 
   friend class NdbQueryImpl;
-  NdbQuery(NdbQueryImpl& impl);
+  explicit NdbQuery(NdbQueryImpl& impl);
   ~NdbQuery();
 
 public:
@@ -216,7 +216,7 @@ class NdbQueryOperation
 private:
   // Only constructable through executing a NdbQueryDef
   friend class NdbQueryOperationImpl;
-  NdbQueryOperation(NdbQueryOperationImpl& impl);
+  explicit NdbQueryOperation(NdbQueryOperationImpl& impl);
   ~NdbQueryOperation();
 
 public:

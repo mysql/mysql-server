@@ -231,7 +231,7 @@ void TestThread::run(){
 }
 
 void TestThread::doLinkedAPITest(){
-  NdbQueryBuilder builder(m_ndb);
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create(m_ndb);
       
   const NdbQueryDef* queryDef = NULL;
   const Row** resultPtrs = new const Row*[m_params->m_depth+1];
@@ -244,44 +244,44 @@ void TestThread::doLinkedAPITest(){
     if(iterNo==0 || (m_params->m_queryDefReuse>0 && 
                      iterNo%m_params->m_queryDefReuse==0)){
       if(queryDef != NULL){
-        queryDef->release();
+        queryDef->destroy();
       }
       const NdbQueryOperationDef* parentOpDef = NULL;
       if(m_params->m_scanLength==0){
         // Root is lookup
         const NdbQueryOperand* rootKey[] = {  
-          builder.constValue(0), //a
+          builder->constValue(0), //a
           NULL
         };
-        parentOpDef = builder.readTuple(m_tab, rootKey);
+        parentOpDef = builder->readTuple(m_tab, rootKey);
       }else if(m_params->m_scanLength==1){ //Pruned scan
         const NdbQueryOperand* const key[] = {
-          builder.constValue(m_params->m_scanLength),
+          builder->constValue(m_params->m_scanLength),
           NULL
         };
 
         const NdbQueryIndexBound eqBound(key);
-        parentOpDef = builder.scanIndex(m_index, m_tab, &eqBound);
+        parentOpDef = builder->scanIndex(m_index, m_tab, &eqBound);
       }else{
         // Root is index scan with single bound.
         const NdbQueryOperand* const highKey[] = {
-          builder.constValue(m_params->m_scanLength),
+          builder->constValue(m_params->m_scanLength),
           NULL
         };
 
         const NdbQueryIndexBound bound(NULL, false, highKey, false);
-        parentOpDef = builder.scanIndex(m_index, m_tab, &bound);
+        parentOpDef = builder->scanIndex(m_index, m_tab, &bound);
       }
           
       // Add child lookup operations.
       for(int i = 0; i<m_params->m_depth; i++){
         const NdbQueryOperand* key[] = {  
-          builder.linkedValue(parentOpDef, "b"),
+          builder->linkedValue(parentOpDef, "b"),
           NULL
         };
-        parentOpDef = builder.readTuple(m_tab, key);
+        parentOpDef = builder->readTuple(m_tab, key);
       }
-      queryDef = builder.prepare();
+      queryDef = builder->prepare();
     }
         
     if (!trans) {
@@ -322,6 +322,7 @@ void TestThread::doLinkedAPITest(){
     m_ndb.closeTransaction(trans);
     trans = NULL;
   }
+  builder->destroy();
 }
 
 void TestThread::doNonLinkedAPITest(){
