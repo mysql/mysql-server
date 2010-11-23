@@ -122,7 +122,13 @@ IF(UNIX)
     CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
     IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
-      MESSAGE(FATAL_ERROR "aio is required on Linux")
+      MESSAGE(FATAL_ERROR "
+      aio is required on Linux, you need to install the required library:
+
+        Debian/Ubuntu:              apt-get install libaio-dev
+        RedHat/Fedora/Oracle Linux: yum install libaio-devel
+        SuSE:                       zypper install libaio-devel
+       ")
     ENDIF()
   ENDIF()
 
