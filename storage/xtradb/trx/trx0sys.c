@@ -541,8 +541,8 @@ start_again:
 		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
 		fprintf(stderr, "InnoDB: Doublewrite buffer created in the doublewrite file\n");
+		trx_sys_multiple_tablespace_format = TRUE;
 	}
-
 	trx_doublewrite_buf_is_being_created = FALSE;
     }
 }

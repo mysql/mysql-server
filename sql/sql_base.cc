@@ -2032,6 +2032,8 @@ static void unlink_open_merge(THD *thd, TABLE *table, TABLE ***prev_pp)
         Remove parent from open_tables list and close it.
         This includes detaching and hence clearing parent references.
       */
+      DBUG_PRINT("info", ("Closing parent to '%s'.'%s'",
+                          table->s->db.str, table->s->table_name.str));
       close_thread_table(thd, prv_p);
     }
   }
@@ -3061,8 +3063,9 @@ bool reopen_table(TABLE *table)
   TABLE_LIST table_list;
   THD *thd= table->in_use;
   DBUG_ENTER("reopen_table");
-  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                        table->s->table_name.str, (long) table));
+  DBUG_PRINT("tcache", ("table: '%s'.'%s'  table: 0x%lx  share: 0x%lx",
+                        table->s->db.str, table->s->table_name.str,
+                        (long) table, (long) table->s));
 
   DBUG_ASSERT(table->s->ref_count == 0);
   DBUG_ASSERT(!table->sort.io_cache);
@@ -3349,7 +3352,8 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
       merge_table_found= TRUE;
     if (!tables || (!db_stat && reopen_table(table)))
     {
-      my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+      my_error(ER_CANT_REOPEN_TABLE, MYF(0),
+               table->alias ? table->alias : table->s->table_name.str);
       /*
         If we could not allocate 'tables', we may close open tables
         here. If a MERGE table is affected, detach the children first.
@@ -3359,9 +3363,10 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
         that they cannot be moved into the unused_tables chain with
         these pointers set.
       */
-      if (table->child_l || table->parent)
-        detach_merge_children(table, TRUE);
-      VOID(hash_delete(&open_cache,(uchar*) table));
+      unlink_open_table(thd, table, 0);
+      /* Restart loop */
+      prev= &thd->open_tables;
+      next= *prev;
       error=1;
     }
     else
@@ -3396,7 +3401,7 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
   }
   DBUG_PRINT("tcache", ("open tables to lock: %u",
                         (uint) (tables_ptr - tables)));
-  if (tables != tables_ptr)			// Should we get back old locks
+  if (tables != tables_ptr)  // Should we get back old locks
   {
     MYSQL_LOCK *lock;
     /*
@@ -3545,7 +3550,7 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
     char *key= table->s->table_cache_key.str;
     uint key_length= table->s->table_cache_key.length;
 
-    DBUG_PRINT("loop", ("table_name: %s", table->alias));
+    DBUG_PRINT("loop", ("table_name: %s", table->alias ? table->alias : ""));
     HASH_SEARCH_STATE state;
     for (TABLE *search= (TABLE*) hash_first(&open_cache, (uchar*) key,
                                              key_length, &state);
@@ -3883,6 +3888,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
   int error;
   TABLE_SHARE *share;
   uint discover_retry_count= 0;
+  bool locked_table;
   DBUG_ENTER("open_unireg_entry");
 
   safe_mutex_assert_owner(&LOCK_open);
@@ -4003,8 +4009,10 @@ retry:
     }
     if (!entry->s || !entry->s->crashed)
       goto err;
-     // Code below is for repairing a crashed file
-     if ((error= lock_table_name(thd, table_list, TRUE)))
+
+    // Code below is for repairing a crashed file
+    locked_table= table_list->table != 0;
+    if (! locked_table && (error= lock_table_name(thd, table_list, TRUE)))
      {
        if (error < 0)
  	goto err;
@@ -4038,12 +4046,13 @@ retry:
      else
        thd->clear_error();			// Clear error message
      pthread_mutex_lock(&LOCK_open);
-     unlock_table_name(thd, table_list);
+     if (!locked_table)
+       unlock_table_name(thd, table_list);
  
      if (error)
        goto err;
      break;
-   }
+  }
 
   if (Table_triggers_list::check_n_load(thd, share->db.str,
                                         share->table_name.str, entry, 0))
@@ -4271,7 +4280,6 @@ void detach_merge_children(TABLE *table, bool clear_refs)
 {
   TABLE_LIST *child_l;
   TABLE *parent= table->child_l ? table : table->parent;
-  bool first_detach;
   DBUG_ENTER("detach_merge_children");
   /*
     Either table->child_l or table->parent must be set. Parent must have
@@ -4289,7 +4297,7 @@ void detach_merge_children(TABLE *table, bool clear_refs)
     children attached yet. Also this is called for every child and the
     parent from close_thread_tables().
   */
-  if ((first_detach= parent->children_attached))
+  if (parent->children_attached)
   {
     VOID(parent->file->extra(HA_EXTRA_DETACH_CHILDREN));
     parent->children_attached= FALSE;
@@ -4301,38 +4309,50 @@ void detach_merge_children(TABLE *table, bool clear_refs)
 
   if (clear_refs)
   {
-    /* In any case clear the own parent reference. (***) */
-    table->parent= NULL;
+    if (table->parent)
+    {
+      /* In any case clear the own parent reference. (***) */
+      table->parent= NULL;
+      table->file->extra(HA_EXTRA_DETACH_CHILD);
+    }
 
     /*
-      On the first detach, clear all references. If this table is the
-      parent, we still may need to clear the child references. The first
-      detach might not have done this.
+      Clear all references. If this table is the parent, we still may
+      need to clear the child references. The first detach might not
+      have done this.
     */
-    if (first_detach || (table == parent))
+    for (child_l= parent->child_l; ; child_l= child_l->next_global)
     {
-      /* Clear TABLE references to force new assignment at next open. */
-      for (child_l= parent->child_l; ; child_l= child_l->next_global)
-      {
-        /*
-          Do not DBUG_ASSERT(child_l->table); open_tables might be
-          incomplete.
+      /*
+        Do not DBUG_ASSERT(child_l->table); open_tables might be
+        incomplete or we may have been called twice.
 
-          Clear the parent reference of the children only on the first
-          detach. The children might already be closed. They will clear
-          it themseves when this function is called for them with
-          'clear_refs' true. See above "(***)".
-        */
-        if (first_detach && child_l->table)
+        Clear the parent reference of the children only on the first
+        detach. The children might already be closed. They will clear
+        it themselves when this function is called for them with
+        'clear_refs' true. See above "(***)".
+      */
+      if (child_l->table)
+      {
+        if (child_l->table->parent)
+        {
           child_l->table->parent= NULL;
+          if (child_l->table->db_stat)
+            child_l->table->file->extra(HA_EXTRA_DETACH_CHILD);
+        }
+        /*
+          Set alias to "" to ensure that table is not used if we are in
+          LOCK TABLES
+        */
+        ((char*) child_l->table->alias)[0]= 0;
 
         /* Clear the table reference to force new assignment at next open. */
         child_l->table= NULL;
-
-        /* Break when this was the last child. */
-        if (&child_l->next_global == parent->child_last_l)
-          break;
       }
+
+      /* Break when this was the last child. */
+      if (&child_l->next_global == parent->child_last_l)
+        break;
     }
   }
 
@@ -5129,9 +5149,11 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 
 static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 {
+  DBUG_ENTER("mark_real_tables_as_free_for_reuse");
   for (; table; table= table->next_global)
     if (!table->placeholder())
       table->table->query_id= 0;
+  DBUG_VOID_RETURN;
 }
 
 

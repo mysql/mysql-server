@@ -77,8 +77,10 @@ innodb_adaptive_checkpoint	Value
 innodb_adaptive_flushing	Value
 innodb_adaptive_hash_index	Value
 innodb_additional_mem_pool_size	Value
+innodb_auto_lru_dump	Value
 innodb_autoextend_increment	Value
 innodb_autoinc_lock_mode	Value
+innodb_buffer_pool_shm_checksum	Value
 innodb_buffer_pool_shm_key	Value
 innodb_buffer_pool_size	Value
 innodb_change_buffering	Value

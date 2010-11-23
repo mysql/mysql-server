@@ -2993,6 +2993,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     we are fixing fields from insert list.
   */
   lex->current_select= &lex->select_lex;
+
+  /* Errors during check_insert_fields() should not be ignored. */
+  lex->current_select->no_error= FALSE;
   res= (setup_fields(thd, 0, values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
@@ -3296,7 +3299,7 @@ bool select_insert::send_eof()
 
   /*
     Write to binlog before commiting transaction.  No statement will
-    be written by the binlog_query() below in RBR mode.  All the
+    be written by the write_to_binlog() below in RBR mode.  All the
     events are in the transaction cache and will be written when
     ha_autocommit_or_rollback() is issued below.
   */
@@ -3308,9 +3311,8 @@ bool select_insert::send_eof()
       thd->clear_error();
     else
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-    if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                      thd->query(), thd->query_length(),
-                      trans_table, FALSE, errcode))
+
+    if (write_to_binlog(trans_table, errcode))
     {
       table->file->ha_release_auto_increment();
       DBUG_RETURN(1);
@@ -3384,9 +3386,7 @@ void select_insert::abort() {
         {
           int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
           /* error of writing binary log is ignored */
-          (void) thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query(),
-                                   thd->query_length(),
-                                   transactional_table, FALSE, errcode);
+          write_to_binlog(transactional_table, errcode);
         }
         if (!thd->current_stmt_binlog_row_based && !can_rollback_data())
           thd->transaction.all.modified_non_trans_table= TRUE;
@@ -3401,6 +3401,103 @@ void select_insert::abort() {
   DBUG_VOID_RETURN;
 }
 
+int select_insert::write_to_binlog(bool is_trans, int errcode)
+{
+  /* It is only for statement mode */
+  if (thd->current_stmt_binlog_row_based)
+    return 0;
+
+  return thd->binlog_query(THD::ROW_QUERY_TYPE,
+                           thd->query(), thd->query_length(),
+                           is_trans, FALSE, errcode);
+}
+
+/* Override the select_insert::write_to_binlog */
+int select_create::write_to_binlog(bool is_trans, int errcode)
+{
+  /* It is only for statement mode */
+  if (thd->current_stmt_binlog_row_based)
+    return 0;
+
+  /*
+    WL#5370 Keep the compatibility between 5.1 master and 5.5 slave.
+    Binlog a 'INSERT ... SELECT' statement only when it has the option
+    'IF NOT EXISTS' and the table already exists as a base table.
+  */
+  if ((create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
+      create_info->table_existed)
+  {
+    String query;
+    int result;
+
+    thd->binlog_start_trans_and_stmt();
+    /* Binlog the CREATE TABLE IF NOT EXISTS statement */
+    result= binlog_show_create_table(&table, 1, 0);
+    if (result)
+      return result;
+
+    uint db_len= strlen(create_table->db);
+    uint table_len= strlen(create_info->alias);
+    uint select_len= thd->query_length() - thd->lex->create_select_pos;
+    uint field_len= (table->s->fields - (field - table->field)) *
+      (MAX_FIELD_NAME + 3);
+
+    /*
+      pre-allocating memory reduces the times of reallocating memory,
+      when calling query.appen().
+      40bytes is enough for other words("INSERT IGNORE INTO", etc.).
+     */
+    if (query.real_alloc(40 + db_len + table_len + field_len + select_len))
+      return 1;
+
+    if (thd->lex->create_select_in_comment)
+      query.append(STRING_WITH_LEN("/*! "));
+    if (thd->lex->ignore)
+      query.append(STRING_WITH_LEN("INSERT IGNORE INTO `"));
+    else if (thd->lex->duplicates == DUP_REPLACE)
+      query.append(STRING_WITH_LEN("REPLACE INTO `"));
+    else
+      query.append(STRING_WITH_LEN("INSERT INTO `"));
+
+    query.append(create_table->db, db_len);
+    query.append(STRING_WITH_LEN("`.`"));
+    query.append(create_info->alias, table_len);
+    query.append(STRING_WITH_LEN("` "));
+
+    /*
+      The insert items.
+      Field is the the rightmost columns that the rows are inster in.
+    */
+    query.append(STRING_WITH_LEN("("));
+    for (Field **f= field ; *f ; f++)
+    {
+      if (f != field)
+        query.append(STRING_WITH_LEN(","));
+
+      query.append(STRING_WITH_LEN("`"));
+      query.append((*f)->field_name, strlen((*f)->field_name));
+      query.append(STRING_WITH_LEN("`"));
+    }
+    query.append(STRING_WITH_LEN(") "));
+
+    /* The SELECT clause*/
+    DBUG_ASSERT(thd->lex->create_select_pos);
+    if (thd->lex->create_select_start_with_brace)
+      query.append(STRING_WITH_LEN("("));
+    if (query.append(thd->query() + thd->lex->create_select_pos, select_len))
+      return 1;
+
+    /*
+      Avoid to use thd->binlog_query() twice, otherwise it will print the unsafe
+      warning twice.
+    */
+    Query_log_event ev(thd, query.c_ptr_safe(), query.length(), is_trans,
+                       FALSE, errcode);
+    return mysql_bin_log.write(&ev);
+  }
+  else
+    return select_insert::write_to_binlog(is_trans, errcode);
+}
 
 /***************************************************************************
   CREATE TABLE (SELECT) ...
@@ -3650,7 +3747,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
           !table->s->tmp_table &&
           !ptr->get_create_info()->table_existed)
       {
-        if (int error= ptr->binlog_show_create_table(tables, count))
+        int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        if (int error= ptr->binlog_show_create_table(tables, count, errcode))
           return error;
       }
       return 0;
@@ -3691,7 +3789,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           create_table->table_name);
       if (thd->current_stmt_binlog_row_based)
-        binlog_show_create_table(&(create_table->table), 1);
+      {
+        int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
+        binlog_show_create_table(&(create_table->table), 1, errcode);
+      }
       table= create_table->table;
     }
     else
@@ -3759,10 +3860,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 int
-select_create::binlog_show_create_table(TABLE **tables, uint count)
+select_create::binlog_show_create_table(TABLE **tables, uint count, int errcode)
 {
   /*
-    Note 1: In RBR mode, we generate a CREATE TABLE statement for the
+    Note 1: We generate a CREATE TABLE statement for the
     created table by calling store_create_info() (behaves as SHOW
     CREATE TABLE).  In the event of an error, nothing should be
     written to the binary log, even if the table is non-transactional;
@@ -3778,7 +3879,6 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
     schema that will do a close_thread_tables(), destroying the
     statement transaction cache.
   */
-  DBUG_ASSERT(thd->current_stmt_binlog_row_based);
   DBUG_ASSERT(tables && *tables && count > 0);
 
   char buf[2048];
@@ -3796,7 +3896,6 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
 
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     result= thd->binlog_query(THD::STMT_QUERY_TYPE,
                               query.ptr(), query.length(),
                               /* is_trans */ TRUE,

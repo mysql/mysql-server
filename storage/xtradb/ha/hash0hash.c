@@ -161,7 +161,7 @@ hash_create_init(
 	offset = (sizeof(hash_table_t) + 7) / 8;
 	offset *= 8;
 
-	table->array = (hash_cell_t*)(((char*)table) + offset);
+	table->array = (hash_cell_t*)(((byte*)table) + offset);
 	table->n_cells = prime;
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	table->adaptive = FALSE;
@@ -187,7 +187,7 @@ hash_create_reuse(
 	offset = (sizeof(hash_table_t) + 7) / 8;
 	offset *= 8;
 
-	table->array = (hash_cell_t*)(((char*)table) + offset);
+	table->array = (hash_cell_t*)(((byte*)table) + offset);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 }
 

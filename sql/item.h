@@ -488,8 +488,7 @@ public:
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
-             XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM};
+             XPATH_NODESET, XPATH_NODESET_CMP};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -2505,6 +2504,7 @@ public:
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
   }
+  table_map not_null_tables() const { return 0; }
   virtual Ref_Type ref_type() { return OUTER_REF; }
   bool check_inner_refs_processor(uchar * arg); 
 };
@@ -2907,7 +2907,8 @@ public:
   {
     return Item_field::save_in_field(field_arg, no_conversions);
   }
-  /* 
+  enum Type type() const { return INSERT_VALUE_ITEM; }
+  /*
    We use RAND_TABLE_BIT to prevent Item_insert_value from
    being treated as a constant and precalculated before execution
   */

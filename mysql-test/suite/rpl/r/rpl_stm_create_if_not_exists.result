@@ -1,0 +1,704 @@
+# WL#5370 Keep forward-compatibility when changing 'CREATE TABLE IF NOT
+# EXISTS ... SELECT' behaviour
+#
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+
+CREATE TABLE t2(c1 INT, c2 char(10));
+INSERT INTO t2 VALUES(1, 'abc'), (2, 'abc');
+
+# The original query should be binlogged if the table does not exist.
+# ------------------------------------------------------------------
+
+CREATE  TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4 INT KEY)
+SELECT 'abc' AS c3, 1 AS c4;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE  TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4 INT KEY)
+SELECT 'abc' AS c3, 1 AS c4
+Comparing tables master:test.t1 and slave:test.t1
+
+# The statement should be binlogged as two events. one is 
+# 'CREATE  TABLE IF NOT EXISTS ..', another one is
+# 'INSERT ... SELECT'.
+# ------------------------------------------------------------------
+
+CREATE  TABLE IF NOT EXISTS t1
+SELECT 'abc', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 2
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+
+# Verify if it can be binlogged with right database name when the table
+# is not in the default database
+
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+USE db1;
+CREATE  TABLE IF NOT EXISTS test.t1
+SELECT 'abc', 20;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1`; CREATE TABLE IF NOT EXISTS `test`.`t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 20
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+USE test;
+DROP DATABASE db1;
+
+# It should be binlogged as 'REPLACE ... SELECT'
+# if the original statement has option REPLACE
+
+CREATE  TABLE IF NOT EXISTS t1
+REPLACE SELECT '123', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; REPLACE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+
+# It should be binlogged as 'INSERT IGNORE... SELECT'
+# if the original statement has option IGNORE 
+
+CREATE  TABLE IF NOT EXISTS t1
+IGNORE SELECT '123', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+
+# Nothing should be binlogged if error happens and no any row is inserted
+
+CREATE  TABLE IF NOT EXISTS t1
+SELECT '123', 2;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+Comparing tables master:test.t1 and slave:test.t1
+
+# Verify it can binlog well when there are some braces('(')
+
+CREATE  TABLE IF NOT EXISTS t1
+(SELECT '123', 3) UNION (SELECT '123', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+CREATE  TABLE IF NOT EXISTS t1
+REPLACE (SELECT 'abc', 3) UNION (SELECT 'abc', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+CREATE  TABLE IF NOT EXISTS t1
+IGNORE (SELECT '123', 3) UNION (SELECT '123', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) (SELECT '123', 3) UNION (SELECT '123', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; REPLACE INTO `test`.`t1` (`c3`,`c4`) (SELECT 'abc', 3) UNION (SELECT 'abc', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) (SELECT '123', 3) UNION (SELECT '123', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+
+# Throw a warning that table already exists and don't insert anything
+
+CREATE VIEW t3 AS SELECT * FROM t2;
+CREATE TABLE IF NOT EXISTS t3
+SELECT '123', 2;
+Warnings:
+Note	1050	Table 't3' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+DROP VIEW t3;
+
+# The statement can be binlogged correctly when it is in a SP/EVENT/TRIGGER
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(IN a INT)
+CREATE  TABLE IF NOT EXISTS t1 SELECT '123', a;
+call p1(500);
+Warnings:
+Note	1050	Table 't1' already exists
+call p1(600);
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123',  NAME_CONST('a',500)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123',  NAME_CONST('a',600)
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+DROP PROCEDURE p1;
+
+# The statement can be binlogged correctly when it is in a prepared statement
+
+PREPARE stm FROM "CREATE  TABLE IF NOT EXISTS t1 SELECT '123', ?";
+SET @a= 700;
+EXECUTE stm USING @a;
+Warnings:
+Note	1050	Table 't1' already exists
+SET @a= 800;
+EXECUTE stm USING @a;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 700
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 800
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+
+# The statement can be binlogged correctly when it is in a conditional comment
+
+# The whole statement in a conditional comment
+/*!CREATE  TABLE IF NOT EXISTS t1
+SELECT 'abc', 900*/;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 900*/
+master-bin.000001	#	Query	#	#	COMMIT
+
+# There is an long comment before SELECT
+/*!CREATE  /*blabla*/ TABLE IF NOT EXISTS t1
+SELECT 'abc', 901*/;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 901*/
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment starts just from SELECT
+CREATE  TABLE IF NOT EXISTS t1
+/*!SELECT 'abc',*/ 902;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc',*/ 902
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Only SELECT keyword is in the conditional comment
+CREATE  TABLE IF NOT EXISTS t1
+/*!SELECT*/ /*!'abc',*/ 904;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT*/ /*!'abc',*/ 904
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment is after SELECT keyword
+CREATE  TABLE IF NOT EXISTS t1
+SELECT /*!'abc',*/ 903;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT /*!'abc',*/ 903
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment ends just before SELECT keyword
+/*!CREATE  TABLE IF NOT EXISTS t1
+*/SELECT 'abc', 905;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 905
+master-bin.000001	#	Query	#	#	COMMIT
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t2;
+DROP  TABLE t1;
+
+
+CREATE TABLE t2(c1 INT, c2 char(10));
+INSERT INTO t2 VALUES(1, 'abc'), (2, 'abc');
+
+# The original query should be binlogged if the table does not exist.
+# ------------------------------------------------------------------
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4 INT KEY)
+SELECT 'abc' AS c3, 1 AS c4;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4 INT KEY)
+SELECT 'abc' AS c3, 1 AS c4
+
+# The statement should be binlogged as two events. one is 
+# 'CREATE TEMPORARY TABLE IF NOT EXISTS ..', another one is
+# 'INSERT ... SELECT'.
+# ------------------------------------------------------------------
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+SELECT 'abc', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 2
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Verify if it can be binlogged with right database name when the table
+# is not in the default database
+
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+USE db1;
+CREATE TEMPORARY TABLE IF NOT EXISTS test.t1
+SELECT 'abc', 20;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `db1`; CREATE TEMPORARY TABLE IF NOT EXISTS `test`.`t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 20
+master-bin.000001	#	Query	#	#	COMMIT
+USE test;
+DROP DATABASE db1;
+
+# It should be binlogged as 'REPLACE ... SELECT'
+# if the original statement has option REPLACE
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+REPLACE SELECT '123', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; REPLACE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
+master-bin.000001	#	Query	#	#	COMMIT
+
+# It should be binlogged as 'INSERT IGNORE... SELECT'
+# if the original statement has option IGNORE 
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+IGNORE SELECT '123', 2;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Nothing should be binlogged if error happens and no any row is inserted
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+SELECT '123', 2;
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+
+# Verify it can binlog well when there are some braces('(')
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+(SELECT '123', 3) UNION (SELECT '123', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+REPLACE (SELECT 'abc', 3) UNION (SELECT 'abc', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+IGNORE (SELECT '123', 3) UNION (SELECT '123', 4);
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) (SELECT '123', 3) UNION (SELECT '123', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; REPLACE INTO `test`.`t1` (`c3`,`c4`) (SELECT 'abc', 3) UNION (SELECT 'abc', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) (SELECT '123', 3) UNION (SELECT '123', 4)
+master-bin.000001	#	Query	#	#	COMMIT
+
+# The statement can be binlogged correctly when it is in a SP/EVENT/TRIGGER
+
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1(IN a INT)
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 SELECT '123', a;
+call p1(500);
+Warnings:
+Note	1050	Table 't1' already exists
+call p1(600);
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123',  NAME_CONST('a',500)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123',  NAME_CONST('a',600)
+master-bin.000001	#	Query	#	#	COMMIT
+DROP PROCEDURE p1;
+
+# The statement can be binlogged correctly when it is in a prepared statement
+
+PREPARE stm FROM "CREATE TEMPORARY TABLE IF NOT EXISTS t1 SELECT '123', ?";
+SET @a= 700;
+EXECUTE stm USING @a;
+Warnings:
+Note	1050	Table 't1' already exists
+SET @a= 800;
+EXECUTE stm USING @a;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 700
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 800
+master-bin.000001	#	Query	#	#	COMMIT
+
+# The statement can be binlogged correctly when it is in a conditional comment
+
+# The whole statement in a conditional comment
+/*!CREATE TEMPORARY TABLE IF NOT EXISTS t1
+SELECT 'abc', 900*/;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 900*/
+master-bin.000001	#	Query	#	#	COMMIT
+
+# There is an long comment before SELECT
+/*!CREATE TEMPORARY /*blabla*/ TABLE IF NOT EXISTS t1
+SELECT 'abc', 901*/;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 901*/
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment starts just from SELECT
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+/*!SELECT 'abc',*/ 902;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc',*/ 902
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Only SELECT keyword is in the conditional comment
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+/*!SELECT*/ /*!'abc',*/ 904;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; /*! INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT*/ /*!'abc',*/ 904
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment is after SELECT keyword
+CREATE TEMPORARY TABLE IF NOT EXISTS t1
+SELECT /*!'abc',*/ 903;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT /*!'abc',*/ 903
+master-bin.000001	#	Query	#	#	COMMIT
+
+# Conditional comment ends just before SELECT keyword
+/*!CREATE TEMPORARY TABLE IF NOT EXISTS t1
+*/SELECT 'abc', 905;
+Warnings:
+Note	1050	Table 't1' already exists
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` char(10) DEFAULT NULL,
+  `c4` int(11) NOT NULL,
+  PRIMARY KEY (`c4`)
+)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 905
+master-bin.000001	#	Query	#	#	COMMIT
+DROP TABLE t2;
+DROP TEMPORARY TABLE t1;

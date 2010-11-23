@@ -196,6 +196,9 @@ typedef fp_except fp_except_t;
 # endif
 #endif
 
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream);
+
 inline void setup_fpu()
 {
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H)
@@ -452,7 +455,7 @@ static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
 /* Global variables */
 
 bool opt_update_log, opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log;
+my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table;
 ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
@@ -690,7 +693,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
                 LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count, LOCK_uuid_generator;
+                LOCK_connection_count, LOCK_short_uuid_generator;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -790,7 +793,7 @@ bool mysqld_embedded=1;
 static my_bool plugins_are_initialized= FALSE;
 
 #ifndef DBUG_OFF
-static const char* default_dbug_option;
+static const char* default_dbug_option, *current_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
@@ -1029,8 +1032,9 @@ static void close_connections(void)
   Events::deinit();
   end_slave();
 
-  if (thread_count)
-    sleep(2);					// Give threads time to die
+  /* Give threads time to die. */
+  for (int i= 0; thread_count && i < 100; i++)
+    my_sleep(20000);
 
   /*
     Force remaining threads to die by closing the connection to the client
@@ -1402,6 +1406,7 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
+  my_uuid_end();
   delete binlog_filter;
   delete rpl_filter;
 #ifndef EMBEDDED_LIBRARY
@@ -1508,7 +1513,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
-  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
+  (void) pthread_mutex_destroy(&LOCK_short_uuid_generator);
   (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -3752,7 +3757,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_short_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
@@ -3963,14 +3968,15 @@ static int init_server_components()
       opt_error_log= 1;				// Too long file name
     else
     {
+      my_bool res;
 #ifndef EMBEDDED_LIBRARY
-      if (freopen(log_error_file, "a+", stdout))
+      res= reopen_fstreams(log_error_file, stdout, stderr);
+#else
+      res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      {
-        if (!(freopen(log_error_file, "a+", stderr)))
-          sql_print_warning("Couldn't reopen stderr");
+
+      if (!res)
         setbuf(stderr, NULL);
-      }
     }
   }
 
@@ -4620,11 +4626,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 #ifdef __WIN__
   if (!opt_console)
   {
-    if (!freopen(log_error_file,"a+",stdout) ||
-        !freopen(log_error_file,"a+",stderr))
-    {
-      sql_print_warning("Couldn't reopen stdout or stderr");
-    }
+    if (reopen_fstreams(log_error_file, stdout, stderr))
+      unireg_abort(1);
     setbuf(stderr, NULL);
     FreeConsole();				// Remove window
   }
@@ -5961,7 +5964,7 @@ enum options_mysqld
   OPT_SECURE_FILE_PRIV,
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
-  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE,
+  OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_DEBUG_ASSERT_IF_CRASHED_TABLE, OPT_OLD_MODE,
   OPT_TEST_IGNORE_WRONG_OPTIONS, OPT_TEST_RESTART,
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
@@ -6122,14 +6125,18 @@ struct my_option my_long_options[] =
    &max_system_variables.wt_timeout_long,
    0, GET_ULONG, REQUIRED_ARG, 50000000, 0, ULONG_MAX, 0, 0, 0},
 #ifndef DBUG_OFF
-  {"debug", '#', "Debug log.", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Debug log.", &current_dbug_option,
+   &current_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-crc-break", OPT_DEBUG_CRC,
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    &opt_my_crc_dbug_check, &opt_my_crc_dbug_check,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
   {"debug-flush", OPT_DEBUG_FLUSH, "Default debug log with flush after write",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-assert-if-crashed-table", OPT_DEBUG_ASSERT_IF_CRASHED_TABLE,
+   "Do an assert in handler::print_error() if we get a crashed table",
+   &debug_assert_if_crashed_table, &debug_assert_if_crashed_table,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
    "Set the default character set (deprecated option, use --character-set-server instead).",
@@ -6451,7 +6458,7 @@ each time the SQL thread starts.",
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
+   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, BACKUP_ALL, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -7498,7 +7505,11 @@ thread is in the relay logs.",
    1024, 0},
   {"thread_handling", OPT_THREAD_HANDLING,
    "Define threads usage for handling queries: "
-   "one-thread-per-connection or no-threads.",
+   "one-thread-per-connection"
+#if HAVE_POOL_OF_THREADS == 1
+  ", pool-of-threads"
+#endif
+   "or no-threads.",
    &opt_thread_handling, &opt_thread_handling,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,
@@ -7928,6 +7939,7 @@ SHOW_VAR status_vars[]= {
   {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
+  {"Key_blocks_warm",          (char*) offsetof(KEY_CACHE, warm_blocks), SHOW_KEY_CACHE_LONG},
   {"Key_read_requests",        (char*) offsetof(KEY_CACHE, global_cache_r_requests), SHOW_KEY_CACHE_LONGLONG},
   {"Key_reads",                (char*) offsetof(KEY_CACHE, global_cache_read), SHOW_KEY_CACHE_LONGLONG},
   {"Key_write_requests",       (char*) offsetof(KEY_CACHE, global_cache_w_requests), SHOW_KEY_CACHE_LONGLONG},
@@ -8260,6 +8272,7 @@ static int mysql_init_variables(void)
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
 			     "d:t:i:o,/tmp/mysqld.trace");
+  current_dbug_option= default_dbug_option;
 #endif
   opt_error_log= IF_WIN(1,0);
 #ifdef COMMUNITY_SERVER

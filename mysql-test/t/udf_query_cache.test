@@ -20,6 +20,7 @@ create table t1 (a char);
 
 set GLOBAL query_cache_size=1355776;
 reset query cache;
+flush status;
 
 select metaphon('MySQL') from t1;
 show status like "Qcache_hits";

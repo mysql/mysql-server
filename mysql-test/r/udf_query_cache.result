@@ -3,6 +3,7 @@ CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
 create table t1 (a char);
 set GLOBAL query_cache_size=1355776;
 reset query cache;
+flush status;
 select metaphon('MySQL') from t1;
 metaphon('MySQL')
 show status like "Qcache_hits";

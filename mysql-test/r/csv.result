@@ -5138,7 +5138,7 @@ insert t1 values (1),(2),(3),(4),(5);
 truncate table t1;
 affected rows: 0
 drop table t1;
-create table t1 (v varchar(32) not null);
+create table t1 (v varchar(32) not null) engine=csv;
 insert into t1 values ('def'),('abc'),('hij'),('3r4f');
 select * from t1;
 v
@@ -5146,14 +5146,14 @@ def
 abc
 hij
 3r4f
-alter table t1 change v v2 varchar(32);
+alter table t1 change v v2 varchar(32) not null;
 select * from t1;
 v2
 def
 abc
 hij
 3r4f
-alter table t1 change v2 v varchar(64);
+alter table t1 change v2 v varchar(64) not null;
 select * from t1;
 v
 def
@@ -5163,35 +5163,34 @@ hij
 update t1 set v = 'lmn' where v = 'hij';
 select * from t1;
 v
+lmn
 def
 abc
-lmn
 3r4f
-alter table t1 add i int auto_increment not null primary key first;
+alter table t1 add i int not null first;
 select * from t1;
 i	v
-1	def
-2	abc
-3	lmn
-4	3r4f
-update t1 set i=5 where i=3;
+0	lmn
+0	def
+0	abc
+0	3r4f
+update t1 set i=3 where v = 'abc';
 select * from t1;
 i	v
-1	def
-2	abc
-5	lmn
-4	3r4f
-alter table t1 change i i bigint;
+3	abc
+0	lmn
+0	def
+0	3r4f
+alter table t1 change i i bigint not null;
 select * from t1;
 i	v
-1	def
-2	abc
-5	lmn
-4	3r4f
-alter table t1 add unique key (i, v);
-select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+3	abc
+0	lmn
+0	def
+0	3r4f
+select * from t1 where i between 2 and 4 and v in ('def','3r4f','abc');
 i	v
-4	3r4f
+3	abc
 drop table t1;
 create table bug15205 (val int(11) not null) engine=csv;
 create table bug15205_2 (val int(11) not null) engine=csv;

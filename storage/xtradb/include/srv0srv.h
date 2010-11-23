@@ -57,6 +57,9 @@ extern const char	srv_mysql50_table_name_prefix[9];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
+/* This event is set at shutdown to wakeup threads from sleep */
+extern os_event_t	srv_shutdown_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -157,6 +160,8 @@ extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern uint	srv_buffer_pool_shm_key;
+extern ibool	srv_buffer_pool_shm_is_reused;
+extern ibool	srv_buffer_pool_shm_checksum;
 
 extern ibool	srv_thread_concurrency_timer_based;
 
@@ -339,6 +344,9 @@ extern ulint srv_buf_pool_flushed;
 /** Number of buffer pool reads that led to the
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
+
+/** Time in seconds between automatic buffer pool dumps */
+extern uint srv_auto_lru_dump;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -606,6 +614,16 @@ UNIV_INTERN
 os_thread_ret_t
 srv_error_monitor_thread(
 /*=====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/*********************************************************************//**
+A thread which restores the buffer pool from a dump file on startup and does
+periodic buffer pool dumps.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_LRU_dump_restore_thread(
+/*====================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /******************************************************************//**

@@ -3043,6 +3043,10 @@ fil_open_single_table_tablespace(
 
 	if (srv_expand_import
 	    && (space_id != id || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
+		ibool		file_is_corrupt = FALSE;
+		byte*		buf3;
+		byte*		descr_page;
+		ibool		descr_is_corrupt = FALSE;
 		dulint		old_id[31];
 		dulint		new_id[31];
 		ulint		root_page[31];
@@ -3052,15 +3056,36 @@ fil_open_single_table_tablespace(
 		ulint	i;
 		int		len;
 		ib_uint64_t	current_lsn;
-		ulint		size_low, size_high, size;
-		ib_int64_t	size_bytes;
+		ulint		size_low, size_high, size, free_limit;
+		ib_int64_t	size_bytes, free_limit_bytes;
 		dict_table_t*	table;
 		dict_index_t*	index;
 		fil_system_t*	system;
 		fil_node_t*	node = NULL;
 		fil_space_t*	space;
 
+		buf3 = ut_malloc(2 * UNIV_PAGE_SIZE);
+		descr_page = ut_align(buf3, UNIV_PAGE_SIZE);
+
 		current_lsn = log_get_lsn();
+
+		/* check the header page's consistency */
+		if (buf_page_is_corrupted(page,
+					  dict_table_flags_to_zip_size(space_flags))) {
+			fprintf(stderr, "InnoDB: page 0 of %s seems corrupt.\n", filepath);
+			file_is_corrupt = TRUE;
+			descr_is_corrupt = TRUE;
+		}
+
+		/* store as first descr page */
+		memcpy(descr_page, page, UNIV_PAGE_SIZE);
+
+		/* get free limit (page number) of the table space */
+/* these should be same to the definition in fsp0fsp.c */
+#define FSP_HEADER_OFFSET	FIL_PAGE_DATA
+#define	FSP_FREE_LIMIT		12
+		free_limit = mach_read_from_4(FSP_HEADER_OFFSET + FSP_FREE_LIMIT + page);
+		free_limit_bytes = (ib_int64_t)free_limit * (ib_int64_t)UNIV_PAGE_SIZE;
 
 		/* overwrite fsp header */
 		fsp_header_init_fields(page, id, flags);
@@ -3086,6 +3111,12 @@ fil_open_single_table_tablespace(
 		size_bytes = (((ib_int64_t)size_high) << 32)
 				+ (ib_int64_t)size_low;
 
+		if (size_bytes < free_limit_bytes) {
+			free_limit_bytes = size_bytes;
+			fprintf(stderr, "InnoDB: free limit of %s is larger than its real size.\n", filepath);
+			file_is_corrupt = TRUE;
+		}
+
 		/* get cruster index information */
 		table = dict_table_get_low(name);
 		index = dict_table_get_first_index(table);
@@ -3107,16 +3138,19 @@ fil_open_single_table_tablespace(
 				info_file_path, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			fprintf(stderr, "InnoDB: cannot open %s\n", info_file_path);
+			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 		success = os_file_read(info_file, page, 0, 0, UNIV_PAGE_SIZE);
 		if (!success) {
 			fprintf(stderr, "InnoDB: cannot read %s\n", info_file_path);
+			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 		if (mach_read_from_4(page) != 0x78706f72UL
 		    || mach_read_from_4(page + 4) != 0x74696e66UL) {
 			fprintf(stderr, "InnoDB: %s seems not to be a correct .exp file\n", info_file_path);
+			file_is_corrupt = TRUE;
 			goto skip_info;
 		}
 
@@ -3153,20 +3187,29 @@ skip_info:
 
 			fprintf(stderr, "InnoDB: Progress in %%:");
 
-			for (offset = 0; offset < size_bytes; offset += UNIV_PAGE_SIZE) {
+			for (offset = 0; offset < free_limit_bytes; offset += UNIV_PAGE_SIZE) {
 				ulint		checksum_field;
 				ulint		old_checksum_field;
+				ibool		page_is_corrupt;
 
 				success = os_file_read(file, page,
 							(ulint)(offset & 0xFFFFFFFFUL),
 							(ulint)(offset >> 32), UNIV_PAGE_SIZE);
 
-				/* skip inconsistent pages, it may be free page. */
+				page_is_corrupt = FALSE;
+
+				/* check consistency */
 				if (memcmp(page + FIL_PAGE_LSN + 4,
 					   page + UNIV_PAGE_SIZE
 					   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
 
-					goto skip_write;
+					page_is_corrupt = TRUE;
+				}
+
+				if (mach_read_from_4(page + FIL_PAGE_OFFSET)
+				    != offset / UNIV_PAGE_SIZE) {
+
+					page_is_corrupt = TRUE;
 				}
 
 				checksum_field = mach_read_from_4(page
@@ -3182,7 +3225,7 @@ skip_info:
 				    && old_checksum_field
 				    != buf_calc_page_old_checksum(page)) {
 
-					goto skip_write;
+					page_is_corrupt = TRUE;
 				}
 
 				if (!srv_fast_checksum
@@ -3191,7 +3234,7 @@ skip_info:
 				    && checksum_field
 				    != buf_calc_page_new_checksum(page)) {
 
-					goto skip_write;
+					page_is_corrupt = TRUE;
 				}
 
 				if (srv_fast_checksum
@@ -3202,6 +3245,77 @@ skip_info:
 				    && checksum_field
 				    != buf_calc_page_new_checksum(page)) {
 
+					page_is_corrupt = TRUE;
+				}
+
+				/* if it is free page, inconsistency is acceptable */
+				if (!offset) {
+					/* header page*/
+					/* it should be overwritten already */
+					ut_a(!page_is_corrupt);
+
+				} else if (!((offset / UNIV_PAGE_SIZE) % UNIV_PAGE_SIZE)) {
+					/* descr page (not header) */
+					if (page_is_corrupt) {
+						file_is_corrupt = TRUE;
+						descr_is_corrupt = TRUE;
+					} else {
+						ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_XDES);
+						descr_is_corrupt = FALSE;
+					}
+
+					/* store as descr page */
+					memcpy(descr_page, page, UNIV_PAGE_SIZE);
+
+				} else if (descr_is_corrupt) {
+					/* unknown state of the page */
+					if (page_is_corrupt) {
+						file_is_corrupt = TRUE;
+					}
+
+				} else {
+					/* check free page or not */
+					/* These definitions should be same to fsp0fsp.c */
+#define	FSP_HEADER_SIZE		(32 + 5 * FLST_BASE_NODE_SIZE)
+
+#define	XDES_BITMAP		(FLST_NODE_SIZE + 12)
+#define	XDES_BITS_PER_PAGE	2
+#define	XDES_FREE_BIT		0
+#define	XDES_SIZE							\
+	(XDES_BITMAP + UT_BITS_IN_BYTES(FSP_EXTENT_SIZE * XDES_BITS_PER_PAGE))
+#define	XDES_ARR_OFFSET		(FSP_HEADER_OFFSET + FSP_HEADER_SIZE)
+
+					/*descr = descr_page + XDES_ARR_OFFSET + XDES_SIZE * xdes_calc_descriptor_index(zip_size, offset)*/
+					/*xdes_get_bit(descr, XDES_FREE_BIT, page % FSP_EXTENT_SIZE, mtr)*/
+					byte*	descr;
+					ulint	index;
+					ulint	byte_index;
+					ulint	bit_index;
+
+					descr = descr_page + XDES_ARR_OFFSET
+						+ XDES_SIZE * (ut_2pow_remainder((offset / UNIV_PAGE_SIZE), UNIV_PAGE_SIZE) / FSP_EXTENT_SIZE);
+
+					index = XDES_FREE_BIT + XDES_BITS_PER_PAGE * ((offset / UNIV_PAGE_SIZE) % FSP_EXTENT_SIZE);
+					byte_index = index / 8;
+					bit_index = index % 8;
+
+					if (ut_bit_get_nth(mach_read_from_1(descr + XDES_BITMAP + byte_index), bit_index)) {
+						/* free page */
+						if (page_is_corrupt) {
+							goto skip_write;
+						}
+					} else {
+						/* not free */
+						if (page_is_corrupt) {
+							file_is_corrupt = TRUE;
+						}
+					}
+				}
+
+				if (page_is_corrupt) {
+					fprintf(stderr, " [errp:%lld]", offset / UNIV_PAGE_SIZE);
+
+					/* cannot treat corrupt page */
 					goto skip_write;
 				}
 
@@ -3294,11 +3408,11 @@ skip_info:
 				}
 
 skip_write:
-				if (size_bytes
-				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes)
-					!= ((offset * 100) / size_bytes)) {
+				if (free_limit_bytes
+				    && ((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes)
+					!= ((offset * 100) / free_limit_bytes)) {
 					fprintf(stderr, " %lu",
-						(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / size_bytes));
+						(ulong)((ib_int64_t)((offset + UNIV_PAGE_SIZE) * 100) / free_limit_bytes));
 				}
 			}
 
@@ -3379,6 +3493,26 @@ skip_write:
 			node->size = size;
 		}
 		mutex_exit(&(system->mutex));
+
+		ut_free(buf3);
+
+		if (file_is_corrupt) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: file ",
+			      stderr);
+			ut_print_filename(stderr, filepath);
+			fprintf(stderr, " seems to be corrupt.\n"
+				"InnoDB: anyway, all not corrupt pages were tried to be converted to salvage.\n"
+				"InnoDB: ##### CAUTION #####\n"
+				"InnoDB: ## The .ibd must cause to crash InnoDB, though re-import would seem to be succeeded.\n"
+				"InnoDB: ## If you don't have knowledge about salvaging data from .ibd, you should not use the file.\n"
+				"InnoDB: ###################\n");
+			success = FALSE;
+
+			ut_free(buf2);
+
+			goto func_exit;
+		}
 	}
 
 	ut_free(buf2);

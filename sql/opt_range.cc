@@ -709,8 +709,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                          double read_time);
 static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree);
-static double get_index_only_read_time(const PARAM* param, ha_rows records,
-                                       int keynr);
 
 #ifndef DBUG_OFF
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
@@ -2315,9 +2313,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->covering_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
-      double key_read_time= (get_index_only_read_time(&param, records,
-                                                     key_for_use) +
-                             (double) records / TIME_FOR_COMPARE);
+      double key_read_time= head->file->keyread_time(key_for_use, 1, records) +
+                            (double) records / TIME_FOR_COMPARE;
       DBUG_PRINT("info",  ("'all'+'using index' scan will be using key %d, "
                            "read time %g", key_for_use, key_read_time));
       if (key_read_time < read_time)
@@ -3938,43 +3935,6 @@ skip_to_ror_scan:
   DBUG_RETURN(imerge_trp);
 }
 
-
-/*
-  Calculate cost of 'index only' scan for given index and number of records.
-
-  SYNOPSIS
-    get_index_only_read_time()
-      param    parameters structure
-      records  #of records to read
-      keynr    key to read
-
-  NOTES
-    It is assumed that we will read trough the whole key range and that all
-    key blocks are half full (normally things are much better). It is also
-    assumed that each time we read the next key from the index, the handler
-    performs a random seek, thus the cost is proportional to the number of
-    blocks read.
-
-  TODO:
-    Move this to handler->read_time() by adding a flag 'index-only-read' to
-    this call. The reason for doing this is that the current function doesn't
-    handle the case when the row is stored in the b-tree (like in innodb
-    clustered index)
-*/
-
-static double get_index_only_read_time(const PARAM* param, ha_rows records,
-                                       int keynr)
-{
-  double read_time;
-  uint keys_per_block= (param->table->file->stats.block_size/2/
-			(param->table->key_info[keynr].key_length+
-			 param->table->file->ref_length) + 1);
-  read_time=((double) (records+keys_per_block-1)/
-             (double) keys_per_block);
-  return read_time;
-}
-
-
 typedef struct st_ror_scan_info
 {
   uint      idx;      /* # of used key in param->keys */
@@ -4051,8 +4011,8 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr-1);
   }
   ror_scan->index_read_cost=
-    get_index_only_read_time(param, param->table->quick_rows[ror_scan->keynr],
-                             ror_scan->keynr);
+    param->table->file->keyread_time(ror_scan->keynr, 1,
+                                     param->table->quick_rows[ror_scan->keynr]);
   DBUG_RETURN(ror_scan);
 }
 
@@ -4887,7 +4847,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           We can resolve this by only reading through this key. 
           0.01 is added to avoid races between range and 'index' scan.
         */
-        found_read_time= get_index_only_read_time(param,found_records,keynr) +
+        found_read_time= param->table->file->keyread_time(keynr, 1, found_records) +
                          cpu_cost + 0.01;
       }
       else
@@ -5534,7 +5494,11 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
         SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
                                     field_item, (Item*)(intptr)i, inv);
         if (inv)
+        {
           tree= !tree ? tmp : tree_or(param, tree, tmp);
+          if (tree == NULL)
+            break;
+        }
         else 
           tree= tree_and(param, tree, tmp);
       }
@@ -8463,9 +8427,14 @@ int QUICK_RANGE_SELECT::reset()
   in_range= FALSE;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
-    DBUG_RETURN(error);
- 
+  if (file->inited == handler::NONE)
+  {
+    if (in_ror_merged_scan)
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    if ((error= file->ha_index_init(index,1)))
+        DBUG_RETURN(error);
+  }
+
   /* Do not allocate the buffers twice. */
   if (multi_range_length)
   {

@@ -1021,6 +1021,7 @@ typedef struct st_ha_check_opt
   st_ha_check_opt() {}                        /* Remove gcc warning */
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
+  time_t start_time;   /* When check/repair starts */
   KEY_CACHE *key_cache; /* new key cache when changing key cache */
   void init();
 } HA_CHECK_OPT;
@@ -1304,6 +1305,16 @@ public:
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
+
+  /**
+    Calculate cost of 'keyread' scan for given index and number of records.
+
+     @param index    index to read
+     @param ranges   #of ranges to read
+     @param rows     #of records to read
+  */
+  virtual double keyread_time(uint index, uint ranges, ha_rows rows);
+
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }

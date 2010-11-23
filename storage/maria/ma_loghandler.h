@@ -167,7 +167,8 @@ enum en_key_op
   KEY_OP_SET_PAGEFLAG,  /* Set pageflag from next byte */
   KEY_OP_COMPACT_PAGE,	/* Compact key page */
   KEY_OP_MAX_PAGELENGTH, /* Set page to max page length */
-  KEY_OP_DEBUG		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG,		/* Entry for storing what triggered redo_index */
+  KEY_OP_DEBUG_2	/* Entry for pagelengths */
 };
 
 enum en_key_debug
@@ -178,18 +179,21 @@ enum en_key_debug
   KEY_OP_DEBUG_FATHER_CHANGED_1,	/* 3 */
   KEY_OP_DEBUG_FATHER_CHANGED_2,	/* 4 */
   KEY_OP_DEBUG_LOG_SPLIT,		/* 5 */
-  KEY_OP_DEBUG_LOG_ADD,			/* 6 */
-  KEY_OP_DEBUG_LOG_PREFIX_1,		/* 7 */
-  KEY_OP_DEBUG_LOG_PREFIX_2,		/* 8 */
-  KEY_OP_DEBUG_LOG_PREFIX_3,		/* 9 */
-  KEY_OP_DEBUG_LOG_PREFIX_4,		/* 10 */
-  KEY_OP_DEBUG_LOG_PREFIX_5,		/* 11 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_1,	/* 12 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_2,	/* 13 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_3,	/* 14 */
-  KEY_OP_DEBUG_LOG_DEL_CHANGE_RT,	/* 15 */
-  KEY_OP_DEBUG_LOG_DEL_PREFIX,		/* 16 */
-  KEY_OP_DEBUG_LOG_MIDDLE		/* 17 */
+  KEY_OP_DEBUG_LOG_ADD_1,		/* 6 */
+  KEY_OP_DEBUG_LOG_ADD_2,		/* 7 */
+  KEY_OP_DEBUG_LOG_ADD_3,		/* 8 */
+  KEY_OP_DEBUG_LOG_ADD_4,		/* 9 */
+  KEY_OP_DEBUG_LOG_PREFIX_1,		/* 10 */
+  KEY_OP_DEBUG_LOG_PREFIX_2,		/* 11 */
+  KEY_OP_DEBUG_LOG_PREFIX_3,		/* 12 */
+  KEY_OP_DEBUG_LOG_PREFIX_4,		/* 13 */
+  KEY_OP_DEBUG_LOG_PREFIX_5,		/* 14 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_1,	/* 15 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_2,	/* 16 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_3,	/* 17 */
+  KEY_OP_DEBUG_LOG_DEL_CHANGE_RT,	/* 18 */
+  KEY_OP_DEBUG_LOG_DEL_PREFIX,		/* 19 */
+  KEY_OP_DEBUG_LOG_MIDDLE		/* 20 */
 };
 
 
@@ -354,6 +358,7 @@ translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
 extern my_bool translog_walk_filenames(const char *directory,
                                        my_bool (*callback)(const char *,
                                                            const char *));
+extern void dump_page(uchar *buffer, File handler);
 extern my_bool translog_log_debug_info(TRN *trn,
                                        enum translog_debug_info_type type,
                                        uchar *info, size_t length);
@@ -372,8 +377,31 @@ extern enum enum_translog_status translog_status;
   ma_loghandler_for_recovery.h ?
 */
 
+/*
+  Information from transaction log file header
+*/
+
+typedef struct st_loghandler_file_info
+{
+  /*
+    LSN_IMPOSSIBLE for current file (not finished file).
+    Maximum LSN of the record which parts stored in the
+    file.
+  */
+  LSN max_lsn;
+  ulonglong timestamp;   /* Time stamp */
+  ulong maria_version;   /* Version of maria loghandler */
+  ulong mysql_version;   /* Version of mysql server */
+  ulong server_id;       /* Server ID */
+  ulong page_size;       /* Loghandler page size */
+  ulong file_number;     /* Number of the file (from the file header) */
+} LOGHANDLER_FILE_INFO;
+
 #define SHARE_ID_MAX 65535 /* array's size */
 
+extern void translog_fill_overhead_table();
+extern void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
+                                           uchar *page_buff);
 extern LSN translog_first_lsn_in_log();
 extern LSN translog_first_theoretical_lsn();
 extern LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon);

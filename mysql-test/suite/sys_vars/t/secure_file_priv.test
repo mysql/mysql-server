@@ -9,7 +9,7 @@ SHOW VARIABLES LIKE 'secure_file_priv';
 # Doing this in a portable manner is difficult but we should be able to
 # count on the depth of the directory hierarchy used. Three steps up from
 # the datadir is the 'mysql_test' directory.
---let $PROTECTED_FILE=`SELECT concat(@@datadir,'/../../../bug50373.txt')`;
+--let $PROTECTED_FILE=`SELECT concat(@@datadir,'/../../../bug50373.txt')`
 --eval SELECT * FROM t1 INTO OUTFILE '$PROTECTED_FILE';
 DELETE FROM t1;
 --eval LOAD DATA INFILE '$PROTECTED_FILE' INTO TABLE t1;

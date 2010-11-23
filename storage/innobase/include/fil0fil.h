@@ -202,8 +202,10 @@ the chain but does not delete them. */
 ibool
 fil_space_free(
 /*===========*/
-			/* out: TRUE if success */
-	ulint	id);	/* in: space id */
+				/* out: TRUE if success */
+	ulint	id,		/* in: space id */
+	ibool	x_latched);	/* in: TRUE if caller has space->latch
+				in X mode */
 /***********************************************************************
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache. */
@@ -710,6 +712,14 @@ fil_page_get_type(
 			written to page, the return value not defined */
 	byte*	page);	/* in: file page */
 
+/***********************************************************************
+Returns TRUE if a single-table tablespace is being deleted. */
+
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+				/* out: TRUE if space is being deleted */
+	ulint		id);	/* in: space id */
 
 typedef	struct fil_space_struct	fil_space_t;
 

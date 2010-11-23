@@ -434,8 +434,14 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->base.born_transactional &&
         ((!(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
           memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE)) ||
-         share->state.create_trid > trnman_get_max_trid()))
+         (share->state.create_trid > trnman_get_max_trid() &&
+          !maria_in_recovery)))
     {
+      DBUG_PRINT("warning", ("table is moved from another system.  uuid_diff: %d  create_trid: %lu  max_trid: %lu",
+                            memcmp(share->base.uuid, maria_uuid,
+                                   MY_UUID_SIZE) != 0,
+                             (ulong) share->state.create_trid,
+                             (ulong) trnman_get_max_trid()));
       if (open_flags & HA_OPEN_FOR_REPAIR)
         share->state.changed|= STATE_MOVED;
       else
@@ -868,8 +874,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           share->have_versioning= 1;
           share->row_is_visible=     _ma_row_visible_transactional_table;
           share->lock.get_status=    _ma_block_get_status;
-          share->lock.update_status= _ma_block_update_status;
           share->lock.check_status=  _ma_block_check_status;
+          share->lock.start_trans=   _ma_block_start_trans;
           /*
             We can for the moment only allow multiple concurrent inserts
             only if there is no auto-increment key.  To lift this restriction
@@ -897,7 +903,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       else if (share->now_transactional)
       {
         DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
-        share->lock.get_status=     _ma_block_get_status_no_versioning;
+        share->lock.start_trans=    _ma_block_start_trans_no_versioning;
       }
     }
 #endif

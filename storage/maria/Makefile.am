@@ -34,6 +34,9 @@ EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_test_big.sh \
 			ma_ft_stem.c CMakeLists.txt plug.in ma_test_recovery
 pkgdata_DATA =		
 pkglib_LIBRARIES =	libmaria.a
+noinst_LTLIBRARIES =	libmaria.la libmaria_s.la \
+			@plugin_maria_embedded_static_target@
+EXTRA_LTLIBRARIES =	libmaria_embedded.la
 bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log \
 			maria_dump_log
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
@@ -58,13 +61,12 @@ maria_read_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 maria_dump_log_DEPENDENCIES=$(LIBRARIES) ma_loghandler.c
-maria_dump_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+maria_dump_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.la \
                         $(top_builddir)/storage/myisam/libmyisam.a \
                         $(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_dump_log_SOURCES= ma_loghandler.c unittest/ma_loghandler_examples.c
-maria_dump_log_CPPFLAGS= -DMARIA_DUMP_LOG
+maria_dump_log_SOURCES= maria_dump_log.c unittest/ma_loghandler_examples.c
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h \
@@ -112,7 +114,7 @@ ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
+libmaria_la_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rnext.c ma_rnext_same.c \
 			ma_search.c ma_page.c ma_key_recover.c ma_key.c \
 			ma_locking.c ma_state.c \
@@ -134,8 +136,20 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_sp_key.c ma_control_file.c ma_loghandler.c \
 			ma_pagecache.c ma_pagecaches.c \
 			ma_checkpoint.c ma_recovery.c ma_commit.c \
-			ma_pagecrc.c ma_recovery_util.c \
-			ha_maria.cc
+			ma_pagecrc.c ma_recovery_util.c
+
+libmaria_s_la_SOURCES =	ha_maria.cc
+libmaria_s_la_CXXFLAGS =	$(AM_CXXFLAGS)
+libmaria_s_la_LIBADD =	libmaria.la
+libmaria_embedded_la_SOURCES =	ha_maria.cc
+libmaria_embedded_la_LIBADD =	libmaria.la
+libmaria_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
+
+libmaria_a_SOURCES=
+libmaria.a: libmaria.la
+	$(CP) .libs/libmaria.a $@
+
+
 CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? maria_log_control maria_log.0000*
 
 SUFFIXES = .sh

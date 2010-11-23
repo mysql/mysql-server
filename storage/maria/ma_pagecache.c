@@ -2037,12 +2037,12 @@ restart:
 
             KEYCACHE_DBUG_PRINT("find_block", ("block is dirty"));
 
-            pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
             /*
 	      The call is thread safe because only the current
 	      thread might change the block->hash_link value
             */
             DBUG_ASSERT(block->pins == 0);
+            pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
             error= pagecache_fwrite(pagecache,
                                     &block->hash_link->file,
                                     block->buffer,
@@ -2255,14 +2255,17 @@ static my_bool pagecache_wait_lock(PAGECACHE *pagecache,
 #endif
   PCBLOCK_INFO(block);
   if ((block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH)) ||
+      !block->hash_link ||
       file.file != block->hash_link->file.file ||
       pageno != block->hash_link->pageno)
   {
     DBUG_PRINT("info", ("the block 0x%lx changed => need retry "
                         "status: %x  files %d != %d or pages %lu != %lu",
                         (ulong)block, block->status,
-                        file.file, block->hash_link->file.file,
-                        (ulong) pageno, (ulong) block->hash_link->pageno));
+                        file.file,
+                        block->hash_link ? block->hash_link->file.file : -1,
+                        (ulong) pageno,
+                        (ulong) (block->hash_link ? block->hash_link->pageno : 0)));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -2611,12 +2614,12 @@ static void read_block(PAGECACHE *pagecache,
     */
 
     pagecache->global_cache_read++;
-    /* Page is not in buffer yet, is to be read from disk */
-    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     /*
+      Page is not in buffer yet, is to be read from disk
       Here other threads may step in and register as secondary readers.
       They will register in block->wqueue[COND_FOR_REQUESTED].
     */
+    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     error= pagecache_fread(pagecache, &block->hash_link->file,
                            block->buffer,
                            block->hash_link->pageno,
@@ -3450,6 +3453,14 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
                                          my_bool flush)
 {
   my_bool error= 0;
+  if (block->status & PCBLOCK_IN_FLUSH)
+  {
+    /*
+      this call is just 'hint' for the cache to free the page so we will
+      not interferes with flushing process but gust return success
+    */
+    goto out;
+  }
   if (block->status & PCBLOCK_CHANGED)
   {
     if (flush)
@@ -3458,12 +3469,12 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
 
       KEYCACHE_DBUG_PRINT("find_block", ("block is dirty"));
 
-      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       /*
         The call is thread safe because only the current
         thread might change the block->hash_link value
       */
       DBUG_ASSERT(block->pins == 1);
+      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       error= pagecache_fwrite(pagecache,
                               &block->hash_link->file,
                               block->buffer,
@@ -3478,7 +3489,26 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
         block->status|= PCBLOCK_ERROR;
         block->error=   (int16) my_errno;
         my_debug_put_break_here();
-        goto err;
+        goto out;
+      }
+    }
+    else
+    {
+      PAGECACHE_FILE *filedesc= &block->hash_link->file;
+      /* We are not going to write the page but have to call callbacks */
+      DBUG_PRINT("info", ("flush_callback :0x%lx"
+                          "write_callback: 0x%lx  data: 0x%lx",
+                          (ulong) filedesc->flush_log_callback,
+                          (ulong) filedesc->write_callback,
+                          (ulong) filedesc->callback_data));
+      if ((*filedesc->flush_log_callback)
+          (block->buffer, block->hash_link->pageno, filedesc->callback_data) ||
+          (*filedesc->write_callback)
+          (block->buffer, block->hash_link->pageno, filedesc->callback_data))
+      {
+        DBUG_PRINT("error", ("flush or write callback problem"));
+        error= 1;
+        goto out;
       }
     }
     pagecache->blocks_changed--;
@@ -3498,7 +3528,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
   /* See NOTE for pagecache_unlock about registering requests. */
   free_block(pagecache, block);
 
-err:
+out:
   dec_counter_for_resize_op(pagecache);
   return error;
 }
@@ -4087,6 +4117,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
                       ("block: %u  hash_link 0x%lx",
                        PCBLOCK_NUMBER(pagecache, block),
                        (long) block->hash_link));
+  safe_mutex_assert_owner(&pagecache->cache_lock);
   if (block->hash_link)
   {
     /*
@@ -4114,6 +4145,8 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   KEYCACHE_DBUG_PRINT("free_block",
                       ("block is freed"));
   unreg_request(pagecache, block, 0);
+  DBUG_ASSERT(block->requests == 0);
+  DBUG_ASSERT(block->next_used != 0);
   block->hash_link= NULL;
 
   /* Remove the free block from the LRU ring. */
@@ -4223,7 +4256,6 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     DBUG_PRINT("info", ("block: %u (0x%lx)  to be flushed",
                         PCBLOCK_NUMBER(pagecache, block), (ulong)block));
     PCBLOCK_INFO(block);
-    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     DBUG_PRINT("info", ("block: %u (0x%lx)  pins: %u",
                         PCBLOCK_NUMBER(pagecache, block), (ulong)block,
                         block->pins));
@@ -4237,6 +4269,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
       content (see StaleFilePointersInFlush in ma_checkpoint.c).
       @todo change argument of functions to be File.
     */
+    pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     error= pagecache_fwrite(pagecache, &block->hash_link->file,
                             block->buffer,
                             block->hash_link->pageno,

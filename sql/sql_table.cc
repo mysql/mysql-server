@@ -3327,6 +3327,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
+          !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -4426,9 +4427,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
     pthread_mutex_unlock(&LOCK_open);
   }
-
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->child_l);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
@@ -6886,8 +6884,14 @@ view_err:
         Workaround InnoDB ending the transaction when the table instance
         is unlocked/closed (close_cached_table below), otherwise the trx
         state will differ between the server and storage engine layers.
+
+        We have to unlock LOCK_open here as otherwise we can get deadlock
+        in wait_if_global_readlock().  This is still safe as we have a
+        name lock on the table object.
       */
+      VOID(pthread_mutex_unlock(&LOCK_open));
       ha_autocommit_or_rollback(thd, 0);
+      VOID(pthread_mutex_lock(&LOCK_open));
 
       /*
         Then do a 'simple' rename of the table. First we need to close all

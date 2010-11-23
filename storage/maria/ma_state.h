@@ -62,6 +62,7 @@ MARIA_STATE_HISTORY *_ma_remove_not_visible_states(MARIA_STATE_HISTORY
 void _ma_reset_state(MARIA_HA *info);
 void _ma_get_status(void* param, my_bool concurrent_insert);
 void _ma_update_status(void* param);
+void _ma_update_status_with_lock(MARIA_HA *info);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void* to, void *from);
 void _ma_reset_update_flag(void *param, my_bool concurrent_insert);

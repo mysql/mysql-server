@@ -269,10 +269,10 @@ do {									\
 	TYPE*	ut_list_node_313;					\
 									\
 	if ((BASE).start)						\
-		(BASE).start = (void*)((char*)((BASE).start)		\
+		(BASE).start = (void*)((byte*)((BASE).start)			\
 			+ (((void*)((BASE).start) > (void*)FADDR)?FOFFSET:BOFFSET));\
 	if ((BASE).end)							\
-		(BASE).end   = (void*)((char*)((BASE).end)		\
+		(BASE).end   = (void*)((byte*)((BASE).end)			\
 			+ (((void*)((BASE).end) > (void*)FADDR)?FOFFSET:BOFFSET));\
 									\
 	ut_list_node_313 = (BASE).start;				\
@@ -280,10 +280,10 @@ do {									\
 	for (ut_list_i_313 = (BASE).count; ut_list_i_313--; ) {		\
 		ut_a(ut_list_node_313);					\
 		if ((ut_list_node_313->NAME).prev)			\
-			(ut_list_node_313->NAME).prev = (void*)((char*)((ut_list_node_313->NAME).prev) \
+			(ut_list_node_313->NAME).prev = (void*)((byte*)((ut_list_node_313->NAME).prev)\
 				+ (((void*)((ut_list_node_313->NAME).prev) > (void*)FADDR)?FOFFSET:BOFFSET));\
 		if ((ut_list_node_313->NAME).next)			\
-			(ut_list_node_313->NAME).next =	(void *)((char*)((ut_list_node_313->NAME).next) \
+			(ut_list_node_313->NAME).next =	(void*)((byte*)((ut_list_node_313->NAME).next)\
 				+ (((void*)((ut_list_node_313->NAME).next)> (void*)FADDR)?FOFFSET:BOFFSET));\
 		ut_list_node_313 = (ut_list_node_313->NAME).next;	\
 	}								\

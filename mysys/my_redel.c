@@ -40,7 +40,8 @@ struct utimbuf {
 
 #define REDEL_EXT ".BAK"
 
-int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
+int my_redel(const char *org_name, const char *tmp_name,
+             time_t backup_time_stamp, myf MyFlags)
 {
   int error=1;
   DBUG_ENTER("my_redel");
@@ -51,13 +52,9 @@ int my_redel(const char *org_name, const char *tmp_name, myf MyFlags)
     goto end;
   if (MyFlags & MY_REDEL_MAKE_BACKUP)
   {
-    char name_buff[FN_REFLEN+20];    
-    char ext[20];
-    ext[0]='-';
-    get_date(ext+1,2+4,(time_t) 0);
-    strmov(strend(ext),REDEL_EXT);
-    if (my_rename(org_name, fn_format(name_buff, org_name, "", ext, 2),
-		  MyFlags))
+    char name_buff[FN_REFLEN + MY_BACKUP_NAME_EXTRA_LENGTH];    
+    my_create_backup_name(name_buff, org_name, backup_time_stamp);
+    if (my_rename(org_name, name_buff, MyFlags))
       goto end;
   }
   else if (my_delete_allow_opened(org_name, MyFlags))
@@ -149,3 +146,23 @@ int my_copystat(const char *from, const char *to, int MyFlags)
 #endif
   return 0;
 } /* my_copystat */
+
+
+/**
+   Create a backup file name.
+   @fn my_create_backup_name()
+   @param to	Store new file name here
+   @param from  Original name
+
+   @info
+   The backup name is made by adding -YYMMDDHHMMSS.BAK to the file name
+*/
+
+void my_create_backup_name(char *to, const char *from, time_t backup_start)
+{
+  char ext[MY_BACKUP_NAME_EXTRA_LENGTH+1];
+  ext[0]='-';
+  get_date(ext+1, GETDATE_SHORT_DATE | GETDATE_HHMMSSTIME, backup_start);
+  strmov(strend(ext),REDEL_EXT);
+  strmov(strmov(to, from), ext);
+}

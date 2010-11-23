@@ -25,8 +25,6 @@ typedef uint32 my_bitmap_map;
 typedef struct st_bitmap
 {
   my_bitmap_map *bitmap;
-  uint n_bits; /* number of bits occupied by the above */
-  my_bitmap_map last_word_mask;
   my_bitmap_map *last_word_ptr;
   /*
      mutex will be acquired for the duration of each bitmap operation if
@@ -36,6 +34,8 @@ typedef struct st_bitmap
 #ifdef THREAD
   pthread_mutex_t *mutex;
 #endif
+  my_bitmap_map last_word_mask;
+  uint32	n_bits; /* number of bits occupied by the above */
 } MY_BITMAP;
 
 #ifdef	__cplusplus

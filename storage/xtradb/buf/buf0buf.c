@@ -792,7 +792,7 @@ buf_block_reuse(
 	ptrdiff_t	frame_offset)
 {
 	/* block_init */
-	block->frame = ((byte*)(block->frame) + frame_offset);
+	block->frame += frame_offset;
 
 	UNIV_MEM_DESC(block->frame, UNIV_PAGE_SIZE, block);
 
@@ -809,7 +809,7 @@ buf_block_reuse(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	if (block->page.zip.data)
-		block->page.zip.data = ((byte*)(block->page.zip.data) + frame_offset);
+		block->page.zip.data += frame_offset;
 
 	block->is_hashed = FALSE;
 
@@ -845,6 +845,8 @@ buf_chunk_init(
 	although it already should be. */
 	mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
 
+	srv_buffer_pool_shm_is_reused = FALSE;
+
 	if (srv_buffer_pool_shm_key) {
 		/* zip_hash size */
 		zip_hash_n = (mem_size / UNIV_PAGE_SIZE) * 2;
@@ -870,39 +872,46 @@ buf_chunk_init(
 		ut_a(buf_pool->n_chunks == 1);
 
 		fprintf(stderr,
-		"InnoDB: Notice: innodb_buffer_pool_shm_key option is specified.\n"
-		"InnoDB: This option may not be safe to keep consistency of datafiles.\n"
-		"InnoDB: Because InnoDB cannot lock datafiles when shutdown until reusing shared memory segment.\n"
-		"InnoDB: You should ensure no change of InnoDB files while using innodb_buffer_pool_shm_key.\n");
+		"InnoDB: Warning: The innodb_buffer_pool_shm_key option has been specified.\n"
+		"InnoDB: Do not change the following between restarts of the server while this option is being used:\n"
+		"InnoDB:   * the mysqld executable between restarts of the server.\n"
+		"InnoDB:   * the value of innodb_buffer_pool_size.\n"
+		"InnoDB:   * the value of innodb_page_size.\n"
+		"InnoDB:   * datafiles created by InnoDB during this session.\n"
+		"InnoDB: Otherwise, data corruption in datafiles may result.\n");
 
 		/* FIXME: This is vague id still */
-		binary_id = (ulint) ((char*)mtr_commit - (char *)btr_root_get)
-			  + (ulint) ((char *)os_get_os_version - (char *)buf_calc_page_new_checksum)
-			  + (ulint) ((char *)page_dir_find_owner_slot - (char *)dfield_data_is_binary_equal)
-			  + (ulint) ((char *)que_graph_publish - (char *)dict_casedn_str)
-			  + (ulint) ((char *)read_view_oldest_copy_or_open_new - (char *)fil_space_get_version)
-			  + (ulint) ((char *)rec_get_n_extern_new - (char *)fsp_get_size_low)
-			  + (ulint) ((char *)row_get_trx_id_offset - (char *)ha_create_func)
-			  + (ulint) ((char *)srv_set_io_thread_op_info - (char *)thd_is_replication_slave_thread)
-			  + (ulint) ((char *)mutex_create_func - (char *)ibuf_inside)
-			  + (ulint) ((char *)trx_set_detailed_error - (char *)lock_check_trx_id_sanity)
-			  + (ulint) ((char *)ut_time - (char *)mem_heap_strdup);
+		binary_id = (ulint) ((byte*)mtr_commit - (byte*)btr_root_get)
+			  + (ulint) ((byte*)os_get_os_version - (byte*)buf_calc_page_new_checksum)
+			  + (ulint) ((byte*)page_dir_find_owner_slot - (byte*)dfield_data_is_binary_equal)
+			  + (ulint) ((byte*)que_graph_publish - (byte*)dict_casedn_str)
+			  + (ulint) ((byte*)read_view_oldest_copy_or_open_new - (byte*)fil_space_get_version)
+			  + (ulint) ((byte*)rec_get_n_extern_new - (byte*)fsp_get_size_low)
+			  + (ulint) ((byte*)row_get_trx_id_offset - (byte*)ha_create_func)
+			  + (ulint) ((byte*)srv_set_io_thread_op_info - (byte*)thd_is_replication_slave_thread)
+			  + (ulint) ((byte*)mutex_create_func - (byte*)ibuf_inside)
+			  + (ulint) ((byte*)trx_set_detailed_error - (byte*)lock_check_trx_id_sanity)
+			  + (ulint) ((byte*)ut_time - (byte*)mem_heap_strdup);
 
 		chunk->mem = os_shm_alloc(&chunk->mem_size, srv_buffer_pool_shm_key, &is_new);
 
 		if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 			return(NULL);
 		}
-
+init_again:
 #ifdef UNIV_SET_MEM_TO_ZERO
 		if (is_new) {
 			memset(chunk->mem, '\0', chunk->mem_size);
 		}
 #endif
+		/* for ut_fold_binary_32(), these values should be 32-bit aligned */
+		ut_a(sizeof(buf_shm_info_t) % 4 == 0);
+		ut_a((ulint)chunk->mem % 4 == 0);
+		ut_a(chunk->mem_size % 4 == 0);
 
 		shm_info = chunk->mem;
 
-		zip_hash_tmp = (hash_table_t*)((char *)chunk->mem + chunk->mem_size - zip_hash_mem_size);
+		zip_hash_tmp = (hash_table_t*)((byte*)chunk->mem + chunk->mem_size - zip_hash_mem_size);
 
 		if (is_new) {
 			strncpy(shm_info->head_str, BUF_SHM_INFO_HEAD, 8);
@@ -932,16 +941,6 @@ buf_chunk_init(
 				"InnoDB: Error: The shared memory was not initialized yet.\n");
 				return(NULL);
 			}
-			if (!shm_info->clean) {
-				fprintf(stderr,
-				"InnoDB: Error: The shared memory was not shut down cleanly.\n");
-				return(NULL);
-			}
-			if (!shm_info->reusable) {
-				fprintf(stderr,
-				"InnoDB: Error: The shared memory has unrecoverable contents.\n");
-				return(NULL);
-			}
 			if (shm_info->buf_pool_size != srv_buf_pool_size) {
 				fprintf(stderr,
 				"InnoDB: Error: srv_buf_pool_size is different (shm=%lu current=%lu).\n",
@@ -954,14 +953,34 @@ buf_chunk_init(
 				shm_info->page_size, srv_page_size);
 				return(NULL);
 			}
+			if (!shm_info->reusable) {
+				fprintf(stderr,
+				"InnoDB: Warning: The shared memory has unrecoverable contents.\n"
+				"InnoDB: The shared memory segment is initialized.\n");
+				is_new = TRUE;
+				goto init_again;
+			}
+			if (!shm_info->clean) {
+				fprintf(stderr,
+				"InnoDB: Warning: The shared memory was not shut down cleanly.\n"
+				"InnoDB: The shared memory segment is initialized.\n");
+				is_new = TRUE;
+				goto init_again;
+			}
 
 			ut_a(shm_info->zip_hash_offset == chunk->mem_size - zip_hash_mem_size);
 			ut_a(shm_info->zip_hash_n == zip_hash_n);
 
 			/* check checksum */
-			checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
-						  chunk->mem_size - sizeof(buf_shm_info_t));
-			if (shm_info->checksum != checksum) {
+			if (srv_buffer_pool_shm_checksum) {
+				checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
+							     chunk->mem_size - sizeof(buf_shm_info_t));
+			} else {
+				checksum = BUF_NO_CHECKSUM_MAGIC;
+			}
+
+			if (shm_info->checksum != BUF_NO_CHECKSUM_MAGIC
+			    && shm_info->checksum != checksum) {
 				fprintf(stderr,
 				"InnoDB: Error: checksum of the shared memory is not match. "
 				"(stored=%lu calculated=%lu)\n",
@@ -979,6 +998,8 @@ buf_chunk_init(
 		} else {
 			/* adjust offset is done later */
 			hash_create_reuse(zip_hash_tmp);
+
+			srv_buffer_pool_shm_is_reused = TRUE;
 		}
 	} else {
 	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
@@ -992,7 +1013,7 @@ buf_chunk_init(
 	/* Allocate the block descriptors from
 	the start of the memory block. */
 	if (srv_buffer_pool_shm_key) {
-		chunk->blocks = (buf_block_t*)((char*)chunk->mem + sizeof(buf_shm_info_t));
+		chunk->blocks = (buf_block_t*)((byte*)chunk->mem + sizeof(buf_shm_info_t));
 	} else {
 	chunk->blocks = chunk->mem;
 	}
@@ -1039,10 +1060,10 @@ buf_chunk_init(
 		}
 
 		chunk->size = shm_info->chunk_backup.size;
-		phys_offset = (char*)frame - ((char*)chunk->mem + shm_info->frame_offset);
-		logi_offset = (char *)frame - (char *)chunk->blocks[0].frame;
+		phys_offset = frame - ((byte*)chunk->mem + shm_info->frame_offset);
+		logi_offset = frame - chunk->blocks[0].frame;
 		previous_frame_address = chunk->blocks[0].frame;
-		blocks_offset = (char *)chunk->blocks - (char *)shm_info->chunk_backup.blocks;
+		blocks_offset = (byte*)chunk->blocks - (byte*)shm_info->chunk_backup.blocks;
 
 		if (phys_offset || logi_offset || blocks_offset) {
 			fprintf(stderr,
@@ -1053,10 +1074,10 @@ buf_chunk_init(
 			"InnoDB: Pysical offset                  : %ld (%#lx)\n"
 			"InnoDB: Logical offset (frames)         : %ld (%#lx)\n"
 			"InnoDB: Logical offset (blocks)         : %ld (%#lx)\n",
-				(char *)chunk->mem + shm_info->frame_offset,
+				(byte*)chunk->mem + shm_info->frame_offset,
 				chunk->blocks[0].frame, frame,
-				(ulong) phys_offset, (ulong) phys_offset, (ulong) logi_offset, (ulong) logi_offset,
-				(ulong) blocks_offset, (ulong) blocks_offset);
+				(long) phys_offset, (ulong) phys_offset, (long) logi_offset, (ulong) logi_offset,
+				(long) blocks_offset, (ulong) blocks_offset);
 		} else {
 			fprintf(stderr,
 			"InnoDB: Buffer pool in the shared memory segment can be used as it is.\n");
@@ -1066,24 +1087,24 @@ buf_chunk_init(
 			fprintf(stderr,
 			"InnoDB: Aligning physical offset...");
 
-			memmove(frame, ((char*)chunk->mem + shm_info->frame_offset),
+			memmove(frame, (byte*)chunk->mem + shm_info->frame_offset,
 				chunk->size * UNIV_PAGE_SIZE);
 
 			fprintf(stderr,
 			" Done.\n");
 		}
 
+		/* buf_block_t */
+		block = chunk->blocks;
+		for (i = chunk->size; i--; ) {
+			buf_block_reuse(block, logi_offset);
+			block++;
+		}
+
 		if (logi_offset || blocks_offset) {
 			fprintf(stderr,
 			"InnoDB: Aligning logical offset...");
 
-			/* buf_block_t */
-			block = chunk->blocks;
-
-			for (i = chunk->size; i--; ) {
-				buf_block_reuse(block, logi_offset);
-				block++;
-			}
 
 			/* buf_pool_t buf_pool_backup */
 			UT_LIST_OFFSET(flush_list, buf_page_t, shm_info->buf_pool_backup.flush_list,
@@ -1094,7 +1115,7 @@ buf_chunk_init(
 					previous_frame_address, logi_offset, blocks_offset);
 			if (shm_info->buf_pool_backup.LRU_old)
 				shm_info->buf_pool_backup.LRU_old =
-					(buf_page_t*)((char*)(shm_info->buf_pool_backup.LRU_old)
+					(buf_page_t*)((byte*)(shm_info->buf_pool_backup.LRU_old)
 						+ (((byte*)shm_info->buf_pool_backup.LRU_old > previous_frame_address)
 						  ? logi_offset : blocks_offset));
 
@@ -1141,7 +1162,7 @@ buf_chunk_init(
 	}
 
 	if (shm_info) {
-		shm_info->frame_offset = (char*)chunk->blocks[0].frame - (char*)chunk->mem;
+		shm_info->frame_offset = chunk->blocks[0].frame - (byte*)chunk->mem;
 	}
 
 	return(chunk);
@@ -1396,10 +1417,10 @@ buf_pool_init(void)
 	if (srv_buffer_pool_shm_key) {
 		buf_shm_info_t*	shm_info;
 
-		ut_a((char*)chunk->blocks == (char*)chunk->mem + sizeof(buf_shm_info_t));
+		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));
 		shm_info = chunk->mem;
 
-		buf_pool->zip_hash = (hash_table_t*)((char*)chunk->mem + shm_info->zip_hash_offset);
+		buf_pool->zip_hash = (hash_table_t*)((byte*)chunk->mem + shm_info->zip_hash_offset);
 
 		if(shm_info->is_new) {
 			shm_info->is_new = FALSE; /* initialization was finished */
@@ -1504,7 +1525,7 @@ buf_pool_free(void)
 
 		chunk = buf_pool->chunks;
 		shm_info = chunk->mem;
-		ut_a((char*)chunk->blocks == (char*)chunk->mem + sizeof(buf_shm_info_t));
+		ut_a((byte*)chunk->blocks == (byte*)chunk->mem + sizeof(buf_shm_info_t));
 
 		/* validation the shared memory segment doesn't have unrecoverable contents. */
 		/* Currently, validation became not needed */
@@ -1514,8 +1535,12 @@ buf_pool_free(void)
 		memcpy(&(shm_info->chunk_backup), chunk, sizeof(buf_chunk_t));
 
 		if (srv_fast_shutdown < 2) {
-			shm_info->checksum = ut_fold_binary((byte*)chunk->mem + sizeof(buf_shm_info_t),
-							    chunk->mem_size - sizeof(buf_shm_info_t));
+			if (srv_buffer_pool_shm_checksum) {
+				shm_info->checksum = ut_fold_binary_32((byte*)chunk->mem + sizeof(buf_shm_info_t),
+								       chunk->mem_size - sizeof(buf_shm_info_t));
+			} else {
+				shm_info->checksum = BUF_NO_CHECKSUM_MAGIC;
+			}
 			shm_info->clean = TRUE;
 		}
 

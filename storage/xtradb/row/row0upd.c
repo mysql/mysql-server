@@ -1398,6 +1398,7 @@ row_upd_store_row(
 	dict_index_t*	clust_index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
+	row_ext_t**	ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	rec_offs_init(offsets_);
@@ -1414,8 +1415,22 @@ row_upd_store_row(
 
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
+
+	if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+		/* In DYNAMIC or COMPRESSED format, there is no prefix
+		of externally stored columns in the clustered index
+		record. Build a cache of column prefixes. */
+		ext = &node->ext;
+	} else {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored column.
+		No cache is needed. */
+		ext = NULL;
+		node->ext = NULL;
+	}
+
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      NULL, &node->ext, node->heap);
+			      NULL, ext, node->heap);
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;
@@ -1583,6 +1598,7 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	ulint		err;
+	ibool		change_ownership = FALSE;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1615,9 +1631,9 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		btr_cur_mark_extern_inherited_fields(
-			btr_cur_get_page_zip(btr_cur),
-			rec, index, offsets, node->update, mtr);
+		change_ownership = btr_cur_mark_extern_inherited_fields(
+			btr_cur_get_page_zip(btr_cur), rec, index, offsets,
+			node->update, mtr);
 		if (check_ref) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
@@ -1646,10 +1662,11 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (node->upd_ext) {
+	if (change_ownership) {
 		/* If we return from a lock wait, for example, we may have
 		extern fields marked as not-owned in entry (marked in the
-		if-branch above). We must unmark them. */
+		if-branch above). We must unmark them, take the ownership
+		back. */
 
 		btr_cur_unmark_dtuple_extern_fields(entry);
 

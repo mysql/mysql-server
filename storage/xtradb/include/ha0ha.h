@@ -186,6 +186,7 @@ ha_remove_all_nodes_to_page(
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold,	/*!< in: fold value */
 	const page_t*	page);	/*!< in: buffer page */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /*************************************************************//**
 Validates a given range of the cells in hash table.
 @return	TRUE if ok */
@@ -196,6 +197,7 @@ ha_validate(
 	hash_table_t*	table,		/*!< in: hash table */
 	ulint		start_index,	/*!< in: start index */
 	ulint		end_index);	/*!< in: end index */
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 /*************************************************************//**
 Prints info of a hash table. */
 UNIV_INTERN

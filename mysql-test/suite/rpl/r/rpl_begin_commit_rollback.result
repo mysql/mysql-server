@@ -139,14 +139,14 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO db1.t1 VALUES(20)
-master-bin.000001	#	Query	#	#	SAVEPOINT has_comment
+master-bin.000001	#	Query	#	#	SAVEPOINT `has_comment`
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(30)
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("in savepoint has_comment")
-master-bin.000001	#	Query	#	#	SAVEPOINT mixed_cases
+master-bin.000001	#	Query	#	#	SAVEPOINT `mixed_cases`
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("in savepoint mixed_cases")
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(40)
-master-bin.000001	#	Query	#	#	ROLLBACK TO mixed_cases
-master-bin.000001	#	Query	#	#	ROLLBACK TO has_comment
+master-bin.000001	#	Query	#	#	ROLLBACK TO `mixed_cases`
+master-bin.000001	#	Query	#	#	ROLLBACK TO `has_comment`
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t2 VALUES("after rollback to")
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO db1.t1 VALUES(50)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */

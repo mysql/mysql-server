@@ -244,8 +244,9 @@ typedef struct st_maria_file_bitmap
   uchar *map;
   pgcache_page_no_t page;              /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
-  my_bool changed;                     /* 1 if page needs to be flushed */
-  my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
+  my_bool changed;                     /* 1 if page needs to be written */
+  my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
+  uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
@@ -475,7 +476,7 @@ typedef struct st_maria_block_scan
 {
   uchar *bitmap_buff, *bitmap_pos, *bitmap_end, *page_buff;
   uchar *dir, *dir_end;
-  pgcache_page_no_t bitmap_page;
+  pgcache_page_no_t bitmap_page, max_page;
   ulonglong bits;
   uint number_of_rows, bit_pos;
   MARIA_RECORD_POS row_base_page;

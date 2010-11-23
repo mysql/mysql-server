@@ -321,15 +321,14 @@ my_bool _ma_log_prefix(MARIA_PAGE *ma_page, uint changed_length,
   uchar *log_pos;
   uchar *buff= ma_page->buff;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
-  pgcache_page_no_t page;
   MARIA_HA *info= ma_page->info;
+  pgcache_page_no_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_prefix");
   DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
-                        (ulong) ma_page->pos, changed_length, move_length));
+                       (ulong) page, changed_length, move_length));
 
   DBUG_ASSERT(ma_page->size == ma_page->org_size + move_length);
 
-  page= ma_page->pos / info->s->block_size;
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
   log_pos+= PAGE_STORE_SIZE;
@@ -412,14 +411,12 @@ my_bool _ma_log_suffix(MARIA_PAGE *ma_page, uint org_length, uint new_length)
   int diff;
   uint translog_parts, extra_length;
   MARIA_HA *info= ma_page->info;
-  pgcache_page_no_t page;
+  pgcache_page_no_t page= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_suffix");
   DBUG_PRINT("enter", ("page: %lu  org_length: %u  new_length: %u",
-                       (ulong) ma_page->pos, org_length, new_length));
+                       (ulong) page, org_length, new_length));
   DBUG_ASSERT(ma_page->size == new_length);
   DBUG_ASSERT(ma_page->org_size == org_length);
-
-  page= ma_page->pos / info->s->block_size;
 
   log_pos= log_data + FILEID_STORE_SIZE;
   page_store(log_pos, page);
@@ -488,7 +485,8 @@ my_bool _ma_log_suffix(MARIA_PAGE *ma_page, uint org_length, uint new_length)
 my_bool _ma_log_add(MARIA_PAGE *ma_page,
                     uint org_page_length __attribute__ ((unused)),
                     uchar *key_pos, uint changed_length, int move_length,
-                    my_bool handle_overflow __attribute__ ((unused)))
+                    my_bool handle_overflow __attribute__ ((unused)),
+                    enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 3 + 3 + 3 + 3 + 7 +
@@ -500,31 +498,30 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
   uint offset= (uint) (key_pos - buff);
   uint max_page_size= info->s->max_index_block_size;
   uint translog_parts, current_size;
-  pgcache_page_no_t page_pos;
+  pgcache_page_no_t page_pos= ma_page->pos / info->s->block_size;
   DBUG_ENTER("_ma_log_add");
   DBUG_PRINT("enter", ("page: %lu  org_page_length: %u  changed_length: %u  "
                        "move_length: %d",
-                       (ulong) ma_page->pos, org_page_length, changed_length,
+                       (ulong) page_pos, org_page_length, changed_length,
                        move_length));
   DBUG_ASSERT(info->s->now_transactional);
   DBUG_ASSERT(move_length <= (int) changed_length);
   DBUG_ASSERT(ma_page->org_size == min(org_page_length, max_page_size));
   DBUG_ASSERT(ma_page->size == org_page_length + move_length);
-  DBUG_ASSERT(offset < max_page_size);
+  DBUG_ASSERT(offset <= ma_page->org_size);
 
   /*
     Write REDO entry that contains the logical operations we need
     to do the page
   */
   log_pos= log_data + FILEID_STORE_SIZE;
-  page_pos= ma_page->pos / info->s->block_size;
   page_store(log_pos, page_pos);
   current_size= ma_page->org_size;
   log_pos+= PAGE_STORE_SIZE;
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   *log_pos++= KEY_OP_DEBUG;
-  *log_pos++= KEY_OP_DEBUG_LOG_ADD;
+  *log_pos++= debug_marker;
 #endif
 
   /* Store keypage_flag */
@@ -574,10 +571,32 @@ my_bool _ma_log_add(MARIA_PAGE *ma_page,
     log_pos+= 3;
     if (move_length)
     {
+      if (move_length < 0)
+      {
+        DBUG_ASSERT(offset - move_length <= org_page_length);
+        if (offset - move_length > current_size)
+        {
+          /*
+            Truncate to end of page. We will add data to it from
+            the page buffer below
+          */
+          move_length= (int) offset - (int) current_size;
+        }
+      }
       log_pos[0]= KEY_OP_SHIFT;
       int2store(log_pos+1, move_length);
       log_pos+= 3;
       current_size+= move_length;
+    }
+    /*
+      Handle case where page was shortend but 'changed_length' goes over
+      'current_size'. This can only happen when there was a page overflow
+      and we will below add back the overflow part
+    */
+    if (offset + changed_length > current_size)
+    {
+      DBUG_ASSERT(offset + changed_length <= ma_page->size);
+      changed_length= current_size - offset;
     }
     log_pos[0]= KEY_OP_CHANGE;
   }
@@ -1059,14 +1078,14 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       check_page_length= uint2korr(header);
       crc=               uint4korr(header+2);
       _ma_store_page_used(share, buff, page_length);
-      DBUG_ASSERT(check_page_length == page_length);
-      if (crc != (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
+      if (check_page_length != page_length ||
+          crc != (uint32) my_checksum(0, buff + LSN_STORE_SIZE,
                                       page_length - LSN_STORE_SIZE))
       {
         DBUG_DUMP("KEY_OP_CHECK bad page", buff, page_length);
-        if (header + 6 + page_length <= header_end)
+        if (header + 6 + check_page_length <= header_end)
         {
-          DBUG_DUMP("KEY_OP_CHECK org page", header + 6, page_length);
+          DBUG_DUMP("KEY_OP_CHECK org page", header + 6, check_page_length);
         }
         DBUG_ASSERT("crc failure in REDO_INDEX" == 0);
       }
@@ -1084,6 +1103,11 @@ uint _ma_apply_redo_index(MARIA_HA *info,
     case KEY_OP_DEBUG:
       DBUG_PRINT("redo", ("Debug: %u", (uint) header[0]));
       header++;
+      break;
+    case KEY_OP_DEBUG_2:
+      DBUG_PRINT("redo", ("org_page_length: %u  new_page_length: %u",
+                          uint2korr(header), uint2korr(header+2)));
+      header+= 4;
       break;
     case KEY_OP_MAX_PAGELENGTH:
       DBUG_PRINT("redo", ("key_op_max_page_length"));

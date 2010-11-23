@@ -1086,34 +1086,14 @@ static my_bool translog_max_lsn_to_header(File file, LSN lsn)
 
 
 /*
-  Information from transaction log file header
-*/
-
-typedef struct st_loghandler_file_info
-{
-  /*
-    LSN_IMPOSSIBLE for current file (not finished file).
-    Maximum LSN of the record which parts stored in the
-    file.
-  */
-  LSN max_lsn;
-  ulonglong timestamp;   /* Time stamp */
-  ulong maria_version;   /* Version of maria loghandler */
-  ulong mysql_version;   /* Version of mysql server */
-  ulong server_id;       /* Server ID */
-  ulong page_size;       /* Loghandler page size */
-  ulong file_number;     /* Number of the file (from the file header) */
-} LOGHANDLER_FILE_INFO;
-
-/*
   @brief Extract hander file information from loghandler file page
 
   @param desc header information descriptor to be filled with information
   @param page_buff buffer with the page content
 */
 
-static void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
-                                           uchar *page_buff)
+void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
+                                    uchar *page_buff)
 {
   uchar *ptr;
 
@@ -2500,10 +2480,7 @@ my_bool translog_prev_buffer_flush_wait(struct st_translog_buffer *buffer)
       pthread_cond_wait(&buffer->prev_sent_to_disk_cond, &buffer->mutex);
       if (buffer->file != file || buffer->offset != offset ||
           buffer->ver != ver)
-      {
-        translog_buffer_unlock(buffer);
         DBUG_RETURN(1); /* some the thread flushed the buffer already */
-      }
     } while(buffer->prev_buffer_offset != buffer->prev_sent_to_disk);
   }
   DBUG_RETURN(0);
@@ -3403,7 +3380,7 @@ my_bool translog_walk_filenames(const char *directory,
   @brief Fills table of dependence length of page header from page flags
 */
 
-static void translog_fill_overhead_table()
+void translog_fill_overhead_table()
 {
   uint i;
   for (i= 0; i < TRANSLOG_FLAGS_NUM; i++)
@@ -8325,156 +8302,6 @@ void translog_set_file_size(uint32 size)
 
 
 /**
-   Write debug information to log if we EXTRA_DEBUG is enabled
-*/
-
-my_bool translog_log_debug_info(TRN *trn __attribute__((unused)),
-                                enum translog_debug_info_type type
-                                __attribute__((unused)),
-                                uchar *info __attribute__((unused)),
-                                size_t length __attribute__((unused)))
-{
-#ifdef EXTRA_DEBUG
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-  uchar debug_type;
-  LSN lsn;
-
-  if (!trn)
-  {
-    /*
-      We can't log the current transaction because we don't have
-      an active transaction. Use a temporary transaction object instead
-    */
-    trn= &dummy_transaction_object;
-  }
-  debug_type= (uchar) type;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str= &debug_type;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 1;
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str= info;
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
-  return translog_write_record(&lsn, LOGREC_DEBUG_INFO,
-                               trn, NULL,
-                               (translog_size_t) (1+ length),
-                               sizeof(log_array)/sizeof(log_array[0]),
-                               log_array, NULL, NULL);
-#else
-  return 0;
-#endif
-}
-
-
-#ifdef MARIA_DUMP_LOG
-#include <my_getopt.h>
-extern void translog_example_table_init();
-static const char *load_default_groups[]= { "maria_dump_log",0 };
-static void get_options(int *argc,char * * *argv);
-#ifndef DBUG_OFF
-#if defined(__WIN__)
-const char *default_dbug_option= "d:t:i:O,\\maria_dump_log.trace";
-#else
-const char *default_dbug_option= "d:t:i:o,/tmp/maria_dump_log.trace";
-#endif
-#endif
-static ulonglong opt_offset;
-static ulong opt_pages;
-static const char *opt_file= NULL;
-static File handler= -1;
-static my_bool opt_unit= 0;
-static struct my_option my_long_options[] =
-{
-#ifdef IMPLTMENTED
-  {"body", 'b',
-   "Print chunk body dump",
-   (uchar **) &opt_body, (uchar **) &opt_body, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-#ifndef DBUG_OFF
-  {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
-   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-  {"file", 'f', "Path to file which will be read",
-    (uchar**) &opt_file, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"help", '?', "Display this help and exit.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "offset", 'o', "Start reading log from this offset",
-    (uchar**) &opt_offset, (uchar**) &opt_offset,
-    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
-  { "pages", 'n', "Number of pages to read",
-    (uchar**) &opt_pages, (uchar**) &opt_pages, 0,
-    GET_ULONG, REQUIRED_ARG, (long) ~(ulong) 0,
-    (long) 1, (long) ~(ulong) 0, (long) 0,
-    (long) 1, 0},
-  {"unit-test", 'U',
-   "Use unit test record table (for logs created by unittests",
-   (uchar **) &opt_unit, (uchar **) &opt_unit, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Print version and exit.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
-
-
-static void print_version(void)
-{
-  VOID(printf("%s Ver 1.0 for %s on %s\n",
-              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
-  NETWARE_SET_SCREEN_MODE(1);
-}
-
-
-static void usage(void)
-{
-  print_version();
-  puts("Copyright (C) 2008 MySQL AB");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license\n");
-
-  puts("Dump content of maria log pages.");
-  VOID(printf("\nUsage: %s -f file OPTIONS\n", my_progname_short));
-  my_print_help(my_long_options);
-  print_defaults("my", load_default_groups);
-  my_print_variables(my_long_options);
-}
-
-
-static my_bool
-get_one_option(int optid __attribute__((unused)),
-               const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
-{
-  switch (optid) {
-  case '?':
-    usage();
-    exit(0);
-  case 'V':
-    print_version();
-    exit(0);
-#ifndef DBUG_OFF
-  case '#':
-    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
-    break;
-#endif
-  }
-  return 0;
-}
-
-
-static void get_options(int *argc,char ***argv)
-{
-  int ho_error;
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
-    exit(ho_error);
-
-  if (opt_file == NULL)
-  {
-    usage();
-    exit(1);
-  }
-}
-
-
-/**
   @brief Dump information about file header page.
 */
 
@@ -8658,7 +8485,7 @@ static uchar *dump_chunk(uchar *buffer, uchar *ptr)
   @brief Dump information about page with data.
 */
 
-static void dump_datapage(uchar *buffer)
+static void dump_datapage(uchar *buffer, File handler)
 {
   uchar *ptr;
   ulong offset;
@@ -8739,79 +8566,51 @@ static void dump_datapage(uchar *buffer)
   @brief Dump information about page.
 */
 
-static void dump_page(uchar *buffer)
+void dump_page(uchar *buffer, File handler)
 {
-  printf("Page by offset %llu (0x%llx)\n", opt_offset, opt_offset);
   if (strncmp((char*)maria_trans_file_magic, (char*)buffer,
               sizeof(maria_trans_file_magic)) == 0)
   {
     dump_header_page(buffer);
   }
-  dump_datapage(buffer);
+  dump_datapage(buffer, handler);
 }
 
 
 /**
-  @brief maria_dump_log main function.
+   Write debug information to log if we EXTRA_DEBUG is enabled
 */
 
-int main(int argc, char **argv)
+my_bool translog_log_debug_info(TRN *trn __attribute__((unused)),
+                                enum translog_debug_info_type type
+                                __attribute__((unused)),
+                                uchar *info __attribute__((unused)),
+                                size_t length __attribute__((unused)))
 {
-  char **default_argv;
-  uchar buffer[TRANSLOG_PAGE_SIZE];
-  MY_INIT(argv[0]);
+#ifdef EXTRA_DEBUG
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  uchar debug_type;
+  LSN lsn;
 
-  load_defaults("my", load_default_groups, &argc, &argv);
-  default_argv= argv;
-  get_options(&argc, &argv);
-
-  if (opt_unit)
-    translog_example_table_init();
-  else
-    translog_table_init();
-  translog_fill_overhead_table();
-
-  maria_data_root= (char *)".";
-
-  if ((handler= my_open(opt_file, O_RDONLY, MYF(MY_WME))) < 0)
+  if (!trn)
   {
-    fprintf(stderr, "Can't open file: '%s'  errno: %d\n",
-            opt_file, my_errno);
-    goto err;
+    /*
+      We can't log the current transaction because we don't have
+      an active transaction. Use a temporary transaction object instead
+    */
+    trn= &dummy_transaction_object;
   }
-  if (my_seek(handler, opt_offset, SEEK_SET, MYF(MY_WME)) !=
-      opt_offset)
-  {
-     fprintf(stderr, "Can't set position %lld  file: '%s'  errno: %d\n",
-             opt_offset, opt_file, my_errno);
-     goto err;
-  }
-  for (;
-       opt_pages;
-       opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
-  {
-    if (my_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
-                 MYF(MY_NABP)))
-    {
-      if (my_errno == HA_ERR_FILE_TOO_SHORT)
-        goto end;
-      fprintf(stderr, "Can't read page at position %lld  file: '%s'  "
-              "errno: %d\n", opt_offset, opt_file, my_errno);
-      goto err;
-    }
-    dump_page(buffer);
-  }
-
-end:
-  my_close(handler, MYF(0));
-  free_defaults(default_argv);
-  exit(0);
-  return 0;				/* No compiler warning */
-
-err:
-  my_close(handler, MYF(0));
-  fprintf(stderr, "%s: FAILED\n", my_progname_short);
-  free_defaults(default_argv);
-  exit(1);
-}
+  debug_type= (uchar) type;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str= &debug_type;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= 1;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str= info;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
+  return translog_write_record(&lsn, LOGREC_DEBUG_INFO,
+                               trn, NULL,
+                               (translog_size_t) (1+ length),
+                               sizeof(log_array)/sizeof(log_array[0]),
+                               log_array, NULL, NULL);
+#else
+  return 0;
 #endif
+}

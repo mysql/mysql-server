@@ -2395,7 +2395,7 @@ row_merge_rename_tables(
 		goto err_exit;
 	}
 
-	err = dict_load_foreigns(old_name, TRUE);
+	err = dict_load_foreigns(old_name, FALSE, TRUE);
 
 	if (err != DB_SUCCESS) {
 err_exit:

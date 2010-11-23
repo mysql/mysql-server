@@ -1622,7 +1622,11 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 				COLUMN_FORMAT_TYPE_FIXED,
 #endif
 		       NULL /*default_value*/, NULL /*on_update_value*/, &comment, NULL /*change*/, 
-		       NULL /*interval_list*/, info->field_charset, 0 /*uint_geom_type*/)) 
+		       NULL /*interval_list*/, info->field_charset, 0 /*uint_geom_type*/
+#if defined(MARIADB_BASE_VERSION) && MYSQL_VERSION_ID > 50200
+		       , NULL /*vcol_info*/, NULL /* create options */
+#endif
+		       )) 
 #endif
 			goto error;
 
@@ -1654,8 +1658,17 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 	if (mysql_create_table_no_lock(thd, db, name, &create_info, &table_proto, &stmt->alter_info, 1, 0)) 
 		goto error;
 #else
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+	partition_info *part_info;
+
+	part_info = thd->work_part_info;
+	thd->work_part_info = NULL;
+#endif
 	if (mysql_create_table_no_lock(thd, db, name, &mylex.create_info, &mylex.alter_info, 1, 0)) 
 		goto error;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+	thd->work_part_info = part_info;
+#endif
 #endif
 
 	noerror:

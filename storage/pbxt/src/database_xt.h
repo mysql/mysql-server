@@ -117,6 +117,7 @@ typedef struct XTDatabase : public XTHeap {
 	XTSortedListPtr			db_table_by_id;
 	XTSortedListPtr			db_table_paths;							/* A list of table paths used by this database. */
 	xtBool					db_multi_path;
+	XTSortedListPtr			db_error_list;							/* A list of errors already reported. */
 
 	/* The open table pool: */
 	XTAllTablePoolsRec		db_ot_pool;

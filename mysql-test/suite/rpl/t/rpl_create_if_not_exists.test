@@ -119,5 +119,32 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+sync_slave_with_master;
+
+--echo
+--echo # Bug#55616 Killing thread or query during CREATE IF NOT EXISTS makes
+--echo # slave SQL thread abort
+--echo
+
+--connection master1
+let $con_id = `SELECT CONNECTION_ID()`;
+
+CREATE TABLE t1 ( i INT );
+send CREATE TABLE IF NOT EXISTS t1
+  AS SELECT SLEEP(3);
+
+connection master;
+let $wait_timeout = 3;
+let $show_statement = SHOW PROCESSLIST;
+let $field = State;
+let $condition = = 'User sleep';
+source include/wait_show_condition.inc;
+
+--replace_result $con_id master1
+eval KILL QUERY $con_id;
+sync_slave_with_master;
+
+connection master;
+DROP TABLE t1;
 
 source include/master-slave-end.inc;

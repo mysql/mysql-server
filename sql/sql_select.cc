@@ -1129,29 +1129,6 @@ JOIN::optimize()
     conds=new Item_int((longlong) 0,1);	// Always false
   }
 
-  /*
-    It's necessary to check const part of HAVING cond as there is a
-    chance that some cond parts may become const items after
-    make_join_statistics() (for example when Item is a reference to
-    cost table field from outer join).
-
-    This check is performed only for those conditions which do not use
-    aggregate functions. In such case temporary table may not be used
-    and const condition elements may be lost during further having
-    condition transformation in JOIN::exec.
-  */
-  if (having && const_table_map && !having->with_sum_func)
-  {
-    having->update_used_tables();
-    having= remove_eq_conds(thd, having, &having_value);
-    if (having_value == Item::COND_FALSE)
-    {
-      having= new Item_int((longlong) 0,1);
-      zero_result_cause= "Impossible HAVING noticed after reading const tables";
-      DBUG_RETURN(0);
-    }
-  }
-
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -1494,6 +1471,15 @@ JOIN::optimize()
     }
     if (order)
     {
+      /*
+        Do we need a temporary table due to the ORDER BY not being equal to
+        the GROUP BY? The call to test_if_skip_sort_order above tests for the
+        GROUP BY clause only and hence is not valid in this case. So the
+        estimated number of rows to be read from the first table is not valid.
+        We clear it here so that it doesn't show up in EXPLAIN.
+       */
+      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
+        join_tab[const_tables].limit= 0;
       /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
@@ -2407,14 +2393,9 @@ JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
-  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+ /* Cleanup items referencing temporary table columns */
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -2424,6 +2405,19 @@ JOIN::destroy()
   delete procedure;
   DBUG_RETURN(error);
 }
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
+}
+
 
 /**
   An entry point to single-unit select (a select without UNION).
@@ -6632,6 +6626,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
+            Item **sel_cond_ref= tab < first_inner_tab ?
+                                   &first_inner_tab->on_precond :
+                                   &tab->select_cond;
             /*
               First add the guards for match variables of
               all embedding outer join operations.
@@ -6654,14 +6651,14 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
               tmp_cond->quick_fix_field();
 	    /* Add the predicate to other pushed down predicates */
             DBUG_PRINT("info", ("Item_cond_and"));
-            cond_tab->select_cond= !cond_tab->select_cond ? tmp_cond :
-	                          new Item_cond_and(cond_tab->select_cond,
-                                                    tmp_cond);
+            *sel_cond_ref= !(*sel_cond_ref) ? 
+                             tmp_cond :
+                             new Item_cond_and(*sel_cond_ref, tmp_cond);
             DBUG_PRINT("info", ("Item_cond_and 0x%lx",
-                                (ulong)cond_tab->select_cond));
-            if (!cond_tab->select_cond)
-	      DBUG_RETURN(1);
-            cond_tab->select_cond->quick_fix_field();
+                                (ulong)(*sel_cond_ref)));
+            if (!(*sel_cond_ref))
+              DBUG_RETURN(1);
+            (*sel_cond_ref)->quick_fix_field();
           }              
         }
         first_inner_tab= first_inner_tab->first_upper;       
@@ -6916,6 +6913,8 @@ bool error_if_full_join(JOIN *join)
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
+      /* This error should not be ignored. */
+      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return(1);
@@ -8984,10 +8983,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
     {
@@ -9315,7 +9314,10 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   DBUG_ENTER("optimize_cond");
 
   if (!conds)
+  {
     *cond_value= Item::COND_TRUE;
+    build_equal_items(join->thd, NULL, NULL, join_list, &join->cond_equal);
+  }  
   else
   {
     /* 
@@ -11440,22 +11442,22 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (error == NESTED_LOOP_NO_MORE_ROWS)
     error= NESTED_LOOP_OK;
 
+  if (table == NULL)                      	// If sending data to client
+  {
+    /*
+      The following will unlock all cursors if the command wasn't an
+      update command
+    */
+    join->join_free();                          // Unlock all cursors
+  }
   if (error == NESTED_LOOP_OK)
   {
     /*
       Sic: this branch works even if rc != 0, e.g. when
       send_data above returns an error.
     */
-    if (!table)					// If sending data to client
-    {
-      /*
-	The following will unlock all cursors if the command wasn't an
-	update command
-      */
-      join->join_free();			// Unlock all cursors
-      if (join->result->send_eof())
-	rc= 1;                                  // Don't send error
-    }
+    if (table == NULL && join->result->send_eof()) // If sending data to client
+      rc= 1;                                  // Don't send error 
     DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
@@ -11643,7 +11645,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     return (*join_tab->next_select)(join,join_tab+1,end_of_records);
 
   int error;
-  enum_nested_loop_state rc;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
   READ_RECORD *info= &join_tab->read_record;
 
   if (join->resume_nested_loop)
@@ -11671,11 +11673,16 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
       /* Set first_unmatched for the last inner table of this group */
       join_tab->last_inner->first_unmatched= join_tab;
+      if (join_tab->on_precond && !join_tab->on_precond->val_int())
+        rc= NESTED_LOOP_NO_MORE_ROWS;
     }
     join->thd->row_count= 0;
 
-    error= (*join_tab->read_first_record)(join_tab);
-    rc= evaluate_join_record(join, join_tab, error);
+    if (rc != NESTED_LOOP_NO_MORE_ROWS)
+    {
+      error= (*join_tab->read_first_record)(join_tab);
+      rc= evaluate_join_record(join, join_tab, error);
+    }
   }
 
   while (rc == NESTED_LOOP_OK)
@@ -11738,6 +11745,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       condition is true => a match is found.
     */
     bool found= 1;
+    bool use_not_exists_opt= 0;
     while (join_tab->first_unmatched && found)
     {
       /*
@@ -11754,7 +11762,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
         if (tab->table->reginfo.not_exists_optimize)
-          return NESTED_LOOP_NO_MORE_ROWS;
+          use_not_exists_opt= 1;
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -11786,6 +11794,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         first_unmatched= 0;
       join_tab->first_unmatched= first_unmatched;
     }
+
+    if (use_not_exists_opt)
+      return NESTED_LOOP_NO_MORE_ROWS;
 
     /*
       It was not just a return to lower loop level when one
@@ -12817,7 +12828,9 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (!end_of_records)
   {
     copy_fields(&join->tmp_table_param);
-    copy_funcs(join->tmp_table_param.items_to_copy);
+    if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+      DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
+
 #ifdef TO_BE_DELETED
     if (!table->uniques)			// If not unique handling
     {
@@ -12923,7 +12936,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       memcpy(table->record[0]+key_part->offset, group->buff, 1);
   }
   init_tmptable_sum_functions(join->sum_funcs);
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
   if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (create_internal_tmp_table_from_heap(join->thd, table,
@@ -12963,7 +12977,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 
   init_tmptable_sum_functions(join->sum_funcs);
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
-  copy_funcs(join->tmp_table_param.items_to_copy);
+  if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+    DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
   if (!(error=table->file->ha_write_row(table->record[0])))
     join->send_records++;			// New group
@@ -13050,7 +13065,8 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (idx < (int) join->send_group_parts)
     {
       copy_fields(&join->tmp_table_param);
-      copy_funcs(join->tmp_table_param.items_to_copy);
+      if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
+	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (join->procedure)
@@ -13347,9 +13363,20 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 }
 
 
+/**
+  Find shortest key suitable for full table scan.
+
+  @param table                 Table to scan
+  @param usable_keys           Allowed keys
+
+  @return
+    MAX_KEY     no suitable key found
+    key index   otherwise
+*/
+
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
-  uint min_length= (uint) ~0;
+  double min_cost= DBL_MAX;
   uint best= MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
@@ -13357,9 +13384,10 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
     {
       if (usable_keys->is_set(nr))
       {
-        if (table->key_info[nr].key_length < min_length)
+        double cost= table->file->keyread_time(nr, 1, table->file->records());
+        if (cost < min_cost)
         {
-          min_length=table->key_info[nr].key_length;
+          min_cost= cost;
           best=nr;
         }
       }
@@ -16117,14 +16145,39 @@ update_sum_func(Item_sum **func_ptr)
   return 0;
 }
 
-/** Copy result of functions to record in tmp_table. */
+/** 
+  Copy result of functions to record in tmp_table. 
 
-void
-copy_funcs(Item **func_ptr)
+  Uses the thread pointer to check for errors in 
+  some of the val_xxx() methods called by the 
+  save_in_result_field() function.
+  TODO: make the Item::val_xxx() return error code
+
+  @param func_ptr  array of the function Items to copy to the tmp table
+  @param thd       pointer to the current thread for error checking
+  @retval
+    FALSE if OK
+  @retval
+    TRUE on error  
+*/
+
+bool
+copy_funcs(Item **func_ptr, const THD *thd)
 {
   Item *func;
   for (; (func = *func_ptr) ; func_ptr++)
+  {
     func->save_in_result_field(1);
+    /*
+      Need to check the THD error state because Item::val_xxx() don't
+      return error code, but can generate errors
+      TODO: change it for a real status check when Item::val_xxx()
+      are extended to return status code.
+    */  
+    if (thd->is_error())
+      return TRUE;
+  }
+  return FALSE;
 }
 
 
@@ -16964,7 +17017,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+        {
+          if (tab->limit)
+            examined_rows= tab->limit;
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= tab->table->file->stats.records;
+          }
+        }
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  

@@ -131,6 +131,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key=end;
       break;
     }
+#endif
     case HA_KEYTYPE_BIT:
     {
       uint i;
@@ -140,8 +141,6 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key= end;
       break;
     }
-
-#endif
     case HA_KEYTYPE_VARTEXT1:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARTEXT2:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARBINARY1:                 /* VARBINARY and BLOB */

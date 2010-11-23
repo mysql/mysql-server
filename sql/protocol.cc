@@ -203,7 +203,7 @@ net_send_ok(THD *thd,
   NET *net= &thd->net;
   uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
   bool error= FALSE;
-  DBUG_ENTER("my_ok");
+  DBUG_ENTER("net_send_ok");
 
   if (! net->vio)	// hack for re-parsing queries
   {

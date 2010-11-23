@@ -65,3 +65,12 @@ c1
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+
+# Bug#55616 Killing thread or query during CREATE IF NOT EXISTS makes
+# slave SQL thread abort
+
+CREATE TABLE t1 ( i INT );
+CREATE TABLE IF NOT EXISTS t1
+AS SELECT SLEEP(3);
+KILL QUERY master1;
+DROP TABLE t1;

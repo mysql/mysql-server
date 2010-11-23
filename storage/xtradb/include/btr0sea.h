@@ -187,6 +187,7 @@ btr_search_update_hash_on_delete(
 	btr_cur_t*	cursor);/*!< in: cursor which was positioned on the
 				record to delete using btr_cur_search_...,
 				the record is not yet deleted */
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /********************************************************************//**
 Validates the search system.
 @return	TRUE if ok */
@@ -194,10 +195,19 @@ UNIV_INTERN
 ibool
 btr_search_validate(void);
 /*======================*/
+#else
+# define btr_search_validate()	TRUE
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /** Flag: has the search system been enabled?
 Protected by btr_search_latch and btr_search_enabled_mutex. */
-extern char btr_search_enabled;
+extern char	btr_search_enabled;
+
+/** Flag: whether the search system has completed its disabling process,
+It is set to TRUE right after buf_pool_drop_hash_index() in
+btr_search_disable(), indicating hash index entries are cleaned up.
+Protected by btr_search_latch and btr_search_enabled_mutex. */
+extern ibool	btr_search_fully_disabled;
 
 /** The search info struct in an index */
 struct btr_search_struct{

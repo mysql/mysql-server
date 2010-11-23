@@ -630,7 +630,11 @@ struct row_prebuilt_struct {
 					the secondary index, then this is
 					set to TRUE */
 	unsigned	templ_contains_blob:1;/*!< TRUE if the template contains
-					BLOB column(s) */
+					a column with DATA_BLOB ==
+					get_innobase_type_from_mysql_type();
+					not to be confused with InnoDB
+					externally stored columns
+					(VARCHAR can be off-page too) */
 	mysql_row_templ_t* mysql_template;/*!< template used to transform
 					rows fast between MySQL and Innobase
 					formats; memory for this template

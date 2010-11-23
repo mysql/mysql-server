@@ -1082,6 +1082,20 @@ select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 from t1 a, t1 b;
 select *, f1 = f2 from t1;
 drop table t1;
+
+--echo #
+--echo # Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
+--echo #             MYSQL_TYPE_LONGLONG
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+SELECT MAX((SELECT 1 FROM t1 ORDER BY @var LIMIT 1)) m FROM t1 t2, t1 
+       ORDER BY t1.a;
+
+DROP TABLE t1;
+
 --echo #
 --echo End of 5.1 tests
 

@@ -742,8 +742,8 @@ static my_bool enough_free_entries(uchar *buff, uint block_size,
    @return 1	There is room for more entries on the page
 */
 
-static my_bool enough_free_entries_on_page(MARIA_SHARE *share,
-                                           uchar *page_buff)
+my_bool enough_free_entries_on_page(MARIA_SHARE *share,
+                                    uchar *page_buff)
 {
   enum en_page_type page_type;
   page_type= (enum en_page_type) (page_buff[PAGE_TYPE_OFFSET] &
@@ -1716,7 +1716,7 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("get_head_or_tail_page");
-  DBUG_PRINT("enter", ("length: %u", length));
+  DBUG_PRINT("enter", ("page_type: %u  length: %u", page_type, length));
 
   block_size= share->block_size;
   if (block->org_bitmap_value == 0)             /* Empty block */
@@ -1993,19 +1993,6 @@ static my_bool write_tail(MARIA_HA *info,
   /* Keep BLOCKUSED_USE_ORG_BITMAP */
   block->used|= BLOCKUSED_USED | BLOCKUSED_TAIL;
 
-  /* Increase data file size, if extended */
-  position= (my_off_t) block->page * block_size;
-  if (share->state.state.data_file_length <= position)
-  {
-    /*
-      We are modifying a state member before writing the UNDO; this is a WAL
-      violation. But for data_file_length this is ok, as long as we change
-      data_file_length after writing any log record (FILE_ID/REDO/UNDO) (see
-      collect_tables()).
-    */
-    _ma_set_share_data_file_length(share, position + block_size);
-  }
-
   if (block_is_read)
   {
     /* Current page link is last element in pinned_pages */
@@ -2021,17 +2008,33 @@ static my_bool write_tail(MARIA_HA *info,
     page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
     res= 0;
   }
-  else if (!(res= pagecache_write(share->pagecache,
-                                  &info->dfile, block->page, 0,
-                                  row_pos.buff,share->page_type,
-                                  PAGECACHE_LOCK_READ,
-                                  PAGECACHE_PIN,
-                                  PAGECACHE_WRITE_DELAY, &page_link.link,
-                                  LSN_IMPOSSIBLE)))
+  else
   {
-    page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
-    page_link.changed= 1;
-    push_dynamic(&info->pinned_pages, (void*) &page_link);
+    if (!(res= pagecache_write(share->pagecache,
+                               &info->dfile, block->page, 0,
+                               row_pos.buff,share->page_type,
+                               PAGECACHE_LOCK_READ,
+                               PAGECACHE_PIN,
+                               PAGECACHE_WRITE_DELAY, &page_link.link,
+                               LSN_IMPOSSIBLE)))
+    {
+      page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
+      page_link.changed= 1;
+      push_dynamic(&info->pinned_pages, (void*) &page_link);
+    }
+
+    /* Increase data file size, if extended */
+    position= (my_off_t) block->page * block_size;
+    if (share->state.state.data_file_length <= position)
+    {
+      /*
+        We are modifying a state member before writing the UNDO; this is a WAL
+        violation. But for data_file_length this is ok, as long as we change
+        data_file_length after writing any log record (FILE_ID/REDO/UNDO) (see
+        collect_tables()).
+      */
+      _ma_set_share_data_file_length(share, position + block_size);
+    }
   }
   DBUG_RETURN(res);
 }
@@ -2068,7 +2071,7 @@ static my_bool write_full_pages(MARIA_HA *info,
   uint data_size= FULL_PAGE_SIZE(block_size);
   uchar *buff= info->keyread_buff;
   uint page_count, sub_blocks;
-  my_off_t position;
+  my_off_t position, max_position;
   DBUG_ENTER("write_full_pages");
   DBUG_PRINT("enter", ("length: %lu  page: %lu  page_count: %lu",
                        (ulong) length, (ulong) block->page,
@@ -2080,9 +2083,7 @@ static my_bool write_full_pages(MARIA_HA *info,
   page_count= block->page_count;
   sub_blocks= block->sub_blocks;
 
-  position= (my_off_t) (page + page_count) * block_size;
-  if (share->state.state.data_file_length < position)
-    _ma_set_share_data_file_length(share, position);
+  max_position= (my_off_t) (page + page_count) * block_size;
 
   /* Increase data file size, if extended */
 
@@ -2105,8 +2106,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                           (ulong) block->page, (ulong) block->page_count));
 
       position= (page + page_count + 1) * block_size;
-      if (share->state.state.data_file_length < position)
-        _ma_set_share_data_file_length(share, position);
+      set_if_bigger(max_position, position);
     }
     lsn_store(buff, lsn);
     buff[PAGE_TYPE_OFFSET]= (uchar) BLOB_PAGE;
@@ -2134,6 +2134,8 @@ static my_bool write_full_pages(MARIA_HA *info,
     page++;
     DBUG_ASSERT(block->used & BLOCKUSED_USED);
   }
+  if (share->state.state.data_file_length < max_position)
+    _ma_set_share_data_file_length(share, max_position);
   DBUG_RETURN(0);
 }
 
@@ -2823,6 +2825,10 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  /*
+    If this is a redo entry (ie, undo_lsn != LSN_ERROR) then we should have
+    written exactly head_length bytes (same as original record).
+  */
   DBUG_ASSERT(undo_lsn == LSN_ERROR || head_length == row_pos->length);
   int2store(row_pos->dir + 2, head_length);
   /* update empty space at start of block */
@@ -3117,11 +3123,6 @@ static my_bool write_block_record(MARIA_HA *info,
   }
 #endif
 
-  /* Increase data file size, if extended */
-  position= (my_off_t) head_block->page * block_size;
-  if (share->state.state.data_file_length <= position)
-    _ma_set_share_data_file_length(share, position + block_size);
-
   if (head_block_is_read)
   {
     MARIA_PINNED_PAGE *page_link;
@@ -3150,6 +3151,11 @@ static my_bool write_block_record(MARIA_HA *info,
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
+
+    /* Increase data file size, if extended */
+    position= (my_off_t) head_block->page * block_size;
+    if (share->state.state.data_file_length <= position)
+      _ma_set_share_data_file_length(share, position + block_size);
   }
 
   if (share->now_transactional && (tmp_data_used || blob_full_pages_exists))
@@ -3588,7 +3594,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_write_abort_block_record");
 
-  _ma_bitmap_flushable(info, 1);
+  _ma_bitmap_lock(share);  /* Lock bitmap from other insert threads */
   if (delete_head_or_tail(info,
                           ma_recordpos_to_page(info->cur_row.lastpos),
                           ma_recordpos_to_dir_entry(info->cur_row.lastpos), 1,
@@ -3626,7 +3632,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
                       &lsn, (void*) 0))
       res= 1;
   }
-  _ma_bitmap_flushable(info, -1);
+  _ma_bitmap_unlock(share);
   _ma_unpin_all_pages_and_finalize_row(info, lsn);
   DBUG_RETURN(res);
 }
@@ -5158,6 +5164,7 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
   info->scan.number_of_rows= 0;
   info->scan.bitmap_pos= info->scan.bitmap_end;
   info->scan.bitmap_page= (pgcache_page_no_t) 0 - share->bitmap.pages_covered;
+  info->scan.max_page= share->state.state.data_file_length / share->block_size;
   /*
     We need to flush what's in memory (bitmap.map) to page cache otherwise, as
     we are going to read bitmaps from page cache in table scan (see
@@ -5359,6 +5366,11 @@ restart_bitmap_scan:
           page= (info->scan.bitmap_page + 1 +
                  (data - info->scan.bitmap_buff) / 6 * 16 + bit_pos - 1);
           info->scan.row_base_page= ma_recordpos(page, 0);
+          if (page >= info->scan.max_page)
+          {
+            DBUG_PRINT("info", ("Found end of file"));
+            DBUG_RETURN((my_errno= HA_ERR_END_OF_FILE));
+          }
           if (!(pagecache_read(share->pagecache,
                                &info->dfile,
                                page, 0, info->scan.page_buff,
@@ -6238,7 +6250,10 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       /* Skip errors when reading outside of file and uninitialized pages */
       if (!new_page || (my_errno != HA_ERR_FILE_TOO_SHORT &&
                         my_errno != HA_ERR_WRONG_CRC))
+      {
+        DBUG_PRINT("error", ("Error %d when reading page", (int) my_errno));
         goto err;
+      }
       /* Create new page */
       buff= pagecache_block_link_to_buffer(page_link.link);
       buff[PAGE_TYPE_OFFSET]= UNALLOCATED_PAGE;
@@ -6266,7 +6281,13 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         changed to new type.
       */
       if (!new_page)
+      {
+        DBUG_PRINT("error",
+                   ("Found page of wrong type: %u, should have been %u",
+                    (uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK),
+                    page_type));
         goto crashed_file;
+      }
       make_empty_page(info, buff, page_type, 0);
       empty_space= block_size - PAGE_HEADER_SIZE - PAGE_SUFFIX_SIZE;
       (void) extend_directory(page_type == HEAD_PAGE ? info: 0, buff,
@@ -7152,6 +7173,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
     header+= HA_CHECKSUM_STORE_SIZE;
   }
   length_on_head_page= uint2korr(header);
+  set_if_bigger(length_on_head_page, share->base.min_block_length);
   header+= 2;
   extent_count= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;

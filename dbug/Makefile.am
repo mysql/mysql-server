@@ -16,10 +16,11 @@
 # MA 02111-1307, USA
 
 INCLUDES =              -I$(top_builddir)/include -I$(top_srcdir)/include
-LDADD =                 libdbug.a ../mysys/libmysys.a ../strings/libmystrings.a
+LDADD =                 libdbug.a $(top_builddir)/mysys/libmysys.a $(top_builddir)/strings/libmystrings.a
 pkglib_LIBRARIES =      libdbug.a
+noinst_LTLIBRARIES =	libdbug.la
 noinst_HEADERS =        dbug_long.h
-libdbug_a_SOURCES =     dbug.c sanity.c
+libdbug_la_SOURCES =	dbug.c sanity.c
 EXTRA_DIST =            CMakeLists.txt example1.c example2.c example3.c \
                         user.r monty.doc dbug_add_tags.pl \
                         my_main.c main.c factorial.c dbug_analyze.c \
@@ -65,3 +66,7 @@ output5.r:      factorial
 # a hack to have executable in builddir, not in srcdir
 tests-t:	tests-t.pl
 		cp -f $(srcdir)/tests-t.pl ./tests-t
+
+libdbug_a_SOURCES=
+libdbug.a: libdbug.la
+	$(CP) .libs/libdbug.a $@

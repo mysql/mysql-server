@@ -1760,7 +1760,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
             _ma_check_print_error(param,
                                   "Page %9s:  Row: %3d has an extent with "
                                   "wrong information in bitmap:  "
-                                  "Page %9s  Page_type: %d  Bitmap: %d",
+                                  "Page: %9s  Page_type: %d  Bitmap: %d",
                                   llstr(page, llbuff), row,
                                   llstr(extent_page, llbuff2),
                                   page_type, bitmap_pattern);
@@ -2743,7 +2743,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     new_file= -1;
     change_data_file_descriptor(info, -1);
     if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
-                                DATA_TMP_EXT,
+                                DATA_TMP_EXT, param->backup_time,
                                 (param->testflag & T_BACKUP_DATA ?
                                  MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
                                 sync_dir) ||
@@ -3059,7 +3059,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   pthread_mutex_unlock(&share->intern_lock);
   VOID(my_close(new_file,MYF(MY_WME)));
   if (maria_change_to_newfile(share->index_file_name.str, MARIA_NAME_IEXT,
-                              INDEX_TMP_EXT, sync_dir) ||
+                              INDEX_TMP_EXT, 0, sync_dir) ||
       _ma_open_keyfile(share))
     goto err2;
   info->lock_type= F_UNLCK;			/* Force maria_readinfo to lock */
@@ -3376,7 +3376,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     case TAIL_PAGE:
     {
       uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
-      uint offset, dir_start;
+      uint offset, dir_start, empty_space;
       uchar *dir;
 
       if (zero_lsn)
@@ -3389,9 +3389,13 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                                is_head_page ? ~(TrID) 0 : 0,
                                is_head_page ?
                                share->base.min_block_length : 0);
+
         /* compactation may have increased free space */
+        empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
+        if (!enough_free_entries_on_page(share, buff))
+          empty_space= 0;                         /* Page is full */
         if (_ma_bitmap_set(info, page, is_head_page,
-                           uint2korr(buff + EMPTY_SPACE_OFFSET)))
+                           empty_space))
           goto err;
 
         /* Zerofill the not used part */
@@ -3488,20 +3492,15 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
 */
 
 int maria_change_to_newfile(const char * filename, const char * old_ext,
-                            const char * new_ext, myf MyFlags)
+                            const char * new_ext, time_t backup_time,
+                            myf MyFlags)
 {
   char old_filename[FN_REFLEN],new_filename[FN_REFLEN];
-#ifdef USE_RAID
-  if (raid_chunks)
-    return my_raid_redel(fn_format(old_filename,filename,"",old_ext,2+4),
-			 fn_format(new_filename,filename,"",new_ext,2+4),
-			 raid_chunks,
-			 MYF(MY_WME | MY_LINK_WARNING | MyFlags));
-#endif
   /* Get real path to filename */
   (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
   return my_redel(old_filename,
 		  fn_format(new_filename,old_filename,"",new_ext,2+4),
+                  backup_time,
 		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* maria_change_to_newfile */
 
@@ -3871,7 +3870,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       }
       change_data_file_descriptor(info, -1);
       if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
-                                  DATA_TMP_EXT,
+                                  DATA_TMP_EXT, param->backup_time,
                                   (param->testflag & T_BACKUP_DATA ?
                                    MYF(MY_REDEL_MAKE_BACKUP): MYF(0)) |
                                   sync_dir) ||
@@ -4405,8 +4404,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
         goto err;
       }
     }
-    share->state.state.data_file_length= share->state.state.data_file_length=
-      sort_param->filepos;
+    share->state.state.data_file_length= sort_param->filepos;
     /* Only whole records */
     share->state.version= (ulong) time((time_t*) 0);
     /*
@@ -4497,7 +4495,7 @@ err:
       my_close(new_file,MYF(0));
       info->dfile.file= new_file= -1;
       if (maria_change_to_newfile(share->data_file_name.str, MARIA_NAME_DEXT,
-                                  DATA_TMP_EXT,
+                                  DATA_TMP_EXT, param->backup_time,
                                   MYF((param->testflag & T_BACKUP_DATA ?
                                        MY_REDEL_MAKE_BACKUP : 0) |
                                       sync_dir)) ||

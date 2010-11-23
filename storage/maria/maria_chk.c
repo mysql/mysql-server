@@ -271,10 +271,10 @@ static struct my_option my_long_options[] =
    &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
   {"datadir", OPT_DATADIR,
-   "Path for control file (and logs if --log-dir not used).",
+   "Path for control file (and logs if --logdir not used).",
    &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"log-dir", OPT_LOG_DIR,
+  {"logdir", OPT_LOG_DIR,
    "Path for log files.",
    (char**) &opt_log_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
@@ -320,9 +320,6 @@ static struct my_option my_long_options[] =
    "Change the collation used by the index",
    (char**) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make maria_chk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -353,7 +350,7 @@ static struct my_option my_long_options[] =
    "properly closed'",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unpack", 'u',
-   "Unpack file packed with mariapack.",
+   "Unpack file packed with maria_pack.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v',
    "Print more information. This can be used with --description and --check. Use many -v for more verbosity!",
@@ -372,12 +369,14 @@ static struct my_option my_long_options[] =
     &check_param.use_buffers, &check_param.use_buffers, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, 1024L*1024L,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
-  { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
+  { "read_buffer_size", OPT_READ_BUFFER_SIZE,
+    "Read buffer size for sequential reads during scanning",
     &check_param.read_buffer_length,
     &check_param.read_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
-  { "write_buffer_size", OPT_WRITE_BUFFER_SIZE, "",
+  { "write_buffer_size", OPT_WRITE_BUFFER_SIZE,
+    "Write buffer size for sequential writes during repair of fixed size or dynamic size rows",
     &check_param.write_buffer_length,
     &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
@@ -388,7 +387,8 @@ static struct my_option my_long_options[] =
     &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) 1L, 0},
-  { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
+  { "sort_key_blocks", OPT_SORT_KEY_BLOCKS,
+    "Internal buffer for sorting keys; Don't touch :)",
     &check_param.sort_key_blocks,
     &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,
     BUFFERS_WHEN_SORTING, 4L, 100L, 0L, 1L, 0},
@@ -411,7 +411,7 @@ static struct my_option my_long_options[] =
     (char**) &maria_stats_method_str, (char**) &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "zerofill", 'z',
-    "Fill empty space in data and index files with zeroes",
+    "Fill empty space in data and index files with zeroes,",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "zerofill-keep-lsn", OPT_ZEROFILL_KEEP_LSN,
     "Like --zerofill but does not zero out LSN of data/index pages;"
@@ -447,10 +447,12 @@ static void usage(void)
   printf("\
   -H, --HELP          Display this help and exit.\n\
   -?, --help          Display this help and exit.\n\
-  -O, --set-variable var=option.\n\
-                      Change the value of a variable. Please note that\n\
-                      this option is deprecated; you can set variables\n\
-                      directly with '--variable-name=value'.\n\
+  --datadir=path      Path for control file (and logs if --logdir not used)\n\
+  --logdir=path       Path for log files\n\
+  --require-control-file  Abort if we can't find/read the maria_log_control\n\
+                          file\n\
+  -s, --silent	      Only print errors.  One can use two -s to make\n\
+		      maria_chk very silent.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
 #if defined( __WIN__) || defined(__NETWARE__)
@@ -458,12 +460,8 @@ static void usage(void)
 #else
    printf("colon (:)");
 #endif
-                      printf(", they will be used\n\
+   printf(", they will be used\n\
                       in a round-robin fashion.\n\
-  --require-control-file  Abort if we can't find/read the maria_log_control\n\
-                          file\n\
-  -s, --silent	      Only print errors.  One can use two -s to make\n\
-		      maria_chk very silent.\n\
   -v, --verbose       Print more information. This can be used with\n\
                       --description and --check. Use many -v for more verbosity.\n\
   -V, --version       Print version and exit.\n\
@@ -485,10 +483,11 @@ static void usage(void)
   -i, --information   Print statistics information about table that is checked.\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases.\n\
-  -U  --update-state  Mark tables as crashed if you find any errors.\n\
+  -U, --update-state  Mark tables as crashed if you find any errors.\n\
   -T, --read-only     Don't mark table as checked.\n");
 
-  puts("Recover (repair)/ options (When using '-r' or '-o'):\n\
+  puts("\
+Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
   -B, --backup	      Make a backup of the .MAD file as 'filename-time.BAK'.\n\
   --correct-checksum  Correct checksum information for table.\n\
   -D, --data-file-length=#  Max length of data file (when recreating data\n\
@@ -531,7 +530,7 @@ static void usage(void)
 
   puts("Other actions:\n\
   -a, --analyze	      Analyze distribution of keys. Will make some joins in\n\
-		      MySQL faster.  You can check the calculated distribution\n\
+		      MariaDB faster.  You can check the calculated distribution\n\
 		      by using '--description --verbose table_name'.\n\
   --stats_method=name Specifies how index statistics collection code should\n\
                       treat NULLs. Possible values of name are \"nulls_unequal\"\n\
@@ -553,6 +552,13 @@ static void usage(void)
   -z,  --zerofill     Fill empty space in data and index files with zeroes\n\
   --zerofill-keep-lsn Like --zerofill but does not zero out LSN of\n\
                       data/index pages.");
+
+  puts("Variables:\n\
+--page_buffer_size=#   Size of page buffer. Used by --safe-repair\n\
+--read_buffer_size=#   Read buffer size for sequential reads during scanning\n\
+--sort_buffer_size=#   Size of sort buffer. Used by --recover\n\
+--sort_key_blocks=#    Internal buffer for sorting keys; Don't touch :)\n\
+--write_buffer_size=#  Write buffer size for sequential writes during repair");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -1205,7 +1211,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
       {			/* Change temp file to org file */
         VOID(my_close(info->dfile.file, MYF(MY_WME))); /* Close new file */
         error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
-                                       MYF(0));
+                                       0, MYF(0));
         if (_ma_open_datafile(info,info->s, NullS, -1))
           error=1;
         param->out_flag&= ~O_NEW_DATA; /* We are using new datafile */
@@ -1343,11 +1349,9 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=maria_change_to_newfile(filename,MARIA_NAME_DEXT,DATA_TMP_EXT,
+                                     param->backup_time,
                                      ((param->testflag & T_BACKUP_DATA) ?
                                       MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
-    if (param->out_flag & O_NEW_INDEX)
-      error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,
-                                     MYF(0));
   }
   if (opt_transaction_logging &&
       share->base.born_transactional && !error &&
@@ -1451,7 +1455,8 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     printf("UUID:                %s\n", buff);
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      strmov(buff, share->state.changed & STATE_CRASHED_ON_REPAIR ?
+             "crashed on repair" : "crashed");
     else
     {
       if (share->state.open_count)

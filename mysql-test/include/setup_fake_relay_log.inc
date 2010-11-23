@@ -72,7 +72,7 @@ copy_file $fake_relay_log $_fake_relay_log;
 
 if (`SELECT LENGTH(@@secure_file_priv) > 0`)
 {
-  -- let $_file_priv_dir= `SELECT @@secure_file_priv`;
+  -- let $_file_priv_dir= `SELECT @@secure_file_priv`
   -- let $_suffix= `SELECT UUID()`
   -- let $_tmp_file= $_file_priv_dir/fake-index.$_suffix
 

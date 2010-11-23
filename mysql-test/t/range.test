@@ -1313,4 +1313,16 @@ SELECT * FROM t1 FORCE INDEX (PRIMARY)
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #54802: 'NOT BETWEEN' evaluation is incorrect
+--echo #
+
+CREATE TABLE t1 (c_key INT, c_notkey INT, KEY(c_key));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+
+EXPLAIN SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

@@ -4341,7 +4341,7 @@ bool sys_var_thd_dbug::update(THD *thd, set_var *var)
 
 uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 {
-  char buf[256];
+  char buf[1024];
   if (type == OPT_GLOBAL)
   {
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));

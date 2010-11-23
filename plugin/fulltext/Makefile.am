@@ -21,7 +21,7 @@ INCLUDES= -I$(top_builddir)/include -I$(top_srcdir)/include
 pkgplugin_LTLIBRARIES= mypluglib.la
 mypluglib_la_SOURCES= plugin_example.c
 mypluglib_la_LDFLAGS= -module -rpath $(pkgplugindir)
-mypluglib_la_CFLAGS= -DMYSQL_DYNAMIC_PLUGIN
+mypluglib_la_CFLAGS= -shared -DMYSQL_DYNAMIC_PLUGIN
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

@@ -4082,7 +4082,7 @@ static int com_source(String *buffer, char *line)
     If we got an error during source operation, don't abort the client
     if ignore_errors is set
   */
-  if (error && !batch_abort_on_error && ignore_errors)
+  if (error && ignore_errors)
     error= -1;                                  // Ignore error
   return error;
 }

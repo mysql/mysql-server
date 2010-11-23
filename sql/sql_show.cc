@@ -3944,7 +3944,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       base_type [(dimension)] [unsigned] [zerofill].
       For DATA_TYPE column we extract only base type.
     */
-    tmp_buff= strchr(type.ptr(), '(');
+    tmp_buff= strchr(type.c_ptr_safe(), '(');
     if (!tmp_buff)
       /*
         if there is no dimention part then check the presence of
@@ -6957,13 +6957,16 @@ int finalize_schema_table(st_plugin_int *plugin)
   ST_SCHEMA_TABLE *schema_table= (ST_SCHEMA_TABLE *)plugin->data;
   DBUG_ENTER("finalize_schema_table");
 
-  if (schema_table && plugin->plugin->deinit)
+  if (schema_table)
   {
-    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit(NULL))
+    if (plugin->plugin->deinit)
     {
-      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                             plugin->name.str));
+      DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+      if (plugin->plugin->deinit(NULL))
+      {
+        DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                               plugin->name.str));
+      }
     }
     my_free(schema_table, MYF(0));
   }

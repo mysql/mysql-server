@@ -1574,7 +1574,7 @@ UNLOCK TABLES;
 #
 # Trigger on parent
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t4_ai1 AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1586,10 +1586,13 @@ c1
 2
 3
 4
-DROP TRIGGER t4_ai;
+DROP TRIGGER t4_ai1;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 # Trigger on parent under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t4_ai2 AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1602,12 +1605,15 @@ c1
 3
 4
 4
-DROP TRIGGER t4_ai;
+DROP TRIGGER t4_ai2;
 UNLOCK TABLES;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 #
 # Trigger on child
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t3_ai3 AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1624,10 +1630,13 @@ c1
 3
 4
 33
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai3;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 # Trigger on child under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+CREATE TRIGGER t3_ai4 AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
 SET @a=0;
 INSERT INTO t4 VALUES (4);
 SELECT @a;
@@ -1647,11 +1656,17 @@ c1
 33
 33
 DELETE FROM t4 WHERE c1 = 33;
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai4;
+CHECK TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	check	status	OK
 #
 # Trigger with table use on child
 DELETE FROM t4 WHERE c1 = 4;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+CREATE TRIGGER t3_ai5 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+1
 INSERT INTO t4 VALUES (4);
 SELECT * FROM t4 ORDER BY c1;
 c1
@@ -1670,10 +1685,15 @@ c1
 33
 DELETE FROM t4 WHERE c1 = 22;
 DELETE FROM t4 WHERE c1 = 33;
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai5;
+UNLOCK TABLES;
+CHECK TABLE t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
 # Trigger with table use on child under LOCK TABLES
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+CREATE TRIGGER t3_ai6 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
 INSERT INTO t4 VALUES (4);
 SELECT * FROM t4 ORDER BY c1;
 c1
@@ -1692,10 +1712,44 @@ c1
 4
 22
 33
-DROP TRIGGER t3_ai;
+DROP TRIGGER t3_ai6;
+UNLOCK TABLES;
+check table t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
+test.t4	check	status	OK
 DELETE FROM t4 WHERE c1 = 22;
 DELETE FROM t4 WHERE c1 = 33;
+# Trigger with table use on child under different LOCK TABLES
+DELETE FROM t4 WHERE c1 = 4;
+LOCK TABLES t4 WRITE,t3 WRITE, t2 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai7 AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+22
+33
+DROP TRIGGER t3_ai7;
 UNLOCK TABLES;
+check table t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+test.t3	check	status	OK
+test.t4	check	status	OK
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
 #
 # Repair
 #
@@ -1711,7 +1765,6 @@ c1
 2
 3
 4
-4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 REPAIR TABLE t4;
 Table	Op	Msg_type	Msg_text
@@ -1724,7 +1777,6 @@ c1
 1
 2
 3
-4
 4
 UNLOCK TABLES;
 #
@@ -1742,7 +1794,6 @@ c1
 2
 3
 4
-4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 OPTIMIZE TABLE t4;
 Table	Op	Msg_type	Msg_text
@@ -1756,14 +1807,13 @@ c1
 2
 3
 4
-4
 UNLOCK TABLES;
 #
 # Checksum
 #
 CHECKSUM TABLE t4;
 Table	Checksum
-test.t4	46622073
+test.t4	149057747
 CHECKSUM TABLE t2;
 Table	Checksum
 test.t2	3700403066
@@ -1772,12 +1822,11 @@ c1
 1
 2
 3
-4
 4
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 CHECKSUM TABLE t4;
 Table	Checksum
-test.t4	46622073
+test.t4	149057747
 CHECKSUM TABLE t2;
 Table	Checksum
 test.t2	3700403066
@@ -1786,7 +1835,6 @@ c1
 1
 2
 3
-4
 4
 UNLOCK TABLES;
 #
@@ -1801,7 +1849,6 @@ c1
 2
 3
 4
-4
 33
 LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
 INSERT DELAYED INTO t4 VALUES(444);
@@ -1813,7 +1860,6 @@ c1
 1
 2
 3
-4
 4
 33
 UNLOCK TABLES;
@@ -2250,4 +2296,45 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t2, t1;
+#
+# Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+#
+DROP TABLE IF EXISTS m1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+UNLOCK TABLES;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1,t1;
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Can't open table
+test.m1	repair	error	Corrupt
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.m1' doesn't exist
+test.m1	repair	error	Corrupt
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+m1	repair	error	Cannot repair temporary table from .frm file
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
 End of 5.1 tests

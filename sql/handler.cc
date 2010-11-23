@@ -1093,6 +1093,12 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  /* Just a random warning to test warnings pushed during autocommit. */
+  DBUG_EXECUTE_IF("warn_during_ha_commit_trans",
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK)););
+
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -2047,7 +2053,21 @@ handler *handler::clone(MEM_ROOT *mem_root)
   return new_handler;
 }
 
-
+double handler::keyread_time(uint index, uint ranges, ha_rows rows)
+{
+  /*
+    It is assumed that we will read trough the whole key range and that all
+    key blocks are half full (normally things are much better). It is also
+    assumed that each time we read the next key from the index, the handler
+    performs a random seek, thus the cost is proportional to the number of
+    blocks read. This model does not take into account clustered indexes -
+    engines that support that (e.g. InnoDB) may want to overwrite this method.
+  */
+  double keys_per_block= (stats.block_size/2.0/
+                          (table->key_info[index].key_length +
+                           ref_length) + 1);
+  return (rows + keys_per_block - 1)/ keys_per_block;
+}
 
 void handler::ha_statistic_increment(ulong SSV::*offset) const
 {
@@ -2617,8 +2637,18 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
     - table->s->path
     - table->alias
 */
+
+#ifndef DBUG_OFF
+#define SET_FATAL_ERROR fatal_error=1
+#else
+#define SET_FATAL_ERROR
+#endif
+
 void handler::print_error(int error, myf errflag)
 {
+#ifndef DBUG_OFF
+  bool fatal_error= 0;
+#endif
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
@@ -2636,6 +2666,13 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
   case HA_ERR_END_OF_FILE:
+    /*
+      This errors is not not normally fatal (for example for reads). However
+      if you get it during an update or delete, then its fatal.
+      As the user is calling print_error() (which is not done on read), we
+      assume something when wrong with the update or delete.
+    */
+    SET_FATAL_ERROR;
     textno=ER_KEY_NOT_FOUND;
     break;
   case HA_ERR_WRONG_MRG_TABLE_DEF:
@@ -2687,21 +2724,26 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_UNIQUE;
     break;
   case HA_ERR_RECORD_CHANGED:
+    SET_FATAL_ERROR;
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:
+    SET_FATAL_ERROR;
     textno=ER_NOT_KEYFILE;
     break;
   case HA_ERR_WRONG_IN_RECORD:
+    SET_FATAL_ERROR;
     textno= ER_CRASHED_ON_USAGE;
     break;
   case HA_ERR_CRASHED_ON_USAGE:
+    SET_FATAL_ERROR;
     textno=ER_CRASHED_ON_USAGE;
     break;
   case HA_ERR_NOT_A_TABLE:
     textno= error;
     break;
   case HA_ERR_CRASHED_ON_REPAIR:
+    SET_FATAL_ERROR;
     textno=ER_CRASHED_ON_REPAIR;
     break;
   case HA_ERR_OUT_OF_MEM:
@@ -2800,7 +2842,10 @@ void handler::print_error(int error, myf errflag)
 	if (temporary)
 	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
 	else
+        {
+          SET_FATAL_ERROR;
 	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+        }
       }
       else
 	my_error(ER_GET_ERRNO,errflag,error);
@@ -2808,6 +2853,7 @@ void handler::print_error(int error, myf errflag)
     }
   }
   my_error(textno, errflag, table_share->table_name.str, error);
+  DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;
 }
 
@@ -3686,6 +3732,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
+  start_time= my_time(0);
 }
 
 

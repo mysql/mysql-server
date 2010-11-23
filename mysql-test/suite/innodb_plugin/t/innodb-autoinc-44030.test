@@ -1,8 +1,6 @@
 -- source include/have_innodb_plugin.inc
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc
-# remove the next line after bug #55503 is fixed
--- source include/not_valgrind.inc
 
 let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
 

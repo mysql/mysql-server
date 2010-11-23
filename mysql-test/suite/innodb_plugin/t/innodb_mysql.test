@@ -634,4 +634,18 @@ UPDATE t1,t2 SET t1.a = t1.a + 100 WHERE t1.a = 1;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#54606 innodb fast alter table + pack_keys=0 
+--echo #           prevents adding new indexes
+--echo #
+
+CREATE TABLE t1 (a INT, b CHAR(9), c INT, key(b)) 
+  ENGINE=InnoDB 
+  PACK_KEYS=0;
+CREATE INDEX a ON t1 (a);
+CREATE INDEX c on t1 (c);
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

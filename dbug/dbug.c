@@ -286,7 +286,7 @@ typedef struct _db_code_state_ {
 #define ListDel(A,B,C) ListAddDel(A,B,C,EXCLUDE)
 static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
-static int InList(struct link *linkp,const char *cp);
+static int InList(struct link *linkp,const char *cp, int exact_match);
 static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
@@ -982,7 +982,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), len+1);           \
+        buf=strnmov(buf, (S), (uint) (end-buf)); \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \
@@ -1581,13 +1581,13 @@ static struct link *ListCopy(struct link *orig)
  *
  */
 
-static int InList(struct link *linkp, const char *cp)
+static int InList(struct link *linkp, const char *cp, int exact_match)
 {
   int result;
 
   for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    if (!fnmatch(linkp->str, cp, 0))
+    if (!(exact_match ? strcmp(linkp->str,cp) : fnmatch(linkp->str, cp, 0)))
       return linkp->flags;
     if (!(linkp->flags & EXCLUDE))
       result=NOT_MATCHED;
@@ -1637,8 +1637,8 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
+  bzero(new_malloc, sizeof(struct settings));
   new_malloc->next= cs->stack;
-  new_malloc->out_file= NULL;
   cs->stack= new_malloc;
 }
 
@@ -1752,8 +1752,8 @@ void _db_end_()
 static int DoTrace(CODE_STATE *cs)
 {
   if ((cs->stack->maxdepth == 0 || cs->level <= cs->stack->maxdepth) &&
-      InList(cs->stack->processes, cs->process) & (MATCHED|INCLUDE))
-    switch(InList(cs->stack->functions, cs->func)) {
+      InList(cs->stack->processes, cs->process, 0) & (MATCHED|INCLUDE))
+    switch(InList(cs->stack->functions, cs->func, 0)) {
     case INCLUDE|SUBDIR:  return ENABLE_TRACE;
     case INCLUDE:         return DO_TRACE;
     case MATCHED|SUBDIR:
@@ -1790,10 +1790,10 @@ static int DoTrace(CODE_STATE *cs)
 #ifndef THREAD
 static BOOLEAN DoProfile(CODE_STATE *cs)
 {
-  return PROFILING &&
-         cs->level <= cs->stack->maxdepth &&
-         InList(cs->stack->p_functions, cs->func) & (INCLUDE|MATCHED) &&
-         InList(cs->stack->processes, cs->process) & (INCLUDE|MATCHED);
+  return (PROFILING &&
+          cs->level <= cs->stack->maxdepth &&
+          InList(cs->stack->p_functions, cs->func, 0) & (INCLUDE|MATCHED) &&
+          InList(cs->stack->processes, cs->process, 0) & (INCLUDE|MATCHED));
 }
 #endif
 
@@ -1826,11 +1826,11 @@ FILE *_db_fp_(void)
 
 BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
+  int match= strict ? INCLUDE : INCLUDE|MATCHED;
   get_code_state_if_not_set_or_return FALSE;
-  strict=strict ? INCLUDE : INCLUDE|MATCHED;
 
-  return DEBUGGING && DoTrace(cs) & DO_TRACE &&
-         InList(cs->stack->keywords, keyword) & strict;
+  return (DEBUGGING && DoTrace(cs) & DO_TRACE &&
+          InList(cs->stack->keywords, keyword, strict) & match);
 }
 
 /*
@@ -2121,7 +2121,7 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp != stderr && fp != stdout && fclose(fp) == EOF)
+  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
     if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);

@@ -70,7 +70,8 @@ my_bool _ma_log_suffix(MARIA_PAGE *page, uint org_length,
                        uint new_length);
 my_bool _ma_log_add(MARIA_PAGE *page, uint buff_length, uchar *key_pos,
                     uint changed_length, int move_length,
-                    my_bool handle_overflow);
+                    my_bool handle_overflow,
+                    enum en_key_debug debug_marker);
 my_bool _ma_log_delete(MARIA_PAGE *page, const uchar *key_pos,
                        uint changed_length, uint move_length,
                        uint append_length, enum en_key_debug debug_marker);

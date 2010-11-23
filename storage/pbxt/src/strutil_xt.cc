@@ -380,7 +380,7 @@ xtPublic void xt_int8_to_byte_size(xtInt8 value, char *string)
 /* Version number must also be set in configure.in! */
 xtPublic c_char *xt_get_version(void)
 {
-	return "1.0.11 Pre-GA";
+	return "1.0.11-7 Pre-GA";
 }
 
 /* Copy and URL decode! */

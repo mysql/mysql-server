@@ -1211,6 +1211,13 @@ public:
     return m_total_warn_count;
   }
 
+  /* Used to count any warnings pushed after calling set_ok_status(). */
+  void increment_warning()
+  {
+    if (m_status != DA_EMPTY)
+      m_total_warn_count++;
+  }
+
   Diagnostics_area() { reset_diagnostics_area(); }
 
 private:
@@ -2642,7 +2649,9 @@ public:
 
 
 class select_insert :public select_result_interceptor {
- public:
+protected:
+  virtual int write_to_binlog(bool is_trans, int errcode);
+public:
   TABLE_LIST *table_list;
   TABLE *table;
   List<Item> *fields;
@@ -2678,6 +2687,8 @@ class select_create: public select_insert {
   MYSQL_LOCK *m_lock;
   /* m_lock or thd->extra_lock */
   MYSQL_LOCK **m_plock;
+
+  virtual int write_to_binlog(bool is_trans, int errcode);
 public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
@@ -2693,7 +2704,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  int binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count, int errcode);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -2990,7 +3001,7 @@ public:
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+      max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size);
     return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 

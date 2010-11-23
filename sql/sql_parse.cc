@@ -48,6 +48,9 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool execute_show_status(THD *thd, TABLE_LIST *all_tables);
+static bool execute_rename_table(THD *thd, TABLE_LIST *first_table,
+                                 TABLE_LIST *all_tables);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -997,7 +1000,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   NET *net= &thd->net;
   bool error= 0;
   DBUG_ENTER("dispatch_command");
-  DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
+  DBUG_PRINT("info", ("command: %d", command));
 
   thd->command=command;
   /*
@@ -1125,7 +1128,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       Cast *passwd to an unsigned char, so that it doesn't extend the sign
       for *passwd > 127 and become 2**32-127 after casting to uint.
     */
-    char db_buff[SAFE_NAME_LEN*2+1];           // buffer to store db in utf8
+    char db_buff[SAFE_NAME_LEN+1];           // buffer to store db in utf8
     char *db= passwd;
     char *save_db;
     /*
@@ -1556,7 +1559,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_STATISTICS:
   {
-    STATUS_VAR current_global_status_var;
+    STATUS_VAR *current_global_status_var;      // Big; Don't allocate on stack
     ulong uptime;
 #if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
     uint length;
@@ -1565,9 +1568,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char buff[250];
     uint buff_len= sizeof(buff);
 
+    if (!(current_global_status_var= (STATUS_VAR*)
+          thd->alloc(sizeof(STATUS_VAR))))
+      break;
     general_log_print(thd, command, NullS);
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
-    calc_sum_of_all_status(&current_global_status_var);
+    calc_sum_of_all_status(current_global_status_var);
     if (!(uptime= (ulong) (thd->start_time - server_start_time)))
       queries_per_second1000= 0;
     else
@@ -1582,8 +1588,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                   "Open tables: %u  Queries per second avg: %u.%u",
                   uptime,
                   (int) thread_count, (ulong) thd->query_id,
-                  current_global_status_var.long_query_count,
-                  current_global_status_var.opened_tables,
+                  current_global_status_var->long_query_count,
+                  current_global_status_var->opened_tables,
                   refresh_version,
                   cached_open_tables(),
                   (uint) (queries_per_second1000 / 1000),
@@ -2285,22 +2291,7 @@ mysql_execute_command(THD *thd)
     break;
   case SQLCOM_SHOW_STATUS:
   {
-    system_status_var old_status_var= thd->status_var;
-    thd->initial_status_var= &old_status_var;
-    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
-      res= execute_sqlcom_select(thd, all_tables);
-    /* Don't log SHOW STATUS commands to slow query log */
-    thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
-                           SERVER_QUERY_NO_GOOD_INDEX_USED);
-    /*
-      restore status variables, as we don't want 'show status' to cause
-      changes
-    */
-    pthread_mutex_lock(&LOCK_status);
-    add_diff_to_status(&global_status_var, &thd->status_var,
-                       &old_status_var);
-    thd->status_var= old_status_var;
-    pthread_mutex_unlock(&LOCK_status);
+    execute_show_status(thd, all_tables);
     break;
   }
   case SQLCOM_SHOW_DATABASES:
@@ -2767,6 +2758,25 @@ mysql_execute_command(THD *thd)
         {
           TABLE_LIST *duplicate;
           create_table= lex->unlink_first_table(&link_to_local);
+
+          if (create_table->view)
+          {
+            if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
+            {
+              push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                  ER_TABLE_EXISTS_ERROR,
+                                  ER(ER_TABLE_EXISTS_ERROR),
+                                  create_info.alias);
+              my_ok(thd);
+            }
+            else
+            {
+              my_error(ER_TABLE_EXISTS_ERROR, MYF(0), create_info.alias);
+              res= 1;
+            }
+            goto end_with_restore_list;
+          }
+
           if ((duplicate= unique_table(thd, create_table, select_tables, 0)))
           {
             update_non_unique_table_error(create_table, "CREATE", duplicate);
@@ -3005,31 +3015,7 @@ end_with_restore_list:
     }
   case SQLCOM_RENAME_TABLE:
   {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    TABLE_LIST *table;
-    for (table= first_table; table; table= table->next_local->next_local)
-    {
-      if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
-		       &table->grant.privilege,0,0, test(table->schema_table)) ||
-	  check_access(thd, INSERT_ACL | CREATE_ACL, table->next_local->db,
-		       &table->next_local->grant.privilege, 0, 0,
-                       test(table->next_local->schema_table)))
-	goto error;
-      TABLE_LIST old_list, new_list;
-      /*
-        we do not need initialize old_list and new_list because we will
-        come table[0] and table->next[0] there
-      */
-      old_list= table[0];
-      new_list= table->next_local[0];
-      if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
-         (!test_all_bits(table->next_local->grant.privilege,
-                         INSERT_ACL | CREATE_ACL) &&
-          check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
-        goto error;
-    }
-
-    if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
+    if (execute_rename_table(thd, first_table, all_tables))
       goto error;
     break;
   }
@@ -5169,6 +5155,62 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     }
   }
   return res;
+}
+
+
+static bool execute_show_status(THD *thd, TABLE_LIST *all_tables)
+{
+  bool res;
+  system_status_var old_status_var= thd->status_var;
+  thd->initial_status_var= &old_status_var;
+  if (!(res= check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE)))
+    res= execute_sqlcom_select(thd, all_tables);
+  /* Don't log SHOW STATUS commands to slow query log */
+  thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
+                         SERVER_QUERY_NO_GOOD_INDEX_USED);
+  /*
+    restore status variables, as we don't want 'show status' to cause
+    changes
+  */
+  pthread_mutex_lock(&LOCK_status);
+  add_diff_to_status(&global_status_var, &thd->status_var,
+                     &old_status_var);
+  thd->status_var= old_status_var;
+  pthread_mutex_unlock(&LOCK_status);
+  return res;
+}
+
+
+static bool execute_rename_table(THD *thd, TABLE_LIST *first_table,
+                                 TABLE_LIST *all_tables)
+{
+  DBUG_ASSERT(first_table == all_tables && first_table != 0);
+  TABLE_LIST *table;
+  for (table= first_table; table; table= table->next_local->next_local)
+  {
+    if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
+                     &table->grant.privilege,0,0, test(table->schema_table)) ||
+        check_access(thd, INSERT_ACL | CREATE_ACL, table->next_local->db,
+                     &table->next_local->grant.privilege, 0, 0,
+                     test(table->next_local->schema_table)))
+      return 1;
+    TABLE_LIST old_list, new_list;
+    /*
+      we do not need initialize old_list and new_list because we will
+      come table[0] and table->next[0] there
+    */
+    old_list= table[0];
+    new_list= table->next_local[0];
+    if (check_grant(thd, ALTER_ACL | DROP_ACL, &old_list, 0, 1, 0) ||
+        (!test_all_bits(table->next_local->grant.privilege,
+                        INSERT_ACL | CREATE_ACL) &&
+         check_grant(thd, INSERT_ACL | CREATE_ACL, &new_list, 0, 1, 0)))
+      return 1;
+  }
+
+  if (end_active_trans(thd) || mysql_rename_tables(thd, first_table, 0))
+    return 1;
+  return 0;
 }
 
 
@@ -7957,6 +7999,8 @@ bool parse_sql(THD *thd,
                Object_creation_ctx *creation_ctx)
 {
   bool mysql_parse_status;
+  DBUG_ENTER("parse_sql");
+
   DBUG_ASSERT(thd->m_parser_state == NULL);
 
   /* Backup creation context. */
@@ -7990,7 +8034,7 @@ bool parse_sql(THD *thd,
 
   /* That's it. */
 
-  return mysql_parse_status || thd->is_fatal_error;
+  DBUG_RETURN(mysql_parse_status || thd->is_fatal_error);
 }
 
 /**

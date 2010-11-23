@@ -1359,6 +1359,57 @@ static xtBool xres_sync_operations(XTThreadPtr self, XTDatabaseHPtr db, XTWriter
 	return op_synced;
 }
 
+#ifdef XT_CORRECT_TABLE_FREE_COUNT
+#define CORRECT_COUNT		TRUE
+#else
+#define CORRECT_COUNT		FALSE
+#endif
+#ifdef XT_CHECK_RECORD_FREE_COUNT
+#define CHECK_RECS			TRUE
+#else
+#define CHECK_RECS			FALSE
+#endif
+#if defined(XT_CHECK_RECORD_FREE_COUNT) || defined(XT_CHECK_ROW_FREE_COUNT)
+#define RECOVER_FREE_COUNTS
+#endif
+
+#ifdef RECOVER_FREE_COUNTS
+/* {CORRECTED-ROW-COUNT}
+ * This error can be repeated by crashing the server during
+ * high activitity, after flush table writes the table header
+ * 
+ * On recovery, the free count "from the future" is used as
+ * the starting point for subsequent allocation and frees.
+ * The count is wrong after that point.
+ *
+ * The recovery of the count only works correctly if a
+ * checkpoint is complete successfully after that table
+ * header is flushed. Basically the writing of the table
+ * header should be synchronsized with the writing of the
+ * end of the checkpoint.
+ *
+ * Another solution would be to log the count, along with
+ * the allocate and free commannds.
+ *
+ * The 3rd solution is the one used here. The count is corrected
+ * after recovery.
+ */
+static void xres_recover_table_free_counts(XTThreadPtr self, XTDatabaseHPtr db, XTWriterStatePtr ws)
+{
+	u_int			edx;
+	XTTableEntryPtr	te_ptr;
+	XTTableHPtr		tab;
+
+	xt_enum_tables_init(&edx);
+	while ((te_ptr = xt_enum_tables_next(self, db, &edx))) {
+		if ((tab = te_ptr->te_table)) {
+			if (xres_open_table(self, ws, te_ptr->te_tab_id))
+				xt_tab_check_free_lists(self, ws->ws_ot, CHECK_RECS, CORRECT_COUNT);
+		}
+	}
+}
+#endif
+
 /*
  * Operations from the log are applied in sequence order.
  * If the operations are out of sequence, they are buffered
@@ -2175,6 +2226,13 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 			/* This is true because if no transaction was placed in RAM then
 			 * the next transaction in RAM will have the next ID: */
 			db->db_xn_min_ram_id = db->db_xn_curr_id + 1;
+
+#ifdef RECOVER_FREE_COUNTS
+		if (xres_cp_log_id != *log_id || xres_cp_log_offset != *log_offset) {
+			/* Recovery took place, correct the row count! */
+			xres_recover_table_free_counts(self, db, &ws);
+		}
+#endif
 	}
 
 	failed:

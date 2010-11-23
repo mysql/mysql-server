@@ -639,3 +639,18 @@ CREATE TABLE t2(f1 CHAR(1));
 INSERT INTO t2 SELECT f1 FROM t1;
 DROP TABLE t1, t2;
 End of 5.0 tests.
+#
+# Bug#54106 assert in Protocol::end_statement,
+#           INSERT IGNORE ... SELECT ... UNION SELECT ...
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 (a, a) VALUES (1, 1);
+ERROR 42000: Column 'a' specified twice
+INSERT IGNORE t1 (a, a) VALUES (1, 1);
+ERROR 42000: Column 'a' specified twice
+INSERT IGNORE t1 (a, a) SELECT 1,1;
+ERROR 42000: Column 'a' specified twice
+INSERT IGNORE t1 (a, a) SELECT 1,1 UNION SELECT 2,2;
+ERROR 42000: Column 'a' specified twice
+DROP TABLE t1;

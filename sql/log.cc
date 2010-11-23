@@ -1726,7 +1726,9 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      log_query.append("`") ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+      log_query.append("`"))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -1748,7 +1750,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+        log_query.append("`") ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+        log_query.append("`"))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -5102,71 +5106,107 @@ void sql_perror(const char *message)
 }
 
 
+#ifdef __WIN__
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream)
+{
+  int handle_fd;
+  int err_fd, out_fd;
+  HANDLE osfh;
+
+  DBUG_ASSERT(filename && errstream);
+
+  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
+  err_fd= _fileno(errstream);
+  if (err_fd < 0)
+  {
+    if (!freopen(filename, "a+", errstream))
+      return TRUE;
+
+    setbuf(errstream, NULL);
+    err_fd= _fileno(errstream);
+  }
+
+  if (outstream)
+  {
+    out_fd= _fileno(outstream);
+    if (out_fd < 0)
+    {
+      if (!freopen(filename, "a+", outstream))
+        return TRUE;
+      out_fd= _fileno(outstream);
+    }
+  }
+
+  if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE |
+                        FILE_SHARE_DELETE, NULL,
+                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                        NULL)) == INVALID_HANDLE_VALUE)
+    return TRUE;
+
+  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
+                                  _O_APPEND | _O_TEXT)) == -1)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  if (_dup2(handle_fd, err_fd) < 0)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  if (outstream && _dup2(handle_fd, out_fd) < 0)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  _close(handle_fd);
+  return FALSE;
+}
+#else
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream)
+{
+  if (outstream && !freopen(filename, "a+", outstream))
+    return TRUE;
+
+  if (errstream && !freopen(filename, "a+", errstream))
+    return TRUE;
+
+  return FALSE;
+}
+#endif
+
+
 /*
   Unfortunately, there seems to be no good way
   to restore the original streams upon failure.
 */
 static bool redirect_std_streams(const char *file)
 {
-  if (freopen(file, "a+", stdout) && freopen(file, "a+", stderr))
-  {
-    setbuf(stderr, NULL);
-    return FALSE;
-  }
+  if (reopen_fstreams(file, stdout, stderr))
+    return TRUE;
 
-  return TRUE;
+  setbuf(stderr, NULL);
+  return FALSE;
 }
 
 
 bool flush_error_log()
 {
-  bool result=0;
+  bool result= 0;
   if (opt_error_log)
   {
-    char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
-    strmov(end, "-old");
     VOID(pthread_mutex_lock(&LOCK_error_log));
-#ifdef __WIN__
-    char err_temp[FN_REFLEN+5];
-    /*
-     On Windows is necessary a temporary file for to rename
-     the current error file.
-    */
-    strxmov(err_temp, err_renamed,"-tmp",NullS);
-    (void) my_delete(err_temp, MYF(0)); 
-    if (freopen(err_temp,"a+",stdout))
-    {
-      int fd;
-      size_t bytes;
-      uchar buf[IO_SIZE];
-
-      if (!freopen(err_temp,"a+",stderr))
-        sql_print_error("Couldn't reopen stderr");
-      setbuf(stderr, NULL);
-      (void) my_delete(err_renamed, MYF(0));
-      my_rename(log_error_file,err_renamed,MYF(0));
-      redirect_std_streams(log_error_file);
-
-      if ((fd = my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
-      {
-        while ((bytes= my_read(fd, buf, IO_SIZE, MYF(0))) &&
-               bytes != MY_FILE_ERROR)
-          my_fwrite(stderr, buf, bytes, MYF(0));
-        my_close(fd, MYF(0));
-      }
-      (void) my_delete(err_temp, MYF(0)); 
-    }
-    else
-     result= 1;
-#else
-   my_rename(log_error_file,err_renamed,MYF(0));
-   if (redirect_std_streams(log_error_file))
-     result= 1;
-#endif
+    if (redirect_std_streams(log_error_file))
+      result= 1;
     VOID(pthread_mutex_unlock(&LOCK_error_log));
   }
-   return result;
+  return result;
 }
 
 void MYSQL_BIN_LOG::signal_update()

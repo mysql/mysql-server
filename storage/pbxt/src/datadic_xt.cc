@@ -396,7 +396,7 @@ void XTToken::expectNumber(XTThreadPtr self)
 struct charset_info_st;
 
 class XTTokenizer {
-	struct charset_info_st	*tkn_charset;
+	MX_CONST_CHARSET_INFO	*tkn_charset;
 	char					*tkn_cstring;
 	char					*tkn_curr_pos;
 	XTToken					*tkn_current;
@@ -1324,7 +1324,7 @@ void XTParseTable::parseDropIndex(XTThreadPtr self)
 class XTCreateTable : public XTParseTable {
 	public:
 	bool					ct_convert;
-	struct charset_info_st	*ct_charset;
+	MX_CONST_CHARSET_INFO	*ct_charset;
 	XTPathStrPtr			ct_tab_path;
 	u_int					ct_contraint_no;
 	XTDDTable				*ct_curr_table;
@@ -2039,11 +2039,6 @@ void XTDDTableRef::deleteAllRows(XTThreadPtr self)
 	if (!(ot = xt_db_open_table_using_tab(tr_fkey->co_table->dt_table, self)))
 		xt_throw(self);
 
-	/* {FREE-ROWS-BAD} */
-	/*
-	row_count = ((xtInt8) ot->ot_table->tab_row_eof_id) - 1;
-	row_count -= (xtInt8) ot->ot_table->tab_row_fnum;
-	*/
 	/* Check if there are any rows in the referencing table: */
 	if (!xt_tab_seq_init(ot))
 		goto failed;

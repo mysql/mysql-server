@@ -1910,7 +1910,7 @@ select hex(s1) from t4;
 drop table t1,t2,t3,t4;
 }
 
-if (test_foreign_keys)
+if ($test_foreign_keys)
 {
 eval create table t1 (a int primary key,s1 varbinary(3) not null unique) engine=$engine_type;
 eval create table t2 (s1 binary(2) not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=$engine_type;
@@ -2405,7 +2405,7 @@ drop table t1, t2, t3, t5, t6, t8, t9;
 }
 # End transactional tests
 
-if (test_foreign_keys)
+if ($test_foreign_keys)
 {
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
 --error 1005

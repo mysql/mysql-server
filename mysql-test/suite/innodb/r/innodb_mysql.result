@@ -2515,4 +2515,116 @@ LOCK TABLES t1 READ;
 ALTER TABLE t1 COMMENT 'test';
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+#  is returned
+#
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+CREATE TABLE t2 
+SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 1
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
+#
+# Bug#55580: segfault in read_view_sees_trx_id
+#
+CREATE TABLE t1 (a INT) ENGINE=Innodb;
+CREATE TABLE t2 (a INT) ENGINE=Innodb;
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+START TRANSACTION;
+SELECT * FROM t2 LOCK IN SHARE MODE;
+a
+1
+2
+START TRANSACTION;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+a
+1
+2
+SELECT * FROM t1 FOR UPDATE;
+# should not crash
+SELECT * FROM t1 GROUP BY (SELECT a FROM t2 LIMIT 1 FOR UPDATE) + t1.a;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+DROP TABLE t1,t2;
+#
+# Bug#55656: mysqldump can be slower after bug #39653 fix
+#
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	b
+key_len	4
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	PRIMARY
+key_len	8
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	PRIMARY
+key_len	8
+ref	NULL
+rows	3
+Extra	Using index
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	1
+select_type	SIMPLE
+table	t1
+type	index
+possible_keys	NULL
+key	PRIMARY
+key_len	8
+ref	NULL
+rows	3
+Extra	Using index
+DROP TABLE t1;
+#
 End of 5.1 tests
+#
+# Test for bug #39932 "create table fails if column for FK is in different
+#                      case than in corr index".
+#
+drop tables if exists t1, t2;
+create table t1 (pk int primary key) engine=InnoDB;
+# Even although the below statement uses uppercased field names in
+# foreign key definition it still should be able to find explicitly
+# created supporting index. So it should succeed and should not
+# create any additional supporting indexes.
+create table t2 (fk int, key x (fk),
+constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `x` (`fk`),
+  CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t2, t1;

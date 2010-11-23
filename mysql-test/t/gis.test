@@ -401,6 +401,7 @@ create table t1 (a int, b blob);
 insert into t1 values (1, ''), (2, NULL), (3, '1');
 select * from t1;
 
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 select
   geometryfromtext(b) IS NULL, geometryfromwkb(b) IS NULL, astext(b) IS NULL, 
   aswkb(b) IS NULL, geometrytype(b) IS NULL, centroid(b) IS NULL,
@@ -419,6 +420,7 @@ select
   intersects(b, b) IS NULL, crosses(b, b) IS NULL
 from t1;
 
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 select 
   point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL, 
   multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
@@ -702,24 +704,44 @@ drop table t1;
 # Bug#44684: valgrind reports invalid reads in 
 # Item_func_spatial_collection::val_str
 #
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 SELECT MultiPoint(12345,'');
-SELECT MultiPoint(123451,'');
-SELECT MultiPoint(1234512,'');
-SELECT MultiPoint(12345123,'');
+#SELECT MultiPoint(123451,'');
+#SELECT MultiPoint(1234512,'');
+#SELECT MultiPoint(12345123,'');
 
-SELECT MultiLineString(12345,'');
-SELECT MultiLineString(123451,'');
-SELECT MultiLineString(1234512,'');
-SELECT MultiLineString(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT MultiLineString(12345,'');
+#SELECT MultiLineString(123451,'');
+#SELECT MultiLineString(1234512,'');
+#SELECT MultiLineString(12345123,'');
 
-SELECT LineString(12345,'');
-SELECT LineString(123451,'');
-SELECT LineString(1234512,'');
-SELECT LineString(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT LineString(12345,'');
+#SELECT LineString(123451,'');
+#SELECT LineString(1234512,'');
+#SELECT LineString(12345123,'');
 
-SELECT Polygon(12345,'');
-SELECT Polygon(123451,'');
-SELECT Polygon(1234512,'');
-SELECT Polygon(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT Polygon(12345,'');
+#SELECT Polygon(123451,'');
+#SELECT Polygon(1234512,'');
+#SELECT Polygon(12345123,'');
+
+#
+# Bug55531 crash with conversions of geometry types / strings
+#
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));
+
+
+--echo #
+--echo # BUG#51875: crash when loading data into geometry function polyfromwkb
+--echo #
+SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
+SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
+
 
 --echo End of 5.1 tests

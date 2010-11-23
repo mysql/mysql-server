@@ -91,7 +91,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         !my_strcasecmp(system_charset_info, field_name,
+                        other.field_name);
 }
 
 /**
@@ -273,7 +275,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
 
   const char *old_info= thd->proc_info;
   DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
-                           (info != NULL) ? info : "(null)"));
+                           (info != NULL) ? info : ""));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif

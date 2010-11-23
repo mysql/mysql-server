@@ -1,0 +1,14 @@
+#
+--echo # WL#5370 Keep forward-compatibility when changing 'CREATE TABLE IF NOT
+--echo # EXISTS ... SELECT' behaviour
+--echo #
+
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+source extra/rpl_tests/rpl_stm_create_if_not_exists.test;
+
+let $is_temporary=1;
+source extra/rpl_tests/rpl_stm_create_if_not_exists.test;
+
+source include/master-slave-end.inc;

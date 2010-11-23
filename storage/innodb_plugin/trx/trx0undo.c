@@ -1066,13 +1066,10 @@ trx_undo_truncate_end(
 	ulint		last_page_no;
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
-	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-
-	rseg = trx->rseg;
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1868,7 +1865,6 @@ trx_undo_set_state_at_prepare(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_usegf_t*	seg_hdr;
-	trx_upagef_t*	page_hdr;
 	trx_ulogf_t*	undo_header;
 	page_t*		undo_page;
 	ulint		offset;
@@ -1886,7 +1882,6 @@ trx_undo_set_state_at_prepare(
 				      undo->hdr_page_no, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
@@ -1938,7 +1933,8 @@ trx_undo_update_cleanup(
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
 	} else {
-		ut_ad(undo->state == TRX_UNDO_TO_PURGE);
+		ut_ad(undo->state == TRX_UNDO_TO_PURGE
+		      || undo->state == TRX_UNDO_TO_FREE);
 
 		trx_undo_mem_free(undo);
 	}

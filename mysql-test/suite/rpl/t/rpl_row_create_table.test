@@ -299,5 +299,18 @@ DROP VIEW IF EXISTS bug48506_t1, bug48506_t2, bug48506_t3;
 DROP TEMPORARY TABLES t7;
 DROP TABLES t4, t5;
 DROP TABLES IF EXISTS bug48506_t4;
+sync_slave_with_master;
+
+#
+# Bug#55598 RBR: CREATE TABLE IF NOT EXISTS and INSERT written to binary log
+# twice
+#
+connection master;
+CREATE TABLE t1 SELECT 1;
+CREATE TABLE IF NOT EXISTS t1 SELECT 1;
+let $diff_table=test.t1;
+source include/rpl_diff_tables.inc;
+DROP TABLE t1;
+
 source include/master-slave-end.inc;
 --echo end of the tests

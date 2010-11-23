@@ -1397,4 +1397,115 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
+#
+# Bug#49600: outer join of two single-row tables with joining attributes
+#            evaluated to nulls
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1, NULL);
+insert into t2 values (2, NULL);
+select * from t1 left join t2 on t1.b=t2.b;
+a	b	a	b
+1	NULL	NULL	NULL
+select * from t1 left join t2 on t1.b=t2.b where 1=1;
+a	b	a	b
+1	NULL	NULL	NULL
+drop table t1,t2;
+#
+# Bug#53161: outer join in the derived table is erroneously converted
+#            into an inner join for a query with a group by clause
+# 
+create table t1 (pk int not null primary key, a int not null);
+create table t2 like t1;
+create table t3 like t1;
+create table t4 (pk int not null primary key);
+insert into t1 values (1000, 1), (1001, 1);
+insert into t2 values (2000, 2), (2001, 2);
+insert into t3 values (3000, 3), (3001, 2);
+insert into t4 values (4000), (4001);
+explain extended
+select t2.pk, 
+(select t3.pk+if(isnull(t4.pk),0,t4.pk) 
+from t3 left join t4 on t4.pk=t3.pk 
+where t3.pk=t2.pk+1000 limit 1 ) as t
+from t1,t2 
+where t2.pk=t1.pk+1000 and t1.pk>1000
+group by t2.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using temporary; Using filesort
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`pk` AS `pk`,(select (`test`.`t3`.`pk` + if(isnull(`test`.`t4`.`pk`),0,`test`.`t4`.`pk`)) from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t3`.`pk`)) where (`test`.`t3`.`pk` = (`test`.`t2`.`pk` + 1000)) limit 1) AS `t` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = (`test`.`t1`.`pk` + 1000)) and (`test`.`t1`.`pk` > 1000)) group by `test`.`t2`.`pk`
+select t2.pk, 
+(select t3.pk+if(isnull(t4.pk),0,t4.pk)
+from t3 left join t4 on t4.pk=t3.pk 
+where t3.pk=t2.pk+1000 limit 1 ) as t
+from t1,t2 
+where t2.pk=t1.pk+1000 and t1.pk>1000
+group by t2.pk;
+pk	t
+2001	3001
+drop table t1,t2,t3,t4;
+#
+# Bug#57024: Poor performance when conjunctive condition over the outer 
+#            table is used in the on condition of an outer join
+# 
+create table t1 (a int);
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 values (4), (2), (1), (3);
+create table t2 like t1;
+insert into t2 select if(t1.a is null, 10, t1.a) from t1;
+create table t3 (a int, b int, index idx(a));
+insert into t3 values (1, 100), (3, 301), (4, 402), (1, 102), (1, 101);
+analyze table t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+flush status;
+select sum(t3.b) from t1 left join t3 on t3.a=t1.a and t1.a is not null;
+sum(t3.b)
+1006
+show status like "handler_read%";
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_next	5
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1048581
+flush status;
+select sum(t3.b) from t2 left join t3 on t3.a=t2.a and t2.a <> 10;
+sum(t3.b)
+1006
+show status like "handler_read%";
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	4
+Handler_read_next	5
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1048581
+drop table t1,t2,t3;
 End of 5.1 tests

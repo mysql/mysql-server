@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-
 die <<EEE unless @ARGV;
 Usage: $0 func1 [func2 [ ...] ]
 
@@ -11,16 +10,16 @@ DBUG_ENTER() and DBUG_POP(); right before DBUG_RETURN in every such a function.
 EEE
 
 $re=join('|', @ARGV);
-$skip='';
 
 while(<STDIN>) {
-  print unless $skip;
+  ($thd) = /^(T@\d+)/;
+  print unless $skip{$thd};
   next unless /^(?:.*: )*((?:\| )*)([<>])($re)\n/o;
   if ($2 eq '>') {
-    $skip=$1.$3 unless $skip;
+    $skip{$thd}=$1.$3 unless $skip{$thd};
     next;
   }
-  next if $skip ne $1.$3;
-  $skip='';
+  next if $skip{$thd} ne $1.$3;
+  delete $skip{$thd};
   print;
 }

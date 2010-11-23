@@ -702,7 +702,6 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  String value;
   bool date_value;
  public:
   const interval_type int_type; // keep it public
@@ -881,6 +880,8 @@ public:
   { 
     decimals=0;
     max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    /* It returns NULL when the second argument is less or equal to 0 */
+    maybe_null= 1;
   }
   longlong val_int();
 };

@@ -33,7 +33,7 @@ ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
-{ "DEFAULT", "BACKUP", "FORCE", "QUICK", NullS};
+{ "DEFAULT", "BACKUP", "FORCE", "QUICK", "BACKUP_ALL", NullS};
 TYPELIB myisam_recover_typelib= {array_elements(myisam_recover_names)-1,"",
 				 myisam_recover_names, NULL};
 
@@ -799,9 +799,12 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MYISAM_SHARE* share = file->s;
   const char *old_proc_info=thd->proc_info;
+
+  if (!&param)
+    return HA_ADMIN_INTERNAL_ERROR;
 
   thd_proc_info(thd, "Checking table");
   myisamchk_init(&param);
@@ -891,8 +894,11 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 {
   int error=0;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   MYISAM_SHARE* share = file->s;
+
+  if (!&param)
+    return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1021,7 +1027,9 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
     myisamchk_init(&param);
     param.thd=        thd;
     param.op_name=    "backup";
@@ -1037,10 +1045,10 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
   ha_rows start_records;
 
-  if (!file) return HA_ADMIN_INTERNAL_ERROR;
+  if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1049,6 +1057,7 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
                    T_SILENT | T_FORCE_CREATE | T_CALC_CHECKSUM |
                    (check_opt->flags & T_EXTEND ? T_REP : T_REP_BY_SORT));
   param.sort_buffer_length= thd->variables.myisam_sort_buff_size;
+  param.backup_time= check_opt->start_time;
   start_records=file->state->records;
   while ((error=repair(thd,param,0)) && param.retry_repair)
   {
@@ -1088,8 +1097,9 @@ int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  if (!file) return HA_ADMIN_INTERNAL_ERROR;
-  HA_CHECK param;
+  HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+
+  if (!file || !&param) return HA_ADMIN_INTERNAL_ERROR;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -1283,7 +1293,10 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "assign_to_keycache";
@@ -1347,7 +1360,9 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "preload_keys";
@@ -1457,8 +1472,12 @@ int ha_myisam::enable_indexes(uint mode)
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
     THD *thd=current_thd;
-    HA_CHECK param;
+    HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
     const char *save_proc_info=thd->proc_info;
+
+    if (!&param)
+      return HA_ADMIN_INTERNAL_ERROR;
+
     thd_proc_info(thd, "Creating index");
     myisamchk_init(&param);
     param.op_name= "recreating_index";
@@ -1643,8 +1662,18 @@ bool ha_myisam::check_and_repair(THD *thd)
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
+    if (myisam_recover_options & (HA_RECOVER_FULL_BACKUP | HA_RECOVER_BACKUP))
+    {
+      char buff[MY_BACKUP_NAME_EXTRA_LENGTH+1];
+      my_create_backup_name(buff, "", check_opt.start_time);
+      sql_print_information("Making backup of data with extension '%s'", buff);
+    }
+    if (myisam_recover_options & HA_RECOVER_FULL_BACKUP)
+      mi_make_backup_of_index(file, check_opt.start_time,
+                              MYF(MY_WME | ME_JUST_WARNING));
     check_opt.flags=
-      ((myisam_recover_options & HA_RECOVER_BACKUP ? T_BACKUP_DATA : 0) |
+      (((myisam_recover_options &
+         (HA_RECOVER_BACKUP | HA_RECOVER_FULL_BACKUP)) ? T_BACKUP_DATA : 0) |
        (marked_crashed                             ? 0 : T_QUICK) |
        (myisam_recover_options & HA_RECOVER_FORCE  ? 0 : T_SAFE_REPAIR) |
        T_AUTO_REPAIR);

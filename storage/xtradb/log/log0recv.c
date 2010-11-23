@@ -2901,6 +2901,7 @@ recv_init_crash_recovery(void)
 /*==========================*/
 {
 	ut_a(!recv_needed_recovery);
+	ut_a(!srv_buffer_pool_shm_is_reused);
 
 	recv_needed_recovery = TRUE;
 

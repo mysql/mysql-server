@@ -16,12 +16,14 @@ check_cpu () {
     # on Linux (and others?) we can get detailed CPU information out of /proc
     cpuinfo="cat $CPUINFO"
 
+    # detect CPU architecture
+    cpu_arch=`$cpuinfo | grep 'arch' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+
     # detect CPU family
     cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
     if test -z "$cpu_family" ; then
       cpu_family=`$cpuinfo | grep 'cpu' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
     fi
-
     # detect CPU vendor and model
     cpu_vendor=`$cpuinfo | grep 'vendor_id' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
     model_name=`$cpuinfo | grep 'model name' | cut -d ':' -f 2 | head -1`
@@ -56,8 +58,8 @@ check_cpu () {
         fi  
         ;;
       *)
-        cpu_family=`uname -m`;
-        model_name=`uname -p`;
+        cpu_family=`uname -p`;
+        model_name=`uname -m`;
         ;;
     esac
   fi
@@ -65,9 +67,10 @@ check_cpu () {
   # detect CPU shortname as used by gcc options 
   # this list is not complete, feel free to add further entries
   cpu_arg=""
-  case "$cpu_family--$model_name" in
+  low_cpu_arg=""
+  case "$cpu_vendor--$cpu_family--$model_name--$cpu_arch" in
     # DEC Alpha
-    Alpha*EV6*)
+    *Alpha*EV6*)
       cpu_arg="ev6";
       ;;
     #Core 2 Duo  
@@ -96,6 +99,13 @@ check_cpu () {
     *Pentium*4*Mobile*)
       cpu_arg="pentium4m"
       ;;
+    *Pentium\(R\)*\ M*)
+      cpu_arg="pentium-m"
+      low_cpu_arg="pentium3"
+      ;;
+    *Pentium\(R\)*\ D*)
+      cpu_arg="prescott"
+      ;;
     *Pentium*4*)
       cpu_arg="pentium4"
       ;;
@@ -120,6 +130,12 @@ check_cpu () {
     *Celeron*)
       cpu_arg="pentium2"
       ;;
+    *Atom*)
+      cpu_arg="prescott"
+      ;;
+    *GenuineIntel*)
+      cpu_arg="pentium"
+      ;;
     *Turion*)
       cpu_arg="athlon64"
       ;;
@@ -129,8 +145,29 @@ check_cpu () {
     *Athlon*)
       cpu_arg="athlon"
       ;;
+    *AMD-K7*)
+      cpu_arg="athlon"
+      ;;
+    *Athlon*XP\ *)
+      cpu_arg="athlon-xp"
+      ;;
+    *AMD*Sempron\(tm\)*)
+      cpu_arg="athlon-mp"
+      ;;
+    *AMD*Athlon\(tm\)\ 64*)
+      cpu_arg="k8"
+      ;;
     *Opteron*)
       cpu_arg="opteron"
+      ;;
+    *Phenom*)
+      cpu_arg="k8"
+      ;;
+    *AuthenticAMD*)
+      cpu_arg="k6"
+      ;;
+    *VIA\ *)
+      cpu_arg="i686"
       ;;
     # MacOSX / Intel  
     *i386*i486*)
@@ -143,8 +180,11 @@ check_cpu () {
     *Itanium*)
       cpu_arg="itanium"
       ;;
+    *IA-64*)
+      cpu_arg="itanium"
+      ;;
     # Solaris Sparc
-    *sparc*sun4u*)
+    *sparc*sun4[uv]*)
       cpu_arg="sparc"
       ;;
     # Power PC
@@ -159,6 +199,10 @@ check_cpu () {
       cpu_arg=""
       ;;
   esac
+
+  if test "x$low_cpu_arg" = "x" ; then
+    low_cpu_arg="$cpu_arg"
+  fi
 
   if test -z "$cpu_arg" ; then
     if test "$CPUINFO" != " " ; then
@@ -198,7 +242,7 @@ check_cpu () {
         case `gcc -dumpmachine` in
           i?86-* | x86_64-*)
 	    if test "$cc_comp" -lt 304 ; then
-              check_cpu_cflags="-mcpu=${cpu_arg}"
+              check_cpu_cflags="-mcpu=${low_cpu_arg}"
             elif test "$cc_comp" -ge 402 ; then
               check_cpu_cflags="-mtune=native"
             else

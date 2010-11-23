@@ -27,8 +27,9 @@
 	if handle_locking is 0 then exit with error if some table is locked
 	if handle_locking is 1 then wait if table is locked
 
-        NOTE: This function is not used in the MySQL server. It is for
-        MERGE use independent from MySQL. Currently there is some code
+        NOTE: This function is only used in the MySQL server when a
+        table is cloned. It is also used for usage of MERGE
+        independent from MySQL. Currently there is some code
         duplication between myrg_open() and myrg_parent_open() +
         myrg_attach_children(). Please duplicate changes in these
         functions or make common sub-functions.
@@ -93,7 +94,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     }
     else
       fn_format(buff, buff, "", "", 0);
-    if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
+    if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0) |
+                       HA_OPEN_MERGE_TABLE)))
     {
       if (handle_locking & HA_OPEN_FOR_REPAIR)
       {
@@ -430,6 +432,8 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     m_info->open_tables[child_nr].table= myisam;
     m_info->open_tables[child_nr].file_offset= (my_off_t) file_offset;
     file_offset+= myisam->state->data_file_length;
+    /* Mark as MERGE table */
+    myisam->open_flag|= HA_OPEN_MERGE_TABLE;
 
     /* Check table definition match. */
     if (m_info->reclength != myisam->s->base.reclength)

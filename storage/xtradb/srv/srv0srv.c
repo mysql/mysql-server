@@ -213,6 +213,8 @@ UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* key value for shm */
 UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
+UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
+UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
@@ -306,6 +308,9 @@ UNIV_INTERN ulint srv_buf_pool_flushed = 0;
 /** Number of buffer pool reads that led to the
 reading of a disk page */
 UNIV_INTERN ulint srv_buf_pool_reads = 0;
+
+/** Time in seconds between automatic buffer pool dumps */
+UNIV_INTERN uint srv_auto_lru_dump = 0;
 
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
@@ -699,6 +704,8 @@ UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
+UNIV_INTERN os_event_t	srv_shutdown_event;
+
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
@@ -1004,6 +1011,7 @@ srv_init(void)
 	}
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
+	srv_shutdown_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -2231,7 +2239,7 @@ loop:
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information. */
 
-	os_thread_sleep(5000000);
+	os_event_wait_time(srv_shutdown_event, 5000000);
 
 	current_time = time(NULL);
 
@@ -2373,7 +2381,7 @@ loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	srv_lock_timeout_active = TRUE;
 
@@ -2538,7 +2546,7 @@ loop:
 
 	fflush(stderr);
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
@@ -2547,6 +2555,56 @@ loop:
 
 	srv_error_monitor_active = FALSE;
 
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*********************************************************************//**
+A thread which restores the buffer pool from a dump file on startup and does
+periodic buffer pool dumps.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_LRU_dump_restore_thread(
+/*====================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	uint	auto_lru_dump;
+	time_t	last_dump_time;
+	time_t	time_elapsed;
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "LRU dump/restore thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+	if (srv_auto_lru_dump)
+		buf_LRU_file_restore();
+
+	last_dump_time = time(NULL);
+
+loop:
+	os_event_wait_time(srv_shutdown_event, 5000000);
+
+	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+		goto exit_func;
+	}
+
+	time_elapsed = time(NULL) - last_dump_time;
+	auto_lru_dump = srv_auto_lru_dump;
+	if (auto_lru_dump > 0 && (time_t) auto_lru_dump < time_elapsed) {
+		last_dump_time = time(NULL);
+		buf_LRU_file_dump();
+	}
+
+	goto loop;
+exit_func:
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 
@@ -2696,7 +2754,7 @@ loop:
 
 		if (!skip_sleep) {
 
-			os_thread_sleep(1000000);
+			os_event_wait_time(srv_shutdown_event, 1000000);
 			srv_main_sleeps++;
 
 			/*
@@ -3282,9 +3340,10 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		sleep_ms = 10;
+		os_event_reset(srv_shutdown_event);
 	}
 
-	os_thread_sleep( sleep_ms * 1000 );
+	os_event_wait_time(srv_shutdown_event, sleep_ms * 1000);
 
 	history_len = trx_sys->rseg_history_len;
 	if (history_len > 1000)

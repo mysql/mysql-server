@@ -504,11 +504,7 @@ INSERT INTO t2 VALUES (),();
 CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
   WHERE b =(SELECT a FROM t1 LIMIT 1);
 
---disable_query_log
---disable_result_log
 CONNECT (con1, localhost, root,,);
---enable_query_log
---enable_result_log
 CONNECTION default;
 
 DELIMITER |;
@@ -768,4 +764,101 @@ UNLOCK TABLES;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+--echo #  is returned
+--echo #
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t2 
+  SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+DROP TABLE t1;  
+SET SQL_MODE=DEFAULT;
+
+
+
+--echo #
+--echo # Bug#55580: segfault in read_view_sees_trx_id
+--echo #
+CREATE TABLE t1 (a INT) ENGINE=Innodb;
+CREATE TABLE t2 (a INT) ENGINE=Innodb;
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1),(2);
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con1;
+START TRANSACTION;
+SELECT * FROM t2 LOCK IN SHARE MODE;
+
+connection con2;
+START TRANSACTION;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+
+connection con1;
+let $conn_id= `SELECT CONNECTION_ID()`;
+--send SELECT * FROM t1 FOR UPDATE
+
+connection con2;
+let $wait_timeout= 2;
+let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=$conn_id AND STATE='Sending data';
+--source include/wait_condition.inc
+--echo # should not crash
+--error ER_LOCK_DEADLOCK
+SELECT * FROM t1 GROUP BY (SELECT a FROM t2 LIMIT 1 FOR UPDATE) + t1.a;
+
+connection default;
+disconnect con1;
+disconnect con2;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#55656: mysqldump can be slower after bug #39653 fix
+--echo #
+
+CREATE TABLE t1 (a INT , b INT, c INT, d INT,
+  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP INDEX b ON t1;
+CREATE INDEX b ON t1(a,b,c,d);
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+
+
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Test for bug #39932 "create table fails if column for FK is in different
+--echo #                      case than in corr index".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (pk int primary key) engine=InnoDB;
+--echo # Even although the below statement uses uppercased field names in
+--echo # foreign key definition it still should be able to find explicitly
+--echo # created supporting index. So it should succeed and should not
+--echo # create any additional supporting indexes.
+create table t2 (fk int, key x (fk),
+                 constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
+show create table t2;
+drop table t2, t1;

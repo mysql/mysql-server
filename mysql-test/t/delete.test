@@ -387,4 +387,17 @@ DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #53034: Multiple-table DELETE statements not accepting
+--echo #             "Access compatibility" syntax
+--echo #
+
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+
+DELETE FROM t1.*, test.t2.*, a.* USING t1, t2, t3 AS a;
+
+DROP TABLE t1, t2, t3;
+
 --echo End of 5.1 tests

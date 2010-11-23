@@ -32,7 +32,6 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 	revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
         revoke ALL PRIVILEGES, GRANT OPTION FROM test_useprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 	connection default;
@@ -56,7 +55,6 @@ let $message= #### Testcase for trigger privilege on execution time ########;
 	select f1 from t1 order by f1;
         prepare ins1 from 'insert into t1 (f1) values (''insert2-no'')';
 
-        --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
         connect (use_privs,localhost,test_useprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	select current_user;
 	use priv_db;

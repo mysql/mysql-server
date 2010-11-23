@@ -851,4 +851,74 @@ ENGINE=MERGE  UNION=(t1,t2);
 SELECT t1.a FROM mm1,t1;
 DROP TABLE t1, t2, mm1;
 
+#--echo #
+#--echo # Bug #55568: user variable assignments crash server when used within
+#--echo #             query
+#--echo #
+#
+#
+# This test case is invalidated because of fix of bug 55531
+# The reason is that {1} is not a valid geometric collection.
+#
+#CREATE TABLE t1 (a INT);
+
+#INSERT INTO t1 VALUES (0), (1);
+
+#let $i=2;
+#while ($i)
+#{
+#  SELECT MULTIPOINT(
+#    1,
+#    (
+#      SELECT MULTIPOINT(
+#        MULTIPOINT(
+#          1,
+#          (SELECT COUNT(*) FROM (SELECT 1 FROM t1 GROUP BY a,a) d)
+#        )
+#      ) FROM t1
+#    )
+#  ) != COUNT(*) q FROM t1 GROUP BY a;
+#  dec $i;
+#}
+#
+#DROP TABLE t1;
+
+--echo #
+--echo # Bug #54468: crash after item's print() function when ordering/grouping 
+--echo #             by subquery
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (), ();
+
+SELECT 1 FROM t1
+GROUP BY
+GREATEST(t1.a,
+         (SELECT 1 FROM
+          (SELECT t1.b FROM t1,t1 t2
+           ORDER BY t1.a, t1.a LIMIT 1) AS d)
+        );
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #53544: Server hangs during JOIN query in stored procedure called
+--echo #             twice in a row
+--echo #
+
+CREATE TABLE t1(c INT);
+
+INSERT INTO t1 VALUES (1), (2);
+
+PREPARE stmt FROM "SELECT t2.c AS f1 FROM t1 LEFT JOIN
+                                        t1 t2 ON t1.c=t2.c RIGHT JOIN
+                                        t1 t3 ON t1.c=t3.c 
+                   GROUP BY f1;";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

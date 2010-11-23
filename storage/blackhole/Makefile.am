@@ -32,19 +32,16 @@ DEFS =                  @DEFS@
 
 noinst_HEADERS =	ha_blackhole.h
 
-EXTRA_LTLIBRARIES =	ha_blackhole.la
+EXTRA_LTLIBRARIES =	libblackhole.la ha_blackhole.la
 pkgplugin_LTLIBRARIES =	@plugin_blackhole_shared_target@
 ha_blackhole_la_LDFLAGS=-module -rpath $(pkgplugindir)
-ha_blackhole_la_CXXFLAGS=$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_blackhole_la_CFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_blackhole_la_CXXFLAGS=-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_blackhole_la_SOURCES=ha_blackhole.cc
 
 
-EXTRA_LIBRARIES =	libblackhole.a
-noinst_LIBRARIES =	@plugin_blackhole_static_target@
-libblackhole_a_CXXFLAGS=$(AM_CXXFLAGS)
-libblackhole_a_CFLAGS =	$(AM_CFLAGS)
-libblackhole_a_SOURCES=	ha_blackhole.cc
+noinst_LTLIBRARIES =	@plugin_blackhole_static_target@
+libblackhole_la_CXXFLAGS=$(AM_CXXFLAGS)
+libblackhole_la_SOURCES=	ha_blackhole.cc
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in

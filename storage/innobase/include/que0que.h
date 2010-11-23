@@ -367,6 +367,9 @@ struct que_thr_struct{
 					thus far */
 	ulint		lock_state;	/* lock state of thread (table or
 					row) */
+	ulint		fk_cascade_depth; /*!< maximum cascading call depth
+					supported for foreign key constraint
+					related delete/updates */
 };
 
 #define QUE_THR_MAGIC_N		8476583

@@ -3102,6 +3102,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	algorithm only works if the server is idle at shutdown */
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
+	os_event_set(srv_shutdown_event);
 loop:
 	os_thread_sleep(100000);
 

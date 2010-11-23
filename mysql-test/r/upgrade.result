@@ -141,10 +141,10 @@ USE `#mysql50#../blablabla`;
 ERROR 42000: Incorrect database name '#mysql50#../blablabla'
 show full tables;
 Tables_in_test	Table_type
-#mysql50#ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com	BASE TABLE
-rename table `#mysql50#ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com` to `ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com`;
+#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com	BASE TABLE
+rename table `#mysql50#ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com` to `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 show full tables;
 Tables_in_test	Table_type
-ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com	BASE TABLE
-drop table `ltoriaeinnovacionendesarrolloempres?9120761097220077376?cio_com`;
+ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com	BASE TABLE
+drop table `ltoriaeinnovacionendesarrolloempres#9120761097220077376#cio_com`;
 # End of 5.1 tests

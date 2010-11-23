@@ -1,3 +1,5 @@
+call mtr.add_suppression("@003f.frm' \\(errno: 22\\)");
+
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 

@@ -119,7 +119,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
                                                  dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/t1"))
+                    if (strstr(name, "/crashed"))
                     {
                       my_errno= HA_ERR_CRASHED;
                       goto err;
@@ -556,6 +556,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	share->lock.update_status=mi_update_status;
         share->lock.restore_status= mi_restore_status;
 	share->lock.check_status=mi_check_status;
+        share->lock.fix_status= (void (*)(void *, void *)) mi_fix_status;
       }
     }
 #endif
@@ -606,6 +607,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   info.s=share;
   info.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
+  info.open_flag= open_flags;
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile; /* Uniq number in process */
   if (share->data_file_type == COMPRESSED_RECORD)

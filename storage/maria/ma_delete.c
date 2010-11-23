@@ -489,7 +489,10 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
   }
   if (ret_value == 0 && anc_page->size > share->max_index_block_size)
   {
-    /* parent buffer got too big ; We have to split the page */
+    /*
+      parent buffer got too big ; We have to split the page.
+      The | 2 is there to force write of anc page below
+    */
     save_flag= 3;
     ret_value= _ma_split_page(info, key, anc_page,
                               share->max_index_block_size,
@@ -595,6 +598,7 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 	endpos= leaf_page->buff+ leaf_page->size;
 	if (ret_value == 1)
 	{
+          /* underflow writes "next_page" to disk */
 	  ret_value= underflow(info, keyinfo, leaf_page, &next_page,
                                endpos);
 	  if (ret_value == 0 && leaf_page->size >
@@ -608,6 +612,9 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 	}
 	else
 	{
+          if (_ma_write_keypage(&next_page, PAGECACHE_LOCK_LEFT_WRITELOCKED,
+                                DFLT_INIT_HITS))
+            goto err;
 	  DBUG_PRINT("test",("Inserting of key when deleting"));
 	  if (!_ma_get_last_key(&tmp_key, leaf_page, endpos))
 	    goto err;
@@ -702,7 +709,8 @@ static int del(MARIA_HA *info, MARIA_KEY *key,
 
   if (share->now_transactional &&
       _ma_log_add(anc_page, a_length,
-                  key_start, s_temp.changed_length, s_temp.move_length, 1))
+                  key_start, s_temp.changed_length, s_temp.move_length, 1,
+                  KEY_OP_DEBUG_LOG_ADD_2))
     goto err;
 
   DBUG_RETURN(new_leaf_length <=
@@ -971,7 +979,8 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                             anc_key_inserted.move_length,
                             key_deleted.changed_length),
                         anc_key_inserted.move_length -
-                        key_deleted.move_length, 1))
+                        key_deleted.move_length, 1,
+                        KEY_OP_DEBUG_LOG_ADD_3))
           goto err;
 
         /*
@@ -1211,7 +1220,7 @@ static int underflow(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                           anc_key_inserted.move_length,
                           key_deleted.changed_length),
                       anc_key_inserted.move_length -
-                      key_deleted.move_length, 1))
+                      key_deleted.move_length, 1,KEY_OP_DEBUG_LOG_ADD_4))
         goto err;
 
       /*
@@ -1449,25 +1458,23 @@ my_bool _ma_log_delete(MARIA_PAGE *ma_page, const uchar *key_pos,
                        enum en_key_debug debug_marker __attribute__((unused)))
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 2 + 3 + 3 + 6 + 3 + 7];
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 2 + 5+ 2 + 3 + 3 + 6 + 3 + 7];
   uchar *log_pos;
   LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 7];
   uint translog_parts, current_size, extra_length;
   uint offset= (uint) (key_pos - ma_page->buff);
   MARIA_HA *info= ma_page->info;
   MARIA_SHARE *share= info->s;
-  my_off_t page;
+  my_off_t page= ma_page->pos / share->block_size;
   DBUG_ENTER("_ma_log_delete");
   DBUG_PRINT("enter", ("page: %lu  changed_length: %u  move_length: %d",
-                       (ulong) (ma_page->pos / share->block_size),
-                       changed_length, move_length));
+                       (ulong) page, changed_length, move_length));
   DBUG_ASSERT(share->now_transactional && move_length);
   DBUG_ASSERT(offset + changed_length <= ma_page->size);
   DBUG_ASSERT(ma_page->org_size - move_length + append_length == ma_page->size);
   DBUG_ASSERT(move_length <= ma_page->org_size - share->keypage_header);
 
   /* Store address of new root page */
-  page= ma_page->pos / share->block_size;
   page_store(log_data + FILEID_STORE_SIZE, page);
   log_pos= log_data+ FILEID_STORE_SIZE + PAGE_STORE_SIZE;
   current_size= ma_page->org_size;
@@ -1475,6 +1482,11 @@ my_bool _ma_log_delete(MARIA_PAGE *ma_page, const uchar *key_pos,
 #ifdef EXTRA_DEBUG_KEY_CHANGES
   *log_pos++= KEY_OP_DEBUG;
   *log_pos++= debug_marker;
+
+  *log_pos++= KEY_OP_DEBUG_2;
+  int2store(log_pos,   ma_page->org_size);
+  int2store(log_pos+2, ma_page->size);
+  log_pos+=4;
 #endif
 
   /* Store keypage_flag */

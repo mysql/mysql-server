@@ -1713,4 +1713,15 @@ f1	f2	f3	f4	f1 = f2
 NULL	NULL	NULL	NULL	NULL
 drop table t1;
 #
+# Bug #54465: assert: field_types == 0 || field_types[field_pos] ==
+#             MYSQL_TYPE_LONGLONG
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT MAX((SELECT 1 FROM t1 ORDER BY @var LIMIT 1)) m FROM t1 t2, t1 
+ORDER BY t1.a;
+m
+1
+DROP TABLE t1;
+#
 End of 5.1 tests

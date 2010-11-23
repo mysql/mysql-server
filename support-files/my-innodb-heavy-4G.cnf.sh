@@ -109,6 +109,16 @@ binlog_cache_size = 1M
 # table which could otherwise use up all memory resources.
 max_heap_table_size = 64M
 
+# Size of the buffer used for doing full table scans.
+# Allocated per thread, if a full scan is needed.
+read_buffer_size = 2M
+
+# When reading rows in sorted order after a sort, the rows are read
+# through this buffer to avoid disk seeks. You can improve ORDER BY
+# performance a lot, if set this to a high value.
+# Allocated per thread, when needed.
+read_rnd_buffer_size = 16M
+
 # Sort buffer is used to perform sorts for some ORDER BY and GROUP BY
 # queries. If sorted data does not fit into the sort buffer, a disk
 # based merge sort is used instead - See the "Sort_merge_passes"
@@ -309,16 +319,6 @@ server-id = 1
 # MyISAM tables, you should still set it to 8-64M as it will also be
 # used for internal temporary disk tables.
 key_buffer_size = 32M
-
-# Size of the buffer used for doing full table scans of MyISAM tables.
-# Allocated per thread, if a full scan is needed.
-read_buffer_size = 2M
-
-# When reading rows in sorted order after a sort, the rows are read
-# through this buffer to avoid disk seeks. You can improve ORDER BY
-# performance a lot, if set this to a high value.
-# Allocated per thread, when needed.
-read_rnd_buffer_size = 16M
 
 # MyISAM uses special tree-like cache to make bulk inserts (that is,
 # INSERT ... SELECT, INSERT ... VALUES (...), (...), ..., and LOAD DATA

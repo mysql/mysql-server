@@ -29,16 +29,15 @@ LDADD =
 DEFS =	@DEFS@
 noinst_HEADERS	  =	ha_tina.h transparent_file.h
 
-EXTRA_LTLIBRARIES =	ha_csv.la
+EXTRA_LTLIBRARIES =	libcsv.la ha_csv.la
 pkglib_LTLIBRARIES =	@plugin_csv_shared_target@
 ha_csv_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
-ha_csv_la_CXXFLAGS =	$(AM_CXXFLAGS) -DMYSQL_PLUGIN
+ha_csv_la_CXXFLAGS =	-shared $(AM_CXXFLAGS) -DMYSQL_PLUGIN
 ha_csv_la_SOURCES =	transparent_file.cc ha_tina.cc 
 
-EXTRA_LIBRARIES =	libcsv.a
-noinst_LIBRARIES =	@plugin_csv_static_target@
-libcsv_a_CXXFLAGS =	$(AM_CXXFLAGS)
-libcsv_a_SOURCES =	transparent_file.cc ha_tina.cc
+noinst_LTLIBRARIES =	@plugin_csv_static_target@
+libcsv_la_CXXFLAGS =	$(AM_CXXFLAGS)
+libcsv_la_SOURCES =	transparent_file.cc ha_tina.cc
 
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper

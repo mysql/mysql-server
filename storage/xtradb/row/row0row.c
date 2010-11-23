@@ -294,7 +294,13 @@ row_build(
 
 	ut_ad(dtuple_check_typed(row));
 
-	if (j) {
+	if (!ext) {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored
+		column. No cache is needed. */
+		ut_ad(dict_table_get_format(index->table)
+		      < DICT_TF_FORMAT_ZIP);
+	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, row,
 				      dict_table_zip_size(index->table),
 				      heap);

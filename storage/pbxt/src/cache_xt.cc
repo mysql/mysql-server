@@ -668,6 +668,9 @@ xtPublic void xt_ind_init(XTThreadPtr self, size_t cache_size)
 			block->cb_data = buffer;
 			buffer += XT_INDEX_PAGE_SIZE;
 #endif
+#ifdef CHECK_BLOCK_TRAILERS
+			XT_SET_DISK_4(block->cp_check, 0xDEADBEEF);
+#endif
 			ind_cac_globals.cg_free_list = block;
 			block++;
 		}
@@ -683,6 +686,19 @@ xtPublic void xt_ind_init(XTThreadPtr self, size_t cache_size)
 	}
 	cont_(a);
 }
+
+#ifdef CHECK_BLOCK_TRAILERS
+xtPublic void check_block_trailers()
+{
+	XTIndBlockPtr	block;
+
+	block = ind_cac_globals.cg_blocks;
+	for (u_int i=0; i<ind_cac_globals.cg_block_count; i++) {
+		ASSERT_NS(XT_GET_DISK_4(block->cp_check) == 0xDEADBEEF);
+		block++;
+	}
+}
+#endif
 
 xtPublic void xt_ind_exit(XTThreadPtr self)
 {
@@ -1283,7 +1299,7 @@ static XTIndBlockPtr ind_cac_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNod
 	 * Conditionally count the number of deleted entries in the index:
 	 * We do this before other threads can read the block.
 	 */
-	if (ind->mi_lazy_delete && read_data)
+	if (ind && ind->mi_lazy_delete && read_data)
 		xt_ind_count_deleted_items(ot->ot_table, ind, block);
 
 	/* Add to the hash table: */
@@ -1357,6 +1373,9 @@ xtPublic xtBool xt_ind_write(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	IDX_CAC_UNLOCK(seg, ot->ot_thread);
 #ifdef XT_TRACK_INDEX_UPDATES
 	ot->ot_ind_changed++;
+#endif
+#ifdef CHECK_BLOCK_TRAILERS
+	check_block_trailers();
 #endif
 	return OK;
 }

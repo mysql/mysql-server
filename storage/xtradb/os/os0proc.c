@@ -246,12 +246,10 @@ os_shm_alloc(
 #if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 	ulint	size;
 	int	shmid;
-#endif
 
 	*is_new = FALSE;
-#if defined HAVE_SYS_IPC_H && HAVE_SYS_SHM_H
 	fprintf(stderr,
-		"InnoDB: The shared memory key %#x (%d) is specified.\n",
+		"InnoDB: The shared memory segment containing the buffer pool is: key  %#x (%d).\n",
 		key, key);
 # if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 	if (!os_use_large_pages || !os_large_page_size) {
@@ -268,12 +266,12 @@ os_shm_alloc(
 	if (shmid < 0) {
 		if (errno == EEXIST) {
 			fprintf(stderr,
-				"InnoDB: HugeTLB: The shared memory segment seems to exist already.\n");
+				"InnoDB: HugeTLB: The shared memory segment exists.\n");
 			shmid = shmget((key_t)key, (size_t)size,
 					SHM_HUGETLB | SHM_R | SHM_W);
 			if (shmid < 0) {
 				fprintf(stderr,
-					"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes.(reuse) errno %d\n",
+					"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes. (reuse) errno %d\n",
 					size, errno);
 				goto skip;
 			} else {
@@ -282,14 +280,14 @@ os_shm_alloc(
 			}
 		} else {
 			fprintf(stderr,
-				"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes.(new) errno %d\n",
+				"InnoDB: HugeTLB: Warning: Failed to allocate %lu bytes. (new) errno %d\n",
 				size, errno);
 			goto skip;
 		}
 	} else {
 		*is_new = TRUE;
 		fprintf(stderr,
-			"InnoDB: HugeTLB: The new shared memory segment is created.\n");
+			"InnoDB: HugeTLB: A new shared memory segment has been created .\n");
 	}
 
 	ptr = shmat(shmid, NULL, 0);
@@ -325,12 +323,12 @@ skip:
 	if (shmid < 0) {
 		if (errno == EEXIST) {
 			fprintf(stderr,
-				"InnoDB: The shared memory segment seems to exist already.\n");
+				"InnoDB: A shared memory segment containing the buffer pool seems to already exist.\n");
 			shmid = shmget((key_t)key, (size_t)size,
 					SHM_R | SHM_W);
 			if (shmid < 0) {
 				fprintf(stderr,
-					"InnoDB: Warning: Failed to allocate %lu bytes.(reuse) errno %d\n",
+					"InnoDB: Warning: Failed to allocate %lu bytes. (reuse) errno %d\n",
 					size, errno);
 				ptr = NULL;
 				goto end;
@@ -340,7 +338,7 @@ skip:
 			}
 		} else {
 			fprintf(stderr,
-				"InnoDB: Warning: Failed to allocate %lu bytes.(new) errno %d\n",
+				"InnoDB: Warning: Failed to allocate %lu bytes. (new) errno %d\n",
 				size, errno);
 			ptr = NULL;
 			goto end;
@@ -348,7 +346,7 @@ skip:
 	} else {
 		*is_new = TRUE;
 		fprintf(stderr,
-			"InnoDB: The new shared memory segment is created.\n");
+			"InnoDB: A new shared memory segment has been created.\n");
 	}
 
 	ptr = shmat(shmid, NULL, 0);

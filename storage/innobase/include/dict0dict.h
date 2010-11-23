@@ -588,6 +588,22 @@ dict_table_is_comp_noninline(
 					/* out: TRUE if table uses the
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
+/*********************************************************************//**
+Obtain exclusive locks on all index trees of the table. This is to prevent
+accessing index trees while InnoDB is updating internal metadata for
+operations such as truncate tables. */
+UNIV_INLINE
+void
+dict_table_x_lock_indexes(
+/*======================*/
+	dict_table_t*	table);	/* in: table */
+/*********************************************************************//**
+Release the exclusive locks on all index tree. */
+UNIV_INLINE
+void
+dict_table_x_unlock_indexes(
+/*========================*/
+	dict_table_t*	table);	/* in: table */
 /************************************************************************
 Checks if a column is in the ordering columns of the clustered index of a
 table. Column prefixes are treated like whole columns. */

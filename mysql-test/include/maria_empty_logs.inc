@@ -24,6 +24,7 @@ EOF
 
 --source include/mysqladmin_shutdown.inc
 
+--disable_warnings
 if (!$mel_keep_control_file)
 {
   --error 0,1
@@ -73,6 +74,7 @@ remove_file $MYSQLD_DATADIR/$MARIA_LOG/maria_log.00000020;
 
 -- error 0,1
 remove_file $MYSQLD_DATADIR/maria_recovery.trace;
+--enable_warnings
 
 append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 restart-maria_empty_logs.inc

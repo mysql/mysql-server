@@ -2228,6 +2228,26 @@ end:
 
 	return(ret);
 }
+
+typedef struct {
+	ib_uint32_t space_id;
+	ib_uint32_t page_no;
+} dump_record_t;
+
+static int dump_record_cmp(const void *a, const void *b)
+{
+	const dump_record_t *rec1 = (dump_record_t *) a;
+	const dump_record_t *rec2 = (dump_record_t *) b;
+
+	if (rec1->space_id < rec2->space_id)
+		return -1;
+	if (rec1->space_id > rec2->space_id)
+		return 1;
+	if (rec1->page_no < rec2->page_no)
+		return -1;
+	return rec1->page_no > rec2->page_no;
+}
+
 /********************************************************************//**
 Read the pages based on the specific file.*/
 UNIV_INTERN
@@ -2245,25 +2265,34 @@ buf_LRU_file_restore(void)
 	ulint		req = 0;
 	ibool		terminated = FALSE;
 	ibool		ret = FALSE;
-
-	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
-	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
-	if (!buffer) {
-		fprintf(stderr,
-			" InnoDB: cannot allocate buffer.\n");
-		goto end;
-	}
+	dump_record_t*	records= 0;
+	ulint		size;
+	ulint		size_high;
+	ulint		length;
 
 	dump_file = os_file_create_simple_no_error_handling(
 		LRU_DUMP_FILE, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
-	if (!success) {
+	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr,
 			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
 		goto end;
 	}
+	if (size == 0 || size_high > 0 || size % 8) {
+		fprintf(stderr, " InnoDB: broken LRU dump file\n");
+		goto end;
+	}
+	buffer_base = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buffer = ut_align(buffer_base, UNIV_PAGE_SIZE);
+	records = ut_malloc(size);
+	if (!buffer || !records) {
+		fprintf(stderr,
+			" InnoDB: cannot allocate buffer.\n");
+		goto end;
+	}
 
 	buffers = 0;
+	length = 0;
 	while (!terminated) {
 		success = os_file_read(dump_file, buffer,
 				(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
@@ -2272,15 +2301,14 @@ buf_LRU_file_restore(void)
 		if (!success) {
 			fprintf(stderr,
 				" InnoDB: cannot read page %lu of %s,"
-				" or meet unexpected terminal.",
+				" or meet unexpected terminal.\n",
 				buffers, LRU_DUMP_FILE);
 			goto end;
 		}
 
 		for (offset = 0; offset < UNIV_PAGE_SIZE/4; offset += 2) {
-			ulint	space_id, zip_size, page_no;
-			ulint	err;
-			ib_int64_t	tablespace_version;
+			ulint	space_id;
+			ulint	page_no;
 
 			space_id = mach_read_from_4(buffer + offset * 4);
 			page_no = mach_read_from_4(buffer + (offset + 1) * 4);
@@ -2290,31 +2318,61 @@ buf_LRU_file_restore(void)
 				break;
 			}
 
-			if (offset % 16 == 15) {
-				os_aio_simulated_wake_handler_threads();
-				buf_flush_free_margin(FALSE);
-			}
-
-			zip_size = fil_space_get_zip_size(space_id);
-			if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
-				continue;
-			}
-
-			if (fil_area_is_exist(space_id, zip_size, page_no, 0,
-					zip_size ? zip_size : UNIV_PAGE_SIZE)) {
-
-				tablespace_version = fil_space_get_version(space_id);
-
-				req++;
-				reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
-						  | OS_AIO_SIMULATED_WAKE_LATER,
-						  space_id, zip_size, TRUE,
-						  tablespace_version, page_no, NULL);
-				buf_LRU_stat_inc_io();
+			records[length].space_id = space_id;
+			records[length].page_no = page_no;
+			length++;
+			if (length * 8 >= size) {
+				fprintf(stderr,
+					" InnoDB: could not find the "
+					"end-of-file marker after reading "
+					"the expected %lu bytes from the "
+					"LRU dump file.\n"
+					" InnoDB: this could be caused by a "
+					"broken or incomplete file.\n"
+					" InnoDB: trying to process what has "
+					"been read so far.\n",
+					size);
+				terminated= TRUE;
+				break;
 			}
 		}
-
 		buffers++;
+	}
+
+	qsort(records, length, sizeof(dump_record_t), dump_record_cmp);
+
+	for (offset = 0; offset < length; offset++) {
+		ulint		space_id;
+		ulint		page_no;
+		ulint		zip_size;
+		ulint		err;
+		ib_int64_t	tablespace_version;
+
+		space_id = records[offset].space_id;
+		page_no = records[offset].page_no;
+
+		if (offset % 16 == 15) {
+			os_aio_simulated_wake_handler_threads();
+			buf_flush_free_margin(FALSE);
+		}
+
+		zip_size = fil_space_get_zip_size(space_id);
+		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+			continue;
+		}
+
+		if (fil_area_is_exist(space_id, zip_size, page_no, 0,
+				      zip_size ? zip_size : UNIV_PAGE_SIZE)) {
+
+			tablespace_version = fil_space_get_version(space_id);
+
+			req++;
+			reads += buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
+						   | OS_AIO_SIMULATED_WAKE_LATER,
+						   space_id, zip_size, TRUE,
+						   tablespace_version, page_no, NULL);
+			buf_LRU_stat_inc_io();
+		}
 	}
 
 	os_aio_simulated_wake_handler_threads();
@@ -2330,6 +2388,8 @@ end:
 		os_file_close(dump_file);
 	if (buffer_base)
 		ut_free(buffer_base);
+	if (records)
+		ut_free(records);
 
 	return(ret);
 }

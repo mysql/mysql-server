@@ -228,9 +228,8 @@ noinst_HEADERS=		\
 			include/ut0wqueue.h	\
 			mem/mem0dbg.c
 
-EXTRA_LIBRARIES=	libinnobase.a
-noinst_LIBRARIES=	@plugin_innodb_plugin_static_target@
-libinnobase_a_SOURCES=	\
+noinst_LTLIBRARIES=	@plugin_innodb_plugin_static_target@
+libinnobase_la_SOURCES=	\
 			btr/btr0btr.c			\
 			btr/btr0cur.c			\
 			btr/btr0pcur.c			\
@@ -325,16 +324,16 @@ libinnobase_a_SOURCES=	\
 			ut/ut0vec.c			\
 			ut/ut0wqueue.c
 
-libinnobase_a_CXXFLAGS=	$(AM_CXXFLAGS)
-libinnobase_a_CFLAGS=	$(AM_CFLAGS)
+libinnobase_la_CXXFLAGS=	$(AM_CXXFLAGS)
+libinnobase_la_CFLAGS=	$(AM_CFLAGS)
 
-EXTRA_LTLIBRARIES=	ha_innodb_plugin.la
+EXTRA_LTLIBRARIES=	libinnobase.la ha_innodb_plugin.la
 pkgplugin_LTLIBRARIES=	@plugin_innodb_plugin_shared_target@
 
 ha_innodb_plugin_la_LDFLAGS=	-module -rpath $(pkgplugindir)
-ha_innodb_plugin_la_CXXFLAGS=	$(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
-ha_innodb_plugin_la_CFLAGS=	$(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
-ha_innodb_plugin_la_SOURCES=	$(libinnobase_a_SOURCES)
+ha_innodb_plugin_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_plugin_la_CFLAGS=	-shared $(AM_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_plugin_la_SOURCES=	$(libinnobase_la_SOURCES)
 
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
