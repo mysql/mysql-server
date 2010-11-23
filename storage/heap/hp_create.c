@@ -104,6 +104,14 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           */
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           break;
+        case HA_KEYTYPE_BIT:
+          /*
+            The odd bits which stored separately (if they are present
+            (bit_pos, bit_length)) are already present in seg[j].length as
+            additional byte.
+            See field.h, function key_length()
+          */
+          break;
 	default:
 	  break;
 	}
