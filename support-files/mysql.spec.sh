@@ -211,7 +211,6 @@
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
@@ -399,6 +398,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
+export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -426,7 +426,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 # Build full release
 mkdir release
@@ -441,7 +441,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 
 # Use the build root for temporary storage of the shared libraries.
@@ -1037,9 +1037,6 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
-%if %{defined license_files_devel}
-%doc %{license_files_devel}
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1088,6 +1085,12 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too
+- Support MYSQL_BUILD_MAKE_JFLAG environment variable for passing
+  a '-j' argument to make.
+
 * Mon Nov 1 2010 Georgi Kodinov <georgi.godinov@oracle.com>
 
 - Added test authentication (WL#1054) plugin binaries
