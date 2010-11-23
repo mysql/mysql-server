@@ -363,6 +363,7 @@ Tables_in_mysql (%log%)
 general_log
 general_log_new
 ndb_binlog_index
+slave_relay_log_info
 slow_log
 slow_log_new
 drop table slow_log_new, general_log_new;

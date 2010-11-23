@@ -31,6 +31,7 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/not_master_info_table.inc
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
