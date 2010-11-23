@@ -21,7 +21,7 @@ SET(SHARED_LIB_MAJOR_VERSION "16")
 SET(PROTOCOL_VERSION "10")
 SET(DOT_FRM_VERSION "6")
 
-# Read value for a variable from configure.in
+# Read value for a variable from VERSION.
 
 MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
  IF(NOT ${var})

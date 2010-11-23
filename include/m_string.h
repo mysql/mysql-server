@@ -52,8 +52,6 @@
 # define memmove(d, s, n)	bmove ((d), (s), (n))
 #elif defined(HAVE_MEMMOVE)
 # define bmove(d, s, n)		memmove((d), (s), (n))
-#else
-# define memmove(d, s, n)	bmove((d), (s), (n)) /* our bmove */
 #endif
 
 /* Unixware 7 */
@@ -96,14 +94,6 @@ extern char _dig_vec_lower[];
 
 	/* Prototypes for string functions */
 
-#if !defined(bfill) && !defined(HAVE_BFILL)
-extern	void bfill(uchar *dst,size_t len,pchar fill);
-#endif
-
-#if !defined(HAVE_BMOVE) && !defined(bmove)
-extern	void bmove(uuchar *dst, const uchar *src,size_t len);
-#endif
-
 extern	void bmove_upp(uchar *dst,const uchar *src,size_t len);
 extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
 		     size_t new_len,size_t tot_len);
@@ -128,11 +118,6 @@ extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
 extern size_t strnlen(const char *s, size_t n);
 #endif
 
-#if !defined(__cplusplus)
-#ifndef HAVE_STRSTR
-extern char *strstr(const char *, const char *);
-#endif
-#endif
 extern int is_prefix(const char *, const char *);
 
 /* Conversion routines */
