@@ -765,6 +765,16 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/*!< in: transaction handle */
 
+/****************************************************************//**
+Parse and enable InnoDB monitor counters during server startup.
+User can enable monitor counters/groups by specifying
+"loose-innodb_enable_monitor_counter = monitor_name1;monitor_name2..."
+in server configuration file or at the command line. */
+static
+void
+innodb_enable_monitor_at_startup(
+/*=============================*/
+	char*	str);	/*!< in: monitor counter enable list */
 
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
@@ -2598,6 +2608,11 @@ innobase_change_buffering_inited_ok:
 	srv_latin1_ordering = my_charset_latin1.sort_order;
 
 	innobase_commit_concurrency_init_default();
+
+	if (innobase_enable_monitor_counter) {
+		innodb_enable_monitor_at_startup(
+			innobase_enable_monitor_counter);
+	}
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
@@ -11417,7 +11432,6 @@ innodb_monitor_update(
 	ulint		temp_id;
 	ulint		err_monitor = 0;
 
-	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
 
 	temp_id = *(ulint *) save;
@@ -11430,13 +11444,23 @@ innodb_monitor_update(
 		print a message and make this set operation a "noop".
 		The check is being made here is because "set default"
 		does not go through validation function */
-		push_warning_printf(thd,
-				    MYSQL_ERROR::WARN_LEVEL_WARN,
-				    ER_NO_DEFAULT,
-				    "Default value is not defined for "
-				    "this set option. Please specify "
-				    "correct counter or module name.");
-		*(const char**) var_ptr = NULL;
+		if (thd) {
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_NO_DEFAULT,
+				"Default value is not defined for "
+				"this set option. Please specify "
+				"correct counter or module name.");
+		} else {
+			sql_print_error(
+				"Default value is not defined for "
+				"this set option. Please specify "
+				"correct counter or module name.\n");
+		}
+
+		if (var_ptr) {
+			*(const char**) var_ptr = NULL;
+		}
 	} else {
 		monitor_info = srv_mon_get_info(monitor_id);
 
@@ -11451,7 +11475,9 @@ innodb_monitor_update(
 			goto exit;
 		}
 
-		*(const char**) var_ptr = monitor_info->monitor_name;
+		if (var_ptr) {
+			*(const char**) var_ptr = monitor_info->monitor_name;
+		}
 
 		/* Depending on the monitor name is for a module or
 		a counter, process counters in the whole module or
@@ -11590,6 +11616,46 @@ innodb_reset_all_monitor_update(
 						from check function */
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+}
+
+/****************************************************************//**
+Parse and enable InnoDB monitor counters during server startup.
+User can list the monitor counters/groups to be enable by specifying
+"loose-innodb_enable_monitor_counter=monitor_name1;monitor_name2..."
+in server configuration file or at the command line. The string
+separate could be ";", "," or empty space. */
+static
+void
+innodb_enable_monitor_at_startup(
+/*=============================*/
+	char*	str)	/*!< in/out: monitor counter enable list */
+{
+	static const char*	sep = " ;,";
+	char*			last;
+
+	ut_a(str);
+
+	/* Walk through the string, and separate each monitor counter
+	and/or counter group name, and calling innodb_monitor_update()
+	if successfully updated. Please note that the "str" would be
+	changed by strtok_r() as it walks through it. */
+	for (char* option = strtok_r(str, sep, &last);
+	     option;
+	     option = strtok_r(NULL, sep, &last)) {
+		ulint	ret;
+		ulint	mon_idx;
+
+		ret = innodb_monitor_valid_byname(&mon_idx, option);
+
+		/* The name is validated if ret == 0 */
+		if (!ret) {
+                        innodb_monitor_update(NULL, NULL, &mon_idx,
+                                              MONITOR_TURN_ON);
+                } else {
+			sql_print_warning("Invalid monitor counter"
+					  " name: '%s'", option);
+		}
+	}
 }
 
 /****************************************************************//**

@@ -409,6 +409,23 @@ on the counters */
 		}							\
 	}
 
+#define	MONITOR_INC_VALUE(monitor, value)				\
+	if (MONITOR_IS_ON(monitor)) {					\
+		MONITOR_VALUE(monitor) += (value);			\
+		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
+			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	}
+
+#define	MONITOR_DEC_VALUE(monitor, value)				\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ut_ad(MONITOR_VALUE(monitor) >= (value);		\
+		MONITOR_VALUE(monitor) -= (value);			\
+		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
+			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	}
+
 /* Increment/decrement counter without check the monitor on/off bit, which
 could already be checked as a module group */
 #define	MONITOR_INC_NOCHECK(monitor)					\
