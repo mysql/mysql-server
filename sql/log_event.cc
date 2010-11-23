@@ -7797,6 +7797,9 @@ static uint decide_row_lookup_algorithm(TABLE* table, MY_BITMAP *cols, uint even
   const char* s= ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
                   ((res == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" : 
                    "INDEX_SCAN"));
+
+  // only for testing purposes
+  slave_rows_last_search_algorithm_used= res;
   DBUG_PRINT("debug", ("Row lookup method: %s", s));
 #endif
 
