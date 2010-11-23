@@ -568,7 +568,10 @@ sub run_test_server ($$$) {
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
 	      push(@$completed, $result);
-	      return $completed;
+	      return $completed unless $result->{'dont_kill_server'};
+	      # Prevent kill of server, to get valgrind report
+	      print $sock "BYE\n";
+	      next;
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
@@ -808,13 +811,14 @@ sub run_worker ($) {
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
+      my $valgrind_reports= 0;
       if ($opt_valgrind_mysqld) {
-        valgrind_exit_reports();
+        $valgrind_reports= valgrind_exit_reports();
       }
       if ( $opt_gprof ) {
 	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
       }
-      exit(0);
+      exit($valgrind_reports);
     }
     else {
       mtr_error("Could not understand server, '$line'");
@@ -4232,7 +4236,12 @@ sub after_failure ($) {
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
-  stop_all_servers();
+  if ($opt_valgrind_mysqld && ($tinfo->{'warnings'} || $tinfo->{'timeout'})) {
+    # In these cases we may want valgrind report from normal termination
+    $tinfo->{'dont_kill_server'}= 1;
+  }
+  # Shotdown properly if not to be killed (for valgrind)
+  stop_all_servers($tinfo->{'dont_kill_server'} ? $opt_shutdown_timeout : 0);
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
 
@@ -5359,6 +5368,8 @@ sub valgrind_arguments {
 #
 
 sub valgrind_exit_reports() {
+  my $found_err= 0;
+
   foreach my $log_file (keys %mysqld_logs)
   {
     my @culprits= ();
@@ -5394,7 +5405,7 @@ sub valgrind_exit_reports() {
         next;
       }
       # This line marks the start of a valgrind report
-      $found_report= 1 if $line =~ /ERROR SUMMARY:/;
+      $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
 
       if ($found_report) {
         $line=~ s/^==\d+== //;
@@ -5411,8 +5422,11 @@ sub valgrind_exit_reports() {
       mtr_print ("Valgrind report from $log_file after tests:\n", @culprits);
       mtr_print_line();
       print ("$valgrind_rep\n");
+      $found_err= 1;
     }
   }
+
+  return $found_err;
 }
 
 #
