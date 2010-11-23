@@ -20,6 +20,7 @@ test_truncate_txn_abort (int n) {
     DBC *cursor;
 
     r = db_env_create(&env, 0); assert(r == 0);
+    db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
     r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     int i;
