@@ -17,6 +17,8 @@ proc
 procs_priv
 proxies_priv
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
@@ -51,6 +53,8 @@ proc
 procs_priv
 proxies_priv
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
@@ -93,6 +97,8 @@ proc
 procs_priv
 proxies_priv
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
