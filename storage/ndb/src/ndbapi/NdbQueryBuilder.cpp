@@ -322,7 +322,7 @@ NdbQueryDef::getImpl() const{
 }
 
 void 
-NdbQueryDef::release() const
+NdbQueryDef::destroy() const
 {
   delete &getImpl();
 }
@@ -435,6 +435,10 @@ NdbQueryOptions::setOrdering(ScanOrdering ordering)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==0))
+    {
+      return Err_MemoryAlloc;
+    }
   }
   m_pimpl->m_scanOrder = ordering;
   return 0;
@@ -446,6 +450,10 @@ NdbQueryOptions::setMatchType(MatchType matchType)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==0))
+    {
+      return Err_MemoryAlloc;
+    }
   }
   m_pimpl->m_matchType = matchType;
   return 0;
@@ -457,6 +465,10 @@ NdbQueryOptions::setParent(const NdbQueryOperationDef* parent)
   if (m_pimpl==&defaultOptions)
   {
     m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==0))
+    {
+      return Err_MemoryAlloc;
+    }
   }
   m_pimpl->m_parent = &parent->getImpl();
   return 0;
@@ -586,23 +598,41 @@ NdbQueryOperationDef::getIndex() const
 /*******************************************
  * Implementation of NdbQueryBuilder factory
  ******************************************/
-NdbQueryBuilder::NdbQueryBuilder(Ndb& ndb)
-: m_pimpl(new NdbQueryBuilderImpl(ndb))
+// Static method.
+NdbQueryBuilder* NdbQueryBuilder::create(Ndb& ndb)
+{
+  NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl(ndb);
+  if (likely (impl != NULL))
+  {
+    return &impl->m_interface;
+  }
+  else
+  {
+    return NULL;
+  }
+}
+
+void NdbQueryBuilder::destroy()
+{
+  delete &m_impl;
+}
+
+NdbQueryBuilder::NdbQueryBuilder(NdbQueryBuilderImpl& impl)
+: m_impl(impl)
 {}
 
 NdbQueryBuilder::~NdbQueryBuilder()
-{ delete m_pimpl;
-}
+{}
 
 inline NdbQueryBuilderImpl&
 NdbQueryBuilder::getImpl() const
-{ return *m_pimpl;
+{ return m_impl;
 }
 
 const NdbError&
 NdbQueryBuilder::getNdbError() const
 {
-  return m_pimpl->getNdbError();
+  return m_impl.getNdbError();
 }
 
 //////////////////////////////////////////////////
@@ -616,7 +646,7 @@ NdbQueryBuilder::constValue(const char* value)
   NdbConstOperandImpl* constOp = new NdbCharConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -626,7 +656,7 @@ NdbQueryBuilder::constValue(const void* value, Uint32 len)
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,len);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -635,7 +665,7 @@ NdbQueryBuilder::constValue(Int32 value)
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -644,7 +674,7 @@ NdbQueryBuilder::constValue(Uint32 value)
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -653,7 +683,7 @@ NdbQueryBuilder::constValue(Int64 value)
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -662,7 +692,7 @@ NdbQueryBuilder::constValue(Uint64 value)
   NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbConstOperand* 
@@ -671,7 +701,7 @@ NdbQueryBuilder::constValue(double value)
   NdbConstOperandImpl* constOp = new NdbDoubleConstOperandImpl(value);
   returnErrIf(constOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(constOp);
+  m_impl.m_operands.push_back(constOp);
   return &constOp->m_interface;
 }
 NdbParamOperand* 
@@ -680,7 +710,7 @@ NdbQueryBuilder::paramValue(const char* name)
   NdbParamOperandImpl* paramOp = new NdbParamOperandImpl(name,getImpl().m_paramCnt++);
   returnErrIf(paramOp==0,Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(paramOp);
+  m_impl.m_operands.push_back(paramOp);
   return &paramOp->m_interface;
 }
 
@@ -692,7 +722,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   NdbQueryOperationDefImpl& parentImpl = parent->getImpl();
 
   // Parent should be a OperationDef contained in this query builder context
-  returnErrIf(!m_pimpl->contains(&parentImpl), QRY_UNKONWN_PARENT);
+  returnErrIf(!m_impl.contains(&parentImpl), QRY_UNKONWN_PARENT);
 
   // 'attr' should refer a column from the underlying table in parent:
   const NdbColumnImpl* column = parentImpl.getTable().getColumn(attr);
@@ -705,7 +735,7 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
   NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parentImpl,colIx);
   returnErrIf(linkedOp==0, Err_MemoryAlloc);
 
-  m_pimpl->m_operands.push_back(linkedOp);
+  m_impl.m_operands.push_back(linkedOp);
   return &linkedOp->m_interface;
 }
 
@@ -716,7 +746,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                            const char* ident)
 {
   int i;
-  if (m_pimpl->hasError())
+  if (m_impl.hasError())
     return NULL;
 
   returnErrIf(table==0 || keys==0, QRY_REQ_ARG_IS_NULL);
@@ -741,7 +771,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                                        keys, 
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
-                                       m_pimpl->m_operations.size());
+                                       m_impl.m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
   Uint32 keyindex = 0;
@@ -753,7 +783,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
       assert (keyindex==col->m_keyInfoPos);
       int error = op->m_keys[col->m_keyInfoPos]->bindOperand(*col,*op);
       if (unlikely(error))
-      { m_pimpl->setErrorCode(error);
+      { m_impl.setErrorCode(error);
         delete op;
         return NULL;
       }
@@ -764,7 +794,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     }
   }
   
-  m_pimpl->m_operations.push_back(op);
+  m_impl.m_operations.push_back(op);
   return &op->m_interface;
 }
 
@@ -778,7 +808,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 {
   int i;
 
-  if (m_pimpl->hasError())
+  if (m_impl.hasError())
     return NULL;
   returnErrIf(table==0 || index==0 || keys==0, QRY_REQ_ARG_IS_NULL);
 
@@ -811,7 +841,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                                        keys,
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
-                                       m_pimpl->m_operations.size());
+                                       m_impl.m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
   // Bind to Column and check type compatibility
@@ -822,13 +852,13 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
 
     int error = keys[i]->getImpl().bindOperand(col,*op);
     if (unlikely(error))
-    { m_pimpl->setErrorCode(error);
+    { m_impl.setErrorCode(error);
       delete op;
       return NULL;
     }
   }
 
-  m_pimpl->m_operations.push_back(op);
+  m_impl.m_operations.push_back(op);
   return &op->m_interface;
 }
 
@@ -838,7 +868,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                            const NdbQueryOptions* options,
                            const char* ident)
 {
-  if (m_pimpl->hasError())
+  if (m_impl.hasError())
     return NULL;
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
 
@@ -846,10 +876,10 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
     new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
-                                          m_pimpl->m_operations.size());
+                                          m_impl.m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
-  m_pimpl->m_operations.push_back(op);
+  m_impl.m_operations.push_back(op);
 
   const Uint32 error = op->markScanAncestors();
   returnErrIf(error!=0, error);
@@ -865,7 +895,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                            const NdbQueryOptions* options,
                            const char* ident)
 {
-  if (m_pimpl->hasError())
+  if (m_impl.hasError())
     return NULL;
   // Required non-NULL arguments
   returnErrIf(table==0 || index==0, QRY_REQ_ARG_IS_NULL);
@@ -889,12 +919,12 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                                           bound,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
-                                          m_pimpl->m_operations.size());
+                                          m_impl.m_operations.size());
   returnErrIf(op==0, Err_MemoryAlloc);
 
   if (unlikely(op->m_bound.lowKeys  > indexImpl.getNoOfColumns() ||
                op->m_bound.highKeys > indexImpl.getNoOfColumns()))
-  { m_pimpl->setErrorCode(QRY_TOO_MANY_KEY_VALUES);
+  { m_impl.setErrorCode(QRY_TOO_MANY_KEY_VALUES);
     delete op;
     return NULL;
   }
@@ -910,7 +940,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
        : op->m_bound.low[i]->bindOperand(col,*op);
 
     if (unlikely(error))
-    { m_pimpl->setErrorCode(error);
+    { m_impl.setErrorCode(error);
       delete op;
       return NULL;
     }
@@ -922,7 +952,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
     const int error = op->m_bound.high[i]->bindOperand(col,*op);
     if (unlikely(error))
-    { m_pimpl->setErrorCode(error);
+    { m_impl.setErrorCode(error);
       delete op;
       return NULL;
     }
@@ -930,12 +960,12 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 
   const int error = op->markScanAncestors();
   if (unlikely(error))
-  { m_pimpl->setErrorCode(error);
+  { m_impl.setErrorCode(error);
     delete op;
     return NULL;
   }
 
-  m_pimpl->m_operations.push_back(op);
+  m_impl.m_operations.push_back(op);
 
   return &op->m_interface;
 }
@@ -943,7 +973,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
 const NdbQueryDef*
 NdbQueryBuilder::prepare()
 {
-  const NdbQueryDefImpl* def = m_pimpl->prepare();
+  const NdbQueryDefImpl* def = m_impl.prepare();
   return (def) ? &def->getInterface() : NULL;
 }
 
@@ -952,7 +982,8 @@ NdbQueryBuilder::prepare()
 ////////////////////////////////////////
 
 NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
-: m_ndb(ndb), m_error(),
+: m_interface(*this),
+  m_ndb(ndb), m_error(),
   m_operations(),
   m_operands(),
   m_paramCnt(0)

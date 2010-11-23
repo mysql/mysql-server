@@ -335,7 +335,7 @@ int testQueryBuilder(Ndb &myNdb)
    * Main purpose is to examplify how NdbQueryBuilder is used to prepare
    * reusable query object - no ::execute() is performed yet.
    */
-  NdbQueryBuilder myBuilder(myNdb);
+  NdbQueryBuilder* const myBuilder = NdbQueryBuilder::create(myNdb);
 
 #if 0
   printf("Compare with old API interface\n");
@@ -381,7 +381,7 @@ int testQueryBuilder(Ndb &myNdb)
   printf("q1\n");
   const NdbQueryDef* q1 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     const NdbQueryOperand* managerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->constValue("d005"),             // dept_no = "d005"
@@ -404,7 +404,7 @@ int testQueryBuilder(Ndb &myNdb)
   printf("q2\n");
   const NdbQueryDef* q2 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     // Manager key defined as parameter 
     const NdbQueryOperand* managerKey[] =       // Manager is indexed om {"dept_no", "emp_no"}
@@ -424,7 +424,7 @@ int testQueryBuilder(Ndb &myNdb)
   printf("q3\n");
   const NdbQueryDef* q3 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     const NdbQueryIndexBound* managerBound =       // Manager is indexed om {"dept_no", "emp_no"}
     {  ....
@@ -453,7 +453,7 @@ int testQueryBuilder(Ndb &myNdb)
   printf("q4\n");
   const NdbQueryDef* q4 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     const NdbQueryOperand* constManagerKey[] =  // Manager is indexed om {"dept_no", "emp_no"}
     {  qb->constValue("d005"),   // dept_no = "d005"
@@ -571,7 +571,7 @@ int testQueryBuilder(Ndb &myNdb)
   printf("q4_1\n");
   const NdbQueryDef* q4_1 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     const NdbQueryOperand* empKey[] =       // Employee is indexed om {"emp_no"}
     {
@@ -691,7 +691,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   const NdbQueryDef* q5 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     // Lookup Primary key for manager table
     const NdbDictionary::Index *myPIndex= myDict->getIndex("MYINDEXNAME$unique", manager->getName());
@@ -777,7 +777,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   const NdbQueryDef* q6 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
 /****
     // Lookup Primary key for manager table
@@ -908,7 +908,7 @@ int testQueryBuilder(Ndb &myNdb)
 
   const NdbQueryDef* q6_1 = 0;
   {
-    NdbQueryBuilder* qb = &myBuilder; //myDict->getQueryBuilder();
+    NdbQueryBuilder* qb = myBuilder; //myDict->getQueryBuilder();
 
     // Lookup Primary key for manager table
     const NdbDictionary::Index *myPIndex= myDict->getIndex("PRIMARY", manager->getName());

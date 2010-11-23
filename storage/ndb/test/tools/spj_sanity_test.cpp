@@ -339,6 +339,10 @@ namespace SPJSanityTest{
 
     explicit Query(Ndb& ndb);
 
+    ~Query(){
+      m_builder->destroy();
+    }
+
     /** Build query definition.*/
     void build(const NdbDictionary::Table& tab, int tableSize);
 
@@ -383,7 +387,7 @@ namespace SPJSanityTest{
     }
   private:
     Ndb& m_ndb;
-    NdbQueryBuilder m_builder;
+    NdbQueryBuilder* const m_builder;
     Operation* m_root;
     const NdbQueryDef* m_queryDef;
     NdbQuery* m_query;
@@ -486,19 +490,21 @@ namespace SPJSanityTest{
 
   Query::Query(Ndb& ndb):
     m_ndb(ndb),
-    m_builder(ndb),
+    m_builder(NdbQueryBuilder::create(ndb)),
     m_root(NULL),
     m_queryDef(NULL),
     m_query(NULL),
     m_operationCount(0),
     m_tableSize(-1),
     m_ndbRecord(NULL)
-  {}
+  {
+    ASSERT_ALWAYS(m_builder != NULL);
+  }
 
   void Query::build(const NdbDictionary::Table& tab, int tableSize){
     m_tableSize = tableSize;
-    m_root->build(m_builder, tab);
-    m_queryDef = m_builder.prepare();
+    m_root->build(*m_builder, tab);
+    m_queryDef = m_builder->prepare();
     m_ndbRecord = tab.getDefaultRecord();
   }
 
@@ -970,7 +976,6 @@ namespace SPJSanityTest{
                int rowCount){
     // Populate test table.
     makeTable(mysql, tabName, tabSize);
-    NdbQueryBuilder builder(ndb);
     NdbDictionary::Dictionary*  const dict = ndb.getDictionary();
     const NdbDictionary::Table* const tab = dict->getTable(tabName);    
     ASSERT_ALWAYS(tab!=NULL);

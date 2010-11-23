@@ -1330,7 +1330,8 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 ///////////////////////////////////////////
 
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
-                           const NdbQueryDefImpl& queryDef):
+                           const NdbQueryDefImpl& queryDef,
+                           int& errorCode):
   m_interface(*this),
   m_state(Initial),
   m_tcState(Inactive),
@@ -1357,12 +1358,17 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_prunability(Prune_No),
   m_pruneHashVal(0)
 {
+  errorCode = 0;
   // Allocate memory for all m_operations[] in a single chunk
   m_countOperations = queryDef.getNoOfOperations();
   Uint32  size = m_countOperations * 
     static_cast<Uint32>(sizeof(NdbQueryOperationImpl));
   m_operations = static_cast<NdbQueryOperationImpl*> (::operator new(size));
-  assert (m_operations);
+  if (unlikely(m_operations == NULL))
+  {
+    errorCode = Err_MemoryAlloc;
+    return;
+  }
 
   // Then; use placement new to construct each individual 
   // NdbQueryOperationImpl object in m_operations
@@ -1418,9 +1424,17 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
     return NULL;
   }
 
-  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
-  if (query==NULL) {
+  int errorCode = 0;
+  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef, errorCode);
+  if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
+    return NULL;
+  }
+  if (unlikely(errorCode != 0))
+  {
+    trans.setOperationErrorCodeAbort(errorCode);
+    delete query;
+    return NULL;
   }
   assert(query->m_state==Initial);
   return query;
