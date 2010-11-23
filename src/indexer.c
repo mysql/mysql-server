@@ -305,7 +305,7 @@ close_indexer(DB_INDEXER *indexer) {
         }
 
         // Disassociate the indexer from the hot db and free_indexer
-//        disassociate_indexer_from_hot_dbs(indexer);
+        disassociate_indexer_from_hot_dbs(indexer);
         free_indexer(indexer);
     }
     toku_ydb_unlock();
