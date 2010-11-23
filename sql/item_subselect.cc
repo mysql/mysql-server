@@ -50,7 +50,7 @@ Item_subselect::Item_subselect():
     item value is NULL if select_subselect not changed this value
     (i.e. some rows will be found returned)
   */
-  null_value= 1;
+  null_value= TRUE;
 }
 
 
@@ -430,9 +430,9 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_singlerow_subselect::reset()
 {
-  null_value= 1;
+  null_value= TRUE;
   if (value)
-    value->null_value= 1;
+    value->null_value= TRUE;
 }
 
 
@@ -577,7 +577,7 @@ double Item_singlerow_subselect::val_real()
   DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
   {
-    null_value= 0;
+    null_value= FALSE;
     return value->val_real();
   }
   else
@@ -592,7 +592,7 @@ longlong Item_singlerow_subselect::val_int()
   DBUG_ASSERT(fixed == 1);
   if (!exec() && !value->null_value)
   {
-    null_value= 0;
+    null_value= FALSE;
     return value->val_int();
   }
   else
@@ -606,7 +606,7 @@ String *Item_singlerow_subselect::val_str(String *str)
 {
   if (!exec() && !value->null_value)
   {
-    null_value= 0;
+    null_value= FALSE;
     return value->val_str(str);
   }
   else
@@ -621,7 +621,7 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 {
   if (!exec() && !value->null_value)
   {
-    null_value= 0;
+    null_value= FALSE;
     return value->val_decimal(decimal_value);
   }
   else
@@ -636,7 +636,7 @@ bool Item_singlerow_subselect::val_bool()
 {
   if (!exec() && !value->null_value)
   {
-    null_value= 0;
+    null_value= FALSE;
     return value->val_bool();
   }
   else
@@ -654,7 +654,7 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   bool val_bool();
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
-  null_value= 0; //can't be NULL
+  null_value= FALSE; //can't be NULL
   maybe_null= 0; //can't be NULL
   value= 0;
   DBUG_VOID_RETURN;
@@ -817,15 +817,14 @@ double Item_in_subselect::val_real()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= 0;
+  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
-    null_value= 1;
     return 0;
   }
   if (was_null && !value)
-    null_value= 1;
+    null_value= TRUE;
   return (double) value;
 }
 
@@ -838,15 +837,14 @@ longlong Item_in_subselect::val_int()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= 0;
+  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
-    null_value= 1;
     return 0;
   }
   if (was_null && !value)
-    null_value= 1;
+    null_value= TRUE;
   return value;
 }
 
@@ -859,16 +857,15 @@ String *Item_in_subselect::val_str(String *str)
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
-  null_value= 0;
+  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
-    null_value= 1;
     return 0;
   }
   if (was_null && !value)
   {
-    null_value= 1;
+    null_value= TRUE;
     return 0;
   }
   str->set((ulonglong)value, &my_charset_bin);
@@ -879,20 +876,14 @@ String *Item_in_subselect::val_str(String *str)
 bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
-  null_value= 0;
+  null_value= was_null= FALSE;
   if (exec())
   {
     reset();
-    /* 
-      Must mark the IN predicate as NULL so as to make sure an enclosing NOT
-      predicate will return FALSE. See the comments in 
-      subselect_uniquesubquery_engine::copy_ref_key for further details.
-    */
-    null_value= 1;
     return 0;
   }
   if (was_null && !value)
-    null_value= 1;
+    null_value= TRUE;
   return value;
 }
 
@@ -903,16 +894,15 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
     method should not be used
   */
   DBUG_ASSERT(0);
-  null_value= 0;
+  null_value= was_null= FALSE;
   DBUG_ASSERT(fixed == 1);
   if (exec())
   {
     reset();
-    null_value= 1;
     return 0;
   }
   if (was_null && !value)
-    null_value= 1;
+    null_value= TRUE;
   int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
   return decimal_value;
 }
