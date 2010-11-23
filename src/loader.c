@@ -174,10 +174,8 @@ int toku_loader_create_loader(DB_ENV *env,
     // lock tables and check empty
     for(int i=0;i<N;i++) {
         if (!(loader_flags&DB_PRELOCKED_WRITE)) {
-            toku_ydb_lock(); //Must hold ydb lock for acquiring locks
             BOOL using_puts = (loader->i->loader_flags & LOADER_USE_PUTS) != 0;
             r = toku_db_pre_acquire_table_lock(dbs[i], txn, !using_puts);
-            toku_ydb_unlock();
             if (r!=0) break;
         }
         r = !toku_brt_is_empty_fast(dbs[i]->i->brt);
@@ -214,7 +212,7 @@ int toku_loader_create_loader(DB_ENV *env,
 	    loader->i->ekeys = NULL;
 	    loader->i->evals = NULL;
 	    LSN load_lsn;
-	    r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
+            r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn);
 	    if ( r!=0 ) {
 		toku_free(new_inames_in_env);
 		toku_free(brts);
@@ -307,6 +305,9 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
                                          loader->i->db_flags); // flags_array
     }
     else {
+        // calling toku_brt_loader_put without a lock assumes that the 
+        //  handlerton is guaranteeing single access to the loader
+        // future multi-threaded solutions may need to protect this call
         r = toku_brt_loader_put(loader->i->brt_loader, key, val);
     }
     if ( r != 0 ) {
@@ -364,7 +365,9 @@ int toku_loader_close(DB_LOADER *loader)
             }
         }
     }
+    toku_ydb_lock();
     free_loader(loader);
+    toku_ydb_unlock();
     if (r==0)
 	(void) toku_sync_fetch_and_increment_uint64(&status.close);
     else
@@ -386,7 +389,9 @@ int toku_loader_abort(DB_LOADER *loader)
     if ( !(loader->i->loader_flags & LOADER_USE_PUTS) ) {
         r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
     }
+    toku_ydb_lock();
     free_loader(loader);
+    toku_ydb_unlock();
     return r;
 }
 
