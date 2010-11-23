@@ -37,15 +37,20 @@ select * from foo;
 a	b
 select * from foo;
 a	b
+commit;
 select * from foo;
 a	b
 1	a
+commit;
 select * from foo;
 a	b
+commit;
 select * from foo;
 a	b
 1	abc
+commit;
 select * from foo;
 a	b
+commit;
 set session transaction isolation level serializable;
 DROP TABLE foo;

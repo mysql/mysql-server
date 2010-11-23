@@ -57,18 +57,23 @@ select * from foo;
 
 connection conn1;
 select * from foo;
+commit;
 
 connection conn2;
 select * from foo;
+commit;
 
 connection conn3;
 select * from foo;
+commit;
 
 connection conn4;
 select * from foo;
+commit;
 
 connection conn5;
 select * from foo;
+commit;
 
 
 connection default;
