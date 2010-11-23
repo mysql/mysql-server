@@ -1714,6 +1714,17 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     break;
   case ZNDB_SPH5:
     jam();
+    if (m_gcp_monitor.m_micro_gcp.m_max_lag > 0)
+    {
+      infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
+                m_gcp_monitor.m_gcp_save.m_max_lag / 10);
+      infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
+                m_gcp_monitor.m_micro_gcp.m_max_lag / 10);
+    }
+    else
+    {
+      infoEvent("GCP Monitor: unlimited lags allowed");
+    }
     switch(typestart){
     case NodeState::ST_INITIAL_START:
     case NodeState::ST_SYSTEM_RESTART:
@@ -5850,6 +5861,17 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 
   m_micro_gcp.m_master.m_start_time = 0;
   m_gcp_save.m_master.m_start_time = 0;
+  if (m_gcp_monitor.m_micro_gcp.m_max_lag > 0)
+  {
+    infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
+              m_gcp_monitor.m_gcp_save.m_max_lag / 10);
+    infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
+              m_gcp_monitor.m_micro_gcp.m_max_lag / 10);
+  }
+  else
+  {
+    infoEvent("GCP Monitor: unlimited lags allowed");
+  }
 
   bool ok = false;
   switch(m_micro_gcp.m_master.m_state){
@@ -13947,10 +13969,28 @@ void Dbdih::checkGcpStopLab(Signal* signal)
   if (m_gcp_monitor.m_gcp_save.m_gci == m_gcp_save.m_gci)
   {
     jam();
-    if (cnt0 == m_gcp_monitor.m_gcp_save.m_max_lag)
+    if (m_gcp_monitor.m_gcp_save.m_max_lag && 
+        cnt0 == m_gcp_monitor.m_gcp_save.m_max_lag)
     {
       crashSystemAtGcpStop(signal, false);
       return;
+    }
+
+    Uint32 threshold = 60; // seconds
+    if (cnt0 && ((cnt0 % (threshold * 10)) == 0))
+    {
+      if (m_gcp_monitor.m_gcp_save.m_max_lag)
+      {
+        warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
+                     " (max lag: %us)",
+                     cnt0/10, m_gcp_monitor.m_gcp_save.m_max_lag/10);
+      }
+      else
+      {
+        warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
+                     " (no max lag)",
+                     cnt0/10);
+      }
     }
   }
   else
@@ -13967,10 +14007,27 @@ void Dbdih::checkGcpStopLab(Signal* signal)
       m_gcp_monitor.m_micro_gcp.m_max_lag :
       m_gcp_monitor.m_gcp_save.m_max_lag;
     
-    if (cnt1 == cmp)
+    if (cmp && cnt1 == cmp)
     {
       crashSystemAtGcpStop(signal, false);
       return;
+    }
+
+    Uint32 threshold = 10; // seconds
+    if (cnt1 && ((cnt0 % (threshold * 10)) == 0))
+    {
+      if (m_gcp_monitor.m_micro_gcp.m_max_lag)
+      {
+        warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
+                     " (max lag: %u)",
+                     cnt1/10, m_gcp_monitor.m_micro_gcp.m_max_lag/10);
+      }
+      else
+      {
+        warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
+                     " (no max lag)",
+                     cnt1/10);
+      }
     }
   }
   else
@@ -14932,9 +14989,19 @@ void Dbdih::initCommonData()
     { // Set time-between epochs timeout
       Uint32 tmp = 4000;
       ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_TIMEOUT, &tmp);
-      tmp += max_failure_time;
-      m_gcp_monitor.m_micro_gcp.m_max_lag = 
-        (m_micro_gcp.m_master.m_time_between_gcp + tmp) / 100;
+      if (tmp != 0)
+      {
+        jam();
+        tmp += max_failure_time;
+        m_gcp_monitor.m_micro_gcp.m_max_lag = 
+          (m_micro_gcp.m_master.m_time_between_gcp + tmp) / 100;
+      }
+      else
+      {
+        jam();
+        m_gcp_monitor.m_gcp_save.m_max_lag = 0;
+        m_gcp_monitor.m_micro_gcp.m_max_lag = 0;
+      }
     }
   }
 }//Dbdih::initCommonData()
