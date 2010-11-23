@@ -1,0 +1,15 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+include/stop_slave.inc
+CREATE TABLE test(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO test VALUES (1), (2), (3);
+### stop slave server
+### start slave server with --relay-log-info-repository=TABLE
+### stop slave server
+### start slave server with --relay-log-info-repository=FILE
+include/start_slave.inc
+DROP TABLE test;
