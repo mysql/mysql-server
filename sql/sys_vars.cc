@@ -1879,14 +1879,31 @@ static Sys_var_set Slave_type_conversions(
 
 static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
 {
-  String str;
-  bool res= false;
+  String str, *res;
 
-  res= !var->value ||
-       check_not_null(self, thd, var) ||
-       var->value->val_str(&str)->is_empty();
+  /**
+     'DEFAULT' values are not allowed.
+   */
+  if(!var->value)
+    return true;
 
-  return res;
+  /**
+     NULL is not allowed.
+   */
+  if (check_not_null(self, thd, var))
+    return true;
+
+  /** empty value ('') is not allowed */
+  res= var->value->val_str(&str);
+  if (res->is_empty())
+    return true;
+
+  /** We don't allow only INDEX_SCAN to be set. */
+  if((res->length()==strlen("INDEX_SCAN")) && 
+     !strncasecmp(res->c_ptr_safe(), "index_scan", res->length()))
+    return true;
+
+  return false;
 }
 
 static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};
