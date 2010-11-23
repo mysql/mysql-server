@@ -4115,8 +4115,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
-                       show_query_type(qtype), query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%-.*s'",
+                       show_query_type(qtype), (int) query_len, query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -4152,7 +4152,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),
-                        MYSQL_ERRMSG_SIZE, query_arg);
+                        (int) min(MYSQL_ERRMSG_SIZE, query_len), query_arg);
       binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
     }
   }

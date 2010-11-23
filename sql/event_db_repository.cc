@@ -212,7 +212,7 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias.c_ptr(),
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }

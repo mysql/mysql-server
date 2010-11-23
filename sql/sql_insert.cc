@@ -2074,6 +2074,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   TABLE *copy;
   TABLE_SHARE *share;
   uchar *bitmap;
+  char *copy_tmp;
   DBUG_ENTER("Delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
@@ -2106,14 +2107,15 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
     the other record buffers and alignment are unnecessary.
   */
   thd_proc_info(client_thd, "allocating local table");
-  copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
-				   (share->fields+1)*sizeof(Field**)+
-				   share->reclength +
-                                   share->column_bitmap_size*3);
-  if (!copy)
+  copy_tmp= (char*) client_thd->alloc(sizeof(*copy)+
+                                      (share->fields+1)*sizeof(Field**)+
+                                      share->reclength +
+                                      share->column_bitmap_size*3);
+  if (!copy_tmp)
     goto error;
 
   /* Copy the TABLE object. */
+  copy= new (copy_tmp) TABLE;
   *copy= *table;
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
@@ -3502,7 +3504,7 @@ int select_create::write_to_binlog(bool is_trans, int errcode)
       Avoid to use thd->binlog_query() twice, otherwise it will print the unsafe
       warning twice.
     */
-    Query_log_event ev(thd, query.c_ptr_safe(), query.length(), is_trans,
+    Query_log_event ev(thd, query.ptr(), query.length(), is_trans,
                        FALSE, errcode);
     return mysql_bin_log.write(&ev);
   }

@@ -2085,7 +2085,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   init_sql_alloc(&outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
+  if (outparam->alias.copy(alias, strlen(alias), table_alias_charset))
     goto err;
   outparam->quick_keys.init();
   outparam->covering_keys.init();
@@ -2422,7 +2422,7 @@ partititon_err:
   outparam->db_stat=0;
   thd->lex->view_prepare_mode= save_view_prepare_mode;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
-  my_free((char*) outparam->alias, MYF(MY_ALLOW_ZERO_PTR));
+  outparam->alias.free();
   DBUG_RETURN (error);
 }
 
@@ -2448,8 +2448,7 @@ int closefrm(register TABLE *table, bool free_share)
       table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     error=table->file->close();
   }
-  my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
-  table->alias= 0;
+  table->alias.free();
   if (table->expr_arena)
     table->expr_arena->free_items();
   if (table->field)
@@ -3286,7 +3285,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
   const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
-                     table->alias, table_def->count));
+                     table->alias.c_ptr(), table_def->count));
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
@@ -3301,14 +3300,15 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
                    ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                   table->alias, table_def->count, table->s->fields,
+                   table->alias.c_ptr(), table_def->count, table->s->fields,
                    table->s->mysql_version, MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED),
+                   table->alias.c_ptr(),
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
     }
@@ -3341,7 +3341,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         */
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected column '%s' at position %d, found '%s'.",
-                     table->s->db.str, table->alias, field_def->name.str, i,
+                     table->s->db.str, table->alias.c_ptr(),
+                     field_def->name.str, i,
                      field->field_name);
       }
       field->sql_type(sql_type);
@@ -3367,7 +3368,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       {
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected column '%s' at position %d to have type "
-                     "%s, found type %s.", table->s->db.str, table->alias,
+                     "%s, found type %s.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
         error= TRUE;
@@ -3377,7 +3379,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected the type of column '%s' at position %d "
                      "to have character set '%s' but the type has no "
-                     "character set.", table->s->db.str, table->alias,
+                     "character set.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
@@ -3387,7 +3390,8 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
         report_error(0, "Incorrect definition of table %s.%s: "
                      "expected the type of column '%s' at position %d "
                      "to have character set '%s' but found "
-                     "character set '%s'.", table->s->db.str, table->alias,
+                     "character set '%s'.", table->s->db.str,
+                     table->alias.c_ptr(),
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
         error= TRUE;
@@ -3398,7 +3402,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       report_error(0, "Incorrect definition of table %s.%s: "
                    "expected column '%s' at position %d to have type %s "
                    " but the column is not found.",
-                   table->s->db.str, table->alias,
+                   table->s->db.str, table->alias.c_ptr(),
                    field_def->name.str, i, field_def->type.str);
       error= TRUE;
     }

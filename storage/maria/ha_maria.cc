@@ -1095,7 +1095,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   param.thd= thd;
   param.op_name= "check";
   param.db_name= table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
 
@@ -1194,7 +1194,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   param.thd= thd;
   param.op_name= "analyze";
   param.db_name= table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache= 1;
@@ -1488,7 +1488,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     _ma_copy_nontrans_state_information(file);
 
   param->db_name= table->s->db.str;
-  param->table_name= table->alias;
+  param->table_name= table->alias.c_ptr();
   param->tmpfile_createflag= O_RDWR | O_TRUNC;
   param->using_global_keycache= 1;
   param->thd= thd;

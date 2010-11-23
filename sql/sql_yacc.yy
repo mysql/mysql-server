@@ -13111,7 +13111,7 @@ column_list_id:
             while ((point=iter++))
             {
               if (!my_strcasecmp(system_charset_info,
-                                 point->column.ptr(), new_str->ptr()))
+                                 point->column.c_ptr(), new_str->c_ptr()))
                 break;
             }
             lex->grant_tot_col|= lex->which_columns;

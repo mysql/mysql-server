@@ -274,6 +274,14 @@ public:
   bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool copy(const char*s,uint32 arg_length, CHARSET_INFO *csfrom,
 	    CHARSET_INFO *csto, uint *errors);
+  void move(String &s)
+  {
+    free();
+    Ptr=s.Ptr ; str_length=s.str_length ; Alloced_length=s.Alloced_length;
+    extra_alloc= s.extra_alloc;
+    alloced= s.alloced;
+    s.alloced= 0;
+  }
   bool append(const String &s);
   bool append(const char *s);
   bool append(const char *s,uint32 arg_length);
@@ -304,6 +312,7 @@ public:
   friend int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
   friend String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
+  friend class Field;
   uint32 numchars();
   int charpos(int i,uint32 offset=0);
 

@@ -604,11 +604,15 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   size_t               pl= 0;
   List<Item>           fv;
   Item                *item, *val;
-  String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
-  String              string_buf;
+  char 		      name_buffer[SAFE_NAME_LEN*2];
+  char                command_buffer[1024];
+  String              string_buf(name_buffer, sizeof(name_buffer),
+                                 system_charset_info);
+  String              pfields(command_buffer, sizeof(command_buffer),
+                              system_charset_info);
 
   if (!thd->db || strcmp(db_arg, thd->db)) 
   {
@@ -617,7 +621,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       prefix table name with database name so that it 
       becomes a FQ name.
      */
-    string_buf.set_charset(system_charset_info);
+    string_buf.length(0);
     string_buf.append(db_arg);
     string_buf.append("`");
     string_buf.append(".");
@@ -638,6 +642,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
+  pfields.length(0);
   if (!thd->lex->field_list.is_empty())
   {
     List_iterator<Item>  li(thd->lex->field_list);
@@ -682,8 +687,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     }
   }
 
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
+  p=  pfields.c_ptr_safe();
+  pl= pfields.length();
 
   if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
     return TRUE;

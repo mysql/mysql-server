@@ -5084,9 +5084,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         String str(buff,(uint32) sizeof(buff), system_charset_info);
         str.length(0);
         thd->lex->unit.print(&str, QT_ORDINARY);
-        str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-                     ER_YES, str.ptr());
+                     ER_YES, str.c_ptr_safe());
       }
       if (res)
         result->abort();

@@ -811,7 +811,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name =   "check";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
 
@@ -904,7 +904,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name=    "analyze";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
@@ -1129,7 +1129,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   DBUG_ENTER("ha_myisam::repair");
 
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;
