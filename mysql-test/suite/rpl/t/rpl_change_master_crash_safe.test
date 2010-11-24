@@ -1,0 +1,9 @@
+#
+# This test calls CHANGE MASTER in order to check if replication can
+# restart from where SQL thread left, not from where I/O thread left.
+#  
+# Table is used as repository.
+#
+
+--source include/master-slave.inc
+--source extra/rpl_tests/rpl_change_master.test

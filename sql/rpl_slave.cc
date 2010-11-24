@@ -75,6 +75,9 @@ Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
+const char *relay_log_index= 0;
+const char *relay_log_basename= 0;
+
 /*
   When slave thread exits, we need to remember the temporary tables so we
   can re-use them on slave start.
@@ -438,10 +441,10 @@ void end_info(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
-int reset_info(Master_info* mi)
+int remove_info(Master_info* mi)
 {
   int error= 0;
-  DBUG_ENTER("reset_info");
+  DBUG_ENTER("remove_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
 
   /*
@@ -460,7 +463,7 @@ int reset_info(Master_info* mi)
   mi->end_info();
   mi->rli->end_info();
 
-  if (mi->reset_info() || mi->rli->reset_info())
+  if (mi->remove_info() || mi->rli->remove_info())
     error= 1;
 
   DBUG_RETURN(error);
@@ -842,12 +845,20 @@ int start_slave_thread(
   if (start_cond && cond_lock) // caller has cond_lock
   {
     THD* thd = current_thd;
-    while (start_id == *slave_run_id)
+    while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char* old_msg = thd->enter_cond(start_cond,cond_lock,
-                                            "Waiting for slave thread to start");
-      mysql_cond_wait(start_cond, cond_lock);
+      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
+                                           "Waiting for slave thread to start");
+      /*
+        It is not sufficient to test this at loop bottom. We must test
+        it after registering the mutex in enter_cond(). If the kill
+        happens after testing of thd->killed and before the mutex is
+        registered, we could otherwise go waiting though thd->killed is
+        set.
+      */
+      if (!thd->killed)
+        mysql_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
@@ -2529,6 +2540,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
+  bool skip_event= FALSE;
 
   DBUG_ENTER("apply_event_and_update_pos");
 
@@ -2573,7 +2585,10 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   int reason= ev->shall_skip(rli);
   if (reason == Log_event::EVENT_SKIP_COUNT)
+  {
     sql_slave_skip_counter= --rli->slave_skip_counter;
+    skip_event= TRUE;
+  }
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
     // Sleeps if needed, and unlocks rli->data_lock.
@@ -2609,12 +2624,20 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (exec_res == 0)
   {
     /*
-      Positions are not updated when an XID is processed, i.e. not skipped.
-      To make the slave crash-safe positions are updated while processing
-      the XID event and as such do not need to be updated again.
+      Positions are not updated here when an XID is processed and the relay
+      log info is stored in a transactional engine such as Innodb. To make
+      a slave crash-safe, positions must be updated while processing a XID
+      event and as such do not need to be updated here again.
+
+      However, if the event needs to be skipped, this means that it will not
+      be processed and then positions need to be updated here.
+
       See sql/rpl_rli.h for further details.
     */
-    int error= ev->update_pos(rli);
+    int error= 0;
+    if (!(ev->get_type_code() == XID_EVENT && rli->is_transactional()) ||
+        skip_event)
+      error= ev->update_pos(rli);
 #ifndef DBUG_OFF
     DBUG_PRINT("info", ("update_pos error = %d", error));
     if (!rli->belongs_to_client())
@@ -2792,7 +2815,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int temp_err;
+      int UNINIT_VAR(temp_err);
       if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
@@ -3304,7 +3327,7 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
   {
@@ -3692,7 +3715,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     variables is supposed to set them to 0 before terminating)).
   */
   thd->catalog= 0;
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   mysql_mutex_lock(&rli->run_lock);
@@ -5465,7 +5488,7 @@ int reset_slave(THD *thd, Master_info* mi)
   /* Clear master's log coordinates */
   mi->init_master_log_pos();
 
-  if (reset_info(mi))
+  if (remove_info(mi))
   {
     error= 1;
     goto err;
@@ -5803,11 +5826,11 @@ Server_ids::~Server_ids()
   delete_dynamic(&server_ids);
 }
 
-bool Server_ids::unpack_server_ids(const char *param_server_ids)
+bool Server_ids::unpack_server_ids(char *param_server_ids)
 {
-  char *token, *last;
-  uint num_items;
-
+  char *token= NULL, *last= NULL;
+  uint num_items= 0;
+ 
   DBUG_ENTER("Server_ids::unpack_server_ids");
 
   token= strtok_r((char *)const_cast<const char*>(param_server_ids),
@@ -5831,22 +5854,21 @@ bool Server_ids::unpack_server_ids(const char *param_server_ids)
   DBUG_RETURN(FALSE);
 }
 
-bool Server_ids::pack_server_ids(char *buffer)
+bool Server_ids::pack_server_ids(String *buffer)
 {
   DBUG_ENTER("Server_ids::pack_server_ids");
 
-  if (!buffer)
+  if (buffer->set_int(server_ids.elements, FALSE, &my_charset_bin))
     DBUG_RETURN(TRUE);
 
-  for (ulong i= 0, cur_len= sprintf(buffer,
-                                    "%u",
-                                    server_ids.elements);
+  for (ulong i= 0;
        i < server_ids.elements; i++)
   {
     ulong s_id;
     get_dynamic(&server_ids, (uchar*) &s_id, i);
-    cur_len +=sprintf(buffer + cur_len,
-                      " %lu", s_id);
+    if (buffer->append(" ") ||
+        buffer->append_ulonglong(s_id))
+      DBUG_RETURN(TRUE);
   }
 
   DBUG_RETURN(FALSE);
