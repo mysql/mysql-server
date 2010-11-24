@@ -369,6 +369,7 @@ func_exit:
 #ifdef UNIV_DEBUG
 	mutex->magic_n = 0;
 #endif /* UNIV_DEBUG */
+	return;
 }
 
 /********************************************************************//**
@@ -1174,8 +1175,11 @@ sync_thread_add_level(
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
-	case SYNC_TRX_LOCK_HEAP:
-	case SYNC_KERNEL:
+	case SYNC_THREADS:
+	case SYNC_READ_VIEW:
+	case SYNC_LOCK_SYS:
+	case SYNC_LOCK_WAIT_SYS:
+	case SYNC_TRX_SYS:
 	case SYNC_IBUF_BITMAP_MUTEX:
 	case SYNC_RSEG:
 	case SYNC_TRX_UNDO:
@@ -1193,6 +1197,7 @@ sync_thread_add_level(
 			ut_error;
 		}
 		break;
+	case SYNC_TRX:
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_POOL:
 		/* We can have multiple mutexes of this type therefore we
@@ -1222,7 +1227,7 @@ sync_thread_add_level(
 		}
 		break;
 	case SYNC_REC_LOCK:
-		if (sync_thread_levels_contain(array, SYNC_KERNEL)) {
+		if (sync_thread_levels_contain(array, SYNC_LOCK_SYS)) {
 			ut_a(sync_thread_levels_g(array, SYNC_REC_LOCK - 1,
 						  TRUE));
 		} else {
@@ -1263,7 +1268,7 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
 		break;
 	case SYNC_RSEG_HEADER_NEW:
-		ut_a(sync_thread_levels_contain(array, SYNC_KERNEL)
+		ut_a(sync_thread_levels_contain(array, SYNC_LOCK_SYS)
 		     && sync_thread_levels_contain(array, SYNC_FSP_PAGE));
 		break;
 	case SYNC_TREE_NODE:

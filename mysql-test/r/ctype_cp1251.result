@@ -2830,6 +2830,25 @@ DROP TABLE t1;
 # End of Bug#54916
 #
 #
+# Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+#
+SELECT @@collation_connection;
+@@collation_connection
+cp1251_general_ci
+CREATE TABLE t1 (
+id INT(11) DEFAULT NULL,
+date_column DATE DEFAULT NULL,
+KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using index condition
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using index condition
+DROP TABLE t1;
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;

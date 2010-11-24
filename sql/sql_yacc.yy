@@ -6595,7 +6595,6 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          opt_ignore
         ;
 
 remove_partitioning:
@@ -7483,7 +7482,6 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
             lex->safe_to_cache_query=0;
-            lex->protect_against_global_read_lock= TRUE;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
@@ -13334,9 +13332,6 @@ table_lock:
                                             MDL_SHARED_NO_READ_WRITE :
                                             MDL_SHARED_READ)))
               MYSQL_YYABORT;
-            /* If table is to be write locked, protect from a impending GRL. */
-            if (lock_for_write)
-              Lex->protect_against_global_read_lock= TRUE;
           }
         ;
 

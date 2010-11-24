@@ -1,8 +1,0 @@
-Windows building readme
-======================================
-
-The Windows build system uses a tool named CMake to generate build files for
-a variety of project systems.  This tool is combined with a set of jscript
-files to enable building of MySQL for Windows directly out of a bzr clone.
-For relevant information and/or for building binaries from source distribution, 
-please refer to http://forge.mysql.com/wiki/CMake
