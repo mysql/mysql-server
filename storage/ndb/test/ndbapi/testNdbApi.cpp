@@ -3104,7 +3104,8 @@ int runBulkPkReads(NDBT_Context* ctx, NDBT_Step* step)
         
         hugoOps.closeTransaction(otherNdb);
         
-        if ((err.code == 4010) || // Node failure
+        if ((err.code == 4002) || // send failed
+            (err.code == 4010) || // Node failure
             (err.code == 4025) || // Node failure
             (err.code == 1218))   // Send buffer overload (reading larger tables)
         {
