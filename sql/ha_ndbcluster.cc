@@ -5188,6 +5188,44 @@ void ha_ndbcluster::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
+int
+ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
+{
+  DBUG_ENTER("cmp_ref");
+
+  if (table_share->primary_key != MAX_KEY) 
+  {
+    KEY *key_info = table->key_info + table_share->primary_key;
+    KEY_PART_INFO *key_part = key_info->key_part;
+    KEY_PART_INFO *end = key_part + key_info->key_parts;
+    
+    for (; key_part != end; key_part++) 
+    {
+      // NOTE: No need to check for null since PK is not-null
+
+      Field *field = key_part->field;
+      int result= field->key_cmp(ref1, ref2);
+      if (result)
+      {
+        DBUG_RETURN(result);
+      }
+
+      if (field->type() ==  MYSQL_TYPE_VARCHAR)
+      {
+        ref1 += 2;
+        ref2 += 2;
+      }
+      
+      ref1 += key_part->length;
+      ref2 += key_part->length;
+    }
+    DBUG_RETURN(0);
+  } 
+  else
+  {
+    DBUG_RETURN(memcmp(ref1, ref2, ref_length));
+  }
+}
 
 int ha_ndbcluster::info(uint flag)
 {
