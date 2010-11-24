@@ -75,6 +75,20 @@ buf_flush_init_for_writing(
 	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
 					to the page */
 #ifndef UNIV_HOTBACKUP
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool_mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_page().
+@return TRUE if the page was flushed and the mutexes released */
+UNIV_INTERN
+ibool
+buf_flush_page_try(
+/*===============*/
+	buf_block_t*	block)		/*!< in/out: buffer control block */
+	__attribute__((nonnull, warn_unused_result));
+# endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to

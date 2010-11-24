@@ -1935,21 +1935,26 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(join->error ? join->error : 1);
     }
     if (!select_lex->uncacheable && thd->lex->describe && 
-        !(join->select_options & SELECT_DESCRIBE) && 
-        join->need_tmp)
+        !(join->select_options & SELECT_DESCRIBE))
     {
       item->update_used_tables();
       if (item->const_item())
       {
+        /*
+          It's necessary to keep original JOIN table because
+          create_sort_index() function may overwrite original
+          JOIN_TAB::type and wrong optimization method can be
+          selected on re-execution.
+        */
+        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
         /*
           Force join->join_tmp creation, because this subquery will be replaced
           by a simple select from the materialization temp table by optimize()
           called by EXPLAIN and we need to preserve the initial query structure
           so we can display it.
         */
-        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-        if (join->init_save_join_tab())
+        if (join->need_tmp && join->init_save_join_tab())
           DBUG_RETURN(1);                        /* purecov: inspected */
       }
     }

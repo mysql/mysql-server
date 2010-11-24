@@ -69,7 +69,8 @@ static void evsignal_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
-evsignal_cb(int fd, short what, void *arg)
+evsignal_cb(int fd, short what __attribute__((unused)),
+            void *arg __attribute__((unused)))
 {
 	static char signals[100];
 #ifdef WIN32

@@ -687,7 +687,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (count_topics == 0)
   {
-    int key_id;
+    int UNINIT_VAR(key_id);
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,

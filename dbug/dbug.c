@@ -926,6 +926,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
+  tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
 }
 

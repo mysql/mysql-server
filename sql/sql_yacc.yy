@@ -11580,6 +11580,12 @@ user:
                                          system_charset_info, 0) ||
                 check_host_name(&$$->host))
               MYSQL_YYABORT;
+            /*
+              Convert hostname part of username to lowercase.
+              It's OK to use in-place lowercase as long as
+              the character set is utf8.
+            */
+            my_casedn_str(system_charset_info, $$->host.str);
           }
         | CURRENT_USER optional_braces
           {

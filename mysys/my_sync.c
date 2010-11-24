@@ -64,7 +64,7 @@ int my_sync(File fd, myf my_flags)
     /* Some file systems don't support F_FULLFSYNC and fail above: */
     DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
-#if defined(HAVE_FDATASYNC)
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
@@ -97,6 +97,7 @@ int my_sync(File fd, myf my_flags)
 
 
 static const char cur_dir_name[]= {FN_CURLIB, 0};
+
 /*
   Force directory information to disk.
 
@@ -108,6 +109,7 @@ static const char cur_dir_name[]= {FN_CURLIB, 0};
   RETURN
     0 if ok, !=0 if error
 */
+
 int my_sync_dir(const char *dir_name __attribute__((unused)),
                 myf my_flags __attribute__((unused)))
 {
@@ -138,7 +140,6 @@ int my_sync_dir(const char *dir_name __attribute__((unused)),
 #endif
 }
 
-
 /*
   Force directory information to disk.
 
@@ -150,6 +151,7 @@ int my_sync_dir(const char *dir_name __attribute__((unused)),
   RETURN
     0 if ok, !=0 if error
 */
+
 int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
                         myf my_flags __attribute__((unused)))
 {
@@ -162,4 +164,3 @@ int my_sync_dir_by_file(const char *file_name __attribute__((unused)),
   return 0;
 #endif
 }
-
