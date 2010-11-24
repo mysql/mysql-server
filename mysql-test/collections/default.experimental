@@ -10,6 +10,7 @@ innodb.innodb_bug56143                   # Bug#58432 2010-11-24 alik innodb.inno
 innodb.innodb_information_schema         # Bug#48883 2010-05-11 alik Test "innodb_information_schema" takes fewer locks than expected
 
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
+main.gis                                 # Bug#52208 2010-11-24 alik gis fails on some platforms (Solaris, HP-UX, Linux)
 main.gis-rtree @freebsd                  # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
