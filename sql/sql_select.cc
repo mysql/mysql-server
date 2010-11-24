@@ -10509,9 +10509,13 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
 
   /* No join buffering if prevented by no_jbuf_after */
-  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab)
+  if (i > no_jbuf_after)
     goto no_join_cache;
 
+  /* No join buffering if this semijoin nest is handled by loosescan */
+  if (tab_sj_strategy == SJ_OPT_LOOSE_SCAN)
+    goto no_join_cache;
+      
   /* Neither if semijoin Materialization */
   if (sj_is_materialize_strategy(tab_sj_strategy))
     goto no_join_cache;
