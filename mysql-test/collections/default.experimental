@@ -16,6 +16,7 @@ main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_m
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
 main.lowercase_table2 @darwin            # Bug#55509 2010-07-26 alik main.lowercase_table2 fails on Mac OSX (again)
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
+main.show_check                          # Bug#58414 2010-11-24 alik Race condition in show_check.test
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
@@ -26,6 +27,7 @@ rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails spora
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "plugin_dir_basic" does not support RPM build (test) directory structure
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
 sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_timeout_func fails
 
