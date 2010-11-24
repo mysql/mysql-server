@@ -1929,7 +1929,8 @@ row_merge_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2030,7 +2031,7 @@ row_merge_drop_index(
 
 	pars_info_add_ull_literal(info, "indexid", index->id);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 	trx->op_info = "dropping index";
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2042,7 +2043,7 @@ row_merge_drop_index(
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
@@ -2377,7 +2378,8 @@ row_merge_rename_tables(
 	pars_info_t*	info;
 	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2597,7 +2599,7 @@ row_merge_build_indexes(
 	ut_ad(indexes);
 	ut_ad(n_indexes);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */

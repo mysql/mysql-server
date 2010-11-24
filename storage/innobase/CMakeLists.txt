@@ -227,7 +227,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ha/ha0ha.c ha/hash0hash.c ha/ha0storage.c
 			ibuf/ibuf0ibuf.c
 			pars/lexyy.c pars/pars0grm.c pars/pars0opt.c pars/pars0pars.c pars/pars0sym.c
-			lock/lock0lock.c lock/lock0iter.c
+			lock/lock0lock.c lock/lock0iter.c lock/lock0wait.c
 			log/log0log.c log/log0recv.c
 			mach/mach0data.c
 			mem/mem0mem.c mem/mem0pool.c
@@ -246,7 +246,8 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			trx/trx0i_s.c trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c
 			usr/usr0sess.c
-			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c
+			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c
+		       	ut/ut0rbt.c ut/ut0bh.c ut/ut0rnd.c
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c)
 
 IF(WITH_INNODB)

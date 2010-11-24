@@ -278,7 +278,6 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
     rc= result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     result->send_eof();
-    thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
   }
   return rc;
 }
@@ -319,12 +318,10 @@ void Materialized_cursor::fetch(ulong num_rows)
   case 0:
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     result->send_eof();
-    thd->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
     break;
   case HA_ERR_END_OF_FILE:
     thd->server_status|= SERVER_STATUS_LAST_ROW_SENT;
     result->send_eof();
-    thd->server_status&= ~SERVER_STATUS_LAST_ROW_SENT;
     close();
     break;
   default:

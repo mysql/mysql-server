@@ -51,7 +51,7 @@ connection slave;
 --let $slave_param_value= $master_uuid_on_master
 source include/check_slave_param.inc;
 
-if (`SELECT '$slave_uuid_on_slave' <> '$slave_uuid_on_master'`)
+if ($slave_uuid_on_slave != $slave_uuid_on_master)
 {
   --echo slave_uuid_on_slave <> slave_uuid_on_master
   --echo $slave_uuid_on_slave <> $slave_uuid_on_master

@@ -125,10 +125,14 @@ extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
 extern char *master_info_file, *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
+extern char *opt_binlog_index_name;
 extern my_bool opt_skip_slave_start, opt_reckless_slave;
 extern my_bool opt_log_slave_updates;
 extern char *opt_slave_skip_errors;
 extern ulonglong relay_log_space_limit;
+
+extern const char *relay_log_index;
+extern const char *relay_log_basename;
 
 /*
   3 possible values for Master_info::slave_running and
@@ -161,7 +165,7 @@ int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
 int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
-int reset_info(Master_info* mi);
+int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
 void init_slave_skip_errors(const char* arg);
 int register_slave_on_master(MYSQL* mysql);

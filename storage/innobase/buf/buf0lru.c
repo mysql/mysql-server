@@ -925,7 +925,7 @@ loop:
 
 			buf_lru_switched_on_innodb_mon = TRUE;
 			srv_print_innodb_monitor = TRUE;
-			os_event_set(srv_lock_timeout_thread_event);
+			os_event_set(srv_timeout_event);
 		}
 	} else if (buf_lru_switched_on_innodb_mon) {
 
@@ -1015,7 +1015,7 @@ loop:
 		mon_value_was = srv_print_innodb_monitor;
 		started_monitor = TRUE;
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 	}
 
 	/* No free block was found: try to flush the LRU list */

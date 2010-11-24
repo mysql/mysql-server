@@ -829,7 +829,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
@@ -901,7 +901,7 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
@@ -938,7 +938,7 @@ ind_create_graph_create(
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
@@ -1197,7 +1197,7 @@ dict_check_sys_foreign_tables_exist(void)
 	ibool		exists = FALSE;
 	dict_table_t*	sys_foreign_cols;
 
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -1238,7 +1238,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	ulint		error;
 	ibool		success;
 
-	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	/* Note: The master thread has not been started at this point. */
 
@@ -1508,9 +1508,9 @@ dict_create_add_foreign_to_dictionary(
 	}
 
 	trx->op_info = "committing foreign key definitions";
-	mutex_enter(&kernel_mutex);
-	trx_commit_off_kernel(trx);
-	mutex_exit(&kernel_mutex);
+
+	trx_commit(trx);
+
 	trx->op_info = "";
 
 	return(error);

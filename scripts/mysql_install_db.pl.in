@@ -79,6 +79,11 @@ Usage: $0 [OPTIONS]
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
+  --rpl-engine=engine  The storage engine used for the mysql.slave_master_info and
+                       mysql.slave_relay_log_info tables. By default, both tables are
+                       created using the MyISAM storage engine. However, any storage
+                       engine available to the server may be used. If a crash-safe
+                       slave is required, the storage engine must be transactional.
 
 All other options are passed to the mysqld program
 
@@ -117,6 +122,7 @@ sub parse_arguments
              "builddir=s",      # FIXME not documented
              "srcdir=s",
              "ldata|datadir=s",
+             "rpl-engine=s",
 
              # Note that the user will be passed to mysqld so that it runs
              # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -451,6 +457,29 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
   close SQL;
 
   report_verbose($opt,"OK");
+
+  # ----------------------------------------------------------------------
+  # Pipe ALTER TABLE mysql.slave_master_info|slave_relay_log_info to "mysqld --bootstrap"
+  # ----------------------------------------------------------------------
+
+  if ($opt->{'rpl-engine'})
+  {
+    report_verbose_wait($opt,"Setting engine for mysql.slave_master_info mysql.slave_relay_log_info tables...");
+    if ( open(PIPE, "| $mysqld_install_cmd_line") )
+    {
+      print PIPE "use mysql;\n";
+      print PIPE "ALTER TABLE mysql.slave_master_info ENGINE= " . $opt->{'rpl-engine'} . ";\n";
+      print PIPE "ALTER TABLE mysql.slave_relay_log_info ENGINE= " . $opt->{'$rpl-engine'} . ";\n";
+      close PIPE;
+
+      report_verbose($opt,"OK");
+    }
+    else
+    {
+      warning($opt,"CRASH-SAFE SLAVE IS NOT COMPLETELY CONFIGURED!",
+                   "The \"CRASH-SAFE SLAVE\" might not work properly.");
+    }
+  }
 
   # ----------------------------------------------------------------------
   # Pipe fill_help_tables.sql to "mysqld --bootstrap"

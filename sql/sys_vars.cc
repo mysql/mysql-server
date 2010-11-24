@@ -408,7 +408,7 @@ static Sys_var_mybool Sys_binlog_direct(
 
 static const char *repository_names[]=
 {
-  "FILE", 0
+  "FILE", "TABLE", 0
 };
 
 ulong opt_mi_repository_id;
@@ -2898,10 +2898,37 @@ static Sys_var_charptr Sys_relay_log(
        READ_ONLY GLOBAL_VAR(opt_relay_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
+/*
+  Uses NO_CMD_LINE since the --relay-log-index option set
+  opt_relaylog_index_name variable and computes a value for the
+  relay_log_index variable.
+*/
 static Sys_var_charptr Sys_relay_log_index(
        "relay_log_index", "The location and name to use for the file "
        "that keeps a list of the last relay logs",
-       READ_ONLY GLOBAL_VAR(opt_relaylog_index_name), CMD_LINE(REQUIRED_ARG),
+       READ_ONLY GLOBAL_VAR(relay_log_index), NO_CMD_LINE,
+       IN_FS_CHARSET, DEFAULT(0));
+
+/*
+  Uses NO_CMD_LINE since the --log-bin-index option set
+  opt_binlog_index_name variable and computes a value for the
+  log_bin_index variable.
+*/
+static Sys_var_charptr Sys_binlog_index(
+       "log_bin_index", "File that holds the names for last binary log files.",
+       READ_ONLY GLOBAL_VAR(log_bin_index), NO_CMD_LINE,
+       IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_charptr Sys_relay_log_basename(
+       "relay_log_basename",
+       "The full path of the relay log file names, excluding the extension.",
+       READ_ONLY GLOBAL_VAR(relay_log_basename), NO_CMD_LINE,
+       IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_charptr Sys_log_bin_basename(
+       "log_bin_basename",
+       "The full path of the binary log file names, excluding the extension.",
+       READ_ONLY GLOBAL_VAR(log_bin_basename), NO_CMD_LINE,
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_charptr Sys_relay_log_info_file(
