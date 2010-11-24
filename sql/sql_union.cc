@@ -51,7 +51,6 @@ int select_union::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
 bool select_union::send_data(List<Item> &values)
 {
-  int error= 0;
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
@@ -61,14 +60,14 @@ bool select_union::send_data(List<Item> &values)
   if (thd->is_error())
     return 1;
 
-  if ((error= table->file->ha_write_row(table->record[0])))
+  if ((write_err= table->file->ha_write_row(table->record[0])))
   {
     /* create_internal_tmp_table_from_heap will generate error if needed */
-    if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
+    if (table->file->is_fatal_error(write_err, HA_CHECK_DUP) &&
         create_internal_tmp_table_from_heap(thd, table,
                                             tmp_table_param.start_recinfo, 
-                                            &tmp_table_param.recinfo, error,
-                                            1))
+                                            &tmp_table_param.recinfo,
+                                            write_err, 1))
       return 1;
   }
   return 0;

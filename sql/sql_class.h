@@ -2978,10 +2978,11 @@ class select_union :public select_result_interceptor
 {
 protected:
   TMP_TABLE_PARAM tmp_table_param;
+  int write_err; /* Error code from the last send_data->ha_write_row call. */
 public:
   TABLE *table;
 
-  select_union() :table(0) { tmp_table_param.init(); }
+  select_union() :write_err(0),table(0) { tmp_table_param.init(); }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();

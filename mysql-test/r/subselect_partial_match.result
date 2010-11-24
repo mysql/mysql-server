@@ -48,3 +48,18 @@ select * from t1 where (a1, a2) not in (select a1, a2 from t1);
 a1	a2
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
+#
+# LP BUG#680058 void Ordered_key::add_key(rownum_t):
+# Assertion `key_buff_elements && cur_key_idx < key_buff_elements' failed
+#
+create table t1 (f1 char(1), f2 char(1));
+insert into t1 values ('t', '0'), ('0', 't');
+create table t2 (f3 char(1), f4 char(1));
+insert into t2 values ('t', NULL), ('t', NULL), ('d', 'y');
+set @save_optimizer_switch=@@optimizer_switch;
+SET @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off,semijoin=off';
+select * from t1 where (f1, f2) not in (select * from t2);
+f1	f2
+0	t
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;

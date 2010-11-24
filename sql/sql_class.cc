@@ -3057,6 +3057,13 @@ bool select_materialize_with_stats::send_data(List<Item> &items)
   Column_statistics *cur_col_stat= col_stat;
   uint nulls_in_row= 0;
 
+  if (select_union::send_data(items))
+    return 1;
+  /* Skip duplicate rows. */
+  if (write_err == HA_ERR_FOUND_DUPP_KEY ||
+      write_err == HA_ERR_FOUND_DUPP_UNIQUE)
+    return 0;
+
   ++count_rows;
 
   while ((cur_item= item_it++))
@@ -3074,7 +3081,7 @@ bool select_materialize_with_stats::send_data(List<Item> &items)
   if (nulls_in_row > max_nulls_in_row)
     max_nulls_in_row= nulls_in_row;
 
-  return select_union::send_data(items);
+  return 0;
 }
 
 
