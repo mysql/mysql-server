@@ -1511,4 +1511,38 @@ SELECT @@skip_name_resolve;
 SHOW VARIABLES LIKE 'skip_name_resolve';
 Variable_name	Value
 skip_name_resolve	OFF
+#
+# Bug #43233 : Some server variables are clipped during "update,"
+#              not "check" stage
+#
+SET @kbs=@@global.key_buffer_size;
+SET @kcbs=@@global.key_cache_block_size;
+throw errors in STRICT mode
+SET SQL_MODE=STRICT_ALL_TABLES;
+SET @@global.max_binlog_cache_size=-1;
+ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
+SET @@global.max_join_size=0;
+ERROR 42000: Variable 'max_join_size' can't be set to the value of '0'
+SET @@global.key_buffer_size=0;
+ERROR 42000: Variable 'key_buffer_size' can't be set to the value of '0'
+SET @@global.key_cache_block_size=0;
+ERROR 42000: Variable 'key_cache_block_size' can't be set to the value of '0'
+throw warnings in default mode
+SET SQL_MODE=DEFAULT;
+SET @@global.max_binlog_cache_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_cache_size value: '-1'
+SET @@global.max_join_size=0;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '0'
+SET @@global.key_buffer_size=0;
+Warnings:
+Warning	1292	Truncated incorrect key_buffer_size value: '0'
+SET @@global.key_cache_block_size=0;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '0'
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
 End of 5.1 tests
