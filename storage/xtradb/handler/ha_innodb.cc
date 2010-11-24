@@ -194,7 +194,6 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
-static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -2427,7 +2426,6 @@ innobase_change_buffering_inited_ok:
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
 	srv_fast_checksum = (ibool) innobase_fast_checksum;
-	srv_buffer_pool_shm_checksum = (ibool) innobase_buffer_pool_shm_checksum;
 
 #ifdef HAVE_LARGE_PAGES
         if ((os_use_large_pages = (ibool) my_use_large_pages))
@@ -7418,7 +7416,6 @@ innobase_drop_database(
 	ulint	len		= 0;
 	trx_t*	trx;
 	char*	ptr;
-	int	error;
 	char*	namebuf;
 	THD*	thd		= current_thd;
 
@@ -7461,7 +7458,7 @@ innobase_drop_database(
 #else
 	trx = innobase_trx_allocate(thd);
 #endif
-	error = row_drop_database_for_mysql(namebuf, trx);
+	row_drop_database_for_mysql(namebuf, trx);
 	my_free(namebuf, MYF(0));
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -9330,12 +9327,9 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	bool result = FALSE;
+	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
+		   STRING_WITH_LEN(""), str, flen);
 
-	if (stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-			STRING_WITH_LEN(""), str, flen)) {
-		result= TRUE;
-	}
 	my_free(str, MYF(0));
 
 	DBUG_RETURN(FALSE);
@@ -11383,16 +11377,6 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, srv_buffer_pool_shm_key,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "[experimental] The key value of shared memory segment for the buffer pool. 0 (default) disables the feature.",
-  NULL, NULL, 0, 0, INT_MAX32, 0);
-
-static MYSQL_SYSVAR_BOOL(buffer_pool_shm_checksum, innobase_buffer_pool_shm_checksum,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-  "Enable buffer_pool_shm checksum validation (enabled by default).",
-  NULL, NULL, TRUE);
-
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -11658,8 +11642,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
-  MYSQL_SYSVAR(buffer_pool_shm_key),
-  MYSQL_SYSVAR(buffer_pool_shm_checksum),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),

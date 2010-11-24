@@ -10,7 +10,7 @@ SET GLOBAL SLOW_QUERY_LOG=ON;
 SELECT sleep(2);
 sleep(2)
 0
-set min_examined_row_limit=5;
+set log_slow_filter=full_join;
 SELECT sleep(2) union select t2.id from t as t1,t as t2;
 sleep(2)
 0
@@ -21,5 +21,5 @@ SELECT sleep(2);
 sleep(2)
 0
 drop table if exists t;
-cat MYSQLD_DATADIR/percona_slow_query_log-min_examined_row_limit.log | grep -c Query_time
+cat var/mysqld.1/data/percona_slow_query_log-log_slow_filter.log | grep Query_time | wc -l
 2

@@ -46,8 +46,8 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	12
-#define PERCONA_INNODB_VERSION 12.1
+#define INNODB_VERSION_BUGFIX	13
+#define PERCONA_INNODB_VERSION 11.6
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;

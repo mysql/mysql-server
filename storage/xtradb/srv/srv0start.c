@@ -1719,8 +1719,6 @@ innobase_start_or_create_for_mysql(void)
 		Note that this is not as heavy weight as it seems. At
 		this point there will be only ONE page in the buf_LRU
 		and there must be no page in the buf_flush list. */
-		/* buffer_pool_shm should not be reused when recovery was needed. */
-		if (!srv_buffer_pool_shm_is_reused)
 		buf_pool_invalidate();
 
 		/* We always try to do a recovery, even if the database had

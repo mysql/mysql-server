@@ -8,5 +8,5 @@ sleep(2)
 0
 set global use_global_log_slow_control=none;
 set global log_slow_verbosity=microtime;
-cat MYSQLD_DATADIR/percona_slow_query_log-control_global_slow.log | grep -c "No InnoDB statistics available for this query"
+cat var/mysqld.1/data/percona_slow_query_log-control_global_slow.log | grep "No InnoDB statistics available for this query" | wc -l
 1
