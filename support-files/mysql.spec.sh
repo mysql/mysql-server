@@ -211,7 +211,6 @@
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
@@ -1037,9 +1036,6 @@ echo "====="                                     >> $STATUS_HISTORY
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
-%if %{defined license_files_devel}
-%doc %{license_files_devel}
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1098,6 +1094,10 @@ echo "====="                                     >> $STATUS_HISTORY
   Reflect that in the "Obsoletes" specifications.
 - Add a "triggerpostun" to handle the uninstall of the "-community" server RPM.
 - This fixes bug#55015 "MySQL server is not restarted properly after RPM upgrade".
+
+* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
 
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
