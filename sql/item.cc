@@ -5622,17 +5622,43 @@ static uint nr_of_decimals(const char *str, const char *end)
       break;
   }
   decimal_point= str;
-  for (; my_isdigit(system_charset_info, *str) ; str++)
+  for ( ; str < end && my_isdigit(system_charset_info, *str) ; str++)
     ;
-  if (*str == 'e' || *str == 'E')
+  if (str < end && (*str == 'e' || *str == 'E'))
     return NOT_FIXED_DEC;
+  /*
+    QQ:
+    The number of decimal digist in fact should be (str - decimal_point - 1).
+    But it seems the result of nr_of_decimals() is never used!
+
+    In case of 'e' and 'E' nr_of_decimals returns NOT_FIXED_DEC.
+    In case if there is no 'e' or 'E' parser code in sql_yacc.yy
+    never calls Item_float::Item_float() - it creates Item_decimal instead.
+
+    The only piece of code where we call Item_float::Item_float(str, len)
+    without having 'e' or 'E' is item_xmlfunc.cc, but this Item_float
+    never appears in metadata itself. Changing the code to return
+    (str - decimal_point - 1) does not make any changes in the test results.
+
+    This should be addressed somehow.
+    Looks like a reminder from before real DECIMAL times.
+  */
   return (uint) (str - decimal_point);
 }
 
 
 /**
-  This function is only called during parsing. We will signal an error if
-  value is not a true double value (overflow)
+  This function is only called during parsing:
+  - when parsing SQL query from sql_yacc.yy
+  - when parsing XPath query from item_xmlfunc.cc
+  We will signal an error if value is not a true double value (overflow):
+  eng: Illegal %s '%-.192s' value found during parsing
+  
+  Note: the string is NOT null terminated when called from item_xmlfunc.cc,
+  so this->name will contain some SQL query tail behind the "length" bytes.
+  This is Ok for now, as this Item is never seen in SHOW,
+  or EXPLAIN, or anywhere else in metadata.
+  Item->name should be fixed to use LEX_STRING eventually.
 */
 
 Item_float::Item_float(const char *str_arg, uint length)
@@ -5643,12 +5669,9 @@ Item_float::Item_float(const char *str_arg, uint length)
                     &error);
   if (error)
   {
-    /*
-      Note that we depend on that str_arg is null terminated, which is true
-      when we are in the parser
-    */
-    DBUG_ASSERT(str_arg[length] == 0);
-    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
+    char tmp[NAME_LEN + 1];
+    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);

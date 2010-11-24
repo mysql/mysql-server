@@ -213,15 +213,37 @@ ut_fold_binary(
 	const byte*	str,	/*!< in: string of bytes */
 	ulint		len)	/*!< in: length */
 {
-	const byte*	str_end	= str + len;
 	ulint		fold = 0;
+	const byte*	str_end	= str + (len & 0xFFFFFFF8);
 
 	ut_ad(str || !len);
 
 	while (str < str_end) {
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	}
 
-		str++;
+	switch (len & 0x7) {
+	case 7:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 6:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 5:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 4:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 3:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 2:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 1:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
 	}
 
 	return(fold);

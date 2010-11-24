@@ -173,7 +173,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 
   if (file >= 0)
   {
-    pos= my_tell(file, MYF(0));
+    pos= mysql_file_tell(file, MYF(0));
     if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
     {
       /*
@@ -205,7 +205,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
     if (!(cache_myflags & MY_DONT_CHECK_FILESIZE))
     {
       /* Calculate end of file to avoid allocating oversized buffers */
-      end_of_file=my_seek(file,0L,MY_SEEK_END,MYF(0));
+      end_of_file= mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
       /* Need to reset seek_not_done now that we just did a seek. */
       info->seek_not_done= end_of_file == seek_offset ? 0 : 1;
       if (end_of_file < seek_offset)
@@ -485,7 +485,7 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
   */
   if (info->seek_not_done)
   {
-    if ((my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) 
+    if ((mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) 
         != MY_FILEPOS_ERROR))
     {
       /* No error, reset seek_not_done flag. */
@@ -529,7 +529,7 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
       end aligned with a block.
     */
     length=(Count & (size_t) ~(IO_SIZE-1))-diff_length;
-    if ((read_length= my_read(info->file,Buffer, length, info->myflags))
+    if ((read_length= mysql_file_read(info->file,Buffer, length, info->myflags))
 	!= length)
     {
       /*
@@ -572,7 +572,7 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     }
     length=0;				/* Didn't read any chars */
   }
-  else if ((length= my_read(info->file,info->buffer, max_length,
+  else if ((length= mysql_file_read(info->file,info->buffer, max_length,
                             info->myflags)) < Count ||
 	   length == (size_t) -1)
   {
@@ -1056,7 +1056,7 @@ int _my_b_read_r(register IO_CACHE *cache, uchar *Buffer, size_t Count)
         */
         if (cache->seek_not_done)
         {
-          if (my_seek(cache->file, pos_in_file, MY_SEEK_SET, MYF(0))
+          if (mysql_file_seek(cache->file, pos_in_file, MY_SEEK_SET, MYF(0))
               == MY_FILEPOS_ERROR)
           {
             cache->error= -1;
@@ -1064,7 +1064,7 @@ int _my_b_read_r(register IO_CACHE *cache, uchar *Buffer, size_t Count)
             DBUG_RETURN(1);
           }
         }
-        len= my_read(cache->file, cache->buffer, length, cache->myflags);
+        len= mysql_file_read(cache->file, cache->buffer, length, cache->myflags);
       }
       DBUG_PRINT("io_cache_share", ("read %lu bytes", (ulong) len));
 
@@ -1203,7 +1203,7 @@ int _my_b_seq_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     With read-append cache we must always do a seek before we read,
     because the write could have moved the file pointer astray
   */
-  if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) == MY_FILEPOS_ERROR)
+  if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
   {
    info->error= -1;
    unlock_append_buffer(info);
@@ -1220,8 +1220,8 @@ int _my_b_seq_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     size_t read_length;
 
     length=(Count & (size_t) ~(IO_SIZE-1))-diff_length;
-    if ((read_length= my_read(info->file,Buffer, length,
-                              info->myflags)) == (size_t) -1)
+    if ((read_length= mysql_file_read(info->file,Buffer, length,
+                                      info->myflags)) == (size_t) -1)
     {
       info->error= -1;
       unlock_append_buffer(info);
@@ -1254,7 +1254,7 @@ int _my_b_seq_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
   }
   else
   {
-    length= my_read(info->file,info->buffer, max_length, info->myflags);
+    length= mysql_file_read(info->file,info->buffer, max_length, info->myflags);
     if (length == (size_t) -1)
     {
       info->error= -1;
@@ -1431,7 +1431,7 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
       return 1;
     }
     
-    if (my_seek(info->file,next_pos_in_file,MY_SEEK_SET,MYF(0))
+    if (mysql_file_seek(info->file, next_pos_in_file, MY_SEEK_SET, MYF(0))
         == MY_FILEPOS_ERROR)
     {
       info->error= -1;
@@ -1441,8 +1441,8 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     read_length=IO_SIZE*2- (size_t) (next_pos_in_file & (IO_SIZE-1));
     if (Count < read_length)
     {					/* Small block, read to cache */
-      if ((read_length=my_read(info->file,info->request_pos,
-			       read_length, info->myflags)) == (size_t) -1)
+      if ((read_length=mysql_file_read(info->file,info->request_pos,
+			               read_length, info->myflags)) == (size_t) -1)
         return info->error= -1;
       use_length=min(Count,read_length);
       memcpy(Buffer,info->request_pos,(size_t) use_length);
@@ -1462,7 +1462,7 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     }
     else
     {						/* Big block, don't cache it */
-      if ((read_length= my_read(info->file,Buffer, Count,info->myflags))
+      if ((read_length= mysql_file_read(info->file, Buffer, Count,info->myflags))
 	  != Count)
       {
 	info->error= read_length == (size_t) -1 ? -1 : read_length+left_length;
@@ -1569,14 +1569,14 @@ int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
         "seek_not_done" to indicate this to other functions operating
         on the IO_CACHE.
       */
-      if (my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)))
+      if (mysql_file_seek(info->file, info->pos_in_file, MY_SEEK_SET, MYF(0)))
       {
         info->error= -1;
         return (1);
       }
       info->seek_not_done=0;
     }
-    if (my_write(info->file, Buffer, length, info->myflags | MY_NABP))
+    if (mysql_file_write(info->file, Buffer, length, info->myflags | MY_NABP))
       return info->error= -1;
 
 #ifdef THREAD
@@ -1639,7 +1639,7 @@ int my_b_append(register IO_CACHE *info, const uchar *Buffer, size_t Count)
   if (Count >= IO_SIZE)
   {					/* Fill first intern buffer */
     length=Count & (size_t) ~(IO_SIZE-1);
-    if (my_write(info->file,Buffer, length, info->myflags | MY_NABP))
+    if (mysql_file_write(info->file,Buffer, length, info->myflags | MY_NABP))
     {
       unlock_append_buffer(info);
       return info->error= -1;
@@ -1695,11 +1695,11 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
   {
     /* Of no overlap, write everything without buffering */
     if (pos + Count <= info->pos_in_file)
-      return my_pwrite(info->file, Buffer, Count, pos,
-		       info->myflags | MY_NABP);
+      return mysql_file_pwrite(info->file, Buffer, Count, pos,
+		               info->myflags | MY_NABP);
     /* Write the part of the block that is before buffer */
     length= (uint) (info->pos_in_file - pos);
-    if (my_pwrite(info->file, Buffer, length, pos, info->myflags | MY_NABP))
+    if (mysql_file_pwrite(info->file, Buffer, length, pos, info->myflags | MY_NABP))
       info->error= error= -1;
     Buffer+=length;
     pos+=  length;
@@ -1789,7 +1789,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       */
       if (!append_cache && info->seek_not_done)
       {					/* File touched, do seek */
-	if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) ==
+	if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
 	    MY_FILEPOS_ERROR)
 	{
 	  UNLOCK_APPEND_BUFFER;
@@ -1803,7 +1803,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       info->write_end= (info->write_buffer+info->buffer_length-
 			((pos_in_file+length) & (IO_SIZE-1)));
 
-      if (my_write(info->file,info->write_buffer,length,
+      if (mysql_file_write(info->file,info->write_buffer,length,
 		   info->myflags | MY_NABP))
 	info->error= -1;
       else
@@ -1815,7 +1815,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
       else
       {
 	info->end_of_file+=(info->write_pos-info->append_read_pos);
-	DBUG_ASSERT(info->end_of_file == my_tell(info->file,MYF(0)));
+	DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));
       }
 
       info->append_read_pos=info->write_pos=info->write_buffer;

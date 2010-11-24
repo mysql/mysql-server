@@ -140,6 +140,12 @@
 */
 #define OPTION_MASTER_SQL_ERROR (1ULL << 35)
 
+/*
+  Dont report errors for individual rows,
+  But just report error on commit (or read ofcourse)
+  Note! Reserved for use in MySQL Cluster
+*/
+#define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
