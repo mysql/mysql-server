@@ -1579,11 +1579,16 @@ void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_ulonglong_ptr::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  bound_unsigned(thd, &tmp, option_limits);
   *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
@@ -1675,25 +1680,30 @@ uchar *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_thd_ha_rows::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, max_system_variables.*offset,
+#ifdef BIG_TABLES
+                      GET_ULL
+#else
+                      GET_ULONG
+#endif
+                     );
+}
+
+
 bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
-
-  /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ha_rows) tmp > max_system_variables.*offset)
-    tmp= max_system_variables.*offset;
-
-  bound_unsigned(thd, &tmp, option_limits);
-
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
-    pthread_mutex_lock(&LOCK_global_system_variables);    
-    global_system_variables.*offset= (ha_rows) tmp;
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    global_system_variables.*offset= (ha_rows)
+                                     var->save_result.ulonglong_value;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= (ha_rows) tmp;
+    thd->variables.*offset= (ha_rows) var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -2305,6 +2315,12 @@ uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_key_buffer_size::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -2318,10 +2334,10 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache= get_key_cache(base_name);
-                            
+
   if (!key_cache)
   {
-    /* Key cache didn't exists */
+    /* Key cache didn't exist */
     if (!tmp)					// Tried to delete cache
       goto end;					// Ok, nothing to do
     if (!(key_cache= create_key_cache(base_name->str, base_name->length)))
@@ -2371,7 +2387,6 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  bound_unsigned(thd, &tmp, option_limits);
   key_cache->param_buff_size= (ulonglong) tmp;
 
   /* If key cache didn't exist initialize it, else resize it */
@@ -2388,7 +2403,16 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
+
+ var->save_result.ulonglong_value = SIZE_T_MAX;
+
   return error;
+}
+
+
+bool sys_var_key_cache_long::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULONG);
 }
 
 
@@ -2400,7 +2424,6 @@ end:
 */
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
@@ -2425,8 +2448,8 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   if (key_cache->in_init)
     goto end;
 
-  bound_unsigned(thd, &tmp, option_limits);
-  *((ulong*) (((char*) key_cache) + offset))= (ulong) tmp;
+  *((ulong*) (((char*) key_cache) + offset))= (ulong)
+                                              var->save_result.ulonglong_value;
 
   /*
     Don't create a new key cache if it didn't exist
