@@ -9820,11 +9820,18 @@ static bool make_join_select(JOIN *join, Item *cond)
     FALSE  No
 */
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
-                            bool other_tbls_ok)
+static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+                                   bool other_tbls_ok)
 {
   if (item->const_item())
-    return TRUE;
+  {
+    /*
+      const_item() might not return correct value if the item tree
+      contains a subquery. If this is the case we do not include this
+      part of the condition.
+    */
+    return !item->with_subselect;
+  }
 
   const Item::Type item_type= item->type();
 
@@ -9840,25 +9847,6 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item_type == Item::FUNC_ITEM && 
       ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
     return FALSE;
-
-  /*
-    Do not push down subselects for execution by the handler. This
-    case would also be handled by the default label of the second
-    switch statement in this function. But since a subselect might
-    only refer to other tables the check below (if this item only
-    contains "other" tables) can return true and thus we need to do
-    this check here.
-  */
-  if (item_type == Item::SUBSELECT_ITEM)
-    return false;
-
-  /*
-    If this item will be evaluated using only "other tables" we let
-    the value of the other_tbls_ok determine if this item can be
-    pushed down or not.
-   */
-  if (!(item->used_tables() & tbl->map))
-    return other_tbls_ok;
 
   switch (item_type) {
   case Item::FUNC_ITEM:
@@ -9895,7 +9883,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       Item_field *item_field= (Item_field*)item;
       if (item_field->field->table != tbl) 
-        return TRUE;
+        return other_tbls_ok;
       /*
         The below is probably a repetition - the first part checks the
         other two, but let's play it safe:
