@@ -5195,15 +5195,15 @@ ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
 
   if (table_share->primary_key != MAX_KEY) 
   {
-    KEY *key_info = table->key_info + table_share->primary_key;
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + key_info->key_parts;
+    KEY *key_info= table->key_info + table_share->primary_key;
+    KEY_PART_INFO *key_part= key_info->key_part;
+    KEY_PART_INFO *end= key_part + key_info->key_parts;
     
     for (; key_part != end; key_part++) 
     {
       // NOTE: No need to check for null since PK is not-null
 
-      Field *field = key_part->field;
+      Field *field= key_part->field;
       int result= field->key_cmp(ref1, ref2);
       if (result)
       {
@@ -5212,12 +5212,12 @@ ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
 
       if (field->type() ==  MYSQL_TYPE_VARCHAR)
       {
-        ref1 += 2;
-        ref2 += 2;
+        ref1+= 2;
+        ref2+= 2;
       }
       
-      ref1 += key_part->length;
-      ref2 += key_part->length;
+      ref1+= key_part->length;
+      ref2+= key_part->length;
     }
     DBUG_RETURN(0);
   } 
@@ -11010,7 +11010,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    * There may still be an open m_multi_cursor from the previous mrr access on this handler.
    * Close it now to free up resources for this NdbScanOperation.
    */ 
-  if (unlikely(error= close_scan()))
+  if (unlikely((error= close_scan())))
     DBUG_RETURN(error);
 
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
