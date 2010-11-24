@@ -4127,6 +4127,59 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug58453(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter res;
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+
+  int loops = ctx->getNumLoops();
+  while (loops--)
+  {
+    if (hugoOps.startTransaction(pNdb) != 0)
+      return NDBT_FAILED;
+
+    if (hugoOps.pkInsertRecord(pNdb, 0, 128 /* records */) != 0)
+      return NDBT_FAILED;
+
+    int err = 5062;
+    switch(loops & 1){
+    case 0:
+      err = 5062;
+      break;
+    case 1:
+      err = 5063;
+      break;
+    }
+    int node = (int)hugoOps.getTransaction()->getConnectedNodeId();
+    int node0 = res.getRandomNodeOtherNodeGroup(node, rand());
+    int node1 = res.getRandomNodeSameNodeGroup(node0, rand());
+
+    ndbout_c("node %u err: %u, node: %u err: %u",
+             node0, 5061, node1, err);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    res.dumpStateOneNode(node, val2, 2);
+    res.insertErrorInNode(node0, 5061);
+    res.insertErrorInNode(node1, err);
+
+    hugoOps.execute_Commit(pNdb);
+    hugoOps.closeTransaction(pNdb);
+
+    res.waitNodesNoStart(&node, 1);
+    res.startNodes(&node, 1);
+    res.waitClusterStarted();
+    hugoOps.clearTable(pNdb);
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -4608,6 +4661,10 @@ TESTCASE("Bug42422", ""){
 }
 TESTCASE("Bug43224", ""){
   INITIALIZER(runBug43224);
+}
+TESTCASE("Bug58453", "")
+{
+  INITIALIZER(runBug58453);
 }
 TESTCASE("Bug43888", ""){
   INITIALIZER(runBug43888);
