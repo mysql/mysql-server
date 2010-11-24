@@ -416,7 +416,7 @@ static Sys_var_mybool Sys_binlog_direct(
 
 static const char *repository_names[]=
 {
-  "FILE", 0
+  "FILE", "TABLE", 0
 };
 
 ulong opt_mi_repository_id;
