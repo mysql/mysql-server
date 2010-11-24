@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS t1;
 --echo #
 --echo # Bug#51851: Server with SBR locks mutex twice on LOAD DATA into
 --echo #            partitioned MyISAM table
---write_file init_file.txt
+--write_file $MYSQLTEST_VARDIR/tmp/init_file.txt
 abcd
 EOF
 
@@ -19,8 +19,9 @@ CREATE TABLE t1
  INDEX namelocs (name(255))) ENGINE = MyISAM
 PARTITION BY HASH(id) PARTITIONS 2;
 
-LOAD DATA LOCAL INFILE 'init_file.txt'
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/init_file.txt'
 INTO TABLE t1 (name);
 
---remove_file init_file.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/init_file.txt
 DROP TABLE t1;
