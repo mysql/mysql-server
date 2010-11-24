@@ -1106,10 +1106,6 @@ echo "====="                                     >> $STATUS_HISTORY
 - Add a "triggerpostun" to handle the uninstall of the "-community" server RPM.
 - This fixes bug#55015 "MySQL server is not restarted properly after RPM upgrade".
 
-* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
-
-- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
-
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Change the behaviour on installation and upgrade:
