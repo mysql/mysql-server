@@ -24,12 +24,12 @@ ULEHANDLE toku_ule_create(void * le_p);
 
 void toku_ule_free(ULEHANDLE ule_p);
 
-int ule_num_uxrs(ULEHANDLE ule);
-int ule_get_num_committed(ULEHANDLE ule);
-int ule_get_num_provisional(ULEHANDLE ule);
-UXRHANDLE ule_get_uxr(ULEHANDLE ule, int ith);
-int ule_is_committed(ULEHANDLE ule, int ith);
-int ule_is_provisional(ULEHANDLE ule, int ith);
+uint64_t ule_num_uxrs(ULEHANDLE ule);
+uint32_t ule_get_num_committed(ULEHANDLE ule);
+uint32_t ule_get_num_provisional(ULEHANDLE ule);
+UXRHANDLE ule_get_uxr(ULEHANDLE ule, uint64_t ith);
+int ule_is_committed(ULEHANDLE ule, uint64_t ith);
+int ule_is_provisional(ULEHANDLE ule, uint64_t ith);
 void *ule_get_key(ULEHANDLE ule);
 uint32_t ule_get_keylen(ULEHANDLE ule);
 
