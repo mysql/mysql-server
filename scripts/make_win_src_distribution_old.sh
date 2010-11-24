@@ -312,7 +312,7 @@ touch $BASE/innobase/ib_config.h
 #
 
 cd $SOURCE
-for i in COPYING ChangeLog README EXCEPTIONS-CLIENT\
+for i in COPYING ChangeLog README \
          INSTALL-SOURCE INSTALL-WIN \
          INSTALL-WIN-SOURCE \
          Docs/INSTALL-BINARY Docs/manual.chm
@@ -376,7 +376,7 @@ fi
 # Search the tree for plain text files and adapt the line end marker
 #
 find $BASE \( -name "*.cnf" -o -name "*.ini" \
-           -o -name COPYING -o -name ChangeLog -o -name EXCEPTIONS-CLIENT \
+           -o -name COPYING -o -name ChangeLog \
            -o -name "INSTALL*" -o -name LICENSE -o -name "README*" \
            -o -name "*.dsp" -o -name "*.dsw" \
            -o -name "*.vcproj" -o -name "*.sln" \) -type f -print \
