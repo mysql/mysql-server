@@ -98,6 +98,12 @@ class Master_info : public Rpl_info
   ulonglong received_heartbeats;  // counter of received heartbeat events
   Server_ids *ignore_server_ids;
   ulong master_id;
+  /*
+    to hold checksum alg in use until IO thread has received FD.
+    Initialized to novalue, then set to the queried from master
+    @@global.binlog_checksum and deactivated once FD has been received.
+  */
+  uint8 checksum_alg_before_fd;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
 

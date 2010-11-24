@@ -1932,8 +1932,6 @@ bool general_log_write(THD *thd, enum enum_server_command command,
   return FALSE;
 }
 
-
-
 /**
   Check if a string is a valid number.
 
