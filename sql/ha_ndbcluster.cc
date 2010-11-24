@@ -5289,8 +5289,10 @@ int ha_ndbcluster::index_read(uchar *buf,
   default:
     break;
   }
-  DBUG_RETURN(read_range_first_to_buf(&start_key, 0, descending,
-                                      m_sorted, buf));
+  const int error= read_range_first_to_buf(&start_key, 0, descending,
+                                           m_sorted, buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -5298,7 +5300,9 @@ int ha_ndbcluster::index_next(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_next");
   ha_statistic_increment(&SSV::ha_read_next_count);
-  DBUG_RETURN(next_result(buf));
+  const int error= next_result(buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -5306,7 +5310,9 @@ int ha_ndbcluster::index_prev(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_prev");
   ha_statistic_increment(&SSV::ha_read_prev_count);
-  DBUG_RETURN(next_result(buf));
+  const int error= next_result(buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -5317,7 +5323,9 @@ int ha_ndbcluster::index_first(uchar *buf)
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
-  DBUG_RETURN(ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL));
+  const int error= ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -5325,7 +5333,9 @@ int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
   ha_statistic_increment(&SSV::ha_read_last_count);
-  DBUG_RETURN(ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL));
+  const int error= ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
@@ -5520,9 +5530,14 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   DBUG_ENTER("rnd_next");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
-  if (!m_active_cursor)
-    DBUG_RETURN(full_table_scan(NULL, NULL, NULL, buf));
-  DBUG_RETURN(next_result(buf));
+  int error;
+  if (m_active_cursor)
+    error= next_result(buf);
+  else
+    error= full_table_scan(NULL, NULL, NULL, buf);
+  
+  table->status= error ? STATUS_NOT_FOUND: 0;
+  DBUG_RETURN(error);
 }
 
 
@@ -5587,6 +5602,7 @@ int ha_ndbcluster::rnd_pos(uchar *buf, uchar *pos)
        */
       res= HA_ERR_RECORD_DELETED;
     }
+    table->status= res ? STATUS_NOT_FOUND: 0;
     DBUG_RETURN(res);
   }
 }
@@ -5686,6 +5702,44 @@ void ha_ndbcluster::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
+int
+ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
+{
+  DBUG_ENTER("cmp_ref");
+
+  if (table_share->primary_key != MAX_KEY) 
+  {
+    KEY *key_info= table->key_info + table_share->primary_key;
+    KEY_PART_INFO *key_part= key_info->key_part;
+    KEY_PART_INFO *end= key_part + key_info->key_parts;
+    
+    for (; key_part != end; key_part++) 
+    {
+      // NOTE: No need to check for null since PK is not-null
+
+      Field *field= key_part->field;
+      int result= field->key_cmp(ref1, ref2);
+      if (result)
+      {
+        DBUG_RETURN(result);
+      }
+
+      if (field->type() ==  MYSQL_TYPE_VARCHAR)
+      {
+        ref1+= 2;
+        ref2+= 2;
+      }
+      
+      ref1+= key_part->length;
+      ref2+= key_part->length;
+    }
+    DBUG_RETURN(0);
+  } 
+  else
+  {
+    DBUG_RETURN(memcmp(ref1, ref2, ref_length));
+  }
+}
 
 int ha_ndbcluster::info(uint flag)
 {
@@ -11691,6 +11745,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   const NdbOperation* op;
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans= m_thd_ndb->trans;
+  int error;
 
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
@@ -11712,6 +11767,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                                 sorted, 
                                                 buffer));
   }
+
+  /**
+   * There may still be an open m_multi_cursor from the previous mrr access on this handler.
+   * Close it now to free up resources for this NdbScanOperation.
+   */ 
+  if (unlikely((error= close_scan())))
+    DBUG_RETURN(error);
+
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
@@ -11747,15 +11810,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   */
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
+  DBUG_ASSERT(m_multi_cursor==NULL);
 
-  m_multi_cursor= 0;
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
   const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
   uchar *row_buf= (uchar *)buffer->buffer;
   const uchar *end_of_buffer= buffer->buffer_end;
   uint num_scan_ranges= 0;
   uint i;
-  int error;
   bool any_real_read= FALSE;
 
   if (m_read_before_write_removal_possible)
