@@ -10945,6 +10945,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   const NdbOperation* op;
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans= m_thd_ndb->trans;
+  int error;
 
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
@@ -10966,6 +10967,14 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                                 sorted, 
                                                 buffer));
   }
+
+  /**
+   * There may still be an open m_multi_cursor from the previous mrr access on this handler.
+   * Close it now to free up resources for this NdbScanOperation.
+   */ 
+  if (unlikely(error= close_scan()))
+    DBUG_RETURN(error);
+
   thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
@@ -11001,8 +11010,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   */
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
+  DBUG_ASSERT(m_multi_cursor==NULL);
 
-  m_multi_cursor= 0;
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
@@ -11010,7 +11019,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   const uchar *end_of_buffer= buffer->buffer_end;
   uint num_scan_ranges= 0;
   uint i;
-  int error;
   bool any_real_read= FALSE;
 
   if (m_read_before_write_removal_possible)
