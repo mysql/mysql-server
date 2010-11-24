@@ -51,6 +51,12 @@ LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
 /* SLOW_LOG name */
 LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
 
+/* RLI_INFO name */
+LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
+
+/* MI_INFO name */
+LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -260,6 +266,18 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                        SLOW_LOG_NAME.str,
                        name->str) == 0))
       return TABLE_CATEGORY_LOG;
+
+    if ((name->length == RLI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      RLI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == MI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      MI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
   }
 
   return TABLE_CATEGORY_USER;
