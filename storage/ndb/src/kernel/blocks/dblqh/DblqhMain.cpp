@@ -3103,7 +3103,11 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
     TcommitLen = 4;
     Tgci_lo_mask = 0;
   }
-  
+
+#ifdef ERROR_INSERT
+  Uint32 senderBlockRef = signal->getSendersBlockRef();
+#endif
+
   ndbrequire(Tlength <= 25);
   MEMCOPY_NO_WORDS(&TpackedData[0], &signal->theData[0], Tlength);
   while (Tlength > Tstep) {
@@ -3172,6 +3176,9 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       ndbrequire(false);
       return;
     }//switch
+#ifdef ERROR_INSERT
+    signal->header.theSendersBlockRef = senderBlockRef;
+#endif
   }//while
   ndbrequire(Tlength == Tstep);
   return;
@@ -7147,6 +7154,24 @@ void Dblqh::execCOMMIT(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000,signal->getLength());
     return;
   }//if
+  if (ERROR_INSERTED(5062) &&
+      ((refToMain(signal->getSendersBlockRef()) == DBTC) ||
+       signal->getSendersBlockRef() == reference()))
+  {
+    Uint32 save = signal->getSendersBlockRef();
+    ndbout_c("Delaying execCOMMIT");
+    sendSignalWithDelay(cownref, GSN_COMMIT, signal, 2000, signal->getLength());
+
+    if (refToMain(save) == DBTC)
+    {
+      ndbout_c("killing %u", refToNode(save));
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, refToNode(save)),
+                 GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+    return;
+  }
+
   tcConnectptr.i = tcIndex;
   ptrAss(tcConnectptr, regTcConnectionrec);
   if ((tcConnectptr.p->transid[0] == transid1) &&
@@ -7284,6 +7309,24 @@ void Dblqh::execCOMPLETE(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMPLETE, signal, 2000, 3);
     return;
   }//if
+  if (ERROR_INSERTED(5063) &&
+      ((refToMain(signal->getSendersBlockRef()) == DBTC) ||
+       signal->getSendersBlockRef() == reference()))
+  {
+    Uint32 save = signal->getSendersBlockRef();
+    ndbout_c("Delaying execCOMPLETE");
+    sendSignalWithDelay(cownref, GSN_COMPLETE,signal, 2000,signal->getLength());
+
+    if (refToMain(save) == DBTC)
+    {
+      ndbout_c("killing %u", refToNode(save));
+      signal->theData[0] = 9999;
+      sendSignal(numberToRef(CMVMI, refToNode(save)),
+                 GSN_NDB_TAMPER, signal, 1, JBB);
+    }
+    return;
+  }
+
   tcConnectptr.i = tcIndex;
   ptrAss(tcConnectptr, regTcConnectionrec);
   if ((tcConnectptr.p->transactionState == TcConnectionrec::COMMITTED) &&
@@ -7840,8 +7883,6 @@ void Dblqh::commitReplyLab(Signal* signal)
     sendSignal(tcConnectptr.p->reqBlockref, GSN_COMMITCONF, signal, 4, JBB);
   } else {
     ndbrequire(regTcPtr->abortState == TcConnectionrec::NEW_FROM_TC);
-    jam();
-    sendLqhTransconf(signal, LqhTransConf::Committed);
   }//if
   return;
 }//Dblqh::commitReplyLab()
@@ -7894,7 +7935,6 @@ void Dblqh::completeUnusualLab(Signal* signal)
     sendAborted(signal);
   } else if (regTcPtr->abortState == TcConnectionrec::NEW_FROM_TC) {
     jam();
-    sendLqhTransconf(signal, LqhTransConf::Committed);
   } else {
     ndbrequire(regTcPtr->abortState == TcConnectionrec::REQ_FROM_TC);
     jam();
@@ -8356,6 +8396,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
 /*WE ARE ONLY CHECKING THE STATUS OF THE TRANSACTION. IT IS COMMITTING.      */
 /*COMPLETE THE COMMIT LOCALLY AND THEN SEND REPORT OF COMMITTED TO THE NEW TC*/
 /* ------------------------------------------------------------------------- */
+    sendLqhTransconf(signal, LqhTransConf::Committed);
     return;
     break;
   case TcConnectionrec::COMMITTED:
@@ -8868,6 +8909,29 @@ void Dblqh::lqhTransNextLab(Signal* signal)
        * now scan markers
        */
 #ifdef ERROR_INSERT
+      if (ERROR_INSERTED(5061))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        for (Uint32 i = 0; i < cnoOfNodes; i++)
+        {
+          Uint32 node = cnodeData[i];
+          if (node != getOwnNodeId() && cnodeStatus[i] == ZNODE_UP)
+          {
+            ndbout_c("clearing ERROR_INSERT in LQH:%u", node);
+            signal->theData[0] = 0;
+            sendSignal(numberToRef(DBLQH, node), GSN_NDB_TAMPER,
+                       signal, 1, JBB);
+          }
+        }
+        
+        signal->theData[0] = ZSCAN_MARKERS;
+        signal->theData[1] = tcNodeFailptr.i;
+        signal->theData[2] = 0;
+        signal->theData[3] = RNIL;
+        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
+        return;
+      }
+
       if (ERROR_INSERTED(5050))
       {
         ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
