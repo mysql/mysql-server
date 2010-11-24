@@ -269,3 +269,93 @@ b
 5
 6
 drop table t1;
+create table t1(vc varchar(16), i int, vc2 varchar(1024)
+, PRIMARY KEY(vc,vc2) USING HASH
+, KEY i1(i)
+, KEY i2(vc)
+)  ENGINE=ndbcluster;
+insert into t1 values
+('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
+('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
+('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
+('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
+('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain
+select i,vc from t1
+where i>=1 or vc > '0';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	20	Using sort_union(i1,i2); Using where with pushed condition
+select i,vc from t1
+where i>=1 or vc > '0';
+i	vc
+1	1
+1	10
+1	13
+1	16
+1	4
+1	7
+1	y
+2	11
+2	14
+2	17
+2	2
+2	5
+2	8
+2	z
+3	1000
+3	10000
+3	12
+3	15
+3	2000
+3	3
+3	6
+3	9
+3	x
+create table t2(vc varchar(16), i int, vc2 varchar(1024)
+, KEY i1(i)
+, KEY i2(vc)
+)  ENGINE=ndbcluster;
+insert into t2 values
+('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
+('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
+('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
+('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
+('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+explain
+select i,vc from t2
+where i>=1 or vc > '0';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index_merge	i1,i2	i1,i2	5,19	NULL	20	Using sort_union(i1,i2); Using where with pushed condition
+select i,vc from t2
+where i>=1 or vc > '0';
+i	vc
+1	1
+1	10
+1	13
+1	16
+1	4
+1	7
+1	y
+2	11
+2	14
+2	17
+2	2
+2	5
+2	8
+2	z
+3	1000
+3	10000
+3	12
+3	15
+3	2000
+3	3
+3	6
+3	9
+3	x
+drop table t1, t2;
