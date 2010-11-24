@@ -613,5 +613,20 @@
 #define VERSION "@VERSION@"
 #define PROTOCOL_VERSION 10
 
+#ifdef _WIN32
+#if (_MSC_VER < 1500)
+  typedef struct _RTL_CONDITION_VARIABLE
+  {
+    void* Ptr;
+  } RTL_CONDITION_VARIABLE, *PRTL_CONDITION_VARIABLE;
+  typedef RTL_CONDITION_VARIABLE CONDITION_VARIABLE, *PCONDITION_VARIABLE;
+  typedef struct _RTL_SRWLOCK
+  {
+    void* Ptr;
+  } RTL_SRWLOCK, *PRTL_SRWLOCK;
+  typedef RTL_SRWLOCK SRWLOCK, *PSRWLOCK;
+#endif
+#endif
+
 
 #endif
