@@ -2750,7 +2750,8 @@ srv_task_execute(void)
 
 		que_run_threads(thr);
 
-		os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_completed, 1);
+		os_atomic_inc_ulint(
+			&purge_sys->mutex, &purge_sys->n_completed, 1);
 	}
 
 	os_atomic_dec_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
@@ -2795,10 +2796,10 @@ srv_worker_thread(
 
 		os_event_wait(event);
 
+		srv_task_execute();
+
 		/* If there is no task in the queue, wakeup the purge
 		coordinator thread. */
-
-		srv_task_execute();
 
 		srv_wake_purge_thread_if_not_active();
 	}
