@@ -1464,7 +1464,7 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
     }
     if (s_wc != t_wc)
     {
-      return  my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
 
     s+= s_res;
@@ -1504,7 +1504,7 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
 
     if (s_wc != t_wc)
     {
-      return my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
 
     s+= s_res;
