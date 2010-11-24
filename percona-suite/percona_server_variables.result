@@ -36,12 +36,10 @@ delayed_insert_limit	Value
 delayed_insert_timeout	Value
 delayed_queue_size	Value
 div_precision_increment	Value
-enable_query_response_time_stats	Value
 engine_condition_pushdown	Value
 error_count	Value
 event_scheduler	Value
 expire_logs_days	Value
-fast_index_creation	Value
 flush	Value
 flush_time	Value
 foreign_key_checks	Value
@@ -80,8 +78,6 @@ innodb_additional_mem_pool_size	Value
 innodb_auto_lru_dump	Value
 innodb_autoextend_increment	Value
 innodb_autoinc_lock_mode	Value
-innodb_buffer_pool_shm_checksum	Value
-innodb_buffer_pool_shm_key	Value
 innodb_buffer_pool_size	Value
 innodb_change_buffering	Value
 innodb_checkpoint_age_target	Value
@@ -250,7 +246,6 @@ query_cache_strip_comments	Value
 query_cache_type	Value
 query_cache_wlock_invalidate	Value
 query_prealloc_size	Value
-query_response_time_range_base	Value
 rand_seed1	Value
 rand_seed2	Value
 range_alloc_block_size	Value
