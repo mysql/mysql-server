@@ -248,6 +248,7 @@ connection master;
 # transactions. /Matz
 
 # LOAD DATA
+
 --disable_query_log
 select "--- Test 5 LOAD DATA --" as "";
 --enable_query_log

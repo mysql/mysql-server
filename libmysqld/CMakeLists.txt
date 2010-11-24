@@ -86,8 +86,8 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_alter.cc ../sql/sql_partition_admin.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
-           ../sql/rpl_utility.cc ../sql/binlog.cc ../sql/sys_vars.cc
-           ../sql/gcalc_slicescan.cc ../sql/gcalc_tools.cc
+           ../sql/rpl_utility.cc ../sql/rpl_reporting.cc ../sql/binlog.cc 
+           ../sql/sys_vars.cc ../sql/gcalc_slicescan.cc ../sql/gcalc_tools.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ../sql/mdl.cc ../sql/transaction.cc ../sql/sql_bootstrap.cc
            ${GEN_SOURCES}
