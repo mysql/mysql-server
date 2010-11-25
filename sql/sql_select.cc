@@ -11586,6 +11586,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       return NESTED_LOOP_ERROR;
   }
 
+  enum enum_nested_loop_state rc= NESTED_LOOP_OK;
   if (!select_cond || select_cond_result)
   {
     DBUG_PRINT("info", ("  Condition passed"));
@@ -11610,7 +11611,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
         if (tab->table->reginfo.not_exists_optimize)
-          return NESTED_LOOP_NO_MORE_ROWS;
+          rc= NESTED_LOOP_NO_MORE_ROWS;
+
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
@@ -11629,7 +11631,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
               not to the last table of the current nest level.
             */
             join->return_tab= tab;
-            return NESTED_LOOP_OK;
+            return rc;
           }
         }
       }
@@ -11656,7 +11658,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     if (found)
     {
       DBUG_PRINT("info", ("  found match"));
-      enum enum_nested_loop_state rc;
+      DBUG_ASSERT(rc==NESTED_LOOP_OK);
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
@@ -11685,7 +11687,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     join->thd->row_count++;
     join_tab->read_record.unlock_row(join_tab);
   }
-  return NESTED_LOOP_OK;
+  return rc;
 }
 
 

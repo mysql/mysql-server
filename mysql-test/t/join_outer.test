@@ -981,4 +981,45 @@ EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#58490: Incorrect result in multi level OUTER JOIN 
+--echo # in combination with IS NULL 
+--echo #
+
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (0),    (2),(3),(4);
+CREATE TABLE t2 (i INT NOT NULL);
+INSERT INTO t2 VALUES (0),(1),    (3),(4);
+CREATE TABLE t3 (i INT NOT NULL);
+INSERT INTO t3 VALUES (0),(1),(2),    (4);
+CREATE TABLE t4 (i INT NOT NULL);
+INSERT INTO t4 VALUES (0),(1),(2),(3)   ;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( t2 LEFT JOIN
+   ( t3 LEFT JOIN 
+     t4
+     ON t4.i = t3.i
+   )
+   ON t3.i = t2.i
+ )
+ ON t2.i = t1.i
+ ;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( t2 LEFT JOIN
+   ( t3 LEFT JOIN 
+     t4
+     ON t4.i = t3.i
+   )
+   ON t3.i = t2.i
+ )
+ ON t2.i = t1.i
+ WHERE t4.i IS NULL;
+
+DROP TABLE t1,t2,t3,t4;
+
 --echo End of 5.1 tests
