@@ -1623,6 +1623,36 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   change_list.append(change);
 }
 
+/**
+  Check and register item change if needed
+
+  @param place           place where we should assign new value
+  @param new_value       place of the new value
+
+  @details
+    Let C be a reference to an item that changed the reference A
+    at the location (occurrence) L1 and this change has been registered.
+    If C is substituted for reference A another location (occurrence) L2
+    that is to be registered as well than this change has to be
+    consistent with the first change in order the procedure that rollback
+    changes to substitute the same reference at both locations L1 and L2.
+*/
+
+void THD::check_and_register_item_tree_change(Item **place, Item **new_value,
+                                              MEM_ROOT *runtime_memroot)
+{
+  Item_change_record *change;
+  I_List_iterator<Item_change_record> it(change_list);
+  while ((change= it++))
+  {
+    if (change->place == new_value)
+      break; // we need only very first value
+  }
+  if (change)
+    nocheck_register_item_tree_change(place, change->old_value,
+                                      runtime_memroot);
+}
+
 
 void THD::rollback_item_tree_changes()
 {
