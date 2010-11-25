@@ -451,6 +451,7 @@ class ha_ndbcluster: public handler
   int rnd_pos(uchar *buf, uchar *pos);
   void position(const uchar *record);
   int read_first_row(uchar *buf, uint primary_key);
+  virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
                        bool eq_range, bool sorted);
