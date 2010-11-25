@@ -4751,17 +4751,18 @@ include_field:
 		n_requested_fields++;
 
 		templ->col_no = i;
+		templ->clust_rec_field_no = dict_col_get_clust_pos(
+			&index->table->cols[i], clust_index);
+		ut_ad(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
 		if (index == clust_index) {
-			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[i], index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
-		}
-
-		if (templ->rec_field_no == ULINT_UNDEFINED) {
-			prebuilt->need_to_access_clustered = TRUE;
+			if (templ->rec_field_no == ULINT_UNDEFINED) {
+				prebuilt->need_to_access_clustered = TRUE;
+			}
 		}
 
 		if (field->null_ptr) {
@@ -4813,9 +4814,7 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no = dict_col_get_clust_pos(
-				&index->table->cols[templ->col_no],
-				clust_index);
+			templ->rec_field_no = templ->clust_rec_field_no;
 		}
 	}
 }
@@ -6756,8 +6755,8 @@ create_options_are_valid(
 				? "COMPRESSED"
 				: "DYNAMIC";
 
-			/* These two ROW_FORMATs require
-			srv_file_per_table and srv_file_format */
+			/* These two ROW_FORMATs require srv_file_per_table
+			and srv_file_format > Antelope */
 			if (!srv_file_per_table) {
 				push_warning_printf(
 					thd,
@@ -6767,7 +6766,6 @@ create_options_are_valid(
 					" requires innodb_file_per_table.",
 					row_format_name);
 					ret = FALSE;
-
 			}
 
 			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
@@ -6966,6 +6964,8 @@ ha_innobase::create(
 		ulint	ssize, ksize;
 		ulint	key_block_size = create_info->key_block_size;
 
+		/*  Set 'flags' to the correct key_block_size.
+		It will be zero if key_block_size is an invalid number.*/
 		for (ssize = ksize = 1; ssize <= DICT_TF_ZSSIZE_MAX;
 		     ssize++, ksize <<= 1) {
 			if (key_block_size == ksize) {
@@ -7006,10 +7006,10 @@ ha_innobase::create(
 	row_type = form->s->row_type;
 
 	if (flags) {
-		/* KEY_BLOCK_SIZE was specified. */
-		if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
-			/* ROW_FORMAT was not specified;
-			default to ROW_FORMAT=COMPRESSED */
+		/* if KEY_BLOCK_SIZE was specified on this statement and
+		 ROW_FORMAT was not, automatically change ROW_FORMAT to COMPRESSED.*/
+		if (   (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)
+		    && !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
 			row_type = ROW_TYPE_COMPRESSED;
 		} else if (row_type != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
@@ -7028,7 +7028,7 @@ ha_innobase::create(
 			flags = 0;
 		}
 	} else {
-		/* No KEY_BLOCK_SIZE */
+		/* flags == 0 means no KEY_BLOCK_SIZE.*/
 		if (row_type == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
@@ -7923,9 +7923,12 @@ Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint flag)	/*!< in: what information MySQL requests */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,			/*!< in: what information MySQL
+					requests */
+	bool	called_from_analyze)	/* in: TRUE if called from
+					::analyze() */
 {
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
@@ -7956,8 +7959,7 @@ ha_innobase::info(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-		if ((innobase_stats_on_metadata
-		     || thd_sql_command(user_thd) == SQLCOM_ANALYZE)
+          if ((called_from_analyze || innobase_stats_on_metadata)
 		    && !share->ib_table->is_corrupt) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
@@ -8228,6 +8230,18 @@ func_exit:
 	DBUG_RETURN(0);
 }
 
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object. */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information MySQL requests */
+{
+	return(info_low(flag, false /* not called from analyze */));
+}
+
 /**********************************************************************//**
 Updates index cardinalities of the table, based on 8 random dives into
 each index tree. This does NOT calculate exact statistics on the table.
@@ -8244,7 +8258,8 @@ ha_innobase::analyze(
 	}
 
 	/* Simply call ::info() with all the flags */
-	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		 true /* called from analyze */);
 
 	if (share->ib_table->is_corrupt) {
 		return(HA_ADMIN_CORRUPT);
@@ -8553,8 +8568,6 @@ ha_innobase::get_foreign_key_create_info(void)
 	flen = ftell(srv_dict_tmpfile);
 	if (flen < 0) {
 		flen = 0;
-	} else if (flen > 64000 - 1) {
-		flen = 64000 - 1;
 	}
 
 	/* allocate buffer for the string, and
@@ -9867,7 +9880,11 @@ ha_innobase::innobase_peek_autoinc(void)
 
 	auto_inc = dict_table_autoinc_read(innodb_table);
 
-	ut_a(auto_inc > 0);
+	if (auto_inc == 0) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: AUTOINC next value generation "
+			"is disabled for '%s'\n", innodb_table->name);
+	}
 
 	dict_table_autoinc_unlock(innodb_table);
 
@@ -11508,6 +11525,13 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "inserts"); 
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB change buffering (0=none)",
+  NULL, NULL, 0, 0, 1, 0);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
   "Number of pages that must be accessed sequentially for InnoDB to "
@@ -11717,6 +11741,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+  MYSQL_SYSVAR(change_buffering_debug),
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(auto_lru_dump),

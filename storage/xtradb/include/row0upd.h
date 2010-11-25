@@ -167,8 +167,11 @@ row_upd_changes_field_size_or_external(
 	const upd_t*	update);/*!< in: update vector */
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
-Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. */
+Replaces the new column values stored in the update vector to the
+record given. No field size changes are allowed. This function is
+usually invoked on a clustered index. The only use case for a
+secondary index is row_ins_sec_index_entry_by_modify() or its
+counterpart in ibuf_insert_to_index_page(). */
 UNIV_INTERN
 void
 row_upd_rec_in_place(

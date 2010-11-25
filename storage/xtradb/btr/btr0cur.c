@@ -1803,7 +1803,7 @@ func_exit:
 See if there is enough place in the page modification log to log
 an update-in-place.
 @return	TRUE if enough place */
-static
+UNIV_INTERN
 ibool
 btr_cur_update_alloc_zip(
 /*=====================*/

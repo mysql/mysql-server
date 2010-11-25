@@ -266,6 +266,9 @@ mutex_create_func(
 #ifdef UNIV_DEBUG
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
+#else
+        (void) cfile_name;
+        (void) cline;
 #endif /* UNIV_DEBUG */
 	mutex->count_os_wait = 0;
 	mutex->cmutex_name=	  cmutex_name;
