@@ -1524,7 +1524,7 @@ ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
 SET @@global.max_join_size=0;
 ERROR 42000: Variable 'max_join_size' can't be set to the value of '0'
 SET @@global.key_buffer_size=0;
-ERROR 42000: Variable 'key_buffer_size' can't be set to the value of '0'
+ERROR HY000: Cannot drop default keycache
 SET @@global.key_cache_block_size=0;
 ERROR 42000: Variable 'key_cache_block_size' can't be set to the value of '0'
 throw warnings in default mode
@@ -1536,8 +1536,7 @@ SET @@global.max_join_size=0;
 Warnings:
 Warning	1292	Truncated incorrect max_join_size value: '0'
 SET @@global.key_buffer_size=0;
-Warnings:
-Warning	1292	Truncated incorrect key_buffer_size value: '0'
+ERROR HY000: Cannot drop default keycache
 SET @@global.key_cache_block_size=0;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_block_size value: '0'
