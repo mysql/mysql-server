@@ -834,10 +834,15 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
     }
   }
-  
+  strategy_exhausted= FALSE;
+
   res= strategy->refill_buffer(TRUE);
-  if (res && res != HA_ERR_END_OF_FILE) //psergey-todo: remove EOF check here
-    goto error;
+  if (res)
+  {
+    if (res != HA_ERR_END_OF_FILE)
+      goto error;
+    strategy_exhausted= TRUE;
+  }
 
   /*
     If we have scanned through all intervals in *seq, then adjust *buf to 
@@ -1232,6 +1237,9 @@ void Key_value_records_iterator::move_to_next_key_value()
 int DsMrr_impl::dsmrr_next(char **range_info)
 {
   int res;
+  if (strategy_exhausted)
+    return HA_ERR_END_OF_FILE;
+
   while ((res= strategy->get_next(range_info)) == HA_ERR_END_OF_FILE)
   {
     if ((res= strategy->refill_buffer(FALSE)))

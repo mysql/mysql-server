@@ -544,7 +544,10 @@ private:
   bool is_mrr_assoc;
 
   Mrr_reader_factory reader_factory;
+
   Mrr_reader *strategy;
+  bool strategy_exhausted;
+
   Mrr_index_reader *index_strategy;
 
   /* The whole buffer space that we're using */
