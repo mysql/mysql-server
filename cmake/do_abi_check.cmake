@@ -53,23 +53,27 @@
 SET(abi_check_out ${BINARY_DIR}/abi_check.out)
 
 FOREACH(file ${ABI_HEADERS})
-  SET(tmpfile ${file}.pp.tmp)
-    EXECUTE_PROCESS(
-     COMMAND ${COMPILER} 
-       -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
-       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
-       ${file} 
-       ERROR_QUIET OUTPUT_FILE ${tmpfile})
-    EXECUTE_PROCESS(
-      COMMAND sed -e 
-      "/^# /d" -e "/^[	]*$/d"  -e "/^#pragma GCC set_debug_pwd/d" -e "/^#ident/d"
-      RESULT_VARIABLE result OUTPUT_FILE ${abi_check_out} INPUT_FILE ${tmpfile})
+  GET_FILENAME_COMPONENT(header_basename ${file} NAME)
+  SET(tmpfile ${BINARY_DIR}/${header_basename}.pp.tmp)
+
+  EXECUTE_PROCESS(
+    COMMAND ${COMPILER} 
+      -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
+      -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
+      ${file} 
+      ERROR_QUIET OUTPUT_FILE ${tmpfile})
+  EXECUTE_PROCESS(
+    COMMAND sed -e "/^# /d"
+                -e "/^[	]*$/d"
+                -e "/^#pragma GCC set_debug_pwd/d"
+                -e "/^#ident/d"
+    RESULT_VARIABLE result OUTPUT_FILE ${abi_check_out} INPUT_FILE ${tmpfile})
   IF(NOT ${result} EQUAL 0)
     MESSAGE(FATAL_ERROR "sed returned error ${result}")
   ENDIF()
   FILE(REMOVE ${tmpfile})
-  EXECUTE_PROCESS(COMMAND diff -w ${file}.pp ${abi_check_out} RESULT_VARIABLE
-     result)
+  EXECUTE_PROCESS(
+    COMMAND diff -w ${file}.pp ${abi_check_out} RESULT_VARIABLE result)
   IF(NOT ${result} EQUAL 0)
     MESSAGE(FATAL_ERROR 
       "ABI check found difference between ${file}.pp and ${abi_check_out}")
