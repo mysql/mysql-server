@@ -9,6 +9,9 @@ AC_DEFUN([MY_MAINTAINER_MODE], [
                     [Enable a MySQL maintainer-specific development environment])],
     [USE_MYSQL_MAINTAINER_MODE=$enableval],
     [USE_MYSQL_MAINTAINER_MODE=no])
+# Remove the # from following comments after merge with xtradb for 5.1.53
+#    [AS_IF([test "$with_debug" != "no"],
+#      [USE_MYSQL_MAINTAINER_MODE=yes], [USE_MYSQL_MAINTAINER_MODE=no])])
   AC_MSG_RESULT([$USE_MYSQL_MAINTAINER_MODE])
 ])
 

@@ -339,7 +339,7 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 --exec illegal_command
 --cat_file does_not_exist
 --perl
-  exit(1);
+  exit(2);
 EOF
 
 # ----------------------------------------------------------------------------

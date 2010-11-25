@@ -1,25 +1,73 @@
+2010-10-24	The InnoDB Team
+
+	* row/row0mysql.c
+	Fix Bug #57700 Latching order violation in
+	row_truncate_table_for_mysql()
+
+2010-10-20	The InnoDB Team
+
+	* dict/dict0load.c
+	Fix Bug #57616 Sig 11 in dict_load_table() when failed to load
+	index or foreign key
+
+2010-10-19	The InnoDB Team
+
+	* btr/btr0cur.c, buf/buf0buf.c, buf/buf0flu.c, handler/ha_innodb.cc,
+	ibuf/ibuf0ibuf.c, include/btr0cur.h, include/buf0flu.h,
+	include/ibuf0ibuf.h, include/row0mysql.h,
+	row/row0mysql.c, row/row0sel.c,
+	innodb_bug56680.test, innodb_bug56680.result:
+	Fix Bug #56680 InnoDB may return wrong results from a
+	case-insensitive covering index
+
+2010-10-18	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h, innodb_bug57252.result,
+	innodb_bug57252.test:
+	Fix Bug#57252 disabling innobase_stats_on_metadata disables ANALYZE
+
+2010-10-14	The InnoDB Team
+
+	* handler/ha_innodb.cc, innodb_bug56143.result, innodb_bug56143.test:
+	Fix Bug#56143 too many foreign keys causes output of show create
+	table to become invalid
+
+2010-10-14	The InnoDB Team
+
+	* srv/srv0start.c:
+	Fix Bug#57397 io_handler_thread() will never cleanup
+
 2010-10-11	The InnoDB Team
+
 	* row/row0sel.c
 	Fix Bug #57345 btr_pcur_store_position abort for load with
 	concurrent lock/unlock tables
 
+2010-10-11	The InnoDB Team
+
+	* row/row0mysql.c, innodb_bug56947.result, innodb_bug56947.test:
+	Fix Bug #56947 InnoDB leaks memory when failing to create a table
+
 2010-10-06	The InnoDB Team
+
 	* row/row0mysql.c, innodb_bug57255.result, innodb_bug57255.test
-	Fix Bug #Cascade Delete results in "Got error -1 from storage engine"
- 
+	Fix Bug #57255 Cascade Delete results in "Got error -1 from
+	storage engine"
+
 2010-09-27	The InnoDB Team
 
 	* row/row0sel.c, innodb_bug56716.result, innodb_bug56716.test:
-	Fix Bug #56716 InnoDB locks a record gap without locking the table
+	Fix Bug#56716 InnoDB locks a record gap without locking the table
 
 2010-09-06	The InnoDB Team
-	* dict/dict0load.c, innodb_bug53756.test innodb_bug53756.result
-	Fix Bug #53756 	ALTER TABLE ADD PRIMARY KEY affects crash recovery
+
+	* dict/dict0load.c, innodb_bug53756.test innodb_bug53756.result:
+	Fix Bug#53756 ALTER TABLE ADD PRIMARY KEY affects crash recovery
 
 2010-08-24	The InnoDB Team
 
 	* handler/ha_innodb.c, dict/dict0dict.c:
-	Fix Bug #55832 selects crash too easily when innodb_force_recovery>3
+	Fix Bug#55832 selects crash too easily when innodb_force_recovery>3
 
 2010-08-03	The InnoDB Team
 
@@ -37,13 +85,13 @@
 2010-08-03	The InnoDB Team
 
 	* include/ut0mem.h, ut/ut0mem.c:
-	Fix Bug #55627 segv in ut_free pars_lexer_close innobase_shutdown
+	Fix Bug#55627 segv in ut_free pars_lexer_close innobase_shutdown
 	innodb-use-sys-malloc=0
 
 2010-08-01	The InnoDB Team
 
-	* handler/ha_innodb.cc
-	Fix Bug #55382 Assignment with SELECT expressions takes unexpected
+	* handler/ha_innodb.cc:
+	Fix Bug#55382 Assignment with SELECT expressions takes unexpected
 	S locks in READ COMMITTED
 
 2010-07-27	The InnoDB Team
@@ -65,8 +113,8 @@
 
 2010-06-29	The InnoDB Team
 
-	* btr/btr0cur.c, include/btr0cur.h,
-	include/row0mysql.h, row/row0merge.c, row/row0sel.c:
+	* btr/btr0cur.c, include/btr0cur.h, include/row0mysql.h,
+	row/row0merge.c, row/row0sel.c:
 	Fix Bug#54358 READ UNCOMMITTED access failure of off-page DYNAMIC
 	or COMPRESSED columns
 

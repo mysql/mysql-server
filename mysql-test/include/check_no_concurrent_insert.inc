@@ -23,7 +23,7 @@
 # Reset DEBUG_SYNC facility for safety.
 set debug_sync= "RESET";
 
-if (`SELECT '$restore_table' <> ''`)
+if ($restore_table)
 {
 --eval create temporary table t_backup select * from $restore_table;
 }
@@ -67,7 +67,7 @@ if (!$success)
 
 --eval delete from $table where i = 0;
 
-if (`SELECT '$restore_table' <> ''`)
+if ($restore_table)
 {
 --eval truncate table $restore_table;
 --eval insert into $restore_table select * from t_backup;
