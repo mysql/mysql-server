@@ -1424,44 +1424,6 @@ bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 
 
 /**
-  check an unsigned user-supplied value for a systemvariable against bounds.
-
-  TODO: This is a wrapper function to call clipping from within an update()
-        function.  Calling bounds from within update() is fair game in theory,
-        but we can only send warnings from in there, not errors, and besides,
-        it violates our model of separating check from update phase.
-        To avoid breaking out of the server with an ASSERT() in strict mode,
-        we pretend we're not in strict mode when we go through here. Bug#43233
-        was opened to remind us to replace this kludge with The Right Thing,
-        which of course is to do the check in the actual check phase, and then
-        throw an error or warning accordingly.
-
-  @param thd             thread handle
-  @param num             the value to limit
-  @param option_limits   the bounds-record, or NULL if none
- */
-static void bound_unsigned(THD *thd, ulonglong *num,
-                              const struct my_option *option_limits)
-{
-  if (option_limits)
-  {
-    my_bool   fixed     = FALSE;
-    ulonglong unadjusted= *num;
-
-    *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
-
-    if (fixed)
-    {
-      ulong ssm= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~MODE_STRICT_ALL_TABLES;
-      throw_bounds_warning(thd, fixed, TRUE, option_limits->name, unadjusted);
-      thd->variables.sql_mode= ssm;
-    }
-  }
-}
-
-
-/**
   Get unsigned system-variable.
   Negative value does not wrap around, but becomes zero.
   Check user-supplied value for a systemvariable against bounds.
@@ -2359,9 +2321,8 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   {
     if (key_cache == dflt_key_cache)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
-                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
+      error= 1;
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
       goto end;					// Ignore default key cache
     }
 
