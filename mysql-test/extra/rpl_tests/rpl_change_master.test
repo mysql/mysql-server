@@ -292,5 +292,38 @@ if (`SELECT "$ignore_new_value" <> "$ignore_crash_value" || $connect_new_value <
   -- die
 }
 
+#
+# WL#3127 slave side TCP address binding
+# - CHANGE MASTER ... MASTER_BIND='interface'
+# - SHOW SLAVE STATUS has new column Master_Bind
+#
+
+let $check_ipv6_just_check=1;
+source include/check_ipv6.inc;
+let $check_ipv6_just_check=0;
+
+# Test valid IPv4 address
+let $master_bind='127.0.0.1';
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test invalid IPv4 address
+let $master_bind='1.1.1.1';
+let $master_bind_error_expected=2003;
+--source extra/rpl_tests/rpl_change_master_bind.inc
+let $master_bind_error_expected=0;
+
+# Test valid IPv6 address
+let $master_bind='::1';
+if (!$check_ipv6_supported)
+{
+  # No IPv6 support, fallback to IPv4
+  let $master_bind='127.0.0.1';
+}
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test with no bind address(check that reset works)
+let $master_bind='';
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
 -- source include/master-slave-reset.inc
 -- source include/master-slave-end.inc

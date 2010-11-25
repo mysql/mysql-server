@@ -1,10 +1,20 @@
-# Check if ipv6 is available. If not, server is crashing (see BUG#48915).
+# Check if ipv6 is available.
+#
+# Parameters:
+#  $check_ipv6_just_check - don't skip the test if IPv6 is unsupported,
+#                           just set the variable $check_ipv6_supported
+#
 --disable_query_log
 --disable_abort_on_error
+let $check_ipv6_supported=1;
 connect (checkcon123456789,::1,root,,test);
 if($mysql_errno)
 {
-skip wrong IP;
+  let $check_ipv6_supported=0;
+  if(!$check_ipv6_just_check)
+  {
+    skip No IPv6 support;
+  }
 }
 connection default;
 disconnect checkcon123456789;
