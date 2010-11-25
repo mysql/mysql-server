@@ -19,31 +19,46 @@
 #include "rpl_info.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "rpl_info_file.h"
+#include "rpl_info_table.h"
 #include "rpl_info_handler.h"
 
 enum enum_mi_repository
 {
-  MI_REPOSITORY_FILE= 0
+  MI_REPOSITORY_FILE= 0,
+  MI_REPOSITORY_TABLE= 1
 };
 extern ulong opt_mi_repository_id;
 
 enum enum_rli_repository
 {
-  RLI_REPOSITORY_FILE= 0
+  RLI_REPOSITORY_FILE= 0,
+  RLI_REPOSITORY_TABLE= 1
 };
 extern ulong opt_rli_repository_id;
+
+#define MI_FIELD_ID 0
+
+#define MI_SCHEMA "mysql"
+#define MI_TABLE  "slave_master_info"
+
+#define RLI_FIELD_ID 0
+
+#define RLI_SCHEMA "mysql"
+#define RLI_TABLE  "slave_relay_log_info"
 
 class Rpl_info_factory
 {
   public:
 
-  bool static create(uint mi_option, Master_info **mi,
+  static bool create(uint mi_option, Master_info **mi,
                      uint rli_option, Relay_log_info **rli);
-  bool static create_mi(uint rli_option, Master_info **rli);
-  bool static create_rli(uint rli_option, bool is_slave_recovery,
-                         Relay_log_info **rli);
-  bool static decide_repository(Rpl_info *info, Rpl_info_handler *table,
-                                Rpl_info_handler *file, bool is_table,
+  static Master_info *create_mi(uint rli_option);
+  static Relay_log_info *create_rli(uint rli_option, bool is_slave_recovery);
+  static bool decide_repository(Rpl_info *info, Rpl_info_table **table,
+                                Rpl_info_file **file, bool is_table,
                                 const char **msg);
+  static bool change_engine(Rpl_info_table *table, const char *engine,
+                            const char **msg);
 };
 #endif

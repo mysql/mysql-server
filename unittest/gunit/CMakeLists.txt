@@ -82,7 +82,7 @@ IF(NOT GTEST_DOWNLOADED)
   LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
   # Now look for gtest.
-  FIND_PACKAGE(GTest)
+  FIND_PACKAGE(GTest QUIET)
 
   # Revert suffix list back to what it was before.
   LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)

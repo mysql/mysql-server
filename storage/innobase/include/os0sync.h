@@ -36,6 +36,7 @@ Created 9/6/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0lst.h"
+#include "sync0types.h"
 
 #ifdef __WIN__
 /** Native event (slow)*/
@@ -307,11 +308,26 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+/* Returns the resulting value, ptr is pointer to target, amount is the
+amount to decrement. */
+
+# define os_atomic_decrement(ptr, amount) \
+	__sync_sub_and_fetch(ptr, amount)
+
+# define os_atomic_decrement_lint(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+
+# define os_atomic_decrement_ulint(ptr, amount) \
+	os_atomic_decrement(ptr, amount)
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, (byte) new_val)
+
+# define os_atomic_test_and_set_ulint(ptr, new_val) \
+	__sync_lock_test_and_set(ptr, new_val)
 
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
@@ -354,17 +370,29 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
-# define os_atomic_increment_lint(ptr, amount) \
-	atomic_add_long_nv((ulong_t*) ptr, amount)
-
 # define os_atomic_increment_ulint(ptr, amount) \
 	atomic_add_long_nv(ptr, amount)
+
+# define os_atomic_increment_lint(ptr, amount) \
+	os_atomic_increment_ulint((ulong_t*) ptr, amount)
+
+/* Returns the resulting value, ptr is pointer to target, amount is the
+amount to decrement. */
+
+# define os_atomic_decrement_lint(ptr, amount) \
+	os_atomic_increment_ulint((ulong_t*) ptr, -(amount))
+
+# define os_atomic_decrement_ulint(ptr, amount) \
+	os_atomic_increment_ulint(ptr, -(amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	atomic_swap_uchar(ptr, new_val)
+
+# define os_atomic_test_and_set_ulint(ptr, new_val) \
+	atomic_swap_ulong(ptr, new_val)
 
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
@@ -407,6 +435,16 @@ amount of increment. */
 	((ulint) (win_xchg_and_add(ptr, amount) + amount))
 
 /**********************************************************//**
+Returns the resulting value, ptr is pointer to target, amount is the
+amount to decrement. There is no atomic substract function on Windows */
+
+# define os_atomic_decrement_lint(ptr, amount) \
+	(win_xchg_and_add(ptr, -(lint)amount) - amount)
+
+# define os_atomic_decrement_ulint(ptr, amount) \
+	((ulint) (win_xchg_and_add(ptr, -(lint)amount) - amount))
+
+/**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
 InterlockedExchange() operates on LONG, and the LONG will be
 clobbered */
@@ -414,10 +452,20 @@ clobbered */
 # define os_atomic_test_and_set_byte(ptr, new_val) \
 	((byte) InterlockedExchange(ptr, new_val))
 
+# define os_atomic_test_and_set_ulong(ptr, new_val) \
+	InterlockedExchange(ptr, new_val)
+
 #else
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use InnoDB's own implementation"
 #endif
+#ifdef HAVE_ATOMIC_BUILTINS
+#define os_atomic_inc_ulint(m,v,d)	os_atomic_increment_ulint(v, d)
+#define os_atomic_dec_ulint(m,v,d)	os_atomic_decrement_ulint(v, d)
+#else
+#define os_atomic_inc_ulint(m,v,d)	os_atomic_inc_ulint_func(m, v, d)
+#define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 /**********************************************************//**
 Following macros are used to update specified counter atomically

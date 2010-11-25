@@ -47,6 +47,7 @@
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
+#include "debug_sync.h"          // DEBUG_SYNC
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
@@ -1750,6 +1751,7 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
   optimized= 1;
+  DEBUG_SYNC(thd, "before_join_optimize");
 
   thd_proc_info(thd, "optimizing");
 
@@ -6224,8 +6226,12 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-#ifdef HAVE_purify
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+#if defined(__GNUC__) && !MY_GNUC_PREREQ(4,4)
+      /*
+        Old gcc used a memcpy(), which is undefined if save_pos==use:
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
+      */
       if (save_pos != use)
 #endif
         *save_pos= *use;
@@ -9814,11 +9820,18 @@ static bool make_join_select(JOIN *join, Item *cond)
     FALSE  No
 */
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
-                            bool other_tbls_ok)
+static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+                                   bool other_tbls_ok)
 {
   if (item->const_item())
-    return TRUE;
+  {
+    /*
+      const_item() might not return correct value if the item tree
+      contains a subquery. If this is the case we do not include this
+      part of the condition.
+    */
+    return !item->with_subselect;
+  }
 
   const Item::Type item_type= item->type();
 
@@ -9834,25 +9847,6 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item_type == Item::FUNC_ITEM && 
       ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
     return FALSE;
-
-  /*
-    Do not push down subselects for execution by the handler. This
-    case would also be handled by the default label of the second
-    switch statement in this function. But since a subselect might
-    only refer to other tables the check below (if this item only
-    contains "other" tables) can return true and thus we need to do
-    this check here.
-  */
-  if (item_type == Item::SUBSELECT_ITEM)
-    return false;
-
-  /*
-    If this item will be evaluated using only "other tables" we let
-    the value of the other_tbls_ok determine if this item can be
-    pushed down or not.
-   */
-  if (!(item->used_tables() & tbl->map))
-    return other_tbls_ok;
 
   switch (item_type) {
   case Item::FUNC_ITEM:
@@ -9889,7 +9883,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       Item_field *item_field= (Item_field*)item;
       if (item_field->field->table != tbl) 
-        return TRUE;
+        return other_tbls_ok;
       /*
         The below is probably a repetition - the first part checks the
         other two, but let's play it safe:

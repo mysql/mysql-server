@@ -520,4 +520,70 @@ ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 col_int_nokey
 DROP TABLE t1, t2;
+#
+# Bug#58243 "RQG test optimizer_subquery causes server crash
+#            when running with ICP"
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+c1 INTEGER NOT NULL,
+c2 INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,6,7);
+CREATE TABLE t2 (
+c1 INTEGER NOT NULL
+);
+EXPLAIN SELECT t1.c1
+FROM t1
+WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
+FROM t2)
+ORDER BY t1.c2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT t1.c1
+FROM t1
+WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
+FROM t2)
+ORDER BY t1.c2;
+c1
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t1 VALUES (2,'w');
+CREATE TABLE t2 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL,
+c2 VARCHAR(1) NOT NULL,
+KEY (c1, i1)
+);
+INSERT INTO t2 VALUES (8,'d','d');
+INSERT INTO t2 VALUES (4,'v','v');
+CREATE TABLE t3 (
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t3 VALUES ('v');
+EXPLAIN SELECT i1
+FROM t1
+WHERE EXISTS (SELECT t2.c1
+FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
+FROM t3));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ref	c1	c1	3	const	1	Using where
+3	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	
+SELECT i1
+FROM t1
+WHERE EXISTS (SELECT t2.c1
+FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
+FROM t3));
+i1
+2
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;

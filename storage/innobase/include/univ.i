@@ -308,6 +308,10 @@ number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
 
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -379,6 +383,9 @@ typedef unsigned long long int	ullint;
 
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;
+
+/* The 'undefined' value for a ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

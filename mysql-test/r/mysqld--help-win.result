@@ -223,7 +223,7 @@ The following options may be given as the first argument:
  server's hostname changes) argument should be the chosen
  location for the binary log files.
  --log-bin-index=name 
- File that holds the names for last binary log files.
+ File that holds the names for binary log files.
  --log-bin-trust-function-creators 
  If set to FALSE (the default), then when --log-bin is
  used, creation of a stored function (or trigger) is
@@ -493,8 +493,7 @@ The following options may be given as the first argument:
  are read through this buffer to avoid a disk seeks
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
- The location and name to use for the file that keeps a
- list of the last relay logs
+ File that holds the names for relay log files.
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs

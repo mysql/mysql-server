@@ -76,6 +76,11 @@
 /**
   Generic (compiler-independent) features.
 */
+
+#ifndef MY_GNUC_PREREQ
+# define MY_GNUC_PREREQ(maj, min) (0)
+#endif
+
 #ifndef MY_ALIGNOF
 # ifdef __cplusplus
     template<typename type> struct my_alignof_helper { char m1; type m2; };

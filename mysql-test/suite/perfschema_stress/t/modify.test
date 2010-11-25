@@ -19,7 +19,7 @@
 let $have_table= `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
                   WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'`;
 
-if (`SELECT ($have_table = 0)`) {
+if (!$have_table) {
     --source suite/perfschema_stress/t/setup.test
 }
 
