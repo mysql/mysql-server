@@ -518,6 +518,8 @@ public:
   int8 marker;
   uint8 decimals;
   my_bool maybe_null;			/* If item may be null */
+  my_bool in_rollup;                    /* If used in GROUP BY list
+                                           of a query with ROLLUP */ 
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
   my_bool with_sum_func;

@@ -380,6 +380,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
+  in_rollup= 0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
   cmp_context= IMPOSSIBLE_RESULT;
@@ -420,6 +421,7 @@ Item::Item(THD *thd, Item *item):
   marker(item->marker),
   decimals(item->decimals),
   maybe_null(item->maybe_null),
+  in_rollup(item->in_rollup),
   null_value(item->null_value),
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
