@@ -189,7 +189,7 @@ class Mrr_reader
 {
 public:
   virtual int get_next(char **range_info) = 0;
-  virtual int refill_buffer() = 0;
+  virtual int refill_buffer(bool initial) = 0;
   virtual ~Mrr_reader() {}; /* just to remove compiler warning */
 };
 
@@ -228,7 +228,7 @@ public:
            void *seq_init_param, uint n_ranges,
            uint mode, Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
-  int refill_buffer() { return HA_ERR_END_OF_FILE; }
+  int refill_buffer(bool initial) { return initial? 0: HA_ERR_END_OF_FILE; }
   uchar *get_rowid_ptr() { return h->ref; }
   bool skip_record(char *range_id, uchar *rowid)
   {
@@ -249,7 +249,7 @@ public:
            void *seq_init_param, uint n_ranges,
            uint mode, Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
-  int refill_buffer();
+  int refill_buffer(bool initial);
   uchar *get_rowid_ptr() { return h->ref; }
   
   bool skip_record(char *range_info, uchar *rowid)
@@ -298,6 +298,9 @@ private:
   /* Range sequence iteration members */
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
+  
+  /* TRUE == reached eof when enumerating ranges */
+  bool source_exhausted;
 
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
   static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);
@@ -319,7 +322,7 @@ public:
   int init(handler *h, Mrr_index_reader *index_reader, uint mode,
            Lifo_buffer *buf);
   int get_next(char **range_info);
-  int refill_buffer();
+  int refill_buffer(bool initial);
 private:
   handler *h; /* Handler to use */
   
@@ -332,6 +335,7 @@ private:
   /* TRUE <=> index_reader->refill_buffer() call has returned EOF */
   bool index_reader_exhausted;
   
+  bool index_reader_needs_refill;
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
   
@@ -348,7 +352,7 @@ private:
   uchar *rowid;
   uchar *rowids_range_id;
 
-  int refill_from_key_buffer();
+  int refill_from_index_reader();
 };
 
 
