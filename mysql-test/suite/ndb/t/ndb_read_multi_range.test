@@ -460,7 +460,7 @@ insert into t1
    (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) / 1000
 from
   t2 as t1, t2 as t2, t2 as t3, t2 as t4
-where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 4000;
+where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 3000;
 
 
 # Execute a 'scan(t1) join mrr(t2)'
