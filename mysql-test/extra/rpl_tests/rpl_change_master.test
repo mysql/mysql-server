@@ -230,6 +230,10 @@ if ($retry_count5 != $retry_count_expected)
   -- die
 }
 
+# action: change the value back to the original one
+-- source include/stop_slave.inc
+-- eval CHANGE MASTER TO master_retry_count=$retry_count0
+
 ## assert that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count='a';
@@ -237,6 +241,16 @@ CHANGE MASTER TO master_retry_count='a';
 ## assert that there is a parse error if using a negative number
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count=-1;
+
+-- source include/start_slave.inc
+
+## assert that the test has cleaned itself up
+-- let $retry_count6= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+if (`SELECT $retry_count6 <> $retry_count0`)
+{
+  -- echo Unexpected retry count value! Got: $retry_count6, expected: $retry_count0
+  -- die
+}
 
 ## Checks if Replicate_Ignore_Server_Ids is correctly written to a repository.
 

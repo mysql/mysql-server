@@ -64,10 +64,13 @@ CHANGE MASTER TO master_connect_retry= 1;
 ### stop slave server
 ### start slave server
 include/start_slave.inc
+include/stop_slave.inc
+CHANGE MASTER TO master_retry_count=10;
 CHANGE MASTER TO master_retry_count='a';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a'' at line 1
 CHANGE MASTER TO master_retry_count=-1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO master_connect_retry= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500);
 ### stop slave server
