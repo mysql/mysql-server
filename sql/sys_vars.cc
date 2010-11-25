@@ -1790,6 +1790,7 @@ static Sys_var_ulong Sys_server_id(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_server_id));
 
 #ifndef MCP_BUG53205
+extern uint opt_server_id_bits;
 static Sys_var_uint Sys_server_id_bits(
        "server_id_bits",
        "Set number of significant bits in server-id",
