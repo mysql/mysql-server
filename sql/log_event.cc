@@ -3201,7 +3201,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->set_query_and_id((char*)query_arg, q_len_arg, next_query_id());
+    thd->set_query_and_id((char*)query_arg, q_len_arg,
+                          thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     DBUG_PRINT("query",("%s", thd->query()));
 
@@ -3253,6 +3254,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             goto compare_errors;
           }
           thd->update_charset(); // for the charset change to take effect
+          /*
+            Reset thd->query_string.cs to the newly set value.
+            Note, there is a small flaw here. For a very short time frame
+            if the new charset is different from the old charset and
+            if another thread executes "SHOW PROCESSLIST" after
+            the above thd->set_query_and_id() and before this thd->set_query(),
+            and if the current query has some non-ASCII characters,
+            the another thread may see some '?' marks in the PROCESSLIST
+            result. This should be acceptable now. This is a reminder
+            to fix this if any refactoring happens here sometime.
+          */
+          thd->set_query((char*) query_arg, q_len_arg, thd->charset());
         }
       }
       if (time_zone_len)
@@ -3313,6 +3326,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
         log_slow_statement(thd);
       }
 
@@ -3473,7 +3488,7 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   DBUG_PRINT("info", ("end: query= 0"));
   /*
     As a disk space optimization, future masters will not log an event for
@@ -3504,6 +3519,14 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
   else
     ret= Log_event::do_update_pos(rli);
 
+  DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
+       if (!strcmp("COMMIT", query))
+       {
+         rli->flush_info(TRUE);
+         DBUG_SUICIDE();
+       }
+  );
+  
   return ret;
 }
 
@@ -4713,7 +4736,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
   DBUG_ASSERT(thd->query() == 0);
-  thd->set_query_inner(NULL, 0);               // Should not be needed
+  thd->reset_query_inner();                    // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -4908,7 +4931,7 @@ error:
   const char *remember_db= thd->db;
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->stmt_da->can_overwrite_status= TRUE;
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->stmt_da->can_overwrite_status= FALSE;
@@ -4925,6 +4948,8 @@ error:
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
                   thd->is_slave_error= 0; thd->is_fatal_error= 1;);
@@ -5508,12 +5533,75 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
 
+  Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
+
+  /*
+    If the repository is transactional, i.e., created over a
+    transactional table, we need to update the positions within
+    the context of the current transaction in order to provide
+    data integrity. See sql/rpl_rli.h for further details.
+  */
+  bool is_trans_repo= rli_ptr->is_transactional();
+
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
+
+  if (is_trans_repo)
+  {
+    mysql_mutex_lock(&rli_ptr->data_lock);
+  }
+
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_before_update_pos", DBUG_SUICIDE(););
+
+  /*
+    We need to update the positions in here to make it transactional.  
+  */
+  if (is_trans_repo)
+  {
+    rli_ptr->inc_event_relay_log_pos();
+    rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
+    rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
+
+    rli_ptr->notify_group_relay_log_name_update();
+
+    if (log_pos) // 3.23 binlogs don't have log_posx
+    {
+      rli_ptr->set_group_master_log_pos(log_pos);
+    }
+  
+    if ((error= rli_ptr->flush_info(TRUE)))
+      goto err;
+  }
+
+  DBUG_PRINT("info", ("do_apply group master %s %lu  group relay %s %lu event %s %lu\n",
+    rli_ptr->get_group_master_log_name(),
+    (ulong) rli_ptr->get_group_master_log_pos(),
+    rli_ptr->get_group_relay_log_name(),
+    (ulong) rli_ptr->get_group_relay_log_pos(),
+    rli_ptr->get_event_relay_log_name(),
+    (ulong) rli_ptr->get_event_relay_log_pos()));
+
+  DBUG_EXECUTE_IF("crash_after_update_pos_before_apply", DBUG_SUICIDE(););
+
   error= trans_commit(thd); /* Automatically rolls back on error. */
+  DBUG_EXECUTE_IF("crash_after_apply", DBUG_SUICIDE(););
   thd->mdl_context.release_transactional_locks();
 
+err:
+  if (is_trans_repo)
+  {
+    mysql_cond_broadcast(&rli_ptr->data_cond);
+    mysql_mutex_unlock(&rli_ptr->data_lock);
+  }
   return error;
 }
 

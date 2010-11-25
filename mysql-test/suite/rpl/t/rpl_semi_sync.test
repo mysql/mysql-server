@@ -12,6 +12,7 @@ connection master;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 call mtr.add_suppression("Read semi-sync reply");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+call mtr.add_suppression("Semi-sync master failed on net_flush() before waiting for slave reply");
 connection slave;
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
@@ -58,7 +59,7 @@ echo [ on master ];
 
 disable_query_log;
 let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
@@ -123,7 +124,7 @@ echo [ on slave ];
 
 disable_query_log;
 let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';

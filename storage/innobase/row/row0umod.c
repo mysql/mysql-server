@@ -519,7 +519,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, btr_pcur_get_rec(&pcur), index);
 		putc('\n', stderr);
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
+		rw_lock_s_unlock(&trx_sys->lock);
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);

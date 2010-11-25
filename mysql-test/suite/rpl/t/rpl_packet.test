@@ -192,7 +192,6 @@ INSERT INTO t1 VALUES (REPEAT('a', 2048));
 --let $table_map_log_pos= query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1)
 
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
---let $MYSQLD_TMPDIR= `SELECT @@tmpdir`
 --let $start_pos= query_get_value("SHOW SLAVE STATUS", Relay_Log_Pos, 1)
 --let $relay_log_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
 --let $outfile= $MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog
@@ -206,14 +205,11 @@ SET @@global.max_allowed_packet=1048576;
 
 while($i)
 {
-  if(`SELECT $i=1`)
-  {
-    --let $flags=--start-position=$start_pos
-  }
+  --let $flags=--start-position=$start_pos
 
-  if(`SELECT $i=2`)
+  if($i==2)
   {
-    --let $flags=--base64-output=decode-rows -v
+    --let $flags= $flags --base64-output=decode-rows -v
   }
 
   --exec $MYSQL_BINLOG $flags $MYSQLD_DATADIR/$relay_log_file 1> $outfile.1 2> $outfile.2
@@ -223,9 +219,9 @@ while($i)
   --eval SET @b55790_output.1= LOAD_FILE('$outfile.1')
 
   # Check Relay log contains the Table_map_log_event
-  if (!`SELECT INSTR(@b55790_output.1, 'end_log_pos $table_map_log_pos')`)
+  if (!`SELECT INSTR(@b55790_output.1, 'end_log_pos $table_map_log_pos 	Table_map')`)
   {
-    --echo **** ERROR **** Table map 'end_log_pos $table_map_log_pos' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
+    --echo **** ERROR **** Table map 'end_log_pos $table_map_log_pos  Table_map' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
     --cat_file $outfile.1
   }
 
