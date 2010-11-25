@@ -91,4 +91,4 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 >>> Something was written to binary log <<<
-DROP TABLE t1,t2;
+drop table t1,t2;

@@ -114,6 +114,76 @@ static HASH example_open_tables;
 /* The mutex used to init the hash; variable for example share methods */
 mysql_mutex_t example_mutex;
 
+
+/**
+  structure for CREATE TABLE options (table options)
+
+  These can be specified in the CREATE TABLE:
+  CREATE TABLE ( ... ) {...here...}
+*/
+
+struct example_table_options_struct
+{
+  const char *strparam;
+  ulonglong ullparam;
+  uint enumparam;
+  bool boolparam;
+};
+
+
+/**
+  structure for CREATE TABLE options (field options)
+
+  These can be specified in the CREATE TABLE per field:
+  CREATE TABLE ( field ... {...here...}, ... )
+*/
+
+struct example_field_options_struct
+{
+  const char *compex_param_to_parse_it_in_engine;
+};
+
+/* HA_TOPTION_* macros expect the structure called ha_table_option_struct */
+#define ha_table_option_struct example_table_options_struct
+ha_create_table_option example_table_option_list[]=
+{
+  /*
+    one numeric option, with the default of UINT_MAX32, valid
+    range of values 0..UINT_MAX32, and a "block size" of 10
+    (any value must be divisible by 10).
+  */
+  HA_TOPTION_NUMBER("ULL", ullparam, UINT_MAX32, 0, UINT_MAX32, 10),
+  /*
+    one option that takes an arbitrary string
+  */
+  HA_TOPTION_STRING("STR", strparam),
+  /*
+    one enum option. a valid values are strings ONE and TWO.
+    A default value is 0, that is "one".
+  */
+  HA_TOPTION_ENUM("one_or_two", enumparam, "one,two", 0),
+  /*
+    one boolean option, the valid values are YES/NO, ON/OFF, 1/0.
+    The default is 1, that is true, yes, on.
+  */
+  HA_TOPTION_BOOL("YESNO", boolparam, 1),
+  HA_TOPTION_END
+};
+
+/* HA_FOPTION_* macros expect the structure called ha_field_option_struct */
+#define ha_field_option_struct example_field_options_struct
+ha_create_table_option example_field_option_list[]=
+{
+  /*
+    If the engine wants something more complex than a string, number, enum,
+    or boolean - for example a list - it needs to specify the option
+    as a string and parse it internally.
+  */
+  HA_FOPTION_STRING("COMPLEX", compex_param_to_parse_it_in_engine),
+  HA_FOPTION_END
+};
+
+
 /**
   @brief
   Function we use in the creation of our hash to get key.
@@ -165,6 +235,8 @@ static int example_init_func(void *p)
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
+  example_hton->table_options= example_table_option_list;
+  example_hton->field_options= example_field_option_list;
 
   DBUG_RETURN(0);
 }
@@ -322,6 +394,17 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
   if (!(share = get_share(name, table)))
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
+
+#ifndef DBUG_OFF
+  example_table_options_struct *options=
+    (example_table_options_struct *)table->s->option_struct;
+
+  DBUG_ASSERT(options);
+  DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
+                      "boolparam: %u",
+                      (options->strparam ? options->strparam : "<NULL>"),
+                      options->ullparam, options->enumparam, options->boolparam));
+#endif
 
   DBUG_RETURN(0);
 }
@@ -561,7 +644,7 @@ int ha_example::index_last(uchar *buf)
 int ha_example::rnd_init(bool scan)
 {
   DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_RETURN(0);
 }
 
 int ha_example::rnd_end()
@@ -838,27 +921,6 @@ int ha_example::delete_table(const char *name)
 
 /**
   @brief
-  Renames a table from one name to another via an alter table call.
-
-  @details
-  If you do not implement this, the default rename_table() is called from
-  handler.cc and it will delete all files with the file extensions returned
-  by bas_ext().
-
-  Called from sql_table.cc by mysql_rename_table().
-
-  @see
-  mysql_rename_table() in sql_table.cc
-*/
-int ha_example::rename_table(const char * from, const char * to)
-{
-  DBUG_ENTER("ha_example::rename_table ");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
-
-/**
-  @brief
   Given a starting key and an ending key, estimate the number of rows that
   will exist between the two keys.
 
@@ -900,12 +962,102 @@ ha_rows ha_example::records_in_range(uint inx, key_range *min_key,
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info)
 {
+#ifndef DBUG_OFF
+  example_table_options_struct *options=
+    (example_table_options_struct *)table_arg->s->option_struct;
   DBUG_ENTER("ha_example::create");
   /*
-    This is not implemented but we want someone to be able to see that it
-    works.
+    This example shows how to support custom engine specific table and field
+    options.
   */
+  DBUG_ASSERT(options);
+  DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
+                      "boolparam: %u",
+                      (options->strparam ? options->strparam : "<NULL>"),
+                      options->ullparam, options->enumparam, options->boolparam));
+  for (Field **field= table_arg->s->field; *field; field++)
+  {
+    example_field_options_struct *field_options=
+      (example_field_options_struct *)(*field)->option_struct;
+    DBUG_ASSERT(field_options);
+    DBUG_PRINT("info", ("field: %s  complex: '%-.64s'",
+                         (*field)->field_name,
+                         (field_options->compex_param_to_parse_it_in_engine ?
+                          field_options->compex_param_to_parse_it_in_engine :
+                          "<NULL>")));
+  }
+#endif
   DBUG_RETURN(0);
+}
+
+
+/**
+  check_if_incompatible_data() called if ALTER TABLE can't detect otherwise
+  if new and old definition are compatible
+
+  @details If there are no other explicit signs like changed number of
+  fields this function will be called by compare_tables()
+  (sql/sql_tables.cc) to decide should we rewrite whole table or only .frm
+  file.
+
+*/
+
+bool ha_example::check_if_incompatible_data(HA_CREATE_INFO *info,
+                                            uint table_changes)
+{
+  example_table_options_struct *param_old, *param_new;
+  uint i;
+  DBUG_ENTER("ha_example::check_if_incompatible_data");
+  /*
+    This example shows how custom engine specific table and field
+    options can be accessed from this function to be compared.
+  */
+  param_new= (example_table_options_struct *)info->option_struct;
+  DBUG_PRINT("info", ("new strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
+                      "boolparam: %u",
+                      (param_new->strparam ? param_new->strparam : "<NULL>"),
+                      param_new->ullparam, param_new->enumparam,
+                      param_new->boolparam));
+
+  param_old= (example_table_options_struct *)table->s->option_struct;
+  DBUG_PRINT("info", ("old strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "
+                      "boolparam: %u",
+                      (param_old->strparam ? param_old->strparam : "<NULL>"),
+                      param_old->ullparam, param_old->enumparam,
+                      param_old->boolparam));
+
+  /*
+    check important parameters:
+    for this example engine, we'll assume that changing ullparam or
+    boolparam requires a table to be rebuilt, while changing strparam
+    or enumparam - does not.
+  */
+  if (param_new->ullparam != param_old->ullparam ||
+      param_new->boolparam != param_old->boolparam)
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+
+  for (i= 0; i < table->s->fields; i++)
+  {
+    example_field_options_struct *f_old, *f_new;
+    f_old= (example_field_options_struct *)table->s->field[i]->option_struct;
+    DBUG_ASSERT(f_old);
+    DBUG_PRINT("info", ("old field: %u old complex: '%-.64s'", i,
+                         (f_old->compex_param_to_parse_it_in_engine ?
+                          f_old->compex_param_to_parse_it_in_engine :
+                          "<NULL>")));
+    if (info->fileds_option_struct[i])
+    {
+      f_new= (example_field_options_struct *)info->fileds_option_struct[i];
+      DBUG_PRINT("info", ("old field: %u  new complex: '%-.64s'", i,
+                          (f_new->compex_param_to_parse_it_in_engine ?
+                           f_new->compex_param_to_parse_it_in_engine :
+                           "<NULL>")));
+    }
+    else
+      DBUG_PRINT("info", ("old field %i did not changed", i));
+  }
+
+  DBUG_RETURN(COMPATIBLE_DATA_YES);
 }
 
 
@@ -988,3 +1140,20 @@ mysql_declare_plugin(example)
   NULL                                          /* config options */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(example)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &example_storage_engine,
+  "EXAMPLE",
+  "Brian Aker, MySQL AB",
+  "Example storage engine",
+  PLUGIN_LICENSE_GPL,
+  example_init_func,                            /* Plugin Init */
+  example_done_func,                            /* Plugin Deinit */
+  0x0001 /* 0.1 */,
+  func_status,                                  /* status variables */
+  example_system_variables,                     /* system variables */
+  "0.1",                                        /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
+}
+maria_declare_plugin_end;

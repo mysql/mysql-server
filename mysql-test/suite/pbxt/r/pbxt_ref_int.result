@@ -1,0 +1,404 @@
+drop table if exists t1, t2;
+CREATE TABLE t1
+(
+id INT PRIMARY KEY
+) ENGINE=pbxt;
+CREATE TABLE t2
+(
+v INT,
+CONSTRAINT c1 FOREIGN KEY (v) REFERENCES t1(id)
+) ENGINE=pbxt;
+INSERT INTO t2 VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Constraint: `c1`)
+set foreign_key_checks = 0;
+drop table t1;
+set foreign_key_checks = 1;
+INSERT INTO t2 VALUES(2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `test.t1` not found)
+drop table if exists parent, child, child_child;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=PBXT;
+CREATE TABLE child (
+id INT PRIMARY KEY,
+parent_id INT,
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE SET NULL ON UPDATE SET NULL
+) ENGINE=PBXT;
+insert parent values(1);
+insert parent values(2);
+insert child values(100, 1);
+insert child values(200, 1);
+insert child values(300, 2);
+insert child values(400, 2);
+update parent set id = 3 where id = 1;
+select * from parent;
+id
+2
+3
+select * from child order by id;
+id	parent_id
+100	NULL
+200	NULL
+300	2
+400	2
+delete from parent where id = 2;
+select * from parent;
+id
+3
+select * from child order by id;
+id	parent_id
+100	NULL
+200	NULL
+300	NULL
+400	NULL
+set foreign_key_checks = 0;
+drop table if exists parent, child, child_child;
+set foreign_key_checks = 1;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=PBXT;
+CREATE TABLE child (
+id INT PRIMARY KEY,
+parent_id INT,
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id) REFERENCES parent(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=PBXT;
+CREATE TABLE child_child (
+id INT PRIMARY KEY,
+child_id INT,
+INDEX (child_id),
+FOREIGN KEY (child_id) REFERENCES child(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=PBXT;
+delete from parent;
+delete from child;
+delete from child_child;
+insert parent values(1);
+insert parent values(2);
+insert child values(100, 1);
+insert child values(200, 1);
+insert child values(300, 2);
+insert child values(400, 2);
+insert child_child values(1000, 100);
+insert child_child values(2000, 200);
+insert child_child values(3000, 300);
+insert child_child values(4000, 300);
+insert child_child values(5000, 400);
+select * from parent;
+id
+1
+2
+select * from child order by id;
+id	parent_id
+100	1
+200	1
+300	2
+400	2
+select * from child_child;
+id	child_id
+1000	100
+2000	200
+3000	300
+4000	300
+5000	400
+update parent set id = 3 where id = 1;
+select * from parent;
+id
+2
+3
+select * from child order by id;
+id	parent_id
+100	3
+200	3
+300	2
+400	2
+delete from parent where id = 2;
+select * from parent;
+id
+3
+select * from child order by id;
+id	parent_id
+100	3
+200	3
+select * from child_child;
+id	child_id
+1000	100
+2000	200
+set foreign_key_checks = 0;
+drop table if exists parent, child, child_child;
+set foreign_key_checks = 1;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=PBXT;
+CREATE TABLE child (
+id INT,
+parent_id INT,
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id) REFERENCES parent(id)
+) ENGINE=PBXT;
+insert parent values(2);
+insert parent values(1);
+insert child values(100, 1);
+insert child values(200, 1);
+update parent set id = 3 where id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+delete from parent where id = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+select * from parent;
+id
+1
+2
+select * from child order by id;
+id	parent_id
+100	1
+200	1
+delete from child;
+insert child values(100, 1);
+insert child values(200, 1);
+create index child_ind on child(id);
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` int(11) DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  KEY `par_ind` (`parent_id`),
+  KEY `child_ind` (`id`),
+  CONSTRAINT `FOREIGN_1` FOREIGN KEY (`parent_id`) REFERENCES `test`.`parent` (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop index child_ind on child;
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` int(11) DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  KEY `par_ind` (`parent_id`),
+  CONSTRAINT `FOREIGN_1` FOREIGN KEY (`parent_id`) REFERENCES `test`.`parent` (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table parent add column c1 varchar(40);
+insert child values(2000, 2);
+select * from parent;
+id	c1
+2	NULL
+1	NULL
+select * from child order by id;
+id	parent_id
+100	1
+200	1
+2000	2
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) NOT NULL,
+  `c1` varchar(40) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table parent drop column c1;
+select * from parent;
+id
+1
+2
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table parent add column c1 int;
+alter table parent drop column id;
+insert child values(300, 1);
+ERROR HY000: Cannot add foreign key constraint
+alter table parent add column id int, add index (id);
+select * from parent;
+c1	id
+NULL	NULL
+NULL	NULL
+insert child values(300, 1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+update parent set id = 1 where id is null limit 1;
+update parent set id = 2 where id is null limit 1;
+insert child values(300, 1);
+select * from parent order by id;
+c1	id
+NULL	1
+NULL	2
+select * from child order by id;
+id	parent_id
+100	1
+200	1
+300	1
+2000	2
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `c1` int(11) DEFAULT NULL,
+  `id` int(11) DEFAULT NULL,
+  KEY `id` (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` int(11) DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  KEY `par_ind` (`parent_id`),
+  CONSTRAINT `FOREIGN_1` FOREIGN KEY (`parent_id`) REFERENCES `test`.`parent` (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table child add column c1 varchar(40);
+insert child values(400, 1, "asd");
+select * from parent order by id;
+c1	id
+NULL	1
+NULL	2
+select * from child order by id;
+id	parent_id	c1
+100	1	NULL
+200	1	NULL
+300	1	NULL
+400	1	asd
+2000	2	NULL
+alter table child drop key par_ind, drop column parent_id, add column parent_id int, add key par_ind (parent_id);
+insert child (id, parent_id, c1) values(500, 1, "asd");
+drop table if exists child, parent;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=PBXT;
+CREATE TABLE child (
+id INT,
+parent_id INT,
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id)
+REFERENCES parent(id) ON DELETE CASCADE
+) ENGINE=PBXT;
+show create table parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `id` int(11) DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  KEY `par_ind` (`parent_id`),
+  CONSTRAINT `FOREIGN_1` FOREIGN KEY (`parent_id`) REFERENCES `test`.`parent` (`id`) ON DELETE CASCADE
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+insert parent values(1);
+insert child values(100, 1);
+insert child values(102, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Constraint: `FOREIGN_1`)
+set foreign_key_checks = 0;
+drop table if exists parent, child;
+set foreign_key_checks = 1;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=PBXT;
+CREATE TABLE child (
+id INT,
+parent_id INT,
+INDEX par_ind (parent_id),
+FOREIGN KEY (parent_id)
+REFERENCES parent(glump) ON DELETE CASCADE
+) ENGINE=PBXT;
+insert parent values(1);
+insert child values(100, 1);
+ERROR HY000: Cannot add foreign key constraint
+drop table if exists test1;
+CREATE TABLE test1 (
+id INT NOT NULL,
+c1 varchar(30),
+PRIMARY KEY (id)
+) ENGINE=pbxt;
+insert test1 values(1, "asd");
+insert test1 values(2, "qwer");
+alter table test1 drop column id, drop primary key, add column id int;
+show create table test1;
+Table	Create Table
+test1	CREATE TABLE `test1` (
+  `c1` varchar(30) DEFAULT NULL,
+  `id` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+select * from test1;
+c1	id
+asd	NULL
+qwer	NULL
+drop table if exists `‘¡¬Ã…√¡`, t2;
+create table `‘¡¬Ã…√¡` (
+id int primary key
+) engine=pbxt;
+CREATE TABLE t2
+(
+–œÃ≈ int NOT NULL,
+cc varchar(20),
+foreign key (–œÃ≈) references `‘¡¬Ã…√¡` (id),
+index (–œÃ≈)
+) engine=pbxt;
+insert `‘¡¬Ã…√¡` values (1);
+insert t2 values (1, "asd");
+select * from `‘¡¬Ã…√¡`;
+id
+1
+set foreign_key_checks = 0;
+drop table if exists test1, parent, child, child_child, `‘¡¬Ã…√¡`, t2;
+set foreign_key_checks = 1;
+SET CHARACTER SET koi8r;
+SET NAMES binary;
+create table `—Ç–µ—Å—Ç` (
+id int primary key
+) engine=pbxt;
+CREATE TABLE `2—Ç–µ—Å—Ç` (
+`—Ç–µ—Å—Ç` int,
+foreign key (`—Ç–µ—Å—Ç`) references `—Ç–µ—Å—Ç`(id),
+index (`—Ç–µ—Å—Ç`)
+) engine=pbxt;
+select * from `—Ç–µ—Å—Ç`;
+id
+select * from `2—Ç–µ—Å—Ç`;
+—Ç–µ—Å—Ç
+set foreign_key_checks = 0;
+drop table if exists `—Ç–µ—Å—Ç`, `2—Ç–µ—Å—Ç`;
+set foreign_key_checks = 1;
+drop table if exists t2, t1;
+set foreign_key_checks = 1;
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
+set foreign_key_checks = 0;
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+set foreign_key_checks = 1;
+insert into t2 values (1);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Referenced table `test.t1` not found)
+set foreign_key_checks = 0;
+insert into t2 values (1);
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+set foreign_key_checks = 1;
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+set foreign_key_checks = 0;
+DROP TABLE t1;
+DROP TABLE t2;
+set foreign_key_checks = 1;
+CREATE TABLE t1 (s1 INT DEFAULT NULL, s2 INT DEFAULT NULL, s3 INT DEFAULT NULL, s4 INT DEFAULT NULL, 
+INDEX (s1), INDEX (s2), INDEX (s3), INDEX (s4), 
+FOREIGN KEY (s1) REFERENCES t1 (s2), 
+FOREIGN KEY (s2) REFERENCES t1 (s3),
+FOREIGN KEY (s3) REFERENCES t1 (s4));
+DROP TABLE t1;
+CREATE TABLE t1 (s1 INT DEFAULT NULL, s2 INT DEFAULT NULL, s3 INT DEFAULT NULL, s4 INT DEFAULT NULL, 
+INDEX (s1), INDEX (s2), INDEX (s3), INDEX (s4), 
+FOREIGN KEY (s1) REFERENCES t1 (s2), 
+FOREIGN KEY (s2) REFERENCES t1 (s3),
+FOREIGN KEY (s3) REFERENCES t1 (s4));
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
+DROP TABLE t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t2 (s1 INT, INDEX (s1));
+set foreign_key_checks = 0;
+ALTER TABLE t2 ADD FOREIGN KEY (s1) REFERENCES t1 (s1);
+DROP TABLE IF EXISTS t2, t1;
+set foreign_key_checks = 1;

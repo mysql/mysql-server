@@ -1,0 +1,69 @@
+-- source include/have_innodb.inc
+
+let $timeout=`select @@innodb_lock_wait_timeout`;
+set global innodb_lock_wait_timeout=42;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=1;
+select @@innodb_lock_wait_timeout;
+
+connection b;
+select @@innodb_lock_wait_timeout;
+set global innodb_lock_wait_timeout=347;
+select @@innodb_lock_wait_timeout;
+set innodb_lock_wait_timeout=1;
+select @@innodb_lock_wait_timeout;
+
+connect (c,localhost,root,,);
+connection c;
+select @@innodb_lock_wait_timeout;
+connection default;
+disconnect c;
+
+connection a;
+create table t1(a int primary key)engine=innodb;
+begin;
+insert into t1 values(1),(2),(3);
+
+connection b;
+set innodb_lock_wait_timeout=5;
+--send
+select * from t1 for update;
+
+connection a;
+commit;
+
+connection b;
+reap;
+
+connection a;
+begin;
+insert into t1 values(4);
+
+connection b;
+# Test that we get a lock timeout.
+# We cannot reliably test that the timeout is exactly 1 seconds due to
+# process scheduling differences on the host running the test suite. But we
+# can test that we are within reasonable range.
+set innodb_lock_wait_timeout=2;
+set @a= current_timestamp();
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t1 for update;
+set @b= current_timestamp();
+set @c= timestampdiff(SECOND, @a, @b);
+select if(@c >= 1 and @c <= 10, 'OK', concat("NOT OK, time passed=", @c));
+
+connection a;
+commit;
+drop table t1;
+
+connection default;
+
+disconnect a;
+disconnect b;
+
+eval set global innodb_lock_wait_timeout=$timeout;

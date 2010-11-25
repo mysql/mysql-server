@@ -30,6 +30,9 @@
 --disable_warnings
 drop table if exists t5 ;
 --enable_warnings
+--disable_query_log
+SET TIME_ZONE= '+03:00';
+--enable_query_log
 set @arg01= 8;
 set @arg02= 8.0;
 set @arg03= 80.00000000000e-1;
@@ -52,7 +55,7 @@ set @arg14= 'abc';
 set @arg14= NULL ;
 set @arg15= CAST('abc' as binary) ;
 set @arg15= NULL ;
-create table t5 as select
+eval create table t5 engine = MyISAM as select
   8                           as const01, @arg01 as param01,
   8.0                         as const02, @arg02 as param02,
   80.00000000000e-1           as const03, @arg03 as param03,

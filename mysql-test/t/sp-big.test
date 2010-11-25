@@ -43,11 +43,13 @@ create table t2 like t1;
 let $1=8;
 --disable_query_log
 --disable_result_log
+begin;
 while ($1)
 {
   eval insert into t1 select * from t1;
   dec $1;
 }
+commit;
 --enable_result_log
 --enable_query_log
 select count(*) from t1;

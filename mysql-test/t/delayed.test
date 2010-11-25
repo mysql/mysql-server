@@ -5,6 +5,15 @@
 # (Can't be tested with purify :( )
 #
 
+# limit the test to engines which support INSERT DELAYED
+disable_query_log;
+--require r/true.require
+select @@global.storage_engine in
+("memory","myisam","archive","blackhole") and
+@@session.storage_engine in
+("memory","myisam","archive","blackhole") as `TRUE`;
+enable_query_log;
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -247,7 +256,11 @@ DROP TABLE t1;
 # Bug #32676: insert delayed crash with wrong column and function specified
 #
 CREATE TABLE t1 (a INT);
+--error ER_SP_DOES_NOT_EXIST
+INSERT DELAYED INTO t1 SET a= b();
 --error 1305
+INSERT DELAYED INTO t1 SET b= 1;
+--error ER_SP_DOES_NOT_EXIST
 INSERT DELAYED INTO t1 SET b= b();
 DROP TABLE t1;
 

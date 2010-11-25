@@ -4,13 +4,15 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+create table if not exists t1 (n int);
+drop table t1;
 call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
+call mtr.add_suppression ("Error in Log_event::read_log_event");
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 include/stop_slave.inc
 change master to master_log_pos=MASTER_LOG_POS;
-Read_Master_Log_Pos	75
 start slave;
 Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'binlog truncated in the middle of event'
 include/stop_slave.inc

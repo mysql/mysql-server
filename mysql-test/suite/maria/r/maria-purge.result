@@ -1,0 +1,93 @@
+* shut down mysqld, removed logs, restarted it
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_log_file_size=4294967295;
+drop table if exists t1,t2;
+SET SQL_WARNINGS=1;
+CREATE TABLE t1 (
+STRING_DATA char(255) default NULL
+);
+CREATE TABLE t2 (
+STRING_DATA char(255) default NULL
+);
+INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+set global aria_log_file_size=16777216;
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000002	in use
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000004	in use
+set global aria_log_file_size=16777216;
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+16777216
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000004	in use
+set global aria_log_file_size=8388608;
+select @@global.aria_log_file_size;
+@@global.aria_log_file_size
+8388608
+set global aria_log_purge_type=at_flush;
+insert into t1 select * from t2;
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000004	free
+Aria	aria_log.00000005	free
+Aria	aria_log.00000006	free
+Aria	aria_log.00000007	free
+Aria	aria_log.00000008	in use
+flush logs;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000008	in use
+set global aria_log_file_size=16777216;
+set global aria_log_purge_type=external;
+insert into t1 select * from t2;
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000008	free
+Aria	aria_log.00000009	in use
+flush logs;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000008	free
+Aria	aria_log.00000009	in use
+set global aria_log_purge_type=immediate;
+insert into t1 select * from t2;
+set global aria_checkpoint_interval=30;
+SHOW ENGINE aria logs;
+Type	Name	Status
+Aria	aria_log.00000011	in use
+drop table t1, t2;

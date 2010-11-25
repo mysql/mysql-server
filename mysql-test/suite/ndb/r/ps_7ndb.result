@@ -1739,7 +1739,7 @@ set @arg14= 'abc';
 set @arg14= NULL ;
 set @arg15= CAST('abc' as binary) ;
 set @arg15= NULL ;
-create table t5 as select
+create table t5 engine = MyISAM as select
 8                           as const01, @arg01 as param01,
 8.0                         as const02, @arg02 as param02,
 80.00000000000e-1           as const03, @arg03 as param03,

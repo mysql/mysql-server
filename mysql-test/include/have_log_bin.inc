@@ -6,6 +6,8 @@
 #
 # source include/have_log_bin.inc;
 
+source include/not_embedded.inc;
+
 -- require r/have_log_bin.require
 disable_query_log;
 show variables like 'log_bin';

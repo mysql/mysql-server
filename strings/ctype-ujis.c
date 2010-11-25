@@ -32,7 +32,7 @@
 #ifdef HAVE_CHARSET_ujis
 
 
-static uchar ctype_ujis[257] =
+static const uchar ctype_ujis[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ static uchar ctype_ujis[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar to_lower_ujis[]=
+static const uchar to_lower_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ static uchar to_lower_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar to_upper_ujis[]=
+static const uchar to_upper_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ static uchar to_upper_ujis[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar sort_order_ujis[]=
+static const uchar sort_order_ujis[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -67291,7 +67291,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_ujis_japanese_ci=
+struct charset_info_st my_charset_ujis_japanese_ci=
 {
     12,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state        */
@@ -67324,7 +67324,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
 };
 
 
-CHARSET_INFO my_charset_ujis_bin=
+struct charset_info_st my_charset_ujis_bin=
 {
     91,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state        */

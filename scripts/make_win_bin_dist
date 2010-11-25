@@ -140,12 +140,29 @@ fi
 # ----------------------------------------------------------------------
 # Copy executables, and client DLL
 # ----------------------------------------------------------------------
-
+MYISAM_BINARIES="myisamchk myisamlog myisampack myisam_ftdump"
+MARIA_BINARIES="aria_chk aria_dump_log aria_ftdump aria_pack aria_read_log"
 mkdir $DESTDIR
 mkdir $DESTDIR/bin
 cp client/$TARGET/*.exe                                  $DESTDIR/bin/
 cp extra/$TARGET/*.exe                                   $DESTDIR/bin/
-cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+
+# MyISAM
+#cp storage/myisam/$TARGET/*.exe                          $DESTDIR/bin/
+for eng in $MYISAM_BINARIES ; do 
+  cp storage/myisam/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
+# Maria
+for eng in $MARIA_BINARIES ; do 
+  cp storage/maria/$TARGET/$eng.{exe,pdb} $DESTDIR/bin
+done
+
+# PBXT
+if [ -f "storage/pbxt/bin/xtstat.exe" ] ; then
+  cp storage/pbxt/bin/xtstat.{exe,pdb} $DESTDIR/bin
+fi
+
 if [ x"$TARGET" != x"release" ] ; then
   cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
   cp client/$TARGET/mysqladmin.pdb                       $DESTDIR/bin/
@@ -255,7 +272,7 @@ cp include/mysql.h \
    include/sslopt-longopts.h \
    include/my_dir.h \
    include/sslopt-vars.h \
-   include/sslopt-case.h \
+   'include/sslopt-case.h' \
    include/sql_common.h \
    include/keycache.h \
    include/m_ctype.h \
@@ -285,15 +302,7 @@ cp libmysql/$TARGET/libmysql.dll \
    regex/$TARGET/regex.lib \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
-if [ -d storage/innodb_plugin ]; then
-  cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.dll \
-     $DESTDIR/lib/plugin/
-fi
-if [ -d plugin/semisync ]; then
-  cp plugin/semisync/$TARGET/semisync_master.dll \
-     plugin/semisync/$TARGET/semisync_slave.dll \
-     $DESTDIR/lib/plugin/
-fi
+cp storage/*/$TARGET/ha_*.dll $DESTDIR/lib/plugin/
 
 if [ x"$TARGET" != x"release" ] ; then
   cp libmysql/$TARGET/libmysql.pdb \
@@ -302,15 +311,7 @@ if [ x"$TARGET" != x"release" ] ; then
      regex/$TARGET/regex.pdb \
      strings/$TARGET/strings.pdb \
      zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
-  if [ -d storage/innodb_plugin ]; then
-    cp storage/innodb_plugin/$TARGET/ha_innodb_plugin.pdb \
-       $DESTDIR/lib/plugin/
-  fi
-  if [ -d plugin/semisync ]; then
-    cp plugin/semisync/$TARGET/semisync_master.pdb \
-       plugin/semisync/$TARGET/semisync_slave.pdb \
-       $DESTDIR/lib/plugin/
-  fi
+  cp storage/*/$TARGET/ha_*.pdb $DESTDIR/lib/plugin/
 fi
 
 
@@ -331,21 +332,10 @@ if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      strings/debug/strings.pdb \
      zlib/debug/zlib.lib \
      zlib/debug/zlib.pdb $DESTDIR/lib/debug/
-  if [ -d storage/innodb_plugin ]; then
-    cp storage/innodb_plugin/debug/ha_innodb_plugin.dll \
-       storage/innodb_plugin/debug/ha_innodb_plugin.lib \
-       storage/innodb_plugin/debug/ha_innodb_plugin.pdb \
-       $DESTDIR/lib/plugin/debug/
-  fi
-  if [ -d plugin/semisync ]; then
-    cp plugin/semisync/debug/semisync_master.dll \
-       plugin/semisync/debug/semisync_master.lib \
-       plugin/semisync/debug/semisync_master.pdb \
-       plugin/semisync/debug/semisync_slave.dll \
-       plugin/semisync/debug/semisync_slave.lib \
-       plugin/semisync/debug/semisync_slave.pdb \
-       $DESTDIR/lib/plugin/debug/
-  fi
+  cp storage/*/debug/ha_*.dll \
+     storage/*/debug/ha_*.lib \
+     storage/*/debug/ha_*.pdb \
+     $DESTDIR/lib/plugin/debug/
 fi
 
 # ----------------------------------------------------------------------
@@ -357,6 +347,11 @@ cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
 cp mysql-test/mysql-stress-test.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
 cp -R mysql-test/{t,r,include,suite,std_data,lib,collections} $DESTDIR/mysql-test/
+
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_kill.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_process.{dir,vcproj}
+rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/{Debug,RelWithDebInfo}/*.{ilk,idb}
+
 
 # Note that this will not copy "extra" if a soft link
 if [ -d mysql-test/extra ] ; then
@@ -396,7 +391,7 @@ cp scripts/*.sql $DESTDIR/share/
 # Clean up from possibly copied SCCS directories
 # ----------------------------------------------------------------------
 
-rm -rf `find $DESTDIR -type d -name SCCS -print`
+rm -rf `/bin/find $DISTDIR -type d -name SCCS -print`
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE

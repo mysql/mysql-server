@@ -262,10 +262,20 @@ class ha_ndbcluster: public handler
   /**
    * Multi range stuff
    */
+#if 0 
+  /*
+    MRR/NDB is disabled in MariaDB. This is because in MariaDB, we've
+    backported
+     - the latest version of MRR interface (BKA needs this)
+     - the latest version of DS-MRR implementation
+    but didn't backport the latest version MRR/NDB implementation.
+
+  */
   int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                              KEY_MULTI_RANGE*ranges, uint range_count,
                              bool sorted, HANDLER_BUFFER *buffer);
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
+#endif  
   bool null_value_index_search(KEY_MULTI_RANGE *ranges,
 			       KEY_MULTI_RANGE *end_range,
 			       HANDLER_BUFFER *buffer);

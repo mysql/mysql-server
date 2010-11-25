@@ -64,8 +64,10 @@ int mi_close(register MI_INFO *info)
                     if (share->kfile >= 0) abort(););
     if (share->kfile >= 0 &&
 	flush_key_blocks(share->key_cache, share->kfile,
-			 share->temporary ? FLUSH_IGNORE_CHANGED :
-			 FLUSH_RELEASE))
+                         &share->dirty_part_map,
+                         ((share->temporary || share->deleting) ?
+                          FLUSH_IGNORE_CHANGED :
+                          FLUSH_RELEASE)))
       error=my_errno;
     if (share->kfile >= 0)
     {
@@ -74,6 +76,7 @@ int mi_close(register MI_INFO *info)
         not change the crashed state.
         We can NOT write the state in other cases as other threads
         may be using the file at this point
+        IF using --external-locking.
       */
       if (share->mode != O_RDONLY && mi_is_crashed(info))
 	mi_state_info_write(share->kfile, &share->state, 1);

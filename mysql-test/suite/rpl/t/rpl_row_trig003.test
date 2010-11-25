@@ -147,6 +147,8 @@ DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
 --enable_warnings
 
+sync_slave_with_master;
+
 diff_files $MYSQLTEST_VARDIR/tmp/trg003_master.sql $MYSQLTEST_VARDIR/tmp/trg003_slave.sql;
 
 # End of 5.0 test case

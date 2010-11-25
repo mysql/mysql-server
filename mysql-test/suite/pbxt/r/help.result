@@ -1,0 +1,268 @@
+insert into mysql.help_category(help_category_id,name)values(10001,'impossible_category_1');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @category1_id:= 10001;
+@category1_id:= 10001
+10001
+insert into mysql.help_category(help_category_id,name)values(10002,'impossible_category_2');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @category2_id:= 10002;
+@category2_id:= 10002
+10002
+insert into mysql.help_category(help_category_id,name,parent_category_id)values(10003,'impossible_category_3',@category2_id);
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @category3_id:= 10003;
+@category3_id:= 10003
+10003
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10101,'impossible_function_1',@category1_id,'description of \n impossible_function1\n','example of \n impossible_function1');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @topic1_id:= 10101;
+@topic1_id:= 10101
+10101
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10102,'impossible_function_2',@category1_id,'description of \n impossible_function2\n','example of \n impossible_function2');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @topic2_id:= 10102;
+@topic2_id:= 10102
+10102
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10103,'impossible_function_3',@category2_id,'description of \n impossible_function3\n','example of \n impossible_function3');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @topic3_id:= 10103;
+@topic3_id:= 10103
+10103
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10104,'impossible_function_4',@category2_id,'description of \n impossible_function4\n','example of \n impossible_function4');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @topic4_id:= 10104;
+@topic4_id:= 10104
+10104
+insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10105,'impossible_function_7',@category3_id,'description of \n impossible_function5\n','example of \n impossible_function7');
+Warnings:
+Warning	1364	Field 'url' doesn't have a default value
+select @topic5_id:= 10105;
+@topic5_id:= 10105
+10105
+insert into mysql.help_keyword(help_keyword_id,name)values(10201,'impossible_function_1');
+select @keyword1_id:= 10201;
+@keyword1_id:= 10201
+10201
+insert into mysql.help_keyword(help_keyword_id,name)values(10202,'impossible_function_5');
+select @keyword2_id:= 10202;
+@keyword2_id:= 10202
+10202
+insert into mysql.help_keyword(help_keyword_id,name)values(10203,'impossible_function_6');
+select @keyword3_id:= 10203;
+@keyword3_id:= 10203
+10203
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword1_id,@topic2_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword2_id,@topic1_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword3_id,@topic3_id);
+insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword3_id,@topic4_id);
+help 'function_of_my_dream';
+name	is_it_category
+help '%possible_f%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+help 'impossible_func%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+help 'impossible_category%';
+name	is_it_category
+impossible_category_1	Y
+impossible_category_2	Y
+impossible_category_3	Y
+help 'impossible_%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+impossible_category_1	Y
+impossible_category_2	Y
+impossible_category_3	Y
+help '%function_1';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help '%function_2';
+name	description	example
+impossible_function_2	description of 
+ impossible_function2
+	example of 
+ impossible_function2
+help '%function_3';
+name	description	example
+impossible_function_3	description of 
+ impossible_function3
+	example of 
+ impossible_function3
+help '%function_4';
+name	description	example
+impossible_function_4	description of 
+ impossible_function4
+	example of 
+ impossible_function4
+help '%function_5';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help '%function_6';
+name	is_it_category
+impossible_function_3	N
+impossible_function_4	N
+help '%function_7';
+name	description	example
+impossible_function_7	description of 
+ impossible_function5
+	example of 
+ impossible_function7
+help '%category_2';
+source_category_name	name	is_it_category
+impossible_category_2	impossible_function_3	N
+impossible_category_2	impossible_function_4	N
+impossible_category_2	impossible_category_3	Y
+help 'impossible_function_1';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help 'impossible_category_1';
+source_category_name	name	is_it_category
+impossible_category_1	impossible_function_1	N
+impossible_category_1	impossible_function_2	N
+alter table mysql.help_relation engine=innodb;
+alter table mysql.help_keyword engine=innodb;
+alter table mysql.help_topic engine=innodb;
+alter table mysql.help_category engine=innodb;
+help 'function_of_my_dream';
+name	is_it_category
+help '%possible_f%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+help 'impossible_func%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+help 'impossible_category%';
+name	is_it_category
+impossible_category_1	Y
+impossible_category_2	Y
+impossible_category_3	Y
+help 'impossible_%';
+name	is_it_category
+impossible_function_1	N
+impossible_function_2	N
+impossible_function_3	N
+impossible_function_4	N
+impossible_function_7	N
+impossible_category_1	Y
+impossible_category_2	Y
+impossible_category_3	Y
+help '%function_1';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help '%function_2';
+name	description	example
+impossible_function_2	description of 
+ impossible_function2
+	example of 
+ impossible_function2
+help '%function_3';
+name	description	example
+impossible_function_3	description of 
+ impossible_function3
+	example of 
+ impossible_function3
+help '%function_4';
+name	description	example
+impossible_function_4	description of 
+ impossible_function4
+	example of 
+ impossible_function4
+help '%function_5';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help '%function_6';
+name	is_it_category
+impossible_function_3	N
+impossible_function_4	N
+help '%function_7';
+name	description	example
+impossible_function_7	description of 
+ impossible_function5
+	example of 
+ impossible_function7
+help '%category_2';
+source_category_name	name	is_it_category
+impossible_category_2	impossible_function_3	N
+impossible_category_2	impossible_function_4	N
+impossible_category_2	impossible_category_3	Y
+help 'impossible_function_1';
+name	description	example
+impossible_function_1	description of 
+ impossible_function1
+	example of 
+ impossible_function1
+help 'impossible_category_1';
+source_category_name	name	is_it_category
+impossible_category_1	impossible_function_1	N
+impossible_category_1	impossible_function_2	N
+alter table mysql.help_relation engine=myisam;
+alter table mysql.help_keyword engine=myisam;
+alter table mysql.help_topic engine=myisam;
+alter table mysql.help_category engine=myisam;
+delete from mysql.help_topic where help_topic_id=@topic1_id;
+delete from mysql.help_topic where help_topic_id=@topic2_id;
+delete from mysql.help_topic where help_topic_id=@topic3_id;
+delete from mysql.help_topic where help_topic_id=@topic4_id;
+delete from mysql.help_topic where help_topic_id=@topic5_id;
+delete from mysql.help_category where help_category_id=@category3_id;
+delete from mysql.help_category where help_category_id=@category2_id;
+delete from mysql.help_category where help_category_id=@category1_id;
+delete from mysql.help_keyword where help_keyword_id=@keyword1_id;
+delete from mysql.help_keyword where help_keyword_id=@keyword2_id;
+delete from mysql.help_keyword where help_keyword_id=@keyword3_id;
+delete from mysql.help_relation where help_keyword_id=@keyword1_id and help_topic_id=@topic2_id;
+delete from mysql.help_relation where help_keyword_id=@keyword2_id and help_topic_id=@topic1_id;
+delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic3_id;
+delete from mysql.help_relation where help_keyword_id=@keyword3_id and help_topic_id=@topic4_id;
+End of 4.1 tests.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT);
+LOCK TABLES t1 WRITE;
+HELP no_such_topic;
+name	is_it_category
+UNLOCK TABLES;
+DROP TABLE t1;
+End of 5.1 tests.

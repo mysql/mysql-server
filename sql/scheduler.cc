@@ -27,6 +27,7 @@
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "scheduler.h"
 #include "sql_callback.h"
+#include "sql_audit.h"
 
 /*
   End connection, in case when we are using 'no-threads'
@@ -42,6 +43,7 @@ static bool no_threads_end(THD *thd, bool put_in_cache)
 static scheduler_functions one_thread_scheduler_functions=
 {
   1,                                     // max_threads
+  NULL, NULL,
   NULL,                                  // init
   init_new_connection_handler_thread,    // init_new_connection_thread
 #ifndef EMBEDDED_LIBRARY
@@ -60,6 +62,7 @@ static scheduler_functions one_thread_scheduler_functions=
 static scheduler_functions one_thread_per_connection_scheduler_functions=
 {
   0,                                     // max_threads
+  NULL, NULL,
   NULL,                                  // init
   init_new_connection_handler_thread,    // init_new_connection_thread
   create_thread_to_handle_connection,    // add_connection
@@ -71,9 +74,6 @@ static scheduler_functions one_thread_per_connection_scheduler_functions=
 };
 #endif  // EMBEDDED_LIBRARY
 
-
-scheduler_functions *thread_scheduler= NULL;
-
 /** @internal
   Helper functions to allow mysys to call the thread scheduler when
   waiting for locks.
@@ -81,12 +81,16 @@ scheduler_functions *thread_scheduler= NULL;
 
 /**@{*/
 static void scheduler_wait_begin(void) {
-  MYSQL_CALLBACK(thread_scheduler,
-                 thd_wait_begin, (current_thd, THD_WAIT_ROW_TABLE_LOCK));
+  THD *thd=current_thd;
+  scheduler_functions *func= thd->scheduler;
+  MYSQL_CALLBACK(func,
+                 thd_wait_begin, (thd, THD_WAIT_ROW_TABLE_LOCK));
 }
 
 static void scheduler_wait_end(void) {
-  MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
+  THD *thd=current_thd;
+  scheduler_functions *func= thd->scheduler;
+  MYSQL_CALLBACK(func, thd_wait_end, (thd));
 }
 /**@}*/
 
@@ -98,7 +102,8 @@ static void scheduler_wait_end(void) {
   mysqld.cc, so this init function will always be called.
  */
 static void scheduler_init() {
-  thr_set_lock_wait_callback(scheduler_wait_begin, scheduler_wait_end);
+  mysys_var->scheduler_before_lock_wait= &scheduler_wait_begin;
+  mysys_var->scheduler_after_lock_wait= &scheduler_wait_end;
 }
 
 /*
@@ -106,11 +111,15 @@ static void scheduler_init() {
 */
 
 #ifndef EMBEDDED_LIBRARY
-void one_thread_per_connection_scheduler()
+scheduler_functions *one_thread_per_connection_scheduler(
+    ulong *arg_max_connections,
+    uint *arg_connection_count)
 {
   scheduler_init();
-  one_thread_per_connection_scheduler_functions.max_threads= max_connections;
-  thread_scheduler= &one_thread_per_connection_scheduler_functions;
+  one_thread_per_connection_scheduler_functions.max_threads= *arg_max_connections + 1;
+  one_thread_per_connection_scheduler_functions.max_connections= arg_max_connections;
+  one_thread_per_connection_scheduler_functions.connection_count= arg_connection_count;
+  return &one_thread_per_connection_scheduler_functions;
 }
 #endif
 
@@ -118,10 +127,10 @@ void one_thread_per_connection_scheduler()
   Initailize scheduler for --thread-handling=no-threads
 */
 
-void one_thread_scheduler()
+scheduler_functions *one_thread_scheduler()
 {
   scheduler_init();
-  thread_scheduler= &one_thread_scheduler_functions;
+  return &one_thread_scheduler_functions;
 }
 
 
@@ -147,6 +156,12 @@ thd_scheduler::thd_scheduler()
 thd_scheduler::~thd_scheduler()
 {
 }
+
+/*
+  no pluggable schedulers in mariadb.
+  when we'll want it, we'll do it properly
+*/
+#if 0
 
 static scheduler_functions *saved_thread_scheduler;
 static uint saved_thread_handling;
@@ -181,6 +196,13 @@ int my_thread_scheduler_reset()
   saved_thread_scheduler= 0;
   return 0;
 }
+#else
+extern "C" int my_thread_scheduler_set(scheduler_functions *scheduler)
+{ return 1; }
 
+extern "C" int my_thread_scheduler_reset()
+{ return 1; }
+#endif
 
+#warning restore libevent
 

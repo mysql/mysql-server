@@ -292,6 +292,25 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 }
 #endif
 
+void set_mysql_connect_options(MYSQL *mysql)
+{
+  if (opt_compress)
+    mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+                  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+}
+
+
 int main(int argc, char **argv)
 {
   MYSQL mysql;
@@ -327,20 +346,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   mysql_init(&mysql);
-  if (opt_compress)
-    mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-#endif
-  if (opt_protocol)
-    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
-  if (shared_memory_base_name)
-    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  set_mysql_connect_options(&mysql);
 
   if (!opt_only_print) 
   {
@@ -450,7 +456,16 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
 
     /* First we create */
     if (create_statements)
+    {
+      /*
+         If we have an --engine option, then we indicate
+         create_schema() to add the engine type to the DDL.
+       */
+      if (eptr)
+        create_statements->type= CREATE_TABLE_TYPE;
+
       create_schema(mysql, create_schema_string, create_statements, eptr);
+    }
 
     /*
       If we generated GUID we need to build a list of them from creation that
@@ -464,10 +479,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (commit_rate)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
-    if (pre_system)
-      if ((sysret= system(pre_system)) != 0)
-        fprintf(stderr, "Warning: Execution of pre_system option returned %d.\n", 
-                sysret);
+    if (pre_system && (sysret= system(pre_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of pre_system option returned %d.\n", 
+              sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -481,11 +496,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (post_statements)
       run_statements(mysql, post_statements);
 
-    if (post_system)
-      if ((sysret= system(post_system)) != 0)
-        fprintf(stderr, "Warning: Execution of post_system option returned %d.\n", 
-                sysret);
-
+    if (post_system && (sysret= system(post_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of post_system option returned %d.\n", 
+              sysret);
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       drop_primary_key_list();
@@ -530,7 +544,7 @@ static struct my_option my_long_options[] =
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-load-type", OPT_SLAP_AUTO_GENERATE_SQL_LOAD_TYPE,
     "Specify test load type: mixed, update, write, key, or read; default is mixed.",
-    &auto_generate_sql_type, &auto_generate_sql_type,
+   (char**) &auto_generate_sql_type, (char**) &auto_generate_sql_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-generate-sql-secondary-indexes", 
     OPT_SLAP_AUTO_GENERATE_SECONDARY_INDEXES, 
@@ -561,13 +575,13 @@ static struct my_option my_long_options[] =
     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
     0, 0, 0},
   {"concurrency", 'c', "Number of clients to simulate for query to run.",
-    &concurrency_str, &concurrency_str, 0, GET_STR,
+   (char**) &concurrency_str, (char**) &concurrency_str, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"create", OPT_SLAP_CREATE_STRING, "File or string to use create tables.",
     &create_string, &create_string, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"create-schema", OPT_CREATE_SLAP_SCHEMA, "Schema to run tests in.",
-    &create_schema_string, &create_schema_string, 0, GET_STR, 
+   (char**) &create_schema_string, (char**) &create_schema_string, 0, GET_STR, 
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
@@ -577,7 +591,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
-    &default_dbug_option, &default_dbug_option, 0, GET_STR,
+   (char**) &default_dbug_option, (char**) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
@@ -587,14 +601,17 @@ static struct my_option my_long_options[] =
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
-    &delimiter, &delimiter, 0, GET_STR, REQUIRED_ARG,
+   (char**) &delimiter, (char**) &delimiter, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"detach", OPT_SLAP_DETACH,
     "Detach (close and reopen) connections after X number of requests.",
     &detach_rate, &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"engine", 'e', "Storage engine to use for creating the table.",
-    &default_engine, &default_engine, 0,
+  {"engine", 'e',
+   "Comma separated list of storage engines to use for creating the table."
+   " The test is run for each engine. You can also specify an option for an "
+   "engine after a `:', like memory:max_row=2300",
+   &default_engine, &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -602,11 +619,11 @@ static struct my_option my_long_options[] =
     &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
     "Number of VARCHAR columns to create in table if specifying --auto-generate-sql.",
-    &num_char_cols_opt, &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
+   (char**) &num_char_cols_opt, (char**) &num_char_cols_opt, 0, GET_STR, REQUIRED_ARG,
     0, 0, 0, 0, 0, 0},
   {"number-int-cols", 'y', 
     "Number of INT columns to create in table if specifying --auto-generate-sql.",
-    &num_int_cols_opt, &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
+   (char**) &num_int_cols_opt, (char**) &num_int_cols_opt, 0, GET_STR, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"number-of-queries", OPT_MYSQL_NUMBER_OF_QUERY, 
     "Limit each client to this number of queries (this is not exact).",
@@ -958,6 +975,7 @@ build_update_string(void)
     ptr->type= UPDATE_TYPE_REQUIRES_PREFIX ;
   else
     ptr->type= UPDATE_TYPE;
+
   strmov(ptr->string, update_string.str);
   dynstr_free(&update_string);
   DBUG_RETURN(ptr);
@@ -973,8 +991,8 @@ build_update_string(void)
 static statement *
 build_insert_string(void)
 {
-  char       buf[HUGE_STRING_LENGTH];
-  unsigned int        col_count;
+  char buf[HUGE_STRING_LENGTH];
+  unsigned int col_count;
   statement *ptr;
   DYNAMIC_STRING insert_string;
   DBUG_ENTER("build_insert_string");
@@ -1064,8 +1082,8 @@ build_insert_string(void)
 static statement *
 build_select_string(my_bool key)
 {
-  char       buf[HUGE_STRING_LENGTH];
-  unsigned int        col_count;
+  char buf[HUGE_STRING_LENGTH];
+  unsigned int col_count;
   statement *ptr;
   static DYNAMIC_STRING query_string;
   DBUG_ENTER("build_select_string");
@@ -1117,6 +1135,7 @@ build_select_string(my_bool key)
     ptr->type= SELECT_TYPE_REQUIRES_PREFIX;
   else
     ptr->type= SELECT_TYPE;
+
   strmov(ptr->string, query_string.str);
   dynstr_free(&query_string);
   DBUG_RETURN(ptr);
@@ -1175,8 +1194,6 @@ get_options(int *argc,char ***argv)
       exit(1);
     }
 
-
-
   if (auto_generate_sql && num_of_query && auto_actual_queries)
   {
       fprintf(stderr,
@@ -1217,6 +1234,7 @@ get_options(int *argc,char ***argv)
     num_int_cols= atoi(str->string);
     if (str->option)
       num_int_cols_index= atoi(str->option);
+
     option_cleanup(str);
   }
 
@@ -1229,6 +1247,7 @@ get_options(int *argc,char ***argv)
       num_char_cols_index= atoi(str->option);
     else
       num_char_cols_index= 0;
+
     option_cleanup(str);
   }
 
@@ -1463,6 +1482,7 @@ get_options(int *argc,char ***argv)
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
+
   DBUG_RETURN(0);
 }
 
@@ -1477,6 +1497,7 @@ static int run_query(MYSQL *mysql, const char *query, int len)
 
   if (verbose >= 3)
     printf("%.*s;\n", len, query);
+
   return mysql_real_query(mysql, query, len);
 }
 
@@ -1592,18 +1613,6 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
     }
   }
 
-  if (engine_stmt)
-  {
-    len= snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
-                  engine_stmt->string);
-    if (run_query(mysql, query, len))
-    {
-      fprintf(stderr,"%s: Cannot set default engine: %s\n", my_progname,
-              mysql_error(mysql));
-      exit(1);
-    }
-  }
-
   count= 0;
   after_create= stmt;
 
@@ -1617,8 +1626,21 @@ limit_not_met:
     {
       char buffer[HUGE_STRING_LENGTH];
 
-      snprintf(buffer, HUGE_STRING_LENGTH, "%s %s", ptr->string, 
-               engine_stmt->option);
+      snprintf(buffer, HUGE_STRING_LENGTH, "%s Engine = %s %s", 
+               ptr->string, engine_stmt->string, engine_stmt->option);
+      if (run_query(mysql, buffer, strlen(buffer)))
+      {
+        fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
+                my_progname, (uint)ptr->length, ptr->string, mysql_error(mysql));
+        exit(1);
+      }
+    }
+    else if (engine_stmt && engine_stmt->string && ptr->type == CREATE_TABLE_TYPE)
+    {
+      char buffer[HUGE_STRING_LENGTH];
+
+      snprintf(buffer, HUGE_STRING_LENGTH, "%s Engine = %s", 
+               ptr->string, engine_stmt->string);
       if (run_query(mysql, buffer, strlen(buffer)))
       {
         fprintf(stderr,"%s: Cannot run query %.*s ERROR : %s\n",
@@ -1652,6 +1674,7 @@ drop_schema(MYSQL *mysql, const char *db)
 {
   char query[HUGE_STRING_LENGTH];
   int len;
+
   DBUG_ENTER("drop_schema");
   len= snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
 
@@ -1788,6 +1811,7 @@ pthread_handler_t run_task(void *p)
             my_progname, mysql_error(mysql));
     exit(0);
   }
+  set_mysql_connect_options(mysql);
 
   if (mysql_thread_init())
   {
@@ -1828,7 +1852,6 @@ limit_not_met:
                   my_progname, mysql_error(mysql));
           exit(0);
         }
-
         if (slap_connect(mysql))
           goto end;
       }
@@ -1884,10 +1907,17 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
+          if ((result= mysql_store_result(mysql)))
+          {
+            while ((row = mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
+          }
+          else
+          {
+            fprintf(stderr,"%s: Error in mysql_store_result(): %d %s\n",
+                my_progname, mysql_errno(mysql), mysql_error(mysql));
+          }
         }
       } while(mysql_next_result(mysql) == 0);
       queries++;
@@ -1933,17 +1963,27 @@ parse_option(const char *origin, option_string **stmt, char delm)
   uint count= 0; /* We know that there is always one */
 
   for (tmp= *sptr= (option_string *)my_malloc(sizeof(option_string),
-                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME));
+                                              MYF(MY_ZEROFILL|MY_FAE|MY_WME));
        (retstr= strchr(ptr, delm)); 
        tmp->next=  (option_string *)my_malloc(sizeof(option_string),
-                                          MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
+                                              MYF(MY_ZEROFILL|MY_FAE|MY_WME)),
        tmp= tmp->next)
   {
-    char buffer[HUGE_STRING_LENGTH];
+    /*
+       Initialize buffer, because otherwise an
+       --engine=<storage_engine>:<option>,<eng1>,<eng2>
+       will crash.
+     */
+    char buffer[HUGE_STRING_LENGTH]= "";
     char *buffer_ptr;
 
     count++;
     strncpy(buffer, ptr, (size_t)(retstr - ptr));
+    /*
+       Handle --engine=memory:max_row=200 cases, or more general speaking
+       --engine=<storage_engine>:<options>, which will be translated to
+       Engine = storage_engine option.
+     */
     if ((buffer_ptr= strchr(buffer, ':')))
     {
       char *option_ptr;
@@ -1964,13 +2004,15 @@ parse_option(const char *origin, option_string **stmt, char delm)
       tmp->length= (size_t)(retstr - ptr);
     }
 
+    /* Skip delimiter delm */
     ptr+= retstr - ptr + 1;
     if (isspace(*ptr))
       ptr++;
+
     count++;
   }
 
-  if (ptr != origin+length)
+  if (ptr != origin + length)
   {
     char *origin_ptr;
 
@@ -1979,7 +2021,7 @@ parse_option(const char *origin, option_string **stmt, char delm)
       char *option_ptr;
 
       tmp->length= (size_t)(origin_ptr - ptr);
-      tmp->string= my_strndup(origin, tmp->length, MYF(MY_FAE));
+      tmp->string= my_strndup(ptr, tmp->length, MYF(MY_FAE));
 
       option_ptr= (char *)ptr + 1 + tmp->length;
 
@@ -2029,7 +2071,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   if (ptr != script+length)
   {
     tmp->string= my_strndup(ptr, (uint)((script + length) - ptr), 
-                                       MYF(MY_FAE));
+                            MYF(MY_FAE));
     tmp->length= (size_t)((script + length) - ptr);
     count++;
   }
@@ -2087,6 +2129,7 @@ print_conclusions_csv(conclusions *con)
 {
   char buffer[HUGE_STRING_LENGTH];
   const char *ptr= auto_generate_sql_type ? auto_generate_sql_type : "query";
+
   snprintf(buffer, HUGE_STRING_LENGTH, 
            "%s,%s,%ld.%03ld,%ld.%03ld,%ld.%03ld,%d,%llu\n",
            con->engine ? con->engine : "", /* Storage engine we ran against */
@@ -2173,6 +2216,7 @@ slap_connect(MYSQL *mysql)
   int x, connect_error= 1;
   for (x= 0; x < 10; x++)
   {
+    set_mysql_connect_options(mysql);
     if (mysql_real_connect(mysql, host, user, opt_password,
                            create_schema_string,
                            opt_mysql_port,

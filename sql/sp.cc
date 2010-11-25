@@ -128,7 +128,8 @@ TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] =
   {
     { C_STRING_WITH_LEN("sql_mode") },
     { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY',"
+    "'NO_UNSIGNED_SUBTRACTION',"
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
@@ -496,8 +497,9 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
   DBUG_RETURN(SP_OK);
@@ -765,7 +767,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;
@@ -1368,6 +1370,7 @@ sp_drop_db_routines(THD *thd, char *db)
   int ret;
   uint key_len;
   MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  uchar keybuf[MAX_KEY_LENGTH];
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1377,12 +1380,14 @@ sp_drop_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
+  table->field[MYSQL_PROC_FIELD_DB]->get_key_image(keybuf, key_len, Field::itRAW);
+
+
 
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
-  if (! table->file->index_read_map(table->record[0],
-                                    (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_map(table->record[0], keybuf, (key_part_map)1,
+                                      HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1397,9 +1402,8 @@ sp_drop_db_routines(THD *thd, char *db)
 	nxtres= 0;
 	break;
       }
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-						     key_len)));
+    } while (!(nxtres= table->file->ha_index_next_same(table->record[0],
+                                                       keybuf, key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
       ret= SP_KEY_NOT_FOUND;
     if (deleted)

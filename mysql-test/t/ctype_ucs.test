@@ -743,6 +743,42 @@ DROP TABLE t1;
 
 --echo End of 5.0 tests
 
+--echo #
+--echo # Start of 5.1 tests
+--echo #
+
+#
+# Checking my_like_range_ucs2
+#
+SET NAMES utf8;
+CREATE TABLE t1 (
+  a varchar(10) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
+  key(a)
+);
+INSERT INTO t1 VALUES
+('aa'),('bb'),('cc'),('dd'),('ee'),('ff'),('gg'),('hh'),('ii'),
+('jj'),('kk'),('ll'),('mm'),('nn'),('oo'),('pp'),('rr'),('ss'),
+('tt'),('uu'),('vv'),('ww'),('xx'),('yy'),('zz');
+INSERT INTO t1 VALUES ('ca'),('cz'),('ch');
+INSERT INTO t1 VALUES ('da'),('dz'), (X'0064017E');
+# This one should scan only one row
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'b%';
+# This one should scan many rows: 'c' is a contraction head
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'c%';
+SELECT * FROM t1 WHERE a LIKE 'c%';
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'ch%';
+SELECT * FROM t1 WHERE a LIKE 'ch%';
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET ucs2 COLLATE ucs2_croatian_ci;
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'd%';
+SELECT hex(concat('d',_ucs2 0x017E,'%'));
+EXPLAIN SELECT * FROM t1 WHERE a LIKE concat('d',_ucs2 0x017E,'%');
+SELECT hex(a) FROM t1 WHERE a LIKE concat('D',_ucs2 0x017E,'%');
+
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.1 tests
+--echo #
 
 --echo #
 --echo # Start of 5.5 tests

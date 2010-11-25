@@ -1105,8 +1105,9 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
   saved_allow_sum_func= thd->lex->allow_sum_func;
   thd->lex->allow_sum_func= 0;
-
-  error= func_expr->fix_fields(thd, (Item**)&func_expr);
+  
+  if (!(error= func_expr->fix_fields(thd, (Item**)&func_expr)))
+    func_expr->walk(&Item::vcol_in_partition_func_processor, 0, NULL);
 
   /*
     Restore full_group_by_flag and allow_sum_func,
@@ -2032,7 +2033,7 @@ static int add_int(File fptr, longlong number)
 static int add_uint(File fptr, ulonglong number)
 {
   char buff[32];
-  longlong2str(number, buff, 10);
+  longlong2str(number, buff, 10, 1);
   return add_string(fptr, buff);
 }
 
@@ -7853,8 +7854,8 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
     field->store(part_iter->field_vals.cur++,
                  ((Field_num*)field)->unsigned_flag);
     if ((part_iter->part_info->is_sub_partitioned() &&
-        !part_iter->part_info->get_part_partition_id(part_iter->part_info,
-                                                     &part_id, &dummy)) ||
+         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
+                                                      &part_id, &dummy)) ||
         !part_iter->part_info->get_partition_id(part_iter->part_info,
                                                 &part_id, &dummy))
       return part_id;
@@ -7975,4 +7976,3 @@ uint get_partition_field_store_length(Field *field)
   return store_length;
 }
 #endif
-

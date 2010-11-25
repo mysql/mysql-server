@@ -93,8 +93,9 @@ start slave;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-flush logs;
 stop slave;
+flush logs;
+flush logs;
 reset slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;  /* to stop right before DROP */;
 show tables /* t1 must exist */;

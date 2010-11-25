@@ -1220,6 +1220,23 @@ EXPLAIN SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 DROP TABLE t1, t2;
 
+#
+# min() returns wrong value when used in expression when there is no matching
+# rows
+#
+
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (
+ key_col int(11) NOT NULL,
+ KEY (key_col)
+);
+INSERT INTO t2 VALUES (1),(2);
+
+select min(t2.key_col) from t1,t2 where t1.a=1;
+select min(t2.key_col) from t1,t2 where t1.a > 1000;
+select min(t2.key_col)+1 from t1,t2 where t1.a> 1000;
+drop table t1,t2;
 
 --echo #
 --echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results

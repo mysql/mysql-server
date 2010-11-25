@@ -1,0 +1,10 @@
+<default>
+ ok
+TCP
+ ok
+SOCKET
+ ok
+ERROR 2047 (HY000): Wrong or unknown protocol
+ERROR 2047 (HY000): Wrong or unknown protocol
+Unknown option to protocol: NullS
+Alternatives are: 'TCP','SOCKET','PIPE','MEMORY'

@@ -1,0 +1,19 @@
+.TH mysql 1 "17 March 2003" "MySQL 3.23" "MySQL database"
+.SH NAME
+myisampack \- Compresses MySQL database files.
+.SH SYNOPSIS
+myisampack [options]
+.SH DESCRIPTION
+Pack a MyISAM-table to take much less space.
+Keys are not updated, you must run myisamchk -rq on the datafile
+afterwards to update the keys.
+You should give the .MYI file as the filename argument.
+
+For more information start the program with '--help'.
+.SH "SEE ALSO"
+mysql (1), mysqld (1)
+.SH AUTHOR
+This manpage was written by Christian Hammers <ch@debian.org>.
+
+MySQL is available at http://www.mysql.com/.
+.\" end of man page

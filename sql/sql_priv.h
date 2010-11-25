@@ -154,15 +154,37 @@
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 5)
+#define OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN       (1ULL << 5)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 6)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 8)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 9)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE (1ULL <<10)
+#define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN  (1ULL <<11)
+#define OPTIMIZER_SWITCH_SUBQUERY_CACHE            (1ULL <<12)
+#define OPTIMIZER_SWITCH_TABLE_ELIMINATION         (1ULL <<13)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL <<14)
 
-/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
-#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
+#ifdef DBUG_OFF
+#define DBUG_ONLY_TABLE_ELIMINATION 0
+#else
+#define DBUG_ONLY_TABLE_ELIMINATION OPTIMIZER_SWITCH_TABLE_ELIMINATION
+#endif
 
+#  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                    OPTIMIZER_SWITCH_INDEX_COND_PUSHDOWN | \
+                                    OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                    OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                    OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                    OPTIMIZER_SWITCH_SEMIJOIN | \
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
+                                    OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE |\
+                                    DBUG_ONLY_TABLE_ELIMINATION)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -208,7 +230,9 @@ enum enum_parsing_place
   IN_HAVING,
   SELECT_LIST,
   IN_WHERE,
-  IN_ON
+  IN_ON,
+  IN_GROUP_BY,
+  PARSING_PLACE_SIZE /* always should be the last */
 };
 
 
@@ -223,10 +247,6 @@ enum enum_yes_no_unknown
 {
   TVL_YES, TVL_NO, TVL_UNKNOWN
 };
-
-#ifdef MYSQL_SERVER
-
-#endif /* MYSQL_SERVER */
 
 #ifdef MYSQL_SERVER
 /*

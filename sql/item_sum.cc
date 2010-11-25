@@ -331,6 +331,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
   if (aggr_level >= 0)
   {
     ref_by= ref;
+    thd->lex->current_select->register_dependency_item(aggr_sel, ref);
     /* Add the object to the list of registered objects assigned to aggr_sel */
     if (!aggr_sel->inner_sum_func_list)
       next= this;
@@ -362,7 +363,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
          sl= sl->master_unit()->outer_select() )
       sl->master_unit()->item->with_sum_func= 1;
   }
-  thd->lex->current_select->mark_as_dependent(aggr_sel);
+  thd->lex->current_select->mark_as_dependent(thd, aggr_sel, NULL);
   return FALSE;
 }
 
@@ -538,11 +539,6 @@ void Item_sum::update_used_tables ()
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
     }
-
-    used_tables_cache&= PSEUDO_TABLE_BITS;
-
-    /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -1944,8 +1940,22 @@ void Item_sum_hybrid::cleanup()
 
 void Item_sum_hybrid::no_rows_in_result()
 {
-  was_values= FALSE;
-  clear();
+  /* We may be called here twice in case of ref field in function */
+  if (was_values)
+  {
+    was_values= FALSE;
+    was_null_value= value->null_value;
+    clear();
+  }
+}
+
+void Item_sum_hybrid::restore_to_before_no_rows_in_result()
+{
+  if (!was_values)
+  {
+    was_values= TRUE;
+    null_value= value->null_value= was_null_value;
+  }
 }
 
 
@@ -2624,8 +2634,10 @@ void Item_udf_sum::clear()
 
 bool Item_udf_sum::add()
 {
+  my_bool tmp_null_value;
   DBUG_ENTER("Item_udf_sum::add");
-  udf.add(&null_value);
+  udf.add(&tmp_null_value);
+  null_value= tmp_null_value;
   DBUG_RETURN(0);
 }
 
@@ -2661,11 +2673,15 @@ Item *Item_sum_udf_float::copy_or_same(THD* thd)
 
 double Item_sum_udf_float::val_real()
 {
+  my_bool tmp_null_value;
+  double res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  res= udf.val(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2701,12 +2717,16 @@ longlong Item_sum_udf_decimal::val_int()
 
 my_decimal *Item_sum_udf_decimal::val_decimal(my_decimal *dec_buf)
 {
+  my_decimal *res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_decimal::val_decimal");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
                      args[0]->result_type(), arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  res= udf.val_decimal(&tmp_null_value, dec_buf);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -2723,11 +2743,15 @@ Item *Item_sum_udf_int::copy_or_same(THD* thd)
 
 longlong Item_sum_udf_int::val_int()
 {
+  my_bool tmp_null_value;
+  longlong res;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_sum_udf_int::val_int");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val_int(&null_value));
+  res= udf.val_int(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -3060,17 +3084,16 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  if (!(tmp= (ORDER *) thd->alloc(sizeof(ORDER *) * arg_count_order +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  order= (ORDER **)(tmp + arg_count_order);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     memcpy(tmp, item->order[i], sizeof(ORDER));
     order[i]= tmp;
   }
 }
-
 
 
 void Item_func_group_concat::cleanup()

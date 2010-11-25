@@ -35,7 +35,7 @@ typedef struct st_archive_record_buffer {
 typedef struct st_archive_share {
   char *table_name;
   char data_file_name[FN_REFLEN];
-  uint table_name_length,use_count;
+  uint table_name_length,use_count, version;
   mysql_mutex_t mutex;
   THR_LOCK lock;
   azio_stream archive_write;     /* Archive file we are working with */
@@ -134,6 +134,7 @@ public:
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
+  int check_for_upgrade(HA_CHECK_OPT *check_opt);
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
   enum row_type get_row_type() const 

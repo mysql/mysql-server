@@ -1,0 +1,710 @@
+#!/usr/bin/env perl
+#
+# Run various unit tests.
+#
+
+use Getopt::Long;
+use File::Basename;
+
+$|= 1;
+$^W = 1; # warnings, because env cannot parse 'perl -w'
+$VER= "1.4";
+
+$opt_version=         0;
+$opt_help=            0;
+$opt_verbose=         0;
+$opt_abort_on_error=  0;
+$opt_valgrind=        "valgrind --alignment=8 --leak-check=yes";
+$opt_silent=          "-s";
+$opt_number_of_tests= 0;
+$opt_run_tests=       undef();
+
+my $maria_path;       # path to "storage/maria"
+my $maria_exe_path;   # path to executables (ma_test1, aria_chk etc)
+my $my_progname= $0;
+$my_progname=~ s/.*[\/]//;
+my $runtime_error= 0; # Return 1 if error(s) occur during run
+my $NEW_TEST= 0;      # Test group separator in an array of tests
+my $test_begin= 0;
+my $test_end= 0;
+my $test_counter= 0;
+
+run_tests();
+
+####
+#### Initialise variables, clean temporary files and run the tests
+####
+
+sub run_tests
+{
+  my $nr_tests= 0;
+  my $flag_exit= 0;
+
+  if (!GetOptions("help" => \$opt_help,
+                  "version" => \$opt_version,
+                  "verbose" => \$opt_verbose,
+                  "abort-on-error" => \$opt_abort_on_error,
+                  "valgrind=s" => \$opt_valgrind,
+                  "silent=s" => \$opt_silent,
+                  "number-of-tests" => \$opt_number_of_tests,
+                  "run-tests=s" => \$opt_run_tests,
+                  "start-from=s" => \$opt_run_tests))
+  {
+    $flag_exit= 1;
+  }
+  if ($opt_version)
+  {
+    print "$my_progname version $VER\n";
+    exit(0);
+  }
+  $maria_path= dirname($0) . "/..";
+
+  my $suffix= ( $^O =~ /win/i  && $^O !~ /darwin/i ) ? ".exe" : "";
+  $maria_exe_path= "$maria_path/release";
+  # we use -f, sometimes -x is unexpectedly false in Cygwin
+  if ( ! -f "$maria_exe_path/ma_test1$suffix" )
+  {
+    $maria_exe_path= "$maria_path/relwithdebinfo";
+    if ( ! -f "$maria_exe_path/ma_test1$suffix" )
+    {
+      $maria_exe_path= "$maria_path/debug";
+      if ( ! -f "$maria_exe_path/ma_test1$suffix" )
+      {
+        $maria_exe_path= $maria_path;
+        if ( ! -f "$maria_exe_path/ma_test1$suffix" )
+        {
+           die("Cannot find ma_test1 executable\n");
+        }
+      }
+    }
+  }    
+
+  usage() if ($opt_help || $flag_exit);
+
+  #
+  # IMPORTANT: If you modify this file, please read this:
+  #
+  # Count total number of tests. Make sure that the functions return
+  # number of unit tests correctly, e.g. calls to ok(). The last argument
+  # for each function is a flag counter and will return the number of
+  # unit tests in each. Please see comments on function ok() at the end.
+  #
+  # If you modify any functions or add any new ones, please make sure the
+  # unit tests are appropriately detected here. A wrong count will
+  # make the unit test fail during 'make test'. $nr_tests must be right.
+  #
+
+  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 5;  #
+  $nr_tests+= run_repair_tests(0, 0, 0, 0, 1) * 5; # called 4 times
+  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 5;   #
+  $nr_tests+= run_tests_on_warnings_and_errors(0, 0, 0, 1);
+  $nr_tests+= run_ma_test_recovery(0, 1);
+  $nr_tests+= run_tests_on_clrs(0, 0, 1);
+
+  if ($opt_number_of_tests)
+  {
+    print "Total number of tests is $nr_tests\n";
+    exit(0);
+  }
+
+  if (defined($opt_run_tests))
+  {
+    if ($opt_run_tests =~ m/^(\d+)$/ ||
+        $opt_run_tests =~ m/^(\d+)\.+$/)
+    {
+      $test_begin= $1;
+    }
+    elsif ($opt_run_tests =~ m/^(\d+)\.+(\d+)$/)
+    {
+      $test_begin= $1;
+      $test_end= $2;
+    }
+    else
+    {
+      print "Wrong syntax for option --run-tests=$opt_run_tests\n";
+      print "Please use --run-tests=<begin>..<end>\nwhere 'begin' is the ";
+      print "first test to be run and 'end' is the last.\n";
+      exit(1);
+    }
+    if ($test_end > $nr_tests)
+    {
+      print "Test range ($test_begin..$test_end) out of range. ";
+      print "There are only $nr_tests in the test suite.\n";
+      exit(1);
+    }
+    $test_begin++ if (!$test_begin); # Handle zero, if user gave that
+    if ($test_end && $test_begin > $test_end)
+    {
+      print "Bad test range ($test_begin..$test_end)\n";
+      exit(1);
+    }
+    # Now adjust number of tests
+    $nr_tests= ($test_end ? $test_end : $nr_tests) - $test_begin + 1;
+  }
+
+  #
+  # clean-up
+  #
+
+  unlink <*.TMD aria_log*>;        # Delete temporary files
+
+  #
+  # Run tests
+  #
+
+  if (!$opt_verbose)
+  {
+    print "1..$nr_tests\n";
+  }
+  else
+  {
+    print "Total tests: $nr_tests\n";
+  }
+
+  if ($opt_verbose)
+  {
+    print "Running tests with dynamic row format\n"
+  }
+  run_check_tests($suffix, $opt_silent, "", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "", $opt_verbose, 0);
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with static row format\n";
+  }
+  run_check_tests($suffix, $opt_silent, "-S", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "-S", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "-S", $opt_verbose, 0);
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with block row format\n";
+  }
+  run_check_tests($suffix, $opt_silent, "-M", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "-M", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "-M", $opt_verbose, 0);
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with block row format and transactions\n";
+  }
+  run_check_tests($suffix, $opt_silent, "-M -T", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "-M -T", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "-M -T", $opt_verbose, 0);
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with block row format, transactions and versioning\n";
+  }
+  run_check_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with warnings and recovery\n";
+  }
+  run_tests_on_warnings_and_errors($suffix, $opt_silent, $opt_verbose, 0);
+  run_ma_test_recovery($opt_verbose, 0);
+  run_tests_on_clrs($suffix, $opt_verbose, 0);
+
+  exit($runtime_error);
+}
+
+####
+#### regular tests
+####
+
+sub run_check_tests
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i, $nr_tests);
+  my @ma_test1_opt= ( ["","-se"],
+                      ["-N","-se"],
+                      ["-P --checksum","-se"],
+                      ["-P -N","-se"],
+                      ["-B -N -R2","-sm"],
+                      ["-a -k 480 --unique","-sm"],
+                      ["-a -N -R1 ","-sm"],
+                      ["-p","-sm"],
+                      ["-p -N --unique","-sm"],
+                      ["-p -N --key_length=127 --checksum","-sm"],
+                      ["-p -N --key_length=128","-sm"],
+                      ["-p --key_length=480","-sm"],
+                      ["-a -B","-sm"],
+                      ["-a -B --key_length=64 --unique","-sm"],
+                      ["-a -B -k 480 --checksum","-sm"],
+                      ["-a -B -k 480 -N --unique --checksum","-sm"],
+                      ["-a -m","-sm"],
+                      ["-a -m -P --unique --checksum","-sm"],
+                      ["-a -m -P --key_length=480 --key_cache","-sm"],
+                      ["-m -p","-sm"],
+                      ["-w --unique","-sm"],
+                      ["-a -w --key_length=64 --checksum","-sm"],
+                      ["-a -w -N --key_length=480","-sm"],
+                      ["-a -w --key_length=480 --checksum","-sm"],
+                      ["-a -b -N","-sm"],
+                      ["-a -b --key_length=480","-sm"],
+                      ["-p -B --key_length=480","-sm"],
+                      ["--checksum --unique","-se"],
+                      ["--unique","-se"],
+                      ["--key_multiple -N -S","-sm"],
+                      ["--key_multiple -a -p --key_length=480","-sm"],
+                      ["--key_multiple -a -B --key_length=480","-sm"],
+                      ["--key_multiple -P -S","-sm"] );
+  my @ma_test2_opt= ( ["-L -K -W -P","-sm"],
+                      ["-L -K -W -P -A","-sm"],
+                      ["-L -K -W -P -b32768", "-sm"],
+                      ["-L -K -W -P -M -T -c -b32768 -t4 -m300", "-sm"],
+                      ["-L -K -P -R3 -m50 -b1000000", "-sm"],
+                      ["-L -B","-sm"],
+                      ["-D -B -c","-sm"],
+                      ["-m10000 -e4096 -K","-sm"],
+                      ["-m10000 -e8192 -K","-sm"],
+                      ["-m10000 -e16384 -E16384 -K -L","-sm"],
+                      ["-L -K -W -P -b32768", "-se"],
+                      ["-c -b65000","-se"] );
+  my @ma_rt_test_opt= ( ); # (["--checksum", "-se"] );
+
+
+  if ($count)
+  {
+    $nr_tests= 2;                # Number of tests outside loops
+    for ($i= 0; defined($ma_test1_opt[$i]); $i++) { $nr_tests+=2; }
+    for ($i= 0; defined($ma_test2_opt[$i]); $i++) { $nr_tests+=2; }
+    for ($i= 0; defined($ma_rt_test_opt[$i]); $i++) { $nr_tests+=2; }
+    return $nr_tests;
+  }
+
+  for ($i= 0; defined($ma_test1_opt[$i]); $i++)
+  {
+    unlink <aria_log_control aria_log.*>;
+    ok("$maria_exe_path/ma_test1$suffix $silent $ma_test1_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_exe_path/aria_chk$suffix $ma_test1_opt[$i][1] test1",
+       $verbose, $i + 1);
+  }
+  #
+  # These tests are outside the loops. Make sure to include them in
+  # nr_tests manually
+  #
+  ok("$maria_exe_path/aria_pack$suffix --force -s test1", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -ess test1", $verbose, 0);
+
+  for ($i= 0; defined($ma_test2_opt[$i]); $i++)
+  {
+    unlink <aria_log_control aria_log.*>;
+    ok("$maria_exe_path/ma_test2$suffix $silent $ma_test2_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_exe_path/aria_chk$suffix $ma_test2_opt[$i][1] test2",
+       $verbose, $i + 1);
+  }
+
+  for ($i= 0; defined($ma_rt_test_opt[$i]); $i++)
+  {
+    unlink <aria_log_control aria_log.*>;
+    ok("$maria_exe_path/ma_rt_test$suffix $silent $ma_rt_test_opt[$i][0] $row_type",
+       $verbose, $i + 1);
+    ok("$maria_exe_path/aria_chk$suffix $ma_rt_test_opt[$i][1] rt_test",
+       $verbose, $i + 1);
+  }
+
+  unlink <aria_log_control aria_log.*>;
+
+  return 0;
+}
+
+####
+#### repair tests
+####
+
+sub run_repair_tests()
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i);
+
+  my @t= ($NEW_TEST,
+          "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix --silent -re --transaction-log test1",
+          "$maria_exe_path/aria_chk$suffix -rs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rs --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqs --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -ros --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -rqos --correct-checksum test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -sz test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/ma_test2$suffix $silent -c -d1 $row_type",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover --quick test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/ma_test2$suffix $silent -c $row_type",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -sr test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/ma_test2$suffix $silent -c -t4 -b32768 $row_type",
+          "$maria_exe_path/aria_chk$suffix -s --zerofill test1",
+          "$maria_exe_path/aria_chk$suffix -se test1"
+         );
+
+  return &count_tests(\@t) if ($count);
+  &run_test_bunch(\@t, $verbose, 0);
+  return 0;
+}
+
+####
+#### pack tests
+####
+
+sub run_pack_tests()
+{
+  my ($suffix, $silent, $row_type, $verbose, $count)= @_;
+  my ($i);
+
+  my @t= ($NEW_TEST,
+          "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -ess test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rus test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test1$suffix $silent --checksum $row_type",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -rus --safe-recover test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test1$suffix $silent --checksum -S $row_type",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          "$maria_exe_path/aria_chk$suffix -ros test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -se test1",
+          $NEW_TEST,
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -rqs test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          "$maria_exe_path/aria_chk$suffix -rus test1",
+          "$maria_exe_path/aria_chk$suffix -es test1",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test2$suffix $silent -c -d1 $row_type",
+          "$maria_exe_path/aria_chk$suffix -s --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_chk$suffix -s --unpack --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          "$maria_exe_path/aria_pack$suffix --force -s test1",
+          "$maria_exe_path/aria_chk$suffix -s --unpack --parallel-recover test2",
+          "$maria_exe_path/aria_chk$suffix -se test2",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test1$suffix $silent -c $row_type",
+          "cp test1.MAD test2.MAD",
+          "cp test1.MAI test2.MAI",
+          "$maria_exe_path/aria_pack$suffix --force -s --join=test3 test1 test2",
+          "$maria_exe_path/aria_chk -s test3",
+          "$maria_exe_path/aria_chk -s --safe-recover test3",
+          "$maria_exe_path/aria_chk -s test3"
+         );
+
+  return &count_tests(\@t) if ($count);
+  &run_test_bunch(\@t, $verbose, 0);
+  return 0;
+}
+
+####
+#### Tests that gives warnings or errors
+####
+
+sub run_tests_on_warnings_and_errors
+{
+  my ($suffix, $silent, $verbose, $count)= @_;
+  my ($com);
+
+  return 9 if ($count);  # Number of tests in this function, e.g. calls to ok()
+
+  ok("$maria_exe_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500",
+     $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -sm test2", $verbose, 0);
+  # ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n
+  # In the following a failure is a success and success is a failure
+  $com=  "$maria_exe_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
+  $com.= ">ma_test2_message.txt 2>&1";
+  ok($com, $verbose, 0, 1);
+  ok("cat ma_test2_message.txt", $verbose, 0);
+  ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
+  # maria_exe_path/aria_chk$suffix -sm test2 will warn that
+  # Datafile is almost full
+  ok("$maria_exe_path/aria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
+     $verbose, 0);
+  ok("cat ma_test2_message.txt", $verbose, 0);
+  ok("grep \"warning: Datafile is almost full\" ma_test2_message.txt>/dev/null",
+     $verbose, 0);
+  unlink <ma_test2_message.txt>;
+  ok("$maria_exe_path/aria_chk$suffix -ssm test2", $verbose, 0);
+
+  return 0;
+}
+
+####
+#### Test that removing tables and applying the log leads to identical tables
+####
+
+sub run_ma_test_recovery
+{
+  my ($verbose, $count)= @_;
+
+  return 1 if ($count);                # Number of tests in this function
+  ok("$maria_path/unittest/ma_test_recovery.pl", $verbose, 0);
+  return 0;
+}
+
+####
+#### Tests on CLR's
+####
+
+sub run_tests_on_clrs
+{
+  my ($suffix, $verbose, $count)= @_;
+  my ($i);
+
+  my @t= ($NEW_TEST,
+          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
+          "cp aria_log_control tmp",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
+          "cp tmp/aria_log_control .",
+          "rm test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
+          "rm test2.MA?",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -s -e test2",
+          "rm test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -e -s test2",
+          "rm test2.MA?",
+          $NEW_TEST,
+          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
+          "rm test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s",
+          "$maria_exe_path/aria_chk$suffix -es test2",
+          "rm test2.MA?"
+         );
+
+  return &count_tests(\@t) if ($count);
+  &run_test_bunch(\@t, $verbose, 1);
+  return 0;
+}
+
+#
+# Print "ok" on success and "not ok" on error
+#
+# Note: Every time this function is called it will be counted
+# as a unit test.
+#
+# Args: $com:            The actual command run. Will be printed on a failure
+#       $verbose:        Be more verbose.
+#       $iteration:      Number of iterations in a loop when the error
+#                        occurred. If not in loop, this should be blank
+#                        (e.g. send zero).
+#       $expected_error: Optional; put here expected error code. Test
+#                        will pass with this result only.
+#
+# Return value:          Will return 1 on success and 0 on an error
+#
+
+sub ok
+{
+  my ($com, $verbose, $iteration, $expected_error)= @_;
+  my ($msg, $output, $err, $len);
+
+  $test_counter++;
+  if ($test_begin > $test_counter)
+  {
+    return 0;
+  }
+  if ($test_end && $test_end < $test_counter)
+  {
+    exit(0);
+  }
+
+  $msg= "";
+  $expected_error= 0 if (!defined($expected_error));
+
+  if ($verbose)
+  {
+    print "$com ";
+  }
+  $output= `$com 2>&1`;
+  $len= length($com);
+  if ($verbose)
+  {
+    print " " x (62 - $len);
+  }
+  $err= $?;
+  if ((!$err && !$expected_error) ||
+      (($err >> 8) == $expected_error && $expected_error))
+  {
+    print "[ " if ($verbose);
+    print "ok";
+    if ($verbose)
+    {
+      print " ]";
+      print " " x (5 - length("$test_counter"));
+      print "$test_counter";
+    }
+    else
+    {
+      print " $test_counter - $com"
+    }
+    print "\n";
+    return 1;
+  }
+  print "[ " if ($verbose);
+  print "not ok";
+  print " ]" if ($verbose);
+  print " $test_counter - $com" unless $verbose;
+  print "\n";
+  if ($verbose && defined($output) && length($output))
+  {
+    print "$output\n";
+  }
+  if (!$verbose)
+  {
+    $msg= "\n"; # Get a nicer output in perl unit test mode
+  }
+  $msg.= "Failed test '$com' ";
+  if ($iteration)
+  {
+    $msg.= "(loop iteration $iteration.) ";
+  }
+  $msg.= "at line ";
+  $msg.= (caller)[2];
+  $msg.= "\n(errcode: $err, test: $test_counter)\n";
+  if ($expected_error)
+  {
+    $msg.= "Was expecting errcode: $expected_error\n";
+  }
+  warn $msg;
+  $runtime_error= 1;
+  if ($opt_abort_on_error)
+  {
+    exit 1;
+  }
+  return 0;
+}
+
+#
+# Print "skip" and the reason
+#
+# Note: Every time this function is called it will be counted
+# as a unit test.
+#
+# Args: $com:            The actual command run. Will be printed on a failure
+#       $reason:         The reason to skip a test
+#       $verbose:        Be more verbose.
+#
+
+sub skip
+{
+  my ($com, $reason, $verbose)= @_;
+
+  $test_counter++;
+  return 0 if $test_begin > $test_counter;
+  exit 0 if $test_end && $test_end < $test_counter;
+  printf '%-64s[ skipped ]%5d', $com, $test_counter if $verbose;
+  print "ok $test_counter # skip $reason" unless $verbose;
+  print "\n";
+  return 1;
+}
+
+####
+#### Count tests
+#### Arguments: $t:    an array of the tests
+####
+
+sub count_tests
+{
+  my ($t)= @_;
+  my ($i, $nr_tests);
+
+  $nr_tests= 0;
+  for ($i= 0; defined(@$t[$i]); $i++) { $nr_tests++ if (@$t[$i]); }
+  return $nr_tests;
+}
+
+####
+#### Run a bunch of tests
+#### Arguments: $t:       an array of the tests
+####            $verbose: to be passed to ok()
+####            $clear:   clear log files if set
+####
+
+sub run_test_bunch
+{
+  my ($t, $verbose, $clear)= @_;
+  my ($i);
+
+  for ($i= 0; defined(@$t[$i]); $i++)
+  {
+    if ($clear && @$t[$i] eq $NEW_TEST)
+    {
+      unlink <aria_log.* aria_log_control>;
+    }
+    if (@$t[$i] ne $NEW_TEST)
+    {
+      ok(@$t[$i], $verbose, $i + 1);
+    }
+  }
+}
+
+####
+#### usage
+####
+
+sub usage
+{
+  print <<EOF;
+$my_progname version $VER
+
+Description:
+
+Run various Aria related tests. Typically used via make test as a unittest.
+
+Options
+--help             Show this help and exit.
+--abort-on-error   Abort at once in case of error.
+--number-of-tests  Print the total number of tests and exit.
+--run-tests=...    Test number(s) that should be run. You can give just
+                   one number or a range. For example 45..89. To run a specific
+                   test alone, for example test 215, use --run-tests=215..215
+                   Use this option with caution, because some of the tests
+                   might depend on previous ones.
+--start-from=...   Alias for --run-tests
+--silent=...       Silent option passed to ma_test* tests ('$opt_silent')
+--valgrind=...     Options for valgrind.
+                   ('$opt_valgrind')
+--verbose          Be more verbose. Will print each unittest on a line
+                   and result after. This mode cannot be used with unit.pl
+                   when running in normal unit test mode.
+--version          Show version number and exit.
+EOF
+  exit(0);
+}

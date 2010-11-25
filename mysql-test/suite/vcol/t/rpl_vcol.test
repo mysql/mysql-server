@@ -1,0 +1,69 @@
+################################################################################
+# t/vcol_rpl.test                                                              #
+#                                                                              #
+# Purpose:                                                                     #
+#   Test replication of tables with virtual columns.                           #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-09-04 
+# Change Author: Oleksandr Byelkin (Monty program Ab)
+# Date: 2009-03-24 
+# Change: Syntax changed
+################################################################################
+
+#
+# NOTE: PLEASE DO NOT ADD NOT MYISAM SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+--source suite/vcol/inc/vcol_init_vars.pre
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+# Set the session storage engine
+--source include/have_innodb.inc
+SET @@session.storage_engine = 'InnoDB';
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/vcol/inc/vcol_cleanup.inc
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source include/master-slave.inc
+
+connection master;
+create table t1 (a int, b int as (a+1));
+show create table t1;
+insert into t1 values (1,default);
+insert into t1 values (2,default);
+select * from t1;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+select * from t1;
+
+connection master;
+drop table t1;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/vcol/inc/vcol_cleanup.inc

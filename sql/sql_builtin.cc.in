@@ -13,24 +13,27 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include <my_global.h>
 #include <mysql/plugin.h>
 
-typedef struct st_mysql_plugin builtin_plugin[];
+typedef struct st_maria_plugin builtin_maria_plugin[];
 
 #ifdef _MSC_VER
 extern "C"
 #else
 extern
 #endif
-builtin_plugin 
-  @mysql_mandatory_plugins@ @mysql_optional_plugins@ builtin_binlog_plugin;
+builtin_maria_plugin 
+  @mysql_mandatory_plugins@ @mysql_optional_plugins@
+  builtin_maria_binlog_plugin, builtin_maria_mysql_password_plugin;
 
-struct st_mysql_plugin *mysql_optional_plugins[]=
+struct st_maria_plugin *mysql_optional_plugins[]=
 {
   @mysql_optional_plugins@ 0
 };
 
-struct st_mysql_plugin *mysql_mandatory_plugins[]=
+struct st_maria_plugin *mysql_mandatory_plugins[]=
 {
-  builtin_binlog_plugin, @mysql_mandatory_plugins@ 0
+  builtin_maria_binlog_plugin, builtin_maria_mysql_password_plugin,
+  @mysql_mandatory_plugins@ 0
 };

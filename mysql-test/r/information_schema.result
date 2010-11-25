@@ -43,9 +43,11 @@ create view v1 (c) as
 SELECT table_name FROM information_schema.TABLES
 WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND
 table_name not like 'ndb_%' AND table_name not like 'innodb_%';
+and table_name not like 'pbxt%'
 select * from v1;
 c
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
@@ -55,6 +57,8 @@ EVENTS
 FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
+INDEX_STATISTICS
+KEY_CACHES
 KEY_COLUMN_USAGE
 PARAMETERS
 PARTITIONS
@@ -72,9 +76,13 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
+XTRADB_ADMIN_COMMAND
+XTRADB_ENHANCEMENTS
 columns_priv
 db
 event
@@ -90,6 +98,11 @@ proc
 procs_priv
 servers
 slow_log
+t1
+t2
+t3
+t4
+t5
 tables_priv
 time_zone
 time_zone_leap_second
@@ -97,13 +110,8 @@ time_zone_name
 time_zone_transition
 time_zone_transition_type
 user
-t1
-t4
-t2
-t3
-t5
 v1
-select c,table_name from v1
+select c,table_name from v1 
 inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -111,6 +119,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -123,7 +132,7 @@ t4	t4
 t2	t2
 t3	t3
 t5	t5
-select c,table_name from v1
+select c,table_name from v1 
 left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
@@ -131,6 +140,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -151,6 +161,7 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -600,7 +611,7 @@ proc	body	longblob
 proc	definer	char(77)
 proc	created	timestamp
 proc	modified	timestamp
-proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
+proc	sql_mode	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
 proc	comment	text
 proc	character_set_client	char(32)
 proc	collation_connection	char(32)
@@ -633,13 +644,14 @@ from information_schema.tables
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 CHARACTER_SETS	SYSTEM VIEW	MEMORY
-COLLATIONS	SYSTEM VIEW	MEMORY
+CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 create database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -650,6 +662,7 @@ TABLES	SYSTEM VIEW
 TABLESPACES	SYSTEM VIEW
 TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
+TABLE_STATISTICS	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -663,6 +676,7 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
 TRIGGERS
 select table_name from tables where table_name='user';
 table_name
@@ -813,6 +827,8 @@ TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 TRIGGERS	CREATED	datetime
+INNODB_TRX	trx_started	datetime
+INNODB_TRX	trx_wait_started	datetime
 event	execute_at	datetime
 event	last_executed	datetime
 event	starts	datetime
@@ -847,12 +863,15 @@ x_float	NULL	NULL
 x_double_precision	NULL	NULL
 drop table t1;
 grant select on test.* to mysqltest_4@localhost;
-SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
+SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS 
 where COLUMN_NAME='TABLE_NAME';
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
+INDEX_STATISTICS	TABLE_NAME	select
+INNODB_INDEX_STATS	table_name	select
+INNODB_TABLE_STATS	table_name	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
@@ -860,17 +879,11 @@ STATISTICS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
+TABLE_STATISTICS	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES WHERE
-table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
-AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
-GROUP BY TABLE_SCHEMA;
-table_schema	count(*)
-information_schema	30
-mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1243,12 +1256,12 @@ DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
-VIEWS
+XTRADB_ENHANCEMENTS
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 table_name
-VIEWS
+XTRADB_ENHANCEMENTS
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
@@ -1286,58 +1299,6 @@ table_name
 t1
 t2
 drop table t1,t2;
-select 1 as f1 from information_schema.tables  where "CHARACTER_SETS"=
-(select cast(table_name as char)  from information_schema.tables
-order by table_name limit 1) limit 1;
-f1
-1
-select t.table_name, group_concat(t.table_schema, '.', t.table_name),
-count(*) as num1
-from information_schema.tables t
-inner join information_schema.columns c1
-on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
-c1.ordinal_position =
-(select isnull(c2.column_type) -
-isnull(group_concat(c2.table_schema, '.', c2.table_name)) +
-count(*) as num
-from information_schema.columns c2 where
-c2.table_schema='information_schema' and
-(c2.column_type = 'varchar(7)' or c2.column_type = 'varchar(20)')
-group by c2.column_type order by num limit 1)
-and t.table_name not like 'innodb_%'
-group by t.table_name order by num1, t.table_name;
-table_name	group_concat(t.table_schema, '.', t.table_name)	num1
-CHARACTER_SETS	information_schema.CHARACTER_SETS	1
-COLLATIONS	information_schema.COLLATIONS	1
-COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
-COLUMNS	information_schema.COLUMNS	1
-COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
-ENGINES	information_schema.ENGINES	1
-EVENTS	information_schema.EVENTS	1
-FILES	information_schema.FILES	1
-GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
-GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
-KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
-PARAMETERS	information_schema.PARAMETERS	1
-PARTITIONS	information_schema.PARTITIONS	1
-PLUGINS	information_schema.PLUGINS	1
-PROCESSLIST	information_schema.PROCESSLIST	1
-PROFILING	information_schema.PROFILING	1
-REFERENTIAL_CONSTRAINTS	information_schema.REFERENTIAL_CONSTRAINTS	1
-ROUTINES	information_schema.ROUTINES	1
-SCHEMATA	information_schema.SCHEMATA	1
-SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
-SESSION_STATUS	information_schema.SESSION_STATUS	1
-SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
-STATISTICS	information_schema.STATISTICS	1
-TABLES	information_schema.TABLES	1
-TABLESPACES	information_schema.TABLESPACES	1
-TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
-TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
-TRIGGERS	information_schema.TRIGGERS	1
-USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
-VIEWS	information_schema.VIEWS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
@@ -1433,6 +1394,17 @@ select user,db from information_schema.processlist;
 user	db
 user3148	test
 drop user user3148@localhost;
+SELECT 'other connection here' AS who;
+who
+other connection here
+SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
+IF(`time` < 1000, 'OK', `time`) AS time_high,
+IF(time_ms >= 1000, 'OK', time_ms) AS time_ms_low,
+IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
+FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE ID=@tid;
+time_low	time_high	time_ms_low	time_ms_high
+OK	OK	OK	OK
 DROP TABLE IF EXISTS server_status;
 DROP EVENT IF EXISTS event_status;
 SET GLOBAL event_scheduler=1;
@@ -1652,12 +1624,11 @@ drop table t0;
 CREATE TABLE t1(a INT) KEY_BLOCK_SIZE=1;
 SELECT CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
 CREATE_OPTIONS
-KEY_BLOCK_SIZE=1
+key_block_size=1
 DROP TABLE t1;
 SET TIMESTAMP=@@TIMESTAMP + 10000000;
-SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
+SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
-OK
 SET TIMESTAMP=DEFAULT;
 #
 # Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES

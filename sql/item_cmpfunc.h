@@ -237,7 +237,7 @@ public:
 
 
 class Item_cache;
-#define UNKNOWN ((my_bool)-1)
+#define UNKNOWN (-1)
 
 
 /*
@@ -259,6 +259,7 @@ class Item_in_optimizer: public Item_bool_func
 {
 protected:
   Item_cache *cache;
+  Item *expr_cache;
   bool save_cache;
   /* 
     Stores the value of "NULL IN (SELECT ...)" for uncorrelated subqueries:
@@ -266,10 +267,10 @@ protected:
       FALSE   - result is FALSE
       TRUE    - result is NULL
   */
-  my_bool result_for_null_param;
+  int result_for_null_param;
 public:
   Item_in_optimizer(Item *a, Item_in_subselect *b):
-    Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0),
+    Item_bool_func(a, reinterpret_cast<Item *>(b)), cache(0), expr_cache(0),
     save_cache(0), result_for_null_param(UNKNOWN)
   {}
   bool fix_fields(THD *, Item **);
@@ -280,6 +281,8 @@ public:
   const char *func_name() const { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
+  Item *transform(Item_transformer transformer, uchar *arg);
+  virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
 };
 
 class Comp_creator
@@ -387,6 +390,7 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  Arg_comparator *get_comparator() { return &cmp; }
   void cleanup()
   {
     Item_int_func::cleanup();
@@ -503,13 +507,23 @@ public:
 class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
-  Item_func_eq(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {}
+  Item_func_eq(Item *a,Item *b) :
+    Item_bool_rowready_func2(a,b), in_equality_no(UINT_MAX)
+  {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
   enum Functype rev_functype() const { return EQ_FUNC; }
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
   Item *negated_item();
+  /* 
+    - If this equality is created from the subquery's IN-equality:
+      number of the item it was created from, e.g. for
+       (a,b) IN (SELECT c,d ...)  a=c will have in_equality_no=0, 
+       and b=d will have in_equality_no=1.
+    - Otherwise, UINT_MAX
+  */
+  uint in_equality_no;
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -679,7 +693,7 @@ struct interval_range
 class Item_func_interval :public Item_int_func
 {
   Item_row *row;
-  my_bool use_decimal_comparison;
+  bool use_decimal_comparison;
   interval_range *intervals;
 public:
   Item_func_interval(Item_row *a)
@@ -804,7 +818,7 @@ public:
   virtual uchar *get_value(Item *item)=0;
   void sort()
   {
-    my_qsort2(base,used_count,size,compare,collation);
+    my_qsort2(base,used_count,size,compare,(void*)collation);
   }
   int find(Item *item);
   
@@ -887,7 +901,7 @@ public:
   void value_to_item(uint pos, Item *item)
   {
     ((Item_int*) item)->value= ((packed_longlong*) base)[pos].val;
-    ((Item_int*) item)->unsigned_flag= (my_bool)
+    ((Item_int*) item)->unsigned_flag= (bool)
       ((packed_longlong*) base)[pos].unsigned_flag;
   }
   Item_result result_type() { return INT_RESULT; }
@@ -1502,6 +1516,7 @@ public:
     list.prepand(nlist);
   }
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
@@ -1621,7 +1636,8 @@ public:
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
-  Item_field* get_first() { return fields.head(); }
+  Item_field* get_first(Item_field *field);
+  uint n_fields() { return fields.elements; }
   void merge(Item_equal *item);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
@@ -1638,6 +1654,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
+  friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
+                           Item_equal *item_equal);
+  friend bool setup_sj_materialization(struct st_join_table *tab);
 }; 
 
 class COND_EQUAL: public Sql_alloc
@@ -1744,14 +1763,34 @@ inline bool is_cond_or(Item *item)
 class Item_cond_xor :public Item_cond
 {
 public:
-  Item_cond_xor() :Item_cond() {}
-  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) {}
+  Item_cond_xor(Item *i1,Item *i2) :Item_cond(i1,i2) 
+  {
+    /* 
+      Items must be stored in args[] as well because this Item_cond is
+      treated as a FUNC_ITEM (see type()). I.e., users of it will get
+      it's children by calling arguments(), not argument_list(). This
+      is a temporary solution until XOR is optimized and treated like
+      a full Item_cond citizen.
+     */
+    arg_count= 2;
+    args= tmp_arg;
+    args[0]= i1; 
+    args[1]= i2;
+  }
   enum Functype functype() const { return COND_XOR_FUNC; }
   /* TODO: remove the next line when implementing XOR optimization */
   enum Type type() const { return FUNC_ITEM; }
   longlong val_int();
   const char *func_name() const { return "xor"; }
   void top_level_item() {}
+  /* Since child Items are stored in args[], Items cannot be added.
+     However, since Item_cond_xor is treated as a FUNC_ITEM (see
+     type()), the methods below should never be called. 
+  */
+  bool add(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(Item *item) { DBUG_ASSERT(FALSE); return FALSE; }
+  bool add_at_head(List<Item> *nlist) { DBUG_ASSERT(FALSE); return FALSE; }
+  void copy_andor_arguments(THD *thd, Item_cond *item) { DBUG_ASSERT(FALSE); }
 };
 
 

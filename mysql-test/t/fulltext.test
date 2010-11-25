@@ -2,6 +2,9 @@
 # Test of fulltext index
 #
 
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 --enable_warnings
@@ -454,6 +457,15 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(b)
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
 DROP TABLE t1;
+
+#
+# bug#34374 - mysql generates incorrect warning
+#
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+drop table t1;
+show warnings;
 
 #
 # BUG#37245 - Full text search problem

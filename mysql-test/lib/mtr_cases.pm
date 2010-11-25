@@ -39,14 +39,7 @@ our $enable_disabled;
 our $default_storage_engine;
 our $opt_with_ndbcluster_only;
 our $defaults_file;
-our $defaults_extra_file;
 our $quick_collect;
-# Set to 1 if you want the tests to override
-# default storage engine settings, and use MyISAM
-# as default.  (temporary option used in connection
-# with the change of default storage engine to InnoDB)
-our $default_myisam= 1;
- 
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -61,7 +54,7 @@ sub collect_option {
 }
 
 use File::Basename;
-use File::Spec::Functions qw / splitdir /;
+use File::Spec::Functions qw /splitdir/;
 use IO::File();
 use My::Config;
 use My::Platform;
@@ -74,12 +67,10 @@ require "mtr_misc.pl";
 my $do_test_reg;
 my $skip_test_reg;
 
-# Related to adding InnoDB plugin combinations
-my $lib_innodb_plugin;
-my $do_innodb_plugin;
-
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
+
+my $default_suite_object = do 'My/Suite.pm';
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -113,17 +104,6 @@ sub collect_test_cases ($$$$) {
 
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
-
-  $lib_innodb_plugin=
-    my_find_file($::basedir,
-		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
-		  "lib/mysql/plugin", "lib/plugin"],
-		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
-		  "ha_innodb_plugin.sl"],
-		 NOT_REQUIRED);
-  $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
-		      $lib_innodb_plugin);
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
@@ -195,17 +175,17 @@ sub collect_test_cases ($$$$) {
       my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
       push(@criteria, join("!", sort @{$opts}) . "~");
 
-      $sort_criteria{$tinfo->{name}} = join(" ", @criteria);
+      $sort_criteria{$tinfo->fullname()} = join(" ", @criteria);
     }
 
     @$cases = sort {
-      $sort_criteria{$a->{'name'}} . $a->{'name'} cmp
-	$sort_criteria{$b->{'name'}} . $b->{'name'}; } @$cases;
+      $sort_criteria{$a->fullname()} . $a->fullname() cmp
+	$sort_criteria{$b->fullname()} . $b->fullname() } @$cases;
 
     # For debugging the sort-order
     # foreach my $tinfo (@$cases)
     # {
-    #   print("$sort_criteria{$tinfo->{'name'}} -> \t$tinfo->{'name'}\n");
+    #   print $sort_criteria{$tinfo->fullname()}," -> \t",$tinfo->fullname(),"\n";
     # }
 
   }
@@ -253,7 +233,7 @@ sub split_testname {
 }
 
 
-sub collect_one_suite($)
+sub collect_one_suite
 {
   my $suite= shift;  # Test suite name
   my $opt_cases= shift;
@@ -315,6 +295,17 @@ sub collect_one_suite($)
   mtr_verbose("testdir: $testdir");
   mtr_verbose("resdir: $resdir");
 
+  #
+  # Load the Suite object
+  #
+  unless ($::suites{$suite}) {
+    if (-f "$suitedir/suite.pm") {
+      $::suites{$suite} = do "$suitedir/suite.pm";
+    } else {
+      $::suites{$suite} = $default_suite_object;
+    }
+  }
+
   # ----------------------------------------------------------------------
   # Build a hash of disabled testcases for this suite
   # ----------------------------------------------------------------------
@@ -338,12 +329,8 @@ sub collect_one_suite($)
     }
 
   # Read suite.opt file
-  my $suite_opt_file=  "$testdir/suite.opt";
-  my $suite_opts= [];
-  if ( -f $suite_opt_file )
-  {
-    $suite_opts= opts_from_file($suite_opt_file);
-  }
+  my $suite_opts= [ opts_from_file("$testdir/suite.opt") ];
+  $suite_opts = [ opts_from_file("$suitedir/suite.opt") ] unless @$suite_opts;
 
   if ( @$opt_cases )
   {
@@ -448,14 +435,16 @@ sub collect_one_suite($)
     {
       # Read combinations file in my.cnf format
       mtr_verbose("Read combinations file");
+      my %env_filter = map { $_ => 1 } split /:/, $ENV{"\U${suite}_COMBINATIONS"};
       my $config= My::Config->new($combination_file);
       foreach my $group ($config->groups()) {
 	my $comb= {};
 	$comb->{name}= $group->name();
+        next if %env_filter and not $env_filter{$comb->{name}};
         foreach my $option ( $group->options() ) {
 	  push(@{$comb->{comb_opt}}, $option->option());
 	}
-	push(@combinations, $comb);
+	push(@combinations, $comb) if $comb->{comb_opt};
       }
     }
 
@@ -534,8 +523,12 @@ sub collect_one_suite($)
 sub optimize_cases {
   my ($cases)= @_;
 
+  my @new_cases= ();
+
   foreach my $tinfo ( @$cases )
   {
+    push @new_cases, $tinfo;
+
     # Skip processing if already marked as skipped
     next if $tinfo->{skip};
 
@@ -545,28 +538,7 @@ sub optimize_cases {
     # support it
     # =======================================================
     #print "binlog_format: $binlog_format\n";
-    if (defined $binlog_format )
-    {
-      # =======================================================
-      # Fixed --binlog-format=x specified on command line
-      # =======================================================
-      if ( defined $tinfo->{'binlog_formats'} )
-      {
-	#print "binlog_formats: ". join(", ", @{$tinfo->{binlog_formats}})."\n";
-
-	# The test supports different binlog formats
-	# check if the selected one is ok
-	my $supported=
-	  grep { $_ eq $binlog_format } @{$tinfo->{'binlog_formats'}};
-	if ( !$supported )
-	{
-	  $tinfo->{'skip'}= 1;
-	  $tinfo->{'comment'}=
-	    "Doesn't support --binlog-format='$binlog_format'";
-	}
-      }
-    }
-    else
+    if (not defined $binlog_format )
     {
       # =======================================================
       # Use dynamic switching of binlog format
@@ -589,6 +561,13 @@ sub optimize_cases {
 	  $tinfo->{'skip'}= 1;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$test_binlog_format'";
+          # This test was added as a replication combination, but it is not
+          # actually ever possible to run it, as it is not made for this
+          # combination.
+          # So delete it from the list, rather than confuse the user with a
+          # message that this test is skipped (it is not really, just run
+          # with other combinations).
+          pop(@new_cases);
 	  next;
 	}
       }
@@ -625,8 +604,6 @@ sub optimize_cases {
 
 	$tinfo->{'ndb_test'}= 1
 	  if ( $default_engine =~ /^ndb/i );
-	$tinfo->{'innodb_test'}= 1
-	  if ( $default_engine =~ /^innodb/i );
       }
     }
 
@@ -636,6 +613,7 @@ sub optimize_cases {
       return;
     }
   }
+  @$cases= @new_cases;
 }
 
 
@@ -643,74 +621,88 @@ sub optimize_cases {
 # Read options from the given opt file and append them as an array
 # to $tinfo->{$opt_name}
 #
-sub process_opts_file {
-  my ($tinfo, $opt_file, $opt_name)= @_;
+sub process_opts {
+  my ($tinfo, $opt_name)= @_;
 
-  if ( -f $opt_file )
+  my @opts= @{$tinfo->{$opt_name}};
+  $tinfo->{$opt_name} = [];
+
+  my @plugins;
+  my %seen;
+
+  foreach my $opt (@opts)
   {
-    my $opts= opts_from_file($opt_file);
+    my $value;
 
-    foreach my $opt ( @$opts )
+    # The opt file is used both to send special options to the mysqld
+    # as well as pass special test case specific options to this
+    # script
+
+    $value= mtr_match_prefix($opt, "--timezone=");
+    if ( defined $value )
     {
-      my $value;
-
-      # The opt file is used both to send special options to the mysqld
-      # as well as pass special test case specific options to this
-      # script
-
-      $value= mtr_match_prefix($opt, "--timezone=");
-      if ( defined $value )
-      {
-	$tinfo->{'timezone'}= $value;
-	next;
-      }
-
-      $value= mtr_match_prefix($opt, "--result-file=");
-      if ( defined $value )
-      {
-	# Specifies the file mysqltest should compare
-	# output against
-	$tinfo->{'result_file'}= "r/$value.result";
-	next;
-      }
-
-      $value= mtr_match_prefix($opt, "--config-file-template=");
-      if ( defined $value)
-      {
-	# Specifies the configuration file to use for this test
-	$tinfo->{'template_path'}= dirname($tinfo->{path})."/$value";
-	next;
-      }
-
-      # If we set default time zone, remove the one we have
-      $value= mtr_match_prefix($opt, "--default-time-zone=");
-      if ( defined $value )
-      {
-	# Set timezone for this test case to something different
-	$tinfo->{'timezone'}= "GMT-8";
-	# Fallthrough, add the --default-time-zone option
-      }
-
-      # The --restart option forces a restart even if no special
-      # option is set. If the options are the same as next testcase
-      # there is no need to restart after the testcase
-      # has completed
-      if ( $opt eq "--force-restart" )
-      {
-	$tinfo->{'force_restart'}= 1;
-	next;
-      }
-
-      $value= mtr_match_prefix($opt, "--testcase-timeout=");
-      if ( defined $value ) {
-	# Overrides test case timeout for this test
-	$tinfo->{'case-timeout'}= $value;
-	next;
-      }
-
-      # Ok, this was a real option, add it
-      push(@{$tinfo->{$opt_name}}, $opt);
+      $tinfo->{'timezone'}= $value;
+      next;
     }
+
+    $value= mtr_match_prefix($opt, "--plugin-load=");
+    if (defined $value)
+    {
+      push @plugins, $value unless $seen{$value};
+      $seen{$value}=1;
+      next;
+    }
+
+    $value= mtr_match_prefix($opt, "--result-file=");
+    if ( defined $value )
+    {
+      # Specifies the file mysqltest should compare
+      # output against
+      $tinfo->{'result_file'}= "r/$value.result";
+      next;
+    }
+
+    $value= mtr_match_prefix($opt, "--config-file-template=");
+    if ( defined $value)
+    {
+      # Specifies the configuration file to use for this test
+      $tinfo->{'template_path'}= dirname($tinfo->{path})."/$value";
+      next;
+    }
+
+    # If we set default time zone, remove the one we have
+    $value= mtr_match_prefix($opt, "--default-time-zone=");
+    if ( defined $value )
+    {
+      # Set timezone for this test case to something different
+      $tinfo->{'timezone'}= "GMT-8";
+      # Fallthrough, add the --default-time-zone option
+    }
+
+    # The --restart option forces a restart even if no special
+    # option is set. If the options are the same as next testcase
+    # there is no need to restart after the testcase
+    # has completed
+    if ( $opt eq "--force-restart" )
+    {
+      $tinfo->{'force_restart'}= 1;
+      next;
+    }
+
+    $value= mtr_match_prefix($opt, "--testcase-timeout=");
+    if ( defined $value ) {
+      # Overrides test case timeout for this test
+      $tinfo->{'case-timeout'}= $value;
+      next;
+    }
+
+    # Ok, this was a real option, add it
+    push(@{$tinfo->{$opt_name}}, $opt);
+  }
+
+  if (@plugins) {
+    my $sep = (IS_WINDOWS) ? ';' : ':';
+    push @{$tinfo->{$opt_name}}, "--plugin-load=" .  join($sep, @plugins);
   }
 }
 
@@ -730,6 +722,8 @@ sub collect_one_test_case {
   my $disabled=   shift;
   my $suite_opts= shift;
 
+  my $local_default_storage_engine= $default_storage_engine;
+
   #print "collect_one_test_case\n";
   #print " suitedir: $suitedir\n";
   #print " testdir: $testdir\n";
@@ -741,7 +735,7 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Check --start-from
   # ----------------------------------------------------------------------
-  if ( $start_from )
+  if ( $start_from && 0)
   {
     # start_from can be specified as [suite.].testname_prefix
     my ($suite, $test, $ext)= split_testname($start_from);
@@ -749,7 +743,7 @@ sub collect_one_test_case {
     if ( $suite and $suitename lt $suite){
       return; # Skip silently
     }
-    if ( $tname lt $test ){
+    if ((!$suite || $suitename == $suite) && $tname lt $test ){
       return; # Skip silently
     }
   }
@@ -762,7 +756,7 @@ sub collect_one_test_case {
      name          => "$suitename.$tname",
      shortname     => $tname,
      path          => "$testdir/$filename",
-
+     suite         => $suitename,
     );
 
   my $result_file= "$resdir/$tname.result";
@@ -782,7 +776,9 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   # Skip some tests but include in list, just mark them as skipped
   # ----------------------------------------------------------------------
-  if ( $skip_test_reg and $tname =~ /$skip_test_reg/o )
+  my $name= basename($suitename) . ".$tname";
+  if ( $skip_test_reg and ($tname =~ /$skip_test_reg/o ||
+                           $name =~ /$skip_test/o))
   {
     $tinfo->{'skip'}= 1;
     return $tinfo;
@@ -829,15 +825,6 @@ sub collect_one_test_case {
   # ----------------------------------------------------------------------
   push(@{$tinfo->{'master_opt'}}, @$suite_opts);
   push(@{$tinfo->{'slave_opt'}}, @$suite_opts);
-
-  #-----------------------------------------------------------------------
-  # Check for test specific config file
-  #-----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file) {
-    # Specifies the configuration file to use for this test
-    $tinfo->{'template_path'}= $test_cnf_file;
-  }
 
   # ----------------------------------------------------------------------
   # Check for test specific config file
@@ -891,17 +878,22 @@ sub collect_one_test_case {
     if ( -f "$testdir/$tname.slave-mi");
 
 
-  tags_from_test_file($tinfo,"$testdir/${tname}.test");
+  my @source_files = tags_from_test_file($tinfo,"$testdir/${tname}.test");
 
-  if ( defined $default_storage_engine )
+  # Get default storage engine from suite.opt file
+
+  if (defined $suite_opts &&
+      "@$suite_opts" =~ "default-storage-engine=\s*([^\s]*)")
+  {
+    $local_default_storage_engine= $1;
+  }
+
+  if ( defined $local_default_storage_engine )
   {
     # Different default engine is used
     # tag test to require that engine
     $tinfo->{'ndb_test'}= 1
-      if ( $default_storage_engine =~ /^ndb/i );
-
-    $tinfo->{'innodb_test'}= 1
-      if ( $default_storage_engine =~ /^innodb/i );
+      if ( $local_default_storage_engine =~ /^ndb/i );
 
   }
 
@@ -949,53 +941,6 @@ sub collect_one_test_case {
     }
   }
 
-  if ($tinfo->{'federated_test'})
-  {
-    # This is a test that needs federated, enable it
-    push(@{$tinfo->{'master_opt'}}, "--loose-federated");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
-  }
-
-  if ( $tinfo->{'innodb_test'} )
-  {
-    # This is a test that needs innodb
-    if ( $::mysqld_variables{'innodb'} eq "OFF" ||
-         ! exists $::mysqld_variables{'innodb'} )
-    {
-      # innodb is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      # This comment is checked for running with innodb plugin (see above),
-      # please keep that in mind if changing the text.
-      $tinfo->{'comment'}= "No innodb support";
-      # But continue processing if we may run it with innodb plugin
-      return $tinfo unless $do_innodb_plugin;
-    }
-  }
-  elsif ($default_myisam)
-  {
-    # This is a temporary fix to allow non-innodb tests to run even if
-    # the default storage engine is innodb.
-    push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
-    push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
-  }
-
-  if ( $tinfo->{'need_binlog'} )
-  {
-    if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
-    {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Test needs binlog";
-      return $tinfo;
-    }
-  }
-  else
-  {
-    # Test does not need binlog, add --skip-binlog to
-    # the options used when starting
-    push(@{$tinfo->{'master_opt'}}, "--loose-skip-log-bin");
-    push(@{$tinfo->{'slave_opt'}}, "--loose-skip-log-bin");
-  }
-
   if ( $tinfo->{'rpl_test'} )
   {
     if ( $skip_rpl )
@@ -1012,6 +957,16 @@ sub collect_one_test_case {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Not run for embedded server";
+      return $tinfo;
+    }
+  }
+
+  if ( $tinfo->{'not_valgrind'} )
+  {
+    if ( $::opt_valgrind_mysqld )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not compatible with Valgrind testing";
       return $tinfo;
     }
   }
@@ -1056,26 +1011,49 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
-  # Set extra config file to use
-  if (defined $defaults_extra_file) {
-    $tinfo->{extra_template_path}= $defaults_extra_file;
+  if ( $tinfo->{'example_plugin_test'} )
+  {
+    if ( !$ENV{'HA_EXAMPLE_SO'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test requires the 'example' plugin";
+      return $tinfo;
+    }
+  }
+
+  if ( $tinfo->{'oqgraph_test'} )
+  {
+    if ( !$ENV{'GRAPH_ENGINE_SO'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test requires the OQGraph storage engine";
+      return $tinfo;
+    }
+  }
+
+  if (not ref $::suites{$tinfo->{suite}})
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= $::suites{$tinfo->{suite}};
+    return $tinfo;
   }
 
   # ----------------------------------------------------------------------
-  # Append mysqld extra options to both master and slave
+  # Append mysqld extra options to master and slave, as appropriate
   # ----------------------------------------------------------------------
+  for (@source_files) {
+    s/\.\w+$//;
+    push @{$tinfo->{master_opt}}, opts_from_file("$_.opt");
+    push @{$tinfo->{slave_opt}}, opts_from_file("$_.opt");
+    push @{$tinfo->{master_opt}}, opts_from_file("$_-master.opt");
+    push @{$tinfo->{slave_opt}}, opts_from_file("$_-slave.opt");
+  }
+
   push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
   push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
 
-  # ----------------------------------------------------------------------
-  # Add master opts, extra options only for master
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
-
-  # ----------------------------------------------------------------------
-  # Add slave opts, list of extra option only for slave
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
+  process_opts($tinfo, 'master_opt');
+  process_opts($tinfo, 'slave_opt');
 
   return $tinfo;
 }
@@ -1085,19 +1063,6 @@ sub collect_one_test_case {
 # the specified value in "tinfo"
 my @tags=
 (
- ["include/have_binlog_format_row.inc", "binlog_formats", ["row"]],
- ["include/have_binlog_format_statement.inc", "binlog_formats", ["statement"]],
- ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed"]],
- ["include/have_binlog_format_mixed_or_row.inc",
-  "binlog_formats", ["mixed", "row"]],
- ["include/have_binlog_format_mixed_or_statement.inc",
-  "binlog_formats", ["mixed", "statement"]],
- ["include/have_binlog_format_row_or_statement.inc",
-  "binlog_formats", ["row", "statement"]],
-
- ["include/have_log_bin.inc", "need_binlog", 1],
-
- ["include/have_innodb.inc", "innodb_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
@@ -1105,8 +1070,10 @@ my @tags=
  ["include/master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "ndb_test", 1],
- ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
+ ["include/not_valgrind.inc", "not_valgrind", 1],
+ ["include/have_example_plugin.inc", "example_plugin_test", 1],
+ ["include/have_oqgraph_engine.inc", "oqgraph_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
 );
 
@@ -1116,6 +1083,7 @@ sub tags_from_test_file {
   my $file= shift;
   #mtr_verbose("$file");
   my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
+  my @all_files=($file);
 
   while ( my $line= <$F> )
   {
@@ -1151,13 +1119,13 @@ sub tags_from_test_file {
 	  # Only source the file if it exists, we may get
 	  # false positives in the regexes above if someone
 	  # writes "source nnnn;" in a test case(such as mysqltest.test)
-	  tags_from_test_file($tinfo, $sourced_file);
+	  unshift @all_files, tags_from_test_file($tinfo, $sourced_file);
 	  last;
 	}
       }
     }
-
   }
+  @all_files;
 }
 
 sub unspace {
@@ -1170,6 +1138,9 @@ sub unspace {
 
 sub opts_from_file ($) {
   my $file=  shift;
+  local $_;
+
+  return () unless -f $file;
 
   open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
   my @args;
@@ -1211,7 +1182,7 @@ sub opts_from_file ($) {
     }
   }
   close FILE;
-  return \@args;
+  return @args;
 }
 
 sub print_testcases {
@@ -1226,3 +1197,4 @@ sub print_testcases {
 
 
 1;
+

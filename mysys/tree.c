@@ -77,13 +77,13 @@ static void rb_insert(TREE *tree,TREE_ELEMENT ***parent,
 static void rb_delete_fixup(TREE *tree,TREE_ELEMENT ***parent);
 
 
-	/* The actuall code for handling binary trees */
+/* The actual code for handling binary trees */
 
 #ifndef DBUG_OFF
 static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
-void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
+void init_tree(TREE *tree, size_t default_alloc_size, size_t memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
 	       tree_element_free free_element, void *custom_arg)
 {
@@ -96,7 +96,7 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   bzero((uchar*) &tree->null_element,sizeof(tree->null_element));
   tree->root= &tree->null_element;
   tree->compare=compare;
-  tree->size_of_element=size > 0 ? (uint) size : 0;
+  tree->size_of_element= size > 0 ? (uint) size : 0;
   tree->memory_limit=memory_limit;
   tree->free=free_element;
   tree->allocated=0;
@@ -127,7 +127,7 @@ void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
   }
   if (!(tree->with_delete=with_delete))
   {
-    init_alloc_root(&tree->mem_root, (uint) default_alloc_size, 0);
+    init_alloc_root(&tree->mem_root, default_alloc_size, 0);
     tree->mem_root.min_malloc=(sizeof(TREE_ELEMENT)+tree->size_of_element);
   }
   DBUG_VOID_RETURN;

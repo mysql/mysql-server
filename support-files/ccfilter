@@ -1,0 +1,104 @@
+#! /usr/bin/perl
+
+# Post-processor for compiler output to filter out warnings matched in
+# support-files/compiler_warnings.supp. This makes it easier to check
+# that no new warnings are introduced without needing to submit a build
+# for Buildbot.
+#
+# Use by setting CC="ccfilter gcc" CXX="ccfilter gcc" before ./configure.
+#
+# By default, just filters the output for suppressed warnings. If the
+# FAILONWARNING environment variable is set, then instead will fail the
+# compile on encountering a non-suppressed warnings.
+
+use strict;
+use warnings;
+
+my $suppressions;
+
+open STDOUT_COPY, ">&STDOUT"
+    or die "Failed to dup stdout: $!]n";
+
+my $pid= open(PIPE, '-|');
+
+if (!defined($pid)) {
+  die "Error: Cannot fork(): $!\n";
+} elsif (!$pid) {
+  # Child.
+  # actually want to send the STDERR to the parent, not the STDOUT.
+  # So shuffle things around a bit.
+  open STDERR, ">&STDOUT"
+      or die "Child: Failed to dup pipe to parent: $!\n";
+  open STDOUT, ">&STDOUT_COPY"
+      or die "Child: Failed to dup parent stdout: $!\n";
+  close STDOUT_COPY;
+  exec { $ARGV[0] } @ARGV;
+  die "Child: exec() failed: $!\n";
+} else {
+  # Parent.
+  close STDOUT_COPY;
+  my $cwd= qx(pwd);
+  chomp($cwd);
+  while (<PIPE>) {
+    my $line= $_;
+    if (/^(.*?):([0-9]+): [Ww]arning: (.*)$/) {
+      my ($file, $lineno, $msg)= ($1, $2, $3);
+      $file= "$cwd/$file";
+
+      next
+          if check_if_suppressed($file, $lineno, $msg);
+      die "$line\nGot warning, terminating.\n"
+          if $ENV{FAILONWARNING};
+      print STDERR $line;
+      next;
+    }
+
+    print STDERR $line;
+  }
+  close(PIPE);
+}
+
+exit 0;
+
+sub check_if_suppressed {
+  my ($file, $lineno, $msg)= @_;
+  load_suppressions() unless defined($suppressions);
+  for my $s (@$suppressions) {
+    my ($file_re, $msg_re, $start, $end)= @$s;
+    if ($file =~ /$file_re/ &&
+        $msg =~ /$msg_re/ &&
+        (!defined($start) || $start <= $lineno) &&
+        (!defined($end) || $end >= $lineno)) {
+      return 1;
+    }
+  }
+  return undef;
+}
+
+sub load_suppressions {
+  # First find the suppressions file, might be we need to move up to
+  # the base directory.
+  my $path = "support-files/compiler_warnings.supp";
+  my $exists;
+  for (1..10) {
+    $exists= -f $path;
+    last if $exists;
+    $path= '../'. $path;
+  }
+  die "Error: Could not find suppression file (out of source dir?).\n"
+      unless $exists;
+
+  $suppressions= [];
+  open "F", "<", $path
+      or die "Error: Could not read suppression file '$path': $!\n";
+  while (<F>) {
+    # Skip comment and empty lines.
+    next if /^\s*(\#.*)?$/;
+    die "Invalid syntax in suppression file '$path', line $.:\n$_"
+        unless /^\s*(.+?)\s*:\s*(.+?)\s*(?:[:]\s*([0-9]+)(?:-([0-9]+))?\s*)?$/;
+    my ($file_re, $line_re, $start, $end)= ($1, $2, $3, $4);
+    $end = $start
+        if defined($start) && !defined($end);
+    push @$suppressions, [$file_re, $line_re, $start, $end];
+  }
+}

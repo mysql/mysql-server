@@ -82,13 +82,15 @@ drop table t1, t2;
 
 create table t1(a char(10));
 let $1=50;
-disable_query_log;
+--disable_query_log
+begin;
 while ($1)
 {
   eval insert into t1 values('mysql ab');
   dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 alter table t1 add b char;
 set max_error_count=10;
 update t1 set b=a;
@@ -187,7 +189,6 @@ DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 DROP PROCEDURE sp3;
 
-
 #
 # Bug#30059: End-space truncation warnings are inconsistent or incorrect
 #
@@ -228,3 +229,15 @@ DROP TABLE t1;
 SHOW ERRORS;
 
 --echo End of 5.0 tests
+
+#
+# Test warning with row numbers
+#
+
+set sql_mode = default;
+select CAST(a AS DECIMAL(13,5)) FROM (SELECT '' as a) t;
+create table t1 (a integer unsigned);
+insert into t1 values (1),(-1),(0),(-2);
+drop table t1;
+
+--echo End of 5.1 tests

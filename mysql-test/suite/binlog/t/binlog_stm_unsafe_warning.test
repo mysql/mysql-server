@@ -137,6 +137,22 @@ perl;
   close(FILE);
 EOF
 
+#
+# Check how RAND() can be used with replication
+#
+
+create table t1 (n1 int, n2 int, n3 int,
+                key (n1, n2, n3),
+                key (n2, n3, n1),
+                key (n3, n1, n2));
+insert into t1 values (1,1,1);
+# This should work fine
+insert into t1 values (RAND()*1000+10, RAND()*1000+10, RAND()*1000+10);
+# This should need row based logging.
+update t1 set n1=rand() where n1=1;
+delete from t1 where n2=1 + rand()*0;
+drop table t1;
+
 # bug#50192: diplaying the unsafe warning comes out to the user warning stack
 
 -- disable_warnings

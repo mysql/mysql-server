@@ -32,6 +32,7 @@ try
     var default_comment = "Source distribution";
     var default_port = GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT");
     var actual_port = 0;
+    var with_maria_tmp_tables = -1;
 
     var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
@@ -46,6 +47,20 @@ try
             case "WITHOUT_ATOMICS":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE CACHE BOOL \"\")");
                     break;
+            case "WITH_ARIA_STORAGE_ENGINE":
+                    configfile.WriteLine("SET (" + args.Item(i) + " TRUE CACHE BOOL \"\")");
+                    if(with_maria_tmp_tables == -1)
+                    {
+                      with_maria_tmp_tables = 1;
+                    }
+                    break;
+            case "WITH_ARIA_TMP_TABLES":
+                    with_maria_tmp_tables = ( parts.length == 1 ||
+                           parts[1] == "YES" || parts[1] == "TRUE");
+                    break;
+            case "WITHOUT_ARIA_TEMP_TABLES":
+                    with_maria_tmp_tables = 0;
+                    break;
             case "MYSQL_SERVER_SUFFIX":
             case "MYSQLD_EXE_SUFFIX":
                     configfile.WriteLine("SET (" + parts[0] + " \""
@@ -59,7 +74,10 @@ try
                     break;
         }
     }
-
+    if (with_maria_tmp_tables == 1)
+    {
+      configfile.WriteLine("SET (WITH_ARIA_TMP_TABLES TRUE CACHE BOOL \"\")");
+    }
     if (actual_port == 0)
 	{
        // if we actually defaulted (as opposed to the pathological case of
@@ -140,10 +158,17 @@ function GetValue(str, key)
 
 function GetVersion(str)
 {
-    var key = "AC_INIT([MySQL Server], [";
+    var key = "AC_INIT([MariaDB Server], [";
+    var key2 = "AM_INIT_AUTOMAKE(mariadb, ";
+    var key_len = key.length;
     var pos = str.indexOf(key);
+    if (pos == -1)
+    {
+      pos = str.indexOf(key2);
+      key_len= key2.length;
+    }
     if (pos == -1) return null;
-    pos += key.length;
+    pos += key_len;
     var end = str.indexOf("]", pos);
     if (end == -1) return null;
     return str.substring(pos, end);

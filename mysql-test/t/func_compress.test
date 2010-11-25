@@ -110,3 +110,8 @@ EXPLAIN EXTENDED SELECT * FROM (SELECT UNCOMPRESSED_LENGTH(c1) FROM t1) AS s;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+--disable_result_log
+--disable_query_log
+set @@global.max_allowed_packet=default;
+--enable_result_log
+--enable_query_log

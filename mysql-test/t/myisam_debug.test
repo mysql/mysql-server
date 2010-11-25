@@ -24,11 +24,15 @@ CREATE TABLE `t2` (
 INSERT INTO t2 (id) VALUES (123);
 
 let $i = 10; 
+--disable_query_log
+begin;
 while ($i)
 {
   INSERT INTO t2 (id) SELECT id  FROM t2; 
   dec $i; 
 }
+commit;
+--enable_query_log
 
 --echo # Switch to insert Connection
 CONNECTION insertConn;

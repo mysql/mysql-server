@@ -124,11 +124,9 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->last_error[0]=0;
   net->compress=0; net->reading_or_writing=0;
   net->where_b = net->remain_in_buf=0;
+  net->net_skip_rest_factor= 0;
   net->last_errno=0;
   net->unused= 0;
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  net->skip_big_packet= FALSE;
-#endif
 
   if (vio != 0)					/* If real connection */
   {
@@ -222,7 +220,7 @@ my_bool net_realloc(NET *net, size_t length)
     -1   Don't know if data is ready or not
 */
 
-#if !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
 
 static int net_data_is_ready(my_socket sd)
 {
@@ -264,34 +262,39 @@ static int net_data_is_ready(my_socket sd)
 #endif /* EMBEDDED_LIBRARY */
 
 /**
-  Remove unwanted characters from connection
-  and check if disconnected.
+   Intialize NET handler for new reads:
 
-    Read from socket until there is nothing more to read. Discard
-    what is read.
+   - Read from socket until there is nothing more to read. Discard
+     what is read.
+   - Initialize net for new net_read/net_write calls.
 
-    If there is anything when to read 'net_clear' is called this
-    normally indicates an error in the protocol.
+   If there is anything when to read 'net_clear' is called this
+   normally indicates an error in the protocol. Normally one should not
+   need to do clear the communication buffer. If one compiles without
+   -DUSE_NET_CLEAR then one wins one read call / query.
 
-    When connection is properly closed (for TCP it means with
-    a FIN packet), then select() considers a socket "ready to read",
-    in the sense that there's EOF to read, but read() returns 0.
+   When connection is properly closed (for TCP it means with
+   a FIN packet), then select() considers a socket "ready to read",
+   in the sense that there's EOF to read, but read() returns 0.
 
   @param net			NET handler
   @param clear_buffer           if <> 0, then clear all data from comm buff
 */
 
-void net_clear(NET *net, my_bool clear_buffer)
+void net_clear(NET *net, my_bool clear_buffer __attribute__((unused)))
 {
-#if !defined(EMBEDDED_LIBRARY)
-  size_t count;
-  int ready;
-#endif
   DBUG_ENTER("net_clear");
 
-#if !defined(EMBEDDED_LIBRARY)
+/*
+  We don't do a clear in case of not DBUG_OFF to catch bugs in the
+  protocol handling.
+*/
+
+#if (!defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)) || defined(USE_NET_CLEAR)
   if (clear_buffer)
   {
+    size_t count;
+    int ready;
     while ((ready= net_data_is_ready(net->vio->sd)) > 0)
     {
       /* The socket is ready */
@@ -762,6 +765,7 @@ static my_bool net_safe_read(NET *net, uchar *buff, size_t length,
 static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 				ALARM *alarm_buff)
 {
+  longlong limit= net->max_packet_size*net->net_skip_rest_factor;
   uint32 old=remain;
   DBUG_ENTER("my_net_skip_rest");
   DBUG_PRINT("enter",("bytes_to_skip: %u", (uint) remain));
@@ -785,11 +789,15 @@ static my_bool my_net_skip_rest(NET *net, uint32 remain, thr_alarm_t *alarmed,
 	DBUG_RETURN(1);
       update_statistics(thd_increment_bytes_received(length));
       remain -= (uint32) length;
+      limit-= length;
+      if (limit < 0)
+        DBUG_RETURN(1);
     }
     if (old != MAX_PACKET_LENGTH)
       break;
     if (net_safe_read(net, net->buff, NET_HEADER_SIZE, alarmed))
       DBUG_RETURN(1);
+    limit-= NET_HEADER_SIZE;
     old=remain= uint3korr(net->buff);
     net->pkt_nr++;
   }
@@ -939,7 +947,6 @@ my_real_read(NET *net, size_t *complen)
 		    (int) net->buff[net->where_b + 3],
 		    (uint) (uchar) net->pkt_nr);
             fflush(stderr);
-            DBUG_ASSERT(0);
 #endif
 	  }
 	  len= packet_error;
@@ -979,7 +986,6 @@ my_real_read(NET *net, size_t *complen)
 	  {
 #if defined(MYSQL_SERVER) && !defined(NO_ALARM)
 	    if (!net->compress &&
-                net->skip_big_packet &&
 		!my_net_skip_rest(net, (uint32) len, &alarmed, &alarm_buff))
 	      net->error= 3;		/* Successfully skiped packet */
 #endif

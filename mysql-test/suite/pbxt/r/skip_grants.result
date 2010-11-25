@@ -1,0 +1,78 @@
+use test;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+CREATE TABLE t1(c INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET @a = 1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE PROCEDURE p1()
+SELECT 1;
+CREATE FUNCTION f1() RETURNS INT
+RETURN 1;
+CREATE DEFINER=a@b TRIGGER ti_ai AFTER INSERT ON t1
+FOR EACH ROW
+SET @b = 1;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'b') does not exist
+CREATE DEFINER=a@b VIEW v2 AS SELECT * FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'b') does not exist
+CREATE DEFINER=a@b PROCEDURE p2()
+SELECT 2;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'b') does not exist
+CREATE DEFINER=a@b FUNCTION f2() RETURNS INT
+RETURN 2;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'b') does not exist
+CREATE DEFINER=a@'' TRIGGER ti_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET @c = 1;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'') does not exist
+CREATE DEFINER=a@'' VIEW v3 AS SELECT * FROM t1;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'') does not exist
+CREATE DEFINER=a@'' PROCEDURE p3()
+SELECT 3;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'') does not exist
+CREATE DEFINER=a@'' FUNCTION f3() RETURNS INT
+RETURN 3;
+Warnings:
+Note	1449	The user specified as a definer ('a'@'') does not exist
+SHOW CREATE VIEW v3;
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`a`@`` SQL SECURITY DEFINER VIEW `v3` AS select `test`.`t1`.`c` AS `c` from `t1`	latin1	latin1_swedish_ci
+Warnings:
+Note	1449	The user specified as a definer ('a'@'') does not exist
+SHOW CREATE PROCEDURE p3;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p3		CREATE DEFINER=`a`@`` PROCEDURE `p3`()
+SELECT 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION f3;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f3		CREATE DEFINER=`a`@`` FUNCTION `f3`() RETURNS int(11)
+RETURN 3	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP TRIGGER t1_bi;
+DROP TRIGGER ti_ai;
+DROP TRIGGER ti_bu;
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;

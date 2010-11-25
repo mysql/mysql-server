@@ -1417,7 +1417,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           To remove this prefix we use check_n_cut_mysql50_prefix().
         */
 
-        char fname[NAME_LEN + 1];
+        char fname[SAFE_NAME_LEN + 1];
         DBUG_ASSERT((!my_strcasecmp(table_alias_charset, lex.query_tables->db, db) ||
                      (check_n_cut_mysql50_prefix(db, fname, sizeof(fname)) &&
                       !my_strcasecmp(table_alias_charset, lex.query_tables->db, fname))) &&
@@ -1934,7 +1934,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
     */
     if (my_strcasecmp(table_alias_charset, db, new_db))
     {
-      char dbname[NAME_LEN + 1];
+      char dbname[SAFE_NAME_LEN + 1];
       if (check_n_cut_mysql50_prefix(db, dbname, sizeof(dbname)) && 
           !my_strcasecmp(table_alias_charset, dbname, new_db))
       {

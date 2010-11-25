@@ -1,3 +1,5 @@
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
 drop table if exists t1,t2;
 set names utf8;
 select left(_utf8 0xD0B0D0B1D0B2,1);
@@ -240,7 +242,7 @@ select hex(s1) from t1;
 hex(s1)
 41
 drop table t1;
-create table t1 (a text character set utf8, primary key(a(360)));
+create table t1 (a text character set utf8, primary key(a(371)));
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
 INSERT INTO t1 VALUES ( 'test' );

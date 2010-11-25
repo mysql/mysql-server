@@ -19,7 +19,7 @@ let $1 = 257;
 while ($1)
 {
   eval drop table if exists t$1;
-  eval create table t$1(a int);
+  eval create table t$1(a int) ENGINE=MyISAM;
   eval insert into t$1 values (1),(2);
   dec $1;
 }

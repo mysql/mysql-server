@@ -212,8 +212,8 @@ static struct my_option my_long_options[] =
    &opt_slave_apply, &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", &charsets_dir,
-   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", (char**) &charsets_dir,
+   (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
    &opt_comments, &opt_comments, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
@@ -250,8 +250,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log.", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log.", (char**) &default_dbug_option,
+   (char**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
@@ -974,7 +974,7 @@ static int get_options(int *argc, char ***argv)
 static void DB_error(MYSQL *mysql_arg, const char *when)
 {
   DBUG_ENTER("DB_error");
-  maybe_die(EX_MYSQLERR, "Got error: %d: %s %s",
+  maybe_die(EX_MYSQLERR, "Got error: %d: \"%s\" %s",
           mysql_errno(mysql_arg), mysql_error(mysql_arg), when);
   DBUG_VOID_RETURN;
 }
@@ -1399,6 +1399,7 @@ static void free_resources()
   if (md_result_file && md_result_file != stdout)
     my_fclose(md_result_file, MYF(0));
   my_free(opt_password);
+  my_free(current_host);
   if (my_hash_inited(&ignore_table))
     my_hash_free(&ignore_table);
   if (extended_insert)
@@ -4206,7 +4207,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
     }
     mysql_free_result(table_res);
   }
-  DBUG_PRINT("exit", ("new_table_name: %s", name));
+  DBUG_PRINT("exit", ("new_table_name: %s", val_or_null(name)));
   DBUG_RETURN(name);
 }
 
@@ -4928,6 +4929,7 @@ static my_bool get_view_structure(char *table, char* db)
   field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
+    mysql_free_result(table_res);
     switch_character_set_results(mysql, default_charset);
     verbose_msg("-- It's base table, skipped\n");
     DBUG_RETURN(0);
@@ -4937,8 +4939,10 @@ static my_bool get_view_structure(char *table, char* db)
   if (path)
   {
     if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
+    {
+      mysql_free_result(table_res);
       DBUG_RETURN(1);
-
+    }
     write_header(sql_file, db);
   }
 

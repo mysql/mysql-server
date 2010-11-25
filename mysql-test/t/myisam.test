@@ -4,7 +4,7 @@
 
 # Initialise
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
 SET SQL_WARNINGS=1;
 
@@ -33,7 +33,8 @@ drop table t1;
 create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 
 let $1=100;
-disable_query_log;
+--disable_query_log
+begin;
 --disable_warnings
 SET SQL_WARNINGS=0;
 while ($1)
@@ -41,9 +42,10 @@ while ($1)
   eval insert into t1 (b) values(repeat(char(65+$1),65550-$1));
   dec $1;
 }
+commit;
 SET SQL_WARNINGS=1;
 --enable_warnings
-enable_query_log;
+--enable_query_log
 check table t1;
 repair table t1;
 delete from t1 where (a & 1);
@@ -380,14 +382,16 @@ check table t1;
 # check updating with keys
 #
 
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 100;
 while ($1)
 {
   eval insert into t1 (b) values (repeat(char(($1 & 32)+65), $1));
   dec $1;
 }
-enable_query_log;
+commit;
+--enable_query_log
 update t1 set b=repeat(left(b,1),255) where a between 1 and 5;
 update t1 set b=repeat(left(b,1),10) where a between 32 and 43;
 update t1 set b=repeat(left(b,1),2) where a between 64 and 66;
@@ -553,11 +557,13 @@ create table t2 (a int);
 let $i=1000;
 set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 --disable_query_log
+begin;
 while ($i)
 {
   dec $i;
   insert t2 values (rand()*100000);
 }
+commit;
 --enable_query_log
 insert t1 select * from t2;
 show keys from t1;
@@ -1387,11 +1393,13 @@ CREATE TABLE t1 (
 --disable_query_log
 let $count= 100;
 --echo # Insert $count rows. Query log disabled.
+begin;
 while ($count)
 {
   INSERT INTO t1 VALUES ('a', 'b');
   dec $count;
 }
+commit;
 --enable_query_log
 #
 # Change most of the rows into long character values with > 127 characters.
@@ -1471,11 +1479,13 @@ CREATE TABLE t1 (
 --disable_query_log
 let $count= 100;
 --echo # Insert $count rows. Query log disabled.
+begin;
 while ($count)
 {
   INSERT INTO t1 VALUES ('a', 'b');
   dec $count;
 }
+commit;
 --enable_query_log
 #
 # Change most of the rows into long character values with > 42 characters.
@@ -1504,6 +1514,42 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --exec $MYISAMCHK -d $MYSQLD_DATADIR/test/t1
 DROP TABLE t1;
+
+#
+# Test warnings with transactional=1 with MyISAM
+# MariaDB: Note that the table will still have 'TRANSACTIONAL=1' attribute.
+# That's the intended behavior atm.
+#
+create table t1 (n int not null, c char(1)) transactional=1;
+show create table t1;
+drop table t1;
+
+#
+# Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
+# (same content / differen checksum)
+#
+
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+drop table t1,t2,t3;
+
+#
+# Test number of supported key parts (32 is max)
+#
+
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32)) engine=myisam;
+drop table t1;
+
+--error 1070
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int, a33 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33)) engine=myisam;
 
 #
 # Bug#43737: Select query return bad result
@@ -1597,6 +1643,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT, b BIT(1));
 INSERT INTO t1 VALUES(1, 0), (2, 1);
 CREATE TABLE t2 SELECT * FROM t1;
+FLUSH TABLES;
 --copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t3.frm
 --copy_file $MYSQLD_DATADIR/test/t1.MYD $MYSQLD_DATADIR/test/t3.MYD
 --copy_file $MYSQLD_DATADIR/test/t1.MYI $MYSQLD_DATADIR/test/t3.MYI

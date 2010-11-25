@@ -6,15 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable UDF_EXAMPLE_LIB is set
+# Check if the variable UDF_EXAMPLE_SO is set
 #
-if (`SELECT LENGTH('$UDF_EXAMPLE_LIB') = 0`) {
-  --skip UDF requires the environment variable \$UDF_EXAMPLE_LIB to be set (normally done by mtr)
-}
-
-#
-# Check if --plugin-dir was setup for udf
-#
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$UDF_EXAMPLE_LIB_OPT'`) {
-  --skip UDF requires that --plugin-dir is set to the udf plugin dir (either the .opt file does not contain \$UDF_EXAMPLE_LIB_OPT or another plugin is in use)
-}
+--require r/have_udf_example.require
+disable_query_log;
+eval select LENGTH('$UDF_EXAMPLE_SO') > 0 as 'have_udf_example_lib';
+enable_query_log;

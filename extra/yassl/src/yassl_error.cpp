@@ -60,7 +60,7 @@ void SetErrorString(unsigned long error, char* buffer)
     using namespace TaoCrypt;
     const int max = MAX_ERROR_SZ;  // shorthand
 
-    switch (error) {
+    switch ((int) error) {
 
         // yaSSL proper errors
     case range_error :

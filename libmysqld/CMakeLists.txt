@@ -87,6 +87,12 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sys_vars.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ../sql/mdl.cc ../sql/transaction.cc
+           ../sql-common/client_plugin.c ../sql/sql_join_cache.cc
+           ../sql/multi_range_read.cc
+           ../sql/opt_index_cond_pushdown.cc
+           ../sql/opt_subselect.cc
+           ../sql/create_options.cc
+           ../sql/sql_expression_cache.cc
            ${GEN_SOURCES}
            ${MYSYS_LIBWRAP_SOURCE}
 )

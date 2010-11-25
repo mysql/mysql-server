@@ -639,7 +639,7 @@ drop table t1;
 SET GLOBAL log_bin_trust_function_creators = 0;
 
 create table t1 (a datetime, i int, b datetime);
-insert into t1 select sysdate(), sleep(1), sysdate() from dual;
+insert into t1 select sysdate(), sleep(2), sysdate() from dual;
 select a != b from t1;
 drop table t1;
 

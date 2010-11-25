@@ -22,7 +22,8 @@ MYSQLLIBdir=            $(pkglibdir)
 pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =		@ZLIB_INCLUDES@ \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
-			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes)
+			-I$(top_srcdir)/regex -I$(srcdir) $(openssl_includes) \
+			$(libevent_includes)
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
@@ -81,7 +82,7 @@ mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
 mysqld_LDADD =		libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
-			@pstack_libs@ \
+			@pstack_libs@ $(libevent_libs) \
 			@mysql_plugin_libs@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
@@ -102,6 +103,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			rpl_reporting.h sql_locale.h sql_parse.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
+                        opt_subselect.h log_slow.h multi_range_read.h \
+			create_options.h sql_expression_cache.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
 			sql_table.h key.h lock.h thr_malloc.h strfunc.h \
@@ -141,6 +144,9 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			main.cc mysqld.cc password.c hash_filo.cc hostname.cc \
 			sql_connect.cc scheduler.cc sql_parse.cc \
 			keycaches.cc set_var.cc sql_yacc.yy sys_vars.cc \
+                        sql_join_cache.cc opt_subselect.cc create_options.cc \
+                        opt_table_elimination.cc multi_range_read.cc \
+			opt_index_cond_pushdown.cc sql_expression_cache.cc \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
 			sql_reload.cc datadict.cc sql_profile.cc \
 			sql_prepare.cc sql_error.cc sql_locale.cc \
@@ -176,7 +182,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			rpl_handler.cc mdl.cc transaction.cc sql_audit.cc  \
 			sql_alter.cc sql_partition_admin.cc sha2.cc
 
-nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c 
+nodist_mysqld_SOURCES =	mini_client_errors.c pack.c client.c my_time.c my_user.c client_plugin.c
 
 libndb_la_CPPFLAGS=	@ndbcluster_includes@
 libndb_la_SOURCES=	ha_ndbcluster.cc \
@@ -190,10 +196,10 @@ mysql_tzinfo_to_sql_SOURCES = tztime.cc
 mysql_tzinfo_to_sql_CXXFLAGS= -DTZINFO2SQL
 
 DEFS =			-DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\"" \
+			-DDEFAULT_MYSQL_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' \
+			-DPLUGINDIR='"$(pkgplugindir)"' \
 			-DHAVE_EVENT_SCHEDULER \
 			@DEFS@
 
@@ -202,7 +208,7 @@ BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h \
 			message.mc  message.h message.rc MSG00001.bin \
-			CMakeLists.txt
+			CMakeLists.txt opt_range_mrr.cc
 
 CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
 DISTCLEANFILES =        $(EXTRA_PROGRAMS)
@@ -217,6 +223,8 @@ link_sources:
 	@LN_CP_F@ $(top_srcdir)/sql-common/pack.c pack.c
 	rm -f client.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/client.c client.c
+	rm -f client_plugin.c
+	@LN_CP_F@ $(top_srcdir)/sql-common/client_plugin.c client_plugin.c
 	rm -f my_time.c
 	@LN_CP_F@ $(top_srcdir)/sql-common/my_time.c my_time.c
 	rm -f my_user.c

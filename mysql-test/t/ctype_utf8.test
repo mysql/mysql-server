@@ -2,7 +2,13 @@
 # Tests with the utf8 character set
 #
 
---source include/have_innodb.inc
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+drop database if exists mysqltest;
+--enable_warnings
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -166,7 +172,7 @@ drop table t1;
 # UTF8 breaks primary keys for cols > 333 characters
 #
 --error 1071
-create table t1 (a text character set utf8, primary key(a(360)));
+create table t1 (a text character set utf8, primary key(a(371)));
 
 
 #

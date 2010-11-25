@@ -1,0 +1,52 @@
+--source include/not_embedded.inc
+
+connect (main,localhost,root,,);
+connection main;
+SET @old_max_connections = @@max_connections;
+SET @old_log_warnings = @@log_warnings;
+SET GLOBAL max_connections=2;
+let $port=`SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'port'`;
+let $socket=`SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'socket'`;
+
+SET GLOBAL LOG_WARNINGS = 0;
+--connect (conn0,localhost,root,,)
+connection conn0;
+replace_result $port port $socket socket;
+--error 1040
+--connect(conn1,localhost,root,,)
+disconnect conn0;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+connection main;
+SET GLOBAL LOG_WARNINGS = 1;
+--connect (conn1,localhost,root,,)
+replace_result $port port $socket socket;
+--error 1040
+--connect (conn0,localhost,root,,)
+disconnect conn1;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+connection main;
+SET GLOBAL LOG_WARNINGS = 0;
+--connect (conn0,localhost,root,,)
+replace_result $port port $socket socket;
+--error 1040
+--connect(conn1,localhost,root,,)
+disconnect conn0;
+SLEEP 0.1; # tsarev: hack, but i don't know (and didn't find) how right
+
+connection main;
+SET GLOBAL max_connections = @old_max_connections;
+SET GLOBAL log_warnings = @old_log_warnings;
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if(!`select LENGTH('$log_error_')`)
+{
+  # MySQL Server on windows is started with --console and thus
+  # does not know the location of its .err log, use default location
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+# Assign env variable LOG_ERROR
+let LOG_ERROR=$log_error_;
+
+let cmd=cat $log_error | grep "Too many connections" | wc -l;
+exec $cmd;

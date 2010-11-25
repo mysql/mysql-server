@@ -1,0 +1,40 @@
+MYSQL_STORAGE_ENGINE(oqgraph,,[Graph Storage Engine],
+        [Open Query Graph Computation Engine], [])
+MYSQL_PLUGIN_DYNAMIC(oqgraph,   [ha_oqgraph.la])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(oqgraph, [ha_oqgraph.cc])
+MYSQL_PLUGIN_ACTIONS(oqgraph,[
+  AC_LANG_PUSH([C++])
+  AC_MSG_CHECKING([whether compiler supports  -fvisibility-inlines-hidden])
+  OLD_CXXFLAGS=$CXXFLAGS
+  CXXFLAGS="$CXXFLAGS -fvisibility-inlines-hidden"
+  AC_TRY_COMPILE([],[],[
+    AM_CONDITIONAL(HAVE_FVISIBILITY_INLINES_HIDDEN, true)
+    AC_MSG_RESULT([yes])
+  ], [
+    AC_MSG_RESULT([no])
+  ])
+  CXXFLAGS=$OLD_CXXFLAGS
+  AC_LANG_POP()
+])
+
+AM_CONDITIONAL([BUILD_OQGRAPH_FOR_MYSQL], true)
+AM_CONDITIONAL([BUILD_OQGRAPH_STANDALONE], false)
+AM_CONDITIONAL([HAVE_DTRACE], false)
+AM_CONDITIONAL(HAVE_FVISIBILITY_INLINES_HIDDEN, false)
+
+AC_LANG_PUSH([C++])
+
+AC_MSG_CHECKING([for Boost usable by OQGraph engine])
+AC_PREPROC_IFELSE(
+   [
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 104000
+#else
+#error oops
+#endif
+   ],
+   [AC_MSG_RESULT([yes])],
+   [AC_MSG_RESULT([no])
+   MYSQL_PLUGIN_WITHOUT(oqgraph)])
+
+AC_LANG_POP()

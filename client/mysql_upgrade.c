@@ -1,4 +1,5 @@
 /* Copyright (C) 2000 MySQL AB
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +18,7 @@
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 
-#define VER "1.1"
+#define VER "1.2"
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -34,9 +35,10 @@
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
-static my_bool opt_force, opt_verbose, debug_info_flag, debug_check_flag,
+static my_bool opt_force, debug_info_flag, debug_check_flag,
                opt_systables_only;
-static uint my_end_arg= 0;
+static my_bool opt_not_used;                    /* For compatiblity */
+static uint my_end_arg= 0, opt_verbose;
 static char *opt_user= (char*)"root";
 
 static DYNAMIC_STRING ds_args;
@@ -61,12 +63,14 @@ static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibility.",
+  {"basedir", 'b',
+   "Not used by mysql_upgrade. Only for backward compatibility.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
+   "Not used by mysql_upgrade. Only for backward compatibility.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  {"compress", OPT_COMPRESS,
+   "Not used by mysql_upgrade. Only for backward compatibility.",
    &not_used, &not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd',
    "Not used by mysql_upgrade. Only for backward compatibility.",
@@ -79,18 +83,17 @@ static struct my_option my_long_options[]=
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
-   &debug_check_flag, &debug_check_flag, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &debug_check_flag, &debug_check_flag,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
-   "Set the default character set.", 0,
-   0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Not used by mysql_upgrade. Only for backward compatibility.",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Force execution of mysqlcheck even if mysql_upgrade "
    "has already been executed for the current version of MySQL.",
-   &opt_force, &opt_force, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host",'h', "Connect to host.", 0,
+   &opt_force, &opt_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given,"
@@ -115,6 +118,8 @@ static struct my_option my_long_options[]=
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"silent", 's', "Print less information", &opt_silent,
+   &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
@@ -127,8 +132,7 @@ static struct my_option my_long_options[]=
   {"user", 'u', "User for login if not current user.", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process.",
-   &opt_verbose, &opt_verbose, 0,
-   GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
    "All commands including mysqlcheck are binlogged. Enabled by default;"
    "use --skip-write-binlog when commands should not be sent to replication slaves.",
@@ -174,7 +178,7 @@ static void verbose(const char *fmt, ...)
 {
   va_list args;
 
-  if (!opt_verbose)
+  if (opt_silent)
     return;
 
   /* Print the verbose message */
@@ -270,6 +274,18 @@ get_one_option(int optid, const struct my_option *opt,
     /* FALLTHROUGH */
 
   case 'v': /* --verbose   */
+    opt_verbose++;
+    if (argument == disabled_my_option)
+    {
+      opt_verbose= 0;
+      opt_silent= 1;
+    }
+    add_option= 0;
+    break;
+  case 's':
+    opt_verbose= 0;
+    add_option= 0;
+    break;
   case 'f': /* --force     */
     add_option= FALSE;
     break;
@@ -430,7 +446,8 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
                 len, self_name, FN_LIBCHAR, tool_name);
   }
 
-  verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
+  if (opt_verbose)
+    verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);
 
   /*
     Make sure it can be executed
@@ -500,7 +517,7 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
                 "--database=mysql",
                 "--batch", /* Turns off pager etc. */
                 force ? "--force": "--skip-force",
-                ds_res ? "--silent": "",
+                ds_res || opt_silent ? "--silent": "",
                 "<",
                 query_file_path,
                 "2>&1",
@@ -582,7 +599,6 @@ static int upgrade_already_done(void)
   FILE *in;
   char upgrade_info_file[FN_REFLEN]= {0};
   char buf[sizeof(MYSQL_SERVER_VERSION)+1];
-  char *res;
 
   if (get_upgrade_info_file_name(upgrade_info_file))
     return 0; /* Could not get filename => not sure */
@@ -590,19 +606,15 @@ static int upgrade_already_done(void)
   if (!(in= my_fopen(upgrade_info_file, O_RDONLY, MYF(0))))
     return 0; /* Could not open file => not sure */
 
-  /*
-    Read from file, don't care if it fails since it
-    will be detected by the strncmp
-  */
   bzero(buf, sizeof(buf));
-  res= fgets(buf, sizeof(buf), in);
+  if (!fgets(buf, sizeof(buf), in))
+  {
+    /* Ignore, will be detected by strncmp() below */
+  }
 
   my_fclose(in, MYF(0));
 
-  if (!res)
-    return 0; /* Could not read from file => not sure */
-
-  return (strncmp(res, MYSQL_SERVER_VERSION,
+  return (strncmp(buf, MYSQL_SERVER_VERSION,
                   sizeof(MYSQL_SERVER_VERSION)-1)==0);
 }
 
@@ -658,6 +670,8 @@ static void create_mysql_upgrade_info_file(void)
 
 static void print_conn_args(const char *tool_name)
 {
+  if (opt_verbose < 2)
+    return;
   if (conn_args.str[0])
     verbose("Running '%s' with connection arguments: %s", tool_name,
           conn_args.str);
@@ -673,6 +687,7 @@ static void print_conn_args(const char *tool_name)
 
 static int run_mysqlcheck_upgrade(void)
 {
+  verbose("Phase 2/3: Checking and upgrading tables");
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -681,6 +696,8 @@ static int run_mysqlcheck_upgrade(void)
                   "--check-upgrade",
                   "--all-databases",
                   "--auto-repair",
+                  !opt_silent || opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
@@ -688,6 +705,7 @@ static int run_mysqlcheck_upgrade(void)
 
 static int run_mysqlcheck_fixnames(void)
 {
+  verbose("Phase 1/3: Fixing table and database names");
   print_conn_args("mysqlcheck");
   return run_tool(mysqlcheck_path,
                   NULL, /* Send output from mysqlcheck directly to screen */
@@ -696,6 +714,8 @@ static int run_mysqlcheck_fixnames(void)
                   "--all-databases",
                   "--fix-db-names",
                   "--fix-table-names",
+                  opt_verbose ? "--verbose": "",
+                  opt_silent ? "--silent": "",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
@@ -765,7 +785,7 @@ static int run_sql_fix_privilege_tables(void)
   if (init_dynamic_string(&ds_result, "", 512, 512))
     die("Out of memory");
 
-  verbose("Running 'mysql_fix_privilege_tables'...");
+  verbose("Phase 3/3: Running 'mysql_fix_privilege_tables'...");
   run_query(mysql_fix_privilege_tables,
             &ds_result, /* Collect result */
             TRUE);

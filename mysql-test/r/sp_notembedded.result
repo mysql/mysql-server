@@ -27,58 +27,6 @@ show warnings|
 Level	Code	Message
 Note	1305	PROCEDURE test.bug4902_2 does not exist
 drop procedure bug4902_2|
-drop table if exists t1|
-create table t1 (
-id   char(16) not null default '',
-data int not null
-)|
-drop procedure if exists bug3583|
-drop procedure if exists bug3583|
-create procedure bug3583()
-begin
-declare c int;
-select * from t1;
-select count(*) into c from t1;
-select c;
-end|
-insert into t1 values ("x", 3), ("y", 5)|
-set @x = @@query_cache_size|
-set global query_cache_size = 10*1024*1024|
-flush status|
-flush query cache|
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	0
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-call bug3583()|
-id	data
-x	3
-y	5
-c
-2
-show status like 'Qcache_hits'|
-Variable_name	Value
-Qcache_hits	2
-set global query_cache_size = @x|
-flush status|
-flush query cache|
-delete from t1|
-drop procedure bug3583|
-drop table t1|
 drop procedure if exists bug6807|
 create procedure bug6807()
 begin
@@ -245,6 +193,8 @@ max_updates, max_connections, max_user_connections)
 VALUES('%', 'mysqltest_1', password(''), 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'N', 'N', 'N',
 'N', 'N', 'N', 'Y', 'Y', 'N', 'N', 'Y', 'Y', 'N', 'N', 'N', 'N', 'N', 'Y', 'Y', 'N', '',
 '', '', '', '0', '0', '0', '0');
+Warnings:
+Warning	1364	Field 'auth_string' doesn't have a default value
 FLUSH PRIVILEGES;
 CREATE PROCEDURE p1(i INT) BEGIN END;
 DROP PROCEDURE p1;

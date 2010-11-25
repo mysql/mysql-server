@@ -89,6 +89,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 #                     is associated.
 #
 eval DESCRIBE          information_schema.$is_table;
+--replace_result ENGINE=MyISAM "" ENGINE=Aria "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
 eval SHOW CREATE TABLE information_schema.$is_table;
 eval SHOW COLUMNS FROM information_schema.$is_table;
 

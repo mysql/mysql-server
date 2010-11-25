@@ -61,13 +61,9 @@ sub _name {
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
-  my $tname= $tinfo->{name};
+  my $tname= $tinfo->fullname();
 
   return unless defined $verbose;
-
-  # Add combination name if any
-  $tname.= " '$tinfo->{combination}'"
-    if defined $tinfo->{combination};
 
   print _name(). _timestamp();
   printf "%-40s ", $tname;
@@ -222,8 +218,11 @@ sub mtr_report_test ($) {
 }
 
 
-sub mtr_report_stats ($$;$) {
-  my ($prefix, $tests, $dont_error)= @_;
+sub mtr_report_stats ($$$$) {
+  my $prefix= shift;
+  my $fail= shift;
+  my $tests= shift;
+  my $extra_warnings= shift;
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -297,16 +296,14 @@ sub mtr_report_stats ($$;$) {
 	       time - $BASETIME, "seconds executing testcases");
   }
 
-
   my $warnlog= "$::opt_vardir/log/warnings";
-  if ( -f $warnlog )
+  if ( ! $::glob_use_running_server && !$::opt_extern && -f $warnlog)
   {
     mtr_warning("Got errors/warnings while running tests, please examine",
 		"'$warnlog' for details.");
- }
+  }
 
   print "\n";
-
   # Print a list of check_testcases that failed(if any)
   if ( $::opt_check_testcases )
   {
@@ -376,9 +373,26 @@ sub mtr_report_stats ($$;$) {
     print "All $tot_tests tests were successful.\n\n";
   }
 
+  if (@$extra_warnings)
+  {
+    print <<MSG;
+Errors/warnings were found in logfiles during server shutdown after running the
+following sequence(s) of tests:
+MSG
+    print "    $_\n" for @$extra_warnings;
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
-    mtr_error("there were failing test cases") unless $dont_error;
+    mtr_error("there were failing test cases");
+  }
+  elsif (@$extra_warnings)
+  {
+    mtr_error("There where errors/warnings in server logs after running test cases.");
+  }
+  elsif ($fail)
+  {
+    mtr_error("Test suite failure, see messages above for possible cause(s).");
   }
 }
 

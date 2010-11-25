@@ -682,6 +682,7 @@ DELETE FROM t1;
 # following following functions that depend on the TIMESTAMP variable
 # are not unsafe and don't generate a warning.
 
+SET TIME_ZONE= '+03:00';
 SET TIMESTAMP=1000000;
 INSERT INTO t1 VALUES
   (CURDATE()),

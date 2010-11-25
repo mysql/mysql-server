@@ -1,0 +1,20 @@
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+create table t1(a int) engine=aria;
+insert into t1 values(1);
+flush table t1;
+create_rename_lsn has non-magic value
+* shut down mysqld, removed logs, restarted it
+select * from t1;
+a
+1
+Warnings:
+Error	1194	t1' is marked as crashed and should be repaired
+flush table t1;
+Status:              changed,sorted index pages,zerofilled,movable
+create_rename_lsn has magic value
+insert into t1 values(2);
+flush table t1;
+create_rename_lsn has non-magic value
+drop database mysqltest;

@@ -1,4 +1,4 @@
-drop table if exists t1;
+drop table if exists t1,t2;
 set binlog_format=mixed;
 set session transaction isolation level repeatable read;
 create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;

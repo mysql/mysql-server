@@ -1,0 +1,58 @@
+select * from information_schema.plugins where plugin_name like '%aria';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE	PLUGIN_MATURITY	PLUGIN_AUTH_VERSION
+Maria	1.5	ACTIVE	DAEMON	50300.0	NULL	NULL	Monty Program Ab	Compatibility aliases for the Aria engine	GPL	Gamma	1.5
+Aria	1.5	ACTIVE	STORAGE ENGINE	50300.0	NULL	NULL	Monty Program Ab	Crash-safe tables with MyISAM heritage	GPL	Gamma	1.5
+select maria_vars.variable_name, aria_vars.variable_name from
+information_schema.session_variables as maria_vars left join
+information_schema.session_variables as aria_vars
+on (maria_vars.variable_name = concat('m', aria_vars.variable_name))
+where maria_vars.variable_name like 'maria_%'
+    and not (maria_vars.variable_value <=> aria_vars.variable_value);
+variable_name	variable_name
+select maria_vars.variable_name, aria_vars.variable_name from
+information_schema.session_status as maria_vars left join
+information_schema.session_status as aria_vars
+on (maria_vars.variable_name = concat('m', aria_vars.variable_name))
+where maria_vars.variable_name like 'maria_%'
+    and not (maria_vars.variable_value <=> aria_vars.variable_value);
+variable_name	variable_name
+select maria_vars.variable_name, aria_vars.variable_name from
+information_schema.session_variables as aria_vars left join
+information_schema.session_variables as maria_vars
+on (maria_vars.variable_name = concat('m', aria_vars.variable_name))
+where aria_vars.variable_name like 'aria_%'
+    and not (maria_vars.variable_value <=> aria_vars.variable_value);
+variable_name	variable_name
+select maria_vars.variable_name, aria_vars.variable_name from
+information_schema.session_status as aria_vars left join
+information_schema.session_status as maria_vars
+on (maria_vars.variable_name = concat('m', aria_vars.variable_name))
+where aria_vars.variable_name like 'aria_%'
+    and not (maria_vars.variable_value <=> aria_vars.variable_value);
+variable_name	variable_name
+set @old_checkpoint_interval=@@global.aria_checkpoint_interval;
+set global maria_checkpoint_interval=10;
+select @@global.aria_checkpoint_interval;
+@@global.aria_checkpoint_interval
+10
+set global maria_checkpoint_interval=@old_checkpoint_interval;
+set @old_sort_buffer_size=@@global.maria_sort_buffer_size;
+set global aria_sort_buffer_size=1024;
+select @@global.maria_sort_buffer_size;
+@@global.maria_sort_buffer_size
+1024
+set global aria_sort_buffer_size=@old_sort_buffer_size;
+set @old_sort_buffer_size=@@session.maria_sort_buffer_size;
+set session aria_sort_buffer_size=2048;
+select @@session.maria_sort_buffer_size;
+@@session.maria_sort_buffer_size
+2048
+set session aria_sort_buffer_size=@old_sort_buffer_size;
+set @old_max_sort_file_size=@@global.maria_max_sort_file_size,
+@old_repair_threads=@@global.aria_repair_threads;
+set @@global.maria_max_sort_file_size=default, @@global.aria_repair_threads=default;
+select @@global.maria_max_sort_file_size, @@global.aria_repair_threads;
+@@global.maria_max_sort_file_size	@@global.aria_repair_threads
+9223372036853727232	1
+set @@global.aria_max_sort_file_size=@old_max_sort_file_size,
+@@global.maria_repair_threads=@old_repair_threads;

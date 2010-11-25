@@ -90,7 +90,6 @@ static void bind_arrow_keys_internal PARAMS((Keymap));
 static void bind_arrow_keys PARAMS((void));
 
 static void readline_default_bindings PARAMS((void));
-static void reset_default_bindings PARAMS((void)) __attribute__((unused));
 
 static int _rl_subseq_result PARAMS((int, Keymap, int, int));
 static int _rl_subseq_getchar PARAMS((int));
@@ -287,7 +286,7 @@ rl_set_prompt (prompt)
 {
   FREE (rl_prompt);
   rl_prompt = prompt ? savestring (prompt) : (char *)NULL;
-  rl_display_prompt = rl_prompt ? rl_prompt : "";
+  rl_display_prompt = rl_prompt ? rl_prompt : (char*) "";
 
   rl_visible_prompt_length = rl_expand_prompt (rl_prompt);
   return 0;
@@ -1070,18 +1069,6 @@ readline_default_bindings ()
 {
   if (_rl_bind_stty_chars)
     rl_tty_set_default_bindings (_rl_keymap);
-}
-
-/* Reset the default bindings for the terminal special characters we're
-   interested in back to rl_insert and read the new ones. */
-static void
-reset_default_bindings ()
-{
-  if (_rl_bind_stty_chars)
-    {
-      rl_tty_unset_default_bindings (_rl_keymap);
-      rl_tty_set_default_bindings (_rl_keymap);
-    }
 }
 
 /* Bind some common arrow key sequences in MAP. */

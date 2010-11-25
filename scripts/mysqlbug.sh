@@ -21,7 +21,7 @@ echo "Finding system information for a MySQL bug report"
 
 VERSION="@VERSION@@MYSQL_SERVER_SUFFIX@"
 COMPILATION_COMMENT="@COMPILATION_COMMENT@"
-BUGmysql="mysql@lists.mysql.com"
+BUGmysql="maria-developers@lists.launchpad.net"
 # This is set by configure
 COMP_CALL_INFO="CC='@SAVE_CC@'  CFLAGS='@SAVE_CFLAGS@'  CXX='@SAVE_CXX@'  CXXFLAGS='@SAVE_CXXFLAGS@'  LDFLAGS='@SAVE_LDFLAGS@'  ASFLAGS='@SAVE_ASFLAGS@'"
 COMP_RUN_INFO="CC='@CC@'  CFLAGS='@CFLAGS@'  CXX='@CXX@'  CXXFLAGS='@CXXFLAGS@'  LDFLAGS='@LDFLAGS@'  ASFLAGS='@ASFLAGS@'"

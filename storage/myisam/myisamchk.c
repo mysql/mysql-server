@@ -16,7 +16,6 @@
 /* Describe, check and repair of MyISAM tables */
 
 #include "fulltext.h"
-
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
@@ -35,7 +34,6 @@ static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static long opt_myisam_block_size;
 static long opt_key_cache_block_size;
-static const char *my_progname_short;
 static int stopwords_inited= 0;
 static MY_TMPDIR myisamchk_tmpdir;
 
@@ -62,9 +60,9 @@ static const char *myisam_stats_method_str="nulls_unequal";
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
-static int myisamchk(MI_CHECK *param, char *filename);
-static void descript(MI_CHECK *param, register MI_INFO *info, char * name);
-static int mi_sort_records(MI_CHECK *param, register MI_INFO *info,
+static int myisamchk(HA_CHECK *param, char *filename);
+static void descript(HA_CHECK *param, register MI_INFO *info, char * name);
+static int mi_sort_records(HA_CHECK *param, register MI_INFO *info,
                            char * name, uint sort_key,
 			   my_bool write_info, my_bool update_index);
 static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
@@ -72,15 +70,16 @@ static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
 			     my_off_t page,uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
 
-MI_CHECK check_param;
+HA_CHECK check_param;
 
 	/* Main program */
 
 int main(int argc, char **argv)
 {
   int error;
+  uchar rc;
   MY_INIT(argv[0]);
-  my_progname_short= my_progname+dirname_length(my_progname);
+  my_progname_short= "myisamchk";
 
   myisamchk_init(&check_param);
   check_param.opt_lock_memory=1;		/* Lock memory if possible */
@@ -100,7 +99,7 @@ int main(int argc, char **argv)
 	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
 				   T_SORT_INDEX))))
     {
-      uint old_testflag=check_param.testflag;
+      ulonglong old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
 	check_param.testflag|= T_REP_BY_SORT;
       check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
@@ -129,7 +128,8 @@ int main(int argc, char **argv)
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
-  exit(error);
+  rc= (uchar) error;
+  exit(rc);
 #ifndef _lint
   return 0;				/* No compiler warning */
 #endif
@@ -158,7 +158,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.",
-   &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   (char**) &charsets_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c',
    "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -254,8 +254,7 @@ static struct my_option my_long_options[] =
    &check_param.opt_sort_key,
    0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't',
-   "Path for temporary files.",
-   &opt_tmpdir,
+   "Path for temporary files.", (char**) &opt_tmpdir,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
    "Mark tables as crashed if any errors were found.",
@@ -314,13 +313,13 @@ static struct my_option my_long_options[] =
     HA_FT_MAXCHARLEN, 0, 1, 0},
   { "ft_stopword_file", OPT_FT_STOPWORD_FILE,
     "Use stopwords from this file instead of built-in list.",
-    &ft_stopword_file, &ft_stopword_file, 0, GET_STR,
+    (char**) &ft_stopword_file, (char**) &ft_stopword_file, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"stats_method", OPT_STATS_METHOD,
    "Specifies how index statistics collection code should treat NULLs. "
    "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
    "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
-   &myisam_stats_method_str, &myisam_stats_method_str, 0,
+   (char**) &myisam_stats_method_str, (char**) &myisam_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -671,7 +670,7 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_mi_stats_method method_conv;
+    enum_handler_stats_method method_conv;
     LINT_INIT(method_conv);
     myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
@@ -772,10 +771,10 @@ static void get_options(register int *argc,register char ***argv)
 
 	/* Check table */
 
-static int myisamchk(MI_CHECK *param, char * filename)
+static int myisamchk(HA_CHECK *param, char * filename)
 {
   int error,lock_type,recreate;
-  int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
+  int rep_quick= test(param->testflag & (T_QUICK | T_FORCE_UNIQUENESS));
   MI_INFO *info;
   File datafile;
   char llbuff[22],llbuff2[22];
@@ -913,7 +912,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
-      rep_quick|=T_QUICK;
+      rep_quick= 1;
     }
     share=info->s;
     share->tot_locks-= share->r_locks;
@@ -1074,7 +1073,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
 	  (void) init_key_cache(dflt_key_cache,opt_key_cache_block_size,
-                              param->use_buffers, 0, 0);
+                              param->use_buffers, 0, 0, 0);
 	(void) init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1087,8 +1086,9 @@ static int myisamchk(MI_CHECK *param, char * filename)
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
-	  error|=chk_data_link(param, info, param->testflag & T_EXTEND);
-	error|=flush_blocks(param, share->key_cache, share->kfile);
+	  error|=chk_data_link(param, info, test(param->testflag & T_EXTEND));
+	error|=flush_blocks(param, share->key_cache, share->kfile,
+                            &share->dirty_part_map);
 	(void) end_io_cache(&param->read_cache);
       }
       if (!error)
@@ -1171,7 +1171,7 @@ end2:
 
 	 /* Write info about table */
 
-static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
+static void descript(HA_CHECK *param, register MI_INFO *info, char * name)
 {
   uint key,keyseg_nr,field,start;
   reg3 MI_KEYDEF *keyinfo;
@@ -1276,7 +1276,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
   printf("Recordlength:        %13d\n",(int) share->base.pack_reclength);
   if (! mi_is_all_keys_active(share->state.key_map, share->base.keys))
   {
-    longlong2str(share->state.key_map,buff,2);
+    longlong2str(share->state.key_map,buff,2,1);
     printf("Using only keys '%s' of %d possibly keys\n",
 	   buff, share->base.keys);
   }
@@ -1429,7 +1429,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
 
 	/* Sort records according to one key */
 
-static int mi_sort_records(MI_CHECK *param,
+static int mi_sort_records(HA_CHECK *param,
 			   register MI_INFO *info, char * name,
 			   uint sort_key,
 			   my_bool write_info,
@@ -1443,7 +1443,7 @@ static int mi_sort_records(MI_CHECK *param,
   ha_rows old_record_count;
   MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
-  SORT_INFO sort_info;
+  MI_SORT_INFO sort_info;
   MI_SORT_PARAM sort_param;
   DBUG_ENTER("sort_records");
 
@@ -1489,7 +1489,7 @@ static int mi_sort_records(MI_CHECK *param,
     DBUG_RETURN(0);				/* Nothing to do */
 
   init_key_cache(dflt_key_cache, opt_key_cache_block_size,
-                 (size_t) param->use_buffers, 0, 0);
+                 (size_t) param->use_buffers, 0, 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
@@ -1599,8 +1599,8 @@ err:
   my_free(sort_info.buff);
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
-	      got_error);
+  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile,
+                           &share->dirty_part_map) | got_error);
 } /* sort_records */
 
 
@@ -1614,10 +1614,10 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   uint	nod_flag,used_length,key_length;
   uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   char llbuff[22];
-  SORT_INFO *sort_info= sort_param->sort_info;
-  MI_CHECK *param=sort_info->param;
+  MI_SORT_INFO *sort_info= sort_param->sort_info;
+  HA_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
   nod_flag=mi_test_if_nod(buff);
@@ -1701,17 +1701,15 @@ err:
   sorting
 */
 
-static int not_killed= 0;
-
-volatile int *killed_ptr(MI_CHECK *param __attribute__((unused)))
+int killed_ptr(HA_CHECK *param __attribute__((unused)))
 {
-  return &not_killed;			/* always NULL */
+  return 0;
 }
 
 	/* print warnings and errors */
 	/* VARARGS */
 
-void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
+void mi_check_print_info(HA_CHECK *param __attribute__((unused)),
 			 const char *fmt,...)
 {
   va_list args;
@@ -1724,7 +1722,7 @@ void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
 
 /* VARARGS */
 
-void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_warning(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("mi_check_print_warning");
@@ -1749,7 +1747,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 
 /* VARARGS */
 
-void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_error(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("mi_check_print_error");

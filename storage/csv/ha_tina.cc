@@ -491,7 +491,7 @@ ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
   */
   current_position(0), next_position(0), local_saved_data_file_length(0),
   file_buff(0), chain_alloced(0), chain_size(DEFAULT_CHAIN_LENGTH),
-  local_data_file_version(0), records_is_known(0)
+  local_data_file_version(0), records_is_known(0), curr_lock_type(F_UNLCK)
 {
   /* Set our original buffers from pre-allocated memory */
   buffer.set((char*)byte_buffer, IO_SIZE, &my_charset_bin);
@@ -539,6 +539,13 @@ int ha_tina::encode_quote(uchar *buf)
     {
       ptr= attribute.ptr();
       end_ptr= attribute.length() + ptr;
+
+      /*
+        Ensure that buffer is big enough. This will also speed things up
+        as we don't have to do any new allocation in the loop below
+      */
+      if (buffer.realloc(buffer.length() + attribute.length()*2+2))
+        return 0;                              // Failure
 
       buffer.append('"');
 
@@ -845,7 +852,7 @@ const char **ha_tina::bas_ext() const
   for CSV engine. For more details see mysys/thr_lock.c
 */
 
-void tina_get_status(void* param, int concurrent_insert)
+void tina_get_status(void* param, my_bool concurrent_insert)
 {
   ha_tina *tina= (ha_tina*) param;
   tina->get_status();
@@ -1637,6 +1644,14 @@ int ha_tina::delete_all_rows()
   DBUG_RETURN(rc);
 }
 
+int ha_tina::external_lock(THD *thd __attribute__((unused)), int lock_type)
+{
+  if (lock_type==F_UNLCK && curr_lock_type == F_WRLCK)
+    update_status();
+  curr_lock_type= lock_type;
+  return 0;
+}
+
 /*
   Called by the database to lock the table. Keep in mind that this
   is an internal lock.
@@ -1651,7 +1666,7 @@ THR_LOCK_DATA **ha_tina::store_lock(THD *thd,
   return to;
 }
 
-/* 
+/*
   Create a table. You do not want to leave the table open after a call to
   this (the database will call ::open() if it needs to).
 */
@@ -1769,4 +1784,20 @@ mysql_declare_plugin(csv)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-
+maria_declare_plugin(csv)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &csv_storage_engine,
+  "CSV",
+  "Brian Aker, MySQL AB",
+  "CSV storage engine",
+  PLUGIN_LICENSE_GPL,
+  tina_init_func, /* Plugin Init */
+  tina_done_func, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

@@ -1,0 +1,154 @@
+drop table if exists t1,t2;
+create table t1 (a int, b int, v int as (a+1), index idx(b));
+insert into t1(a, b) values
+(4, 40), (3, 30), (5, 50), (7, 70), (8, 80), (2, 20), (1, 10);
+select * from t1 order by b;
+a	b	v
+1	10	2
+2	20	3
+3	30	4
+4	40	5
+5	50	6
+7	70	8
+8	80	9
+delete from t1 where v > 6 order by b limit 1;
+select * from t1 order by b;
+a	b	v
+1	10	2
+2	20	3
+3	30	4
+4	40	5
+5	50	6
+8	80	9
+update t1 set a=v order by b limit 1;
+select * from t1 order by b;
+a	b	v
+2	10	3
+2	20	3
+3	30	4
+4	40	5
+5	50	6
+8	80	9
+drop table t1;
+CREATE TABLE t1 (
+a int NOT NULL DEFAULT '0',
+v double AS ((1, a)) VIRTUAL
+);
+ERROR HY000: Expression for computed column cannot return a row
+CREATE TABLE t1 (
+a CHAR(255) BINARY NOT NULL DEFAULT 0,
+b CHAR(255) BINARY NOT NULL DEFAULT 0,
+v CHAR(255) BINARY AS (CONCAT(a,b)) VIRTUAL );
+INSERT INTO t1(a,b) VALUES ('4','7'), ('4','6');
+SELECT 1 AS C FROM t1 ORDER BY v;
+C
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1(a int, b int DEFAULT 0, v INT AS (b+10) PERSISTENT);
+INSERT INTO t1(a) VALUES (1);
+SELECT b, v FROM t1;
+b	v
+0	10
+DROP TABLE t1;
+CREATE TABLE t1(a int DEFAULT 100, v int AS (a+1) PERSISTENT);
+INSERT INTO t1 () VALUES ();
+CREATE TABLE t2(a int DEFAULT 100 , v int AS (a+1));
+INSERT INTO t2 () VALUES ();
+SELECT a, v FROM t1;
+a	v
+100	101
+SELECT a, v FROM t2;
+a	v
+100	101
+DROP TABLE t1,t2;
+CREATE TABLE t1 (
+a datetime NOT NULL DEFAULT '2000-01-01',
+v boolean AS (a < '2001-01-01')
+);
+INSERT INTO t1(a) VALUES ('2002-02-15');
+INSERT INTO t1(a) VALUES ('2000-10-15');
+SELECT a, v FROM t1;
+a	v
+2002-02-15 00:00:00	0
+2000-10-15 00:00:00	1
+SELECT a, v FROM t1;
+a	v
+2002-02-15 00:00:00	0
+2000-10-15 00:00:00	1
+CREATE TABLE t2 (
+a datetime NOT NULL DEFAULT '2000-01-01',
+v boolean AS (a < '2001-01-01') PERSISTENT
+);
+INSERT INTO t2(a) VALUES ('2002-02-15');
+INSERT INTO t2(a) VALUES ('2000-10-15');
+SELECT * FROM t2;
+a	v
+2002-02-15 00:00:00	0
+2000-10-15 00:00:00	1
+DROP TABLE t1, t2;
+CREATE TABLE t1 (
+a char(255), b char(255), c char(255), d char(255),
+v char(255) AS (CONCAT(c,d) ) VIRTUAL
+);
+INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
+SELECT v FROM t1 ORDER BY CONCAT(a,b);
+v
+yz
+YZ
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INTEGER, v1 INTEGER AS (f1) VIRTUAL);
+CREATE TABLE t2 AS SELECT v1 FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `v1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1,t2;
+CREATE TABLE t1 (p int, a double NOT NULL, v double AS (ROUND(a,p)) VIRTUAL);
+INSERT INTO t1 VALUES (0,1,0);
+Warnings:
+Warning	1647	The value specified for computed column 'v' in table 't1' ignored
+INSERT INTO t1 VALUES (NULL,0,0);
+Warnings:
+Warning	1647	The value specified for computed column 'v' in table 't1' ignored
+SELECT a, p, v, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+a	p	v	ROUND(a,p)	ROUND(a,p+NULL)
+1	0	1	1	NULL
+0	NULL	NULL	NULL	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (p int, a double NOT NULL);
+INSERT INTO t1(p,a) VALUES (0,1);
+INSERT INTO t1(p,a) VALUES (NULL,0);
+SELECT a, p, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+a	p	ROUND(a,p)	ROUND(a,p+NULL)
+1	0	1	NULL
+0	NULL	NULL	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (a char(32), v char(32) CHARACTER SET ucs2 AS (a) VIRTUAL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(32) DEFAULT NULL,
+  `v` char(32) CHARACTER SET ucs2 AS (a) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+create table t1 (a int, b int);
+insert into t1 values (3, 30), (4, 20), (1, 20);
+create table t2 (c int, d int, v int as (d+1), index idx(c));
+insert into t2(c,d) values 
+(20, 100), (20, 300), (30, 100), (30, 200), (40, 500),
+(70, 100), (40, 300), (60, 100), (40, 100), (70, 100);
+set join_cache_level=6;
+explain
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	2	Using where; Using join buffer
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+a	b	c	d	v
+4	20	20	100	101
+1	20	20	100	101
+3	30	30	100	101
+set join_cache_level=default;
+drop table t1, t2;

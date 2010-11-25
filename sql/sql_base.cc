@@ -253,8 +253,12 @@ static void check_unused(void)
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  char *db_end= strnmov(key, table_list->db, MAX_DBKEY_LENGTH - 2);
+  *db_end++= '\0';
+  char *table_end= strnmov(db_end, table_list->table_name,
+                           key + MAX_DBKEY_LENGTH - 1 - db_end);
+  *table_end++= '\0';
+  uint key_length= (uint) (table_end-key);
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -616,7 +620,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 {
   TABLE_SHARE *share;
   bool exists;
-  DBUG_ENTER("get_table_share_with_create");
+  DBUG_ENTER("get_table_share_with_discover");
 
   share= get_table_share(thd, table_list, key, key_length, db_flags, error,
                          hash_value);
@@ -754,7 +758,7 @@ void release_table_share(TABLE_SHARE *share)
 
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
-  char key[NAME_LEN*2+2];
+  char key[SAFE_NAME_LEN*2+2];
   TABLE_LIST table_list;
   uint key_length;
   mysql_mutex_assert_owner(&LOCK_open);
@@ -1528,9 +1532,12 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ENTER("close_thread_table");
+  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
+                        table->s->table_name.str, (long) table));
   DBUG_ASSERT(table->key_read == 0);
   DBUG_ASSERT(!table->file || table->file->inited == handler::NONE);
   mysql_mutex_assert_not_owner(&LOCK_open);
+
   /*
     The metadata lock must be released after giving back
     the table to the table cache.
@@ -1540,6 +1547,12 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
                                              table->s->table_name.str,
                                              MDL_SHARED));
   table->mdl_ticket= NULL;
+
+  if (table->file)
+  {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   *table_ptr=table->next;
@@ -2146,6 +2159,13 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
                           table->s->db.str, table->s->table_name.str));
 
+  /* in_use is not set for replication temporary tables during shutdown */
+  if (table->in_use)
+  {
+    table->file->update_global_table_stats();
+    table->file->update_global_index_stats();
+  }
+
   free_io_cache(table);
   closefrm(table, 0);
   if (delete_table)
@@ -2255,7 +2275,6 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     DBUG_ASSERT(table == thd->open_tables);
 
     handlerton *table_type= table->s->db_type();
-
     table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     close_thread_table(thd, &thd->open_tables);
     /* Remove the table share from the table cache. */
@@ -3045,12 +3064,13 @@ retry_share:
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->null_row= table->maybe_null= 0;
+  table->null_row= 0;
+  table->maybe_null= 0;
   table->force_index= table->force_index_order= table->force_index_group= 0;
   table->status=STATUS_NO_RECORD;
   table->insert_values= 0;
   table->fulltext_searched= 0;
-  table->file->ft_handler= 0;
+  table->file->ha_start_of_new_statement();
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
@@ -3061,6 +3081,11 @@ retry_share:
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
   table_list->table= table;
+  /*
+    Fill record with random values to find bugs where we access fields
+    without first reading them.
+  */
+  TRASH(table->record[0], table->s->reclength);
   DBUG_ASSERT(table->key_read == 0);
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
@@ -5852,6 +5877,9 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
     table->covering_keys.intersect(field->part_of_key);
     table->merge_keys.merge(field->part_of_key);
 
+    if (field->vcol_info)
+      table->mark_virtual_col(field);
+
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
       bitmap= table->read_set;
     else
@@ -6079,6 +6107,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     /* This is a base table. */
     DBUG_ASSERT(nj_col->view_field == NULL);
+    Item *ref= 0;
     /*
       This fix_fields is not necessary (initially this item is fixed by
       the Item_field constructor; after reopen_tables the Item_func_eq
@@ -6086,12 +6115,13 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       reopening for columns that was dropped by the concurrent connection.
     */
     if (!nj_col->table_field->fixed &&
-        nj_col->table_field->fix_fields(thd, (Item **)&nj_col->table_field))
+        nj_col->table_field->fix_fields(thd, &ref))
     {
       DBUG_PRINT("info", ("column '%s' was dropped by the concurrent connection",
                           nj_col->table_field->name));
       DBUG_RETURN(NULL);
     }
+    DBUG_ASSERT(ref == 0);                      // Should not have changed
     DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->field->table);
     found_field= nj_col->table_field->field;
     update_field_dependencies(thd, found_field, nj_col->table_ref->table);
@@ -6457,7 +6487,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
   const char *table_name= item->table_name;
   const char *name= item->field_name;
   uint length=(uint) strlen(name);
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   TABLE_LIST *cur_table= first_table;
   TABLE_LIST *actual_table;
   bool allow_rowid;
@@ -6514,12 +6544,21 @@ find_field_in_tables(THD *thd, Item_ident *item,
           sub query as dependent on the outer query
         */
         if (current_sel != last_select)
+        {
           mark_select_range_as_dependent(thd, last_select, current_sel,
                                          found, *ref, item);
+          if (item->can_be_depended)
+          {
+            DBUG_ASSERT((*ref) == (Item*)item);
+            current_sel->register_dependency_item(last_select, ref);
+          }
+        }
       }
       return found;
     }
   }
+  else
+    item->can_be_depended= TRUE;
 
   if (db && lower_case_table_names)
   {
@@ -6614,7 +6653,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
       (report_error == REPORT_ALL_ERRORS ||
        report_error == REPORT_EXCEPT_NON_UNIQUE))
   {
-    char buff[NAME_LEN*2 + 2];
+    char buff[SAFE_NAME_LEN*2 + 2];
     if (db && db[0])
     {
       strxnmov(buff,sizeof(buff)-1,db,".",table_name,NullS);
@@ -7648,6 +7687,9 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
     select_lex->with_wild= 0;
+#ifdef HAVE_valgrind
+    if (&select_lex->item_list != &fields)      // Avoid warning
+#endif
     /*   
       The assignment below is translated to memcpy() call (at least on some
       platforms). memcpy() expects that source and destination areas do not
@@ -7997,7 +8039,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 {
   Field_iterator_table_ref field_iterator;
   bool found;
-  char name_buff[NAME_LEN+1];
+  char name_buff[SAFE_NAME_LEN+1];
   DBUG_ENTER("insert_fields");
   DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
 
@@ -8033,7 +8075,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     DBUG_ASSERT(tables->is_leaf_for_name_resolution());
 
     if ((table_name && my_strcasecmp(table_alias_charset, table_name,
-                                    tables->alias)) ||
+                                     tables->alias)) ||
         (db_name && strcmp(tables->db,db_name)))
       continue;
 
@@ -8145,6 +8187,12 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       {
         /* Mark fields as used to allow storage engine to optimze access */
         bitmap_set_bit(field->table->read_set, field->field_index);
+        /*
+          Mark virtual fields for write and others that the virtual fields
+          depend on for read.
+        */
+        if (field->vcol_info)
+          field->table->mark_virtual_col(field);
         if (table)
         {
           table->covering_keys.intersect(field->part_of_key);
@@ -8224,6 +8272,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 {
   SELECT_LEX *select_lex= thd->lex->current_select;
   TABLE_LIST *table= NULL;	// For HP compilers
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   /*
     it_is_update set to TRUE when tables of primary SELECT_LEX (SELECT_LEX
     which belong to LEX, i.e. most up SELECT) will be updated by
@@ -8250,13 +8299,19 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
+  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
   if (*conds)
   {
     thd->where="where clause";
+    DBUG_EXECUTE("where",
+                 print_where(*conds,
+                             "WHERE in setup_conds",
+                             QT_ORDINARY););
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   /*
     Apply fix_fields() to all ON clauses at all levels of nesting,
@@ -8272,9 +8327,10 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       if (embedded->on_expr)
       {
         /* Make a join an a expression */
+        thd->thd_marker.emb_on_expr_nest= embedded;
         thd->where="on clause";
         if ((!embedded->on_expr->fixed &&
-            embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
+             embedded->on_expr->fix_fields(thd, &embedded->on_expr)) ||
 	    embedded->on_expr->check_cols(1))
 	  goto err_no_arena;
         select_lex->cond_count++;
@@ -8296,6 +8352,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       }
     }
   }
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
 
   if (!thd->stmt_arena->is_conventional())
   {
@@ -8350,7 +8407,10 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
+  List<TABLE> tbl_list;
+  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
+  tbl_list.empty();
 
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
@@ -8372,6 +8432,8 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table->auto_increment_field_not_null= FALSE;
     f.rewind();
   }
+  else if (thd->lex->unit.insert_table_with_stored_vcol)
+    tbl_list.push_back(thd->lex->unit.insert_table_with_stored_vcol);
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
@@ -8384,14 +8446,54 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    if (rfield->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          rfield->field_name, table->s->table_name.str);
+      thd->abort_on_warning= abort_on_warning_saved;
+    }
     if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
+    tbl_list.push_back(table);
   }
+  /* Update virtual fields*/
+  thd->abort_on_warning= FALSE;
+  if (tbl_list.head())
+  {
+    List_iterator_fast<TABLE> it(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= it++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields(thd, table, TRUE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 err:
+  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -8427,9 +8529,31 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, fields, values, ignore_errors) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  bool result;
+  result= (fill_record(thd, fields, values, ignore_errors) ||
+           (triggers && triggers->process_triggers(thd, event,
+                                                   TRG_ACTION_BEFORE, TRUE)));
+  /*
+    Re-calculate virtual fields to cater for cases when base columns are
+    updated by the triggers.
+  */
+  if (!result && triggers)
+  {
+    TABLE *table= 0;
+    List_iterator_fast<Item> f(fields);
+    Item *fld;
+    Item_field *item_field;
+    if (fields.elements)
+    {
+      fld= (Item_field*)f++;
+      item_field= fld->filed_for_view_update();
+      if (item_field && item_field->field &&
+          (table= item_field->field->table) &&
+        table->vfield)
+        result= update_virtual_fields(thd, table, TRUE);
+    }
+  }
+  return result;
 }
 
 
@@ -8442,6 +8566,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     ptr           pointer on pointer to record
     values        list of fields
     ignore_errors TRUE if we should ignore errors
+    use_value     forces usage of value of the items instead of result
 
   NOTE
     fill_record() may set table->auto_increment_field_not_null and a
@@ -8454,14 +8579,18 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+            bool use_value)
 {
   List_iterator_fast<Item> v(values);
+  List<TABLE> tbl_list;
   Item *value;
   TABLE *table= 0;
+  bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
 
   Field *field;
+  tbl_list.empty();
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -8481,12 +8610,55 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) < 0)
-      goto err;
+    if (field->vcol_info && 
+        value->type() != Item::DEFAULT_VALUE_ITEM && 
+        value->type() != Item::NULL_ITEM &&
+        table->s->table_category != TABLE_CATEGORY_TEMPORARY)
+    {
+      thd->abort_on_warning= FALSE;
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN,
+                          ER(ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN),
+                          field->field_name, table->s->table_name.str);
+      thd->abort_on_warning= abort_on_warning_saved;
+    }
+    if (use_value)
+      value->save_val(field);
+    else
+      if (value->save_in_field(field, 0) < 0)
+        goto err;
+    tbl_list.push_back(table);
   }
+  /* Update virtual fields*/
+  thd->abort_on_warning= FALSE;
+  if (tbl_list.head())
+  {
+    List_iterator_fast<TABLE> t(tbl_list);
+    TABLE *prev_table= 0;
+    while ((table= t++))
+    {
+      /*
+        Do simple optimization to prevent unnecessary re-generating 
+        values for virtual fields
+      */
+      if (table != prev_table)
+      {
+        prev_table= table;
+        if (table->vfield)
+        {
+          if (update_virtual_fields(thd, table, TRUE))
+          {
+            goto err;
+          }
+        }
+      }
+    }
+  }
+  thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 
 err:
+  thd->abort_on_warning= abort_on_warning_saved;
   if (table)
     table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
@@ -8522,9 +8694,22 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, ptr, values, ignore_errors) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  bool result;
+  result= (fill_record(thd, ptr, values, ignore_errors, FALSE) ||
+           (triggers && triggers->process_triggers(thd, event,
+                                                   TRG_ACTION_BEFORE, TRUE)));
+  /*
+    Re-calculate virtual fields to cater for cases when base columns are
+    updated by the triggers.
+  */
+  if (!result && triggers && *ptr)
+  {
+    TABLE *table= (*ptr)->table;
+    if (table->vfield)
+      result= update_virtual_fields(thd, table, TRUE);
+  }
+  return result;
+
 }
 
 
@@ -8569,7 +8754,7 @@ my_bool mysql_rm_tmp_tables(void)
         uint filePath_len= my_snprintf(filePath, sizeof(filePath),
                                        "%s%c%s", tmpdir, FN_LIBCHAR,
                                        file->name);
-        if (!memcmp(reg_ext, ext, ext_len))
+        if (!strcmp(reg_ext, ext))
         {
           handler *handler_file= 0;
           /* We should cut file extention before deleting of table */
@@ -8621,6 +8806,8 @@ void tdc_flush_unused_tables()
     free_cache_entry(unused_tables);
   mysql_mutex_unlock(&LOCK_open);
 }
+#error restore table->s->deleting
+#error restore changes from monty@askmonty.org-20101102152257-mwa7etvs9nxewjf2
 
 
 /**

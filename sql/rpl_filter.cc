@@ -48,6 +48,7 @@ Rpl_filter::~Rpl_filter()
 }
 
 
+#ifndef MYSQL_CLIENT
 /*
   Returns true if table should be logged/replicated 
 
@@ -94,7 +95,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
   
   for (; tables; tables= tables->next_global)
   {
-    char hash_key[2*NAME_LEN+2];
+    char hash_key[SAFE_NAME_LEN*2+2];
     char *end;
     uint len;
 
@@ -132,6 +133,7 @@ Rpl_filter::tables_ok(const char* db, TABLE_LIST* tables)
               !do_table_inited && !wild_do_table_inited);
 }
 
+#endif
 
 /*
   Checks whether a db matches some do_db and ignore_db rules
@@ -158,8 +160,10 @@ Rpl_filter::db_ok(const char* db)
     and db was not selected, do not replicate.
   */
   if (!db)
+  {
+    DBUG_PRINT("exit", ("Don't replicate"));
     DBUG_RETURN(0);
-
+  }
   if (!do_db.is_empty()) // if the do's are not empty
   {
     I_List_iterator<i_string> it(do_db);
@@ -170,6 +174,7 @@ Rpl_filter::db_ok(const char* db)
       if (!strcmp(tmp->ptr, db))
 	DBUG_RETURN(1); // match
     }
+    DBUG_PRINT("exit", ("Don't replicate"));
     DBUG_RETURN(0);
   }
   else // there are some elements in the don't, otherwise we cannot get here
@@ -180,7 +185,10 @@ Rpl_filter::db_ok(const char* db)
     while ((tmp=it++))
     {
       if (!strcmp(tmp->ptr, db))
+      {
+        DBUG_PRINT("exit", ("Don't replicate"));
 	DBUG_RETURN(0); // match
+      }
     }
     DBUG_RETURN(1);
   }
@@ -222,7 +230,7 @@ Rpl_filter::db_ok_with_wild_table(const char *db)
 {
   DBUG_ENTER("Rpl_filter::db_ok_with_wild_table");
 
-  char hash_key[NAME_LEN+2];
+  char hash_key[SAFE_NAME_LEN+2];
   char *end;
   int len;
   end= strmov(hash_key, db);
@@ -514,6 +522,13 @@ void
 Rpl_filter::get_wild_ignore_table(String* str)
 {
   table_rule_ent_dynamic_array_to_str(str, &wild_ignore_table, wild_ignore_table_inited);
+}
+
+
+bool
+Rpl_filter::rewrite_db_is_empty()
+{
+  return rewrite_db.is_empty();
 }
 
 

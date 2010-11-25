@@ -54,11 +54,12 @@
 
 --echo Comparing tables $diff_table_1 and $diff_table_2
 disable_query_log;
-
+disable_warnings;
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_1
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
+enable_warnings;
 
 
 let $_diff_table=$diff_table_2;

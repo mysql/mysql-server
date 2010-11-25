@@ -28,6 +28,9 @@ key_buffer_size=            1M
 sort_buffer=                256K
 max_heap_table_size=        1M
 
+loose-skip-innodb
+loose-skip-pbxt
+
 loose-innodb_data_file_path=      ibdata1:10M:autoextend
 loose-innodb_buffer_pool_size=    8M
 loose-innodb_write_io_threads=    2
@@ -38,8 +41,6 @@ loose-innodb_additional_mem_pool_size= 1M
 loose-innodb_log_files_in_group=  2
 
 slave-net-timeout=120
-
-log-bin=mysqld-bin
 
 # Run tests with the performance schema instrumentation
 loose-enable-performance-schema

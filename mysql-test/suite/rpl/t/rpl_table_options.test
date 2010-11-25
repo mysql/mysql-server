@@ -1,0 +1,31 @@
+--source include/not_windows_embedded.inc
+--source include/have_example_plugin.inc
+--source include/master-slave.inc
+
+--replace_regex /\.dll/.so/
+eval install plugin example soname '$HA_EXAMPLE_SO';
+set storage_engine=example;
+
+sync_slave_with_master;
+connection master;
+
+#
+# only master has example engine installed,
+# the slave will have the table created in myisam,
+# that does not have ULL table option.
+# but because the table was created by the replication
+# slave thread, the table will be created anyway, even if
+# the option is unknown.
+#
+create table t1 (a int not null) ull=12340;
+show create table t1;
+
+sync_slave_with_master;
+connection slave;
+show create table t1;
+
+connection master;
+drop table t1;
+set storage_engine=default;
+select 1;
+uninstall plugin example;

@@ -257,3 +257,4 @@ count(*)	Long string
 
 DROP USER test_user@'localhost';
 DROP TABLE test.t1;
+

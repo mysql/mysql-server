@@ -356,7 +356,7 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY,name	name	23	NULL	3	Using where; Using index
-1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using where; Using index
+1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using index
 EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%' OR FALSE;
@@ -1431,12 +1431,15 @@ DROP TABLE t1;
 #
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=off';
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
+set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2;
 End of 5.0 tests
 CREATE TABLE `t2` (
@@ -2336,28 +2339,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1,t2;
 #
 #
-# Bug #39653: find_shortest_key in sql_select.cc does not consider
-#             clustered primary keys
-#
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT,
-KEY (b,c)) ENGINE=INNODB;
-INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
-(4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
-(7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
-(11,11,11,11,11,11);
-EXPLAIN SELECT COUNT(*) FROM t1;
-id	1
-select_type	SIMPLE
-table	t1
-type	index
-possible_keys	NULL
-key	b
-key_len	10
-ref	NULL
-rows	10
-Extra	Using index
-DROP TABLE t1;
-#
 # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
 #   corrupt definition at engine
 #
@@ -2392,6 +2373,36 @@ Index_type	BTREE
 Comment	
 Index_comment	
 DROP TABLE t1;
+#
+# Bug #53334: wrong result for outer join with impossible ON condition
+# (see the same test case for MyISAM in join.test)
+#
+create table t1 (id int primary key);
+create table t2 (id int);
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+insert into t2 values (107),(75),(1000);
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+where t2.id=75 and t1.id is null;
+id	id
+NULL	75
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+where t2.id=75 and t1.id is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	NULL	NULL	NULL	1	Impossible ON condition
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1,t2;
 #
 # Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
 #  JOINed during an UPDATE
@@ -2608,7 +2619,7 @@ select_type	SIMPLE
 table	t1
 type	index
 possible_keys	NULL
-key	b
+key	PRIMARY
 key_len	8
 ref	NULL
 rows	3
@@ -2621,8 +2632,8 @@ select_type	SIMPLE
 table	t1
 type	index
 possible_keys	NULL
-key	b
-key_len	13
+key	PRIMARY
+key_len	8
 ref	NULL
 rows	3
 Extra	Using index
@@ -2640,8 +2651,44 @@ ref	NULL
 rows	3
 Extra	Using index
 DROP TABLE t1;
-#
 End of 5.1 tests
+#
+# Bug#668644: HAVING + ORDER BY
+#
+CREATE TABLE t1 (
+pk int  NOT NULL PRIMARY KEY, i int DEFAULT NULL,
+INDEX idx (i)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES
+(6,-1636630528),(2,-1097924608),(1,6),(3,6),(4,1148715008),(5,1541734400);
+CREATE TABLE t2 (
+i int DEFAULT NULL,
+pk int NOT NULL PRIMARY KEY,
+INDEX idx (i)
+) ENGINE= INNODB;
+INSERT INTO t2 VALUES
+(-1993998336,20),(-1036582912,1),(-733413376,5),(-538247168,16),
+(-514260992,4),(-249561088,9),(1,2),(1,6),(2,10),(2,19),(4,17),
+(5,14),(5,15),(6,8),(7,13),(8,18),(9,11),(9,12),(257425408,7),
+(576061440,3);
+EXPLAIN
+SELECT t1 .i AS f FROM t1, t2
+WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+HAVING f > 7
+ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.pk	1	Using index
+SELECT t1 .i AS f FROM t1, t2
+WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+HAVING f > 7
+ORDER BY f;
+f
+1148715008
+1541734400
+1541734400
+DROP TABLE t1, t2;
+End of 5.3 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different
 #                      case than in corr index".

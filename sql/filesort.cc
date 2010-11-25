@@ -197,6 +197,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   {
     status_var_increment(thd->status_var.filesort_scan_count);
   }
+  thd->query_plan_flags|= QPLAN_FILESORT;
 #ifdef CAN_TRUST_RANGE
   if (select && select->quick && select->quick->records > 0L)
   {
@@ -262,6 +263,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    thd->query_plan_flags|= QPLAN_FILESORT_DISK;
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
@@ -510,8 +512,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   THD *thd= current_thd;
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
-  MY_BITMAP *save_read_set, *save_write_set;
-  bool skip_record;
+  MY_BITMAP *save_read_set, *save_write_set, *save_vcol_set;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (select ? select->quick ? "ranges" : "where":
@@ -525,7 +526,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   ref_pos= ref_buff;
   quick_select=select && select->quick;
   record=0;
-  flag= ((!indexfile && file->ha_table_flags() & HA_REC_NOT_IN_SEQ)
+  flag= ((!indexfile && (file->ha_table_flags() & HA_REC_NOT_IN_SEQ))
 	 || quick_select);
   if (indexfile || flag)
     ref_pos= &file->ref[0];
@@ -533,7 +534,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (! indexfile && ! quick_select)
   {
     next_pos=(uchar*) 0;			/* Find records in sequence */
-    file->ha_rnd_init(1);
+    if (file->ha_rnd_init_with_error(1))
+      DBUG_RETURN(HA_POS_ERROR);
     file->extra_opt(HA_EXTRA_CACHE,
 		    current_thd->variables.read_buff_size);
   }
@@ -547,6 +549,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
   save_write_set= sort_form->write_set;
+  save_vcol_set= sort_form->vcol_set;
   /* Set up temporary column read map for columns used by sort */
   bitmap_clear_all(&sort_form->tmp_set);
   /* Temporary set for register_used_fields and register_field_in_read_map */
@@ -555,7 +558,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
-  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
+  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set, 
+                                &sort_form->tmp_set);
 
   for (;;)
   {
@@ -563,6 +567,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     {
       if ((error= select->quick->get_next()))
         break;
+      if (!error)
+        update_virtual_fields(thd, sort_form);
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
     }
@@ -575,11 +581,13 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	error=file->rnd_pos(sort_form->record[0],next_pos);
+	error=file->ha_rnd_pos(sort_form->record[0],next_pos);
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error=file->ha_rnd_next(sort_form->record[0]);
+	if (!error)
+	  update_virtual_fields(thd, sort_form);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row
@@ -604,8 +612,8 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     if (error == 0)
       param->examined_rows++;
-    if (!error && (!select ||
-                   (!select->skip_record(thd, &skip_record) && !skip_record)))
+   
+    if (error == 0 && (!select || select->skip_record(thd) > 0))
     {
       if (idx == param->keys)
       {
@@ -618,6 +626,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     }
     else
       file->unlock_row();
+      
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
       break;
@@ -633,7 +642,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     DBUG_RETURN(HA_POS_ERROR);
   
   /* Signal we should use orignal column read and write maps */
-  sort_form->column_bitmaps_set(save_read_set, save_write_set);
+  sort_form->column_bitmaps_set(save_read_set, save_write_set, save_vcol_set);
 
   DBUG_PRINT("test",("error: %d  indexpos: %d",error,indexpos));
   if (error != HA_ERR_END_OF_FILE)
@@ -954,13 +963,13 @@ static void make_sortkey(register SORTPARAM *param,
       if (addonf->null_bit && field->is_null())
       {
         nulls[addonf->null_offset]|= addonf->null_bit;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 	bzero(to, addonf->length);
 #endif
       }
       else
       {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
         uchar *end= field->pack(to, field->ptr);
 	uint length= (uint) ((to + addonf->length) - end);
 	DBUG_ASSERT((int) length >= 0);
@@ -1000,7 +1009,14 @@ static void register_used_fields(SORTPARAM *param)
     if ((field= sort_field->field))
     {
       if (field->table == table)
-      bitmap_set_bit(bitmap, field->field_index);
+      {
+        if (field->vcol_info)
+	{
+          Item *vcol_item= field->vcol_info->expr_item;
+          vcol_item->walk(&Item::register_field_in_read_map, 1, (uchar *) 0);
+        }                   
+        bitmap_set_bit(bitmap, field->field_index);
+      }
     }
     else
     {						// Item
@@ -1143,7 +1159,9 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length)
 {
   uchar *reuse_end= reuse->base + reuse->max_keys * key_length;
-  for (uint i= 0; i < queue->elements; ++i)
+  for (uint i= queue_first_element(queue);
+       i <= queue_last_element(queue);
+       i++)
   {
     BUFFPEK *bp= (BUFFPEK *) queue_element(queue, i);
     if (bp->base + bp->max_keys * key_length == reuse->base)
@@ -1201,6 +1219,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   DBUG_ENTER("merge_buffers");
 
   status_var_increment(current_thd->status_var.filesort_merge_passes);
+  current_thd->query_plan_fsort_passes++;
   if (param->not_killable)
   {
     killed= &not_killable;
@@ -1214,7 +1233,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   offset= rec_length-res_length;
   maxcount= (ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos= my_b_tell(to_file);
-  strpos= (uchar*) sort_buffer;
+  strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
@@ -1231,14 +1250,14 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     first_cmp_arg= (void*) &sort_length;
   }
   if (init_queue(&queue, (uint) (Tb-Fb)+1, offsetof(BUFFPEK,key), 0,
-                 (queue_compare) cmp, first_cmp_arg))
+                 (queue_compare) cmp, first_cmp_arg, 0, 0))
     DBUG_RETURN(1);                                /* purecov: inspected */
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
     buffpek->base= strpos;
     buffpek->max_keys= maxcount;
     strpos+= (uint) (error= (int) read_to_buffer(from_file, buffpek,
-                                                                         rec_length));
+                                                 rec_length));
     if (error == -1)
       goto err;					/* purecov: inspected */
     buffpek->max_keys= buffpek->mem_count;	// If less data in buffers than expected
@@ -1268,7 +1287,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
       error= 0;                                       /* purecov: inspected */
       goto end;                                       /* purecov: inspected */
     }
-    queue_replaced(&queue);                        // Top element has been used
+    queue_replace_top(&queue);            // Top element has been used
   }
   else
     cmp= 0;                                        // Not unique
@@ -1316,18 +1335,18 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
         if (!(error= (int) read_to_buffer(from_file,buffpek,
                                           rec_length)))
         {
-          (void) queue_remove(&queue,0);
+          (void) queue_remove_top(&queue);
           reuse_freed_buff(&queue, buffpek, rec_length);
           break;                        /* One buffer have been removed */
         }
         else if (error == -1)
           goto err;                        /* purecov: inspected */
       }
-      queue_replaced(&queue);              /* Top element has been replaced */
+      queue_replace_top(&queue);   	/* Top element has been replaced */
     }
   }
   buffpek= (BUFFPEK*) queue_top(&queue);
-  buffpek->base= sort_buffer;
+  buffpek->base= (uchar*) sort_buffer;
   buffpek->max_keys= param->keys;
 
   /*
@@ -1367,7 +1386,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
            strpos != end ;
            strpos+= rec_length)
       {     
-        if (my_b_write(to_file, (uchar *) strpos, res_length))
+        if (my_b_write(to_file, strpos, res_length))
         {
           error=1; goto err;                        
         }

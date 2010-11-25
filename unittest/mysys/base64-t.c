@@ -66,6 +66,7 @@ main(void)
     ok(cmp == 0, "Comparing encode-decode result");
     if (cmp != 0)
     {
+      /* FIXME: This only prints last value of the compared strings */
       char buf[80];
       diag("       --------- src ---------   --------- dst ---------");
       for (k= 0; k<src_len; k+=8)

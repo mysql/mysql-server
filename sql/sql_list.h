@@ -54,7 +54,7 @@ public:
   static void operator delete[](void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
   static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bool dummy;
   inline Sql_alloc() :dummy(0) {}
   inline ~Sql_alloc() {}
@@ -518,6 +518,43 @@ public:
     base_list_iterator::sublist(list_arg, el_arg);
   }
 };
+
+
+/*
+  Exchange sort algorithm for List<T>.
+*/
+template <class T> 
+inline void exchange_sort(List<T> *list_to_sort,
+                          int (*sort_func)(T *a, T *b, void *arg), void *arg)
+{
+  bool swap;
+  List_iterator<T> it(*list_to_sort);
+  do
+  {
+    T *item1= it++;
+    T **ref1= it.ref();
+    T *item2;
+
+    swap= FALSE;
+    while ((item2= it++))
+    {
+      T **ref2= it.ref();
+      if (sort_func(item1, item2, arg) < 0)
+      {
+        T *item= *ref1;
+        *ref1= *ref2;
+        *ref2= item;
+        swap= TRUE;
+      }
+      else
+      {
+        item1= item2;
+        ref1= ref2;
+      }
+    }
+    it.rewind();
+  } while (swap);
+}
 
 
 /*

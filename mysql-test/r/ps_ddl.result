@@ -4,6 +4,7 @@ drop procedure if exists p_verify_reprepare_count;
 drop procedure if exists p1;
 drop function if exists f1;
 drop view if exists v1, v2;
+TRUNCATE TABLE mysql.general_log;
 create procedure p_verify_reprepare_count(expected int)
 begin
 declare old_reprepare_count int default @reprepare_count;

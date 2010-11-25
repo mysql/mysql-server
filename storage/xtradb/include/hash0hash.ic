@@ -1,0 +1,183 @@
+/*****************************************************************************
+
+Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/hash0hash.ic
+The simple hash table utility
+
+Created 5/20/1997 Heikki Tuuri
+*******************************************************/
+
+#include "ut0rnd.h"
+
+/************************************************************//**
+Gets the nth cell in a hash table.
+@return	pointer to cell */
+UNIV_INLINE
+hash_cell_t*
+hash_get_nth_cell(
+/*==============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		n)	/*!< in: cell index */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	ut_ad(n < table->n_cells);
+
+	return(table->array + n);
+}
+
+/*************************************************************//**
+Clears a hash table so that all the cells become empty. */
+UNIV_INLINE
+void
+hash_table_clear(
+/*=============*/
+	hash_table_t*	table)	/*!< in/out: hash table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	memset(table->array, 0x0,
+	       table->n_cells * sizeof(*table->array));
+}
+
+/*************************************************************//**
+Returns the number of cells in a hash table.
+@return	number of cells */
+UNIV_INLINE
+ulint
+hash_get_n_cells(
+/*=============*/
+	hash_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	return(table->n_cells);
+}
+
+/**************************************************************//**
+Calculates the hash value from a folded value.
+@return	hashed value */
+UNIV_INLINE
+ulint
+hash_calc_hash(
+/*===========*/
+	ulint		fold,	/*!< in: folded value */
+	hash_table_t*	table)	/*!< in: hash table */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	return(ut_hash_ulint(fold, table->n_cells));
+}
+
+#ifndef UNIV_HOTBACKUP
+/************************************************************//**
+Gets the mutex index for a fold value in a hash table.
+@return	mutex number */
+UNIV_INLINE
+ulint
+hash_get_mutex_no(
+/*==============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	ut_ad(ut_is_2pow(table->n_mutexes));
+	return(ut_2pow_remainder(hash_calc_hash(fold, table),
+				 table->n_mutexes));
+}
+
+/************************************************************//**
+Gets the nth heap in a hash table.
+@return	mem heap */
+UNIV_INLINE
+mem_heap_t*
+hash_get_nth_heap(
+/*==============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i)	/*!< in: index of the heap */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	ut_ad(i < table->n_mutexes);
+
+	return(table->heaps[i]);
+}
+
+/************************************************************//**
+Gets the heap for a fold value in a hash table.
+@return	mem heap */
+UNIV_INLINE
+mem_heap_t*
+hash_get_heap(
+/*==========*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
+{
+	ulint	i;
+
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+
+	if (table->heap) {
+		return(table->heap);
+	}
+
+	i = hash_get_mutex_no(table, fold);
+
+	return(hash_get_nth_heap(table, i));
+}
+
+/************************************************************//**
+Gets the nth mutex in a hash table.
+@return	mutex */
+UNIV_INLINE
+mutex_t*
+hash_get_nth_mutex(
+/*===============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i)	/*!< in: index of the mutex */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	ut_ad(i < table->n_mutexes);
+
+	return(table->mutexes + i);
+}
+
+/************************************************************//**
+Gets the mutex for a fold value in a hash table.
+@return	mutex */
+UNIV_INLINE
+mutex_t*
+hash_get_mutex(
+/*===========*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
+{
+	ulint	i;
+
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+
+	i = hash_get_mutex_no(table, fold);
+
+	return(hash_get_nth_mutex(table, i));
+}
+#endif /* !UNIV_HOTBACKUP */

@@ -37,7 +37,7 @@
 #include "sql_class.h"                    // THD
 
 #define TIME_FLOAT_DIGITS 9
-/** two vals encoded: (dec*100)+len */
+/** two vals encoded: (len*100)+dec */
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
 #define MAX_QUERY_LENGTH 300
@@ -250,6 +250,8 @@ void PROF_MEASUREMENT::collect()
   // which is typically ~15ms. So intervals shorter than that will not be
   // measurable by this function.
   GetProcessTimes(GetCurrentProcess(), &ftDummy, &ftDummy, &ftKernel, &ftUser);
+  GetProcessIoCounters(GetCurrentProcess(), &io_count);
+  GetProcessMemoryInfo(GetCurrentProcess(), &mem_count, sizeof(mem_count));
 #endif
 }
 
@@ -657,6 +659,17 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       table->field[9]->store((uint32)(entry->rusage.ru_oublock -
                              previous->rusage.ru_oublock));
       table->field[9]->set_notnull();
+#elif defined(__WIN__)
+      ULONGLONG reads_delta = entry->io_count.ReadOperationCount - 
+                              previous->io_count.ReadOperationCount;
+      ULONGLONG writes_delta = entry->io_count.WriteOperationCount - 
+                              previous->io_count.WriteOperationCount;
+
+      table->field[8]->store((uint32)reads_delta);
+      table->field[8]->set_notnull();
+
+      table->field[9]->store((uint32)writes_delta);
+      table->field[9]->set_notnull();
 #else
       /* TODO: Add block IO info for non-BSD systems */
 #endif
@@ -679,6 +692,13 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       table->field[13]->store((uint32)(entry->rusage.ru_minflt -
                              previous->rusage.ru_minflt), true);
       table->field[13]->set_notnull();
+#elif defined(__WIN__)
+      /* Windows APIs don't easily distinguish between hard and soft page
+         faults, so we just fill the 'major' column and leave the second NULL.
+      */
+      table->field[12]->store((uint32)(entry->mem_count.PageFaultCount -
+                             previous->mem_count.PageFaultCount), true);
+      table->field[12]->set_notnull();
 #else
       /* TODO: Add page fault info for non-BSD systems */
 #endif

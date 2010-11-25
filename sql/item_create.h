@@ -93,8 +93,9 @@ public:
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  virtual Item* create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, List<Item> *item_list) = 0;
+  virtual Item *create_with_db(THD *thd, LEX_STRING db, LEX_STRING name,
+                               bool use_explicit_name,
+                               List<Item> *item_list) = 0;
 
 protected:
   /** Constructor. */

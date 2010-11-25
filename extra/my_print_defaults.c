@@ -49,19 +49,19 @@ static struct my_option my_long_options[] =
   {"config-file", 'c', "Deprecated, please use --defaults-file instead. "
    "Name of config file to read; if no extension is given, default "
    "extension (e.g., .ini or .cnf) will be added",
-   &config_file, &config_file, 0, GET_STR, REQUIRED_ARG,
+   (char**) &config_file, (char**) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (char**) &default_dbug_option,
+   (char**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"defaults-file", 'c', "Like --config-file, except: if first option, "
    "then read this file only, do not read global or per-user config "
    "files; should be the first option",
-   &config_file, &config_file, 0, GET_STR, REQUIRED_ARG,
+   (char**) &config_file, (char*) &config_file, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
   {"defaults-extra-file", 'e',
    "Read this file after the global config file and before the config "
@@ -70,7 +70,7 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"defaults-group-suffix", 'g',
    "In addition to the given groups, read also groups with this suffix",
-   &my_defaults_group_suffix, &my_defaults_group_suffix,
+   (char**) &my_defaults_group_suffix, (char**) &my_defaults_group_suffix,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-file", 'e',
    "Deprecated. Synonym for --defaults-extra-file.",

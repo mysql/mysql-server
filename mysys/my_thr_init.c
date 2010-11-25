@@ -38,12 +38,6 @@ mysql_mutex_t LOCK_localtime_r;
 #ifndef HAVE_GETHOSTBYNAME_R
 mysql_mutex_t LOCK_gethostbyname_r;
 #endif
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_fast_mutexattr;
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errorcheck_mutexattr;
-#endif
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
 #endif
@@ -87,30 +81,6 @@ my_bool my_thread_basic_global_init(void)
   if (my_thread_basic_global_init_done)
     return 0;
   my_thread_basic_global_init_done= 1;
-
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "fast" a.k.a "adaptive"
-
-    In this case the thread may steal the mutex from some other thread
-    that is waiting for the same mutex.  This will save us some
-    context switches but may cause a thread to 'starve forever' while
-    waiting for the mutex (not likely if the code within the mutex is
-    short).
-  */
-  pthread_mutexattr_init(&my_fast_mutexattr);
-  pthread_mutexattr_settype(&my_fast_mutexattr,
-                            PTHREAD_MUTEX_ADAPTIVE_NP);
-#endif
-
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  /*
-    Set mutex type to "errorcheck"
-  */
-  pthread_mutexattr_init(&my_errorcheck_mutexattr);
-  pthread_mutexattr_settype(&my_errorcheck_mutexattr,
-                            PTHREAD_MUTEX_ERRORCHECK);
-#endif
 
   mysql_mutex_init(key_THR_LOCK_malloc, &THR_LOCK_malloc, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_open, &THR_LOCK_open, MY_MUTEX_INIT_FAST);
@@ -275,12 +245,6 @@ void my_thread_global_end(void)
   mysql_mutex_unlock(&THR_LOCK_threads);
 
   pthread_key_delete(THR_KEY_mysys);
-#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_fast_mutexattr);
-#endif
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-  pthread_mutexattr_destroy(&my_errorcheck_mutexattr);
-#endif
   mysql_mutex_destroy(&THR_LOCK_malloc);
   mysql_mutex_destroy(&THR_LOCK_open);
   mysql_mutex_destroy(&THR_LOCK_lock);
@@ -427,8 +391,10 @@ void my_thread_end(void)
     mysql_cond_destroy(&tmp->suspend);
 #endif
     mysql_mutex_destroy(&tmp->mutex);
+    TRASH(tmp, sizeof(*tmp));
     free(tmp);
 
+#warning why monty added pthread_setspecific(THR_KEY_mysys,0) here?
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called

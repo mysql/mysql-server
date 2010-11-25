@@ -1,0 +1,48 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/*******************************************************************//**
+@file include/ut0list.ic
+A double-linked list
+
+Created 4/26/2006 Osku Salerma
+************************************************************************/
+
+/****************************************************************//**
+Get the first node in the list.
+@return	first node, or NULL */
+UNIV_INLINE
+ib_list_node_t*
+ib_list_get_first(
+/*==============*/
+	ib_list_t*	list)	/*!< in: list */
+{
+	return(list->first);
+}
+
+/****************************************************************//**
+Get the last node in the list.
+@return	last node, or NULL */
+UNIV_INLINE
+ib_list_node_t*
+ib_list_get_last(
+/*=============*/
+	ib_list_t*	list)	/*!< in: list */
+{
+	return(list->last);
+}

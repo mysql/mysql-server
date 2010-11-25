@@ -12736,8 +12736,7 @@ INSERT INTO t1 (col1, col2) VALUES (1, "value");
 ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
-test.t1	repair	error	Corrupt
+test.t1	repair	status	OK
 DROP TABLE t1;
 #
 # BUG#48757 - missing .ARZ file causes server crash
@@ -12801,3 +12800,12 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 DROP TABLE t1;
+select * from t1;
+ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+repair table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select sum(length(a)),sum(b) from t1;
+sum(length(a))	sum(b)
+8670	187
+drop table t1;

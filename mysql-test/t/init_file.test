@@ -19,7 +19,7 @@ DROP DATABASE init_file;
 --echo ok
 --echo end of 4.1 tests
 #
-# Chec 5.x features
+# Check 5.x features
 #
 # Expected:
 #   3, 5, 7, 11, 13 

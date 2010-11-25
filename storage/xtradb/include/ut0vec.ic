@@ -1,0 +1,96 @@
+/*****************************************************************************
+
+Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/*******************************************************************//**
+@file include/ut0vec.ic
+A vector of pointers to data items
+
+Created 4/6/2006 Osku Salerma
+************************************************************************/
+
+/****************************************************************//**
+Get number of elements in vector.
+@return	number of elements in vector */
+UNIV_INLINE
+ulint
+ib_vector_size(
+/*===========*/
+	const ib_vector_t*	vec)	/*!< in: vector */
+{
+	return(vec->used);
+}
+
+/****************************************************************//**
+Get n'th element.
+@return	n'th element */
+UNIV_INLINE
+void*
+ib_vector_get(
+/*==========*/
+	ib_vector_t*	vec,	/*!< in: vector */
+	ulint		n)	/*!< in: element index to get */
+{
+	ut_a(n < vec->used);
+
+	return(vec->data[n]);
+}
+
+/****************************************************************//**
+Remove the last element from the vector.
+@return	last vector element */
+UNIV_INLINE
+void*
+ib_vector_pop(
+/*==========*/
+	ib_vector_t*    vec)    /*!< in/out: vector */
+{
+	void*           elem;
+
+	ut_a(vec->used > 0);
+	--vec->used;
+	elem = vec->data[vec->used];
+
+	ut_d(vec->data[vec->used] = NULL);
+	UNIV_MEM_INVALID(&vec->data[vec->used], sizeof(*vec->data));
+
+	return(elem);
+}
+
+/****************************************************************//**
+Free the underlying heap of the vector. Note that vec is invalid
+after this call. */
+UNIV_INLINE
+void
+ib_vector_free(
+/*===========*/
+	ib_vector_t*    vec)    /*!< in, own: vector */
+{
+	mem_heap_free(vec->heap);
+}
+
+/****************************************************************//**
+Test whether a vector is empty or not.
+@return	TRUE if empty */
+UNIV_INLINE
+ibool
+ib_vector_is_empty(
+/*===============*/
+	const ib_vector_t*	vec)	/*!< in: vector */
+{
+	return(ib_vector_size(vec) == 0);
+}

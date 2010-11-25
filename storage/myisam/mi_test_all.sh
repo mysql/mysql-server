@@ -5,6 +5,7 @@
 
 valgrind="valgrind --alignment=8 --leak-check=yes"
 silent="-s"
+rm -f test1.TMD
 
 if test -f mi_test1$MACH ; then suffix=$MACH ; else suffix=""; fi
 ./mi_test1$suffix $silent

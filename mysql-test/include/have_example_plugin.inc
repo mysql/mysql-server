@@ -6,16 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable EXAMPLE_PLUGIN is set
+# Check if the variable HA_EXAMPLE_SO is set
 #
-if (`SELECT LENGTH('$EXAMPLE_PLUGIN') = 0`) {
-  --skip Example plugin requires the environment variable \$EXAMPLE_PLUGIN to be set (normally done by mtr)
-}
-
-#
-# Check if --plugin-dir was setup for exampledb
-#
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$EXAMPLE_PLUGIN_OPT'`) {
-  --skip Example plugin requires that --plugin-dir is set to the example plugin dir (either the .opt file does not contain \$EXAMPLE_PLUGIN_OPT or another plugin is in use)
-}
+--require r/have_example_plugin.require
+disable_query_log;
+eval select LENGTH('$HA_EXAMPLE_SO') > 0 as 'have_example_plugin';
 enable_query_log;

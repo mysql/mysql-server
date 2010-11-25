@@ -1,0 +1,21 @@
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(6);
+sleep(6)
+0
+SELECT sleep(10);
+sleep(10)
+0
+set long_query_time=8;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(6);
+sleep(6)
+0
+SELECT sleep(12);
+sleep(12)
+0
+cat MYSQLD_DATADIR/percona_slow_query_log-long_query_time.log | grep -c Query_time
+3

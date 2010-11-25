@@ -29,6 +29,34 @@
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
 
+/* Prepare, run and cleanup for mysql_recreate_table() */
+
+static bool admin_recreate_table(THD *thd, TABLE_LIST *table_list)
+{
+  bool result_code;
+  DBUG_ENTER("admin_recreate_table");
+
+  trans_rollback_stmt(thd);
+  trans_rollback(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
+  tmp_disable_binlog(thd); // binlogging is done by caller if wanted
+  result_code= mysql_recreate_table(thd, table);
+  reenable_binlog(thd);
+  /*
+    mysql_recreate_table() can push OK or ERROR.
+    Clear 'OK' status. If there is an error, keep it:
+    we will store the error message in a result set row 
+    and then clear.
+  */
+  if (thd->stmt_da->is_ok())
+    thd->stmt_da->reset_diagnostics_area();
+  table->table= NULL;
+  result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+  DBUG_RETURN(result_code);
+}
+
+
 static int send_check_errmsg(THD *thd, TABLE_LIST* table,
 			     const char* operator_name, const char* errmsg)
 
@@ -258,6 +286,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
   int result_code;
+  bool need_repair_or_alter= 0;
   DBUG_ENTER("mysql_admin_table");
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_CHAR_LEN*2));
@@ -276,7 +305,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     char* db = table->db;
     bool fatal_error=0;
     bool open_error;
@@ -519,28 +548,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM))
     {
-      if ((table->table->file->check_old_types() == HA_ADMIN_NEEDS_ALTER) ||
-          (table->table->file->ha_check_for_upgrade(check_opt) ==
-           HA_ADMIN_NEEDS_ALTER))
+      handler *file= table->table->file;
+      int check_old_types=   file->check_old_types();
+      int check_for_upgrade= file->ha_check_for_upgrade(check_opt);
+
+      if (check_old_types == HA_ADMIN_NEEDS_ALTER ||
+          check_for_upgrade == HA_ADMIN_NEEDS_ALTER)
       {
-        DBUG_PRINT("admin", ("recreating table"));
-        trans_rollback_stmt(thd);
-        trans_rollback(thd);
-        close_thread_tables(thd);
-        thd->mdl_context.release_transactional_locks();
-        tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-        result_code= mysql_recreate_table(thd, table);
-        reenable_binlog(thd);
-        /*
-          mysql_recreate_table() can push OK or ERROR.
-          Clear 'OK' status. If there is an error, keep it:
-          we will store the error message in a result set row 
-          and then clear.
-        */
-        if (thd->stmt_da->is_ok())
-          thd->stmt_da->reset_diagnostics_area();
-        table->table= NULL;
-        result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+        result_code= admin_recreate_table(thd, table);
         goto send_result;
       }
     }
@@ -549,6 +564,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     result_code = (table->table->file->*operator_func)(thd, check_opt);
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
+    if (result_code == HA_ADMIN_NOT_IMPLEMENTED && need_repair_or_alter)
+    {
+      /*
+        repair was not implemented and we need to upgrade the table
+        to a new version so we recreate the table with ALTER TABLE
+      */
+      result_code= admin_recreate_table(thd, table);
+    }
 send_result:
 
     lex->cleanup_after_one_table_open();
@@ -642,37 +665,24 @@ send_result_message:
         reopen the table and do ha_innobase::analyze() on it.
         We have to end the row, so analyze could return more rows.
       */
-      trans_commit_stmt(thd);
-      trans_commit(thd);
-      close_thread_tables(thd);
-      thd->mdl_context.release_transactional_locks();
+      if (protocol->write())
+        goto err;
+      DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
       protocol->store(STRING_WITH_LEN(
           "Table does not support optimize, doing recreate + analyze instead"),
                       system_charset_info);
-      if (protocol->write())
-        goto err;
-      DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
       table->next_local= table->next_global= 0;
-      tmp_disable_binlog(thd); // binlogging is done by caller if wanted
-      result_code= mysql_recreate_table(thd, table);
-      reenable_binlog(thd);
-      /*
-        mysql_recreate_table() can push OK or ERROR.
-        Clear 'OK' status. If there is an error, keep it:
-        we will store the error message in a result set row 
-        and then clear.
-      */
-      if (thd->stmt_da->is_ok())
-        thd->stmt_da->reset_diagnostics_area();
+      result_code= admin_recreate_table(thd, table);
+
       trans_commit_stmt(thd);
       trans_commit(thd);
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
-      table->table= NULL;
+
       if (!result_code) // recreation went ok
       {
         /* Clear the ticket released above. */

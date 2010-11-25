@@ -1,0 +1,139 @@
+drop table if exists t1, t2;
+CREATE TABLE t1
+(
+id INT PRIMARY KEY,
+number INT,
+string VARCHAR(20),
+UNIQUE INDEX (number)
+) ENGINE=pbxt;
+truncate table t1;
+insert t1 values (1, 1, 'abc');
+begin;
+update t1 set string = 'def' where id = 1;
+update t1 set string = 'HIJ' where id = 1;
+select * from t1 where id = 1;
+id	number	string
+1	1	HIJ
+select * from t1 where number = 1;
+id	number	string
+1	1	HIJ
+update t1 set string = '123', number=2  where id = 1;
+select * from t1 where id = 1;
+id	number	string
+1	2	123
+select * from t1 where number = 2;
+id	number	string
+1	2	123
+commit;
+insert t1 values (2, 2, 'abc');
+ERROR 23000: Duplicate entry '2' for key 'number'
+insert t1 values (2, 3, 'abc');
+select * from t1 order by id;
+id	number	string
+1	2	123
+2	3	abc
+begin;
+update t1 set number = 1 where id = 1;
+select * from t1 order by id;
+id	number	string
+1	1	123
+2	3	abc
+update t1 set number = 3 where id = 1;
+ERROR 23000: Duplicate entry '3' for key 'number'
+select * from t1 where id = 1;
+id	number	string
+1	1	123
+select * from t1 where id = 2;
+id	number	string
+2	3	abc
+select * from t1 where number = 1;
+id	number	string
+1	1	123
+select * from t1 where number = 3;
+id	number	string
+2	3	abc
+select * from t1 order by id;
+id	number	string
+1	1	123
+2	3	abc
+commit;
+select * from t1 order by id;
+id	number	string
+1	1	123
+2	3	abc
+drop table t1;
+CREATE TABLE t1
+(
+id INT PRIMARY KEY,
+number INT,
+string VARCHAR(300),
+UNIQUE INDEX (number)
+) ENGINE=pbxt;
+truncate table t1;
+insert t1 values (1, 1, 'abc01234567890123456789012345678901234567890123456789$$$');
+begin;
+update t1 set string = 'def01234567890123456789012345678901234567890123456789---' where id = 1;
+update t1 set string = 'HIJ01234567890123456789012345678901234567890123456789***' where id = 1;
+select * from t1 where id = 1;
+id	number	string
+1	1	HIJ01234567890123456789012345678901234567890123456789***
+select * from t1 where number = 1;
+id	number	string
+1	1	HIJ01234567890123456789012345678901234567890123456789***
+update t1 set string = '12301234567890123456789012345678901234567890123456789+++', number=2  where id = 1;
+select * from t1 where id = 1;
+id	number	string
+1	2	12301234567890123456789012345678901234567890123456789+++
+select * from t1 where number = 2;
+id	number	string
+1	2	12301234567890123456789012345678901234567890123456789+++
+commit;
+insert t1 values (2, 2, 'abc01234567890123456789012345678901234567890123456789===');
+ERROR 23000: Duplicate entry '2' for key 'number'
+insert t1 values (2, 3, 'abc01234567890123456789012345678901234567890123456789+++');
+select * from t1 order by id;
+id	number	string
+1	2	12301234567890123456789012345678901234567890123456789+++
+2	3	abc01234567890123456789012345678901234567890123456789+++
+begin;
+update t1 set number = 1 where id = 1;
+select * from t1 order by id;
+id	number	string
+1	1	12301234567890123456789012345678901234567890123456789+++
+2	3	abc01234567890123456789012345678901234567890123456789+++
+update t1 set number = 3 where id = 1;
+ERROR 23000: Duplicate entry '3' for key 'number'
+select * from t1 where id = 1;
+id	number	string
+1	1	12301234567890123456789012345678901234567890123456789+++
+select * from t1 where id = 2;
+id	number	string
+2	3	abc01234567890123456789012345678901234567890123456789+++
+select * from t1 where number = 1;
+id	number	string
+1	1	12301234567890123456789012345678901234567890123456789+++
+select * from t1 where number = 3;
+id	number	string
+2	3	abc01234567890123456789012345678901234567890123456789+++
+select * from t1 order by id;
+id	number	string
+1	1	12301234567890123456789012345678901234567890123456789+++
+2	3	abc01234567890123456789012345678901234567890123456789+++
+rollback;
+select * from t1 order by id;
+id	number	string
+1	2	12301234567890123456789012345678901234567890123456789+++
+2	3	abc01234567890123456789012345678901234567890123456789+++
+drop table t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 ( id int, name varchar(300)) engine=pbxt;
+begin;
+insert t1(id, name) values(1, "aaa");
+update t1 set name=REPEAT('A', 300) where id = 1;
+commit;
+select * from t1;
+id	name
+1	AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+drop table t1;

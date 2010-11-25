@@ -1,0 +1,48 @@
+#
+# Test keywords as fields
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (time time, date date, timestamp timestamp,
+quarter int, week int, year int, timestampadd int, timestampdiff int);
+insert into t1 values ("12:22:22","97:02:03","1997-01-02",1,2,3,4,5);
+select * from t1;
+select t1.time+0,t1.date+0,t1.timestamp+0,concat(date," ",time),
+       t1.quarter+t1.week, t1.year+timestampadd,  timestampdiff from t1;
+drop table t1;
+create table events(binlog int);
+insert into events values(1);
+select events.binlog from events;
+drop table events;
+
+# End of 4.1 tests
+
+#
+# Bug#19939 "AUTHORS is not a keyword"
+#
+delimiter |;
+create procedure p1()
+begin
+   declare n int default 2;
+   authors: while n > 0 do
+     set n = n -1;
+   end while authors;
+end|
+create procedure p2()
+begin
+   declare n int default 2;
+   contributors: while n > 0 do
+     set n = n -1;
+   end while contributors;
+end|
+delimiter ;|
+drop procedure p1;
+drop procedure p2;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+# End of 5.1 tests

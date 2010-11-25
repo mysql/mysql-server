@@ -5,15 +5,15 @@ CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 DROP TABLE t1;
 
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 --replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN EXAMPLE SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN EXAMPLE SONAME '$HA_EXAMPLE_SO';
 
 UNINSTALL PLUGIN example;
 
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
@@ -41,7 +41,7 @@ UNINSTALL PLUGIN non_exist;
 --echo #            to impossible int val
 --echo #
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
@@ -56,7 +56,7 @@ UNINSTALL PLUGIN example;
 # Bug #32757 hang with sql_mode set when setting some global variables
 #
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$HA_EXAMPLE_SO';
 
 select @@session.sql_mode into @old_sql_mode;
 
@@ -84,4 +84,57 @@ set session sql_mode=@old_sql_mode;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set session old=bla;
 
+###############################################################
+# engine-specific clauses in the CREATE TABLE:
+
+--echo #legal values
+CREATE TABLE t1 ( a int complex='c,f,f,f' ) ENGINE=example ULL=10000 STR='dskj' one_or_two='one' YESNO=0;
+show create table t1;
+drop table t1;
+
+SET @OLD_SQL_MODE=@@SQL_MODE;
+SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
+
+--echo #illegal value fixed
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+show create table t1;
+
+--echo #alter table
+alter table t1 ULL=10000000;
+show create table t1;
+alter table t1 change a a int complex='c,c,c';
+show create table t1;
+drop table t1;
+
+--echo #illegal value error
+SET SQL_MODE='';
+--error ER_BAD_OPTION_VALUE
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a int) ENGINE=example ULL=10.00;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
+
+CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
+SHOW CREATE TABLE t1;
+
+select create_options from information_schema.tables where table_schema='test' and table_name='t1';
+
+ALTER TABLE t1 ULL=DEFAULT;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+SET @@SQL_MODE=@OLD_SQL_MODE;
+
+#
+# The only preparable statement above was CREATE TABLE. 
+# We need to prepare another statement here to force the
+# previous one to be deallocated (mysqltest reuses the same handle)
+# and to unlock all thread-local plugin locks. Otherwise the plugin won't
+# uninstall.
+#
+select 1;
 UNINSTALL PLUGIN example;

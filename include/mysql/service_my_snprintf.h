@@ -54,7 +54,7 @@
 
   Supported formats are 's' (null pointer is accepted, printed as
   "(null)"), 'b' (extension, see below), 'c', 'd', 'i', 'u', 'x', 'o',
-  'X', 'p' (works as 0x%x).
+  'X', 'p' (works as 0x%x), 'f', 'g'.
 
   Standard syntax for positional arguments $n is supported.
 

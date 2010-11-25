@@ -1,0 +1,20 @@
+.TH mysql 1 "17 March 2003" "MySQL 3.23" "MySQL database"
+.SH NAME
+mysql_waitpid \- Waits a specified amount of seconds for a PID to terminate.
+.SH SYNOPSIS
+mysql_waitpid [options] <pid> <seconds>
+.SH DESCRIPTION
+Description: Waits for a program, which program id is #pid, to
+terminate within #time seconds. If the program terminates within
+this time, or if the #pid no longer exists, value 0 is returned.
+Otherwise 1 is returned. Both #pid and #time must be positive
+integer arguments.
+
+See mysql_waitpid for options.
+.SH "SEE ALSO"
+mysql (1), mysqld (1)
+.SH AUTHOR
+This manpage was written by Christian Hammers <ch@debian.org>.
+
+MySQL is available at http://www.mysql.com/.
+.\" end of man page

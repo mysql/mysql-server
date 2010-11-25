@@ -113,7 +113,7 @@ static void get_password(char *to,uint length,int fd, my_bool echo)
 
   for (;;)
   {
-    char tmp;
+    uchar tmp;
     if (my_read(fd,&tmp,1,MYF(0)) != 1)
       break;
     if (tmp == '\b' || (int) tmp == 127)
@@ -138,7 +138,7 @@ static void get_password(char *to,uint length,int fd, my_bool echo)
       fputc('*',stderr);
       fflush(stderr);
     }
-    *(pos++) = tmp;
+    *(pos++)= (char) tmp;
   }
   while (pos != to && isspace(pos[-1]) == ' ')
     pos--;					/* Allow dummy space at end */

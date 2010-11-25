@@ -52,13 +52,19 @@ typedef struct st_key_part {
 } KEY_PART;
 
 
+/*
+  A "MIN_TUPLE < tbl.key_tuple < MAX_TUPLE" interval. 
+  
+  One of endpoints may be absent. 'flags' member has flags which tell whether
+  the endpoints are '<' or '<='.
+*/
 class QUICK_RANGE :public Sql_alloc {
  public:
   uchar *min_key,*max_key;
   uint16 min_length,max_length,flag;
   key_part_map min_keypart_map, // bitmap of used keyparts in min_key
                max_keypart_map; // bitmap of used keyparts in max_key
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   uint16 dummy;					/* Avoid warnings on 'flag' */
 #endif
   QUICK_RANGE();				/* Full range */
@@ -75,7 +81,7 @@ class QUICK_RANGE :public Sql_alloc {
       min_keypart_map(min_keypart_map_arg),
       max_keypart_map(max_keypart_map_arg)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       dummy=0;
 #endif
     }
@@ -201,13 +207,16 @@ class QUICK_RANGE :public Sql_alloc {
 
   4. Delete the select:
     delete quick;
-
+  
+  NOTE 
+    quick select doesn't use Sql_alloc/MEM_ROOT allocation because "range
+    checked for each record" functionality may create/destroy
+    O(#records_in_some_table) quick selects during query execution.
 */
 
 class QUICK_SELECT_I
 {
 public:
-  bool sorted;
   ha_rows records;  /* estimate of # of records to be retrieved */
   double  read_time; /* time to perform this retrieval          */
   TABLE   *head;
@@ -280,6 +289,12 @@ public:
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
 
+  /*
+    Request that this quick select produces sorted output. Not all quick
+    selects can do it, the caller is responsible for calling this function
+    only for those quick selects that can.
+  */
+  virtual void need_sorted_output() = 0;
   enum {
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
@@ -364,6 +379,22 @@ struct st_qsel_param;
 class PARAM;
 class SEL_ARG;
 
+
+/*
+  MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
+  context.
+*/
+typedef struct st_quick_range_seq_ctx
+{
+  QUICK_RANGE **first;
+  QUICK_RANGE **cur;
+  QUICK_RANGE **last;
+} QUICK_RANGE_SEQ_CTX;
+
+range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
+uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
+
+
 /*
   Quick select that does a range scan on a single key. The records are
   returned in key order.
@@ -371,60 +402,47 @@ class SEL_ARG;
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
-  bool next,dont_free,in_ror_merged_scan;
-public:
-  int error;
-protected:
+  /* true if we enabled key only reads */
+  bool doing_key_read;
   handler *file;
-  /*
-    If true, this quick select has its "own" handler object which should be
-    closed no later then this quick select is deleted.
-  */
-  bool free_file;
-  bool in_range;
-  uint multi_range_count; /* copy from thd->variables.multi_range_count */
-  uint multi_range_length; /* the allocated length for the array */
-  uint multi_range_bufsiz; /* copy from thd->variables.read_rnd_buff_size */
-  KEY_MULTI_RANGE *multi_range; /* the multi-range array (allocated and
-                                       freed by QUICK_RANGE_SELECT) */
-  HANDLER_BUFFER *multi_range_buff; /* the handler buffer (allocated and
-                                       freed by QUICK_RANGE_SELECT) */
+
+  /* Members to deal with case when this quick select is a ROR-merged scan */
+  bool in_ror_merged_scan;
   MY_BITMAP column_bitmap, *save_read_set, *save_write_set;
+  bool free_file;   /* TRUE <=> this->file is "owned" by this quick select */
 
-  friend class TRP_ROR_INTERSECT;
-  friend
-  QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
-                                               struct st_table_ref *ref,
-                                               ha_rows records);
-  friend bool get_quick_keys(PARAM *param,
-                             QUICK_RANGE_SELECT *quick,KEY_PART *key,
-                             SEL_ARG *key_tree,
-                             uchar *min_key, uint min_key_flag,
-                             uchar *max_key, uint max_key_flag);
-  friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
-                                              SEL_ARG *key_tree,
-                                              MEM_ROOT *alloc);
-  friend class QUICK_SELECT_DESC;
-  friend class QUICK_INDEX_MERGE_SELECT;
-  friend class QUICK_ROR_INTERSECT_SELECT;
-  friend class QUICK_GROUP_MIN_MAX_SELECT;
+  /* Range pointers to be used when not using MRR interface */
+  /* Members needed to use the MRR interface */
+  QUICK_RANGE_SEQ_CTX qr_traversal_ctx;
+public:
+  uint mrr_flags; /* Flags to be used with MRR interface */
+protected:
+  uint mrr_buf_size; /* copy from thd->variables.mrr_buff_size */  
+  HANDLER_BUFFER *mrr_buf_desc; /* the handler buffer */
 
+  /* Info about index we're scanning */
+  
   DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
   QUICK_RANGE **cur_range;  /* current element in ranges  */
-
+  
   QUICK_RANGE *last_range;
+  
   KEY_PART *key_parts;
   KEY_PART_INFO *key_part_info;
+  
+  bool dont_free; /* Used by QUICK_SELECT_DESC */
+
   int cmp_next(QUICK_RANGE *range);
   int cmp_prev(QUICK_RANGE *range);
   bool row_in_ranges();
 public:
   MEM_ROOT alloc;
 
-  QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0,
-                     MEM_ROOT *parent_alloc=NULL);
+  QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
+                     MEM_ROOT *parent_alloc, bool *create_err);
   ~QUICK_RANGE_SELECT();
-
+  
+  void need_sorted_output();
   int init();
   int reset(void);
   int get_next();
@@ -445,6 +463,27 @@ public:
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
 private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
+  friend class TRP_ROR_INTERSECT;
+  friend
+  QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
+                                               struct st_table_ref *ref,
+                                               ha_rows records);
+  friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, 
+                             KEY_PART *key, SEL_ARG *key_tree, 
+                             uchar *min_key, uint min_key_flag,
+                             uchar *max_key, uint max_key_flag);
+  friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
+                                              SEL_ARG *key_tree,
+                                              uint mrr_flags,
+                                              uint mrr_buf_size,
+                                              MEM_ROOT *alloc);
+  friend class QUICK_SELECT_DESC;
+  friend class QUICK_INDEX_MERGE_SELECT;
+  friend class QUICK_ROR_INTERSECT_SELECT;
+  friend class QUICK_GROUP_MIN_MAX_SELECT;
+  friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
+  friend range_seq_t quick_range_seq_init(void *init_param,
+                                          uint n_ranges, uint flags);
 };
 
 
@@ -452,8 +491,10 @@ class QUICK_RANGE_SELECT_GEOM: public QUICK_RANGE_SELECT
 {
 public:
   QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg,
-                          bool no_alloc, MEM_ROOT *parent_alloc)
-    :QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc)
+                          bool no_alloc, MEM_ROOT *parent_alloc, 
+                          bool *create_err)
+    :QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc,
+    create_err)
     {};
   virtual int get_next();
 };
@@ -526,6 +567,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -585,6 +627,7 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -639,6 +682,7 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -717,6 +761,8 @@ private:
   bool have_max;         /*   a MIN, a MAX, or both.         */
   bool have_agg_distinct;/*   aggregate_function(DISTINCT ...).  */
   bool seen_first_key;   /* Denotes whether the first key was retrieved.*/
+  bool doing_key_read;   /* true if we enabled key only reads */
+
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */
@@ -764,6 +810,7 @@ public:
   void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
+  void need_sorted_output() { /* always do it */ }
   int reset();
   int get_next();
   bool reverse_sorted() { return false; }
@@ -785,7 +832,8 @@ public:
 class QUICK_SELECT_DESC: public QUICK_RANGE_SELECT
 {
 public:
-  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts);
+  QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q, uint used_key_parts, 
+                    bool *create_err);
   int get_next();
   bool reverse_sorted() { return 1; }
   int get_type() { return QS_TYPE_RANGE_DESC; }
@@ -823,29 +871,41 @@ class SQL_SELECT :public Sql_alloc {
   {
     key_map tmp;
     tmp.set_all();
-    return test_quick_select(thd, tmp, 0, limit, force_quick_range) < 0;
+    return test_quick_select(thd, tmp, 0, limit, force_quick_range, FALSE) < 0;
   }
-  inline bool skip_record(THD *thd, bool *skip_record)
+  /* 
+    RETURN
+      0   if record must be skipped <-> (cond && cond->val_int() == 0)
+     -1   if error
+      1   otherwise
+  */   
+  inline int skip_record(THD *thd)
   {
-    *skip_record= cond ? cond->val_int() == FALSE : FALSE;
-    return thd->is_error();
+    int rc= test(!cond || cond->val_int());
+    if (thd->is_error())
+      rc= -1;
+    return rc;
   }
   int test_quick_select(THD *thd, key_map keys, table_map prev_tables,
-			ha_rows limit, bool force_quick_range);
+			ha_rows limit, bool force_quick_range, 
+                        bool ordered_output);
 };
 
 
-class FT_SELECT: public QUICK_RANGE_SELECT {
+class FT_SELECT: public QUICK_RANGE_SELECT 
+{
 public:
-  FT_SELECT(THD *thd, TABLE *table, uint key) :
-      QUICK_RANGE_SELECT (thd, table, key, 1) { (void) init(); }
+  FT_SELECT(THD *thd, TABLE *table, uint key, bool *create_err) :
+      QUICK_RANGE_SELECT (thd, table, key, 1, NULL, create_err) 
+  { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
-  int init() { return error=file->ft_init(); }
+  int init() { return file->ft_init(); }
   int reset() { return 0; }
-  int get_next() { return error=file->ft_read(record); }
+  int get_next() { return file->ha_ft_read(record); }
   int get_type() { return QS_TYPE_FULLTEXT; }
 };
 
+FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key);
 QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);

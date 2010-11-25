@@ -1,0 +1,99 @@
+DROP TABLE IF EXISTS t1,t2,t3;
+grant CREATE, SELECT, DROP on *.* to test@localhost;
+set global read_only=0;
+create table t1 (a int);
+insert into t1 values(1);
+create table t2 select * from t1;
+set global read_only=1;
+create table t3 (a int);
+drop table t3;
+select @@global.read_only;
+@@global.read_only
+1
+create table t3 (a int);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+insert into t1 values(1);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+update t1 set a=1 where 1=0;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+update t1,t2 set t1.a=t2.a+1 where t1.a=t2.a;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+delete t1,t2 from t1,t2 where t1.a=t2.a;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+create temporary table t3 (a int) engine=myisam;
+create temporary table t4 (a int) engine=myisam select * from t3;
+insert into t3 values(1);
+insert into t4 select * from t3;
+update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+update t1,t3 set t3.a=t1.a+1 where t1.a=t3.a;
+update t4,t3 set t4.a=t3.a+1 where t4.a=t3.a;
+delete t1 from t1,t3 where t1.a=t3.a;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+delete t3 from t1,t3 where t1.a=t3.a;
+delete t4 from t3,t4 where t4.a=t3.a;
+create temporary table t1 (a int) engine=myisam;
+insert into t1 values(1);
+update t1,t3 set t1.a=t3.a+1 where t1.a=t3.a;
+delete t1 from t1,t3 where t1.a=t3.a;
+drop table t1;
+insert into t1 values(1);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+set global read_only=0;
+lock table t1 write;
+lock table t2 write;
+set global read_only=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables ;
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+0
+unlock tables ;
+select @@global.read_only;
+@@global.read_only
+1
+set global read_only=0;
+lock table t1 read;
+lock table t2 read;
+set global read_only=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables ;
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+0
+unlock tables ;
+select @@global.read_only;
+@@global.read_only
+1
+set global read_only=0;
+BEGIN;
+BEGIN;
+set global read_only=1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+ROLLBACK;
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+1
+ROLLBACK;
+set global read_only=0;
+flush tables with read lock;
+set global read_only=1;
+unlock tables;
+set global read_only=0;
+flush tables with read lock;
+set global read_only=1;
+select @@global.read_only;
+@@global.read_only
+1
+unlock tables;
+drop temporary table ttt;
+ERROR 42S02: Unknown table 'ttt'
+drop temporary table if exists ttt;
+Warnings:
+Note	1051	Unknown table 'ttt'
+set global read_only=0;
+drop table t1,t2;
+drop user test@localhost;

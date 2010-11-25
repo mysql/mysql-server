@@ -14,6 +14,11 @@ a
 1
 # Start a asynchronous reload
 # Wait for tables to be closed
+# Timeout in include/wait_show_condition.inc for 
+#         show_statement : SHOW STATUS LIKE 'Open_tables'
+#         field          : Value
+#         condition      : = '0'
+#         max_run_time   : 31
 # Ensure that the server didn't crash
 SELECT * FROM t1;
 a
@@ -23,6 +28,6 @@ DROP TABLE t1;
 DROP TABLE t1;
 # Federated cleanup
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;

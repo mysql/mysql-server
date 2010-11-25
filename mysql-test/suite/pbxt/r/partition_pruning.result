@@ -1,0 +1,916 @@
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+create table t1 ( a int not null) partition by hash(a) partitions 2;
+insert into t1 values (1),(2),(3);
+explain select * from t1 where a=5 and a=6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+drop table t1;
+create table t1 (
+a int(11) not null
+) partition by hash (a) partitions 2;
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a=1 or a=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+create table t2 (
+a int not null,
+b int not null
+) partition by key(a,b) partitions 2;
+insert into t2 values (1,1),(2,2),(3,3);
+explain partitions select * from t2 where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t2 where b=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t2 where a=1 and b=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+create table t3 (
+a int
+)
+partition by range (a*1) ( 
+partition p0 values less than (10),
+partition p1 values less than (20)
+);
+insert into t3 values (5),(15);
+explain partitions select * from t3 where a=11;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t3 where a=10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t3 where a=20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3		ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t3 where a=30;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3		ALL	NULL	NULL	NULL	NULL	1	Using where
+create table t4 (a int not null, b int not null) partition by LIST (a+b) (
+partition p0 values in (12),
+partition p1 values in (14)
+);
+insert into t4 values (10,2), (10,4);
+explain partitions select * from t4 where (a=10 and b=1) or (a=10 and b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	p0	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t4 
+where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	p0	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t4 where (a=10 and b=2) or (a=10 and b=3)
+or (a=10 and b = 4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t4 where (a=10 and b=1) or a=11;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t4 where (a=10 and b=2) or a=11;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1, t2, t3, t4;
+create table t5 (a int not null, b int not null, 
+c int not null, d int not null) 
+partition by LIST(a+b) subpartition by HASH (c+d) subpartitions 2
+(
+partition p0 values in (12),
+partition p1 values in (14)
+);
+insert into t5 values (10,2,0,0), (10,4,0,0), (10,2,0,1), (10,4,0,1);
+explain partitions select * from t5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	
+explain partitions select * from t5
+where (a=10 and b=1) or (a=10 and b=2) or (a=10 and b = 3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t5 where (a=10 and b=2) or (a=10 and b=3)
+or (a=10 and b = 4);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t5 where (c=1 and d=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p1_p1sp0	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t5 where (c=2 and d=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+(c=2 and d=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t5 where (a=10 and b=2 and c=1 and d=1) or 
+(b=2 and c=2 and d=1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+create table t6 (a int not null) partition by LIST(a) (
+partition p1 values in (1),
+partition p3 values in (3),
+partition p5 values in (5),
+partition p7 values in (7),
+partition p9 values in (9)
+);
+insert into t6 values (1),(3),(5);
+explain partitions select * from t6 where a <  1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t6 where a <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a >  9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a >= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p9	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a > 0 and a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t6 where a > 5 and a < 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p7,p9	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t6 where a > 3 and a < 8 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 0 and a <= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 5 and a <= 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p5,p7,p9	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 3 and a <= 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a > 3 and a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t6;
+create table t6 (a int unsigned not null) partition by LIST(a) (
+partition p1 values in (1),
+partition p3 values in (3),
+partition p5 values in (5),
+partition p7 values in (7),
+partition p9 values in (9)
+);
+insert into t6 values (1),(3),(5);
+explain partitions select * from t6 where a <  1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t6 where a <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a >  9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a >= 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p9	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t6 where a > 0 and a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1,p3	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t6 where a > 5 and a < 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p7,p9	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t6 where a > 3 and a < 8 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 0 and a <= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p1,p3,p5	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 5 and a <= 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p5,p7,p9	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a >= 3 and a <= 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6	p3,p5,p7	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t6 where a > 3 and a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t6		ALL	NULL	NULL	NULL	NULL	3	Using where
+create table t7 (a int not null) partition by RANGE(a) (
+partition p10 values less than (10),
+partition p30 values less than (30),
+partition p50 values less than (50),
+partition p70 values less than (70),
+partition p90 values less than (90)
+);
+insert into t7 values (10),(30),(50);
+explain partitions select * from t7 where a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t7 where a < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t7 where a <= 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t7 where a = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t7 where a < 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a = 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 11 and a < 29;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t7;
+create table t7 (a int unsigned not null) partition by RANGE(a) (
+partition p10 values less than (10),
+partition p30 values less than (30),
+partition p50 values less than (50),
+partition p70 values less than (70),
+partition p90 values less than (90)
+);
+insert into t7 values (10),(30),(50);
+explain partitions select * from t7 where a < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t7 where a < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t7 where a <= 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t7 where a = 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t7 where a < 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p10,p30,p50,p70,p90	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a = 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a >= 90;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7		ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t7 where a > 11 and a < 29;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t7	p30	ALL	NULL	NULL	NULL	NULL	3	Using where
+create table t8 (a date not null) partition by RANGE(YEAR(a)) (
+partition p0 values less than (1980),
+partition p1 values less than (1990),
+partition p2 values less than (2000)
+);
+insert into t8 values ('1985-05-05'),('1995-05-05');
+explain partitions select * from t8 where a < '1980-02-02';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t8	p0,p1	ALL	NULL	NULL	NULL	NULL	1	Using where
+create table t9 (a date not null) partition by RANGE(TO_DAYS(a)) (
+partition p0 values less than (732299), -- 2004-12-19
+partition p1 values less than (732468), -- 2005-06-06
+partition p2 values less than (732664)  -- 2005-12-19
+);
+insert into t9 values ('2005-05-05'), ('2005-04-04');
+explain partitions select * from t9 where a <  '2004-12-19';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t9	p0	ALL	NULL	NULL	NULL	NULL	0	Using where
+explain partitions select * from t9 where a <= '2004-12-19';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t9	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t5,t6,t7,t8,t9;
+create table t1 (
+a1 int not null
+)
+partition by range (a1) (
+partition p0 values less than (3),
+partition p1 values less than (6),
+partition p2 values less than (9)
+);
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where a1 >= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where a1 < 3 and a1 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	1	Using where
+drop table t1;
+create table t3 (a int, b int) 
+partition by list(a) subpartition by hash(b) subpartitions 4 (
+partition p0 values in (1),
+partition p1 values in (2),
+partition p2 values in (3),
+partition p3 values in (4)
+);
+insert into t3 values (1,1),(2,2),(3,3);
+explain partitions select * from t3 where a=2 or b=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p0_p0sp1,p1_p1sp0,p1_p1sp1,p1_p1sp2,p1_p1sp3,p2_p2sp1,p3_p3sp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t3 where a=4 or b=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p0_p0sp2,p1_p1sp2,p2_p2sp2,p3_p3sp0,p3_p3sp1,p3_p3sp2,p3_p3sp3	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t3 where (a=2 or b=1) and (a=4 or b=2) ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	p1_p1sp2,p3_p3sp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t3;
+create table t1 (a int) partition by hash(a) partitions 2;
+insert into t1 values (1),(2);
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where a is not null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+create table t1 (a int not null, b int not null, key(a), key(b))
+partition by hash(a) partitions 4;
+insert into t1 values (1,1),(2,2),(3,3),(4,4);
+explain partitions 
+select * from t1 X, t1 Y 
+where X.b = Y.b and (X.a=1 or X.a=2) and (Y.a=2 or Y.a=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	p1,p2	ALL	a,b	NULL	NULL	NULL	2	Using where
+1	SIMPLE	Y	p2,p3	ref	a,b	b	4	test.X.b	1	Using where
+explain partitions
+select * from t1 X, t1 Y where X.a = Y.a and (X.a=1 or X.a=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	p1,p2	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	Y	p1,p2	ref	a	a	4	test.X.a	1	
+drop table t1;
+create table t1 (a int) partition by hash(a) partitions 20;
+insert into t1 values (1),(2),(3);
+explain partitions select * from t1 where a >  1 and a < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where a >= 1 and a < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a >  1 and a <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a >= 1 and a <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2,p3	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
+create table t1 (a int, b int) 
+partition by list(a) subpartition by hash(b) subpartitions 20 
+(
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3)
+);
+insert into t1 values (1,1),(2,2),(3,3);
+explain partitions select * from t1 where b >  1 and b < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp2,p1_p1sp2,p2_p2sp2,p3_p3sp2	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where b >  1 and b < 3 and (a =1 or a =2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1_p1sp2,p2_p2sp2	ALL	NULL	NULL	NULL	NULL	1	Using where
+drop table t1;
+create table t1 (a int) partition by list(a) (
+partition p0 values in (1,2),
+partition p1 values in (3,4)
+);
+insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+flush status;
+update t1 set a=100 where a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+update t1 set a=100 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	10
+flush status;
+delete from t1 where a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+delete from t1 where a+1=5+1;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	10
+create table t2 like t1;
+insert into t2 select * from t2;
+flush status;
+update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+drop table t1,t2;
+CREATE TABLE `t1` (
+`a` int(11) default NULL
+);
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE `t2` (
+`a` int(11) default NULL,
+KEY `a` (`a`)
+) ;
+insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
+insert into t1 select a from t2;
+drop table t2;
+CREATE TABLE `t2` (
+`a` int(11) default NULL,
+`b` int(11) default NULL
+) 
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (200),
+PARTITION p1 VALUES LESS THAN (400),
+PARTITION p2 VALUES LESS THAN (600),
+PARTITION p3 VALUES LESS THAN (800),
+PARTITION p4 VALUES LESS THAN (1001));
+insert into t2 select a,1 from t1 where a < 200;
+insert into t2 select a,2 from t1 where a >= 200 and a < 400;
+insert into t2 select a,3 from t1 where a >= 400 and a < 600;
+insert into t2 select a,4 from t1 where a >= 600 and a < 800;
+insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
+explain partitions select * from t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	
+explain partitions select * from t2 where a < 801 and a > 200;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where a < 801 and a > 800;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where a > 600;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where a > 600 and b = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where a > 600 and b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where a > 600 and b = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+explain partitions select * from t2 where b = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	1010	Using where
+flush status;
+update t2 set b = 100 where b = 6;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	1015
+flush status;
+update t2 set a = 1002 where a = 1001;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+flush status;
+update t2 set b = 6 where a = 600;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	201
+flush status;
+update t2 set b = 6 where a > 600 and a < 800;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	201
+flush status;
+delete from t2 where a > 600;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	402
+drop table t2;
+CREATE TABLE `t2` (
+`a` int(11) default NULL,
+`b` int(11) default NULL,
+index (b)
+) 
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (200),
+PARTITION p1 VALUES LESS THAN (400),
+PARTITION p2 VALUES LESS THAN (600),
+PARTITION p3 VALUES LESS THAN (800),
+PARTITION p4 VALUES LESS THAN (1001));
+insert into t2 select a,1 from t1 where a < 100;
+insert into t2 select a,2 from t1 where a >= 200 and a < 300;
+insert into t2 select a,3 from t1 where a >= 300 and a < 400;
+insert into t2 select a,4 from t1 where a >= 400 and a < 500;
+insert into t2 select a,5 from t1 where a >= 500 and a < 600;
+insert into t2 select a,6 from t1 where a >= 600 and a < 700;
+insert into t2 select a,7 from t1 where a >= 700 and a < 800;
+insert into t2 select a,8 from t1 where a >= 800 and a < 900;
+insert into t2 select a,9 from t1 where a >= 900 and a < 1001;
+explain partitions select * from t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	910	
+explain partitions select * from t2 where a = 101;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	910	Using where
+explain partitions select * from t2 where a = 550;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	910	Using where
+explain partitions select * from t2 where a = 833;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	910	Using where
+explain partitions select * from t2 where (a = 100 OR a = 900);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	910	Using where
+explain partitions select * from t2 where (a > 100 AND a < 600);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	910	Using where
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+explain partitions select * from t2 where b = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ref	b	b	5	const	5	
+explain extended select * from t2 where b = 6;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ref	b	b	5	const	5	100.00	
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = 6)
+explain partitions select * from t2 where b = 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	ref	b	b	5	const	5	
+explain extended select * from t2 where b in (1,3,5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	15	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` in (1,3,5))
+explain partitions select * from t2 where b in (1,3,5);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	15	Using where
+explain extended select * from t2 where b in (2,4,6);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	15	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` in (2,4,6))
+explain partitions select * from t2 where b in (2,4,6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	15	Using where
+explain extended select * from t2 where b in (7,8,9);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	15	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` in (7,8,9))
+explain partitions select * from t2 where b in (7,8,9);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	15	Using where
+explain extended select * from t2 where b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` > 5)
+explain partitions select * from t2 where b > 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where
+explain extended select * from t2 where b > 5 and b < 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 8))
+explain partitions select * from t2 where b > 5 and b < 8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where
+explain extended select * from t2 where b > 5 and b < 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 5) and (`test`.`t2`.`b` < 7))
+explain partitions select * from t2 where b > 5 and b < 7;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where
+explain extended select * from t2 where b > 0 and b < 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	range	b	b	5	NULL	5	100.00	Using where
+Warnings:
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` > 0) and (`test`.`t2`.`b` < 5))
+explain partitions select * from t2 where b > 0 and b < 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1,p2,p3,p4	range	b	b	5	NULL	5	Using where
+flush status;
+update t2 set a = 111 where b = 10;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	5
+flush status;
+update t2 set a = 111 where b in (5,6);
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	10
+flush status;
+update t2 set a = 222 where b = 7;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	5
+flush status;
+delete from t2 where b = 7;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	5
+flush status;
+delete from t2 where b > 5;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	5
+show status like 'Handler_read_prev';
+Variable_name	Value
+Handler_read_prev	0
+show status like 'Handler_read_next';
+Variable_name	Value
+Handler_read_next	300
+flush status;
+delete from t2 where b < 5 or b > 3;
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	0
+show status like 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	10
+show status like 'Handler_read_prev';
+Variable_name	Value
+Handler_read_prev	0
+show status like 'Handler_read_next';
+Variable_name	Value
+Handler_read_next	510
+drop table t1, t2;
+create table t1 ( f_int1 mediumint, f_int2 integer) 
+partition by list(mod(f_int1,4)) (
+partition p_3 values in (-3),
+partition p_2 values in (-2),
+partition p_1 values in (-1),
+partition p0 values in (0),
+partition p1 values in (1),
+partition p2 values in (2),
+partition p3 values in (3)
+);
+insert into t1 values (9, 9), (8, 8), (7, 7), (6, 6), (5, 5), 
+(4, 4), (3, 3), (2, 2), (1, 1);
+select * from t1 where f_int1 between 5 and 15 order by f_int1;
+f_int1	f_int2
+5	5
+6	6
+7	7
+8	8
+9	9
+drop table t1;
+create table t1 (f_int1 integer) partition by list(abs(mod(f_int1,2)))
+subpartition by hash(f_int1) subpartitions 2
+(
+partition part1 values in (0),
+partition part2 values in (1),
+partition part4 values in (null)
+);
+insert into t1 set f_int1 = null;
+select * from t1 where f_int1 is null;
+f_int1
+NULL
+explain partitions select * from t1 where f_int1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	part4_part4sp0	ALL	NULL	NULL	NULL	NULL	1	Using where
+drop table t1;
+create table t1 (a int not null, b int not null)
+partition by list(a) 
+subpartition by hash(b) subpartitions 4 
+(
+partition p0 values in (1),
+partition p1 values in (2),
+partition p2 values in (3)
+);
+insert into t1 values (1,1),(1,2),(1,3),(1,4),
+(2,1),(2,2),(2,3),(2,4);
+explain partitions select * from t1 where a=1 AND (b=1 OR b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp1,p0_p0sp2	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+create table t1 (a int, b int not null)
+partition by list(a) 
+subpartition by hash(b) subpartitions 2
+(
+partition p0 values in (1),
+partition p1 values in (2),
+partition p2 values in (3),
+partition pn values in (NULL)
+);
+insert into t1 values (1,1),(1,2),(1,3),(1,4),
+(2,1),(2,2),(2,3),(2,4), (NULL,1);
+explain partitions select * from t1 where a IS NULL AND (b=1 OR b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where (a IS NULL or a < 1) AND (b=1 OR b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 where (a IS NULL or a < 2) AND (b=1 OR b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where (a IS NULL or a <= 1) AND (b=1 OR b=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	5	Using where
+drop table t1;
+create table t1 ( a int)  partition by list (MOD(a, 10))
+( partition p0  values in (0), partition p1 values in (1),
+partition p2 values in (2), partition p3 values in (3),
+partition p4 values in (4), partition p5 values in (5),
+partition p6 values in (6), partition pn values in (NULL)
+);
+insert into t1 values (NULL), (0),(1),(2),(3),(4),(5),(6);
+explain partitions select * from t1 where a is null or a < 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,pn	ALL	NULL	NULL	NULL	NULL	8	Using where
+drop table t1;
+create table t1 (s1 int) partition by list (s1) 
+(partition p1 values in (0), 
+partition p2 values in (1), 
+partition p3 values in (null));
+insert into t1 values (0),(1),(null);
+select count(*) from t1 where s1 < 0 or s1 is null;
+count(*)
+1
+explain partitions select count(*) from t1 where s1 < 0 or s1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	1	Using where
+drop table t1;
+create table t1 (a char(32) primary key)
+partition by key()
+partitions 100;
+insert into t1 values ('na');
+select * from t1;
+a
+na
+select * from t1 where a like 'n%';
+a
+na
+drop table t1;
+create table t1 (s1 varchar(15)) partition by key (s1);
+select * from t1 where s1 = 0 or s1 is null;
+s1
+insert into t1 values ('aa'),('bb'),('0');
+explain partitions select * from t1 where s1 = 0 or s1 is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
+create table t2 (a int, b int)
+partition by LIST(a)
+subpartition by HASH(b) subpartitions 40
+( partition p_0_long_partition_name values in(1),
+partition p_1_long_partition_name values in(2));
+insert into t2 values (1,1),(2,2);
+explain partitions select * from t2;
+id	1
+select_type	SIMPLE
+table	t2
+partitions	p_0_long_partition_name_p_0_long_partition_namesp0,p_0_long_partition_name_p_0_long_partition_namesp1,p_0_long_partition_name_p_0_long_partition_namesp2,p_0_long_partition_name_p_0_long_partition_namesp3,p_0_long_partition_name_p_0_long_partition_namesp4,p_0_long_partition_name_p_0_long_partition_namesp5,p_0_long_partition_name_p_0_long_partition_namesp6,p_0_long_partition_name_p_0_long_partition_namesp7,p_0_long_partition_name_p_0_long_partition_namesp8,p_0_long_partition_name_p_0_long_partition_namesp9,p_0_long_partition_name_p_0_long_partition_namesp10,p_0_long_partition_name_p_0_long_partition_namesp11,p_0_long_partition_name_p_0_long_partition_namesp12,p_0_long_partition_name_p_0_long_partition_namesp13,p_0_long_partition_name_p_0_long_partition_namesp14,p_0_long_partition_name_p_0_long_partition_namesp15,p_0_long_partition_name_p_0_long_partition_namesp16,p_0_long_partition_name_p_0_long_partition_namesp17,p_0_long_partition_name_p_0_long_partition_namesp18,p_0_long_partition_name_p_0_long_partition_namesp19,p_0_long_partition_name_p_0_long_partition_namesp20,p_0_long_partition_name_p_0_long_partition_namesp21,p_0_long_partition_name_p_0_long_partition_namesp22,p_0_long_partition_name_p_0_long_partition_namesp23,p_0_long_partition_name_p_0_long_partition_namesp24,p_0_long_partition_name_p_0_long_partition_namesp25,p_0_long_partition_name_p_0_long_partition_namesp26,p_0_long_partition_name_p_0_long_partition_namesp27,p_0_long_partition_name_p_0_long_partition_namesp28,p_0_long_partition_name_p_0_long_partition_namesp29,p_0_long_partition_name_p_0_long_partition_namesp30,p_0_long_partition_name_p_0_long_partition_namesp31,p_0_long_partition_name_p_0_long_partition_namesp32,p_0_long_partition_name_p_0_long_partition_namesp33,p_0_long_partition_name_p_0_long_partition_namesp34,p_0_long_partition_name_p_0_long_partition_namesp35,p_0_long_partition_name_p_0_long_partition_namesp36,p_0_long_partition_name_p_0_long_partition_namesp37,p_0_long_partition_name_p_0_long_partition_namesp38,p_0_long_partition_name_p_0_long_partition_namesp39,p_1_long_partition_name_p_1_long_partition_namesp0,p_1_long_partition_name_p_1_long_partition_namesp1,p_1_long_partition_name_p_1_long_partition_namesp2,p_1_long_partition_name_p_1_long_partition_namesp3,p_1_long_partition_name_p_1_long_partition_namesp4,p_1_long_partition_name_p_1_long_partition_namesp5,p_1_long_partition_name_p_1_long_partition_namesp6,p_1_long_partition_name_p_1_long_partition_namesp7,p_1_long_partition_name_p_1_long_partition_namesp8,p_1_long_partition_name_p_1_long_partition_namesp9,p_1_long_partition_name_p_1_long_partition_namesp10,p_1_long_partition_name_p_1_long_partition_namesp11,p_1_long_partition_name_p_1_long_partition_namesp12,p_1_long_partition_name_p_1_long_partition_namesp13,p_1_long_partition_name_p_1_long_partition_namesp14,p_1_long_partition_name_p_1_long_partition_namesp15,p_1_long_partition_name_p_1_long_partition_namesp16,p_1_long_partition_name_p_1_long_partition_namesp17,p_1_long_partition_name_p_1_long_partition_namesp18,p_1_long_partition_name_p_1_long_partition_namesp19,p_1_long_partition_name_p_1_long_partition_namesp20,p_1_long_partition_name_p_1_long_partition_namesp21,p_1_long_partition_name_p_1_long_partition_namesp22,p_1_long_partition_name_p_1_long_partition_namesp23,p_1_long_partition_name_p_1_long_partition_namesp24,p_1_long_partition_name_p_1_long_partition_namesp25,p_1_long_partition_name_p_1_long_partition_namesp26,p_1_long_partition_name_p_1_long_partition_namesp27,p_1_long_partition_name_p_1_long_partition_namesp28,p_1_long_partition_name_p_1_long_partition_namesp29,p_1_long_partition_name_p_1_long_partition_namesp30,p_1_long_partition_name_p_1_long_partition_namesp31,p_1_long_partition_name_p_1_long_partition_namesp32,p_1_long_partition_name_p_1_long_partition_namesp33,p_1_long_partition_name_p_1_long_partition_namesp34,p_1_long_partition_name_p_1_long_partition_namesp35,p_1_long_partition_name_p_1_long_partition_namesp36,p_1_long_partition_name_p_1_long_partition_namesp37,p_1_long_partition_name_p_1_long_partition_namesp38,p_1_long_partition_name_p_1_long_partition_namesp39
+type	ALL
+possible_keys	NULL
+key	NULL
+key_len	NULL
+ref	NULL
+rows	2
+Extra	
+drop table t2;
+create table t1 (s1 int);
+explain partitions select 1 from t1 union all select 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	0	
+2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	
+drop table t1;
+create table t1 (a bigint unsigned not null) partition by range(a) (
+partition p0 values less than (10),
+partition p1 values less than (100),
+partition p2 values less than (1000),
+partition p3 values less than (18446744073709551000),
+partition p4 values less than (18446744073709551614)
+);
+insert into t1 values (5),(15),(105),(1005);
+insert into t1 values (18446744073709551000+1);
+insert into t1 values (18446744073709551614-1);
+explain partitions select * from t1 where a < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	1	Using where
+explain partitions select * from t1 
+where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 
+where a between 18446744073709551001 and 18446744073709551002;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a = 18446744073709551000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a = 18446744073709551613;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a = 18446744073709551614;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	4	Using where
+drop table t1;
+create table t1 (a int)
+partition by range(a) (
+partition p0 values less than (64),
+partition p1 values less than (128),
+partition p2 values less than (255)
+);
+create table t2 (a int)
+partition by range(a+0) (
+partition p0 values less than (64),
+partition p1 values less than (128),
+partition p2 values less than (255)
+);
+insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+explain partitions select * from t1 where a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t2 where a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a=0xFE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t2 where a=0xFE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a > 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t2 where a > 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2		ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a >= 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t2 where a >= 0xFE AND a <= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a < 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t2 where a < 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a <= 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	6	Using where
+explain partitions select * from t2 where a <= 64 AND a >= 63;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	6	Using where
+drop table t1;
+drop table t2;
+create table t1(a bigint unsigned not null) partition by range(a+0) (
+partition p1 values less than (10),
+partition p2 values less than (20),
+partition p3 values less than (2305561538531885056),
+partition p4 values less than (2305561538531950591)
+);
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+explain partitions select * from t1 where 
+a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where 
+a > 0xFFFFFFFFFFFFFFEC and a < 0xFFFFFFFFFFFFFFEE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	8	Using where
+drop table t1;
+create table t1 (a bigint) partition by range(a+0) (
+partition p1 values less than (-1000),
+partition p2 values less than (-10),
+partition p3 values less than (10),
+partition p4 values less than (1000)
+);
+insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+explain partitions select * from t1 where a>-2 and a <=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	4	Using where
+drop table t1;

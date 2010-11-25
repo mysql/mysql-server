@@ -1,7 +1,19 @@
+#
+# NOTE. Please do not switch connection inside this test.
+#       subselect.test is included from several other test cases which set
+#       explicit session properties that must be preserved throughout the test.
+#       If you need to use a dedicated connection for a test case,
+#       close the new connection and switch back to "default" as soon
+#       as possible.
+#
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+drop view if exists v2;
 --enable_warnings
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 
 select (select 2);
 explain extended select (select 2);
@@ -337,8 +349,8 @@ select * from t12;
 drop table t11, t12, t2;
 
 #insert with subselects
-CREATE TABLE t1 (x int);
-create table t2 (a int);
+CREATE TABLE t1 (x int) ENGINE=MyISAM;
+create table t2 (a int) ENGINE=MyISAM;
 create table t3 (b int);
 insert into t2 values (1);
 insert into t3 values (1),(2);
@@ -373,7 +385,7 @@ select * from t1;
 drop table t1, t2, t3;
 
 #replace with subselects
-CREATE TABLE t1 (x int not null, y int, primary key (x));
+CREATE TABLE t1 (x int not null, y int, primary key (x)) ENGINE=MyISAM;
 create table t2 (a int);
 create table t3 (a int);
 insert into t2 values (1);
@@ -811,15 +823,12 @@ create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
-disable_query_log;
 # making table large enough
-let $1 = 10000;
-while ($1)
- {
-  eval insert into t1 values (rand()*100000+200,rand()*100000);
-  dec $1;
- }
-enable_query_log;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1
+select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
+
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
@@ -832,7 +841,7 @@ insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-drop table t1, t2, t3;
+drop table t0, t1, t2, t3;
 
 #
 # alloc_group_fields() working
@@ -1492,12 +1501,13 @@ drop table t1;
 
 #
 # Subselect in non-select command just after connection
+# Disconnect new connection and switch back when test is finished
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 set @got_val= (SELECT 1 FROM (SELECT 'A' as my_col) as T1 ) ;
-connection default;
 disconnect root;
+connection default;
 
 #
 # primary query with temporary table and subquery with grouping
@@ -2599,24 +2609,15 @@ DROP TABLE t1,t2;
 #           slow with big sort_buffer_size
 #
 
-CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
                  PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-disable_query_log;
-let $1=3000;
-while ($1)
-{
-  eval INSERT INTO t1(a) VALUES(RAND()*1000);
-  eval SELECT MAX(b) FROM t1 INTO @id;
-  let $2=10;
-  while ($2)
-  {
-    eval INSERT INTO t2(y,z) VALUES(@id,RAND()*1000);
-    dec $2;
-  }
-  dec $1;
-}
+insert into t1 select RAND()*1000, A.a + 10*(B.a+10*(C.a+10*D.a))
+from t3 A, t3 B, t3 C, t3 D where D.a<3;
+insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
@@ -2629,8 +2630,7 @@ SELECT SQL_NO_CACHE COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
-DROP TABLE t1,t2;
-
+DROP TABLE t1,t2,t3;
 
 #
 # Bug#25219 EXIST subquery with UNION over a mix of
@@ -3086,6 +3086,53 @@ SELECT ((a1,a2) IN (SELECT * FROM t2 WHERE b2 > 0)) IS NULL FROM t1;
 DROP TABLE t1, t2;
 
 #
+# Bug31048 Many nested subqueries may cause server crash.
+#
+#create table t1(a int,b int,key(a),key(b));
+#insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
+#  (6,7),(7,4),(5,3);
+#  TODO: enable the test after fixing 33266 in 6.0
+
+#let $nesting= 26;
+#let $should_work_nesting= 5;
+#let $start= select sum(a),a from t1 where a> ( select sum(a) from t1 ;
+#let $end= )group by a ;
+#let $start_app= where a> ( select sum(a) from t1 ;
+#let $end_pre= )group by b limit 1 ;
+
+#--disable_result_log
+#--disable_query_log
+# At least 4 level nesting should work without errors
+#while ($should_work_nesting)
+#{
+#--echo $should_work_nesting
+#  eval $start $end;
+#  eval explain $start $end;
+#  let $start= $start
+#  $start_app;
+#  let $end= $end_pre
+#  $end;
+#  dec $should_work_nesting;
+#}
+# Other may fail with the 'stack overrun error'
+#while ($nesting)
+#{
+#--echo $nesting
+#--error 0,1436
+#  eval $start $end;
+#--error 0,1436
+#  eval explain $start $end;
+#  let $start= $start
+#  $start_app;
+#  let $end= $end_pre
+#  $end;
+#  dec $nesting;
+#}
+#--enable_result_log
+#--enable_query_log
+#drop table t1;
+
+#
 # Bug#28076 inconsistent binary/varbinary comparison
 #
 
@@ -3210,25 +3257,21 @@ DROP TABLE t1,t2;
 # Bug#33675 Usage of an uninitialized memory by filesort in a subquery
 #           caused server crash.
 #
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
 create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
 insert into t1 values(1,1),(2,2), (3, 3);
-let $i=10000;
---disable_query_log
 --disable_warnings
-while ($i)
-{
-  eval insert into t2 values (-1 , $i/5000 + 1, '$i');
-  dec $i;
-}
+insert into t2
+select -1 , (@a:=(A.a + 10 * (B.a + 10 * (C.a+10*D.a))))/5000 + 1, @a
+from t0 A, t0 B, t0 C, t0 D;
 --enable_warnings
---enable_query_log
 set session sort_buffer_size= 33*1024;
 select count(*) from t1 where f12 =
 (select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
 
-drop table t1,t2;
-
+drop table t0,t1,t2;
 
 #
 # Bug#33794 "MySQL crashes executing specific query on specific dump"
@@ -3391,6 +3434,183 @@ DROP TABLE t1,t2;
 --echo End of 5.0 tests.
 
 #
+# Test [NOT] IN truth table (both as top-level and general predicate).
+#
+
+create table t_out (subcase char(3),
+                    a1 char(2), b1 char(2), c1 char(2));
+create table t_in  (a2 char(2), b2 char(2), c2 char(2));
+
+insert into t_out values ('A.1','2a', NULL, '2a');
+#------------------------- A.2 - impossible
+insert into t_out values ('A.3', '2a', NULL, '2a');
+insert into t_out values ('A.4', '2a', NULL, 'xx');
+insert into t_out values ('B.1', '2a', '2a', '2a');
+insert into t_out values ('B.2', '2a', '2a', '2a');
+insert into t_out values ('B.3', '3a', 'xx', '3a');
+insert into t_out values ('B.4', 'xx', '3a', '3a');
+
+insert into t_in values ('1a', '1a', '1a');
+insert into t_in values ('2a', '2a', '2a');
+insert into t_in values (NULL, '2a', '2a');
+insert into t_in values ('3a', NULL, '3a');
+-- echo
+-- echo Test general IN semantics (not top-level)
+-- echo
+-- echo case A.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'A.1';
+
+-- echo case A.2 - impossible
+
+-- echo case A.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.3';
+
+-- echo case A.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'A.4';
+
+-- echo case B.1
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in where a2 = 'no_match') pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in where a2 = 'no_match') pred_not_in
+from t_out where subcase = 'B.1';
+
+-- echo case B.2
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.2';
+
+-- echo case B.3
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.3';
+
+-- echo case B.4
+select subcase,
+       (a1, b1, c1)     IN (select * from t_in) pred_in,
+       (a1, b1, c1) NOT IN (select * from t_in) pred_not_in
+from t_out where subcase = 'B.4';
+
+-- echo
+-- echo Test IN as top-level predicate, and
+-- echo as non-top level for cases A.3, B.3 (the only cases with NULL result).
+-- echo
+-- echo case A.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case A.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+# test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'A.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case A.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'A.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'A.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.1
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.1' and
+      (a1, b1, c1) NOT IN (select * from t_in where a1 = 'no_match');
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.1' and
+      NOT((a1, b1, c1) IN (select * from t_in where a1 = 'no_match'));
+
+-- echo case B.2
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.2' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.2' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+-- echo case B.3
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.3' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.3' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+# test non-top level result indirectly
+select case when count(*) > 0 then 'N' else 'wrong result' end as pred_in from t_out
+where subcase = 'B.3' and
+      ((a1, b1, c1) IN (select * from t_in)) is NULL and
+      ((a1, b1, c1) NOT IN (select * from t_in)) is NULL;
+
+-- echo case B.4
+select case when count(*) > 0 then 'T' else 'F' end as pred_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as pred_not_in from t_out
+where subcase = 'B.4' and
+      (a1, b1, c1) NOT IN (select * from t_in);
+
+select case when count(*) > 0 then 'T' else 'F' end as not_pred_in from t_out
+where subcase = 'B.4' and
+      NOT((a1, b1, c1) IN (select * from t_in));
+
+drop table t_out;
+drop table t_in;
+
+
+#
 # Bug#27348 SET FUNCTION used in  a subquery from WHERE condition
 #
 
@@ -3494,6 +3714,231 @@ SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT
 
 DROP TABLE t1,t2,t3;
 
+# -- echo #
+# -- echo # Bug#33204: INTO is allowed in subselect, causing inconsistent results
+# -- echo #
+# CREATE TABLE t1( a INT );
+# INSERT INTO t1 VALUES (1),(2);
+# 
+# CREATE TABLE t2( a INT, b INT );
+# 
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
+# --error ER_PARSE_ERROR
+# SELECT *
+# FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO @var FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# SELECT * FROM (SELECT a FROM t1 WHERE a = 2) t1a;
+# 
+# SELECT * FROM (
+#   SELECT a FROM t1 WHERE a = 2
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# SELECT * FROM (
+#   SELECT 1 a
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+#   UNION
+#   SELECT a FROM t1 WHERE a = 2
+# ) t1a;
+# 
+# # This was not allowed previously. Possibly, it should be allowed on the future.
+# # For now, the intent is to keep the fix as non-intrusive as possible.
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
+# SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
+# --error ER_PARSE_ERROR
+# SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
+# 
+# SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a LIMIT 1) t1a;
+# SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
+# 
+# # Test of rule
+# # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
+# # UNION should not be allowed inside the parentheses, nor should
+# # aliases after.
+# #
+# SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1) alias ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((t1 t1a UNION SELECT 1)) ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN  (t1 t1a)  t1a ON 1;
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 JOIN ((t1 t1a)) t1a ON 1;
+# 
+# SELECT * FROM t1 JOIN  (t1 t1a)  ON 1;
+# SELECT * FROM t1 JOIN ((t1 t1a)) ON 1;
+# 
+# SELECT * FROM (t1 t1a);
+# SELECT * FROM ((t1 t1a));
+# 
+# SELECT * FROM t1 JOIN  (SELECT 1 t1a) alias ON 1;
+# SELECT * FROM t1 JOIN ((SELECT 1 t1a)) alias ON 1;
+# 
+# SELECT * FROM t1 JOIN  (SELECT 1 a)  a ON 1;
+# SELECT * FROM t1 JOIN ((SELECT 1 a)) a ON 1;
+# 
+# # For the join, TABLE_LIST::select_lex == NULL
+# # Check that we handle this.
+# --error ER_PARSE_ERROR
+# SELECT * FROM (t1 JOIN (SELECT 1) t1a1 ON 1) t1a2;
+# 
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 );
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# SELECT * FROM t1 WHERE a = ( SELECT 1 );
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 INTO DUMPFILE 'file' );
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
+# 
+# # Make sure context is popped when we leave the nested select
+# SELECT ( SELECT a FROM t1 WHERE a = 1 ), a FROM t1;
+# SELECT ( SELECT a FROM t1 WHERE a = 1 UNION SELECT 1 ), a FROM t1;
+# 
+# # Make sure we have feature F561 (see .yy file)
+# SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
+# 
+# # Make sure the parser does not allow nested UNIONs anywhere
+# 
+# --error ER_PARSE_ERROR
+# SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+# 
+# --error ER_PARSE_ERROR
+# SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+# SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+# SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ALL ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a = ANY ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN    ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
+# 
+# SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
+# SELECT EXISTS(SELECT 1+1);
+# --error ER_PARSE_ERROR
+# SELECT EXISTS(SELECT 1+1 INTO @test);
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
+# 
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
+# --error ER_PARSE_ERROR
+# SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
+# DROP TABLE t1, t2;
 #
 # Bug#37460 Assertion failed:
 # !table->file || table->file->inited == handler::NONE
@@ -3517,7 +3962,11 @@ WHERE t1.id=t2.id AND 1 IN (SELECT id FROM t1) WITH CHECK OPTION;
 
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v2(a,b) VALUES (2,2);
+
+# disabled for now as this refers to old content of t2
+--disable_parsing
 INSERT INTO v2(a,b) VALUES (1,2);
+--enable_parsing
 SELECT * FROM v1;
 
 CREATE VIEW v3 AS
@@ -3528,6 +3977,41 @@ DELETE FROM v3;
 
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
+--echo #
+create table t1(id integer primary key, g integer, v integer, s char(1));
+create table t2(id integer primary key, g integer, v integer, s char(1));
+insert into t1 values
+  (10, 10, 10,   'l'),
+  (20, 20, 20,   'l'),
+  (40, 40, 40,   'l'),
+  (41, 40, null, 'l'),
+  (50, 50, 50,   'l'),
+  (51, 50, null, 'l'),
+  (60, 60, 60,   'l'),
+  (61, 60, null, 'l'),
+  (70, 70, 70,   'l'),
+  (90, 90, null, 'l');
+insert into t2 values
+  (10, 10, 10,   'r'),
+  (30, 30, 30,   'r'),
+  (50, 50, 50,   'r'),
+  (60, 60, 60,   'r'),
+  (61, 60, null, 'r'),
+  (70, 70, 70,   'r'),
+  (71, 70, null, 'r'),
+  (80, 80, 80,   'r'),
+  (81, 80, null, 'r'),
+  (100,100,null, 'r');
+
+select *
+from t1
+where v in(select v
+           from t2
+           where t1.g=t2.g) is unknown;
+drop table t1, t2;
 
 --echo #
 --echo # Bug#37822 Correlated subquery with IN and IS UNKNOWN provides wrong result
@@ -3805,6 +4289,7 @@ SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
 
+set @@optimizer_switch=@save_optimizer_switch;
 --echo #
 --echo # Bug #49512 : subquery with aggregate function crash 
 --echo #   subselect_single_select_engine::exec()
@@ -3946,3 +4431,23 @@ DROP TABLE t1,t2;
 --enable_result_log
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # No BUG#, a case brought from 5.2's innodb_mysql_lock.test
+--echo #
+
+create table t1 (i int  not null primary key);
+insert into t1 values (1),(2),(3),(4),(5);
+
+create table t2 (j int not null  primary key);
+insert into t2 values (1),(2),(3),(4),(5);
+
+create table t3 (k int not null primary key);
+insert into t3 values (1),(2),(3);
+
+create view v2 as select t2.j as j from t2 where t2.j in (select t1.i from t1);
+
+select * from t3 where k in (select j from v2);
+
+drop table t1,t2,t3;
+drop view v2;

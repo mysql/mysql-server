@@ -1,55 +1,32 @@
-#!/usr/bin/bash
+#!/bin/sh
 
-function _find_mysql_root () (
-    while [ "x$PWD" != "x/" ]; do
-	# Check if some directories are present
-	if [ -d BUILD -a -d sql -a -d mysys ]; then
-	    echo "$PWD"
-	    return 0
-	fi
-	cd ..
-    done
-    return 1
-)
+# Build setup for Solaris 10
 
-make -k clean || true
-/bin/rm -f */.deps/*.P config.cache
- 
+# Make the Sun Freeware packages use the bundled Perl, instead of their own:
+#     ln -s `which perl` /usr/local/bin
+# Your $PATH needs to include (in this order):
+#     /usr/local/bin:/usr/sfw/bin:/usr/ccs/bin
+# (For Sun Freeware, bundled GNU utilities, Solaris ar, etc.)
+#
+# Required packages from http://sunfreeware.com/indexintel10.html :
+# (The GNU m4 bundled with Solaris is too old.)
+#     automake-1.10.2-sol10-x86-local.gz
+#     autoconf-2.63-sol10-x86-local.gz
+#     m4-1.4.12-sol10-x86-local.gz
+#     libsigsegv-2.6-sol10-x86-local.gz
+#     libtool-1.5.24-sol10-x86-local.gz
+# ( how to install these packages:
+      # wget ftp://ftp.sunfreeware.com/pub/freeware/intel/10/automake-1.10.2-sol10-x86-local.gz
+      # gunzip automake-1.10.2-sol10-x86-local.gz 
+      # pkgadd -d automake-1.10.2-sol10-x86-local 
+# )
+
 path=`dirname $0`
-. "$path/autorun.sh"
- 
-warning_flags="-Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Wunused"
-compiler_flags="-g -O3 -fno-omit-frame-pointer"
+. "$path/SETUP.sh"
+extra_flags="$amd64_cflags -D__sun -m64 -mtune=athlon64"
+extra_configs="$amd64_configs $max_configs --with-libevent"
 
-export CC CXX CFLAGS CXXFLAGS LDFLAGS LIBS
-CC="gcc"
-CXX="gcc"
-CFLAGS="$warning_flags $compiler_flags"
-CXXFLAGS="" 
-LDFLAGS="-O3 -g -static-libgcc"
-LIBS=-lmtmalloc
-root=$(_find_mysql_root)
+LDFLAGS="-lmtmalloc -R/usr/sfw/lib/64"
+export LDFLAGS
 
-$root/configure \
-    --prefix=/usr/local/mysql \
-    --localstatedir=/usr/local/mysql/data \
-    --libexecdir=/usr/local/mysql/bin \
-    --with-extra-charsets=complex \
-    --enable-thread-safe-client \
-    --enable-local-infile \
-    --with-zlib-dir=bundled \
-    --with-big-tables \
-    --with-readline \
-    --with-archive-storage-engine \
-    --with-named-curses=-lcurses \
-    --with-big-tables \
-    --with-innodb \
-    --with-berkeley-db \
-    --with-example-storage-engine \
-    --with-blackhole-storage-engine \
-    --with-ndbcluster \
-    --with-federated-storage-engine \
-    --with-csv-storage-engine \
-    --with-ssl \
-    --with-embedded-server \
-    --disable-shared
+. "$path/FINISH.sh"

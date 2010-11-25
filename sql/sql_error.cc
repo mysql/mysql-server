@@ -591,6 +591,9 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 
   (void) thd->raise_condition(code, NULL, level, msg);
 
+  /* Make sure we also count warnings pushed after calling set_ok_status(). */
+  thd->stmt_da->increment_warning();
+
   DBUG_VOID_RETURN;
 }
 

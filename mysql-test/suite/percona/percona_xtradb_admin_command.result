@@ -1,0 +1,6 @@
+select * from information_schema.XTRADB_ADMIN_COMMAND;
+result_message
+No XTRA_* command in the SQL statement. Please add /*!XTRA_xxxx*/ to the SQL.
+select * from information_schema.XTRADB_ADMIN_COMMAND /*!XTRA_HELLO*/;
+result_message
+Hello!

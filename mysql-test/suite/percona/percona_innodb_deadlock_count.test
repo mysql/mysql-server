@@ -1,0 +1,49 @@
+--source include/have_innodb.inc
+--echo # Establish connection con1 (user=root)
+connect (con1,localhost,root,,);
+--echo # Establish connection con2 (user=root)
+connect (con2,localhost,root,,);
+--echo # Establish connection con3 (user=root)
+connect (con3,localhost,root,,);
+--echo # Drop test table
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+disable_abort_on_error;
+
+--echo # Create test table
+create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
+--echo # Insert two rows to test table
+insert into t values(2,1);
+insert into t values(1,2);
+
+#--echo # Save current deadlock count
+let $current = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
+
+--echo # Switch to connection con1
+connection con1;
+BEGIN; SELECT b FROM t WHERE a=1 FOR UPDATE;
+
+#show engine innodb status;
+
+--echo # Switch to connection con2
+connection con2;
+BEGIN; SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--echo # Switch to connection con1
+connection con1;
+SEND SELECT b FROM t WHERE a=2 FOR UPDATE;
+
+--echo # Switch to connection con2
+connection con2;
+SEND SELECT b FROM t WHERE a=1 FOR UPDATE;
+
+SLEEP 0.2;
+--echo # Switch to connection con3
+connection con3;
+let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
+
+let $diff = `SELECT $result - $current`;
+echo $diff;
+--echo # Drop test table
+drop table t;

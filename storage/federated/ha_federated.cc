@@ -2019,7 +2019,7 @@ int ha_federated::end_bulk_insert()
   int error= 0;
   DBUG_ENTER("ha_federated::end_bulk_insert");
   
-  if (bulk_insert.str && bulk_insert.length)
+  if (!table_will_be_deleted && bulk_insert.str && bulk_insert.length)
   {
     if (real_query(bulk_insert.str, bulk_insert.length))
       error= stash_remote_error();
@@ -2966,6 +2966,8 @@ int ha_federated::extra(ha_extra_function operation)
   case HA_EXTRA_INSERT_WITH_UPDATE:
     insert_dup_update= TRUE;
     break;
+  case HA_EXTRA_PREPARE_FOR_DROP:
+    table_will_be_deleted = TRUE;
   default:
     /* do nothing */
     DBUG_PRINT("info",("unhandled operation: %d", (uint) operation));
@@ -3366,6 +3368,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
     }
   }
 #endif /* XXX_SUPERCEDED_BY_WL2952 */
+  table_will_be_deleted = FALSE;
   DBUG_RETURN(error);
 }
 
@@ -3474,3 +3477,20 @@ mysql_declare_plugin(federated)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(federated)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &federated_storage_engine,
+  "FEDERATED",
+  "Patrick Galbraith and Brian Aker, MySQL AB",
+  "Federated MySQL storage engine",
+  PLUGIN_LICENSE_GPL,
+  federated_db_init, /* Plugin Init */
+  federated_done, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_BETA /* maturity */
+}
+maria_declare_plugin_end;

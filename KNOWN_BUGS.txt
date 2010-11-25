@@ -1,0 +1,35 @@
+This file should contain all know fatal bugs in the Mariadb and the
+Maria storage engine for the last source or binary release.  Minor
+bugs, extensions and feature request and bugs found since this release
+can be find in the MariaDB bugs database at:
+https://bugs.launchpad.net/maria and in the MySQL bugs databases at:
+http://bugs.mysql.com/ (category "Maria storage engine").
+
+There shouldn't normally be any bugs that affects normal operations in
+any MariaDB release.  Still, there are always exceptions and edge cases
+and that's what this file is for.
+
+If you have found a bug that is not listed here, please add it to
+http://bugs.launchpad.net/maria so that we can either fix it for next
+release or in the worst case add it here for others to know!
+
+IMPORTANT:
+
+If you have been using the Maria storage engine with
+MySQL-5.1-Maria-alpha build and upgrading to a newer MariaDB you MUST
+run maria_chk --recover on all your Maria tables.  This is because we
+made an incompatible change of how transaction id is stored and old
+transaction id's must be reset!
+
+cd mysql-data-directory
+maria_chk --recover */*.MAI
+
+As the Maria storage engine is now in beta we will do our best to not
+introduce any incompatible changes in the data format for the Maria
+tables; If this would be ever be needed, we will, if possible, support
+both the old and the new version to make upgrades as easy as possible.
+
+Note that for the MariaDB 5.1 release the Maria storage engine is
+classified as 'beta'; It should work, but use it with caution.  Please
+report all bugs to https://bugs.launchpad.net/maria so that we can fix
+them!

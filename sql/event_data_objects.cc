@@ -739,7 +739,6 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
      would give an error then.
     */
     DBUG_RETURN(1);
-    break;
   case INTERVAL_LAST:
     DBUG_ASSERT(0);
   }
@@ -1382,7 +1381,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
   DBUG_ENTER("Event_job_data::execute");
 
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, 0);
 
   /*
     MySQL parser currently assumes that current database is either
@@ -1468,8 +1467,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
     DBUG_ASSERT(sphead);
 
-    if (thd->enable_slow_log)
-      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
+    sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
 
     sphead->set_info(0, 0, &thd->lex->sp_chistics, sql_mode);

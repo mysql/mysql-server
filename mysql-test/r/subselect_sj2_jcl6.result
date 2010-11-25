@@ -1,0 +1,735 @@
+set join_cache_level=6;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	6
+drop table if exists t0, t1, t2, t3;
+drop view if exists v1;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+a int, 
+b int
+);
+insert into t1 values (1,1),(1,1),(2,2);
+create table t2 (
+a int,
+b int,
+key(b)
+);
+insert into t2 select a, a/2 from t0;
+select * from t1;
+a	b
+1	1
+1	1
+2	2
+select * from t2;
+a	b
+0	0
+1	1
+2	1
+3	2
+4	2
+5	3
+6	3
+7	4
+8	4
+9	5
+explain select * from t2 where b in (select a from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	Using join buffer
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+select * from t2 where b in (select a from t1);
+a	b
+1	1
+2	1
+3	2
+4	2
+create table t3 (
+a int, 
+b int,
+key(b),
+pk1 char(200), pk2 char(200), pk3 char(200),
+primary key(pk1, pk2, pk3)
+) engine=innodb;
+insert into t3 select a,a, a,a,a from t0;
+explain select * from t3 where b in (select a from t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	10	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t3); Using join buffer
+select * from t3 where b in (select a from t1);
+a	b	pk1	pk2	pk3
+1	1	1	1	1
+2	2	2	2	2
+set @save_max_heap_table_size= @@max_heap_table_size;
+set max_heap_table_size=16384;
+set @save_join_buffer_size = @@join_buffer_size;
+set join_buffer_size= 8000;
+drop table t3;
+create table t3 (
+a int, 
+b int,
+key(b),
+pk1 char(200), pk2 char(200),
+primary key(pk1, pk2)
+) engine=innodb;
+insert into t3 select 
+A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
+from t0 A, t0 B where B.a <5;
+explain select * from t3 where b in (select a from t0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
+1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer
+2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	
+set @save_ecp= @@engine_condition_pushdown;
+set engine_condition_pushdown=0;
+select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
+a	b	pk1	pk2
+0	0	0	0
+1	1	1	1
+2	2	2	2
+3	3	3	3
+4	4	4	4
+5	5	5	5
+6	6	6	6
+7	7	7	7
+8	8	8	8
+9	9	9	9
+10	10	10	10
+11	11	11	11
+12	12	12	12
+13	13	13	13
+set engine_condition_pushdown=@save_ecp;
+set join_buffer_size= @save_join_buffer_size;
+set max_heap_table_size= @save_max_heap_table_size;
+explain select * from t1 where a in (select b from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	t2	index	b	b	5	NULL	10	Using index
+select * from t1;
+a	b
+1	1
+1	1
+2	2
+select * from t1 where a in (select b from t2);
+a	b
+1	1
+1	1
+2	2
+drop table t1, t2, t3;
+set @save_join_buffer_size = @@join_buffer_size;
+set join_buffer_size= 8000;
+create table t1 (a int, filler1 binary(200), filler2 binary(200));
+insert into t1 select a, 'filler123456', 'filler123456' from t0;
+insert into t1 select a+10, 'filler123456', 'filler123456' from t0;
+create table t2 as select * from t1;
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+insert into t1 values (2, 'duplicate ok', 'duplicate ok');
+insert into t1 values (18, 'duplicate ok', 'duplicate ok');
+insert into t2 values (3, 'duplicate ok', 'duplicate ok');
+insert into t2 values (19, 'duplicate ok', 'duplicate ok');
+explain select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
+select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+a	mid(filler1, 1,10)	Z
+0	filler1234	1
+1	filler1234	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
+10	filler1234	1
+11	filler1234	1
+12	filler1234	1
+13	filler1234	1
+14	filler1234	1
+15	filler1234	1
+16	filler1234	1
+17	filler1234	1
+18	filler1234	1
+19	filler1234	1
+2	duplicate 	1
+18	duplicate 	1
+explain select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	32	
+select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+a	mid(filler1, 1,10)	length(filler1)=length(filler2)
+0	filler1234	1
+1	filler1234	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
+10	filler1234	1
+11	filler1234	1
+12	filler1234	1
+13	filler1234	1
+14	filler1234	1
+15	filler1234	1
+16	filler1234	1
+17	filler1234	1
+18	filler1234	1
+19	filler1234	1
+3	duplicate 	1
+19	duplicate 	1
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+explain select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where; Using join buffer
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
+select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+a	mid(filler1, 1,10)	Z
+0	filler1234	1
+1	filler1234	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
+10	filler1234	1
+11	filler1234	1
+12	filler1234	1
+13	filler1234	1
+14	filler1234	1
+15	filler1234	1
+16	filler1234	1
+17	filler1234	1
+18	filler1234	1
+19	filler1234	1
+2	duplicate 	1
+18	duplicate 	1
+explain select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	22	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	52	
+select 
+a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+a	mid(filler1, 1,10)	length(filler1)=length(filler2)
+0	filler1234	1
+1	filler1234	1
+2	filler1234	1
+3	filler1234	1
+4	filler1234	1
+5	filler1234	1
+6	filler1234	1
+7	filler1234	1
+8	filler1234	1
+9	filler1234	1
+10	filler1234	1
+11	filler1234	1
+12	filler1234	1
+13	filler1234	1
+14	filler1234	1
+15	filler1234	1
+16	filler1234	1
+17	filler1234	1
+18	filler1234	1
+19	filler1234	1
+3	duplicate 	1
+19	duplicate 	1
+drop table t1, t2;
+create table t1 (a int, b int, key(a));
+create table t2 (a int, b int, key(a));
+create table t3 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+insert into t2 select a,a from t0;
+insert into t3 select a,a from t0;
+t2 and t3 must be use 'ref', not 'ALL':
+explain select * 
+from t0 where a in
+(select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer
+1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
+1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
+drop table t0, t1,t2,t3;
+CREATE TABLE t1 (
+ID int(11) NOT NULL auto_increment,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+INDEX (Population),
+INDEX (Country) 
+);
+CREATE TABLE t2 (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL,
+PRIMARY KEY  (Code),
+UNIQUE INDEX (Name),
+INDEX (Population)
+);
+CREATE TABLE t3 (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0',
+PRIMARY KEY  (Country, Language),
+INDEX (Percentage)
+);
+EXPLAIN
+SELECT Name FROM t2 
+WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
+AND
+t2.Code IN (SELECT Country FROM t3 
+WHERE Language='English' AND Percentage > 10 AND
+t2.Population > 100000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	Population,Country	Population	4	NULL	1	Using index condition; Using MRR
+1	PRIMARY	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using index condition; Using where; Using join buffer
+1	PRIMARY	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t3.Country	1	Using index condition(BKA); Using where; Using join buffer
+DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (
+Code char(3) NOT NULL DEFAULT '',
+Name char(52) NOT NULL DEFAULT '',
+Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL DEFAULT 'Asia',
+Region char(26) NOT NULL DEFAULT '',
+SurfaceArea float(10,2) NOT NULL DEFAULT '0.00',
+IndepYear smallint(6) DEFAULT NULL,
+Population int(11) NOT NULL DEFAULT '0',
+LifeExpectancy float(3,1) DEFAULT NULL,
+GNP float(10,2) DEFAULT NULL,
+GNPOld float(10,2) DEFAULT NULL,
+LocalName char(45) NOT NULL DEFAULT '',
+GovernmentForm char(45) NOT NULL DEFAULT '',
+HeadOfState char(60) DEFAULT NULL,
+Capital int(11) DEFAULT NULL,
+Code2 char(2) NOT NULL DEFAULT '',
+PRIMARY KEY (Code)
+);
+CREATE TABLE t2 (
+ID int(11) NOT NULL AUTO_INCREMENT,
+Name char(35) NOT NULL DEFAULT '',
+CountryCode char(3) NOT NULL DEFAULT '',
+District char(20) NOT NULL DEFAULT '',
+Population int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (ID),
+KEY CountryCode (CountryCode)
+);
+Fill the table with test data
+This must not use LooseScan:
+EXPLAIN SELECT Name FROM t1 
+WHERE t1.Code IN (
+SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	31	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+2	SUBQUERY	t2	ALL	CountryCode	NULL	NULL	NULL	545	Using where
+SELECT Name FROM t1 
+WHERE t1.Code IN (
+SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
+Name
+Austria
+Canada
+China
+Czech Republic
+drop table t1, t2;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(c INT);
+CREATE PROCEDURE p1(v1 int)
+BEGIN
+SELECT 1 FROM t1 WHERE a = v1 AND a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p2(v1 int)
+BEGIN
+SELECT 1 FROM t1 WHERE a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p3(v1 int)
+BEGIN
+SELECT 1 
+FROM 
+t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+t1 t57,t1 t58,t1 t59,t1 t60
+WHERE t01.a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p4(v1 int)
+BEGIN
+SELECT 1 
+FROM 
+t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+t1 t57,t1 t58,t1 t59,t1 t60
+WHERE t01.a = v1 AND t01.a IN (SELECT c FROM t2);
+END
+//
+CALL p1(1);
+1
+CALL p2(1);
+1
+CALL p3(1);
+1
+CALL p4(1);
+1
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4);
+create table t1 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+create table t2 (a int, b int, primary key(a));
+insert into t2 select * from t1;
+Table t2, unlike table t1, should be displayed as pulled out
+explain extended select * from t0
+where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
+t1.b=t2.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using join buffer
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary; Using join buffer
+Warnings:
+Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
+update t1 set a=3, b=11 where a=4;
+update t2 set b=11 where a=3;
+# Not anymore:
+# The following query gives wrong result due to Bug#49129
+select * from t0 where t0.a in 
+(select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
+a
+0
+1
+2
+3
+drop table t0, t1, t2;
+CREATE TABLE t1 (
+id int(11) NOT NULL,
+PRIMARY KEY (id));
+CREATE TABLE t2 (
+id int(11) NOT NULL,
+fid int(11) NOT NULL,
+PRIMARY KEY (id));
+insert into t1 values(1);
+insert into t2 values(1,7503),(2,1);
+explain select count(*) 
+from t1 
+where fid IN (select fid from t2 where (id between 7502 and 8420) order by fid );
+ERROR 42S22: Unknown column 'fid' in 'IN/ALL/ANY subquery'
+drop table t1, t2;
+create table t1 (a int, b int, key (a), key (b));
+insert into t1 values (2,4),(2,4),(2,4);
+select t1.a from t1 
+where 
+t1.a in (select 1 from t1 where t1.a in (select 1 from t1) group by  t1.a);
+a
+drop table t1;
+create table t1(a int,b int,key(a),key(b));
+insert into t1 values (1,1),(2,2),(3,3);
+select 1 from t1 
+where t1.a not in (select 1 from t1 
+where t1.a in (select 1 from t1) 
+group by  t1.b);
+1
+1
+1
+drop table t1;
+CREATE TABLE t1
+(EMPNUM   CHAR(3) NOT NULL,
+EMPNAME  CHAR(20),
+GRADE    DECIMAL(4),
+CITY     CHAR(15));
+CREATE TABLE t2
+(PNUM     CHAR(3) NOT NULL,
+PNAME    CHAR(20),
+PTYPE    CHAR(6),
+BUDGET   DECIMAL(9),
+CITY     CHAR(15));
+CREATE TABLE t3
+(EMPNUM   CHAR(3) NOT NULL,
+PNUM     CHAR(3) NOT NULL,
+HOURS    DECIMAL(5));
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+SELECT * FROM t1;
+EMPNUM	EMPNAME	GRADE	CITY
+E1	Alice	12	Deale
+E2	Betty	10	Vienna
+E3	Carmen	13	Vienna
+E4	Don	12	Deale
+E5	Ed	13	Akron
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+EMPNAME
+Alice
+Betty
+Don
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+EMPNAME
+Alice
+Betty
+Don
+DROP INDEX t1_IDX ON t1;
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+(SELECT EMPNUM
+FROM t3
+WHERE PNUM IN
+(SELECT PNUM
+FROM t2
+WHERE PTYPE = 'Design'));
+EMPNAME
+Alice
+Betty
+Don
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (f1 INT NOT NULL);
+CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
+SELECT * FROM v1;
+a
+drop view v1;
+drop table t1;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1(a int, b int);
+insert into t1 values (0,0),(1,1),(2,2);
+create table t2 as select * from t1;
+create table t3 (pk int, a int, primary key(pk));
+insert into t3 select a,a from t0;
+explain 
+select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+2	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+drop table t0, t1, t2, t3;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a char(200), b char(200), c char(200), primary key (a,b,c)) engine=innodb;
+insert into t2 select concat(a, repeat('X',198)),repeat('B',200),repeat('B',200) from t1;
+insert into t2 select concat(a, repeat('Y',198)),repeat('B',200),repeat('B',200) from t1;
+alter table t2 add filler1 int;
+insert into t1 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+set @save_join_buffer_size=@@join_buffer_size;
+set join_buffer_size=1;
+select * from t2 where filler1 in ( select a from t1);
+a	b	c	filler1
+set join_buffer_size=default;
+drop table t1, t2;
+create table t1 (a int not null);
+drop procedure if exists p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
+prepare s1 from '
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( select a from t1) 
+  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))';
+execute s1;
+END;
+|
+call p1();
+a
+drop procedure p1;
+drop table t1;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int) as select A.a + 10 *(B.a + 10*C.a) as a  from t0 A, t0 B, t0 C;
+create table t2 (id int, a int, primary key(id), key(a)) as select a as id, a as a  from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `a` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+set @a=0;
+create table t3 as select * from t2 limit 0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+alter table t3 add primary key(id), add key(a);
+The following must use loose index scan over t3, key a:
+explain select count(a) from t2 where a in ( SELECT  a FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index	a	a	5	NULL	1000	Using index
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	t3	index	a	a	5	NULL	30000	Using index
+select count(a) from t2 where a in ( SELECT  a FROM t3);
+count(a)
+1000
+drop table t0,t1,t2,t3;
+
+BUG#42740: crash in optimize_semijoin_nests
+
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1, t2;
+# 
+# BUG#42742: crash in setup_sj_materialization, Copy_field::set
+# 
+create table t3 ( c1 year) engine=innodb;
+insert into t3 values (2135),(2142);
+create table t2 (c1 tinytext,c2 text,c6 timestamp) engine=innodb;
+# The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
+explain select 1 from t2 where 
+c2 in (select 1 from t3, t2) and
+c1 in (select convert(c6,char(1)) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2); Using join buffer
+drop table t2, t3;
+set join_cache_level=default;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	1

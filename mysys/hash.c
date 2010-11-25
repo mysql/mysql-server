@@ -361,7 +361,13 @@ static int hashcmp(const HASH *hash, HASH_LINK *pos, const uchar *key,
 }
 
 
-	/* Write a hash-key to the hash-index */
+/**
+   Write a hash-key to the hash-index
+
+   @return
+   @retval  0  ok
+   @retval  1  Duplicate key or out of memory
+*/
 
 my_bool my_hash_insert(HASH *info, const uchar *record)
 {
@@ -371,7 +377,7 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
   uchar *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
   HASH_LINK *data,*empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
 
-  if (HASH_UNIQUE & info->flags)
+  if (info->flags & HASH_UNIQUE)
   {
     uchar *key= (uchar*) my_hash_key(info, record, &idx, 1);
     if (my_hash_search(info, key, idx))
@@ -495,11 +501,21 @@ my_bool my_hash_insert(HASH *info, const uchar *record)
 }
 
 
-/******************************************************************************
-** Remove one record from hash-table. The record with the same record
-** ptr is removed.
-** if there is a free-function it's called for record if found
-******************************************************************************/
+/**
+   Remove one record from hash-table.
+
+   @fn    hash_delete()
+   @param hash		Hash tree
+   @param record	Row to be deleted
+
+   @notes
+   The record with the same record ptr is removed.
+   If there is a free-function it's called if record was found.
+
+   @return
+   @retval  0  ok
+   @retval  1 Record not found
+*/
 
 my_bool my_hash_delete(HASH *hash, uchar *record)
 {
@@ -584,10 +600,11 @@ exit:
   DBUG_RETURN(0);
 }
 
-	/*
-	  Update keys when record has changed.
-	  This is much more efficent than using a delete & insert.
-	  */
+
+/**
+   Update keys when record has changed.
+   This is much more efficent than using a delete & insert.
+*/
 
 my_bool my_hash_update(HASH *hash, uchar *record, uchar *old_key,
                        size_t old_key_length)
@@ -707,6 +724,37 @@ void my_hash_replace(HASH *hash, HASH_SEARCH_STATE *current_record,
 {
   if (*current_record != NO_RECORD)            /* Safety */
     dynamic_element(&hash->array, *current_record, HASH_LINK*)->data= new_row;
+}
+
+
+/**
+   Iterate over all elements in hash and call function with the element
+
+   @param hash     hash array
+   @param action   function to call for each argument
+   @param argument second argument for call to action
+
+   @notes
+   If one of functions calls returns 1 then the iteration aborts
+
+   @retval 0  ok
+   @retval 1  iteration aborted becasue action returned 1
+*/
+
+my_bool my_hash_iterate(HASH *hash, my_hash_walk_action action, void *argument)
+{
+  uint records, i;
+  HASH_LINK *data;
+
+  records= hash->records;
+  data= dynamic_element(&hash->array,0,HASH_LINK*);
+
+  for (i= 0 ; i < records ; i++)
+  {
+    if ((*action)(data[i].data, argument))
+      return 1;
+  }
+  return 0;
 }
 
 

@@ -1,0 +1,1067 @@
+
+--disable_warnings
+DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+--enable_warnings
+
+CREATE TABLE t0 (a int, b int, c int);
+CREATE TABLE t1 (a int, b int, c int);
+CREATE TABLE t2 (a int, b int, c int);
+CREATE TABLE t3 (a int, b int, c int);
+CREATE TABLE t4 (a int, b int, c int);
+CREATE TABLE t5 (a int, b int, c int);
+CREATE TABLE t6 (a int, b int, c int);
+CREATE TABLE t7 (a int, b int, c int);
+CREATE TABLE t8 (a int, b int, c int);
+CREATE TABLE t9 (a int, b int, c int);
+
+INSERT INTO t0 VALUES (1,1,0), (1,2,0), (2,2,0);
+INSERT INTO t1 VALUES (1,3,0), (2,2,0), (3,2,0);
+INSERT INTO t2 VALUES (3,3,0), (4,2,0), (5,3,0);
+INSERT INTO t3 VALUES (1,2,0), (2,2,0);
+INSERT INTO t4 VALUES (3,2,0), (4,2,0);
+INSERT INTO t5 VALUES (3,1,0), (2,2,0), (3,3,0);
+INSERT INTO t6 VALUES (3,2,0), (6,2,0), (6,1,0);
+INSERT INTO t7 VALUES (1,1,0), (2,2,0);
+INSERT INTO t8 VALUES (0,2,0), (1,2,0);
+INSERT INTO t9 VALUES (1,1,0), (1,2,0), (3,3,0);
+
+
+SELECT t2.a,t2.b
+  FROM t2;
+
+SELECT t3.a,t3.b
+  FROM t3;
+
+SELECT t4.a,t4.b
+  FROM t4;
+
+SELECT t3.a,t3.b,t4.a,t4.b
+  FROM t3,t4;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t2.b=t4.b;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b;
+
+EXPLAIN EXTENDED
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t2.b=t4.b
+    WHERE t3.a=1 OR t3.c IS NULL;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t2.b=t4.b
+    WHERE t3.a=1 OR t3.c IS NULL;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t2.b=t4.b
+    WHERE t3.a>1 OR t3.c IS NULL;
+
+SELECT t5.a,t5.b
+  FROM t5;
+
+SELECT t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t3,t4,t5;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4, t5)
+       ON t2.b=t4.b;
+
+EXPLAIN EXTENDED
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4, t5)
+       ON t2.b=t4.b
+    WHERE t3.a>1 OR t3.c IS NULL;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4, t5)
+       ON t2.b=t4.b
+    WHERE t3.a>1 OR t3.c IS NULL;
+
+EXPLAIN EXTENDED
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4, t5)
+       ON t2.b=t4.b
+    WHERE (t3.a>1 OR t3.c IS NULL) AND 
+          (t5.a<3 OR t5.c IS NULL);
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4, t5)
+       ON t2.b=t4.b
+    WHERE (t3.a>1 OR t3.c IS NULL) AND 
+          (t5.a<3 OR t5.c IS NULL);
+
+SELECT t6.a,t6.b
+  FROM t6;
+
+SELECT t7.a,t7.b
+  FROM t7;
+
+SELECT t6.a,t6.b,t7.a,t7.b
+  FROM t6,t7;
+
+SELECT t8.a,t8.b
+  FROM t8;
+
+EXPLAIN EXTENDED
+SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM (t6, t7)
+       LEFT JOIN 
+       t8
+       ON t7.b=t8.b AND t6.b < 10;
+
+SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM (t6, t7)
+       LEFT JOIN 
+       t8
+       ON t7.b=t8.b AND t6.b < 10;
+
+SELECT t5.a,t5.b
+  FROM t5;
+
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t5 
+       LEFT JOIN 
+       ( 
+         (t6, t7)
+         LEFT JOIN 
+         t8
+         ON t7.b=t8.b AND t6.b < 10
+       )
+       ON t6.b >= 2 AND t5.b=t7.b;
+
+SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t5 
+       LEFT JOIN 
+       ( 
+         (t6, t7)
+         LEFT JOIN 
+         t8
+         ON t7.b=t8.b AND t6.b < 10
+       )
+       ON t6.b >= 2 AND t5.b=t7.b AND
+          (t8.a < 1 OR t8.c IS NULL);
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b,
+       t5 
+       LEFT JOIN 
+       ( 
+         (t6, t7)
+         LEFT JOIN 
+         t8
+         ON t7.b=t8.b AND t6.b < 10
+       )
+       ON t6.b >= 2 AND t5.b=t7.b; 
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t2
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b,
+       t5 
+       LEFT JOIN 
+       ( 
+         (t6, t7)
+         LEFT JOIN 
+         t8
+         ON t7.b=t8.b AND t6.b < 10
+       )
+       ON t6.b >= 2 AND t5.b=t7.b
+    WHERE t2.a > 3 AND
+          (t6.a < 6 OR t6.c IS NULL);
+
+SELECT t1.a,t1.b
+  FROM t1;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2);
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2)
+    WHERE (t2.a >= 4 OR t2.c IS NULL);
+   
+SELECT t0.a,t0.b
+  FROM t0;
+
+EXPLAIN EXTENDED
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2)
+    WHERE t0.a=1 AND
+          t0.b=t1.b AND          
+          (t2.a >= 4 OR t2.c IS NULL); 
+
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2)
+    WHERE t0.a=1 AND
+          t0.b=t1.b AND          
+          (t2.a >= 4 OR t2.c IS NULL); 
+
+EXPLAIN EXTENDED
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+
+SELECT t9.a,t9.b
+  FROM t9;
+
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+
+SELECT t1.a,t1.b
+  FROM t1;
+
+SELECT t2.a,t2.b
+  FROM t2;
+
+SELECT t3.a,t3.b
+  FROM t3;
+
+SELECT t2.a,t2.b,t3.a,t3.b
+  FROM t2 
+       LEFT JOIN              
+       t3
+       ON t2.b=t3.b;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+  FROM t1, t2 
+       LEFT JOIN              
+       t3
+       ON t2.b=t3.b
+    WHERE t1.a <= 2;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
+  FROM t1, t3 
+       RIGHT JOIN              
+       t2
+       ON t2.b=t3.b
+    WHERE t1.a <= 2;
+
+SELECT t3.a,t3.b,t4.a,t4.b
+  FROM t3,t4;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t2 
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, t2 
+       LEFT JOIN              
+       (t3, t4)
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, (t3, t4) 
+       RIGHT JOIN              
+       t2
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, (t3, t4)
+       RIGHT JOIN              
+       t2
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
+EXPLAIN EXTENDED
+SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM t1, (t3, t4)
+       RIGHT JOIN
+       t2
+       ON t3.a=1 AND t2.b=t4.b
+    WHERE t1.a <= 2;
+
+CREATE INDEX idx_b ON t2(b);
+
+EXPLAIN EXTENDED
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM (t3,t4)
+       LEFT JOIN              
+       (t1,t2)
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+  FROM (t3,t4)
+       LEFT JOIN              
+       (t1,t2)
+       ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
+
+EXPLAIN EXTENDED
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+
+CREATE INDEX idx_b ON t4(b);
+CREATE INDEX idx_b ON t5(b);
+
+EXPLAIN EXTENDED
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+
+CREATE INDEX idx_b ON t8(b);
+
+--replace_regex /Using where; // /Using where//
+--sorted_result
+EXPLAIN
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+--echo ATTENTION: the above EXPLAIN has several competing QEPs with identical
+--echo .          costs. To combat the plan change it uses --sorted_result and
+--echo .          and --replace tricks
+
+CREATE INDEX idx_b ON t1(b);
+CREATE INDEX idx_a ON t0(a);
+
+--replace_regex /Using where; // /Using where//
+--sorted_result
+EXPLAIN 
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+--echo ATTENTION: the above EXPLAIN has several competing QEPs with identical
+--echo .          costs. To combat the plan change it uses --sorted_result
+--echo .          and --replace tricks
+
+--sorted_result
+SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
+       t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
+  FROM t0,t1
+       LEFT JOIN                
+       ( 
+         t2
+         LEFT JOIN              
+         (t3, t4)
+         ON t3.a=1 AND t2.b=t4.b,
+         t5 
+         LEFT JOIN 
+         ( 
+           (t6, t7)
+           LEFT JOIN 
+           t8
+           ON t7.b=t8.b AND t6.b < 10
+         )
+         ON t6.b >= 2 AND t5.b=t7.b 
+       )
+       ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
+          (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
+          (t1.a != 2),
+       t9
+     WHERE t0.a=1 AND
+           t0.b=t1.b AND          
+           (t2.a >= 4 OR t2.c IS NULL) AND
+           (t3.a < 5 OR t3.c IS NULL) AND
+           (t3.b=t4.b OR t3.c IS NULL OR t4.c IS NULL) AND
+           (t5.a >=2 OR t5.c IS NULL) AND
+           (t6.a >=4 OR t6.c IS NULL) AND
+           (t7.a <= 2 OR t7.c IS NULL) AND
+           (t8.a < 1 OR t8.c IS NULL) AND
+           (t8.b=t9.b OR t8.c IS NULL) AND
+           (t9.a=1); 
+
+SELECT t2.a,t2.b
+  FROM t2;
+
+SELECT t3.a,t3.b
+  FROM t3;
+
+SELECT t2.a,t2.b,t3.a,t3.b
+  FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+    WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
+
+SELECT t2.a,t2.b,t3.a,t3.b
+  FROM t2 LEFT JOIN (t3) ON t2.b=t3.b
+    WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
+
+ALTER TABLE t3
+  CHANGE COLUMN a a1 int,
+  CHANGE COLUMN c c1 int; 
+
+SELECT t2.a,t2.b,t3.a1,t3.b
+  FROM t2 LEFT JOIN t3 ON t2.b=t3.b
+    WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
+
+SELECT t2.a,t2.b,t3.a1,t3.b
+  FROM t2 NATURAL LEFT JOIN t3
+    WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
+
+DROP TABLE t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t1 VALUES (2);
+
+#check proper syntax for nested outer joins
+
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t3.a;
+
+#must be equivalent to:
+
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+
+#check that everything is al right when all tables contain not more than 1 row
+#(bug #4922)
+
+DELETE FROM t1 WHERE a=2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+DELETE FROM t2;
+SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
+
+DROP TABLE t1,t2,t3;
+
+#on expression for a nested outer join does not depend on the outer table
+#bug #4976
+
+CREATE TABLE t1(a int, key (a));                                              
+CREATE TABLE t2(b int, key (b));                                               
+CREATE TABLE t3(c int, key (c));                                               
+
+INSERT INTO t1 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+
+INSERT INTO t2 VALUES (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
+(10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
+
+INSERT INTO t3 VALUES (0), (1), (2), (3), (4), (5);
+
+analyze table t2; # PBXT required for stable count
+analyze table t3; # PBXT required for stable count
+ 
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON c < 3 and b = c;
+--replace_column 9 #
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+
+DELETE FROM t3;
+--replace_column 9 #
+EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
+
+DROP TABLE t1,t2,t3;
+
+#
+# Test for bug #11284: empty table in a nested left join
+# 
+
+CREATE TABLE t1 (c11 int);
+CREATE TABLE t2 (c21 int);
+CREATE TABLE t3 (c31 int);
+
+INSERT INTO t1 VALUES (4), (5);
+
+SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON c11=c21;
+
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
+
+DROP TABLE t1,t2,t3;
+
+#
+# Bug #12154: creation of temp table for a query with nested outer join
+# 
+
+CREATE TABLE t1 (goods int(12) NOT NULL, price varchar(128) NOT NULL);
+INSERT INTO t1 VALUES (23, 2340), (26, 9900);
+
+CREATE TABLE t2 (goods int(12), name varchar(50), shop char(2));
+INSERT INTO t2 VALUES (23, 'as300', 'fr'), (26, 'as600', 'fr');
+
+create table t3 (groupid int(12) NOT NULL, goodsid int(12) NOT NULL);
+INSERT INTO t3 VALUES (3,23), (6,26);
+
+CREATE TABLE t4 (groupid int(12));
+INSERT INTO t4 VALUES (1), (2), (3), (4), (5), (6);
+
+SELECT * FROM
+(SELECT DISTINCT gl.groupid, gp.price
+  FROM t4 gl 
+       LEFT JOIN
+       (t3 g INNER JOIN t2 p ON g.goodsid = p.goods 
+             INNER JOIN t1 gp ON p.goods = gp.goods)
+       ON gl.groupid = g.groupid and p.shop = 'fr') t;
+
+CREATE VIEW v1 AS
+SELECT g.groupid groupid, p.goods goods,  
+       p.name name, p.shop shop, 
+       gp.price price
+  FROM t3 g INNER JOIN t2 p ON g.goodsid = p.goods
+            INNER JOIN t1 gp on p.goods = gp.goods;
+
+CREATE VIEW v2 AS
+SELECT DISTINCT g.groupid, fr.price
+  FROM t4 g
+       LEFT JOIN
+       v1 fr on g.groupid = fr.groupid and fr.shop = 'fr';
+
+SELECT * FROM v2;
+
+SELECT * FROM 
+(SELECT DISTINCT g.groupid, fr.price
+  FROM t4 g
+       LEFT JOIN
+       v1 fr on g.groupid = fr.groupid and fr.shop = 'fr') t;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2,t3,t4;
+
+#
+# Bug #13545: problem with NATURAL/USING joins.
+#
+
+CREATE TABLE t1(a int);
+CREATE TABLE t2(b int);
+CREATE TABLE t3(c int, d int);
+CREATE TABLE t4(d int);
+CREATE TABLE t5(e int, f int);
+CREATE TABLE t6(f int);
+CREATE VIEW v1 AS 
+  SELECT e FROM t5 JOIN t6 ON t5.e=t6.f;
+CREATE VIEW v2 AS 
+  SELECT e FROM t5 NATURAL JOIN t6;
+
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+--error 1054
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c JOIN t4 USING(d);
+SELECT t1.a FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+--error 1054
+SELECT t1.x FROM t1 JOIN t2 ON a=b JOIN t3 ON a=c NATURAL JOIN t4;
+SELECT v1.e FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+--error 1054
+SELECT v1.x FROM v1 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+SELECT v2.e FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+--error 1054
+SELECT v2.x FROM v2 JOIN t2 ON e=b JOIN t3 ON e=c JOIN t4 USING(d);
+
+DROP VIEW v1, v2;
+DROP TABLE t1, t2, t3, t4, t5, t6;
+
+#
+# BUG#13126 -test case from bug report
+#
+create table t1 (id1 int(11) not null); 
+insert into t1 values (1),(2);
+
+create table t2 (id2 int(11) not null);
+insert into t2 values (1),(2),(3),(4);
+
+create table t3 (id3 char(16) not null);
+insert into t3 values ('100');
+
+create table t4 (id2 int(11) not null, id3 char(16));
+
+create table t5 (id1 int(11) not null, key (id1));
+insert into t5 values (1),(2),(1);
+
+create view v1 as
+  select t4.id3 from t4 join t2 on t4.id2 = t2.id2;
+
+select t1.id1 from t1 inner join (t3 left join v1 on t3.id3 = v1.id3);
+
+drop view v1;
+drop table t1, t2, t3, t4, t5;
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3);
+create table t1(a int);
+insert into t1 select A.a + 10*(B.a) from t0 A, t0 B;
+
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2), (3,3);
+
+create table t3(a int, b int, filler char(200), key(a));
+insert into t3 select a,a,'filler' from t1;
+insert into t3 select a,a,'filler' from t1;
+
+create table t4 like t3;
+insert into t4 select * from t3;
+insert into t4 select * from t3;
+
+create table t5 like t4;
+insert into t5 select * from t4;
+insert into t5 select * from t4;
+
+create table t6 like t5;
+insert into t6 select * from t5;
+insert into t6 select * from t5;
+
+create table t7 like t6;
+insert into t7 select * from t6;
+insert into t7 select * from t6;
+
+--replace_column 9 X
+explain select * from t4 join 
+  t2 left join (t3 join t5 on t5.a=t3.b) on t3.a=t2.b where t4.a<=>t3.b;
+
+--replace_column 9 X
+explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
+  join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
+
+--replace_column 9 X
+explain select * from t2 left join
+  (t3 left join (t4 join t6 on t6.a=t4.b) on t4.a=t3.b 
+   join t5 on t5.a=t3.b) on t3.a=t2.b;
+
+drop table t0, t1, t2, t3, t4, t5, t6, t7;
+
+# BUG#16393
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, filler char(100), key(a));
+insert into t2 select A.a + 10*B.a, '' from t1 A, t1 B;
+create table t3 like t2;
+insert into t3 select * from t2;
+
+explain select * from t1 left join 
+  (t2 left join t3 on (t2.a = t3.a)) 
+  on (t1.a = t2.a);
+drop table t1, t2, t3;
+
+#
+# Bug #16260: single row table in the inner nest of an outer join  
+#
+
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t2 (pid int NOT NULL PRIMARY KEY, type varchar(10));
+CREATE TABLE t3 (cid int NOT NULL PRIMARY KEY,
+                 id int NOT NULL,
+                 pid int NOT NULL);
+
+INSERT INTO t1 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t2 VALUES (1, 'A'), (3, 'C');
+INSERT INTO t3 VALUES (1, 1, 1), (3, 3, 3);
+
+SELECT * FROM t1 p LEFT JOIN (t3 JOIN t1)
+                     ON (t1.id=t3.id AND t1.type='B' AND p.id=t3.id)
+                   LEFT JOIN t2 ON (t3.pid=t2.pid)
+  WHERE p.id=1;
+
+CREATE VIEW v1 AS
+  SELECT t3.* FROM t3 JOIN t1 ON t1.id=t3.id AND t1.type='B';
+
+SELECT * FROM t1 p LEFT JOIN v1 ON p.id=v1.id
+                   LEFT JOIN t2 ON v1.pid=t2.pid
+  WHERE p.id=1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+
+#
+# Test for bug #18279: crash when on conditions are moved out of a nested join
+#                      to the on conditions for the nest
+
+CREATE TABLE t1 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t2 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t3 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t4 (id1 int PRIMARY KEY, id2 int);
+CREATE TABLE t5 (id1 int PRIMARY KEY, id2 int);
+
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2;
+
+PREPARE stmt FROM
+"SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2";
+
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt;
+
+INSERT INTO t1 VALUES (1,1), (2,1), (3,2);
+INSERT INTO t2 VALUES (2,1), (3,2), (4,3);
+INSERT INTO t3 VALUES (1,1), (3,2), (2,NULL);
+INSERT INTO t4 VALUES (1,1), (2,1), (3,3);
+INSERT INTO t5 VALUES (1,1), (2,2), (3,3), (4,3);
+
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt; 
+EXECUTE stmt;
+
+SELECT t1.id1 AS id, t5.id1 AS ngroupbynsa
+  FROM t1 INNER JOIN t2 ON t2.id2 = t1.id1
+       LEFT OUTER JOIN
+       (t3 INNER JOIN t4 ON t4.id1 = t3.id2 INNER JOIN t5 ON t4.id2 = t5.id1)
+       ON t3.id2 IS NOT NULL
+    WHERE t1.id1=2; 
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+#
+# Test for bug #24345: crash with nested left outer join when outer table is substituted
+#                      for a row that happens to have a null value for the join attribute.
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL PRIMARY KEY,
+  ct int DEFAULT NULL,
+  pc int DEFAULT NULL,
+  INDEX idx_ct (ct),
+  INDEX idx_pc (pc)
+);
+INSERT INTO t1 VALUES  
+ (1,NULL,NULL),(2,NULL,NULL),(3,NULL,NULL),(4,NULL,NULL),(5,NULL,NULL);
+
+CREATE TABLE t2 (
+  id int NOT NULL PRIMARY KEY,
+  sr int NOT NULL,
+  nm varchar(255) NOT NULL,
+  INDEX idx_sr (sr)
+);
+INSERT INTO t2 VALUES
+  (2441905,4308,'LesAbymes'),(2441906,4308,'Anse-Bertrand');
+
+CREATE TABLE t3 (
+  id int NOT NULL PRIMARY KEY,
+  ct int NOT NULL,
+  ln int NOT NULL,
+  INDEX idx_ct (ct),
+  INDEX idx_ln (ln)
+);
+
+CREATE TABLE t4 (
+  id int NOT NULL PRIMARY KEY,
+  nm varchar(255) NOT NULL
+);
+
+INSERT INTO t4 VALUES (4308,'Guadeloupe'),(4309,'Martinique');
+
+SELECT t1.*
+  FROM t1 LEFT JOIN
+       (t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+    WHERE t1.id='5';
+
+SELECT t1.*, t4.nm
+  FROM t1 LEFT JOIN
+      (t2 LEFT JOIN t3 ON t3.ct=t2.id AND t3.ln='5') ON t1.ct=t2.id
+          LEFT JOIN t4 ON t2.sr=t4.id
+    WHERE t1.id='5';
+
+DROP TABLE t1,t2,t3,t4;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

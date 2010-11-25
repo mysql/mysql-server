@@ -34,6 +34,8 @@
 ################################################################
 
 SET @start_value = @@global.sync_frm;
+# In some cases the server may have been started with --disable-sync-frm
+--replace_column 1 VAL
 SELECT @start_value;
 
 
@@ -155,8 +157,8 @@ SELECT sync_frm = @@session.sync_frm;
 ##############################
 
 SET @@global.sync_frm = @start_value;
+--replace_column 1 VAL
 SELECT @@global.sync_frm;
-
 
 ######################################################
 #              END OF sync_frm TESTS                 #

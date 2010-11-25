@@ -1,0 +1,266 @@
+# Italian (it) translation of debconf templates for mysql-dfsg-5.1
+# Copyright (C) 2006 Software in the Public Interest
+# This file is distributed under the same license as the mysql-dfsg-5.1 package.
+# Luca Monducci <luca.mo@tiscali.it>, 2006, 2007.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1 5.0.38 italian debconf templates\n"
+"Report-Msgid-Bugs-To: percona-xtradb-dfsg-5.1@packages.debian.org\n"
+"POT-Creation-Date: 2010-02-15 17:10-0500\n"
+"PO-Revision-Date: 2007-04-22 15:43+0200\n"
+"Last-Translator: Luca Monducci <luca.mo@tiscali.it>\n"
+"Language-Team: Italian <debian-l10n-italian@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr "Procedere realmente con l'abbassamento di versione?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr ""
+"Su questo sistema esiste un file con nome /var/lib/mysql/debian-*.flag."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"Such file is an indication that a mysql-server package with a higher version "
+"has been installed earlier."
+msgstr ""
+"Quel file indica che in precedenza è stata installata una versione superiore "
+"del pacchetto mysql-server."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"Non è garantito che la versione che si sta installando sia in grado di usare "
+"i database presenti."
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid "Important note for NIS/YP users"
+msgstr "Nota importante per gli utenti NIS/YP"
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"To use MySQL, the following entries for users and groups should be added to "
+"the system:"
+msgstr ""
+"Per usare MySQL i seguenti utenti e gruppi devono essere aggiunti al sistema:"
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"You should also check the permissions and the owner of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"Inoltre si devono verificare i permessi e il proprietario della directory /"
+"var/lib/mysql:"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+#, fuzzy
+#| msgid "Remove all MySQL databases?"
+msgid "Remove all Percona SQL databases?"
+msgstr "Eliminare tutti i database MySQL?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+#, fuzzy
+#| msgid ""
+#| "The /var/lib/mysql directory which contains the MySQL databases is about "
+#| "to be removed."
+msgid ""
+"The /var/lib/mysql directory which contains the Percona SQL databases is "
+"about to be removed."
+msgstr ""
+"La directory /var/lib/mysql contenente i database di MySQL sta per essere "
+"eliminata."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+#, fuzzy
+#| msgid ""
+#| "If you're removing the MySQL package in order to later install a more "
+#| "recent version or if a different mysql-server package is already using "
+#| "it, the data should be kept."
+msgid ""
+"If you're removing the Percona SQL package in order to later install a more "
+"recent version or if a different mysql-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Se si rimuove il pacchetto MySQL per poi installare una versione più recente "
+"oppure se sono già in uso da un altro pacchetto mysql-server, i dati non "
+"devono essere eliminati."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid "Start the MySQL server on boot?"
+msgid "Start the Percona SQL server on boot?"
+msgstr "Lanciare il server MySQL all'avvio?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid ""
+#| "The MySQL server can be launched automatically at boot time or manually "
+#| "with the '/etc/init.d/mysql start' command."
+msgid ""
+"The Percona SQL server can be launched automatically at boot time or "
+"manually with the '/etc/init.d/mysql start' command."
+msgstr ""
+"Il server MySQL può essere lanciato automaticamente all'avvio del sistema "
+"oppure manualmente con il comando «/etc/init.d/mysql start»."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "New password for the Percona SQL \"root\" user:"
+msgstr "Nuova password per l'utente «root» di MySQL:"
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid ""
+#| "While not mandatory, it is highly recommended that you set a password for "
+#| "the MySQL administrative \"root\" user."
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the Percona SQL administrative \"root\" user."
+msgstr ""
+"Sebbene non sia obbligatoria, si raccomanda d'impostare una password per "
+"l'utente d'amministrazione «root» di MySQL."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid "If that field is left blank, the password will not be changed."
+msgstr "Se questo campo è lasciato vuoto, la password non viene cambiata."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:7001
+#, fuzzy
+#| msgid "New password for the MySQL \"root\" user:"
+msgid "Repeat password for the Percona SQL \"root\" user:"
+msgstr "Nuova password per l'utente «root» di MySQL:"
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid "Unable to set password for the MySQL \"root\" user"
+msgid "Unable to set password for the Percona SQL \"root\" user"
+msgstr "Impossibile impostare la password per l'utente «root» di MySQL"
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid ""
+#| "An error occurred while setting the password for the MySQL administrative "
+#| "user. This may have happened because the account already has a password, "
+#| "or because of a communication problem with the MySQL server."
+msgid ""
+"An error occurred while setting the password for the Percona SQL "
+"administrative user. This may have happened because the account already has "
+"a password, or because of a communication problem with the Percona SQL "
+"server."
+msgstr ""
+"Si è verificato un errore durante l'impostazione della password per l'utente "
+"d'amministrazione di MySQL. Questo può essere accaduto perché l'utente ha "
+"già una password oppure a causa di un problema di connessione con il server "
+"MySQL."
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid ""
+#| "You should check the account's password after tha package installation."
+msgid "You should check the account's password after the package installation."
+msgstr ""
+"Al termine dell'installazione si deve verificare la password dell'account."
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for more "
+"information."
+msgstr ""
+"Per maggiori informazioni si consulti il file /usr/share/doc/mysql-server-"
+"5.1/README.Debian."
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid ""
+"Percona-SQL-5.1 has orphaned NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Supporto a connessioni MySQL da macchine con Debian «sarge» o antecedente"
+
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Nelle precedenti versioni dei client MySQL su Debian le password non "
+#~ "erano memorizzate in modo sicuro. Questo è stato migliorato ma i client "
+#~ "(per esempio PHP) presenti su una macchina con Debian 3.1 Sarge non sono "
+#~ "più in grado di connettersi a un nuovo account né ad account le cui "
+#~ "password siano state cambiate."

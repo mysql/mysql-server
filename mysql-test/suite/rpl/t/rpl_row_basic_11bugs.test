@@ -52,6 +52,7 @@ UPDATE t1 SET a=99 WHERE a = 0;
 source include/show_binlog_events.inc;
 
 DROP TABLE t1;
+--sync_slave_with_master
 
 # BUG#17620: Replicate (Row Based) Fails when Query Cache enabled on
 # slave

@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -31,7 +32,7 @@
  * .configure. mbmaxlen_cp932=2
  */
 
-static uchar ctype_cp932[257] =
+static const uchar ctype_cp932[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -68,7 +69,7 @@ static uchar ctype_cp932[257] =
     0020, 0020, 0020, 0020, 0020, 0000, 0000, 0000
 };
 
-static uchar to_lower_cp932[]=
+static const uchar to_lower_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -104,7 +105,7 @@ static uchar to_lower_cp932[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar to_upper_cp932[]=
+static const uchar to_upper_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -140,7 +141,7 @@ static uchar to_upper_cp932[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377'
 };
 
-static uchar sort_order_cp932[]=
+static const uchar sort_order_cp932[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -197,7 +198,7 @@ static uint mbcharlen_cp932(CHARSET_INFO *cs __attribute__((unused)),uint c)
 #define cp932code(c,d)	((((uint) (uchar)(c)) << 8) | (uint) (uchar) (d))
 
 
-static MY_UNICASE_INFO c81[256]=
+static const MY_UNICASE_INFO c81[256]=
 {
   /* 8100-810F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -407,7 +408,7 @@ static MY_UNICASE_INFO c81[256]=
 };
 
 
-static MY_UNICASE_INFO c82[256]=
+static const MY_UNICASE_INFO c82[256]=
 {
   /* 8200-820F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -615,7 +616,7 @@ static MY_UNICASE_INFO c82[256]=
 };
 
 
-static MY_UNICASE_INFO c83[256]=
+static const MY_UNICASE_INFO c83[256]=
 {
   /* 8300-830F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -825,7 +826,7 @@ static MY_UNICASE_INFO c83[256]=
 };
 
 
-static MY_UNICASE_INFO c84[256]=
+static const MY_UNICASE_INFO c84[256]=
 {
   /* 8400-840F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1035,7 +1036,7 @@ static MY_UNICASE_INFO c84[256]=
 };
 
 
-static MY_UNICASE_INFO c87[256]=
+static const MY_UNICASE_INFO c87[256]=
 {
   /* 8700-870F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1245,7 +1246,7 @@ static MY_UNICASE_INFO c87[256]=
 };
 
 
-static MY_UNICASE_INFO cEE[256]=
+static const MY_UNICASE_INFO cEE[256]=
 {
   /* EE00-EE0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1456,7 +1457,7 @@ static MY_UNICASE_INFO cEE[256]=
 };
 
 
-static MY_UNICASE_INFO cFA[256]=
+static const MY_UNICASE_INFO cFA[256]=
 {
   /* FA00-FA0F */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -1666,7 +1667,7 @@ static MY_UNICASE_INFO cFA[256]=
 };
 
 
-static MY_UNICASE_INFO *my_caseinfo_cp932[256]=
+static const MY_UNICASE_INFO *my_caseinfo_cp932[256]=
 {
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1812,7 +1813,7 @@ static size_t my_strnxfrm_cp932(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static uint16 cp932_to_unicode[65536]=
+static const uint16 cp932_to_unicode[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
       0x0004,      0x0005,      0x0006,      0x0007,
@@ -18201,7 +18202,7 @@ static uint16 cp932_to_unicode[65536]=
 };
 
 
-static uint16 unicode_to_cp932[65536]=
+static const uint16 unicode_to_cp932[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
       0x0004,      0x0005,      0x0006,      0x0007,
@@ -34822,7 +34823,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_cp932_japanese_ci=
+struct charset_info_st my_charset_cp932_japanese_ci=
 {
     95,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -34854,7 +34855,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     &my_collation_ci_handler
 };
 
-CHARSET_INFO my_charset_cp932_bin=
+struct charset_info_st my_charset_cp932_bin=
 {
     96,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */

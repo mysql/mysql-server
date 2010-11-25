@@ -102,4 +102,16 @@ execute s using @a, @a;
 
 select 1 as a limit 4294967296,10;
 
+#
+# Test for LIMIT X OFFSET Y
+#
+
+CREATE TABLE t1 (a int PRIMARY KEY auto_increment);
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
+INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
+SELECT a FROM t1 ORDER BY a LIMIT 10 OFFSET 1;
+SELECT a FROM t1 ORDER BY a LIMIT 10 OFFSET 10;
+SELECT a FROM t1 ORDER BY a LIMIT 2 OFFSET 14;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

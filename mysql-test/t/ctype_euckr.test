@@ -77,11 +77,13 @@ DROP TABLE t1;
 CREATE TABLE t1 (a binary(1), key(a));
 --disable_query_log
 let $1=255;
+begin;
 while($1)
 {
   eval INSERT INTO t1 VALUES (unhex(hex($1)));
   dec $1;
 }
+commit;
 --enable_query_log
 
 CREATE TABLE t2 (s VARCHAR(4), a VARCHAR(1) CHARACTER SET euckr);

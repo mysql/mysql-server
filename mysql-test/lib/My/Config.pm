@@ -6,7 +6,6 @@ use strict;
 use warnings;
 use Carp;
 
-
 sub new {
   my ($class, $option_name, $option_value)= @_;
   my $self= bless { name => $option_name,
@@ -61,7 +60,7 @@ sub insert {
     $option->{value}= $value;
   }
   else {
-    my $option= My::Config::Option->new($option_name, $value);
+    $option= My::Config::Option->new($option_name, $value);
     # Insert option in list
     push(@{$self->{options}}, $option);
     # Insert option in hash
@@ -163,6 +162,62 @@ sub if_exist {
   return $option->value();
 }
 
+package My::Config::Group::ENV;
+our @ISA=qw(My::Config::Group);
+
+use strict;
+use warnings;
+use Carp;
+
+sub new {
+  my ($class, $group_name)= @_;
+  bless My::Config::Group->new($group_name), $class;
+}
+
+#
+# Return value for an option in the group, fail if it does not exist
+#
+sub value {
+  my ($self, $option_name)= @_;
+  my $option= $self->option($option_name);
+
+  if (! defined($option) and defined $ENV{$option_name}) {
+    my $value= $ENV{$option_name};
+    $option= My::Config::Option->new($option_name, $value);
+  }
+
+  croak "No option named '$option_name' in group '$self->{name}'"
+    if ! defined($option);
+
+  return $option->value();
+}
+
+package My::Config::Group::OPT;
+our @ISA=qw(My::Config::Group);
+
+use strict;
+use warnings;
+use Carp;
+
+sub new {
+  my ($class, $group_name)= @_;
+  bless My::Config::Group->new($group_name), $class;
+}
+
+sub options {
+  my ($self)= @_;
+  ()
+}
+
+sub value {
+  my ($self, $option_name)= @_;
+  my $option= $self->option($option_name);
+
+  croak "No option named '$option_name' in group '$self->{name}'"
+    if ! defined($option);
+
+  return $option->value()->();
+}
 
 package My::Config;
 
@@ -182,7 +237,10 @@ sub new {
   my ($class, $path)= @_;
   my $group_name= undef;
 
-  my $self= bless { groups => [] }, $class;
+  my $self= bless { groups => [
+      My::Config::Group::ENV->new('ENV'),
+      My::Config::Group::OPT->new('OPT'),
+    ] }, $class;
   my $F= IO::File->new($path, "<")
     or croak "Could not open '$path': $!";
 
@@ -201,19 +259,13 @@ sub new {
     }
 
     # Magic #! comments
-    elsif ( $line =~ /^#\!/) {
-      my $magic= $line;
+    elsif ( $line =~ /^(#\!\S+)(?:\s*(.*?)\s*)?$/) {
+      my ($magic, $arg)= ($1, $2);
       croak "Found magic comment '$magic' outside of group"
 	unless $group_name;
 
       #print "$magic\n";
-      $self->insert($group_name, $magic, undef);
-    }
-
-    # Comments
-    elsif ( $line =~ /^#/ || $line =~ /^;/) {
-      # Skip comment
-      next;
+      $self->insert($group_name, $magic, $arg);
     }
 
     # Empty lines
@@ -238,7 +290,7 @@ sub new {
     }
 
     # <option>
-    elsif ( $line =~ /^([\@\w-]+)\s*$/ ) {
+    elsif ( $line =~ /^(#?[\w-]+)\s*$/ ) {
       my $option= $1;
 
       croak "Found option '$option' outside of group"
@@ -249,7 +301,7 @@ sub new {
     }
 
     # <option>=<value>
-    elsif ( $line =~ /^([\@\w-]+)\s*=\s*(.*?)\s*$/ ) {
+    elsif ( $line =~ /^(#?[\w-]+)\s*=\s*(.*?)\s*$/ ) {
       my $option= $1;
       my $value= $2;
 
@@ -258,10 +310,17 @@ sub new {
 
       #print "$option=$value\n";
       $self->insert($group_name, $option, $value);
-    } else {
-      croak "Unexpected line '$line' found in '$path'";
     }
 
+    # Comments
+    elsif ( $line =~ /^#/ || $line =~ /^;/) {
+      # Skip comment
+      next;
+    }
+    
+    else {
+      croak "Unexpected line '$line' found in '$path'";
+    }
   }
   undef $F;			# Close the file
 
@@ -437,46 +496,6 @@ sub exists {
 
   my $option= $group->option($option_name);
   return defined($option);
-}
-
-
-# Overload "to string"-operator with 'stringify'
-use overload
-    '""' => \&stringify;
-
-#
-# Return the config as a string in my.cnf file format
-#
-sub stringify {
-  my ($self)= @_;
-  my $res;
-
-  foreach my $group ($self->groups()) {
-    $res .= "[$group->{name}]\n";
-
-    foreach my $option ($group->options()) {
-      $res .= $option->name();
-      my $value= $option->value();
-      if (defined $value) {
-	$res .= "=$value";
-      }
-      $res .= "\n";
-    }
-    $res .= "\n";
-  }
-  return $res;
-}
-
-
-#
-# Save the config to named file
-#
-sub save {
-  my ($self, $path)= @_;
-  my $F= IO::File->new($path, ">")
-    or croak "Could not open '$path': $!";
-  print $F $self;
-  undef $F; # Close the file
 }
 
 1;

@@ -22,6 +22,8 @@
 
 #include "ftdefs.h"
 
+static void mi_update_status_with_lock(MI_INFO *info);
+
 	/* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 
 int mi_lock_database(MI_INFO *info, int lock_type)
@@ -56,13 +58,21 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     case F_UNLCK:
       ftparser_call_deinitializer(info);
       if (info->lock_type == F_RDLCK)
+      {
 	count= --share->r_locks;
+        mi_restore_status(info);
+      }
       else
+      {
 	count= --share->w_locks;
+        mi_update_status_with_lock(info);
+      }
       --share->tot_locks;
       if (info->lock_type == F_WRLCK && !share->w_locks &&
 	  !share->delay_key_write && flush_key_blocks(share->key_cache,
-						      share->kfile,FLUSH_KEEP))
+						      share->kfile,
+                                                      &share->dirty_part_map,
+                                                      FLUSH_KEEP))
       {
 	error=my_errno;
         mi_print_error(info->s, HA_ERR_CRASHED);
@@ -84,16 +94,16 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	if (share->changed && !share->w_locks)
 	{
 #ifdef HAVE_MMAP
-    if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
-        (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
-    {
-      if (info->s->concurrent_insert)
-        mysql_rwlock_wrlock(&info->s->mmap_lock);
-      mi_remap_file(info, info->s->state.state.data_file_length);
-      info->s->nonmmaped_inserts= 0;
-      if (info->s->concurrent_insert)
-        mysql_rwlock_unlock(&info->s->mmap_lock);
-    }
+          if ((info->s->mmaped_length != info->s->state.state.data_file_length) &&
+              (info->s->nonmmaped_inserts > MAX_NONMAPPED_INSERTS))
+          {
+            if (info->s->concurrent_insert)
+              mysql_rwlock_wrlock(&info->s->mmap_lock);
+            mi_remap_file(info, info->s->state.state.data_file_length);
+            info->s->nonmmaped_inserts= 0;
+            if (info->s->concurrent_insert)
+              mysql_rwlock_unlock(&info->s->mmap_lock);
+          }
 #endif
 	  share->state.process= share->last_process=share->this_process;
 	  share->state.unique=   info->last_unique=  info->this_unique;
@@ -242,7 +252,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
        a crash on windows if the table is renamed and 
        later on referenced by the merge table.
      */
-    if( info->owned_by_merge && (info->s)->kfile < 0 )
+    if ((info->open_flag & HA_OPEN_MERGE_TABLE) && (info->s)->kfile < 0)
     {
       error = HA_ERR_NO_SUCH_TABLE;
     }
@@ -267,13 +277,15 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 			(THR_WRITE_CONCURRENT_INSERT was used)
 */
 
-void mi_get_status(void* param, int concurrent_insert)
+void mi_get_status(void* param, my_bool concurrent_insert)
 {
   MI_INFO *info=(MI_INFO*) param;
   DBUG_ENTER("mi_get_status");
-  DBUG_PRINT("info",("key_file: %ld  data_file: %ld  concurrent_insert: %d",
-		     (long) info->s->state.state.key_file_length,
-		     (long) info->s->state.state.data_file_length,
+  DBUG_PRINT("info",("name: %s  key_file: %lu  data_file: %lu  rows: %lu  concurrent_insert: %d",
+                     info->s->index_file_name,
+		     (ulong) info->s->state.state.key_file_length,
+		     (ulong) info->s->state.state.data_file_length,
+		     (ulong) info->s->state.state.records,
                      concurrent_insert));
 #ifndef DBUG_OFF
   if (info->state->key_file_length > info->s->state.state.key_file_length ||
@@ -294,6 +306,7 @@ void mi_get_status(void* param, int concurrent_insert)
 void mi_update_status(void* param)
 {
   MI_INFO *info=(MI_INFO*) param;
+  DBUG_ENTER("mi_update_status");
   /*
     Because someone may have closed the table we point at, we only
     update the state if its our own state.  This isn't a problem as
@@ -303,9 +316,11 @@ void mi_update_status(void* param)
   if (info->state == &info->save_state)
   {
 #ifndef DBUG_OFF
-    DBUG_PRINT("info",("updating status:  key_file: %ld  data_file: %ld",
-		       (long) info->state->key_file_length,
-		       (long) info->state->data_file_length));
+    DBUG_PRINT("info",
+               ("updating status:  key_file: %lu  data_file: %lu  rows: %lu",
+                (ulong) info->state->key_file_length,
+                (ulong) info->state->data_file_length,
+                (ulong) info->state->records));
     if (info->state->key_file_length < info->s->state.state.key_file_length ||
 	info->state->data_file_length < info->s->state.state.data_file_length)
       DBUG_PRINT("warning",("old info:  key_file: %ld  data_file: %ld",
@@ -313,6 +328,12 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
+#ifdef HAVE_QUERY_CACHE
+    DBUG_PRINT("info", ("invalidator... '%s' (status update)",
+                        info->filename));
+    DBUG_ASSERT(info->s->chst_invalidator != NULL);
+    (*info->s->chst_invalidator)((const char *)info->filename);
+#endif
   }
   info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
@@ -330,20 +351,50 @@ void mi_update_status(void* param)
     }
     info->opt_flag&= ~WRITE_CACHE_USED;
   }
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Same as mi_update_status() but take a lock in the table lock, to protect
+  against someone calling mi_get_status() from thr_lock() at the same time.
+*/
+
+static void mi_update_status_with_lock(MI_INFO *info)
+{
+  my_bool locked= 0;
+  if (info->state == &info->save_state)
+  {
+    locked= 1;
+    pthread_mutex_lock(&info->s->lock.mutex);
+  }
+  mi_update_status(info);
+  if (locked)
+    pthread_mutex_unlock(&info->s->lock.mutex);
 }
 
 
 void mi_restore_status(void *param)
 {
   MI_INFO *info= (MI_INFO*) param;
+  DBUG_ENTER("mi_restore_status");
+  DBUG_PRINT("info",("key_file: %ld  data_file: %ld",
+		     (long) info->s->state.state.key_file_length,
+		     (long) info->s->state.state.data_file_length));
   info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
+  DBUG_VOID_RETURN;
 }
 
 
 void mi_copy_status(void* to,void *from)
 {
-  ((MI_INFO*) to)->state= &((MI_INFO*) from)->save_state;
+  MI_INFO *info= (MI_INFO*) to;
+  DBUG_ENTER("mi_copy_status");
+  info->state= &((MI_INFO*) from)->save_state;
+  DBUG_PRINT("info",("key_file: %ld  data_file: %ld",
+		     (long) info->state->key_file_length,
+		     (long) info->state->data_file_length));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -371,17 +422,44 @@ void mi_copy_status(void* to,void *from)
 my_bool mi_check_status(void *param)
 {
   MI_INFO *info=(MI_INFO*) param;
+  DBUG_ENTER("mi_check_status");
+  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
+                     (long) info->s->state.dellink, (uint) info->s->r_locks,
+                     (uint) info->s->w_locks));
   /*
     The test for w_locks == 1 is here because this thread has already done an
     external lock (in other words: w_locks == 1 means no other threads has
     a write lock)
   */
-  DBUG_PRINT("info",("dellink: %ld  r_locks: %u  w_locks: %u",
-                     (long) info->s->state.dellink, (uint) info->s->r_locks,
-                     (uint) info->s->w_locks));
-  return (my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
+  DBUG_RETURN((my_bool) !(info->s->state.dellink == HA_OFFSET_ERROR ||
                      (myisam_concurrent_insert == 2 && info->s->r_locks &&
-                      info->s->w_locks == 1));
+                      info->s->w_locks == 1)));
+}
+
+
+/**
+  Fix status for thr_lock_merge()
+
+  @param  org_table
+  @param  new_table that should point on org_lock.  new_table is 0
+          in case this is the first occurence of the table in the lock
+          structure.
+*/
+
+void mi_fix_status(MI_INFO *org_table, MI_INFO *new_table)
+{
+  DBUG_ENTER("mi_fix_status");
+  if (!new_table)
+  {
+    /* First in group. Set state as in mi_get_status() */
+    org_table->state= &org_table->save_state;
+  }
+  else
+  {
+    /* Set new_table to use state from org_table (first lock of this table) */
+    new_table->state= org_table->state;
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -403,10 +481,10 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
 	DBUG_RETURN(1);
       if (mi_state_info_read_dsk(share->kfile, &share->state, 1))
       {
-	int error=my_errno ? my_errno : -1;
+	int error= my_errno ? my_errno : HA_ERR_FILE_TOO_SHORT;
 	(void) my_lock(share->kfile,F_UNLCK,0L,F_TO_EOF,
 		     MYF(MY_SEEK_NOT_DONE));
-	my_errno=error;
+	my_errno= error;
 	DBUG_RETURN(1);
       }
     }
@@ -479,7 +557,8 @@ int _mi_test_if_changed(register MI_INFO *info)
   {						/* Keyfile has changed */
     DBUG_PRINT("info",("index file changed"));
     if (share->state.process != share->this_process)
-      (void) flush_key_blocks(share->key_cache, share->kfile, FLUSH_RELEASE);
+      (void) flush_key_blocks(share->key_cache, share->kfile,
+                            &share->dirty_part_map, FLUSH_RELEASE);
     share->last_process=share->state.process;
     info->last_unique=	share->state.unique;
     info->last_loop=	share->state.update_count;
@@ -554,7 +633,7 @@ int _mi_decrement_open_count(MI_INFO *info)
   {
     uint old_lock=info->lock_type;
     share->global_changed=0;
-    lock_error=mi_lock_database(info,F_WRLCK);
+    lock_error= my_disable_locking ? 0 : mi_lock_database(info,F_WRLCK);
     /* Its not fatal even if we couldn't get the lock ! */
     if (share->state.open_count > 0)
     {
@@ -564,7 +643,7 @@ int _mi_decrement_open_count(MI_INFO *info)
                                      sizeof(share->state.header),
                                      MYF(MY_NABP));
     }
-    if (!lock_error)
+    if (!lock_error && !my_disable_locking)
       lock_error=mi_lock_database(info,old_lock);
   }
   return test(lock_error || write_error);

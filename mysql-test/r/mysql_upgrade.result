@@ -1,13 +1,16 @@
 Run mysql_upgrade once
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -18,9 +21,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -28,18 +28,24 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -50,9 +56,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -60,18 +63,24 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -82,9 +91,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -92,20 +98,27 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
+Phase 1/3: Fixing table and database names
 mysqlcheck: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 FATAL ERROR: Upgrade failed
 set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES,NO_ZERO_DATE';
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -116,9 +129,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -126,6 +136,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 set GLOBAL sql_mode=default;
 #
 # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table 
@@ -135,15 +148,18 @@ CREATE PROCEDURE testproc() BEGIN END;
 UPDATE mysql.proc SET character_set_client = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET collation_connection = NULL WHERE name LIKE 'testproc';
 UPDATE mysql.proc SET db_collation = NULL WHERE name LIKE 'testproc';
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -154,9 +170,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -164,6 +177,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 CALL testproc();
 DROP PROCEDURE testproc;
 WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
@@ -176,15 +192,18 @@ WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been
 GRANT USAGE ON *.* TO 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
+Phase 1/3: Fixing table and database names
+Phase 2/3: Checking and upgrading tables
+Processing databases
+information_schema
+mtr
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
+mysql
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
-mysql.general_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -195,9 +214,6 @@ mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.servers                                      OK
-mysql.slow_log
-Error    : You can't use locks with log tables.
-status   : OK
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -205,6 +221,9 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+test
+Phase 3/3: Running 'mysql_fix_privilege_tables'...
+OK
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
 GRANT USAGE ON *.* TO 'user3'@'%'

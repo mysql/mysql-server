@@ -1,0 +1,17 @@
+drop table if exists t1;
+create table t1 (a int);
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 0;
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 100;
+SET GLOBAL aria_group_commit="HARD";
+SET GLOBAL aria_group_commit_interval= 0;
+SET GLOBAL aria_group_commit="HARD";
+SET GLOBAL aria_group_commit_interval= 100;
+SET GLOBAL aria_group_commit="SOFT";
+SET GLOBAL aria_group_commit_interval= 0;
+SET GLOBAL aria_group_commit="SOFT";
+SET GLOBAL aria_group_commit_interval= 100;
+SET GLOBAL aria_group_commit="NONE";
+SET GLOBAL aria_group_commit_interval= 0;
+drop table t1;

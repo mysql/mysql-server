@@ -137,7 +137,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
        (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers())))
   {
@@ -268,8 +267,15 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
-  if (usable_index==MAX_KEY || (select && select->quick))
-    init_read_record(&info, thd, table, select, 1, 1, FALSE);
+  if (usable_index == MAX_KEY || (select && select->quick))
+  {
+    if (init_read_record(&info, thd, table, select, 1, 1, FALSE))
+    {
+      delete select;
+      free_underlaid_joins(thd, select_lex);
+      DBUG_RETURN(TRUE);
+    }
+  }
   else
     init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
@@ -297,11 +303,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
+    update_virtual_fields(thd, table);
     thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
-    if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
+    if (!select || select->skip_record(thd) > 0)
     {
-
       if (table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
@@ -337,8 +343,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	  InnoDB it can fail in a FOREIGN KEY error or an
 	  out-of-tablespace error.
 	*/
- 	error= 1;
-	break;
+        if (!select_lex->no_error)
+        {
+          error= 1;
+          break;
+        }
       }
     }
     else
@@ -892,7 +901,10 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
   READ_RECORD info;
   ha_rows last_deleted= deleted;
   DBUG_ENTER("do_deletes_for_table");
-  init_read_record(&info, thd, table, NULL, 0, 1, FALSE);
+
+  if (init_read_record(&info, thd, table, NULL, 0, 1, FALSE))
+    DBUG_RETURN(1);
+
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling

@@ -186,6 +186,17 @@ INSERT INTO global_suppressions VALUES
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
 
+ /* Maria storage engine dependent tests */
+
+ /* maria-recovery.test has warning about missing log file */
+ ("File '.*maria_log.000.*' not found \\(Errcode: 2\\)"),
+ /* and about marked-corrupted table */
+ ("Table '..mysqltest.t_corrupted1' is crashed, skipping it. Please repair"),
+ /* maria-recover.test corrupts tables on purpose */
+ ("Checking table:   '..mysqltest.t_corrupted2'"),
+ ("Table '..mysqltest.t_corrupted2' is marked as crashed and should be"),
+ ("Incorrect key file for table '..mysqltest.t_corrupted2.MAI'"),
+
  /* Messages from valgrind */
  ("==[0-9]*== Memcheck,"),
  ("==[0-9]*== Copyright"),

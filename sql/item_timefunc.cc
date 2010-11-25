@@ -559,8 +559,9 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
       %U,%u should be used with %Y and not %X or %x
     */
     if ((strict_week_number &&
-        (strict_week_number_year < 0 ||
-         strict_week_number_year_type != sunday_first_n_first_week_non_iso)) ||
+         (strict_week_number_year < 0 ||
+          strict_week_number_year_type !=
+          sunday_first_n_first_week_non_iso)) ||
         (!strict_week_number && strict_week_number_year >= 0))
       goto err;
 
@@ -775,11 +776,13 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append(hours_i < 12 ? "AM" : "PM",2);
 	break;
       case 'r':
-	length= sprintf(intbuff, ((l_time->hour % 24) < 12) ?
-                        "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
-		        (l_time->hour+11)%12+1,
-		        l_time->minute,
-		        l_time->second);
+	length= my_sprintf(intbuff, 
+		   (intbuff, 
+		    ((l_time->hour % 24) < 12) ?
+                    "%02d:%02d:%02d AM" : "%02d:%02d:%02d PM",
+		    (l_time->hour+11)%12+1,
+		    l_time->minute,
+		    l_time->second));
 	str->append(intbuff, length);
 	break;
       case 'S':
@@ -788,8 +791,12 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'T':
-	length= sprintf(intbuff,  "%02d:%02d:%02d",
-                        l_time->hour, l_time->minute, l_time->second);
+	length= my_sprintf(intbuff, 
+		   (intbuff, 
+		    "%02d:%02d:%02d", 
+		    l_time->hour, 
+		    l_time->minute,
+		    l_time->second));
 	str->append(intbuff, length);
 	break;
       case 'U':
@@ -3051,7 +3058,7 @@ String *Item_func_maketime::val_str(String *str)
     char buf[28];
     char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
     int len = (int)(ptr - buf) +
-      sprintf(ptr, ":%02u:%02u", (uint) minute, (uint) second);
+      my_sprintf(ptr, (ptr, ":%02u:%02u", (uint)minute, (uint)second));
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  buf, len, MYSQL_TIMESTAMP_TIME,
                                  NullS);

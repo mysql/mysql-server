@@ -281,8 +281,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       key++;
       store_length--;
     }
-    if (key_part->key_part_flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART |
-                                   HA_BIT_PART))
+    if (!(key_part->key_part_flag & HA_CAN_MEMCMP))
     {
       if (key_part->field->key_cmp(key, key_part->length))
 	return 1;

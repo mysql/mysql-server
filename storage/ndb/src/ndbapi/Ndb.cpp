@@ -1569,9 +1569,11 @@ Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNam
     register const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+      ;
     // Skip schema name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+      ;
     return ptr;
   }
   else
@@ -1591,7 +1593,9 @@ Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNam
     register const char *ptr = internalIndexName;
    
     // Scan name from the end
-    while (*ptr++); ptr--; // strend
+    while (*ptr++)
+      ;
+    ptr--; // strend
     while (ptr >= internalIndexName && *ptr != table_name_separator)
       ptr--;
      

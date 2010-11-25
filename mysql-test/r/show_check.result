@@ -254,13 +254,11 @@ drop table t1;
 flush tables;
 show open tables;
 Database	Table	In_use	Name_locked
-mysql	general_log	0	0
 create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
 test	t1	0	0
-mysql	general_log	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -972,7 +970,7 @@ def	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references
 ----------------------------------------------------------------
 SHOW TABLES LIKE 't1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	information_schema	TABLE_NAMES	TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	192	2	N	1	0	33
+def	information_schema	TABLE_NAMES	TABLE_NAMES	TABLE_NAME	Tables_in_test (t1)	253	219	2	N	1	0	33
 Tables_in_test (t1)
 t1
 ----------------------------------------------------------------

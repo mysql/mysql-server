@@ -25,7 +25,7 @@ use Cwd;
 use DBI;
 use Benchmark;
 
-$opt_loop_count=1000; # Change this to make test harder/easier
+$opt_loop_count=70000; # Change this to make test harder/easier
 $opt_field_count=1000;
 
 $pwd = cwd(); $pwd = "." if ($pwd eq '');

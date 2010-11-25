@@ -9,8 +9,6 @@
 
 log-bin=                 master-bin
 
-loose-innodb
-
 [mysqld.2]
 # Run the slave.sh script before starting this process
 #!run-slave-sh
@@ -19,7 +17,6 @@ loose-innodb
 # starting the mysqld
 #!use-slave-opt
 
-log-bin=                    slave-bin
 relay-log=                  slave-relay-bin
 
 init-rpl-role=              slave

@@ -11,7 +11,13 @@
 # Skipping this test if default engine = ndb
 #####################################
 -- source include/not_ndb_default.inc
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 -- source include/master-slave.inc
+
+--disable_warnings
+drop tables if exists t1;
+--enable_warnings
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -54,6 +60,6 @@ drop table t1;
 sync_slave_with_master;
 
 # If the machine is so fast that slave syncs before OPTIMIZE
-# starts, this test wil demonstrate nothing but will pass.
+# starts, this test will demonstrate nothing but will pass.
 
 # End of 4.1 tests

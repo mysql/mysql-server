@@ -1,0 +1,83 @@
+# Start with thread_handling=pool-of-threads
+# and run a number of tests
+
+-- source include/have_pool_of_threads.inc
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
+-- source include/common-tests.inc
+
+
+# Test that we cannot have more simultaneous connections than
+# --thread-pool-size on the standard port, but _can_ have additional
+# connections on the extra port.
+
+# First set two connections running, and check that extra connection
+# on normal port fails due to--thread-pool-size=2
+connection default;
+send SELECT sleep(5);
+
+connect(con2,localhost,root,,);
+connection con2;
+send SELECT sleep(5);
+--sleep 1
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(con3,localhost,root,,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than --thread-pool-size connections
+}
+if ($error)
+{
+  --echo # -- Success: more than --thread-pool-size normal connections not possible
+}
+
+connection default;
+--reap
+connection con2;
+--reap
+
+# Now try again, but this time use the extra port to successfully connect.
+
+connection default;
+send SELECT sleep(5);
+
+connection con2;
+send SELECT sleep(5);
+--sleep 1
+
+connect(extracon,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon;
+SELECT 'Connection on extra port ok';
+
+connect(extracon2,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+connection extracon2;
+SELECT 'Connection on extra port 2 ok';
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(extracon3,127.0.0.1,root,,test,$MASTER_EXTRA_PORT,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than --extra-max-connections + 1 connections
+}
+if ($error)
+{
+  --echo # -- Success: more than --extra-max-connections + 1 normal connections not possible
+}
+
+connection default;
+--reap
+connection con2;
+--reap

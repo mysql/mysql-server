@@ -2870,7 +2870,7 @@ innobase_rollback_to_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36);
+	longlong2str((ulint)savepoint, name, 36, 1);
 
 	error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
@@ -2901,7 +2901,7 @@ innobase_release_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
-	longlong2str((ulint)savepoint, name, 36);
+	longlong2str((ulint)savepoint, name, 36, 1);
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
@@ -2948,7 +2948,7 @@ innobase_savepoint(
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 	char name[64];
-	longlong2str((ulint)savepoint,name,36);
+	longlong2str((ulint)savepoint,name,36,1);
 
 	error = (int) trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
@@ -5790,7 +5790,8 @@ ha_innobase::change_active_index(
 				    keynr);
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
-		DBUG_RETURN(2);
+		DBUG_RETURN(convert_error_code_to_mysql(DB_MISSING_HISTORY,
+                                                        0, NULL));
 	}
 
 	ut_a(prebuilt->search_tuple != 0);

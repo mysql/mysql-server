@@ -79,6 +79,71 @@ inline uint get_set_pack_length(int elements)
   return len > 4 ? 8 : len;
 }
 
+/*
+  Virtual_column_info is the class to contain additional
+  characteristics that is specific for a virtual/computed
+  field such as:
+   - the defining expression that is evaluated to compute the value
+  of the field 
+  - whether the field is to be stored in the database
+  - whether the field is used in a partitioning expression
+*/
+
+class Virtual_column_info: public Sql_alloc
+{
+private:
+  /*
+    The following data is only updated by the parser and read
+    when a Create_field object is created/initialized.
+  */
+  enum_field_types field_type;   /* Real field type*/
+  /* Flag indicating  that the field is physically stored in the database */
+  bool stored_in_db;
+  /* Flag indicating that the field used in a partitioning expression */
+  bool in_partitioning_expr;
+
+public:
+  /* The expression to compute the value of the virtual column */
+  Item *expr_item;
+  /* Text representation of the defining expression */
+  LEX_STRING expr_str;
+
+  Virtual_column_info()
+  : field_type((enum enum_field_types)MYSQL_TYPE_VIRTUAL),
+    stored_in_db(FALSE), in_partitioning_expr(FALSE), 
+    expr_item(NULL)
+  {
+    expr_str.str= NULL;
+    expr_str.length= 0;
+  };
+  ~Virtual_column_info() {}
+  enum_field_types get_real_type()
+  {
+    return field_type;
+  }
+  void set_field_type(enum_field_types fld_type)
+  {
+    /* Calling this function can only be done once. */
+    field_type= fld_type;
+  }
+  bool is_stored()
+  {
+    return stored_in_db;
+  }
+  void set_stored_in_db_flag(bool stored)
+  {
+    stored_in_db= stored;
+  }
+  bool is_in_partitioning_expr()
+  {
+    return in_partitioning_expr;
+  }
+  void mark_as_in_partitioning_expr()
+  {
+    in_partitioning_expr= TRUE;
+  }
+};
+
 class Field
 {
   Field(const Item &);				/* Prevent use of these */
@@ -95,20 +160,23 @@ public:
   */
   uchar		*null_ptr;
   /*
-    Note that you can use table->in_use as replacement for current_thd member 
+    Note that you can use table->in_use as replacement for current_thd member
     only inside of val_*() and store() members (e.g. you can't use it in cons)
   */
   TABLE *table;                                 // Pointer for table
   TABLE *orig_table;                            // Pointer to original table
   const char	**table_name, *field_name;
+  /** reference to the list of options or NULL */
+  engine_option_value *option_list;
+  void *option_struct;                  /* structure with parsed options */
   LEX_STRING	comment;
   /* Field is part of the following keys */
   key_map	key_start, part_of_key, part_of_key_not_clustered;
   key_map       part_of_sortkey;
-  /* 
-    We use three additional unireg types for TIMESTAMP to overcome limitation 
-    of current binary format of .frm file. We'd like to be able to support 
-    NOW() as default and on update value for such fields but unable to hold 
+  /*
+    We use three additional unireg types for TIMESTAMP to overcome limitation
+    of current binary format of .frm file. We'd like to be able to support
+    NOW() as default and on update value for such fields but unable to hold
     this info anywhere except unireg_check field. This issue will be resolved
     in more clean way with transition to new text based .frm format.
     See also comment for Field_timestamp::Field_timestamp().
@@ -141,6 +209,19 @@ public:
    */
   bool is_created_from_null_item;
 
+  /* 
+    This is additional data provided for any computed(virtual) field.
+    In particular it includes a pointer to the item by  which this field
+    can be computed from other fields.
+  */
+  Virtual_column_info *vcol_info;
+  /*
+    Flag indicating that the field is physically stored in tables
+    rather than just computed from other fields.
+    As of now, FALSE can be set only for computed virtual columns.
+  */
+  bool stored_in_db;
+
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
@@ -170,7 +251,7 @@ public:
      This trickery is used to decrease a number of malloc calls.
   */
   virtual String *val_str(String*,String *)=0;
-  String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  String *val_int_as_str(String *val_buffer, bool unsigned_flag);
   /*
    str_needs_quotes() returns TRUE if the value returned by val_str() needs
    to be quoted when used in constructing an SQL query.
@@ -279,11 +360,11 @@ public:
     return test(record[(uint) (null_ptr -table->record[0])] &
 		null_bit);
   }
-  inline bool is_null_in_record_with_offset(my_ptrdiff_t offset)
+  inline bool is_null_in_record_with_offset(my_ptrdiff_t col_offset)
   {
     if (!null_ptr)
       return 0;
-    return test(null_ptr[offset] & null_bit);
+    return test(null_ptr[col_offset] & null_bit);
   }
   inline void set_null(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
@@ -382,7 +463,7 @@ public:
       Number of copied bytes (excluding padded zero bytes -- see above).
   */
 
-  virtual uint get_key_image(uchar *buff, uint length, imagetype type)
+  virtual uint get_key_image(uchar *buff, uint length, imagetype type_arg)
   {
     get_image(buff, length, &my_charset_bin);
     return length;
@@ -724,7 +805,7 @@ public:
 /* base class for float and double and decimal (old one) */
 class Field_real :public Field_num {
 public:
-  my_bool not_fixed;
+  bool not_fixed;
 
   Field_real(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, utype unireg_check_arg,
@@ -1151,7 +1232,7 @@ public:
                 NONE, field_name_arg, dec_arg, 0, 0)
     {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-	       uint8 dec_arg, my_bool not_fixed_arg)
+	       uint8 dec_arg, bool not_fixed_arg)
     :Field_real((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "" : 0, (uint) 0,
                 NONE, field_name_arg, dec_arg, 0, 0)
     {not_fixed= not_fixed_arg; }
@@ -1246,7 +1327,7 @@ public:
       Field::set_default();
   }
   /* Get TIMESTAMP field value as seconds since begging of Unix Epoch */
-  inline long get_timestamp(my_bool *null_value)
+  inline long get_timestamp(bool *null_value)
   {
     if ((*null_value= is_null()))
       return 0;
@@ -1549,8 +1630,8 @@ public:
                              uint16 mflags, int *order_var);
   uint row_pack_length() { return field_length; }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
+               bool insert_or_update);
+  int pack_cmp(const uchar *b,uint key_length,bool insert_or_update);
   uint packed_col_length(const uchar *to, uint length);
   uint max_packed_col_length(uint max_length);
   uint size_of() const { return sizeof(*this); }
@@ -2092,14 +2173,31 @@ public:
   CHARSET_INFO *charset;
   Field::geometry_type geom_type;
   Field *field;				// For alter table
+  engine_option_value *option_list;
+  /** structure with parsed options (for comparing fields in ALTER TABLE) */
+  void *option_struct;
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
-  Create_field() :after(0) {}
+
+    /* 
+    This is additinal data provided for any computed(virtual) field.
+    In particular it includes a pointer to the item by  which this field
+    can be computed from other fields.
+  */
+  Virtual_column_info *vcol_info;
+  /*
+    Flag indicating that the field is physically stored in tables
+    rather than just computed from other fields.
+    As of now, FALSE can be set only for computed virtual columns.
+  */
+  bool stored_in_db;
+
+  Create_field() :after(0), option_list(NULL), option_struct(NULL)
+  {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
-  Create_field *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Create_field(*this); }
+  Create_field *clone(MEM_ROOT *mem_root) const;
   void create_length_to_internal_length(void);
 
   /* Init for a tmp table field. To be extended if need be. */
@@ -2112,7 +2210,8 @@ public:
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
-            uint uint_geom_type);
+            uint uint_geom_type, Virtual_column_info *vcol_info,
+            engine_option_value *option_list);
 
   bool field_flags_are_binary()
   {
@@ -2151,7 +2250,7 @@ class Copy_field :public Sql_alloc {
 public:
   uchar *from_ptr,*to_ptr;
   uchar *from_null_ptr,*to_null_ptr;
-  my_bool *null_row;
+  bool *null_row;
   uint	from_bit,to_bit;
   uint from_length,to_length;
   Field *from_field,*to_field;

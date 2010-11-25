@@ -76,9 +76,9 @@ public:
   my_time_t starts;
   my_time_t ends;
   my_time_t execute_at;
-  my_bool starts_null;
-  my_bool ends_null;
-  my_bool execute_at_null;
+  bool starts_null;
+  bool ends_null;
+  bool execute_at_null;
 
   sp_name *identifier;
   Item* item_expression;

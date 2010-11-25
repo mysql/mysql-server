@@ -121,8 +121,8 @@ insert into t1 values (1);
 explain select * from t1 where 3 in (select (1+1) union select 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
 select * from t1 where 3 in (select (1+1) union select 1);
 a

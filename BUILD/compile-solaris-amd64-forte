@@ -1,53 +1,29 @@
-#! /bin/sh
+#!/bin/sh
 
-gmake -k clean || true
-/bin/rm -f */.deps/*.P config.cache
- 
+# See file compile-solaris-amd64 for basic pre-requisites.
+
+# This build uses the Sun Studio compilers (cc, CC), available from:
+#     http://developers.sun.com/sunstudio/downloads/index.jsp
+# Note that you may want to apply current patches, as the downloaded version
+# is typically out of date. Download the PKG version if you intend to patch!
+
+# After installing, add /opt/SUNWspro/bin to your $PATH
+
+
 path=`dirname $0`
-. "$path/autorun.sh"
+. "$path/SETUP.sh"
 
-# For "optimal" code for this computer add -fast to EXTRA
-# To compile 64 bit, add -m64 to EXTRA_64_BIT
+extra_flags="-m64 -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3"
+extra_configs="$max_configs --with-libevent"
 
-EXTRA_64_BIT="-m64"
-EXTRA="-fast"
+warnings=""
+c_warnings=""
+cxx_warnings=""
+base_cxxflags="-noex"
 
-#
-# The following should not need to be touched
-#
-
-export CC CXX CFLAGS CXXFLAGS LIBS
-STD="-g -mt -D_FORTEC_ $EXTRA $EXTRA_64_BIT"
-ASFLAGS="$EXTRA_64_BIT"
-CC=cc-5.0
-CFLAGS="-Xa -xstrconst $STD"
+CC=cc
+CFLAGS="-xstrconst"
 CXX=CC
-CXXFLAGS="-noex $STD"
-LIBS=-lmtmalloc
-./configure \
-    --prefix=/usr/local/mysql \
-    --localstatedir=/usr/local/mysql/data \
-    --libexecdir=/usr/local/mysql/bin \
-    --with-extra-charsets=complex \
-    --enable-thread-safe-client \
-    --enable-local-infile \
-    --with-zlib-dir=bundled \
-    --with-big-tables \
-    --with-readline \
-    --with-archive-storage-engine \
-    --with-named-curses=-lcurses \
-    --with-big-tables \
-    --with-innodb \
-    --with-example-storage-engine \
-    --with-blackhole-storage-engine \
-    --with-federated-storage-engine \
-    --with-csv-storage-engine \
-    --with-ssl \
-    --enable-assembler
+LDFLAGS="-lmtmalloc"
 
-# Not including:
-#     --with-ndbcluster
-#     --with-berkeley-db
-
-gmake -j4
-test $? = 0 && make test
+. "$path/FINISH.sh"

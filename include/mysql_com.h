@@ -29,8 +29,13 @@
 
 #define MYSQL_AUTODETECT_CHARSET_NAME "auto"
 
+#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
+#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  (sizeof(MYSQL50_TABLE_NAME_PREFIX)-1)
+#define SAFE_NAME_LEN (NAME_LEN + MYSQL50_TABLE_NAME_PREFIX_LENGTH)
+
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
+#define LIST_PROCESS_HOST_LEN 64
 
 /*
   Maximum length of comments
@@ -77,7 +82,8 @@ enum enum_server_command
   COM_END
 };
 
-
+/* sql type stored in .frm files for virtual fields */
+#define MYSQL_TYPE_VIRTUAL 245
 /*
   Length of random string sent by server on handshake; this is also length of
   obfuscated password, recieved from client
@@ -125,6 +131,8 @@ enum enum_server_command
 					   thread */
 #define REFRESH_MASTER          128     /* Remove all bin logs in the index
 					   and truncate the index */
+
+/* The following can't be set with mysql_refresh() */
 #define REFRESH_ERROR_LOG       256 /* Rotate only the erorr log */
 #define REFRESH_ENGINE_LOG      512 /* Flush all storage engine logs */
 #define REFRESH_BINARY_LOG     1024 /* Flush the binary log */
@@ -132,7 +140,6 @@ enum enum_server_command
 #define REFRESH_GENERAL_LOG    4096 /* Flush the general log */
 #define REFRESH_SLOW_LOG       8192 /* Flush the slow query log */
 
-/* The following can't be set with mysql_refresh() */
 #define REFRESH_READ_LOCK	16384	/* Lock tables for read */
 #define REFRESH_FAST		32768	/* Intern flag */
 
@@ -141,6 +148,11 @@ enum enum_server_command
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
+
+#define REFRESH_TABLE_STATS     (1L << 20) /* Refresh table stats hash table */
+#define REFRESH_INDEX_STATS     (1L << 21) /* Refresh index stats hash table */
+#define REFRESH_USER_STATS      (1L << 22) /* Refresh user stats hash table */
+#define REFRESH_CLIENT_STATS    (1L << 23) /* Refresh client stats hash table */
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -162,8 +174,16 @@ enum enum_server_command
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
+#define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
+
+#ifdef HAVE_COMPRESS
+#define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
+#else
+#define CAN_CLIENT_COMPRESS 0
+#endif
 
 /* Gather all possible capabilites (flags) supported by the server */
 #define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD | \
@@ -186,7 +206,8 @@ enum enum_server_command
                            CLIENT_MULTI_RESULTS | \
                            CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
-                           CLIENT_REMEMBER_OPTIONS)
+                           CLIENT_REMEMBER_OPTIONS | \
+                           CLIENT_PLUGIN_AUTH)
 
 /*
   Switch off the flags that are optional and depending on build flags
@@ -285,8 +306,8 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused1; /* Please remove with the next incompatible ABI change. */
-  my_bool unused2; /* Please remove with the next incompatible ABI change */
+  char net_skip_rest_factor;
+  my_bool unused1; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   my_bool unused3; /* Please remove with the next incompatible ABI change. */
   /*
@@ -307,16 +328,6 @@ typedef struct st_net {
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;
-#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  /*
-    Controls whether a big packet should be skipped.
-
-    Initially set to FALSE by default. Unauthenticated sessions must have
-    this set to FALSE so that the server can't be tricked to read packets
-    indefinitely.
-  */
-  my_bool skip_big_packet;
-#endif
 } NET;
 
 
@@ -452,11 +463,7 @@ void my_net_set_read_timeout(NET *net, uint timeout);
 struct sockaddr;
 int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
 	       unsigned int timeout);
-
-struct rand_struct {
-  unsigned long seed1,seed2,max_value;
-  double max_value_dbl;
-};
+struct my_rnd_struct;
 
 #ifdef __cplusplus
 }
@@ -464,8 +471,13 @@ struct rand_struct {
 
   /* The following is for user defined functions */
 
-enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
+enum Item_result
+{
+  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT, DECIMAL_RESULT
+#ifdef MYSQL_SERVER
+  ,IMPOSSIBLE_RESULT  /* Yes, we know this is ugly, don't tell us */
+#endif
+};
 
 typedef struct st_udf_args
 {
@@ -510,22 +522,20 @@ extern "C" {
   implemented in sql/password.c
 */
 
-void randominit(struct rand_struct *, unsigned long seed1,
-                unsigned long seed2);
-double my_rnd(struct rand_struct *);
-void create_random_string(char *to, unsigned int length, struct rand_struct *rand_st);
+void create_random_string(char *to, unsigned int length,
+                          struct my_rnd_struct *rand_st);
 
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
-my_bool check_scramble_323(const char *, const char *message,
+my_bool check_scramble_323(const unsigned char *reply, const char *message,
                            unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
-my_bool check_scramble(const char *reply, const char *message,
+my_bool check_scramble(const unsigned char *reply, const char *message,
                        const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);

@@ -1,6 +1,7 @@
 --source include/have_partition.inc
 --source include/have_innodb.inc
 --source include/master-slave.inc
+--source include/big_test.inc
 
 --vertical_results
 

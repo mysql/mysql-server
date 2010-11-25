@@ -25,8 +25,6 @@ typedef uint32 my_bitmap_map;
 typedef struct st_bitmap
 {
   my_bitmap_map *bitmap;
-  uint n_bits; /* number of bits occupied by the above */
-  my_bitmap_map last_word_mask;
   my_bitmap_map *last_word_ptr;
   /*
      mutex will be acquired for the duration of each bitmap operation if
@@ -36,6 +34,8 @@ typedef struct st_bitmap
 #ifdef THREAD
   mysql_mutex_t *mutex;
 #endif
+  my_bitmap_map last_word_mask;
+  uint32	n_bits; /* number of bits occupied by the above */
 } MY_BITMAP;
 
 #ifdef	__cplusplus
@@ -53,6 +53,8 @@ extern my_bool bitmap_is_overlapping(const MY_BITMAP *map1,
 extern my_bool bitmap_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_test_and_clear(MY_BITMAP *map, uint bitmap_bit);
 extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
+extern my_bool bitmap_union_is_set_all(const MY_BITMAP *map1,
+                                       const MY_BITMAP *map2);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);

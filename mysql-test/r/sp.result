@@ -6525,19 +6525,19 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
@@ -7050,7 +7050,6 @@ select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
 set @@sql_mode= @old_mode;
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 name

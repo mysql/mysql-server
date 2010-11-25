@@ -4405,8 +4405,8 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows)
 int ha_ndbcluster::end_bulk_insert()
 {
   int error= 0;
-
   DBUG_ENTER("end_bulk_insert");
+
   // Check if last inserts need to be flushed
   if (m_bulk_insert_not_flushed)
   {
@@ -4758,7 +4758,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
 
-  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: %lx  "
+  DBUG_PRINT("enter", ("this: 0x%lx  thd: 0x%lx  thd_ndb: 0x%lx  "
                        "thd_ndb->lock_count: %d",
                        (long) this, (long) thd, (long) thd_ndb,
                        thd_ndb->lock_count));
@@ -6435,9 +6435,10 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
-        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
+    if ((m_skip_auto_increment &&
+         ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
+        ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size,
+                                    increment, offset))
     {
       if (--retries &&
           ndb->getNdbError().status == NdbError::TemporaryError)
@@ -8983,6 +8984,8 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   DBUG_RETURN(FALSE);
 }
 
+#if 0 
+/* MRR/NDB is disabled, for details see method declarations in ha_ndbcluster.h */
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -9395,6 +9398,7 @@ found_next:
   m_multi_range_result_ptr += reclength;
   DBUG_RETURN(0);
 }
+#endif 
 
 int
 ha_ndbcluster::setup_recattr(const NdbRecAttr* curr)
@@ -9503,7 +9507,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user = 0;
+  thd->main_security_ctx.priv_user[0] = 0;
   /* Do not use user-supplied timeout value for system threads. */
   thd->variables.lock_wait_timeout= LONG_TIMEOUT;
 
@@ -10271,8 +10275,10 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY &&
+         create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK &&
+         create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
@@ -11030,5 +11036,24 @@ mysql_declare_plugin(ndbcluster)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ndbcluster)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbcluster_storage_engine,
+  ndbcluster_hton_name,
+  "MySQL AB",
+  "Clustered, fault-tolerant tables",
+  PLUGIN_LICENSE_GPL,
+  ndbcluster_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
 
+#else
+int Sun_ar_require_a_symbol_here= 0;
 #endif

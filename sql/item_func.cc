@@ -173,7 +173,9 @@ Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
   Item **arg,**arg_end;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
+  thd->thd_marker.emb_on_expr_nest= NULL;
 
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
@@ -220,7 +222,30 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   return FALSE;
+}
+
+
+void Item_func::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  Item **arg,**arg_end;
+
+  used_tables_cache= not_null_tables_cache= 0;
+  const_item_cache=1;
+
+  if (arg_count)
+  {
+    for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
+    {
+      (*arg)->fix_after_pullout(new_parent, arg);
+      Item *item= *arg;
+
+      used_tables_cache|=     item->used_tables();
+      not_null_tables_cache|= item->not_null_tables();
+      const_item_cache&=      item->const_item();
+    }
+  }
 }
 
 
@@ -472,7 +497,6 @@ Field *Item_func::tmp_table_field(TABLE *table)
     break;
   case STRING_RESULT:
     return make_string_field(table);
-    break;
   case DECIMAL_RESULT:
     field= Field_new_decimal::create_from_item(this);
     break;
@@ -488,12 +512,12 @@ Field *Item_func::tmp_table_field(TABLE *table)
   return field;
 }
 
-
+/*
 bool Item_func::is_expensive_processor(uchar *arg)
 {
   return is_expensive();
 }
-
+*/
 
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
@@ -2327,10 +2351,12 @@ double Item_func_round::real_op()
 {
   double value= args[0]->val_real();
 
-  if (!(null_value= args[0]->null_value || args[1]->null_value))
-    return my_double_round(value, args[1]->val_int(), args[1]->unsigned_flag,
-                           truncate);
-
+  if (!(null_value= args[0]->null_value))
+  {
+    longlong dec= args[1]->val_int();
+    if (!(null_value= args[1]->null_value))
+      return my_double_round(value, dec, args[1]->unsigned_flag, truncate);
+  }
   return 0.0;
 }
 
@@ -2403,7 +2429,7 @@ void Item_func_rand::seed_random(Item *arg)
     args[0] is a constant.
   */
   uint32 tmp= (uint32) arg->val_int();
-  randominit(rand, (uint32) (tmp*0x10001L+55555555L),
+  my_rnd_init(rand, (uint32) (tmp*0x10001L+55555555L),
              (uint32) (tmp*0x10000001L));
 }
 
@@ -2423,7 +2449,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
     */
-    if (!rand && !(rand= (struct rand_struct*)
+    if (!rand && !(rand= (struct my_rnd_struct*)
                    thd->stmt_arena->alloc(sizeof(*rand))))
       return TRUE;
   }
@@ -3024,8 +3050,7 @@ longlong Item_func_find_in_set::val_int()
   }
   null_value=0;
 
-  int diff;
-  if ((diff=buffer->length() - find->length()) >= 0)
+  if ((int) (buffer->length() - find->length()) >= 0)
   {
     my_wc_t wc= 0;
     CHARSET_INFO *cs= cmp_collation.collation;
@@ -3424,11 +3449,15 @@ void Item_udf_func::print(String *str, enum_query_type query_type)
 
 double Item_func_udf_float::val_real()
 {
+  double res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_float::val");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
 		     args[0]->result_type(), arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  res= udf.val(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -3445,9 +3474,13 @@ String *Item_func_udf_float::val_str(String *str)
 
 longlong Item_func_udf_int::val_int()
 {
+  longlong res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_int::val_int");
-  DBUG_RETURN(udf.val_int(&null_value));
+  res= udf.val_int(&tmp_null_value);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
@@ -3464,8 +3497,10 @@ String *Item_func_udf_int::val_str(String *str)
 
 longlong Item_func_udf_decimal::val_int()
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
   longlong result;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0;
   my_decimal2int(E_DEC_FATAL_ERROR, dec, unsigned_flag, &result);
@@ -3475,8 +3510,10 @@ longlong Item_func_udf_decimal::val_int()
 
 double Item_func_udf_decimal::val_real()
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
   double result;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, dec, &result);
@@ -3486,18 +3523,24 @@ double Item_func_udf_decimal::val_real()
 
 my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf)
 {
+  my_decimal *res;
+  my_bool tmp_null_value;
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_func_udf_decimal::val_decimal");
   DBUG_PRINT("info",("result_type: %d  arg_count: %d",
                      args[0]->result_type(), arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  res= udf.val_decimal(&tmp_null_value, dec_buf);
+  null_value= tmp_null_value;
+  DBUG_RETURN(res);
 }
 
 
 String *Item_func_udf_decimal::val_str(String *str)
 {
-  my_decimal dec_buf, *dec= udf.val_decimal(&null_value, &dec_buf);
+  my_bool tmp_null_value;
+  my_decimal dec_buf, *dec= udf.val_decimal(&tmp_null_value, &dec_buf);
+  null_value= tmp_null_value;
   if (null_value)
     return 0;
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
@@ -4201,10 +4244,30 @@ bool Item_func_set_user_var::register_field_in_read_map(uchar *arg)
     TABLE *table= (TABLE *) arg;
     if (result_field->table == table || !table)
       bitmap_set_bit(result_field->table->read_set, result_field->field_index);
+    if (result_field->vcol_info)
+      return result_field->vcol_info->
+               expr_item->walk(&Item::register_field_in_read_map, 1, arg);
   }
   return 0;
 }
 
+/*
+  Mark field in bitmap supplied as *arg
+
+*/
+
+bool Item_func_set_user_var::register_field_in_bitmap(uchar *arg)
+{
+  MY_BITMAP *bitmap = (MY_BITMAP *) arg;
+  DBUG_ASSERT(bitmap);
+  if (result_field)
+  {
+    if (!bitmap)
+      return 1;
+    bitmap_set_bit(bitmap, result_field->field_index);
+  }
+  return 0;
+}
 
 /**
   Set value to user variable.
@@ -4310,7 +4373,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
 
 /** Get the value of a variable as a double. */
 
-double user_var_entry::val_real(my_bool *null_value)
+double user_var_entry::val_real(bool *null_value)
 {
   if ((*null_value= (value == 0)))
     return 0.0;
@@ -4329,7 +4392,8 @@ double user_var_entry::val_real(my_bool *null_value)
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return 0.0;					// Impossible
@@ -4338,7 +4402,7 @@ double user_var_entry::val_real(my_bool *null_value)
 
 /** Get the value of a variable as an integer. */
 
-longlong user_var_entry::val_int(my_bool *null_value) const
+longlong user_var_entry::val_int(bool *null_value) const
 {
   if ((*null_value= (value == 0)))
     return LL(0);
@@ -4360,7 +4424,8 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return LL(0);					// Impossible
@@ -4369,7 +4434,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
 
 /** Get the value of a variable as a string. */
 
-String *user_var_entry::val_str(my_bool *null_value, String *str,
+String *user_var_entry::val_str(bool *null_value, String *str,
 				uint decimals)
 {
   if ((*null_value= (value == 0)))
@@ -4391,8 +4456,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(str);
@@ -4400,7 +4467,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
 
 /** Get the value of a variable as a decimal. */
 
-my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
+my_decimal *user_var_entry::val_decimal(bool *null_value, my_decimal *val)
 {
   if ((*null_value= (value == 0)))
     return 0;
@@ -4419,7 +4486,8 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(val);
@@ -4768,7 +4836,7 @@ int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
 
   if (result_type() == STRING_RESULT ||
       (result_type() == REAL_RESULT &&
-      field->result_type() == STRING_RESULT))
+       field->result_type() == STRING_RESULT))
   {
     String *result;
     CHARSET_INFO *cs= collation.collation;

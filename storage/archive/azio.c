@@ -16,6 +16,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "my_sys.h"
+
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
@@ -52,8 +54,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   int level = Z_DEFAULT_COMPRESSION; /* compression level */
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
-  s->stream.zalloc = (alloc_func)0;
-  s->stream.zfree = (free_func)0;
+  s->stream.zalloc = my_az_allocator;
+  s->stream.zfree = my_az_free;
   s->stream.opaque = (voidpf)0;
   memset(s->inbuf, 0, AZ_BUFSIZE_READ);
   memset(s->outbuf, 0, AZ_BUFSIZE_WRITE);
@@ -148,6 +150,17 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   }
   else
   {
+    /* Reset values in case of old version of archive file */
+    s->rows= 0;
+    s->forced_flushes= 0;
+    s->shortest_row= 0;
+    s->longest_row= 0;
+    s->auto_increment= 0;
+    s->check_point= 0;
+    s->comment_start_pos= 0;
+    s->comment_length= 0;
+    s->frm_start_pos= 0;
+    s->frm_length= 0;
     check_header(s); /* skip the .az header */
   }
 

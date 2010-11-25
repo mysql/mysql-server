@@ -63,7 +63,7 @@
 #define X  L_MIDDLE
 
 
-static int t_ctype[][TOT_LEVELS] = {
+static const int t_ctype[][TOT_LEVELS] = {
     /*0x00*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x01*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
     /*0x02*/ { IGNORE, IGNORE, IGNORE, IGNORE, X },
@@ -416,7 +416,7 @@ static uchar to_upper_tis620[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar sort_order_tis620[]=
+static const uchar sort_order_tis620[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -476,7 +476,7 @@ static size_t thai2sortable(uchar *tstr, size_t len)
 
     if (isthai(c))
     {
-      int *t_ctype0= t_ctype[c];
+      const int *t_ctype0= t_ctype[c];
 		    
       if (isconsnt(c))
 	l2bias	-= 8;
@@ -647,7 +647,7 @@ size_t my_strnxfrm_tis620(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static unsigned short cs_to_uni[256]={
+static const unsigned short cs_to_uni[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -681,7 +681,7 @@ static unsigned short cs_to_uni[256]={
 0x0E50,0x0E51,0x0E52,0x0E53,0x0E54,0x0E55,0x0E56,0x0E57,
 0x0E58,0x0E59,0x0E5A,0x0E5B,0xFFFD,0xFFFD,0xFFFD,0xFFFD
 };
-static uchar pl00[256]={
+static const uchar pl00[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -715,7 +715,7 @@ static uchar pl00[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static uchar pl0E[256]={
+static const uchar pl0E[256]={
 0x0000,0x00A1,0x00A2,0x00A3,0x00A4,0x00A5,0x00A6,0x00A7,
 0x00A8,0x00A9,0x00AA,0x00AB,0x00AC,0x00AD,0x00AE,0x00AF,
 0x00B0,0x00B1,0x00B2,0x00B3,0x00B4,0x00B5,0x00B6,0x00B7,
@@ -749,7 +749,7 @@ static uchar pl0E[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
-static uchar plFF[256]={
+static const uchar plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -783,7 +783,7 @@ static uchar plFF[256]={
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000,0x0000,0x00FF,0x0000,0x0000
 };
-static uchar *uni_to_cs[256]={
+static const uchar *const uni_to_cs[256]={
 pl00,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,pl0E,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -838,7 +838,7 @@ int my_wc_mb_tis620(CHARSET_INFO *cs  __attribute__((unused)),
 		  uchar *str,
 		  uchar *end __attribute__((unused)))
 {
-  uchar *pl;
+  const uchar *pl;
   
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -897,7 +897,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 
 
 
-CHARSET_INFO my_charset_tis620_thai_ci=
+struct charset_info_st my_charset_tis620_thai_ci=
 {
     18,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state     */
@@ -929,7 +929,7 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     &my_collation_ci_handler
 };
 
-CHARSET_INFO my_charset_tis620_bin=
+struct charset_info_st my_charset_tis620_bin=
 {
     89,0,0,		/* number    */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state     */

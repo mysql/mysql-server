@@ -1,0 +1,5 @@
+* shut down mysqld, removed logs, restarted it
+show engine aria logs;
+Type	Name	Status
+Aria	Size unknown ; aria_log.00000001	can't stat
+* shut down mysqld, removed logs, restarted it

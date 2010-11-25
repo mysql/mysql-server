@@ -178,7 +178,13 @@ void udf_init()
   }
 
   table= tables.table;
-  init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info, new_thd, table, NULL,1,0,FALSE))
+  {
+    sql_print_error("Could not initialize init_read_record; udf's not "
+                    "loaded");
+    goto end;
+  }
+
   table->use_all_columns();
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
@@ -235,7 +241,7 @@ void udf_init()
     }
     tmp->dlhandle = dl;
     {
-      char buf[NAME_LEN+16], *missing;
+      char buf[SAFE_NAME_LEN+16], *missing;
       if ((missing= init_syms(tmp, buf)))
       {
         sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), missing);
@@ -489,7 +495,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   }
   udf->dlhandle=dl;
   {
-    char buf[NAME_LEN+16], *missing;
+    char buf[SAFE_NAME_LEN+16], *missing;
     if ((missing= init_syms(udf, buf)))
     {
       my_error(ER_CANT_FIND_DL_ENTRY, MYF(0), missing);
@@ -606,10 +612,10 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
-  if (!table->file->index_read_idx_map(table->record[0], 0,
-                                       (uchar*) table->field[0]->ptr,
-                                       HA_WHOLE_KEY,
-                                       HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_idx_map(table->record[0], 0,
+                                          (uchar*) table->field[0]->ptr,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT))
   {
     int error;
     if ((error = table->file->ha_delete_row(table->record[0])))

@@ -34,7 +34,7 @@ static const char *handler_error_messages[]=
   "Table is crashed and last repair failed",
   "Table was marked as crashed and should be repaired",
   "Lock timed out; Retry transaction",
-  "Lock table is full;  Restart program with a larger locktable",
+  "Lock table is full;  Restart program with a larger lock table",
   "Updates are not allowed under a read only transactions",
   "Lock deadlock; Retry transaction",
   "Foreign key constraint is incorrectly formed",
@@ -48,7 +48,7 @@ static const char *handler_error_messages[]=
   "Unexpected null pointer found when using spatial index",
   "The table changed in storage engine",
   "There's no partition in table for the given value",
-  "Row-based binlogging of row failed",
+  "Row-based binary logging of row failed",
   "Index needed in foreign key constraint",
   "Upholding foreign key constraints would lead to a duplicate key error in "
   "some other table",
@@ -57,15 +57,16 @@ static const char *handler_error_messages[]=
   "Failed to get next auto increment value",
   "Failed to set row auto increment value",
   "Unknown (generic) error from engine",
-  "Record is the same",
+  "Record was not update. Original values was same as new values",
   "It is not possible to log this statement",
   "The event was corrupt, leading to illegal data being read",
   "The table is of a new format not supported by this version",
-  "The event could not be processed no other hanlder error happened",
-  "Got a fatal error during initialzaction of handler",
-  "File to short; Expected more data in file",
+  "The event could not be processed. No other handler error happened",
+  "Got a fatal error during initialization of handler",
+  "File too short; Expected more data in file",
   "Read page with wrong checksum",
-  "Too many active concurrent transactions"
+  "Too many active concurrent transactions",
+  "Row is not visible by the current transaction"
 };
 
 #endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

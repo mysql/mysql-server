@@ -1,0 +1,1613 @@
+
+set optimizer_switch='subquery_cache=on';
+
+create table t1 (a int, b int);
+insert into t1 values (1,2),(3,4),(1,2),(3,4),(3,4),(4,5),(4,5),(5,6),(5,6),(4,5);
+create table t2 (c int, d int);
+insert into t2 values (2,3),(3,4),(5,6),(4,1);
+
+--echo *
+--echo * Test subquery as top item in different clauses
+--echo *
+--echo #single value subquery test (SELECT list)
+flush status;
+select a, (select d from t2 where b=c) from t1;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a, (select d from t2 where b=c) from t1;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+
+--echo #single value subquery test (where)
+flush status;
+select a from t1 where (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a from t1 where (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (having)
+flush status;
+select a from t1 where a > 0 having (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select a from t1 where a > 0 having (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (OUTER JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select ta.a, tb.a from t1 ta join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (GROUP BY)
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (distinct GROUP BY)
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select distinct max(a) from t1  GROUP BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (ORDER BY)
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (distinct ORDER BY)
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=off';
+
+flush status;
+select distinct a from t1 ORDER BY (select d from t2 where b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (LEFT JOIN ON)
+flush status;
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+select ta.a, tb.a from t1 ta left join t1 tb on (select d from t2 where tb.b=c);
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+
+--echo #single value subquery test (PS)
+prepare stmt1 from 'select a, (select d from t2 where b=c) + 1 from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+deallocate prepare stmt1;
+
+--echo #single value subquery test (SP)
+CREATE PROCEDURE p1() select a, (select d from t2 where b=c) + 1 from t1;
+
+call p1;
+call p1;
+
+drop procedure p1;
+
+--echo #IN subquery test
+flush status;
+
+show status like "subquery_cache%";
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+select a, b , b in (select d from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn NOT IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn NOT IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) not in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn IN with NULLs
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (b, a) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo # multicolumn IN with NULLs (other order)
+flush status;
+set optimizer_switch='subquery_cache=off';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+set optimizer_switch='subquery_cache=on';
+select a, b, (a, b) in (select d, c from t2) as SUBS from t1;
+show status like "subquery_cache%";
+
+--echo #IN subquery test (PS)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+
+prepare stmt1 from 'select a, b , b in (select d from t2) as SUBS from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+
+deallocate prepare stmt1;
+
+
+--echo #IN subquery test (SP)
+delete from t1 where a > 6;
+delete from t2 where c > 6;
+
+CREATE PROCEDURE p1() select a, b , b in (select d from t2) as SUBS from t1;
+
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+insert into t1 values (7,8),(9,NULL);
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+insert into t2 values (8,NULL);
+call p1();
+show status like "subquery_cache%";
+call p1();
+show status like "subquery_cache%";
+
+drop procedure p1;
+
+
+--echo # test of simple exists
+select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+
+--echo # test of prepared statement exists
+show status like "subquery_cache%";
+prepare stmt1 from 'select a, b , exists (select * from t2 where b=d) as SUBS from t1';
+execute stmt1;
+show status like "subquery_cache%";
+execute stmt1;
+show status like "subquery_cache%";
+deallocate prepare stmt1;
+
+--echo # test of stored procedure exists
+CREATE PROCEDURE p1() select a, b , exists (select * from t2 where b=d) as SUBS from t1;
+call p1;
+call p1;
+drop procedure p1;
+
+--echo #several subqueries
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b , exists (select * from t2 where b=d) as SUBSE, b in (select d from t2) as SUBSI, (select d from t2 where b=c) SUBSR from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+--echo #several subqueries (several levels)
+set optimizer_switch='subquery_cache=off';
+flush status;
+
+set optimizer_switch='subquery_cache=off';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select a, b, (select exists (select * from t2 where b=d) from t2 where b=c) as SUNS1 from t1;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+
+--echo #clean up
+drop table t1,t2;
+
+--echo test different types
+--echo #int
+CREATE TABLE t1 ( a int, b int);
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #char
+CREATE TABLE t1 ( a char(1), b char (1));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #decimal
+CREATE TABLE t1 ( a decimal(3,1), b decimal(3,1));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #date
+CREATE TABLE t1 ( a date, b date);
+INSERT INTO t1 VALUES('1000-01-01','1000-01-01'),('2000-02-01','2000-02-01'),('3000-03-03','3000-03-03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-01');
+DROP TABLE t1;
+
+--echo #datetime
+CREATE TABLE t1 ( a datetime, b datetime);
+INSERT INTO t1 VALUES('1000-01-01 01:01:01','1000-01-01 01:01:01'),('2000-02-02  02:02:02','2000-02-02 02:02:02'),('3000-03-03 03:03:03','3000-03-03 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+DROP TABLE t1;
+
+--echo #time
+CREATE TABLE t1 ( a time, b time);
+INSERT INTO t1 VALUES('01:01:01','01:01:01'),('02:02:02','02:02:02'),('03:03:03','03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '02:02:02');
+DROP TABLE t1;
+
+--echo #timestamp
+CREATE TABLE t1 ( a timestamp, b timestamp);
+INSERT INTO t1 VALUES('2000-02-02 01:01:01','2000-02-02 01:01:01'),('2000-02-02 02:02:02','2000-02-02 02:02:02'),('2000-02-02 03:03:03','2000-02-02 03:03:03');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2000-02-02 02:02:02');
+DROP TABLE t1;
+
+--echo #bit
+CREATE TABLE t1 ( a bit(20), b bit(20));
+INSERT INTO t1 VALUES(1,1),(2,2),(3,3);
+SELECT a+0 FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = 2);
+DROP TABLE t1;
+
+--echo #enum
+CREATE TABLE t1 ( a enum('1','2','3'), b enum('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #set
+CREATE TABLE t1 ( a set('1','2','3'), b set('1','2','3'));
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #blob
+CREATE TABLE t1 ( a blob, b blob);
+INSERT INTO t1 VALUES('1','1'),('2','2'),('3','3');
+SELECT a FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = '2');
+DROP TABLE t1;
+
+--echo #geometry
+CREATE TABLE t1 ( a geometry, b geometry);
+INSERT INTO t1 VALUES(POINT(1,1),POINT(1,1)),(POINT(2,2),POINT(2,2)),(POINT(3,3),POINT(3,3));
+SELECT astext(a) FROM t1 WHERE NOT a IN (SELECT a FROM t1 WHERE b = POINT(2,2));
+DROP TABLE t1;
+
+
+--echo #uncacheable queries test (random and side effect)
+flush status;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2), (4), (1), (3);
+select a, a in (select a from t1) from t1 as ext;
+show status like "subquery_cache%";
+select a, a in (select a from t1 where -1 < rand()) from t1 as ext;
+show status like "subquery_cache%";
+select a, a in (select a from t1 where -1 < benchmark(a,100)) from t1 as ext;
+show status like "subquery_cache%";
+drop table t1;
+
+--echo #test of sql_big_tables switch and outer table reference in subquery with grouping
+set option sql_big_tables=1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
+SELECT (SELECT t1_outer.a FROM t1 AS t1_inner GROUP BY b LIMIT 1) FROM t1 AS t1_outer;
+drop table t1;
+set option sql_big_tables=0;
+
+--echo #test of function reference to outer query
+set local group_concat_max_len=400;
+create table t2 (a int, b int);
+insert into t2 values (1,1), (2,2);
+select  b x, (select group_concat(x) from t2) from  t2;
+drop table t2;
+set local group_concat_max_len=default;
+
+--echo #aggregate functions
+CREATE TABLE t1 (a int,  b INT);
+CREATE TABLE t2 (c int,  d INT);
+
+insert into t1 values (2,1), (3,1), (2,4), (3,4), (10,2), (20,2), (2,5),
+(3,5), (100,3), (200,3), (10,6), (20,6), (20,7), (100,8), (200,8);
+insert into t2 values (1,1),(3,3),(20,20);
+
+--echo aggregate function as parameter of subquery
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select max(a) from t2 where max(a)=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+--echo argument of aggregate function as parameter of subquery (illegal use)
+set optimizer_switch='subquery_cache=off';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='subquery_cache=on';
+flush status;
+select max(a), (select a from t2 where a=c) from t1 group by b;
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t1,t2;
+
+--echo #test of flattening subquery optimisations and cache
+create table t0 (a int);
+insert into t0 values (9),(8),(7),(6),(5),(4),(3),(2),(1),(0);
+
+create table t1(a int, b int);
+insert into t1 values
+(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2),(0,0),(1,1),(2,2);
+
+create table t2 (pk int, a int, primary key(pk));
+insert into t2 select a,a from t0;
+
+set optimizer_switch='default,semijoin=on,materialization=on,subquery_cache=on';
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+alter table t2 drop primary key;
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=off';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+#TODO: switch off cache if materialization used
+set optimizer_switch='default,semijoin=off,materialization=on,subquery_cache=on';
+
+explain select * from t1 where a in (select pk from t2);
+flush status;
+select * from t1 where a in (select pk from t2);
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t0,t1,t2;
+
+set optimizer_switch='default';
+
+#
+--echo #launchpad BUG#608834
+#
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (10,7,8,'01:27:35','v','v');
+INSERT INTO `t2` VALUES (11,1,9,'19:48:31','r','r');
+INSERT INTO `t2` VALUES (12,5,9,'00:00:00','a','a');
+INSERT INTO `t2` VALUES (13,3,186,'19:53:05','m','m');
+INSERT INTO `t2` VALUES (14,6,NULL,'19:18:56','y','y');
+INSERT INTO `t2` VALUES (15,92,2,'10:55:12','j','j');
+INSERT INTO `t2` VALUES (16,7,3,'00:25:00','d','d');
+INSERT INTO `t2` VALUES (17,NULL,0,'12:35:47','z','z');
+INSERT INTO `t2` VALUES (18,3,133,'19:53:03','e','e');
+INSERT INTO `t2` VALUES (19,5,1,'17:53:30','h','h');
+INSERT INTO `t2` VALUES (20,1,8,'11:35:49','b','b');
+INSERT INTO `t2` VALUES (21,2,5,NULL,'s','s');
+INSERT INTO `t2` VALUES (22,NULL,5,'06:01:40','e','e');
+INSERT INTO `t2` VALUES (23,1,8,'05:45:11','j','j');
+INSERT INTO `t2` VALUES (24,0,6,'00:00:00','e','e');
+INSERT INTO `t2` VALUES (25,210,51,'00:00:00','f','f');
+INSERT INTO `t2` VALUES (26,8,4,'06:11:01','v','v');
+INSERT INTO `t2` VALUES (27,7,7,'13:02:46','x','x');
+INSERT INTO `t2` VALUES (28,5,6,'21:44:25','m','m');
+INSERT INTO `t2` VALUES (29,NULL,4,'22:43:58','c','c');
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,NULL,2,'11:28:45','w','w');
+INSERT INTO `t1` VALUES (2,7,9,'20:25:14','m','m');
+INSERT INTO `t1` VALUES (3,9,3,'13:47:24','m','m');
+INSERT INTO `t1` VALUES (4,7,9,'19:24:11','k','k');
+INSERT INTO `t1` VALUES (5,4,NULL,'15:59:13','r','r');
+INSERT INTO `t1` VALUES (6,2,9,'00:00:00','t','t');
+INSERT INTO `t1` VALUES (7,6,3,'15:15:04','j','j');
+INSERT INTO `t1` VALUES (8,8,8,'11:32:06','u','u');
+INSERT INTO `t1` VALUES (9,NULL,8,'18:32:33','h','h');
+INSERT INTO `t1` VALUES (10,5,53,'15:19:25','o','o');
+INSERT INTO `t1` VALUES (11,NULL,0,'19:03:19',NULL,NULL);
+INSERT INTO `t1` VALUES (12,6,5,'00:39:46','k','k');
+INSERT INTO `t1` VALUES (13,188,166,NULL,'e','e');
+INSERT INTO `t1` VALUES (14,2,3,'00:00:00','n','n');
+INSERT INTO `t1` VALUES (15,1,0,'13:12:11','t','t');
+INSERT INTO `t1` VALUES (16,1,1,'04:56:48','c','c');
+INSERT INTO `t1` VALUES (17,0,9,'19:56:05','m','m');
+INSERT INTO `t1` VALUES (18,9,5,'19:35:19','y','y');
+INSERT INTO `t1` VALUES (19,NULL,6,'05:03:03','f','f');
+INSERT INTO `t1` VALUES (20,4,2,'18:38:59','d','d');
+
+set @@optimizer_switch='subquery_cache=off';
+
+/* cache is off */ SELECT (
+SELECT 4
+FROM DUAL ) AS field1 , SUM( DISTINCT table1 . `pk` ) AS field2 , (
+SELECT MAX( SUBQUERY2_t1 . `col_int_nokey` ) AS SUBQUERY2_field1
+FROM ( t1 AS SUBQUERY2_t1 INNER JOIN t1 AS SUBQUERY2_t2 ON (SUBQUERY2_t2 . `col_int_key` = SUBQUERY2_t1 . `pk` ) )
+WHERE SUBQUERY2_t2 . `col_varchar_nokey` <= table1 . `col_varchar_key` OR SUBQUERY2_t1 . `col_int_nokey` < table1 . `pk` ) AS field3 , table1 . `col_time_key` AS field4 , table1 . `col_int_key` AS field5 , CONCAT ( table2 . `col_varchar_nokey` , table1 . `col_varchar_key` ) AS field6
+FROM ( t1 AS table1 INNER JOIN ( ( t1 AS table2 LEFT JOIN t2 AS table3 ON (table3 . `col_varchar_key` = table2 . `col_varchar_key` ) ) ) ON (table3 . `col_varchar_key` = table2 . `col_varchar_nokey` ) )
+WHERE ( table2 . `col_varchar_nokey` NOT IN (
+SELECT 'd' UNION
+SELECT 'u' ) ) OR table3 . `col_varchar_nokey` <= table1 . `col_varchar_key`
+GROUP BY field1, field3, field4, field5, field6
+ORDER BY table1 . `col_int_key` , field1, field2, field3, field4, field5, field6
+;
+
+set @@optimizer_switch='subquery_cache=on';
+
+/* cache is on */ SELECT (
+SELECT 4
+FROM DUAL ) AS field1 , SUM( DISTINCT table1 . `pk` ) AS field2 , (
+SELECT MAX( SUBQUERY2_t1 . `col_int_nokey` ) AS SUBQUERY2_field1
+FROM ( t1 AS SUBQUERY2_t1 INNER JOIN t1 AS SUBQUERY2_t2 ON (SUBQUERY2_t2 . `col_int_key` = SUBQUERY2_t1 . `pk` ) )
+WHERE SUBQUERY2_t2 . `col_varchar_nokey` <= table1 . `col_varchar_key` OR SUBQUERY2_t1 . `col_int_nokey` < table1 . `pk` ) AS field3 , table1 . `col_time_key` AS field4 , table1 . `col_int_key` AS field5 , CONCAT ( table2 . `col_varchar_nokey` , table1 . `col_varchar_key` ) AS field6
+FROM ( t1 AS table1 INNER JOIN ( ( t1 AS table2 LEFT JOIN t2 AS table3 ON (table3 . `col_varchar_key` = table2 . `col_varchar_key` ) ) ) ON (table3 . `col_varchar_key` = table2 . `col_varchar_nokey` ) )
+WHERE ( table2 . `col_varchar_nokey` NOT IN (
+SELECT 'd' UNION
+SELECT 'u' ) ) OR table3 . `col_varchar_nokey` <= table1 . `col_varchar_key`
+GROUP BY field1, field3, field4, field5, field6
+ORDER BY table1 . `col_int_key` , field1, field2, field3, field4, field5, field6
+;
+
+drop table t1,t2;
+set @@optimizer_switch= default;
+
+#
+--echo #launchpad BUG#609045
+#
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+
+INSERT INTO `t1` VALUES (1,NULL,2,NULL,NULL,'11:28:45','11:28:45','2004-10-11 18:13:16','2004-10-11 18:13:16','w','w');
+INSERT INTO `t1` VALUES (2,7,9,'2001-09-19','2001-09-19','20:25:14','20:25:14',NULL,NULL,'m','m');
+INSERT INTO `t1` VALUES (3,9,3,'2004-09-12','2004-09-12','13:47:24','13:47:24','1900-01-01 00:00:00','1900-01-01 00:00:00','m','m');
+INSERT INTO `t1` VALUES (4,7,9,NULL,NULL,'19:24:11','19:24:11','2009-07-25 00:00:00','2009-07-25 00:00:00','k','k');
+INSERT INTO `t1` VALUES (5,4,NULL,'2002-07-19','2002-07-19','15:59:13','15:59:13',NULL,NULL,'r','r');
+INSERT INTO `t1` VALUES (6,2,9,'2002-12-16','2002-12-16','00:00:00','00:00:00','2008-07-27 00:00:00','2008-07-27 00:00:00','t','t');
+INSERT INTO `t1` VALUES (7,6,3,'2006-02-08','2006-02-08','15:15:04','15:15:04','2002-11-13 16:37:31','2002-11-13 16:37:31','j','j');
+INSERT INTO `t1` VALUES (8,8,8,'2006-08-28','2006-08-28','11:32:06','11:32:06','1900-01-01 00:00:00','1900-01-01 00:00:00','u','u');
+INSERT INTO `t1` VALUES (9,NULL,8,'2001-04-14','2001-04-14','18:32:33','18:32:33','2003-12-10 00:00:00','2003-12-10 00:00:00','h','h');
+INSERT INTO `t1` VALUES (10,5,53,'2000-01-05','2000-01-05','15:19:25','15:19:25','2001-12-21 22:38:22','2001-12-21 22:38:22','o','o');
+INSERT INTO `t1` VALUES (11,NULL,0,'2003-12-06','2003-12-06','19:03:19','19:03:19','2008-12-13 23:16:44','2008-12-13 23:16:44',NULL,NULL);
+INSERT INTO `t1` VALUES (12,6,5,'1900-01-01','1900-01-01','00:39:46','00:39:46','2005-08-15 12:39:41','2005-08-15 12:39:41','k','k');
+INSERT INTO `t1` VALUES (13,188,166,'2002-11-27','2002-11-27',NULL,NULL,NULL,NULL,'e','e');
+INSERT INTO `t1` VALUES (14,2,3,NULL,NULL,'00:00:00','00:00:00','2006-09-11 12:06:14','2006-09-11 12:06:14','n','n');
+INSERT INTO `t1` VALUES (15,1,0,'2003-05-27','2003-05-27','13:12:11','13:12:11','2007-12-15 12:39:34','2007-12-15 12:39:34','t','t');
+INSERT INTO `t1` VALUES (16,1,1,'2005-05-03','2005-05-03','04:56:48','04:56:48','2005-08-09 00:00:00','2005-08-09 00:00:00','c','c');
+INSERT INTO `t1` VALUES (17,0,9,'2001-04-18','2001-04-18','19:56:05','19:56:05','2001-09-02 22:50:02','2001-09-02 22:50:02','m','m');
+INSERT INTO `t1` VALUES (18,9,5,'2005-12-27','2005-12-27','19:35:19','19:35:19','2005-12-16 22:58:11','2005-12-16 22:58:11','y','y');
+INSERT INTO `t1` VALUES (19,NULL,6,'2004-08-20','2004-08-20','05:03:03','05:03:03','2007-04-19 00:19:53','2007-04-19 00:19:53','f','f');
+INSERT INTO `t1` VALUES (20,4,2,'1900-01-01','1900-01-01','18:38:59','18:38:59','1900-01-01 00:00:00','1900-01-01 00:00:00','d','d');
+
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+);
+
+INSERT INTO `t2` VALUES (10,7,8,NULL,NULL,'01:27:35','01:27:35','2002-02-26 06:14:37','2002-02-26 06:14:37','v','v');
+INSERT INTO `t2` VALUES (11,1,9,'2006-06-14','2006-06-14','19:48:31','19:48:31','1900-01-01 00:00:00','1900-01-01 00:00:00','r','r');
+INSERT INTO `t2` VALUES (12,5,9,'2002-09-12','2002-09-12','00:00:00','00:00:00','2006-12-03 09:37:26','2006-12-03 09:37:26','a','a');
+INSERT INTO `t2` VALUES (13,3,186,'2005-02-15','2005-02-15','19:53:05','19:53:05','2008-05-26 12:27:10','2008-05-26 12:27:10','m','m');
+INSERT INTO `t2` VALUES (14,6,NULL,NULL,NULL,'19:18:56','19:18:56','2004-12-14 16:37:30','2004-12-14 16:37:30','y','y');
+INSERT INTO `t2` VALUES (15,92,2,'2008-11-04','2008-11-04','10:55:12','10:55:12','2003-02-11 21:19:41','2003-02-11 21:19:41','j','j');
+INSERT INTO `t2` VALUES (16,7,3,'2004-09-04','2004-09-04','00:25:00','00:25:00','2009-10-18 02:27:49','2009-10-18 02:27:49','d','d');
+INSERT INTO `t2` VALUES (17,NULL,0,'2006-06-05','2006-06-05','12:35:47','12:35:47','2000-09-26 07:45:57','2000-09-26 07:45:57','z','z');
+INSERT INTO `t2` VALUES (18,3,133,'1900-01-01','1900-01-01','19:53:03','19:53:03',NULL,NULL,'e','e');
+INSERT INTO `t2` VALUES (19,5,1,'1900-01-01','1900-01-01','17:53:30','17:53:30','2005-11-10 12:40:29','2005-11-10 12:40:29','h','h');
+INSERT INTO `t2` VALUES (20,1,8,'1900-01-01','1900-01-01','11:35:49','11:35:49','2009-04-25 00:00:00','2009-04-25 00:00:00','b','b');
+INSERT INTO `t2` VALUES (21,2,5,'2005-01-13','2005-01-13',NULL,NULL,'2002-11-27 00:00:00','2002-11-27 00:00:00','s','s');
+INSERT INTO `t2` VALUES (22,NULL,5,'2006-05-21','2006-05-21','06:01:40','06:01:40','2004-01-26 20:32:32','2004-01-26 20:32:32','e','e');
+INSERT INTO `t2` VALUES (23,1,8,'2003-09-08','2003-09-08','05:45:11','05:45:11','2007-10-26 11:41:40','2007-10-26 11:41:40','j','j');
+INSERT INTO `t2` VALUES (24,0,6,'2006-12-23','2006-12-23','00:00:00','00:00:00','2005-10-07 00:00:00','2005-10-07 00:00:00','e','e');
+INSERT INTO `t2` VALUES (25,210,51,'2006-10-15','2006-10-15','00:00:00','00:00:00','2000-07-15 05:00:34','2000-07-15 05:00:34','f','f');
+INSERT INTO `t2` VALUES (26,8,4,'2005-04-06','2005-04-06','06:11:01','06:11:01','2000-04-03 16:33:32','2000-04-03 16:33:32','v','v');
+INSERT INTO `t2` VALUES (27,7,7,'2008-04-07','2008-04-07','13:02:46','13:02:46',NULL,NULL,'x','x');
+INSERT INTO `t2` VALUES (28,5,6,'2006-10-10','2006-10-10','21:44:25','21:44:25','2001-04-25 01:26:12','2001-04-25 01:26:12','m','m');
+INSERT INTO `t2` VALUES (29,NULL,4,'1900-01-01','1900-01-01','22:43:58','22:43:58','2000-12-27 00:00:00','2000-12-27 00:00:00','c','c');
+
+CREATE TABLE `t3` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+);
+
+INSERT INTO `t3` VALUES (1,1,7,'1900-01-01','1900-01-01','01:13:38','01:13:38','2005-02-05 00:00:00','2005-02-05 00:00:00','f','f');
+
+CREATE TABLE `t4` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+);
+
+INSERT INTO `t4` VALUES (1,6,NULL,'2003-05-12','2003-05-12',NULL,NULL,'2000-09-12 00:00:00','2000-09-12 00:00:00','r','r');
+INSERT INTO `t4` VALUES (2,8,0,'2003-01-07','2003-01-07','14:34:45','14:34:45','2004-08-10 09:09:31','2004-08-10 09:09:31','c','c');
+INSERT INTO `t4` VALUES (3,6,0,NULL,NULL,'11:49:48','11:49:48','2005-03-21 04:31:40','2005-03-21 04:31:40','o','o');
+INSERT INTO `t4` VALUES (4,6,7,'2005-03-12','2005-03-12','18:12:55','18:12:55','2002-10-25 23:50:35','2002-10-25 23:50:35','c','c');
+INSERT INTO `t4` VALUES (5,3,8,'2000-08-02','2000-08-02','18:30:05','18:30:05','2001-04-01 21:14:04','2001-04-01 21:14:04','d','d');
+INSERT INTO `t4` VALUES (6,9,4,'1900-01-01','1900-01-01','14:19:30','14:19:30','2005-03-12 06:02:34','2005-03-12 06:02:34','v','v');
+INSERT INTO `t4` VALUES (7,2,6,'2006-07-06','2006-07-06','05:20:04','05:20:04','2001-05-06 14:49:12','2001-05-06 14:49:12','m','m');
+INSERT INTO `t4` VALUES (8,1,5,'2006-12-24','2006-12-24','20:29:31','20:29:31','2004-04-25 00:00:00','2004-04-25 00:00:00','j','j');
+INSERT INTO `t4` VALUES (9,8,NULL,'2004-11-16','2004-11-16','07:08:09','07:08:09','2001-03-22 18:38:43','2001-03-22 18:38:43','f','f');
+INSERT INTO `t4` VALUES (10,0,NULL,'2002-09-09','2002-09-09','14:49:14','14:49:14','2006-04-25 21:03:02','2006-04-25 21:03:02','n','n');
+INSERT INTO `t4` VALUES (11,9,8,NULL,NULL,'00:00:00','00:00:00','2009-09-07 18:40:43','2009-09-07 18:40:43','z','z');
+INSERT INTO `t4` VALUES (12,8,8,'2008-06-24','2008-06-24','09:58:06','09:58:06','2004-03-23 00:00:00','2004-03-23 00:00:00','h','h');
+INSERT INTO `t4` VALUES (13,NULL,8,'2001-04-21','2001-04-21',NULL,NULL,'2009-04-15 00:08:29','2009-04-15 00:08:29','q','q');
+INSERT INTO `t4` VALUES (14,0,1,'2003-11-22','2003-11-22','18:24:16','18:24:16','2000-04-21 00:00:00','2000-04-21 00:00:00','w','w');
+INSERT INTO `t4` VALUES (15,5,1,'2004-09-12','2004-09-12','17:39:57','17:39:57','2000-02-17 19:41:23','2000-02-17 19:41:23','z','z');
+INSERT INTO `t4` VALUES (16,1,5,'2006-06-20','2006-06-20','08:23:21','08:23:21','2003-09-20 07:38:14','2003-09-20 07:38:14','j','j');
+INSERT INTO `t4` VALUES (17,1,2,NULL,NULL,NULL,NULL,'2000-11-28 20:42:12','2000-11-28 20:42:12','a','a');
+INSERT INTO `t4` VALUES (18,6,7,'2001-11-25','2001-11-25','21:50:46','21:50:46','2005-06-12 11:13:17','2005-06-12 11:13:17','m','m');
+INSERT INTO `t4` VALUES (19,6,6,'2004-10-26','2004-10-26','12:33:17','12:33:17','1900-01-01 00:00:00','1900-01-01 00:00:00','n','n');
+INSERT INTO `t4` VALUES (20,1,4,'2005-01-19','2005-01-19','03:06:43','03:06:43','2006-02-09 20:41:06','2006-02-09 20:41:06','e','e');
+INSERT INTO `t4` VALUES (21,8,7,'2008-07-06','2008-07-06','03:46:14','03:46:14','2004-05-22 01:05:57','2004-05-22 01:05:57','u','u');
+INSERT INTO `t4` VALUES (22,1,0,'1900-01-01','1900-01-01','20:34:52','20:34:52','2004-03-04 13:46:31','2004-03-04 13:46:31','s','s');
+INSERT INTO `t4` VALUES (23,0,9,'1900-01-01','1900-01-01',NULL,NULL,'1900-01-01 00:00:00','1900-01-01 00:00:00','u','u');
+INSERT INTO `t4` VALUES (24,4,3,'2004-06-08','2004-06-08','10:41:20','10:41:20','2004-10-20 07:20:19','2004-10-20 07:20:19','r','r');
+INSERT INTO `t4` VALUES (25,9,5,'2007-02-20','2007-02-20','08:43:11','08:43:11','2006-04-17 00:00:00','2006-04-17 00:00:00','g','g');
+INSERT INTO `t4` VALUES (26,8,1,'2008-06-18','2008-06-18',NULL,NULL,'2000-10-27 00:00:00','2000-10-27 00:00:00','o','o');
+INSERT INTO `t4` VALUES (27,5,1,'2008-05-15','2008-05-15','10:17:51','10:17:51','2007-04-14 08:54:06','2007-04-14 08:54:06','w','w');
+INSERT INTO `t4` VALUES (28,9,5,'2005-10-06','2005-10-06','06:34:09','06:34:09','2008-04-12 17:03:52','2008-04-12 17:03:52','b','b');
+INSERT INTO `t4` VALUES (29,5,9,NULL,NULL,'21:22:47','21:22:47','2007-02-19 17:37:09','2007-02-19 17:37:09',NULL,NULL);
+INSERT INTO `t4` VALUES (30,NULL,2,'2006-10-12','2006-10-12','04:02:32','04:02:32','1900-01-01 00:00:00','1900-01-01 00:00:00','y','y');
+INSERT INTO `t4` VALUES (31,NULL,5,'2005-01-24','2005-01-24','02:33:14','02:33:14','2001-10-10 08:32:27','2001-10-10 08:32:27','y','y');
+INSERT INTO `t4` VALUES (32,105,248,'2009-06-27','2009-06-27','16:32:56','16:32:56',NULL,NULL,'u','u');
+INSERT INTO `t4` VALUES (33,0,0,NULL,NULL,'21:32:42','21:32:42','2001-12-16 05:31:53','2001-12-16 05:31:53','p','p');
+INSERT INTO `t4` VALUES (34,3,8,NULL,NULL,'23:04:47','23:04:47','2003-07-19 18:03:28','2003-07-19 18:03:28','s','s');
+INSERT INTO `t4` VALUES (35,1,1,'1900-01-01','1900-01-01','22:05:43','22:05:43','2001-03-27 11:44:10','2001-03-27 11:44:10','e','e');
+INSERT INTO `t4` VALUES (36,75,255,'2005-12-22','2005-12-22','02:05:45','02:05:45','2008-06-15 02:13:00','2008-06-15 02:13:00','d','d');
+INSERT INTO `t4` VALUES (37,9,9,'2005-05-03','2005-05-03','00:00:00','00:00:00','2009-03-14 21:29:56','2009-03-14 21:29:56','d','d');
+INSERT INTO `t4` VALUES (38,7,9,'2003-05-27','2003-05-27','18:09:07','18:09:07','2005-01-02 00:00:00','2005-01-02 00:00:00','c','c');
+INSERT INTO `t4` VALUES (39,NULL,3,'2006-05-25','2006-05-25','10:54:06','10:54:06','2007-07-16 04:44:07','2007-07-16 04:44:07','b','b');
+INSERT INTO `t4` VALUES (40,NULL,9,NULL,NULL,'23:15:50','23:15:50','2003-08-26 21:38:26','2003-08-26 21:38:26','t','t');
+INSERT INTO `t4` VALUES (41,4,6,'2009-01-04','2009-01-04','10:17:40','10:17:40','2004-04-19 04:18:47','2004-04-19 04:18:47',NULL,NULL);
+INSERT INTO `t4` VALUES (42,0,4,'2009-02-14','2009-02-14','03:37:09','03:37:09','2000-01-06 20:32:48','2000-01-06 20:32:48','y','y');
+INSERT INTO `t4` VALUES (43,204,60,'2003-01-16','2003-01-16','22:26:06','22:26:06','2006-06-23 13:27:17','2006-06-23 13:27:17','c','c');
+INSERT INTO `t4` VALUES (44,0,7,'1900-01-01','1900-01-01','17:10:38','17:10:38','2007-11-27 00:00:00','2007-11-27 00:00:00','d','d');
+INSERT INTO `t4` VALUES (45,9,1,'2007-06-26','2007-06-26','00:00:00','00:00:00','2002-04-03 12:06:51','2002-04-03 12:06:51','x','x');
+INSERT INTO `t4` VALUES (46,8,6,'2004-03-27','2004-03-27','17:08:49','17:08:49','2008-12-28 09:47:42','2008-12-28 09:47:42','p','p');
+INSERT INTO `t4` VALUES (47,7,4,NULL,NULL,'19:04:40','19:04:40','2002-04-04 10:07:54','2002-04-04 10:07:54','e','e');
+INSERT INTO `t4` VALUES (48,8,NULL,'2005-06-06','2005-06-06','20:53:28','20:53:28','2003-04-26 02:55:13','2003-04-26 02:55:13','g','g');
+INSERT INTO `t4` VALUES (49,NULL,8,'2003-03-02','2003-03-02','11:46:03','11:46:03',NULL,NULL,'x','x');
+INSERT INTO `t4` VALUES (50,6,0,'2004-05-13','2004-05-13',NULL,NULL,'2009-02-19 03:17:06','2009-02-19 03:17:06','s','s');
+INSERT INTO `t4` VALUES (51,5,8,'2005-09-13','2005-09-13','10:58:07','10:58:07','1900-01-01 00:00:00','1900-01-01 00:00:00','e','e');
+INSERT INTO `t4` VALUES (52,2,151,'2005-10-03','2005-10-03','00:00:00','00:00:00','2000-11-10 08:20:01','2000-11-10 08:20:01','l','l');
+INSERT INTO `t4` VALUES (53,3,7,'2005-10-14','2005-10-14','09:43:15','09:43:15','2008-02-10 00:00:00','2008-02-10 00:00:00','p','p');
+INSERT INTO `t4` VALUES (54,7,6,NULL,NULL,'21:40:32','21:40:32','1900-01-01 00:00:00','1900-01-01 00:00:00','h','h');
+INSERT INTO `t4` VALUES (55,NULL,NULL,'2005-09-16','2005-09-16','00:17:44','00:17:44',NULL,NULL,'m','m');
+INSERT INTO `t4` VALUES (56,145,23,'2005-03-10','2005-03-10','16:47:26','16:47:26','2001-02-05 02:01:50','2001-02-05 02:01:50','n','n');
+INSERT INTO `t4` VALUES (57,0,2,'2000-06-19','2000-06-19','00:00:00','00:00:00','2000-10-28 08:44:25','2000-10-28 08:44:25','v','v');
+INSERT INTO `t4` VALUES (58,1,4,'2002-11-03','2002-11-03','05:25:59','05:25:59','2005-03-20 10:53:59','2005-03-20 10:53:59','b','b');
+INSERT INTO `t4` VALUES (59,7,NULL,'2009-01-05','2009-01-05','00:00:00','00:00:00','2001-06-02 13:54:13','2001-06-02 13:54:13','x','x');
+INSERT INTO `t4` VALUES (60,3,NULL,'2003-05-22','2003-05-22','20:33:04','20:33:04','1900-01-01 00:00:00','1900-01-01 00:00:00','r','r');
+INSERT INTO `t4` VALUES (61,NULL,77,'2005-07-02','2005-07-02','00:46:12','00:46:12','2009-07-16 13:05:43','2009-07-16 13:05:43','t','t');
+INSERT INTO `t4` VALUES (62,2,NULL,'1900-01-01','1900-01-01','00:00:00','00:00:00','2009-03-26 23:16:20','2009-03-26 23:16:20','w','w');
+INSERT INTO `t4` VALUES (63,2,NULL,'2006-06-21','2006-06-21','02:13:59','02:13:59','2003-02-06 18:12:15','2003-02-06 18:12:15','w','w');
+INSERT INTO `t4` VALUES (64,2,7,NULL,NULL,'02:54:47','02:54:47','2006-06-05 03:22:51','2006-06-05 03:22:51','k','k');
+INSERT INTO `t4` VALUES (65,8,1,'2005-12-16','2005-12-16','18:13:59','18:13:59','2002-02-10 05:47:27','2002-02-10 05:47:27','a','a');
+INSERT INTO `t4` VALUES (66,6,9,'2004-11-05','2004-11-05','13:53:08','13:53:08','2001-08-01 08:50:52','2001-08-01 08:50:52','t','t');
+INSERT INTO `t4` VALUES (67,1,6,NULL,NULL,'22:21:30','22:21:30','1900-01-01 00:00:00','1900-01-01 00:00:00','z','z');
+INSERT INTO `t4` VALUES (68,NULL,2,'2004-09-14','2004-09-14','11:41:50','11:41:50',NULL,NULL,'e','e');
+INSERT INTO `t4` VALUES (69,1,3,'2002-04-06','2002-04-06','15:20:02','15:20:02','1900-01-01 00:00:00','1900-01-01 00:00:00','q','q');
+INSERT INTO `t4` VALUES (70,0,0,NULL,NULL,NULL,NULL,'2000-09-23 00:00:00','2000-09-23 00:00:00','e','e');
+INSERT INTO `t4` VALUES (71,4,NULL,'2002-11-13','2002-11-13',NULL,NULL,'2007-07-09 08:32:49','2007-07-09 08:32:49','v','v');
+INSERT INTO `t4` VALUES (72,1,6,'2006-05-27','2006-05-27','07:51:52','07:51:52','2000-01-05 00:00:00','2000-01-05 00:00:00','d','d');
+INSERT INTO `t4` VALUES (73,1,3,'2000-12-22','2000-12-22','00:00:00','00:00:00','2000-09-24 00:00:00','2000-09-24 00:00:00','u','u');
+INSERT INTO `t4` VALUES (74,27,195,'2004-02-21','2004-02-21',NULL,NULL,'2005-05-06 00:00:00','2005-05-06 00:00:00','o','o');
+INSERT INTO `t4` VALUES (75,4,5,'2009-05-15','2009-05-15',NULL,NULL,'2000-03-11 00:00:00','2000-03-11 00:00:00','b','b');
+INSERT INTO `t4` VALUES (76,6,2,'2008-12-12','2008-12-12','12:31:05','12:31:05','2001-09-02 16:17:35','2001-09-02 16:17:35','c','c');
+INSERT INTO `t4` VALUES (77,2,7,'2000-04-15','2000-04-15','00:00:00','00:00:00','2006-04-25 05:43:44','2006-04-25 05:43:44','q','q');
+INSERT INTO `t4` VALUES (78,248,25,NULL,NULL,'01:16:45','01:16:45','2009-10-25 22:04:02','2009-10-25 22:04:02',NULL,NULL);
+INSERT INTO `t4` VALUES (79,NULL,NULL,'2001-10-18','2001-10-18','20:38:54','20:38:54','2004-08-06 00:00:00','2004-08-06 00:00:00','h','h');
+INSERT INTO `t4` VALUES (80,9,0,'2008-05-25','2008-05-25','00:30:15','00:30:15','2001-11-27 05:07:57','2001-11-27 05:07:57','d','d');
+INSERT INTO `t4` VALUES (81,75,98,'2004-12-02','2004-12-02','23:46:36','23:46:36','2009-06-28 03:18:39','2009-06-28 03:18:39','w','w');
+INSERT INTO `t4` VALUES (82,2,6,'2002-02-15','2002-02-15','19:03:13','19:03:13','2000-03-12 00:00:00','2000-03-12 00:00:00','m','m');
+INSERT INTO `t4` VALUES (83,9,5,'2002-03-03','2002-03-03','10:54:27','10:54:27',NULL,NULL,'i','i');
+INSERT INTO `t4` VALUES (84,4,0,NULL,NULL,'00:25:47','00:25:47','2007-10-20 00:00:00','2007-10-20 00:00:00','w','w');
+INSERT INTO `t4` VALUES (85,0,3,'2003-01-26','2003-01-26','08:44:27','08:44:27','2009-09-27 00:00:00','2009-09-27 00:00:00','f','f');
+INSERT INTO `t4` VALUES (86,0,1,'2001-12-19','2001-12-19','08:15:38','08:15:38','2002-07-16 00:00:00','2002-07-16 00:00:00','k','k');
+INSERT INTO `t4` VALUES (87,1,1,'2001-08-07','2001-08-07','19:56:21','19:56:21','2005-02-20 00:00:00','2005-02-20 00:00:00','v','v');
+INSERT INTO `t4` VALUES (88,119,147,'2005-02-16','2005-02-16','00:00:00','00:00:00',NULL,NULL,'c','c');
+INSERT INTO `t4` VALUES (89,1,3,'2006-06-10','2006-06-10','20:50:52','20:50:52','2001-07-16 00:00:00','2001-07-16 00:00:00','y','y');
+INSERT INTO `t4` VALUES (90,7,3,NULL,NULL,'03:54:39','03:54:39','2009-05-20 21:04:12','2009-05-20 21:04:12','h','h');
+INSERT INTO `t4` VALUES (91,2,NULL,'2005-04-06','2005-04-06','23:58:17','23:58:17','2002-03-13 10:55:40','2002-03-13 10:55:40',NULL,NULL);
+INSERT INTO `t4` VALUES (92,7,2,'2003-04-27','2003-04-27','12:54:58','12:54:58','2005-07-12 00:00:00','2005-07-12 00:00:00','t','t');
+INSERT INTO `t4` VALUES (93,2,1,'2005-10-13','2005-10-13','04:02:43','04:02:43','2006-07-22 09:46:34','2006-07-22 09:46:34','l','l');
+INSERT INTO `t4` VALUES (94,6,8,'2003-10-02','2003-10-02','11:31:12','11:31:12','2001-09-01 00:00:00','2001-09-01 00:00:00','a','a');
+INSERT INTO `t4` VALUES (95,4,8,'2005-09-09','2005-09-09','20:20:04','20:20:04','2002-05-27 18:38:45','2002-05-27 18:38:45','r','r');
+INSERT INTO `t4` VALUES (96,5,8,NULL,NULL,'00:22:24','00:22:24',NULL,NULL,'s','s');
+INSERT INTO `t4` VALUES (97,7,0,'2006-02-15','2006-02-15','10:09:31','10:09:31',NULL,NULL,'z','z');
+INSERT INTO `t4` VALUES (98,1,1,'1900-01-01','1900-01-01',NULL,NULL,'2009-08-08 22:38:53','2009-08-08 22:38:53','j','j');
+INSERT INTO `t4` VALUES (99,7,8,'2003-12-24','2003-12-24','18:45:35','18:45:35',NULL,NULL,'c','c');
+INSERT INTO `t4` VALUES (100,2,5,'2001-07-26','2001-07-26','11:49:25','11:49:25','2007-04-25 05:08:49','2007-04-25 05:08:49','f','f');
+
+SET @@optimizer_switch='subquery_cache=off';
+
+/* cache is off */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
+SELECT SUBQUERY2_t1 .`col_int_key`
+FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
+WHERE table1 .`col_varchar_key` ) , table2 .`col_varchar_nokey` field10
+FROM t4 table1 JOIN ( t1 table2 STRAIGHT_JOIN t1 table3 ON table2 .`pk` ) ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+GROUP BY field10 ;
+
+SET @@optimizer_switch='subquery_cache=on';
+
+/* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
+SELECT SUBQUERY2_t1 .`col_int_key`
+FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
+WHERE table1 .`col_varchar_key` ) , table2 .`col_varchar_nokey` field10
+FROM t4 table1 JOIN ( t1 table2 STRAIGHT_JOIN t1 table3 ON table2 .`pk` ) ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+GROUP BY field10 ;
+
+drop table t1,t2,t3,t4;
+set @@optimizer_switch= default;
+
+#
+--echo #launchpad BUG#609045
+#
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (10,7,8,'v','v');
+INSERT INTO `t2` VALUES (11,1,9,'r','r');
+INSERT INTO `t2` VALUES (12,5,9,'a','a');
+INSERT INTO `t2` VALUES (13,3,186,'m','m');
+INSERT INTO `t2` VALUES (14,6,NULL,'y','y');
+INSERT INTO `t2` VALUES (15,92,2,'j','j');
+INSERT INTO `t2` VALUES (16,7,3,'d','d');
+INSERT INTO `t2` VALUES (17,NULL,0,'z','z');
+INSERT INTO `t2` VALUES (18,3,133,'e','e');
+INSERT INTO `t2` VALUES (19,5,1,'h','h');
+INSERT INTO `t2` VALUES (20,1,8,'b','b');
+INSERT INTO `t2` VALUES (21,2,5,'s','s');
+INSERT INTO `t2` VALUES (22,NULL,5,'e','e');
+INSERT INTO `t2` VALUES (23,1,8,'j','j');
+INSERT INTO `t2` VALUES (24,0,6,'e','e');
+INSERT INTO `t2` VALUES (25,210,51,'f','f');
+INSERT INTO `t2` VALUES (26,8,4,'v','v');
+INSERT INTO `t2` VALUES (27,7,7,'x','x');
+INSERT INTO `t2` VALUES (28,5,6,'m','m');
+INSERT INTO `t2` VALUES (29,NULL,4,'c','c');
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,NULL,2,'w','w');
+INSERT INTO `t1` VALUES (2,7,9,'m','m');
+INSERT INTO `t1` VALUES (3,9,3,'m','m');
+INSERT INTO `t1` VALUES (4,7,9,'k','k');
+INSERT INTO `t1` VALUES (5,4,NULL,'r','r');
+INSERT INTO `t1` VALUES (6,2,9,'t','t');
+INSERT INTO `t1` VALUES (7,6,3,'j','j');
+INSERT INTO `t1` VALUES (8,8,8,'u','u');
+INSERT INTO `t1` VALUES (9,NULL,8,'h','h');
+INSERT INTO `t1` VALUES (10,5,53,'o','o');
+INSERT INTO `t1` VALUES (11,NULL,0,NULL,NULL);
+INSERT INTO `t1` VALUES (12,6,5,'k','k');
+INSERT INTO `t1` VALUES (13,188,166,'e','e');
+INSERT INTO `t1` VALUES (14,2,3,'n','n');
+INSERT INTO `t1` VALUES (15,1,0,'t','t');
+INSERT INTO `t1` VALUES (16,1,1,'c','c');
+INSERT INTO `t1` VALUES (17,0,9,'m','m');
+INSERT INTO `t1` VALUES (18,9,5,'y','y');
+INSERT INTO `t1` VALUES (19,NULL,6,'f','f');
+INSERT INTO `t1` VALUES (20,4,2,'d','d');
+
+SET @@optimizer_switch = 'subquery_cache=off';
+
+/* cache is off */ SELECT SUM( DISTINCT table1 .`pk` ) , (
+        SELECT MAX( `col_int_nokey` )
+        FROM t1
+        WHERE table1 .`pk` ) field3
+FROM t1 table1
+JOIN (
+        t1 table2
+        JOIN t2 table3
+        ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+)
+ON table3 .`col_varchar_key` = table2 .`col_varchar_nokey`
+GROUP BY field3 ;
+
+SET @@optimizer_switch = 'subquery_cache=on';
+
+/* cache is on */ SELECT SUM( DISTINCT table1 .`pk` ) , (
+        SELECT MAX( `col_int_nokey` )
+        FROM t1
+        WHERE table1 .`pk` ) field3
+FROM t1 table1
+JOIN (
+        t1 table2
+        JOIN t2 table3
+        ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+)
+ON table3 .`col_varchar_key` = table2 .`col_varchar_nokey`
+GROUP BY field3 ;
+
+drop table t1,t2;
+set @@optimizer_switch= default;
+
+#
+--echo #launchpad BUG#609052
+#
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (10,7,8,'01:27:35','v','v');
+INSERT INTO `t2` VALUES (11,1,9,'19:48:31','r','r');
+INSERT INTO `t2` VALUES (12,5,9,'00:00:00','a','a');
+INSERT INTO `t2` VALUES (13,3,186,'19:53:05','m','m');
+INSERT INTO `t2` VALUES (14,6,NULL,'19:18:56','y','y');
+INSERT INTO `t2` VALUES (15,92,2,'10:55:12','j','j');
+INSERT INTO `t2` VALUES (16,7,3,'00:25:00','d','d');
+INSERT INTO `t2` VALUES (17,NULL,0,'12:35:47','z','z');
+INSERT INTO `t2` VALUES (18,3,133,'19:53:03','e','e');
+INSERT INTO `t2` VALUES (19,5,1,'17:53:30','h','h');
+INSERT INTO `t2` VALUES (20,1,8,'11:35:49','b','b');
+INSERT INTO `t2` VALUES (21,2,5,NULL,'s','s');
+INSERT INTO `t2` VALUES (22,NULL,5,'06:01:40','e','e');
+INSERT INTO `t2` VALUES (23,1,8,'05:45:11','j','j');
+INSERT INTO `t2` VALUES (24,0,6,'00:00:00','e','e');
+INSERT INTO `t2` VALUES (25,210,51,'00:00:00','f','f');
+INSERT INTO `t2` VALUES (26,8,4,'06:11:01','v','v');
+INSERT INTO `t2` VALUES (27,7,7,'13:02:46','x','x');
+INSERT INTO `t2` VALUES (28,5,6,'21:44:25','m','m');
+INSERT INTO `t2` VALUES (29,NULL,4,'22:43:58','c','c');
+CREATE TABLE `t4` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1;
+INSERT INTO `t4` VALUES (1,6,NULL,NULL,'r','r');
+INSERT INTO `t4` VALUES (2,8,0,'14:34:45','c','c');
+INSERT INTO `t4` VALUES (3,6,0,'11:49:48','o','o');
+INSERT INTO `t4` VALUES (4,6,7,'18:12:55','c','c');
+INSERT INTO `t4` VALUES (5,3,8,'18:30:05','d','d');
+INSERT INTO `t4` VALUES (6,9,4,'14:19:30','v','v');
+INSERT INTO `t4` VALUES (7,2,6,'05:20:04','m','m');
+INSERT INTO `t4` VALUES (8,1,5,'20:29:31','j','j');
+INSERT INTO `t4` VALUES (9,8,NULL,'07:08:09','f','f');
+INSERT INTO `t4` VALUES (10,0,NULL,'14:49:14','n','n');
+INSERT INTO `t4` VALUES (11,9,8,'00:00:00','z','z');
+INSERT INTO `t4` VALUES (12,8,8,'09:58:06','h','h');
+INSERT INTO `t4` VALUES (13,NULL,8,NULL,'q','q');
+INSERT INTO `t4` VALUES (14,0,1,'18:24:16','w','w');
+INSERT INTO `t4` VALUES (15,5,1,'17:39:57','z','z');
+INSERT INTO `t4` VALUES (16,1,5,'08:23:21','j','j');
+INSERT INTO `t4` VALUES (17,1,2,NULL,'a','a');
+INSERT INTO `t4` VALUES (18,6,7,'21:50:46','m','m');
+INSERT INTO `t4` VALUES (19,6,6,'12:33:17','n','n');
+INSERT INTO `t4` VALUES (20,1,4,'03:06:43','e','e');
+INSERT INTO `t4` VALUES (21,8,7,'03:46:14','u','u');
+INSERT INTO `t4` VALUES (22,1,0,'20:34:52','s','s');
+INSERT INTO `t4` VALUES (23,0,9,NULL,'u','u');
+INSERT INTO `t4` VALUES (24,4,3,'10:41:20','r','r');
+INSERT INTO `t4` VALUES (25,9,5,'08:43:11','g','g');
+INSERT INTO `t4` VALUES (26,8,1,NULL,'o','o');
+INSERT INTO `t4` VALUES (27,5,1,'10:17:51','w','w');
+INSERT INTO `t4` VALUES (28,9,5,'06:34:09','b','b');
+INSERT INTO `t4` VALUES (29,5,9,'21:22:47',NULL,NULL);
+INSERT INTO `t4` VALUES (30,NULL,2,'04:02:32','y','y');
+INSERT INTO `t4` VALUES (31,NULL,5,'02:33:14','y','y');
+INSERT INTO `t4` VALUES (32,105,248,'16:32:56','u','u');
+INSERT INTO `t4` VALUES (33,0,0,'21:32:42','p','p');
+INSERT INTO `t4` VALUES (34,3,8,'23:04:47','s','s');
+INSERT INTO `t4` VALUES (35,1,1,'22:05:43','e','e');
+INSERT INTO `t4` VALUES (36,75,255,'02:05:45','d','d');
+INSERT INTO `t4` VALUES (37,9,9,'00:00:00','d','d');
+INSERT INTO `t4` VALUES (38,7,9,'18:09:07','c','c');
+INSERT INTO `t4` VALUES (39,NULL,3,'10:54:06','b','b');
+INSERT INTO `t4` VALUES (40,NULL,9,'23:15:50','t','t');
+INSERT INTO `t4` VALUES (41,4,6,'10:17:40',NULL,NULL);
+INSERT INTO `t4` VALUES (42,0,4,'03:37:09','y','y');
+INSERT INTO `t4` VALUES (43,204,60,'22:26:06','c','c');
+INSERT INTO `t4` VALUES (44,0,7,'17:10:38','d','d');
+INSERT INTO `t4` VALUES (45,9,1,'00:00:00','x','x');
+INSERT INTO `t4` VALUES (46,8,6,'17:08:49','p','p');
+INSERT INTO `t4` VALUES (47,7,4,'19:04:40','e','e');
+INSERT INTO `t4` VALUES (48,8,NULL,'20:53:28','g','g');
+INSERT INTO `t4` VALUES (49,NULL,8,'11:46:03','x','x');
+INSERT INTO `t4` VALUES (50,6,0,NULL,'s','s');
+INSERT INTO `t4` VALUES (51,5,8,'10:58:07','e','e');
+INSERT INTO `t4` VALUES (52,2,151,'00:00:00','l','l');
+INSERT INTO `t4` VALUES (53,3,7,'09:43:15','p','p');
+INSERT INTO `t4` VALUES (54,7,6,'21:40:32','h','h');
+INSERT INTO `t4` VALUES (55,NULL,NULL,'00:17:44','m','m');
+INSERT INTO `t4` VALUES (56,145,23,'16:47:26','n','n');
+INSERT INTO `t4` VALUES (57,0,2,'00:00:00','v','v');
+INSERT INTO `t4` VALUES (58,1,4,'05:25:59','b','b');
+INSERT INTO `t4` VALUES (59,7,NULL,'00:00:00','x','x');
+INSERT INTO `t4` VALUES (60,3,NULL,'20:33:04','r','r');
+INSERT INTO `t4` VALUES (61,NULL,77,'00:46:12','t','t');
+INSERT INTO `t4` VALUES (62,2,NULL,'00:00:00','w','w');
+INSERT INTO `t4` VALUES (63,2,NULL,'02:13:59','w','w');
+INSERT INTO `t4` VALUES (64,2,7,'02:54:47','k','k');
+INSERT INTO `t4` VALUES (65,8,1,'18:13:59','a','a');
+INSERT INTO `t4` VALUES (66,6,9,'13:53:08','t','t');
+INSERT INTO `t4` VALUES (67,1,6,'22:21:30','z','z');
+INSERT INTO `t4` VALUES (68,NULL,2,'11:41:50','e','e');
+INSERT INTO `t4` VALUES (69,1,3,'15:20:02','q','q');
+INSERT INTO `t4` VALUES (70,0,0,NULL,'e','e');
+INSERT INTO `t4` VALUES (71,4,NULL,NULL,'v','v');
+INSERT INTO `t4` VALUES (72,1,6,'07:51:52','d','d');
+INSERT INTO `t4` VALUES (73,1,3,'00:00:00','u','u');
+INSERT INTO `t4` VALUES (74,27,195,NULL,'o','o');
+INSERT INTO `t4` VALUES (75,4,5,NULL,'b','b');
+INSERT INTO `t4` VALUES (76,6,2,'12:31:05','c','c');
+INSERT INTO `t4` VALUES (77,2,7,'00:00:00','q','q');
+INSERT INTO `t4` VALUES (78,248,25,'01:16:45',NULL,NULL);
+INSERT INTO `t4` VALUES (79,NULL,NULL,'20:38:54','h','h');
+INSERT INTO `t4` VALUES (80,9,0,'00:30:15','d','d');
+INSERT INTO `t4` VALUES (81,75,98,'23:46:36','w','w');
+INSERT INTO `t4` VALUES (82,2,6,'19:03:13','m','m');
+INSERT INTO `t4` VALUES (83,9,5,'10:54:27','i','i');
+INSERT INTO `t4` VALUES (84,4,0,'00:25:47','w','w');
+INSERT INTO `t4` VALUES (85,0,3,'08:44:27','f','f');
+INSERT INTO `t4` VALUES (86,0,1,'08:15:38','k','k');
+INSERT INTO `t4` VALUES (87,1,1,'19:56:21','v','v');
+INSERT INTO `t4` VALUES (88,119,147,'00:00:00','c','c');
+INSERT INTO `t4` VALUES (89,1,3,'20:50:52','y','y');
+INSERT INTO `t4` VALUES (90,7,3,'03:54:39','h','h');
+INSERT INTO `t4` VALUES (91,2,NULL,'23:58:17',NULL,NULL);
+INSERT INTO `t4` VALUES (92,7,2,'12:54:58','t','t');
+INSERT INTO `t4` VALUES (93,2,1,'04:02:43','l','l');
+INSERT INTO `t4` VALUES (94,6,8,'11:31:12','a','a');
+INSERT INTO `t4` VALUES (95,4,8,'20:20:04','r','r');
+INSERT INTO `t4` VALUES (96,5,8,'00:22:24','s','s');
+INSERT INTO `t4` VALUES (97,7,0,'10:09:31','z','z');
+INSERT INTO `t4` VALUES (98,1,1,NULL,'j','j');
+INSERT INTO `t4` VALUES (99,7,8,'18:45:35','c','c');
+INSERT INTO `t4` VALUES (100,2,5,'11:49:25','f','f');
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,NULL,2,'11:28:45','w','w');
+INSERT INTO `t1` VALUES (2,7,9,'20:25:14','m','m');
+INSERT INTO `t1` VALUES (3,9,3,'13:47:24','m','m');
+INSERT INTO `t1` VALUES (4,7,9,'19:24:11','k','k');
+INSERT INTO `t1` VALUES (5,4,NULL,'15:59:13','r','r');
+INSERT INTO `t1` VALUES (6,2,9,'00:00:00','t','t');
+INSERT INTO `t1` VALUES (7,6,3,'15:15:04','j','j');
+INSERT INTO `t1` VALUES (8,8,8,'11:32:06','u','u');
+INSERT INTO `t1` VALUES (9,NULL,8,'18:32:33','h','h');
+INSERT INTO `t1` VALUES (10,5,53,'15:19:25','o','o');
+INSERT INTO `t1` VALUES (11,NULL,0,'19:03:19',NULL,NULL);
+INSERT INTO `t1` VALUES (12,6,5,'00:39:46','k','k');
+INSERT INTO `t1` VALUES (13,188,166,NULL,'e','e');
+INSERT INTO `t1` VALUES (14,2,3,'00:00:00','n','n');
+INSERT INTO `t1` VALUES (15,1,0,'13:12:11','t','t');
+INSERT INTO `t1` VALUES (16,1,1,'04:56:48','c','c');
+INSERT INTO `t1` VALUES (17,0,9,'19:56:05','m','m');
+INSERT INTO `t1` VALUES (18,9,5,'19:35:19','y','y');
+INSERT INTO `t1` VALUES (19,NULL,6,'05:03:03','f','f');
+INSERT INTO `t1` VALUES (20,4,2,'18:38:59','d','d');
+CREATE TABLE `t3` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO `t3` VALUES (10,8,8,'18:27:58',NULL,NULL);
+CREATE TABLE `t5` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+INSERT INTO `t5` VALUES (1,1,7,'01:13:38','f','f');
+
+
+SET @@optimizer_switch='subquery_cache=off';
+
+/* cache is off */ SELECT   SQL_SMALL_RESULT MAX( DISTINCT table1 . `col_varchar_key` ) AS field1 , MIN(  table1 . `col_varchar_nokey` ) AS field2 , COUNT(  table1 . `col_varchar_key` ) AS field3 , table2 . `col_time_key` AS field4 , COUNT( DISTINCT table2 . `col_int_key` ) AS field5 ,  (
+SELECT   MAX(  SUBQUERY1_t2 . `col_int_nokey` ) AS SUBQUERY1_field1
+FROM ( t3 AS SUBQUERY1_t1 INNER JOIN t1 AS SUBQUERY1_t2 ON (SUBQUERY1_t2 . `col_varchar_key` = SUBQUERY1_t1 . `col_varchar_nokey`  ) )
+WHERE SUBQUERY1_t2 . `pk` < SUBQUERY1_t2 . `pk` ) AS field6 , COUNT(  table1 . `col_varchar_nokey` ) AS field7 , COUNT(  table2 . `pk` ) AS field8 ,  (
+SELECT   MAX(  SUBQUERY2_t1 . `col_int_key` ) AS SUBQUERY2_field1
+FROM ( t5 AS SUBQUERY2_t1 LEFT JOIN t2 AS SUBQUERY2_t2 ON (SUBQUERY2_t2 . `col_int_key` = SUBQUERY2_t1 . `col_int_key`  ) )
+WHERE SUBQUERY2_t2 . `col_varchar_nokey` != table1 . `col_varchar_key` OR SUBQUERY2_t1 . `col_varchar_nokey` >= 'o' ) AS field9 , CONCAT ( table1 . `col_varchar_key` , table2 . `col_varchar_nokey` ) AS field10
+FROM ( t4 AS table1 LEFT JOIN ( ( t1 AS table2 STRAIGHT_JOIN t1 AS table3 ON (table3 . `col_int_nokey` = table2 . `pk`  ) ) ) ON (table3 . `col_varchar_key` = table2 . `col_varchar_key`  ) )
+WHERE (   EXISTS (
+SELECT   SUBQUERY3_t1 . `pk` AS SUBQUERY3_field1
+FROM ( t4 AS SUBQUERY3_t1 INNER JOIN t4 AS SUBQUERY3_t2 ON (SUBQUERY3_t2 . `col_varchar_key` = SUBQUERY3_t1 . `col_varchar_key`  ) )
+WHERE SUBQUERY3_t1 . `col_int_key` > table3 . `pk` AND SUBQUERY3_t1 . `pk` != table3 . `pk` ) ) AND ( table1 . `pk` > 116 AND table1 . `pk` < ( 116 + 175 ) OR table1 . `pk`  IN (251) ) OR table1 . `col_int_nokey` = table1 . `col_int_nokey`
+GROUP BY field4, field6, field9, field10
+HAVING field10 = 'c'
+;
+
+SET @@optimizer_switch='subquery_cache=on';
+
+/* cache is on */ SELECT   SQL_SMALL_RESULT MAX( DISTINCT table1 . `col_varchar_key` ) AS field1 , MIN(  table1 . `col_varchar_nokey` ) AS field2 , COUNT(  table1 . `col_varchar_key` ) AS field3 , table2 . `col_time_key` AS field4 , COUNT( DISTINCT table2 . `col_int_key` ) AS field5 ,  (
+SELECT   MAX(  SUBQUERY1_t2 . `col_int_nokey` ) AS SUBQUERY1_field1
+FROM ( t3 AS SUBQUERY1_t1 INNER JOIN t1 AS SUBQUERY1_t2 ON (SUBQUERY1_t2 . `col_varchar_key` = SUBQUERY1_t1 . `col_varchar_nokey`  ) )
+WHERE SUBQUERY1_t2 . `pk` < SUBQUERY1_t2 . `pk` ) AS field6 , COUNT(  table1 . `col_varchar_nokey` ) AS field7 , COUNT(  table2 . `pk` ) AS field8 ,  (
+SELECT   MAX(  SUBQUERY2_t1 . `col_int_key` ) AS SUBQUERY2_field1
+FROM ( t5 AS SUBQUERY2_t1 LEFT JOIN t2 AS SUBQUERY2_t2 ON (SUBQUERY2_t2 . `col_int_key` = SUBQUERY2_t1 . `col_int_key`  ) )
+WHERE SUBQUERY2_t2 . `col_varchar_nokey` != table1 . `col_varchar_key` OR SUBQUERY2_t1 . `col_varchar_nokey` >= 'o' ) AS field9 , CONCAT ( table1 . `col_varchar_key` , table2 . `col_varchar_nokey` ) AS field10
+FROM ( t4 AS table1 LEFT JOIN ( ( t1 AS table2 STRAIGHT_JOIN t1 AS table3 ON (table3 . `col_int_nokey` = table2 . `pk`  ) ) ) ON (table3 . `col_varchar_key` = table2 . `col_varchar_key`  ) )
+WHERE (   EXISTS (
+SELECT   SUBQUERY3_t1 . `pk` AS SUBQUERY3_field1
+FROM ( t4 AS SUBQUERY3_t1 INNER JOIN t4 AS SUBQUERY3_t2 ON (SUBQUERY3_t2 . `col_varchar_key` = SUBQUERY3_t1 . `col_varchar_key`  ) )
+WHERE SUBQUERY3_t1 . `col_int_key` > table3 . `pk` AND SUBQUERY3_t1 . `pk` != table3 . `pk` ) ) AND ( table1 . `pk` > 116 AND table1 . `pk` < ( 116 + 175 ) OR table1 . `pk`  IN (251) ) OR table1 . `col_int_nokey` = table1 . `col_int_nokey`
+GROUP BY field4, field6, field9, field10
+HAVING field10 = 'c'
+;
+
+drop table t1,t2,t3,t4,t5;
+set @@optimizer_switch= default;
+
+
+#
+--echo #launchpad BUG#609043
+#
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (19,NULL,6,'2004-08-20','2004-08-20','05:03:03','05:03:03','2007-04-19 00:19:53','2007-04-19 00:19:53','f','f');
+INSERT INTO `t1` VALUES (20,4,2,'1900-01-01','1900-01-01','18:38:59','18:38:59','1900-01-01 00:00:00','1900-01-01 00:00:00','d','d');
+
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t3` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+
+CREATE TABLE `t4` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_date_key` date DEFAULT NULL,
+  `col_date_nokey` date DEFAULT NULL,
+  `col_time_key` time DEFAULT NULL,
+  `col_time_nokey` time DEFAULT NULL,
+  `col_datetime_key` datetime DEFAULT NULL,
+  `col_datetime_nokey` datetime DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_date_key` (`col_date_key`),
+  KEY `col_time_key` (`col_time_key`),
+  KEY `col_datetime_key` (`col_datetime_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1;
+INSERT INTO `t4` VALUES (100,2,5,'2001-07-26','2001-07-26','11:49:25','11:49:25','2007-04-25 05:08:49','2007-04-25 05:08:49','f','f');
+
+SET @@optimizer_switch = 'subquery_cache=off';
+
+/* cache is off */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
+SELECT SUBQUERY2_t1 .`col_int_key`
+FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
+WHERE table1 .`col_varchar_key` ) , table2 .`col_varchar_nokey` field10
+FROM t4 table1 JOIN ( t1 table2 STRAIGHT_JOIN t1 table3 ON table2 .`pk` ) ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+GROUP BY field10 ;
+
+SET @@optimizer_switch = 'subquery_cache=on';
+
+/* cache is on */ SELECT COUNT( DISTINCT table2 .`col_int_key` ) , (
+SELECT SUBQUERY2_t1 .`col_int_key`
+FROM t3 SUBQUERY2_t1 JOIN t2 ON SUBQUERY2_t1 .`col_int_key`
+WHERE table1 .`col_varchar_key` ) , table2 .`col_varchar_nokey` field10
+FROM t4 table1 JOIN ( t1 table2 STRAIGHT_JOIN t1 table3 ON table2 .`pk` ) ON table3 .`col_varchar_key` = table2 .`col_varchar_key`
+GROUP BY field10 ;
+
+drop table t1,t2,t3,t4;
+set @@optimizer_switch= default;
+
+#
+--echo #launchpad BUG#611625
+#
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=MyISAM AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (1,NULL,'w');
+INSERT INTO `t1` VALUES (2,7,'m');
+INSERT INTO `t1` VALUES (3,9,'m');
+INSERT INTO `t1` VALUES (4,7,'k');
+INSERT INTO `t1` VALUES (5,4,'r');
+INSERT INTO `t1` VALUES (6,2,'t');
+INSERT INTO `t1` VALUES (7,6,'j');
+INSERT INTO `t1` VALUES (8,8,'u');
+INSERT INTO `t1` VALUES (9,NULL,'h');
+INSERT INTO `t1` VALUES (10,5,'o');
+INSERT INTO `t1` VALUES (11,NULL,NULL);
+INSERT INTO `t1` VALUES (12,6,'k');
+INSERT INTO `t1` VALUES (13,188,'e');
+INSERT INTO `t1` VALUES (14,2,'n');
+INSERT INTO `t1` VALUES (15,1,'t');
+INSERT INTO `t1` VALUES (16,1,'c');
+INSERT INTO `t1` VALUES (17,0,'m');
+INSERT INTO `t1` VALUES (18,9,'y');
+INSERT INTO `t1` VALUES (19,NULL,'f');
+INSERT INTO `t1` VALUES (20,4,'d');
+CREATE TABLE `t3` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=MyISAM AUTO_INCREMENT=101 DEFAULT CHARSET=latin1;
+INSERT INTO `t3` VALUES (1,6,'r');
+INSERT INTO `t3` VALUES (2,8,'c');
+INSERT INTO `t3` VALUES (3,6,'o');
+INSERT INTO `t3` VALUES (4,6,'c');
+INSERT INTO `t3` VALUES (5,3,'d');
+INSERT INTO `t3` VALUES (6,9,'v');
+INSERT INTO `t3` VALUES (7,2,'m');
+INSERT INTO `t3` VALUES (8,1,'j');
+INSERT INTO `t3` VALUES (9,8,'f');
+INSERT INTO `t3` VALUES (10,0,'n');
+INSERT INTO `t3` VALUES (11,9,'z');
+INSERT INTO `t3` VALUES (12,8,'h');
+INSERT INTO `t3` VALUES (13,NULL,'q');
+INSERT INTO `t3` VALUES (14,0,'w');
+INSERT INTO `t3` VALUES (15,5,'z');
+INSERT INTO `t3` VALUES (16,1,'j');
+INSERT INTO `t3` VALUES (17,1,'a');
+INSERT INTO `t3` VALUES (18,6,'m');
+INSERT INTO `t3` VALUES (19,6,'n');
+INSERT INTO `t3` VALUES (20,1,'e');
+INSERT INTO `t3` VALUES (21,8,'u');
+INSERT INTO `t3` VALUES (22,1,'s');
+INSERT INTO `t3` VALUES (23,0,'u');
+INSERT INTO `t3` VALUES (24,4,'r');
+INSERT INTO `t3` VALUES (25,9,'g');
+INSERT INTO `t3` VALUES (26,8,'o');
+INSERT INTO `t3` VALUES (27,5,'w');
+INSERT INTO `t3` VALUES (28,9,'b');
+INSERT INTO `t3` VALUES (29,5,NULL);
+INSERT INTO `t3` VALUES (30,NULL,'y');
+INSERT INTO `t3` VALUES (31,NULL,'y');
+INSERT INTO `t3` VALUES (32,105,'u');
+INSERT INTO `t3` VALUES (33,0,'p');
+INSERT INTO `t3` VALUES (34,3,'s');
+INSERT INTO `t3` VALUES (35,1,'e');
+INSERT INTO `t3` VALUES (36,75,'d');
+INSERT INTO `t3` VALUES (37,9,'d');
+INSERT INTO `t3` VALUES (38,7,'c');
+INSERT INTO `t3` VALUES (39,NULL,'b');
+INSERT INTO `t3` VALUES (40,NULL,'t');
+INSERT INTO `t3` VALUES (41,4,NULL);
+INSERT INTO `t3` VALUES (42,0,'y');
+INSERT INTO `t3` VALUES (43,204,'c');
+INSERT INTO `t3` VALUES (44,0,'d');
+INSERT INTO `t3` VALUES (45,9,'x');
+INSERT INTO `t3` VALUES (46,8,'p');
+INSERT INTO `t3` VALUES (47,7,'e');
+INSERT INTO `t3` VALUES (48,8,'g');
+INSERT INTO `t3` VALUES (49,NULL,'x');
+INSERT INTO `t3` VALUES (50,6,'s');
+INSERT INTO `t3` VALUES (51,5,'e');
+INSERT INTO `t3` VALUES (52,2,'l');
+INSERT INTO `t3` VALUES (53,3,'p');
+INSERT INTO `t3` VALUES (54,7,'h');
+INSERT INTO `t3` VALUES (55,NULL,'m');
+INSERT INTO `t3` VALUES (56,145,'n');
+INSERT INTO `t3` VALUES (57,0,'v');
+INSERT INTO `t3` VALUES (58,1,'b');
+INSERT INTO `t3` VALUES (59,7,'x');
+INSERT INTO `t3` VALUES (60,3,'r');
+INSERT INTO `t3` VALUES (61,NULL,'t');
+INSERT INTO `t3` VALUES (62,2,'w');
+INSERT INTO `t3` VALUES (63,2,'w');
+INSERT INTO `t3` VALUES (64,2,'k');
+INSERT INTO `t3` VALUES (65,8,'a');
+INSERT INTO `t3` VALUES (66,6,'t');
+INSERT INTO `t3` VALUES (67,1,'z');
+INSERT INTO `t3` VALUES (68,NULL,'e');
+INSERT INTO `t3` VALUES (69,1,'q');
+INSERT INTO `t3` VALUES (70,0,'e');
+INSERT INTO `t3` VALUES (71,4,'v');
+INSERT INTO `t3` VALUES (72,1,'d');
+INSERT INTO `t3` VALUES (73,1,'u');
+INSERT INTO `t3` VALUES (74,27,'o');
+INSERT INTO `t3` VALUES (75,4,'b');
+INSERT INTO `t3` VALUES (76,6,'c');
+INSERT INTO `t3` VALUES (77,2,'q');
+INSERT INTO `t3` VALUES (78,248,NULL);
+INSERT INTO `t3` VALUES (79,NULL,'h');
+INSERT INTO `t3` VALUES (80,9,'d');
+INSERT INTO `t3` VALUES (81,75,'w');
+INSERT INTO `t3` VALUES (82,2,'m');
+INSERT INTO `t3` VALUES (83,9,'i');
+INSERT INTO `t3` VALUES (84,4,'w');
+INSERT INTO `t3` VALUES (85,0,'f');
+INSERT INTO `t3` VALUES (86,0,'k');
+INSERT INTO `t3` VALUES (87,1,'v');
+INSERT INTO `t3` VALUES (88,119,'c');
+INSERT INTO `t3` VALUES (89,1,'y');
+INSERT INTO `t3` VALUES (90,7,'h');
+INSERT INTO `t3` VALUES (91,2,NULL);
+INSERT INTO `t3` VALUES (92,7,'t');
+INSERT INTO `t3` VALUES (93,2,'l');
+INSERT INTO `t3` VALUES (94,6,'a');
+INSERT INTO `t3` VALUES (95,4,'r');
+INSERT INTO `t3` VALUES (96,5,'s');
+INSERT INTO `t3` VALUES (97,7,'z');
+INSERT INTO `t3` VALUES (98,1,'j');
+INSERT INTO `t3` VALUES (99,7,'c');
+INSERT INTO `t3` VALUES (100,2,'f');
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (10,8,NULL);
+
+set optimizer_switch='subquery_cache=off';
+
+SELECT (
+SELECT `col_int_nokey`
+FROM t3
+WHERE table1 .`col_varchar_nokey` ) field13
+FROM t2 table1 JOIN t1 table2 ON table2 .`pk`
+ORDER BY field13;
+
+set optimizer_switch='subquery_cache=on';
+
+SELECT 
+ (SELECT `col_int_nokey`
+  FROM t3
+  WHERE table1 .`col_varchar_nokey` ) field13
+FROM t2 table1 JOIN t1 table2 ON table2 .`pk`
+ORDER BY field13;
+
+drop table t1,t2,t3;
+set @@optimizer_switch= default;
+
+#
+--echo # LP BUG#615760 (part 1: double transformation)
+#
+create table t1 (a int);
+insert into t1 values (1),(2);
+create table t2 (b int);
+insert into t2 values (1),(2);
+set optimizer_switch='default,semijoin=off,materialization=off,subquery_cache=on';
+
+explain extended
+select * from t1 where a in (select b from t2);
+
+drop table t1,t2;
+set @@optimizer_switch= default;
+
+#
+--echo # LP BUG#615760 (part 2: incorrect heap table index flags)
+#
+SET SESSION optimizer_switch = 'index_merge=off,index_merge_union=off,index_merge_sort_union=off,index_merge_intersection=off,index_condition_pushdown=off,firstmatch=off,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=off,partial_match_table_scan=off,subquery_cache=on';
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) AUTO_INCREMENT=30 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,7,8,'v','v');
+INSERT INTO `t1` VALUES (11,1,9,'r','r');
+INSERT INTO `t1` VALUES (12,5,9,'a','a');
+INSERT INTO `t1` VALUES (13,3,186,'m','m');
+INSERT INTO `t1` VALUES (14,6,NULL,'y','y');
+INSERT INTO `t1` VALUES (15,92,2,'j','j');
+INSERT INTO `t1` VALUES (16,7,3,'d','d');
+INSERT INTO `t1` VALUES (17,NULL,0,'z','z');
+INSERT INTO `t1` VALUES (18,3,133,'e','e');
+INSERT INTO `t1` VALUES (19,5,1,'h','h');
+INSERT INTO `t1` VALUES (20,1,8,'b','b');
+INSERT INTO `t1` VALUES (21,2,5,'s','s');
+INSERT INTO `t1` VALUES (22,NULL,5,'e','e');
+INSERT INTO `t1` VALUES (23,1,8,'j','j');
+INSERT INTO `t1` VALUES (24,0,6,'e','e');
+INSERT INTO `t1` VALUES (25,210,51,'f','f');
+INSERT INTO `t1` VALUES (26,8,4,'v','v');
+INSERT INTO `t1` VALUES (27,7,7,'x','x');
+INSERT INTO `t1` VALUES (28,5,6,'m','m');
+INSERT INTO `t1` VALUES (29,NULL,4,'c','c');
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_int_nokey` int(11) DEFAULT NULL,
+  `col_int_key` int(11) DEFAULT NULL,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  `col_varchar_nokey` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) AUTO_INCREMENT=21 DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (1,NULL,2,'w','w');
+INSERT INTO `t2` VALUES (2,7,9,'m','m');
+INSERT INTO `t2` VALUES (3,9,3,'m','m');
+INSERT INTO `t2` VALUES (4,7,9,'k','k');
+INSERT INTO `t2` VALUES (5,4,NULL,'r','r');
+INSERT INTO `t2` VALUES (6,2,9,'t','t');
+INSERT INTO `t2` VALUES (7,6,3,'j','j');
+INSERT INTO `t2` VALUES (8,8,8,'u','u');
+INSERT INTO `t2` VALUES (9,NULL,8,'h','h');
+INSERT INTO `t2` VALUES (10,5,53,'o','o');
+INSERT INTO `t2` VALUES (11,NULL,0,NULL,NULL);
+INSERT INTO `t2` VALUES (12,6,5,'k','k');
+INSERT INTO `t2` VALUES (13,188,166,'e','e');
+INSERT INTO `t2` VALUES (14,2,3,'n','n');
+INSERT INTO `t2` VALUES (15,1,0,'t','t');
+INSERT INTO `t2` VALUES (16,1,1,'c','c');
+INSERT INTO `t2` VALUES (17,0,9,'m','m');
+INSERT INTO `t2` VALUES (18,9,5,'y','y');
+INSERT INTO `t2` VALUES (19,NULL,6,'f','f');
+INSERT INTO `t2` VALUES (20,4,2,'d','d');
+
+# Here we just need plenty of different parameters to overflow
+# temporary heap table of expression cache
+SELECT table1 .`col_varchar_nokey`
+FROM t2 table1 RIGHT JOIN t1 LEFT JOIN (
+SELECT SUBQUERY1_t2 .*
+FROM t1 SUBQUERY1_t1 LEFT JOIN t2 SUBQUERY1_t2 ON SUBQUERY1_t2 .`col_int_key` = SUBQUERY1_t1 .`col_int_nokey` ) table3 STRAIGHT_JOIN ( (
+SELECT *
+FROM t1 ) table4 JOIN ( t1 table5 JOIN t2 table6 ON table5 .`pk` ) ON table5 .`col_varchar_nokey` ) ON table6 .`pk` = table5 .`col_int_key` ON table5 .`col_varchar_nokey` ON table5 .`col_varchar_key`
+WHERE table3 .`col_varchar_key` IN (
+SELECT `col_varchar_key`
+FROM t2 ) AND table1 .`col_varchar_key` OR table1 .`pk` ;
+
+drop table t1,t2;
+set @@optimizer_switch= default;
+
+#
+--echo # LP BUG#615378 (incorrect NULL result returning in Item_cache)
+#
+# if bug present here will be valgrind warnings (due to attempt to process
+# uninialized decimal value) but the result will be correct (due to 
+# Item::null_value) 
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'v');
+INSERT INTO `t1` VALUES (11,'r');
+CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t2` VALUES (1,'r');
+INSERT INTO `t2` VALUES (2,'c');
+CREATE TABLE `t3` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `col_varchar_key` varchar(1) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) DEFAULT CHARSET=latin1;
+INSERT INTO `t3` VALUES (1,'w');
+
+SELECT  SUM( DISTINCT table2 . `pk` ) AS field2 ,
+(SELECT SUM( SUBQUERY1_t2 . `pk` ) AS SUBQUERY1_field1
+ FROM t2 AS SUBQUERY1_t2 STRAIGHT_JOIN
+      t3 AS SUBQUERY1_t3 ON (SUBQUERY1_t3 . `pk` = SUBQUERY1_t2 . `pk` )
+ WHERE  table1 . `col_varchar_key` ) AS field3  
+FROM ( t1 AS table1 LEFT JOIN
+       ( t2 AS table2 STRAIGHT_JOIN
+         t3 AS table3 ON (table3 . `pk` = table2 . `pk` ) )
+       ON (table3 . `col_varchar_key` = table1 . `col_varchar_key` ) )
+WHERE ( table1 . `pk` < 5 ) OR ( table1 . `col_varchar_key` IS NOT NULL)
+GROUP BY field3
+HAVING (field3 <= 'h' AND field2 != 4) ;
+drop tables t1, t2, t3;

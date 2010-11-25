@@ -25,7 +25,6 @@
  * .configure. mbmaxlen_gbk=2
  */
 
-
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
@@ -44,7 +43,7 @@
 #define gbkhead(e)     ((uchar)(e>>8))
 #define gbktail(e)     ((uchar)(e&0xff))
 
-static uchar ctype_gbk[257] =
+static const uchar ctype_gbk[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -65,7 +64,7 @@ static uchar ctype_gbk[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar to_lower_gbk[]=
+static const uchar to_lower_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -101,7 +100,7 @@ static uchar to_lower_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar to_upper_gbk[]=
+static const uchar to_upper_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -137,8 +136,7 @@ static uchar to_upper_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-
-static MY_UNICASE_INFO cA2[256]=
+static const MY_UNICASE_INFO cA2[256]=
 {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0}, /* xx00 */
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -993,9 +991,7 @@ static MY_UNICASE_INFO *my_caseinfo_gbk[256]=
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
-
-
-static uchar sort_order_gbk[]=
+static const uchar sort_order_gbk[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1031,7 +1027,7 @@ static uchar sort_order_gbk[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uint16 gbk_order[]=
+static const uint16 gbk_order[]=
 {
 8653,14277,17116,11482,11160,2751,14613,3913,13337,9827,
 19496,1759,8105,7103,7836,5638,2223,21433,5878,8006,
@@ -3560,7 +3556,7 @@ static uint mbcharlen_gbk(CHARSET_INFO *cs __attribute__((unused)),uint c)
 }
 
 /* page 0 0x8140-0xFE4F */
-static uint16 tab_gbk_uni0[]={
+static const uint16 tab_gbk_uni0[]={
 0x4E02,0x4E04,0x4E05,0x4E06,0x4E0F,0x4E12,0x4E17,0x4E1F,
 0x4E20,0x4E21,0x4E23,0x4E26,0x4E29,0x4E2E,0x4E2F,0x4E31,
 0x4E33,0x4E35,0x4E37,0x4E3C,0x4E40,0x4E41,0x4E42,0x4E44,
@@ -7574,7 +7570,7 @@ static int func_gbk_uni_onechar(int code){
 
 
 /* page 0 0x00A4-0x0451 */
-static uint16 tab_uni_gbk0[]={
+static const uint16 tab_uni_gbk0[]={
 0xA1E8,     0,     0,0xA1EC,0xA1A7,     0,     0,     0,
      0,     0,     0,     0,0xA1E3,0xA1C0,     0,     0,
      0,     0,     0,0xA1A4,     0,     0,     0,     0,
@@ -7695,7 +7691,7 @@ static uint16 tab_uni_gbk0[]={
 0xA7EE,0xA7EF,0xA7F0,0xA7F1,     0,0xA7D7};
 
 /* page 1 0x2010-0x2312 */
-static uint16 tab_uni_gbk1[]={
+static const uint16 tab_uni_gbk1[]={
 0xA95C,     0,     0,0xA843,0xA1AA,0xA844,0xA1AC,     0,
 0xA1AE,0xA1AF,     0,     0,0xA1B0,0xA1B1,     0,     0,
      0,     0,     0,     0,     0,0xA845,0xA1AD,     0,
@@ -7795,7 +7791,7 @@ static uint16 tab_uni_gbk1[]={
      0,     0,0xA1D0};
 
 /* page 2 0x2460-0x2642 */
-static uint16 tab_uni_gbk2[]={
+static const uint16 tab_uni_gbk2[]={
 0xA2D9,0xA2DA,0xA2DB,0xA2DC,0xA2DD,0xA2DE,0xA2DF,0xA2E0,
 0xA2E1,0xA2E2,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,0xA2C5,0xA2C6,0xA2C7,0xA2C8,
@@ -7859,7 +7855,7 @@ static uint16 tab_uni_gbk2[]={
 0xA1E2,     0,0xA1E1};
 
 /* page 3 0x3000-0x3129 */
-static uint16 tab_uni_gbk3[]={
+static const uint16 tab_uni_gbk3[]={
 0xA1A1,0xA1A2,0xA1A3,0xA1A8,     0,0xA1A9,0xA965,0xA996,
 0xA1B4,0xA1B5,0xA1B6,0xA1B7,0xA1B8,0xA1B9,0xA1BA,0xA1BB,
 0xA1BE,0xA1BF,0xA893,0xA1FE,0xA1B2,0xA1B3,0xA1BC,0xA1BD,
@@ -7900,7 +7896,7 @@ static uint16 tab_uni_gbk3[]={
 0xA8E8,0xA8E9};
 
 /* page 4 0x3220-0x32A3 */
-static uint16 tab_uni_gbk4[]={
+static const uint16 tab_uni_gbk4[]={
 0xA2E5,0xA2E6,0xA2E7,0xA2E8,0xA2E9,0xA2EA,0xA2EB,0xA2EC,
 0xA2ED,0xA2EE,     0,     0,     0,     0,     0,     0,
      0,0xA95A,     0,     0,     0,     0,     0,     0,
@@ -7920,7 +7916,7 @@ static uint16 tab_uni_gbk4[]={
      0,     0,     0,0xA949};
 
 /* page 5 0x338E-0x33D5 */
-static uint16 tab_uni_gbk5[]={
+static const uint16 tab_uni_gbk5[]={
 0xA94A,0xA94B,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,0xA94C,0xA94D,
 0xA94E,     0,     0,0xA94F,     0,     0,     0,     0,
@@ -7933,7 +7929,7 @@ static uint16 tab_uni_gbk5[]={
 };
 
 /* page 6 0x4E00-0x9FA5 */
-static uint16 tab_uni_gbk6[]={
+static const uint16 tab_uni_gbk6[]={
 0xD2BB,0xB6A1,0x8140,0xC6DF,0x8141,0x8142,0x8143,0xCDF2,
 0xD5C9,0xC8FD,0xC9CF,0xCFC2,0xD8A2,0xB2BB,0xD3EB,0x8144,
 0xD8A4,0xB3F3,0x8145,0xD7A8,0xC7D2,0xD8A7,0xCAC0,0x8146,
@@ -10549,7 +10545,7 @@ static uint16 tab_uni_gbk6[]={
 0xD9DF,0xFD97,0xFD98,0xFD99,0xFD9A,0xFD9B};
 
 /* page 7 0xF92C-0xFA29 */
-static uint16 tab_uni_gbk7[]={
+static const uint16 tab_uni_gbk7[]={
 0xFD9C,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
@@ -10584,7 +10580,7 @@ static uint16 tab_uni_gbk7[]={
 0xFE4C,     0,     0,0xFE4D,0xFE4E,0xFE4F};
 
 /* page 8 0xFE30-0xFFE5 */
-static uint16 tab_uni_gbk8[]={
+static const uint16 tab_uni_gbk8[]={
 0xA955,0xA6F2,     0,0xA6F4,0xA6F5,0xA6E0,0xA6E1,0xA6F0,
 0xA6F1,0xA6E2,0xA6E3,0xA6EE,0xA6EF,0xA6E6,0xA6E7,0xA6E4,
 0xA6E5,0xA6E8,0xA6E9,0xA6EA,0xA6EB,     0,     0,     0,
@@ -10801,7 +10797,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_gbk_chinese_ci=
+struct charset_info_st my_charset_gbk_chinese_ci=
 {
     28,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM,	/* state      */
@@ -10833,7 +10829,7 @@ CHARSET_INFO my_charset_gbk_chinese_ci=
     &my_collation_ci_handler
 };
 
-CHARSET_INFO my_charset_gbk_bin=
+struct charset_info_st my_charset_gbk_bin=
 {
     87,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */

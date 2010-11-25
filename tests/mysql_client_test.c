@@ -33,6 +33,8 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
+#include <my_handler.h>
+#include <sql_common.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -40,7 +42,9 @@
 #define MAX_SERVER_ARGS 64
 
 /* set default options */
+#ifdef NOT_USED
 static int   opt_testcase = 0;
+#endif
 static char *opt_db= 0;
 static char *opt_user= 0;
 static char *opt_password= 0;
@@ -849,8 +853,10 @@ static void do_verify_prepare_field(MYSQL_RES *result,
   */
   if (length && (field->length != expected_field_length))
   {
+    fflush(stdout);
     fprintf(stderr, "Expected field length: %llu,  got length: %lu\n",
             expected_field_length, field->length);
+    fflush(stderr);
     DIE_UNLESS(field->length == expected_field_length);
   }
   if (def)
@@ -1198,7 +1204,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1220,7 +1226,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -2270,7 +2276,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 100; tiny_data++)
   {
-    length[1]= sprintf(str_data, "MySQL%d", int_data);
+    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -2309,7 +2315,7 @@ static void test_prepare()
   /* now, execute the prepared statement to insert 10 records.. */
   for (o_tiny_data= 0; o_tiny_data < 100; o_tiny_data++)
   {
-    len= sprintf(data, "MySQL%d", o_int_data);
+    len= my_sprintf(data, (data, "MySQL%d", o_int_data));
 
     rc= mysql_stmt_fetch(stmt);
     check_execute(stmt, rc);
@@ -3045,6 +3051,34 @@ static uint query_cache_hits(MYSQL *conn)
 
 
 /*
+  Check that query cache is available in server.
+*/
+static my_bool is_query_cache_available()
+{
+  int rc;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  int res= -1;
+
+  rc= mysql_query(mysql, "SHOW VARIABLES LIKE 'have_query_cache'");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  DIE_UNLESS(result);
+
+  row= mysql_fetch_row(result);
+  DIE_UNLESS(row != NULL);
+  if (strcmp(row[1], "YES") == 0)
+    res= 1;
+  else if (strcmp(row[1], "NO") == 0)
+    res= 0;
+  mysql_free_result(result);
+
+  DIE_UNLESS(res == 0 || res == 1);
+  return res;
+}
+
+/*
   Test that prepared statements make use of the query cache just as normal
   statements (BUG#735).
 */
@@ -3087,6 +3121,12 @@ static void test_ps_query_cache()
   enum enum_test_ps_query_cache iteration;
 
   myheader("test_ps_query_cache");
+
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_ps_query_cache: Query cache not available.\n");
+    return;
+  }
 
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
@@ -3675,7 +3715,7 @@ static void test_simple_update()
   my_bind[0].buffer= szData;                /* string data */
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= sprintf(szData, "updated-data");
+  length[0]= my_sprintf(szData, (szData, "updated-data"));
 
   my_bind[1].buffer= (void *) &nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -3929,7 +3969,7 @@ static void test_long_data_str1()
 
   rc= mysql_stmt_bind_param(stmt, my_bind);
   check_execute(stmt, rc);
-  length= sprintf(data, "MySQL AB");
+  length= my_sprintf(data, (data, "MySQL AB"));
 
   /* supply data in pieces */
   for (i= 0; i < 3; i++)
@@ -4244,7 +4284,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= sprintf(szData, "inserted-data");
+  length[0]= my_sprintf(szData, (szData, "inserted-data"));
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4273,7 +4313,7 @@ static void test_update()
   my_bind[0].buffer= szData;
   my_bind[0].buffer_length= sizeof(szData);
   my_bind[0].length= &length[0];
-  length[0]= sprintf(szData, "updated-data");
+  length[0]= my_sprintf(szData, (szData, "updated-data"));
 
   my_bind[1].buffer= (void *)&nData;
   my_bind[1].buffer_type= MYSQL_TYPE_LONG;
@@ -4842,7 +4882,7 @@ static void bind_fetch(int row_count)
     /* CHAR */
     {
       char buff[20];
-      long len= sprintf(buff, "%d", rc);
+      long len= my_sprintf(buff, (buff, "%d", rc));
       DIE_UNLESS(strcmp(s_data, buff) == 0);
       DIE_UNLESS(length[6] == (ulong) len);
     }
@@ -5435,7 +5475,7 @@ static void test_insert()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 3; tiny_data++)
   {
-    length= sprintf(str_data, "MySQL%d", tiny_data);
+    length= my_sprintf(str_data, (str_data, "MySQL%d", tiny_data));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
   }
@@ -6197,7 +6237,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
@@ -8235,8 +8275,9 @@ static void test_explain_bug()
                          "", "", NAME_CHAR_LEN*MAX_KEY, 0);
   }
 
+  /* The length of this may verify between MariaDB versions (1024 / 2048) */
   verify_prepare_field(result, 7, "ref", "", MYSQL_TYPE_VAR_STRING,
-                       "", "", "", NAME_CHAR_LEN*16, 0);
+                       "", "", "", NAME_CHAR_LEN * HA_MAX_KEY_SEG, 0);
 
   verify_prepare_field(result, 8, "rows", "", MYSQL_TYPE_LONGLONG,
                        "", "", "", 10, 0);
@@ -13034,7 +13075,7 @@ static void test_conversion()
   const char *stmt_text;
   int rc;
   MYSQL_BIND my_bind[1];
-  char buff[4];
+  uchar buff[4];
   ulong length;
 
   myheader("test_conversion");
@@ -13057,7 +13098,7 @@ static void test_conversion()
   check_execute(stmt, rc);
 
   bzero((char*) my_bind, sizeof(my_bind));
-  my_bind[0].buffer= buff;
+  my_bind[0].buffer= (char*) buff;
   my_bind[0].length= &length;
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
 
@@ -13082,7 +13123,7 @@ static void test_conversion()
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == 0);
   DIE_UNLESS(length == 1);
-  DIE_UNLESS((uchar) buff[0] == 0xE0);
+  DIE_UNLESS(buff[0] == 0xE0);
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
@@ -16324,11 +16365,10 @@ static void test_bug21206()
 
 static void test_status()
 {
-  const char *status;
   DBUG_ENTER("test_status");
   myheader("test_status");
 
-  if (!(status= mysql_stat(mysql)))
+  if (!mysql_stat(mysql))
   {
     myerror("mysql_stat failed");                 /* purecov: inspected */
     die(__FILE__, __LINE__, "mysql_stat failed"); /* purecov: inspected */
@@ -16745,6 +16785,8 @@ static void test_bug27876()
 
   rc= mysql_query(mysql, "set names default");
   myquery(rc);
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -17903,7 +17945,7 @@ static void test_wl4166_1()
   /* now, execute the prepared statement to insert 10 records.. */
   for (tiny_data= 0; tiny_data < 10; tiny_data++)
   {
-    length[1]= sprintf(str_data, "MySQL%d", int_data);
+    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -17926,7 +17968,7 @@ static void test_wl4166_1()
 
   for (tiny_data= 50; tiny_data < 60; tiny_data++)
   {
-    length[1]= sprintf(str_data, "MySQL%d", int_data);
+    length[1]= my_sprintf(str_data, (str_data, "MySQL%d", int_data));
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     int_data += 25;
@@ -18548,14 +18590,18 @@ static void test_bug43560(void)
   Bug#36326: nested transaction and select
 */
 
-#ifdef HAVE_QUERY_CACHE
-
 static void test_bug36326()
 {
   int rc;
 
   DBUG_ENTER("test_bug36326");
   myheader("test_bug36326");
+
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_bug36326: Query cache not available.\n");
+    DBUG_VOID_RETURN;
+  }
 
   rc= mysql_autocommit(mysql, TRUE);
   myquery(rc);
@@ -18595,8 +18641,6 @@ static void test_bug36326()
 
   DBUG_VOID_RETURN;
 }
-
-#endif
 
 /**
   Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
@@ -19156,14 +19200,14 @@ static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =
 {
-  {"basedir", 'b', "Basedir for tests.", &opt_basedir,
-   &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"basedir", 'b', "Basedir for tests.", (char**) &opt_basedir,
+   (char**) &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 't', "Number of times test to be executed", &opt_count,
    &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", &opt_db, &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", '#', "Output debug log", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug", '#', "Output debug log", (char**) &default_dbug_option,
+   (char**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host", &opt_host, &opt_host,
@@ -19199,8 +19243,8 @@ static struct my_option client_test_long_options[] =
   {"user", 'u', "User for login if not current user", &opt_user,
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"vardir", 'v', "Data dir for tests.", &opt_vardir,
-   &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"vardir", 'v', "Data dir for tests.", (char**) &opt_vardir,
+   (char**) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
@@ -19471,9 +19515,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
   { "test_bug43560", test_bug43560 },
-#ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
-#endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },
@@ -19493,7 +19535,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
   case 'c':
+#ifdef NOT_USED
     opt_testcase = 1;
+#endif
     break;
   case 'p':
     if (argument)

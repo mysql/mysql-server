@@ -1,0 +1,162 @@
+--source include/have_ucs2.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# Bug#601164: DELETE/UPDATE with ORDER BY index and LIMIT
+#             
+
+create table t1 (a int, b int, v int as (a+1), index idx(b));
+insert into t1(a, b) values
+  (4, 40), (3, 30), (5, 50), (7, 70), (8, 80), (2, 20), (1, 10);
+
+select * from t1 order by b;
+
+delete from t1 where v > 6 order by b limit 1;
+select * from t1 order by b;
+
+update t1 set a=v order by b limit 1;
+select * from t1 order by b;
+
+drop table t1;
+
+#
+# Bug#604549: Expression for virtual column returns row
+#             
+
+-- error ER_ROW_EXPR_FOR_VCOL 
+CREATE TABLE t1 (
+  a int NOT NULL DEFAULT '0',
+  v double AS ((1, a)) VIRTUAL
+);
+
+#
+# Bug#603654: Virtual column in ORDER BY, no other references of table columns
+#             
+
+CREATE TABLE t1 (
+ a CHAR(255) BINARY NOT NULL DEFAULT 0,
+ b CHAR(255) BINARY NOT NULL DEFAULT 0,
+ v CHAR(255) BINARY AS (CONCAT(a,b)) VIRTUAL );
+INSERT INTO t1(a,b) VALUES ('4','7'), ('4','6');
+SELECT 1 AS C FROM t1 ORDER BY v;
+
+DROP TABLE t1;
+
+#
+# Bug#603186: Insert into a table with stored vurtual columns
+#             
+
+CREATE TABLE t1(a int, b int DEFAULT 0, v INT AS (b+10) PERSISTENT);
+INSERT INTO t1(a) VALUES (1);
+SELECT b, v FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(a int DEFAULT 100, v int AS (a+1) PERSISTENT);
+INSERT INTO t1 () VALUES ();
+CREATE TABLE t2(a int DEFAULT 100 , v int AS (a+1));
+INSERT INTO t2 () VALUES ();
+
+SELECT a, v FROM t1;
+SELECT a, v FROM t2;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#604503: Virtual column expression with datetime comparison
+#
+
+CREATE TABLE t1 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01')
+);
+INSERT INTO t1(a) VALUES ('2002-02-15');
+INSERT INTO t1(a) VALUES ('2000-10-15');
+
+SELECT a, v FROM t1;
+SELECT a, v FROM t1;
+
+CREATE TABLE t2 (
+ a datetime NOT NULL DEFAULT '2000-01-01',
+ v boolean AS (a < '2001-01-01') PERSISTENT
+);
+INSERT INTO t2(a) VALUES ('2002-02-15');
+INSERT INTO t2(a) VALUES ('2000-10-15');
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+#
+# Bug#607566: Virtual column in the select list of SELECT with ORDER BY
+#
+
+CREATE TABLE t1 (
+  a char(255), b char(255), c char(255), d char(255),
+  v char(255) AS (CONCAT(c,d) ) VIRTUAL
+);
+
+INSERT INTO t1(a,b,c,d) VALUES ('w','x','y','z'), ('W','X','Y','Z');
+
+SELECT v FROM t1 ORDER BY CONCAT(a,b);
+
+DROP TABLE t1;
+
+#
+# Bug#607168: CREATE TABLE AS SELECT that returns virtual columns
+#
+
+CREATE TABLE t1 (f1 INTEGER, v1 INTEGER AS (f1) VIRTUAL);
+CREATE TABLE t2 AS SELECT v1 FROM t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1,t2;
+
+#
+# Bug#607177: ROUND function in the expression for a virtual function
+#
+
+CREATE TABLE t1 (p int, a double NOT NULL, v double AS (ROUND(a,p)) VIRTUAL);
+INSERT INTO t1 VALUES (0,1,0);
+INSERT INTO t1 VALUES (NULL,0,0);
+SELECT a, p, v, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (p int, a double NOT NULL);
+INSERT INTO t1(p,a) VALUES (0,1);
+INSERT INTO t1(p,a) VALUES (NULL,0);
+SELECT a, p, ROUND(a,p), ROUND(a,p+NULL) FROM t1;
+DROP TABLE t1;
+
+#
+# Bug#610890: SHOW CREATE TABLE with a virtual column
+#
+
+CREATE TABLE t1 (a char(32), v char(32) CHARACTER SET ucs2 AS (a) VIRTUAL);
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+#
+#  SELECT that uses a virtual column and executed with BKA
+#
+
+create table t1 (a int, b int);
+insert into t1 values (3, 30), (4, 20), (1, 20);
+create table t2 (c int, d int, v int as (d+1), index idx(c));
+insert into t2(c,d) values 
+  (20, 100), (20, 300), (30, 100), (30, 200), (40, 500),
+  (70, 100), (40, 300), (60, 100), (40, 100), (70, 100);                           
+
+set join_cache_level=6;
+explain
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+
+select * from t1,t2 where t1.b=t2.c and d <= 100;
+set join_cache_level=default;
+
+drop table t1, t2;

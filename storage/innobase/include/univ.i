@@ -182,7 +182,7 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
-#if defined HAVE_VALGRIND
+#if defined(HAVE_valgrind)&& defined(HAVE_VALGRIND_MEMCHECK_H)
 # define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_VALGRIND */
 #if 0

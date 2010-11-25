@@ -1,0 +1,97 @@
+drop table if exists t1;
+select length(encrypt('foo', 'ff')) <> 0;
+length(encrypt('foo', 'ff')) <> 0
+1
+create table t1 (name varchar(50), pw varchar(64));
+insert into t1 values ('tom', password('my_pass'));
+set @pass='my_pass';
+select name from t1 where name='tom' and pw=password(@pass);
+name
+tom
+select name from t1 where name='tom' and pw=password(@undefined);
+name
+drop table t1;
+select password('abc');
+password('abc')
+*0D3CED9BEC10A777AEC23CCC353A8C08A633045E
+select password('');
+password('')
+
+select old_password('abc');
+old_password('abc')
+7cd2b5942be28759
+select old_password('');
+old_password('')
+
+select password('gabbagabbahey');
+password('gabbagabbahey')
+*B0F99D2963660DD7E16B751EC9EE2F17B6A68FA6
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+select length(password('1'));
+length(password('1'))
+41
+select length(encrypt('test'));
+length(encrypt('test'))
+13
+select encrypt('test','aa');
+encrypt('test','aa')
+aaqPiZY5xR5l.
+select old_password(NULL);
+old_password(NULL)
+NULL
+select password(NULL);
+password(NULL)
+NULL
+set global old_passwords=on;
+select password('');
+password('')
+
+select old_password('');
+old_password('')
+
+select password('idkfa');
+password('idkfa')
+*B669C9DAC3AA6F2254B03CDEF8DFDD6B2D1054BA
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set old_passwords=on;
+select password('idkfa');
+password('idkfa')
+5c078dc54ca0fcca
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set global old_passwords=off;
+select password('idkfa');
+password('idkfa')
+5c078dc54ca0fcca
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+set old_passwords=off;
+select password('idkfa ');
+password('idkfa ')
+*2DC31D90647B4C1ABC9231563D2236E96C9A2DB2
+select password('idkfa');
+password('idkfa')
+*B669C9DAC3AA6F2254B03CDEF8DFDD6B2D1054BA
+select password(' idkfa');
+password(' idkfa')
+*12B099E56BB7FE8D43C78FD834A9D1D11178D045
+select old_password('idkfa');
+old_password('idkfa')
+5c078dc54ca0fcca
+select old_password(' i 	 d k f a ');
+old_password(' i 	 d k f a ')
+5c078dc54ca0fcca
+explain extended select password('idkfa '), old_password('idkfa');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select password('idkfa ') AS `password('idkfa ')`,old_password('idkfa') AS `old_password('idkfa')`
+select encrypt('1234','_.');
+encrypt('1234','_.')
+#

@@ -1,0 +1,113 @@
+--echo #
+--echo # Generic @@optimizer_switch tests 
+--echo # 
+--echo #
+
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch;
+
+set optimizer_switch='index_merge=off,index_merge_union=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch;
+
+set optimizer_switch='index_merge_union=on';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch;
+
+set optimizer_switch='default,index_merge_sort_union=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch=4;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch=NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='default,index_merge';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge=index_merge';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge=on,but...';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge=';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='on';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge=on,index_merge=off';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='index_merge_union=on,index_merge_union=default';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch='default,index_merge=on,index_merge=off,default';
+
+set optimizer_switch=default;
+set optimizer_switch='index_merge=off,index_merge_union=off,default';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch;
+set optimizer_switch=default;
+
+# Check setting defaults for global vars
+--replace_regex /,table_elimination=on//
+select @@global.optimizer_switch;
+set @@global.optimizer_switch=default;
+--replace_regex /,table_elimination=on//
+select @@global.optimizer_switch;
+
+--echo #
+--echo # Check index_merge's @@optimizer_switch flags
+--echo #
+--replace_regex /,table_elimination.on//
+select @@optimizer_switch;
+
+--echo
+--echo BUG#37120 optimizer_switch allowable values not according to specification
+--echo
+
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,materialization=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,semijoin=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,loosescan=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,semijoin=off,materialization=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,materialization=off,semijoin=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,semijoin=off,materialization=off,loosescan=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,semijoin=off,loosescan=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+
+set optimizer_switch='default,materialization=off,loosescan=off';
+--replace_regex /,table_elimination=on//
+select @@optimizer_switch; 
+set optimizer_switch=default;
+
+

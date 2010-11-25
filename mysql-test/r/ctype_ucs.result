@@ -1239,6 +1239,50 @@ WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.0 tests
+Start of 5.1 tests
+SET NAMES utf8;
+CREATE TABLE t1 (
+a varchar(10) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
+key(a)
+);
+INSERT INTO t1 VALUES
+('aa'),('bb'),('cc'),('dd'),('ee'),('ff'),('gg'),('hh'),('ii'),
+('jj'),('kk'),('ll'),('mm'),('nn'),('oo'),('pp'),('rr'),('ss'),
+('tt'),('uu'),('vv'),('ww'),('xx'),('yy'),('zz');
+INSERT INTO t1 VALUES ('ca'),('cz'),('ch');
+INSERT INTO t1 VALUES ('da'),('dz'), (X'0064017E');
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'b%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'c%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	30	Using where; Using index
+SELECT * FROM t1 WHERE a LIKE 'c%';
+a
+ca
+cc
+cz
+ch
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'ch%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT * FROM t1 WHERE a LIKE 'ch%';
+a
+ch
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET ucs2 COLLATE ucs2_croatian_ci;
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'd%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT hex(concat('d',_ucs2 0x017E,'%'));
+hex(concat('d',_ucs2 0x017E,'%'))
+0064017E0025
+EXPLAIN SELECT * FROM t1 WHERE a LIKE concat('d',_ucs2 0x017E,'%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT hex(a) FROM t1 WHERE a LIKE concat('D',_ucs2 0x017E,'%');
+hex(a)
+0064017E
+DROP TABLE t1;
 #
 # Start of 5.5 tests
 #

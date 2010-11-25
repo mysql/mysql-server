@@ -120,6 +120,7 @@ public:
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -185,8 +186,8 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
+ // bool is_expensive_processor(uchar *arg);
+ // virtual bool is_expensive() { return 0; }
   inline void raise_numeric_overflow(const char *type_name)
   {
     char buf[256];
@@ -264,6 +265,21 @@ public:
   virtual bool find_function_processor (uchar *arg)
   {
     return functype() == *(Functype *) arg;
+  }
+
+  void no_rows_in_result()
+  {
+    bool_func_call_args info;
+    info.original_func_item= this;
+    info.bool_function= &Item::no_rows_in_result;
+    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
+  }
+  void restore_to_before_no_rows_in_result()
+  {
+    bool_func_call_args info;
+    info.original_func_item= this;
+    info.bool_function= &Item::restore_to_before_no_rows_in_result;
+    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
   }
 };
 
@@ -409,6 +425,7 @@ public:
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
+  bool check_vcol_func_processor(uchar *int_arg) { return TRUE;}
 };
 
 
@@ -471,6 +488,7 @@ public:
   Item_func_additive_op(Item *a,Item *b) :Item_num_op(a,b) {}
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -506,6 +524,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -538,6 +557,7 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -552,6 +572,7 @@ public:
   void result_precision();
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -568,6 +589,7 @@ public:
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -581,6 +603,7 @@ public:
   const char *func_name() const { return "abs"; }
   void fix_length_and_dec();
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -744,6 +767,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 
@@ -756,6 +780,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
 };
 
 /* This handles round and truncate */
@@ -776,7 +801,7 @@ public:
 
 class Item_func_rand :public Item_real_func
 {
-  struct rand_struct *rand;
+  struct my_rnd_struct *rand;
   bool first_eval; // TRUE if val_real() is called 1st time
 public:
   Item_func_rand(Item *a) :Item_real_func(a), rand(0), first_eval(TRUE) {}
@@ -787,6 +812,10 @@ public:
   void update_used_tables();
   bool fix_fields(THD *thd, Item **ref);
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 private:
   void seed_random (Item * val);  
 };
@@ -1069,6 +1098,10 @@ public:
       max_length= args[0]->max_length;
   }
   bool fix_fields(THD *thd, Item **ref);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1082,6 +1115,10 @@ public:
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
   virtual void print(String *str, enum_query_type query_type);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1097,6 +1134,10 @@ public:
     used_tables_cache|= RAND_TABLE_BIT;
   }
   longlong val_int();
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1107,6 +1148,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1346,6 +1388,10 @@ class Item_func_get_lock :public Item_int_func
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 class Item_func_release_lock :public Item_int_func
@@ -1356,6 +1402,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
   void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 /* replication functions */
@@ -1369,6 +1419,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
   void fix_length_and_dec() { max_length=21; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1441,6 +1495,7 @@ public:
   }
   void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
   bool register_field_in_read_map(uchar *arg);
+  bool register_field_in_bitmap(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
 };
@@ -1529,7 +1584,7 @@ class Item_func_get_system_var :public Item_func
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
-  my_bool cached_null_value;
+  bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
 
@@ -1576,7 +1631,6 @@ public:
 
 
 /* for fulltext search */
-#include <ft_global.h>
 
 class Item_func_match :public Item_real_func
 {
@@ -1617,6 +1671,11 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    /* TODO: consider adding in support for the MATCH-based virtual columns */
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1636,6 +1695,17 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=1; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+#if 0
+    DBUG_ENTER("Item_func_is_free_lock::check_vcol_func_processor");
+    DBUG_PRINT("info",
+      ("check_vcol_func_processor returns TRUE: unsupported function"));
+    DBUG_RETURN(TRUE);
+#else
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+#endif
+  }
 };
 
 class Item_func_is_used_lock :public Item_int_func
@@ -1646,6 +1716,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
   void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 /* For type casts */
@@ -1665,6 +1739,11 @@ public:
   longlong val_int();
   const char *func_name() const { return "row_count"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1694,6 +1773,9 @@ private:
   bool execute();
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
+
+protected:
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   
 public:
 
@@ -1773,6 +1855,10 @@ public:
   {
     return sp_result_field;
   }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1783,6 +1869,10 @@ public:
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
   void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -1797,6 +1887,10 @@ public:
   void fix_length_and_dec()
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,

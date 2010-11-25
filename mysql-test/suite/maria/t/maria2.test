@@ -1,0 +1,110 @@
+--source include/have_maria.inc
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# Test for BUG#36319
+# "Aria: table is not empty but DELETE and SELECT find no rows"
+
+CREATE TABLE t1 (
+  line BLOB,
+  kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+  name VARCHAR(32)
+) transactional=0 row_format=page engine=aria;
+
+let $query=   INSERT INTO t1 (name, kind, line) VALUES 
+  ("Aadaouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
+  ("Aadassiye", "pp", GeomFromText("POINT(35.816667 36.216667)")),
+  ("Aadbel", "pp", GeomFromText("POINT(34.533333 36.100000)")),
+  ("Aadchit", "pp", GeomFromText("POINT(33.347222 35.423611)")),
+  ("Aadchite", "pp", GeomFromText("POINT(33.347222 35.423611)")),
+  ("Aadchit el Qoussair", "pp", GeomFromText("POINT(33.283333 35.483333)")),
+  ("Aaddaye", "pp", GeomFromText("POINT(36.716667 40.833333)")),
+  ("'Aadeissa", "pp", GeomFromText("POINT(32.823889 35.698889)")),
+  ("Aaderup", "pp", GeomFromText("POINT(55.216667 11.766667)")),
+  ("Qalaat Aades", "pp", GeomFromText("POINT(33.503333 35.377500)")),
+  ("A ad'ino", "pp", GeomFromText("POINT(54.812222 38.209167)")),
+  ("Aadi Noia", "pp", GeomFromText("POINT(13.800000 39.833333)")),
+  ("Aad La Macta", "pp", GeomFromText("POINT(35.779444 -0.129167)")),
+  ("Aadland", "pp", GeomFromText("POINT(60.366667 5.483333)")),
+  ("Aadliye", "pp", GeomFromText("POINT(33.366667 36.333333)")),
+  ("Aadloun", "pp", GeomFromText("POINT(33.403889 35.273889)")),
+  ("Aadma", "pp", GeomFromText("POINT(58.798333 22.663889)")),
+  ("Aadma Asundus", "pp", GeomFromText("POINT(58.798333 22.663889)")),
+  ("Aadmoun", "pp", GeomFromText("POINT(34.150000 35.650000)")),
+  ("Aadneram", "pp", GeomFromText("POINT(59.016667 6.933333)")),
+  ("Aadneskaar", "pp", GeomFromText("POINT(58.083333 6.983333)")),
+  ("Aadorf", "pp", GeomFromText("POINT(47.483333 8.900000)")),
+  ("Aadorp", "pp", GeomFromText("POINT(52.366667 6.633333)")),
+  ("Aadouane", "pp", GeomFromText("POINT(32.816667 35.983333)")),
+  ("Aadoui", "pp", GeomFromText("POINT(34.450000 35.983333)")),
+  ("Aadouiye", "pp", GeomFromText("POINT(34.583333 36.183333)")),
+  ("Aadouss", "pp", GeomFromText("POINT(33.512500 35.601389)")),
+  ("Aadra", "pp", GeomFromText("POINT(33.616667 36.500000)")),
+  ("Aadzi", "pp", GeomFromText("POINT(38.100000 64.850000)"));
+
+--disable_query_log
+let $1=90;
+while($1)
+{
+  eval $query;
+  dec $1;
+}
+let $1=90;
+while($1)
+{
+  delete from t1 limit 1;
+  delete from t1 limit 10;
+  delete from t1 limit 7;
+  delete from t1 limit 2;
+  dec $1;
+}
+--enable_query_log
+
+select count(*) from t1;
+delete from t1 limit 1000;
+select count(*) from t1;
+select name from t1;
+check table t1 extended;
+drop table t1;
+
+#
+# Testing of ALTER TABLE under lock tables
+#
+
+create table t1 (i int) engine=aria;
+create table t2 (j int) engine=aria;
+lock table t1 write, t2 read;
+alter table t1 modify i int default 1;
+insert into t1 values (2);
+# This caused a core dump
+alter table t1 modify i bigint default 1;
+select count(*) from t1;
+select * from t1;
+drop table t1,t2;
+
+#
+# test INSERT ON DUPLICATE KEY UPDATE
+#
+
+create table t1(id int, s char(1), unique(s)) engine=aria;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
+select * from t1;
+
+# test REPLACE SELECT
+replace into t1 select 1,"a";
+select * from t1;
+drop table t1;
+
+# test LOAD DATA INFILE REPLACE
+create table t1 (pk int primary key, apk int unique, data int) engine=aria;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data concurrent infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+load data infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+drop table t1;

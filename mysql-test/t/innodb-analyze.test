@@ -1,0 +1,65 @@
+#
+# Test that mysqld does not crash when running ANALYZE TABLE with
+# different values of the parameter innodb_stats_sample_pages.
+#
+
+-- source include/have_innodb.inc
+
+# we care only that the following SQL commands do not produce errors
+# and do not crash the server
+-- disable_query_log
+-- disable_result_log
+-- enable_warnings
+
+let $sample_pages=`select @@innodb_stats_sample_pages`;
+SET GLOBAL innodb_stats_sample_pages=0;
+
+# check that the value has been adjusted to 1
+-- enable_result_log
+SHOW VARIABLES LIKE 'innodb_stats_sample_pages';
+-- disable_result_log
+
+CREATE TABLE innodb_analyze (
+	a INT,
+	b INT,
+	KEY(a),
+	KEY(b,a)
+) ENGINE=InnoDB;
+
+# test with empty table
+
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=2;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=4;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=8;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=16;
+ANALYZE TABLE innodb_analyze;
+
+INSERT INTO innodb_analyze VALUES
+(1,1), (1,1), (1,2), (1,3), (1,4), (1,5),
+(8,1), (8,8), (8,2), (7,1), (1,4), (3,5);
+
+SET GLOBAL innodb_stats_sample_pages=1;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=2;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=4;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=8;
+ANALYZE TABLE innodb_analyze;
+
+SET GLOBAL innodb_stats_sample_pages=16;
+ANALYZE TABLE innodb_analyze;
+
+DROP TABLE innodb_analyze;
+EVAL SET GLOBAL innodb_stats_sample_pages=$sample_pages;

@@ -53,21 +53,18 @@ get_collation_number_internal(const char *name)
 }
 
 
-static my_bool init_state_maps(CHARSET_INFO *cs)
+static my_bool init_state_maps(struct charset_info_st *cs)
 {
   uint i;
   uchar *state_map;
   uchar *ident_map;
 
-  if (!(cs->state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+  if (!(cs->state_map= state_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
     return 1;
     
-  if (!(cs->ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
+  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
     return 1;
 
-  state_map= cs->state_map;
-  ident_map= cs->ident_map;
-  
   /* Fill state_map with states to get a faster parser */
   for (i=0; i < 256 ; i++)
   {
@@ -118,7 +115,7 @@ static my_bool init_state_maps(CHARSET_INFO *cs)
 }
 
 
-static void simple_cs_init_functions(CHARSET_INFO *cs)
+static void simple_cs_init_functions(struct charset_info_st *cs)
 {
   if (cs->state & MY_CS_BINSORT)
     cs->coll= &my_collation_8bit_bin_handler;
@@ -130,7 +127,7 @@ static void simple_cs_init_functions(CHARSET_INFO *cs)
 
 
 
-static int cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static int cs_copy_data(struct charset_info_st *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
 
@@ -203,7 +200,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 
 
 static void
-copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
+copy_uca_collation(struct charset_info_st *to, CHARSET_INFO *from)
 {
   to->cset= from->cset;
   to->coll= from->coll;
@@ -217,18 +214,19 @@ copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from)
 }
 
 
-static int add_collation(CHARSET_INFO *cs)
+static int add_collation(struct charset_info_st *cs)
 {
   if (cs->name && (cs->number ||
                    (cs->number=get_collation_number_internal(cs->name))) &&
       cs->number < array_elements(all_charsets))
   {
-    if (!all_charsets[cs->number])
+    struct charset_info_st *newcs;
+    if (!(newcs= (struct charset_info_st*) all_charsets[cs->number]))
     {
-      if (!(all_charsets[cs->number]=
-         (CHARSET_INFO*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
+      if (!(all_charsets[cs->number]= newcs=
+         (struct charset_info_st*) my_once_alloc(sizeof(CHARSET_INFO),MYF(0))))
         return MY_XML_ERROR;
-      bzero((void*)all_charsets[cs->number],sizeof(CHARSET_INFO));
+      bzero(newcs,sizeof(CHARSET_INFO));
     }
     
     if (cs->primary_number == cs->number)
@@ -237,12 +235,11 @@ static int add_collation(CHARSET_INFO *cs)
     if (cs->binary_number == cs->number)
       cs->state |= MY_CS_BINSORT;
     
-    all_charsets[cs->number]->state|= cs->state;
+    newcs->state|= cs->state;
     
-    if (!(all_charsets[cs->number]->state & MY_CS_COMPILED))
+    if (!(newcs->state & MY_CS_COMPILED))
     {
-      CHARSET_INFO *newcs= all_charsets[cs->number];
-      if (cs_copy_data(all_charsets[cs->number],cs))
+      if (cs_copy_data(newcs,cs))
         return MY_XML_ERROR;
 
       newcs->caseup_multiply= newcs->casedn_multiply= 1;
@@ -287,15 +284,15 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else
       {
-        uchar *sort_order= all_charsets[cs->number]->sort_order;
-        simple_cs_init_functions(all_charsets[cs->number]);
+        const uchar *sort_order= newcs->sort_order;
+        simple_cs_init_functions(newcs);
         newcs->mbminlen= 1;
         newcs->mbmaxlen= 1;
-        if (simple_cs_is_full(all_charsets[cs->number]))
+        if (simple_cs_is_full(newcs))
         {
-          all_charsets[cs->number]->state |= MY_CS_LOADED;
+          newcs->state |= MY_CS_LOADED;
         }
-        all_charsets[cs->number]->state|= MY_CS_AVAILABLE;
+        newcs->state|= MY_CS_AVAILABLE;
         
         /*
           Check if case sensitive sort order: A < a < B.
@@ -305,12 +302,12 @@ static int add_collation(CHARSET_INFO *cs)
         */
         if (sort_order && sort_order['A'] < sort_order['a'] &&
                           sort_order['a'] < sort_order['B'])
-          all_charsets[cs->number]->state|= MY_CS_CSSORT; 
+          newcs->state|= MY_CS_CSSORT; 
 
-        if (my_charset_is_8bit_pure_ascii(all_charsets[cs->number]))
-          all_charsets[cs->number]->state|= MY_CS_PUREASCII;
+        if (my_charset_is_8bit_pure_ascii(newcs))
+          newcs->state|= MY_CS_PUREASCII;
         if (!my_charset_is_ascii_compatible(cs))
-          all_charsets[cs->number]->state|= MY_CS_NONASCII;
+	  newcs->state|= MY_CS_NONASCII;
       }
     }
     else
@@ -324,16 +321,15 @@ static int add_collation(CHARSET_INFO *cs)
         If a character set was compiled, this information
         will get lost and overwritten in add_compiled_collation().
       */
-      CHARSET_INFO *dst= all_charsets[cs->number];
-      dst->number= cs->number;
+      newcs->number= cs->number;
       if (cs->comment)
-	if (!(dst->comment= my_once_strdup(cs->comment,MYF(MY_WME))))
+	if (!(newcs->comment= my_once_strdup(cs->comment,MYF(MY_WME))))
 	  return MY_XML_ERROR;
       if (cs->csname)
-        if (!(dst->csname= my_once_strdup(cs->csname,MYF(MY_WME))))
+        if (!(newcs->csname= my_once_strdup(cs->csname,MYF(MY_WME))))
 	  return MY_XML_ERROR;
       if (cs->name)
-	if (!(dst->name= my_once_strdup(cs->name,MYF(MY_WME))))
+	if (!(newcs->name= my_once_strdup(cs->name,MYF(MY_WME))))
 	  return MY_XML_ERROR;
     }
     cs->number= 0;
@@ -417,7 +413,7 @@ char *get_charsets_dir(char *buf)
 CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE]={NULL};
 CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
-void add_compiled_collation(CHARSET_INFO *cs)
+void add_compiled_collation(struct charset_info_st *cs)
 {
   all_charsets[cs->number]= cs;
   cs->state|= MY_CS_AVAILABLE;
@@ -435,14 +431,15 @@ static my_pthread_once_t charsets_template= MY_PTHREAD_ONCE_INIT;
 static void init_available_charsets(void)
 {
   char fname[FN_REFLEN + sizeof(MY_CHARSET_INDEX)];
-  CHARSET_INFO **cs;
+  struct charset_info_st **cs;
 
-  bzero(&all_charsets,sizeof(all_charsets));
+  bzero((char*) &all_charsets,sizeof(all_charsets));
   init_compiled_charsets(MYF(0));
 
   /* Copy compiled charsets */
-  for (cs=all_charsets;
-       cs < all_charsets+array_elements(all_charsets)-1 ;
+  for (cs= (struct charset_info_st**) all_charsets;
+       cs < (struct charset_info_st**) all_charsets +
+            array_elements(all_charsets)-1 ;
        cs++)
   {
     if (*cs)
@@ -543,9 +540,9 @@ const char *get_charset_name(uint charset_number)
 static CHARSET_INFO *get_internal_charset(uint cs_number, myf flags)
 {
   char  buf[FN_REFLEN];
-  CHARSET_INFO *cs;
+  struct charset_info_st *cs;
 
-  if ((cs= all_charsets[cs_number]))
+  if ((cs= (struct charset_info_st*) all_charsets[cs_number]))
   {
     if (cs->state & MY_CS_READY)  /* if CS is already initialized */
         return cs;

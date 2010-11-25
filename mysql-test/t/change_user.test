@@ -1,5 +1,63 @@
 #
+# functional change user tests
+#
+
+grant select on test.* to test_nopw;
+grant select on test.* to test_oldpw identified by password "09301740536db389";
+grant select on test.* to test_newpw identified by "newpw";
+
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+#
+# massaging the data for tests to pass in the embedded server,
+# that has authentication completely disabled or, if enabled, can
+# only do new auth (20-byte scramble).
+#
+
+change_user test_nopw;
+--replace_result <@> <test_nopw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+#
+# embedded with enabled privilege control cannot do plugin negotiation.
+# that is, it cannot try to authenticate with a new scramble, receive a request
+# to switch to an old scramble, and retry with an old scramble.
+# As a result, it cannot change to a user that has old scramble and
+# and it stays logged as a previous user - test_nopw in this test file.
+# For the embedded with auth we replace nopw with oldpw in the results.
+#
+let $repl = `select if(version() like '%embedded%' and user() like '%nopw%', 'nopw', 'oldpw')`;
+
+change_user test_oldpw, oldpw;
+--replace_result <@> <test_oldpw@%> @> @localhost> $repl oldpw
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_newpw, newpw;
+--replace_result <@> <test_newpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user root;
+--replace_result <@> <root@localhost> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user test_nopw,,test;
+--replace_result <@> <test_nopw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_oldpw,oldpw,test;
+--replace_result <@> <test_oldpw@%> @> @localhost> $repl oldpw
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_newpw,newpw,test;
+--replace_result <@> <test_newpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user root,,test;
+--replace_result <@> <root@localhost> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+drop user test_nopw;
+drop user test_oldpw;
+drop user test_newpw;
+
+#
 # Bug#20023 mysql_change_user() resets the value of SQL_BIG_SELECTS
+# The replace's are here to fix things for 32 bit systems
 #
 
 --echo Bug#20023
@@ -26,6 +84,10 @@ SET @@session.max_join_size = default;
 --echo change_user
 --change_user
 SELECT @@session.sql_big_selects;
+--replace_result 4294967295 18446744073709551615
+SELECT @@global.max_join_size;
+--replace_result 4294967295 18446744073709551615
+SELECT @@session.max_join_size;
 
 #
 # Bug#31418 User locks misfunctioning after mysql_change_user()
@@ -52,13 +114,13 @@ FLUSH STATUS;
 --disable_query_log
 
 let $i = 100;
-
+begin;
 while ($i)
 {
   dec $i;
-
   SELECT 1;
 }
+commit;
 
 --enable_query_log
 --enable_result_log

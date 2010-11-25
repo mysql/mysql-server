@@ -138,7 +138,7 @@ struct Query_cache_block
   block_type type;
   TABLE_COUNTER_TYPE n_tables;			// number of tables in query
 
-  inline my_bool is_free(void) { return type == FREE; }
+  inline bool is_free(void) { return type == FREE; }
   void init(ulong length);
   void destroy();
   inline uint headers_len();
@@ -179,7 +179,7 @@ struct Query_cache_query
   }
   void lock_writing();
   void lock_reading();
-  my_bool try_lock_writing();
+  bool try_lock_writing();
   void unlock_writing();
   void unlock_reading();
 };
@@ -332,7 +332,7 @@ protected:
   
   uint mem_bin_num, mem_bin_steps;		// See at init_cache & find_bin
 
-  my_bool initialized;
+  bool initialized;
 
   /* Exclude/include from cyclic double linked list */
   static void double_linked_list_exclude(Query_cache_block *point,

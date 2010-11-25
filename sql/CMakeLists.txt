@@ -20,6 +20,7 @@ ${CMAKE_SOURCE_DIR}/regex
 ${ZLIB_INCLUDE_DIR}
 ${SSL_INCLUDE_DIRS}
 ${CMAKE_BINARY_DIR}/sql
+${CMAKE_SOURCE_DIR}/extra/libevent 
 )
 
 SET(GEN_SOURCES
@@ -50,6 +51,10 @@ SET (SQL_SOURCE
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
+               ../sql-common/client_plugin.c create_options.cc
+               multi_range_read.cc opt_index_cond_pushdown.cc
+               opt_subselect.cc opt_table_elimination.cc
+               sql_expression_cache.cc sql_join_cache.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -85,7 +90,7 @@ ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
+  mysys dbug strings vio regex libevent psapi.lib
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 

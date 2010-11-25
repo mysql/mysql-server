@@ -32,7 +32,7 @@
 #ifdef HAVE_CHARSET_euckr
 
 
-static uchar ctype_euc_kr[257] =
+static const uchar ctype_euc_kr[257] =
 {
     0,				/* For standard library */
     0040, 0040, 0040, 0040, 0040, 0040, 0040, 0040,	/* NUL ^A - ^G */
@@ -69,7 +69,7 @@ static uchar ctype_euc_kr[257] =
     0020, 0020, 0020, 0020, 0020, 0020, 0020, 0000,
 };
 
-static uchar to_lower_euc_kr[]=
+static const uchar to_lower_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -105,7 +105,7 @@ static uchar to_lower_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar to_upper_euc_kr[]=
+static const uchar to_upper_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -141,7 +141,7 @@ static uchar to_upper_euc_kr[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar sort_order_euc_kr[]=
+static const uchar sort_order_euc_kr[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -1484,7 +1484,7 @@ static MY_UNICASE_INFO *my_caseinfo_euckr[256]=
 
 
 /* page 0 0x8141-0xC8FE */
-static uint16 tab_ksc5601_uni0[]={
+static const uint16 tab_ksc5601_uni0[]={
 0xAC02,0xAC03,0xAC05,0xAC06,0xAC0B,0xAC0C,0xAC0D,0xAC0E,
 0xAC0F,0xAC18,0xAC1E,0xAC1F,0xAC21,0xAC22,0xAC23,0xAC25,
 0xAC26,0xAC27,0xAC28,0xAC29,0xAC2A,0xAC2B,0xAC2E,0xAC32,
@@ -3783,7 +3783,7 @@ static uint16 tab_ksc5601_uni0[]={
 0xD78C,0xD790,0xD798,0xD799,0xD79B,0xD79D};
 
 /* page 1 0xCAA1-0xFDFE */
-static uint16 tab_ksc5601_uni1[]={
+static const uint16 tab_ksc5601_uni1[]={
 0x4F3D,0x4F73,0x5047,0x50F9,0x52A0,0x53EF,0x5475,0x54E5,
 0x5609,0x5AC1,0x5BB6,0x6687,0x67B6,0x67B7,0x67EF,0x6B4C,
 0x73C2,0x75C2,0x7A3C,0x82DB,0x8304,0x8857,0x8888,0x8A36,
@@ -5437,7 +5437,7 @@ static int func_ksc5601_uni_onechar(int code){
   return(0);
 }
 /* page 0 0x00A1-0x0167 */
-static uint16 tab_uni_ksc56010[]={
+static const uint16 tab_uni_ksc56010[]={
 0xA2AE,     0,     0,0xA2B4,     0,     0,0xA1D7,0xA1A7,
      0,0xA8A3,     0,     0,0xA1A9,0xA2E7,     0,0xA1C6,
 0xA1BE,0xA9F7,0xA9F8,0xA2A5,     0,0xA2D2,0xA1A4,0xA2AC,
@@ -5465,7 +5465,7 @@ static uint16 tab_uni_ksc56010[]={
      0,     0,     0,     0,     0,0xA8AE,0xA9AE};
 
 /* page 1 0x02C7-0x0451 */
-static uint16 tab_uni_ksc56011[]={
+static const uint16 tab_uni_ksc56011[]={
 0xA2A7,     0,     0,     0,     0,     0,     0,     0,
      0,0xA2B0,     0,     0,     0,     0,     0,     0,
      0,0xA2A8,0xA2AB,0xA2AA,0xA2AD,     0,0xA2A9,     0,
@@ -5518,7 +5518,7 @@ static uint16 tab_uni_ksc56011[]={
 0xACF1,     0,0xACD7};
 
 /* page 2 0x2015-0x2312 */
-static uint16 tab_uni_ksc56012[]={
+static const uint16 tab_uni_ksc56012[]={
 0xA1AA,     0,     0,0xA1AE,0xA1AF,     0,     0,0xA1B0,
 0xA1B1,     0,     0,0xA2D3,0xA2D4,     0,     0,     0,
 0xA1A5,0xA1A6,     0,     0,     0,     0,     0,     0,
@@ -5617,7 +5617,7 @@ static uint16 tab_uni_ksc56012[]={
      0,     0,     0,     0,     0,0xA1D2};
 
 /* page 3 0x2460-0x266D */
-static uint16 tab_uni_ksc56013[]={
+static const uint16 tab_uni_ksc56013[]={
 0xA8E7,0xA8E8,0xA8E9,0xA8EA,0xA8EB,0xA8EC,0xA8ED,0xA8EE,
 0xA8EF,0xA8F0,0xA8F1,0xA8F2,0xA8F3,0xA8F4,0xA8F5,     0,
      0,     0,     0,     0,0xA9E7,0xA9E8,0xA9E9,0xA9EA,
@@ -5686,7 +5686,7 @@ static uint16 tab_uni_ksc56013[]={
 0xA2CD,0xA2DB,0xA2DC,     0,0xA2DD,0xA2DA};
 
 /* page 4 0x3000-0x327F */
-static uint16 tab_uni_ksc56014[]={
+static const uint16 tab_uni_ksc56014[]={
 0xA1A1,0xA1A2,0xA1A3,0xA1A8,     0,     0,     0,     0,
 0xA1B4,0xA1B5,0xA1B6,0xA1B7,0xA1B8,0xA1B9,0xA1BA,0xA1BB,
 0xA1BC,0xA1BD,     0,0xA1EB,0xA1B2,0xA1B3,     0,     0,
@@ -5770,7 +5770,7 @@ static uint16 tab_uni_ksc56014[]={
 };
 
 /* page 5 0x3380-0x33DD */
-static uint16 tab_uni_ksc56015[]={
+static const uint16 tab_uni_ksc56015[]={
 0xA7C9,0xA7CA,0xA7CB,0xA7CC,0xA7CD,     0,     0,     0,
 0xA7BA,0xA7BB,0xA7DC,0xA7DD,0xA7DE,0xA7B6,0xA7B7,0xA7B8,
 0xA7D4,0xA7D5,0xA7D6,0xA7D7,0xA7D8,0xA7A1,0xA7A2,0xA7A3,
@@ -5785,7 +5785,7 @@ static uint16 tab_uni_ksc56015[]={
 0xA2E4,     0,     0,0xA7E4,0xA7EE,0xA7E9};
 
 /* page 6 0x4E00-0x947F */
-static uint16 tab_uni_ksc56016[]={
+static const uint16 tab_uni_ksc56016[]={
 0xECE9,0xEFCB,     0,0xF6D2,     0,     0,     0,0xD8B2,
 0xEDDB,0xDFB2,0xDFBE,0xF9BB,     0,0xDCF4,     0,     0,
      0,0xF5E4,     0,     0,0xF3A6,0xDDE0,0xE1A6,     0,
@@ -8045,7 +8045,7 @@ static uint16 tab_uni_ksc56016[]={
 };
 
 /* page 7 0x9577-0x9F9C */
-static uint16 tab_uni_ksc56017[]={
+static const uint16 tab_uni_ksc56017[]={
 0xEDFE,     0,     0,     0,     0,     0,     0,     0,
      0,0xDAA6,     0,     0,0xE0EC,     0,     0,     0,
      0,     0,0xF8CD,     0,0xCBD2,     0,     0,     0,
@@ -8373,7 +8373,7 @@ static uint16 tab_uni_ksc56017[]={
      0,     0,     0,     0,     0,0xCFCF};
 
 /* page 8 0xAC00-0xD7A3 */
-static uint16 tab_uni_ksc56018[]={
+static const uint16 tab_uni_ksc56018[]={
 0xB0A1,0xB0A2,0x8141,0x8142,0xB0A3,0x8143,0x8144,0xB0A4,
 0xB0A5,0xB0A6,0xB0A7,0x8145,0x8146,0x8147,0x8148,0x8149,
 0xB0A8,0xB0A9,0xB0AA,0xB0AB,0xB0AC,0xB0AD,0xB0AE,0xB0AF,
@@ -9773,7 +9773,7 @@ static uint16 tab_uni_ksc56018[]={
 0xC64F,0xC650,0xC651,0xC652};
 
 /* page 9 0xF900-0xFA0B */
-static uint16 tab_uni_ksc56019[]={
+static const uint16 tab_uni_ksc56019[]={
 0xCBD0,0xCBD6,0xCBE7,0xCDCF,0xCDE8,0xCEAD,0xCFFB,0xD0A2,
 0xD0B8,0xD0D0,0xD0DD,0xD1D4,0xD1D5,0xD1D8,0xD1DB,0xD1DC,
 0xD1DD,0xD1DE,0xD1DF,0xD1E0,0xD1E2,0xD1E3,0xD1E4,0xD1E5,
@@ -9810,7 +9810,7 @@ static uint16 tab_uni_ksc56019[]={
 0xFAA1,0xFAA2,0xFAE6,0xFCA9};
 
 /* page 10 0xFF01-0xFFE6 */
-static uint16 tab_uni_ksc560110[]={
+static const uint16 tab_uni_ksc560110[]={
 0xA3A1,0xA3A2,0xA3A3,0xA3A4,0xA3A5,0xA3A6,0xA3A7,0xA3A8,
 0xA3A9,0xA3AA,0xA3AB,0xA3AC,0xA3AD,0xA3AE,0xA3AF,0xA3B0,
 0xA3B1,0xA3B2,0xA3B3,0xA3B4,0xA3B5,0xA3B6,0xA3B7,0xA3B8,
@@ -10004,7 +10004,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_euckr_korean_ci=
+struct charset_info_st my_charset_euckr_korean_ci=
 {
     19,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
@@ -10037,7 +10037,7 @@ CHARSET_INFO my_charset_euckr_korean_ci=
 };
 
 
-CHARSET_INFO my_charset_euckr_bin=
+struct charset_info_st my_charset_euckr_bin=
 {
     85,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */

@@ -45,6 +45,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
 	fprintf(stream,"NULL");
 	continue;
       }
+      end++;
     }
 
     switch (keyseg->type) {
@@ -91,7 +92,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key=end;
       break;
     case HA_KEYTYPE_ULONG_INT:
-      l_1=mi_sint4korr(key);
+      l_1=mi_uint4korr(key);
       (void) fprintf(stream,"%lu",(ulong) l_1);
       key=end;
       break;
@@ -117,7 +118,7 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_LONGLONG:
     {
       char buff[21];
-      longlong2str(mi_sint8korr(key),buff,-10);
+      longlong10_to_str(mi_sint8korr(key),buff,-10);
       (void) fprintf(stream,"%s",buff);
       key=end;
       break;
@@ -125,11 +126,12 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
     case HA_KEYTYPE_ULONGLONG:
     {
       char buff[21];
-      longlong2str(mi_sint8korr(key),buff,10);
+      longlong10_to_str(mi_sint8korr(key),buff,10);
       (void) fprintf(stream,"%s",buff);
       key=end;
       break;
     }
+#endif
     case HA_KEYTYPE_BIT:
     {
       uint i;
@@ -139,8 +141,6 @@ void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       key= end;
       break;
     }
-
-#endif
     case HA_KEYTYPE_VARTEXT1:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARTEXT2:                   /* VARCHAR and TEXT */
     case HA_KEYTYPE_VARBINARY1:                 /* VARBINARY and BLOB */

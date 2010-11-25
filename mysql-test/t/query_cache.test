@@ -45,9 +45,9 @@ show status like "Qcache_queries_in_cache";
 #
 # MERGE TABLES with INSERT/UPDATE and DELETE
 #
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
-create table t2 (a int not null);
+create table t2 (a int not null) ENGINE=MyISAM;
 insert into t2 values (4),(5),(6);
 create table t3 (a int not null) engine=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
 # insert
@@ -281,7 +281,7 @@ drop table t1;
 flush query cache;
 reset query cache;
 
-create table t1 (a int not null);
+create table t1 (a int not null) ENGINE=MyISAM;
 insert into t1 values (1),(2),(3);
 select * from t1;
 select * from t1;
@@ -877,6 +877,19 @@ drop procedure f4;
 drop table t1;
 set GLOBAL query_cache_size=0;
 
+# Tests moved from main.variables due to needing query cache in server.
+set GLOBAL query_cache_size=100000;
+--error ER_GLOBAL_VARIABLE
+set SESSION query_cache_size=10000;
+set global query_cache_limit=100;
+set global query_cache_size=100;
+set global query_cache_type=demand;
+
+set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_limit=default;
+set GLOBAL query_cache_size=default;
+
+
 --echo End of 4.1 tests
 
 #
@@ -1285,6 +1298,198 @@ COMMIT;
 SHOW STATUS LIKE "Qcache_hits";
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
+
+#
+# Bug#6760: Add SLEEP() function (feature request)
+#
+#   Logics of original test:
+#   Reveal that a query with SLEEP does not need less time than estimated.
+#
+# Bug#12689: SLEEP() gets incorrectly cached/optimized-away
+#
+#   Description from bug report (slightly modified)
+#
+#   Bug 1 (happened all time):
+#      SELECT * FROM t1 WHERE SLEEP(1) will only result in a sleep of 1
+#      second, regardless of the number of rows in t1.
+#   Bug 2 (happened all time):
+#      Such a query will also get cached by the query cache, but should not.
+#
+# Notes (mleich, 2008-05)
+# =======================
+#
+# Experiments around
+#    Bug#36345 Test 'func_misc' fails on RHAS3 x86_64
+# showed that the tests for both bugs could produce in case of parallel
+# artificial system time (like via ntpd)
+# - decreases false alarm
+# - increases false success
+#
+# We try here to circumvent these issues by reimplementation of the tests
+# and sophisticated scripting, although the cause of the problems is a massive
+# error within the setup of the testing environment.
+# Tests relying on or checking derivates of the system time must never meet
+# parallel manipulations of system time.
+#
+# Results of experiments with/without manipulation of system time,
+# information_schema.processlist content, high load on testing box
+# ----------------------------------------------------------------
+# Definition: Predicted_cumulative_sleep_time =
+#                #_of_result_rows * sleep_time_per_result_row
+#
+# 1. Total (real sleep time) ~= predicted_cumulative_sleep_time !!
+# 2. The state of a session within the PROCESSLIST changes to 'User sleep'
+#    if the sessions runs a statement containing the sleep function and the
+#    processing of the statement is just within the phase where the sleep
+#    is done. (*)
+# 3. NOW() and processlist.time behave "synchronous" to system time and
+#    show also the "jumps" caused by system time manipulations. (*)
+# 4. processlist.time is unsigned, the "next" value below 0 is ~ 4G (*)
+# 5. Current processlist.time ~= current real sleep time if the system time
+#    was not manipulated. (*)
+# 6. High system load can cause delays of <= 2 seconds.
+# 7. Thanks to Davi for excellent hints and ideas.
+#
+#    (*)
+#    - information_schema.processlist is not available before MySQL 5.1.
+#    - Observation of processlist content requires a
+#      - "worker" session sending the query with "send" and pulling results
+#        with "reap"
+#      - session observing the processlist parallel to the worker session
+#      "send" and "reap" do not work in case of an embedded server.
+#    Conclusion: Tests based on processlist have too many restrictions.
+#
+# Solutions for subtests based on TIMEDIFF of values filled via NOW()
+# -------------------------------------------------------------------
+# Run the following sequence three times
+#    1. SELECT <start_time>
+#    2. Query with SLEEP
+#    3. SELECT <end_time>
+# If TIMEDIFF(<end_time>,<start_time>) is at least two times within a
+# reasonable range assume that we did not met errors we were looking for.
+#
+# It is extreme unlikely that we have two system time changes within the
+# < 30 seconds runtime. Even if the unlikely happens, there are so
+# frequent runs of this test on this or another testing box which will
+# catch the problem.
+#
+
+--echo #------------------------------------------------------------------------
+--echo # Tests for Bug#6760 and Bug#12689
+# Number of rows within the intended result set.
+SET @row_count = 4;
+# Parameter within SLEEP function
+SET @sleep_time_per_result_row = 1;
+# Maximum acceptable delay caused by high load on testing box
+SET @max_acceptable_delay = 2;
+# TIMEDIFF = time for query with sleep (mostly the time caused by SLEEP)
+#            + time for delays caused by high load on testing box
+# Ensure that at least a reasonable fraction of TIMEDIFF belongs to the SLEEP
+# by appropriate setting of variables.
+# Ensure that any "judging" has a base of minimum three attempts.
+# (Test 2 uses all attempts except the first one.)
+if (!` SELECT (@sleep_time_per_result_row * @row_count - @max_acceptable_delay >
+              @sleep_time_per_result_row) AND (@row_count - 1 >= 3)`)
+{
+   --echo # Have to abort because of error in plausibility check
+   --echo ######################################################
+   --vertical_results
+   SELECT @sleep_time_per_result_row * @row_count - @max_acceptable_delay >
+               @sleep_time_per_result_row AS must_be_1,
+               @row_count - 1 >= 3 AS must_be_also_1,
+               @sleep_time_per_result_row, @row_count, @max_acceptable_delay;
+   exit;
+}
+SET @@global.query_cache_size = 1024 * 64;
+--disable_warnings
+DROP TEMPORARY TABLE IF EXISTS t_history;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t_history (attempt SMALLINT,
+start_ts DATETIME, end_ts DATETIME,
+start_cached INTEGER, end_cached INTEGER);
+CREATE TABLE t1 (f1 BIGINT);
+let $num = `SELECT @row_count`;
+--disable_query_log
+begin;
+while ($num)
+{
+   INSERT INTO t1 VALUES (1);
+   dec $num;
+}
+commit;
+--enable_query_log
+
+let $loops = 4;
+let $num = $loops;
+while ($num)
+{
+   let $Qcache_queries_in_cache =
+       query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
+   eval
+   INSERT INTO t_history
+   SET attempt = $loops - $num + 1, start_ts = NOW(),
+       start_cached = $Qcache_queries_in_cache;
+   SELECT *, SLEEP(@sleep_time_per_result_row) FROM t1;
+   #
+   # Do not determine Qcache_queries_in_cache before updating end_ts. The SHOW
+   # might cost too much time on an overloaded box.
+   eval
+   UPDATE t_history SET end_ts = NOW()
+   WHERE attempt = $loops - $num + 1;
+   let $Qcache_queries_in_cache =
+          query_get_value(SHOW STATUS LIKE 'Qcache_queries_in_cache', Value, 1);
+   eval
+   UPDATE t_history SET end_cached = $Qcache_queries_in_cache
+   WHERE attempt = $loops - $num + 1;
+   # DEBUG eval SELECT * FROM t_history WHERE attempt = $loops - $num + 1;
+   dec $num;
+}
+
+# 1. The majority of queries with SLEEP must need a reasonable time
+#    -> SLEEP has an impact on runtime
+#       = Replacement for original Bug#6760 test
+#    -> total runtime is clear more needed than for one result row needed
+#       = Replacement for one of the original Bug#12689 tests
+--echo # Test 1: Does the query with SLEEP need a reasonable time?
+eval SELECT COUNT(*) >= $loops - 1 INTO @aux1 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+      BETWEEN 0 AND @max_acceptable_delay;
+SELECT @aux1 AS "Expect 1";
+#
+# 2. The majority of queries (the first one must be ignored) with SLEEP must
+#    need a reasonable time
+#    -> If we assume that the result of a cached query will be sent back
+#       immediate, without any sleep, than the query with SLEEP cannot be cached
+#       (current and intended behaviour for queries with SLEEP).
+#    -> It could be also not excluded that the query was cached but the server
+#       honoured somehow the SLEEP. Such a behaviour would be also acceptable.
+#    = Replacement for one of the original Bug#12689 tests
+--echo # Test 2: Does the query with SLEEP need a reasonable time even in case
+--echo #         of the non first execution?
+eval SELECT COUNT(*) >= $loops - 1 - 1 INTO @aux2 FROM t_history
+WHERE TIMEDIFF(end_ts,start_ts) - @sleep_time_per_result_row * @row_count
+      BETWEEN 0 AND @max_acceptable_delay
+      AND attempt > 1;
+SELECT @aux2 AS "Expect 1";
+#
+# 3. The query with SLEEP should be not cached.
+#    -> SHOW STATUS Qcache_queries_in_cache must be not incremented after
+#       the execution of the query with SLEEP
+--echo # Test 3: The query with SLEEP must be not cached.
+eval SELECT COUNT(*) = $loops INTO @aux3 FROM t_history
+WHERE end_cached = start_cached;
+SELECT @aux3 AS "Expect 1";
+#
+# Dump the content of t_history if one of the tests failed.
+if (`SELECT @aux1 + @aux2 + @aux3 <> 3`)
+{
+   --echo # Some tests failed, dumping the content of t_history
+   SELECT * FROM t_history;
+}
+DROP TABLE t1;
+DROP TEMPORARY TABLE t_history;
+SET @@global.query_cache_size = default;
 
 --echo End of 5.0 tests
 

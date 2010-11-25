@@ -27,6 +27,7 @@
 #ifdef MYSQL_SERVER
 #include "unireg.h"                    // REQUIRED: for other includes
 #endif
+#include <waiting_threads.h>
 #include "sql_const.h"
 #include <mysql/plugin_audit.h>
 #include "log.h"
@@ -42,6 +43,123 @@
 
 
 class Reprepare_observer;
+
+
+/**
+  Interface for Item iterator
+*/
+
+class Item_iterator
+{
+public:
+  /**
+    Shall set this iterator to the position before the first item
+
+    @note
+    This method also may perform some other initialization actions like
+    allocation of certain resources.
+  */
+  virtual void open()= 0;
+  /**
+    Shall return the next Item (or NULL if there is no next item) and
+    move pointer to position after it.
+  */
+  virtual Item *next()= 0;
+  /**
+    Shall force iterator to free resources (if it holds them)
+
+    @note
+    One should not use the iterator without open() call after close()
+  */
+  virtual void close()= 0;
+
+  virtual ~Item_iterator() {}
+};
+
+
+/**
+  Item iterator over List_iterator_fast for Item references
+*/
+
+class Item_iterator_ref_list: public Item_iterator
+{
+  List_iterator<Item*> list;
+public:
+  Item_iterator_ref_list(List_iterator<Item*> &arg_list):
+    list(arg_list) {}
+  void open() { list.rewind(); }
+  Item *next() { return *(list++); }
+  void close() {}
+};
+
+
+/**
+  Item iterator over Item interface for rows
+*/
+
+class Item_iterator_row: public Item_iterator
+{
+  Item *base_item;
+  uint current;
+public:
+  Item_iterator_row(Item *base) : base_item(base), current(0) {}
+  void open() { current= 0; }
+  Item *next()
+  {
+    if (current >= base_item->cols())
+      return NULL;
+    return base_item->element_index(current++);
+  }
+  void close() {}
+};
+
+
+/**
+  An interface that is used to take an action when
+  the locking module notices that a table version has changed
+  since the last execution. "Table" here may refer to any kind of
+  table -- a base table, a temporary table, a view or an
+  information schema table.
+
+  When we open and lock tables for execution of a prepared
+  statement, we must verify that they did not change
+  since statement prepare. If some table did change, the statement
+  parse tree *may* be no longer valid, e.g. in case it contains
+  optimizations that depend on table metadata.
+
+  This class provides an interface (a method) that is
+  invoked when such a situation takes place.
+  The implementation of the method simply reports an error, but
+  the exact details depend on the nature of the SQL statement.
+
+  At most 1 instance of this class is active at a time, in which
+  case THD::m_reprepare_observer is not NULL.
+
+  @sa check_and_update_table_version() for details of the
+  version tracking algorithm 
+
+  @sa Open_tables_state::m_reprepare_observer for the life cycle
+  of metadata observers.
+*/
+
+class Reprepare_observer
+{
+public:
+  /**
+    Check if a change of metadata is OK. In future
+    the signature of this method may be extended to accept the old
+    and the new versions, but since currently the check is very
+    simple, we only need the THD to report an error.
+  */
+  bool report_error(THD *thd);
+  bool is_invalidated() const { return m_invalidated; }
+  void reset_reprepare_observer() { m_invalidated= FALSE; }
+  Reprepare_observer() {}                     /* Remove gcc warning */
+private:
+  bool m_invalidated;
+};
+
+
 class Relay_log_info;
 
 class Query_log_event;
@@ -49,6 +167,7 @@ class Load_log_event;
 class Slave_log_event;
 class sp_rcontext;
 class sp_cache;
+class Lex_input_stream;
 class Parser_state;
 class Rows_log_event;
 class Sroutine_hash_entry;
@@ -74,7 +193,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 #define MODE_PIPES_AS_CONCAT            2
 #define MODE_ANSI_QUOTES                4
 #define MODE_IGNORE_SPACE               8
-#define MODE_NOT_USED                   16
+#define MODE_IGNORE_BAD_TABLE_OPTIONS   16
 #define MODE_ONLY_FULL_GROUP_BY         32
 #define MODE_NO_UNSIGNED_SUBTRACTION    64
 #define MODE_NO_DIR_IN_CREATE           128
@@ -222,13 +341,15 @@ public:
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   LEX_STRING name;
+  engine_option_value *option_list;
   bool generated;
 
   Key(enum Keytype type_par, const LEX_STRING &name_arg,
       KEY_CREATE_INFO *key_info_arg,
-      bool generated_arg, List<Key_part_spec> &cols)
+      bool generated_arg, List<Key_part_spec> &cols,
+      engine_option_value *create_opt)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    name(name_arg), generated(generated_arg)
+    name(name_arg), option_list(create_opt), generated(generated_arg)
   {}
   Key(enum Keytype type_par, const char *name_arg, size_t name_len_arg,
       KEY_CREATE_INFO *key_info_arg, bool generated_arg,
@@ -266,7 +387,7 @@ public:
   Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols, NULL),
     ref_table(table), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
@@ -278,6 +399,8 @@ public:
   */
   virtual Key *clone(MEM_ROOT *mem_root) const
   { return new (mem_root) Foreign_key(*this, mem_root); }
+  /* Used to validate foreign key options */
+  bool validate(List<Create_field> &table_fields);
 };
 
 typedef struct st_mysql_lock
@@ -369,13 +492,16 @@ typedef struct system_variables
 {
   /*
     How dynamically allocated system variables are handled:
-    
+
     The global_system_variables and max_system_variables are "authoritative"
     They both should have the same 'version' and 'size'.
     When attempting to access a dynamic variable, if the session version
     is out of date, then the session version is updated and realloced if
     neccessary and bytes copied from global to make up for missing data.
-  */ 
+
+    Note that one should use my_bool instead of bool here, as the variables
+    are used with my_getopt.c
+  */
   ulong dynamic_variables_version;
   char* dynamic_variables_ptr;
   uint dynamic_variables_head;  /* largest valid variable offset */
@@ -393,6 +519,7 @@ typedef struct system_variables
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
   ulong lock_wait_timeout;
+  ulong join_cache_level;
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
@@ -400,7 +527,6 @@ typedef struct system_variables
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
   ulong min_examined_row_limit;
-  ulong multi_range_count;
   ulong net_buffer_length;
   ulong net_interactive_timeout;
   ulong net_read_timeout;
@@ -409,12 +535,22 @@ typedef struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  /*
+    Controls use of Engine-MRR:
+      0 - auto, based on cost
+      1 - force MRR when the storage engine is capable of doing it
+      2 - disable MRR.
+  */
+  ulong optimizer_use_mrr;
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong read_buff_size;
   ulong read_rnd_buff_size;
+  ulong mrr_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
+  /* Total size of all buffers used by the subselect_rowid_merge_engine. */
+  ulong rowid_merge_buff_size;
   ulong max_sp_recursion_depth;
   ulong default_week_format;
   ulong max_seeks_for_key;
@@ -425,7 +561,10 @@ typedef struct system_variables
   ulong trans_prealloc_size;
   ulong log_warnings;
   ulong group_concat_max_len;
-
+  /* Flags for slow log filtering */
+  ulong log_slow_rate_limit; 
+  ulong log_slow_filter; 
+  ulong log_slow_verbosity; 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
   my_bool sql_log_bin;
@@ -471,10 +610,12 @@ typedef struct system_variables
 
   my_bool sysdate_is_now;
 
+  /* deadlock detection */
+  ulong wt_timeout_short, wt_deadlock_search_depth_short;
+  ulong wt_timeout_long, wt_deadlock_search_depth_long;
+
   double long_query_time_double;
-
 } SV;
-
 
 /**
   Per thread status variables.
@@ -497,6 +638,13 @@ typedef struct system_status_var
   ulong ha_read_prev_count;
   ulong ha_read_rnd_count;
   ulong ha_read_rnd_next_count;
+  /*
+    This number doesn't include calls to the default implementation and
+    calls made by range access. The intent is to count only calls made by
+    BatchedKeyAccess.
+  */
+  ulong ha_multi_range_read_init_count;
+
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
@@ -505,6 +653,7 @@ typedef struct system_status_var
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
 
+#if 0
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
   ulong key_blocks_used;
@@ -513,6 +662,7 @@ typedef struct system_status_var
   ulong key_cache_w_requests;
   ulong key_cache_write;
   /* END OF KEY_CACHE parts */
+#endif
 
   ulong net_big_packet_count;
   ulong opened_tables;
@@ -522,6 +672,8 @@ typedef struct system_status_var
   ulong select_range_count;
   ulong select_range_check_count;
   ulong select_scan_count;
+  ulong rows_read;
+  ulong rows_sent;
   ulong long_query_count;
   ulong filesort_merge_passes;
   ulong filesort_range_count;
@@ -535,25 +687,30 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+
+  ulong empty_queries;
+  ulong access_denied_errors;
+  ulong lost_connections;
   /*
     Number of statements sent from the client
   */
   ulong questions;
-
-  ulonglong bytes_received;
-  ulonglong bytes_sent;
   /*
     IMPORTANT!
     SEE last_system_status_var DEFINITION BELOW.
     Below 'last_system_status_var' are all variables that cannot be handled
     automatically by add_to_status()/add_diff_to_status().
   */
+  ulonglong bytes_received;
+  ulonglong bytes_sent;
+  ulonglong binlog_bytes_written;
   double last_query_cost;
+  double cpu_time, busy_time;
 } STATUS_VAR;
 
 /*
   This is used for 'SHOW STATUS'. It must be updated to the last ulong
-  variable in system_status_var which is makes sens to add to the global
+  variable in system_status_var which is makes sense to add to the global
   counter
 */
 
@@ -673,7 +830,7 @@ class Server_side_cursor;
    - prepared, that is, contain placeholders,
    - opened as cursors. We maintain 1 to 1 relationship between
      statement and cursor - if user wants to create another cursor for his
-     query, we create another statement for it. 
+     query, we create another statement for it.
   To perform some action with statement we reset THD part to the state  of
   that statement, do the action, and then save back modified state from THD
   to the statement. It will be changed in near future, and Statement will
@@ -862,7 +1019,8 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *priv_user, *ip;
+  char   *host, *user, *ip;
+  char   priv_user[USERNAME_LENGTH];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
   /* points to host if host is available, otherwise points to ip */
@@ -877,7 +1035,7 @@ public:
   {
     return (*priv_host ? priv_host : (char *)"%");
   }
-  
+
   bool set_user(char *user_arg);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1084,6 +1242,7 @@ public:
   ulonglong limit_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
+  ulong query_plan_flags; 
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
@@ -1194,6 +1353,7 @@ public:
     /* Ignore error */
     return TRUE;
   }
+  Dummy_error_handler() {}                    /* Remove gcc warning */
 };
 
 
@@ -1372,7 +1532,7 @@ public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
 
-  void reset_for_next_command();
+  void reset_for_next_command(bool calculate_userstat);
   /*
     Constant for THD::where initialization in the beginning of every query.
 
@@ -1404,15 +1564,17 @@ public:
   Query_cache_tls query_cache_tls;
 #endif
   NET	  net;				// client connection descriptor
+  scheduler_functions *scheduler;       // Scheduler for this connection
   Protocol *protocol;			// Current protocol
   Protocol_text   protocol_text;	// Normal protocol
   Protocol_binary protocol_binary;	// Binary protocol
   HASH    user_vars;			// hash for user variables
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
-  struct  rand_struct rand;		// used for authentication
+  struct  my_rnd_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  struct  system_status_var org_status_var; // For user statistics
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
@@ -1481,7 +1643,7 @@ public:
   /*
     One thread can hold up to one named user-level lock. This variable
     points to a lock object if the lock is present. See item_func.cc and
-    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK. 
+    chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
   User_level_lock *ull;
 #ifndef DBUG_OFF
@@ -1496,7 +1658,7 @@ public:
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
-  uint16 peer_port;
+  uint16     peer_port;
   time_t     start_time, user_time;
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
@@ -1507,10 +1669,20 @@ public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+  /* True when opt_userstat_running is set at start of query */
+  bool userstat_running;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
 
+  /* Place to store various things */
+  union 
+  { 
+    /*
+      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
+    */
+    TABLE_LIST *emb_on_expr_nest;
+  } thd_marker;
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -1611,6 +1783,7 @@ public:
     THD_TRANS stmt;			// Trans for current statement
     bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
+    WT_THD wt;                          ///< for deadlock detection
     Rows_log_event *m_pending_rows_event;
 
     /*
@@ -1913,6 +2086,8 @@ public:
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
+  ulong      query_plan_flags; 
+  ulong      query_plan_fsort_passes; 
   pthread_t  real_id;                           /* For debugging */
   my_thread_id  thread_id;
   uint	     tmp_table;
@@ -1964,6 +2139,8 @@ public:
 
   bool       slave_thread, one_shot_set;
   bool	     no_errors, password;
+  bool       extra_port;                        /* If extra connection */
+
   /**
     Set to TRUE if execution of the current compound statement
     can not continue. In particular, disables activation of
@@ -2002,7 +2179,7 @@ public:
   */
   bool       is_slave_error;
   bool       bootstrap, cleanup_done;
-  
+
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
   /**  
@@ -2017,7 +2194,7 @@ public:
   bool	     no_warnings_for_error; /* no warnings on call to my_error() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
-  my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
+  bool       tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
   sp_rcontext *spcont;		// SP runtime context
   sp_cache   *sp_proc_cache;
@@ -2033,6 +2210,21 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  /* Time when the current thread connected to MySQL. */
+  time_t current_connect_time;
+  /* Last time when THD stats were updated in global_user_stats. */
+  time_t last_global_update_time;
+  /* Number of commands not reflected in global_user_stats yet. */
+  uint select_commands, update_commands, other_commands;
+  ulonglong start_cpu_time;
+  ulonglong start_bytes_received;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -2041,10 +2233,10 @@ public:
     ulong     ulong_value;
     ulonglong ulonglong_value;
   } sys_var_tmp;
-  
+
   struct {
-    /* 
-      If true, mysql_bin_log::write(Log_event) call will not write events to 
+    /*
+      If true, mysql_bin_log::write(Log_event) call will not write events to
       binlog, and maintain 2 below variables instead (use
       mysql_bin_log.start_union_events to turn this on)
     */
@@ -2055,13 +2247,13 @@ public:
     */
     bool unioned_events;
     /*
-      If TRUE, at least one mysql_bin_log::write(Log_event e), where 
-      e.cache_stmt == TRUE call has been made after last 
+      If TRUE, at least one mysql_bin_log::write(Log_event e), where
+      e.cache_stmt == TRUE call has been made after last
       mysql_bin_log.start_union_events() call.
     */
     bool unioned_events_trans;
-    
-    /* 
+
+    /*
       'queries' (actually SP statements) that run under inside this binlog
       union have thd->query_id >= first_query_id.
     */
@@ -2110,13 +2302,16 @@ public:
     killing mysqld) where it's vital to not allocate excessive and not used
     memory. Note, that we still don't return error from init_for_queries():
     if preallocation fails, we should notice that at the first call to
-    alloc_root. 
+    alloc_root.
   */
   void init_for_queries();
+  void update_all_stats();
+  void update_stats(void);
   void change_user(void);
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  void reset_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
@@ -2144,7 +2339,7 @@ public:
     
     QUERY_TYPE_COUNT
   };
-  
+
   int binlog_query(enum_binlog_query_type qtype,
                    char const *query, ulong query_len, bool is_trans,
                    bool direct, bool suppress_use,
@@ -2567,7 +2762,7 @@ public:
     *p_db_length= db_length;
     return FALSE;
   }
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
 public:
   inline Internal_error_handler *get_internal_handler()
@@ -2703,6 +2898,27 @@ public:
   LEX_STRING get_invoker_user() { return invoker_user; }
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
+
+private:
+  /* 
+    This reference points to the table arena when the expression
+    for a virtual column is being evaluated
+  */ 
+  Query_arena *arena_for_cached_items;
+
+public:
+  void reset_arena_for_cached_items(Query_arena *new_arena)
+  {
+    arena_for_cached_items= new_arena;
+  }
+  Query_arena *switch_to_arena_for_cached_items(Query_arena *backup)
+  {
+    if (!arena_for_cached_items)
+      return 0;
+    set_n_backup_active_arena(arena_for_cached_items, backup);
+    return backup;
+  }
+
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -3014,10 +3230,17 @@ public:
   int prepare2(void) { return 0; }
 };
 
-#include <myisam.h>
 
-/* 
-  Param to create temporary tables when doing SELECT:s 
+#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+#include <maria.h>
+#define ENGINE_COLUMNDEF MARIA_COLUMNDEF
+#else
+#include <myisam.h>
+#define ENGINE_COLUMNDEF MI_COLUMNDEF
+#endif
+
+/*
+  Param to create temporary tables when doing SELECT:s
   NOTE
     This structure is copied using memcpy as a part of JOIN.
 */
@@ -3036,7 +3259,7 @@ public:
   Copy_field *save_copy_field, *save_copy_field_end;
   uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
-  MI_COLUMNDEF *recinfo,*start_recinfo;
+  ENGINE_COLUMNDEF *recinfo, *start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
   /**
@@ -3070,8 +3293,8 @@ public:
   uint	quick_group;
   bool  using_indirect_summary_function;
   /* If >0 convert all blob fields to varchar(convert_blob_length) */
-  uint  convert_blob_length; 
-  CHARSET_INFO *table_charset; 
+  uint  convert_blob_length;
+  CHARSET_INFO *table_charset;
   bool schema_table;
   /*
     True if GROUP BY and its aggregate functions are already computed
@@ -3081,11 +3304,23 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
+  /*
+    If TRUE, create_tmp_field called from create_tmp_table will convert
+    all BIT fields to 64-bit longs. This is a workaround the limitation
+    that MEMORY tables cannot index BIT columns.
+  */
+  bool bit_fields_as_long;
+  /*
+    Whether to create or postpone actual creation of this temporary table.
+    TRUE <=> create_tmp_table will create only the TABLE structure.
+  */
+  bool skip_create_table;
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     bit_fields_as_long(0), skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3104,19 +3339,20 @@ public:
 
 class select_union :public select_result_interceptor
 {
+protected:
   TMP_TABLE_PARAM tmp_table_param;
 public:
   TABLE *table;
 
-  select_union() :table(0) {}
+  select_union() :table(0) { tmp_table_param.init(); }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-
-  bool create_result_table(THD *thd, List<Item> *column_types,
-                           bool is_distinct, ulonglong options,
-                           const char *alias);
+  void cleanup();
+  virtual bool create_result_table(THD *thd, List<Item> *column_types,
+                                   bool is_distinct, ulonglong options,
+                                   const char *alias, bool bit_fields_as_long);
 };
 
 /* Base subselect interface class */
@@ -3139,6 +3375,72 @@ public:
   {}
   bool send_data(List<Item> &items);
 };
+
+
+/*
+  This class specializes select_union to collect statistics about the
+  data stored in the temp table. Currently the class collects statistcs
+  about NULLs.
+*/
+
+class select_materialize_with_stats : public select_union
+{
+protected:
+  class Column_statistics
+  {
+  public:
+    /* Count of NULLs per column. */
+    ha_rows null_count;
+    /* The row number that contains the first NULL in a column. */
+    ha_rows min_null_row;
+    /* The row number that contains the last NULL in a column. */
+    ha_rows max_null_row;
+  };
+
+  /* Array of statistics data per column. */
+  Column_statistics* col_stat;
+
+  /*
+    The number of columns in the biggest sub-row that consists of only
+    NULL values.
+  */
+  ha_rows max_nulls_in_row;
+  /*
+    Count of rows writtent to the temp table. This is redundant as it is
+    already stored in handler::stats.records, however that one is relatively
+    expensive to compute (given we need that for evry row).
+  */
+  ha_rows count_rows;
+
+protected:
+  void reset();
+
+public:
+  select_materialize_with_stats() {}
+  virtual bool create_result_table(THD *thd, List<Item> *column_types,
+                                   bool is_distinct, ulonglong options,
+                                   const char *alias, bool bit_fields_as_long);
+  bool init_result_table(ulonglong select_options);
+  bool send_data(List<Item> &items);
+  void cleanup();
+  ha_rows get_null_count_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].null_count;
+  }
+  ha_rows get_max_null_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].max_null_row;
+  }
+  ha_rows get_min_null_of_col(uint idx)
+  {
+    DBUG_ASSERT(idx < table->s->fields);
+    return col_stat[idx].min_null_row;
+  }
+  ha_rows get_max_nulls_in_row() { return max_nulls_in_row; }
+};
+
 
 /* used in independent ALL/ANY optimisation */
 class select_max_min_finder_subselect :public select_subselect
@@ -3166,6 +3468,67 @@ public:
     :select_subselect(item_arg){}
   bool send_data(List<Item> &items);
 };
+
+
+
+
+/*
+  Optimizer and executor structure for the materialized semi-join info. This
+  structure contains
+   - The sj-materialization temporary table
+   - Members needed to make index lookup or a full scan of the temptable.
+*/
+class SJ_MATERIALIZATION_INFO : public Sql_alloc
+{
+public:
+  /* Optimal join sub-order */
+  struct st_position *positions;
+
+  uint tables; /* Number of tables in the sj-nest */
+
+  /* Expected #rows in the materialized table */
+  double rows;
+
+  /* 
+    Cost to materialize - execute the sub-join and write rows into temp.table
+  */
+  COST_VECT materialization_cost;
+
+  /* Cost to make one lookup in the temptable */
+  COST_VECT lookup_cost;
+  
+  /* Cost of scanning the materialized table */
+  COST_VECT scan_cost;
+
+  /* --- Execution structures ---------- */
+  
+  /*
+    TRUE <=> This structure is used for execution. We don't necessarily pick
+    sj-materialization, so some of SJ_MATERIALIZATION_INFO structures are not
+    used by materialization
+  */
+  bool is_used;
+  
+  bool materialized; /* TRUE <=> materialization already performed */
+  /*
+    TRUE  - the temptable is read with full scan
+    FALSE - we use the temptable for index lookups
+  */
+  bool is_sj_scan; 
+  
+  /* The temptable and its related info */
+  TMP_TABLE_PARAM sjm_table_param;
+  List<Item> sjm_table_cols;
+  TABLE *table;
+
+  /* Structure used to make index lookups */
+  struct st_table_ref *tab_ref;
+  Item *in_equality; /* See create_subq_in_equalities() */
+
+  Item *join_cond; /* See comments in make_join_select() */
+  Copy_field *copy_field; /* Needed for SJ_Materialization scan */
+};
+
 
 /* Structs used when sorting */
 
@@ -3205,7 +3568,7 @@ public:
     else
       db= db_arg;
   }
-  inline Table_ident(LEX_STRING table_arg) 
+  inline Table_ident(LEX_STRING table_arg)
     :table(table_arg), sel((SELECT_LEX_UNIT *)0)
   {
     db.str=0;
@@ -3243,15 +3606,15 @@ class user_var_entry
   Item_result type;
   bool unsigned_flag;
 
-  double val_real(my_bool *null_value);
-  longlong val_int(my_bool *null_value) const;
-  String *val_str(my_bool *null_value, String *str, uint decimals);
-  my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
+  double val_real(bool *null_value);
+  longlong val_int(bool *null_value) const;
+  String *val_str(bool *null_value, String *str, uint decimals);
+  my_decimal *val_decimal(bool *null_value, my_decimal *result);
   DTCollation collation;
 };
 
 /*
-   Unique -- class for unique (removing of duplicates). 
+   Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
    it's dumped to the file. User can request sorted values, or
    just iterate through them. In the last case tree merging is performed in
@@ -3285,13 +3648,13 @@ public:
   }
 
   bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
+  static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
                              ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+      max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size);
     return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
   }
 
@@ -3356,7 +3719,7 @@ class multi_update :public select_result_interceptor
   uint table_count;
   /*
    List of tables referenced in the CHECK OPTION condition of
-   the updated view excluding the updated table. 
+   the updated view excluding the updated table.
   */
   List <TABLE> unupdated_check_opt_tables;
   Copy_field *copy_field;
@@ -3556,6 +3919,149 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
   return thd->lex->current_select->add_group_to_list(thd, item, asc);
 }
 
+/* inline handler methods that need to know TABLE and THD structures */
+inline void handler::increment_statistics(ulong SSV::*offset) const
+{
+  status_var_increment(table->in_use->status_var.*offset);
+}
+
+inline void handler::decrement_statistics(ulong SSV::*offset) const
+{
+  status_var_decrement(table->in_use->status_var.*offset);
+}
+
+inline int handler::ha_index_read_map(uchar * buf, const uchar * key,
+                                      key_part_map keypart_map,
+                                      enum ha_rkey_function find_flag)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_map(buf, key, keypart_map, find_flag);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_read_idx_map(uchar * buf, uint index,
+                                          const uchar * key,
+                                          key_part_map keypart_map,
+                                          enum ha_rkey_function find_flag)
+{
+  increment_statistics(&SSV::ha_read_key_count);
+  int error= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+  if (!error)
+  {
+    rows_read++;
+    index_rows_read[index]++;
+  }
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_prev(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_prev_count);
+  int error= index_prev(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_first(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_first_count);
+  int error= index_first(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_last(uchar * buf)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_last_count);
+  int error= index_last(buf);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_index_next_same(uchar *buf, const uchar *key,
+                                       uint keylen)
+{
+  DBUG_ASSERT(inited==INDEX);
+  increment_statistics(&SSV::ha_read_next_count);
+  int error= index_next_same(buf, key, keylen);
+  if (!error)
+    update_index_statistics();
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_ft_read(uchar *buf)
+{
+  int error= ft_read(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_next(uchar *buf)
+{
+  increment_statistics(&SSV::ha_read_rnd_next_count);
+  int error= rnd_next(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos(uchar *buf, uchar *pos)
+{
+  increment_statistics(&SSV::ha_read_rnd_count);
+  int error= rnd_pos(buf, pos);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_rnd_pos_by_record(uchar *buf)
+{
+  int error= rnd_pos_by_record(buf);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
+inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
+{
+  int error= read_first_row(buf, primary_key);
+  if (!error)
+    rows_read++;
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  return error;
+}
+
 #endif /* MYSQL_SERVER */
 
 /**
@@ -3563,7 +4069,7 @@ inline bool add_group_to_list(THD *thd, Item *item, bool asc)
   three calling-info parameters.
 */
 extern "C"
-const char *set_thd_proc_info(void *thd_arg, const char *info,
+const char *set_thd_proc_info(THD *thd, const char *info,
                               const char *calling_func,
                               const char *calling_file,
                               const unsigned int calling_line);

@@ -170,7 +170,7 @@ public:
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   bool is_fake; /* Mark that this is a fake relay log info structure */
 #endif
 

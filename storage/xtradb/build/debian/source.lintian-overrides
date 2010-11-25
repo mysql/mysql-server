@@ -1,0 +1,2 @@
+maintainer-script-lacks-debhelper-token debian/mysql-server-5.1.postinst
+maintainer-script-lacks-debhelper-token debian/mysql-server-5.1.postrm

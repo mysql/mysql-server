@@ -30,7 +30,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that ï¿½-R^P <= n <= R^P.
 
   [...]
 
@@ -138,7 +138,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
   999900000, 999990000, 999999000,
   999999900, 999999990 };
 
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
 #define sanity(d) DBUG_ASSERT((d)->len > 0)
 #else
 #define sanity(d) DBUG_ASSERT((d)->len >0 && ((d)->buf[0] | \
@@ -300,7 +300,7 @@ int decimal_actual_fraction(decimal_t *from)
   {
     for (i= DIG_PER_DEC1 - ((frac - 1) % DIG_PER_DEC1);
          *buf0 % powers10[i++] == 0;
-         frac--) ;
+         frac--) {}
   }
   return frac;
 }
@@ -340,7 +340,7 @@ int decimal2string(decimal_t *from, char *to, int *to_len,
   char *s=to;
   dec1 *buf, *buf0=from->buf, tmp;
 
-  DBUG_ASSERT(*to_len >= 2+from->sign);
+  DBUG_ASSERT(*to_len >= 2+ (int) from->sign);
 
   /* removing leading zeroes */
   buf0= remove_leading_zeroes(from, &intg);
@@ -494,7 +494,7 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
     stop= (int) ((buf_end - from->buf + 1) * DIG_PER_DEC1);
     i= 1;
   }
-  for (; *buf_end % powers10[i++] == 0; stop--) ;
+  for (; *buf_end % powers10[i++] == 0; stop--) {}
   *end_result= stop; /* index of position after last decimal digit (from 0) */
 }
 
@@ -994,7 +994,7 @@ static int ull2dec(ulonglong from, decimal_t *to)
 
   sanity(to);
 
-  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) ;
+  for (intg1=1; from >= DIG_BASE; intg1++, from/=DIG_BASE) {}
   if (unlikely(intg1 > to->len))
   {
     intg1=to->len;
@@ -1784,7 +1784,8 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac);
   int frac0=max(frac1, frac2), error;
-  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2, carry=0;
+  dec1 *buf1, *buf2, *buf0, *stop1, *stop2, *start1, *start2;
+  my_bool carry=0;
 
   /* let carry:=1 if from2 > from1 */
   start1=buf1=from1->buf; stop1=buf1+intg1;
@@ -1852,7 +1853,7 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
     swap_variables(dec1 *,start1, start2);
     swap_variables(int,intg1,intg2);
     swap_variables(int,frac1,frac2);
-    to->sign= 1 - to->sign;
+    to->sign= !to->sign;
   }
 
   FIX_INTG_FRAC_ERROR(to->len, intg1, frac0, error);

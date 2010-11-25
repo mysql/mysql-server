@@ -52,7 +52,8 @@ int mi_delete_all_rows(MI_INFO *info)
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the key cache
   */
-  flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+                   FLUSH_IGNORE_CHANGED);
 #ifdef HAVE_MMAP
   if (share->file_map)
     mi_munmap_file(info);

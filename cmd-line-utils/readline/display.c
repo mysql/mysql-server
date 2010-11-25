@@ -191,8 +191,6 @@ static int visible_first_line_len;
    (or is equal to) _rl_screenwidth. */
 static int prompt_invis_chars_first_line;
 
-static int prompt_last_screen_line;
-
 static int prompt_physical_chars;
 
 /* Variables to save and restore prompt and display information. */
@@ -461,7 +459,7 @@ rl_redisplay ()
 {
   register int in, out, c, linenum, cursor_linenum;
   register char *line;
-  int inv_botlin, lb_botlin, lb_linenum, o_cpos;
+  int inv_botlin, lb_linenum, o_cpos;
   int newlines, lpos, temp, modmark;
   const char *prompt_this_line;
 #if defined (HANDLE_MULTIBYTE)
@@ -675,11 +673,9 @@ rl_redisplay ()
 	lpos -= _rl_screenwidth;
     }
 
-  prompt_last_screen_line = newlines;
-
   /* Draw the rest of the line (after the prompt) into invisible_line, keeping
      track of where the cursor is (cpos_buffer_position), the number of the line containing
-     the cursor (lb_linenum), the last line number (lb_botlin and inv_botlin).
+     the cursor (lb_linenum), the last line number (inv_botlin).
      It maintains an array of line breaks for display (inv_lbreaks).
      This handles expanding tabs for display and displaying meta characters. */
   lb_linenum = 0;
@@ -862,7 +858,7 @@ rl_redisplay ()
       lb_linenum = newlines;
     }
 
-  inv_botlin = lb_botlin = newlines;
+  inv_botlin = newlines;
   CHECK_INV_LBREAKS ();
   inv_lbreaks[newlines+1] = out;
   cursor_linenum = lb_linenum;
@@ -1893,7 +1889,7 @@ rl_character_len (c, pos)
 
   uc = (unsigned char)c;
 
-  if (META_CHAR_FOR_UCHAR (uc))
+  if (META_CHAR_FOR_UCHAR(uc))
     return ((_rl_output_meta_chars == 0) ? 4 : 1);
 
   if (uc == '\t')

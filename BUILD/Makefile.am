@@ -33,6 +33,7 @@ EXTRA_DIST =		FINISH.sh \
 			compile-amd64-max \
 			compile-amd64-max-sci \
 			compile-amd64-valgrind-max \
+			compile-bintar \
 			compile-darwin-mwcc \
 			compile-dist \
 			compile-hpux11-parisc2-aCC \
@@ -69,9 +70,14 @@ EXTRA_DIST =		FINISH.sh \
 			compile-ppc-max \
 			compile-solaris-amd64 \
 			compile-solaris-amd64-debug \
+			compile-solaris-amd64-debug-forte \
 			compile-solaris-amd64-forte \
-			compile-solaris-amd64-forte-debug \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-forte \
-			compile-solaris-sparc-purify
+			compile-solaris-sparc-purify \
+			compile-solaris-x86-32 \
+			compile-solaris-x86-32-debug \
+			compile-solaris-x86-32-debug-forte \
+			compile-solaris-x86-forte-32 \
+			util.sh

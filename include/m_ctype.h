@@ -54,24 +54,46 @@ extern "C" {
 #define MY_PUT_MB2(s, code)   { (s)[0]= code >> 8; (s)[1]= code & 0xFF; }
 #endif
 
+typedef const struct charset_info_st CHARSET_INFO;
+typedef const struct my_charset_handler_st MY_CHARSET_HANDLER;
+typedef const struct my_collation_handler_st MY_COLLATION_HANDLER;
 
+typedef const struct unicase_info_st MY_UNICASE_INFO;
+typedef const struct uni_ctype_st MY_UNI_CTYPE;
+typedef const struct my_uni_idx_st MY_UNI_IDX;
 
-typedef struct unicase_info_st
+struct unicase_info_st
 {
   uint32 toupper;
   uint32 tolower;
   uint32 sort;
-} MY_UNICASE_INFO;
+};
+
+extern MY_UNICASE_INFO *const my_unicase_default[256];
+extern MY_UNICASE_INFO *const my_unicase_turkish[256];
+
+#define MY_UCA_MAX_CONTRACTION 4
+#define MY_UCA_MAX_WEIGHT_SIZE 8
+
+typedef struct my_contraction_t
+{
+  my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
+  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+} MY_CONTRACTION;
 
 
-extern MY_UNICASE_INFO *my_unicase_default[256];
-extern MY_UNICASE_INFO *my_unicase_turkish[256];
+typedef struct my_contraction_list_t
+{
+  size_t nitems;         /* Number of items in the list                  */
+  MY_CONTRACTION *item;  /* List of contractions                         */
+  char *flags;           /* Character flags, e.g. "is contraction head") */
+} MY_CONTRACTIONS;
 
-typedef struct uni_ctype_st
+struct uni_ctype_st
 {
   uchar  pctype;
-  uchar  *ctype;
-} MY_UNI_CTYPE;
+  const uchar  *ctype;
+};
 
 extern MY_UNI_CTYPE my_uni_ctype[256];
 
@@ -114,12 +136,12 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_REPERTOIRE_EXTENDED   2 /* Extended characters:  U+0080..U+FFFF */
 #define MY_REPERTOIRE_UNICODE30  3 /* ASCII | EXTENDED:     U+0000..U+FFFF */
 
-typedef struct my_uni_idx_st
+struct my_uni_idx_st
 {
   uint16 from;
   uint16 to;
-  uchar  *tab;
-} MY_UNI_IDX;
+  const uchar *tab;
+};
 
 typedef struct
 {
@@ -148,41 +170,41 @@ struct charset_info_st;
 
 
 /* See strings/CHARSET_INFO.txt for information about this structure  */
-typedef struct my_collation_handler_st
+struct my_collation_handler_st
 {
   my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t));
   /* Collation routines */
-  int     (*strnncoll)(struct charset_info_st *,
+  int     (*strnncoll)(CHARSET_INFO *,
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
-  int     (*strnncollsp)(struct charset_info_st *,
+  int     (*strnncollsp)(CHARSET_INFO *,
                          const uchar *, size_t, const uchar *, size_t,
                          my_bool diff_if_only_endspace_difference);
-  size_t     (*strnxfrm)(struct charset_info_st *,
+  size_t     (*strnxfrm)(CHARSET_INFO *,
                          uchar *, size_t, const uchar *, size_t);
-  size_t    (*strnxfrmlen)(struct charset_info_st *, size_t); 
-  my_bool (*like_range)(struct charset_info_st *,
+  size_t    (*strnxfrmlen)(CHARSET_INFO *, size_t); 
+  my_bool (*like_range)(CHARSET_INFO *,
 			const char *s, size_t s_length,
 			pchar w_prefix, pchar w_one, pchar w_many, 
 			size_t res_length,
 			char *min_str, char *max_str,
 			size_t *min_len, size_t *max_len);
-  int     (*wildcmp)(struct charset_info_st *,
+  int     (*wildcmp)(CHARSET_INFO *,
   		     const char *str,const char *str_end,
                      const char *wildstr,const char *wildend,
                      int escape,int w_one, int w_many);
 
-  int  (*strcasecmp)(struct charset_info_st *, const char *, const char *);
+  int  (*strcasecmp)(CHARSET_INFO *, const char *, const char *);
   
-  uint (*instr)(struct charset_info_st *,
+  uint (*instr)(CHARSET_INFO *,
                 const char *b, size_t b_length,
                 const char *s, size_t s_length,
                 my_match_t *match, uint nmatch);
   
   /* Hash calculation */
-  void (*hash_sort)(struct charset_info_st *cs, const uchar *key, size_t len,
+  void (*hash_sort)(CHARSET_INFO *cs, const uchar *key, size_t len,
 		    ulong *nr1, ulong *nr2); 
-  my_bool (*propagate)(struct charset_info_st *cs, const uchar *str, size_t len);
-} MY_COLLATION_HANDLER;
+  my_bool (*propagate)(CHARSET_INFO *cs, const uchar *str, size_t len);
+};
 
 extern MY_COLLATION_HANDLER my_collation_mb_bin_handler;
 extern MY_COLLATION_HANDLER my_collation_8bit_bin_handler;
@@ -190,76 +212,76 @@ extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
 /* Some typedef to make it easy for C++ to make function pointers */
-typedef int (*my_charset_conv_mb_wc)(struct charset_info_st *, my_wc_t *,
+typedef int (*my_charset_conv_mb_wc)(CHARSET_INFO *, my_wc_t *,
                                      const uchar *, const uchar *);
-typedef int (*my_charset_conv_wc_mb)(struct charset_info_st *, my_wc_t,
+typedef int (*my_charset_conv_wc_mb)(CHARSET_INFO *, my_wc_t,
                                      uchar *, uchar *);
-typedef size_t (*my_charset_conv_case)(struct charset_info_st *,
+typedef size_t (*my_charset_conv_case)(CHARSET_INFO *,
                                        char *, size_t, char *, size_t);
 
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
-typedef struct my_charset_handler_st
+struct my_charset_handler_st
 {
   my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t));
   /* Multibyte routines */
-  uint    (*ismbchar)(struct charset_info_st *, const char *, const char *);
-  uint    (*mbcharlen)(struct charset_info_st *, uint c);
-  size_t  (*numchars)(struct charset_info_st *, const char *b, const char *e);
-  size_t  (*charpos)(struct charset_info_st *, const char *b, const char *e,
+  uint    (*ismbchar)(CHARSET_INFO *, const char *, const char *);
+  uint    (*mbcharlen)(CHARSET_INFO *, uint c);
+  size_t  (*numchars)(CHARSET_INFO *, const char *b, const char *e);
+  size_t  (*charpos)(CHARSET_INFO *, const char *b, const char *e,
                      size_t pos);
-  size_t  (*well_formed_len)(struct charset_info_st *,
+  size_t  (*well_formed_len)(CHARSET_INFO *,
                              const char *b,const char *e,
                              size_t nchars, int *error);
-  size_t  (*lengthsp)(struct charset_info_st *, const char *ptr, size_t length);
-  size_t  (*numcells)(struct charset_info_st *, const char *b, const char *e);
+  size_t  (*lengthsp)(CHARSET_INFO *, const char *ptr, size_t length);
+  size_t  (*numcells)(CHARSET_INFO *, const char *b, const char *e);
   
   /* Unicode conversion */
   my_charset_conv_mb_wc mb_wc;
   my_charset_conv_wc_mb wc_mb;
 
   /* CTYPE scanner */
-  int (*ctype)(struct charset_info_st *cs, int *ctype,
+  int (*ctype)(CHARSET_INFO *cs, int *ctype,
                const uchar *s, const uchar *e);
   
   /* Functions for case and sort conversion */
-  size_t  (*caseup_str)(struct charset_info_st *, char *);
-  size_t  (*casedn_str)(struct charset_info_st *, char *);
+  size_t  (*caseup_str)(CHARSET_INFO *, char *);
+  size_t  (*casedn_str)(CHARSET_INFO *, char *);
 
   my_charset_conv_case caseup;
   my_charset_conv_case casedn;
 
   /* Charset dependant snprintf() */
-  size_t (*snprintf)(struct charset_info_st *, char *to, size_t n,
+  size_t (*snprintf)(CHARSET_INFO *, char *to, size_t n,
                      const char *fmt,
                      ...) ATTRIBUTE_FORMAT_FPTR(printf, 4, 5);
-  size_t (*long10_to_str)(struct charset_info_st *, char *to, size_t n,
+  size_t (*long10_to_str)(CHARSET_INFO *, char *to, size_t n,
                           int radix, long int val);
-  size_t (*longlong10_to_str)(struct charset_info_st *, char *to, size_t n,
+  size_t (*longlong10_to_str)(CHARSET_INFO *, char *to, size_t n,
                               int radix, longlong val);
   
-  void (*fill)(struct charset_info_st *, char *to, size_t len, int fill);
+  void (*fill)(CHARSET_INFO *, char *to, size_t len, int fill);
   
   /* String-to-number conversion routines */
-  long        (*strntol)(struct charset_info_st *, const char *s, size_t l,
+  long        (*strntol)(CHARSET_INFO *, const char *s, size_t l,
 			 int base, char **e, int *err);
-  ulong      (*strntoul)(struct charset_info_st *, const char *s, size_t l,
+  ulong      (*strntoul)(CHARSET_INFO *, const char *s, size_t l,
 			 int base, char **e, int *err);
-  longlong   (*strntoll)(struct charset_info_st *, const char *s, size_t l,
+  longlong   (*strntoll)(CHARSET_INFO *, const char *s, size_t l,
 			 int base, char **e, int *err);
-  ulonglong (*strntoull)(struct charset_info_st *, const char *s, size_t l,
+  ulonglong (*strntoull)(CHARSET_INFO *, const char *s, size_t l,
 			 int base, char **e, int *err);
-  double      (*strntod)(struct charset_info_st *, char *s, size_t l, char **e,
+  double      (*strntod)(CHARSET_INFO *, char *s, size_t l, char **e,
 			 int *err);
-  longlong    (*strtoll10)(struct charset_info_st *cs,
+  longlong    (*strtoll10)(CHARSET_INFO *cs,
                            const char *nptr, char **endptr, int *error);
-  ulonglong   (*strntoull10rnd)(struct charset_info_st *cs,
+  ulonglong   (*strntoull10rnd)(CHARSET_INFO *cs,
                                 const char *str, size_t length,
                                 int unsigned_fl,
                                 char **endptr, int *error);
-  size_t        (*scan)(struct charset_info_st *, const char *b, const char *e,
+  size_t        (*scan)(CHARSET_INFO *, const char *b, const char *e,
                         int sq);
-} MY_CHARSET_HANDLER;
+};
 
 extern MY_CHARSET_HANDLER my_charset_8bit_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
@@ -272,7 +294,7 @@ extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 #define CHARSET_INFO_DEFINED
 
 /* See strings/CHARSET_INFO.txt about information on this structure  */
-typedef struct charset_info_st
+struct charset_info_st
 {
   uint      number;
   uint      primary_number;
@@ -282,17 +304,17 @@ typedef struct charset_info_st
   const char *name;
   const char *comment;
   const char *tailoring;
-  uchar    *ctype;
-  uchar    *to_lower;
-  uchar    *to_upper;
-  uchar    *sort_order;
-  uint16   *contractions;
-  uint16   **sort_order_big;
-  uint16      *tab_to_uni;
-  MY_UNI_IDX  *tab_from_uni;
-  MY_UNICASE_INFO **caseinfo;
-  uchar     *state_map;
-  uchar     *ident_map;
+  const uchar *ctype;
+  const uchar *to_lower;
+  const uchar *to_upper;
+  const uchar *sort_order;
+  const MY_CONTRACTIONS *contractions;
+  const uint16 *const *sort_order_big;
+  const uint16 *tab_to_uni;
+  MY_UNI_IDX   *tab_from_uni;
+  MY_UNICASE_INFO *const *caseinfo;
+  const uchar  *state_map;
+  const uchar  *ident_map;
   uint      strxfrm_multiply;
   uchar     caseup_multiply;
   uchar     casedn_multiply;
@@ -306,55 +328,52 @@ typedef struct charset_info_st
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
   
-} CHARSET_INFO;
+};
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_bin;
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_latin1;
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_filename;
 
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
-extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
-
-extern CHARSET_INFO my_charset_big5_chinese_ci;
-extern CHARSET_INFO my_charset_big5_bin;
-extern CHARSET_INFO my_charset_cp932_japanese_ci;
-extern CHARSET_INFO my_charset_cp932_bin;
-extern CHARSET_INFO my_charset_cp1250_czech_ci;
-extern CHARSET_INFO my_charset_eucjpms_japanese_ci;
-extern CHARSET_INFO my_charset_eucjpms_bin;
-extern CHARSET_INFO my_charset_euckr_korean_ci;
-extern CHARSET_INFO my_charset_euckr_bin;
-extern CHARSET_INFO my_charset_gb2312_chinese_ci;
-extern CHARSET_INFO my_charset_gb2312_bin;
-extern CHARSET_INFO my_charset_gbk_chinese_ci;
-extern CHARSET_INFO my_charset_gbk_bin;
-extern CHARSET_INFO my_charset_latin1_german2_ci;
-extern CHARSET_INFO my_charset_latin1_bin;
-extern CHARSET_INFO my_charset_latin2_czech_ci;
-extern CHARSET_INFO my_charset_sjis_japanese_ci;
-extern CHARSET_INFO my_charset_sjis_bin;
-extern CHARSET_INFO my_charset_tis620_thai_ci;
-extern CHARSET_INFO my_charset_tis620_bin;
-extern CHARSET_INFO my_charset_ucs2_general_ci;
-extern CHARSET_INFO my_charset_ucs2_bin;
-extern CHARSET_INFO my_charset_ucs2_unicode_ci;
-extern CHARSET_INFO my_charset_ujis_japanese_ci;
-extern CHARSET_INFO my_charset_ujis_bin;
-extern CHARSET_INFO my_charset_utf16_bin;
-extern CHARSET_INFO my_charset_utf16_general_ci;
-extern CHARSET_INFO my_charset_utf16_unicode_ci;
-extern CHARSET_INFO my_charset_utf32_bin;
-extern CHARSET_INFO my_charset_utf32_general_ci;
-extern CHARSET_INFO my_charset_utf32_unicode_ci;
-
-extern CHARSET_INFO my_charset_utf8_general_ci;
-extern CHARSET_INFO my_charset_utf8_unicode_ci;
-extern CHARSET_INFO my_charset_utf8_bin;
-extern CHARSET_INFO my_charset_utf8mb4_bin;
-extern CHARSET_INFO my_charset_utf8mb4_general_ci;
-extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern struct charset_info_st my_charset_big5_bin;
+extern struct charset_info_st my_charset_big5_chinese_ci;
+extern struct charset_info_st my_charset_cp1250_czech_ci;
+extern struct charset_info_st my_charset_cp932_bin;
+extern struct charset_info_st my_charset_cp932_japanese_ci;
+extern struct charset_info_st my_charset_eucjpms_bin;
+extern struct charset_info_st my_charset_eucjpms_japanese_ci;
+extern struct charset_info_st my_charset_euckr_bin;
+extern struct charset_info_st my_charset_euckr_korean_ci;
+extern struct charset_info_st my_charset_gb2312_bin;
+extern struct charset_info_st my_charset_gb2312_chinese_ci;
+extern struct charset_info_st my_charset_gbk_bin;
+extern struct charset_info_st my_charset_gbk_chinese_ci;
+extern struct charset_info_st my_charset_latin1_bin;
+extern struct charset_info_st my_charset_latin1_german2_ci;
+extern struct charset_info_st my_charset_latin2_czech_ci;
+extern struct charset_info_st my_charset_sjis_bin;
+extern struct charset_info_st my_charset_sjis_japanese_ci;
+extern struct charset_info_st my_charset_tis620_bin;
+extern struct charset_info_st my_charset_tis620_thai_ci;
+extern struct charset_info_st my_charset_ucs2_bin;
+extern struct charset_info_st my_charset_ucs2_general_ci;
+extern struct charset_info_st my_charset_ucs2_unicode_ci;
+extern struct charset_info_st my_charset_ujis_bin;
+extern struct charset_info_st my_charset_ujis_japanese_ci;
+extern struct charset_info_st my_charset_utf16_bin;
+extern struct charset_info_st my_charset_utf16_general_ci;
+extern struct charset_info_st my_charset_utf16_unicode_ci;
+extern struct charset_info_st my_charset_utf32_bin;
+extern struct charset_info_st my_charset_utf32_general_ci;
+extern struct charset_info_st my_charset_utf32_unicode_ci;
+extern struct charset_info_st my_charset_utf8_bin;
+extern struct charset_info_st my_charset_utf8_general_ci;
+extern struct charset_info_st my_charset_utf8_unicode_ci;
+extern struct charset_info_st my_charset_utf8mb4_bin;
+extern struct charset_info_st my_charset_utf8mb4_general_ci;
+extern struct charset_info_st my_charset_utf8mb4_unicode_ci;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
-
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,
@@ -373,7 +392,7 @@ extern void my_hash_sort_simple(CHARSET_INFO *cs,
 
 extern size_t my_lengthsp_8bit(CHARSET_INFO *cs, const char *ptr, size_t length);
 
-extern uint my_instr_simple(struct charset_info_st *,
+extern uint my_instr_simple(CHARSET_INFO *,
                             const char *b, size_t b_length,
                             const char *s, size_t s_length,
                             my_match_t *match, uint nmatch);
@@ -397,7 +416,7 @@ int my_mb_ctype_mb(CHARSET_INFO *,int *, const uchar *,const uchar *);
 
 size_t my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
-size_t my_snprintf_8bit(struct charset_info_st *, char *to, size_t n,
+size_t my_snprintf_8bit(CHARSET_INFO *, char *to, size_t n,
                         const char *fmt, ...)
   ATTRIBUTE_FORMAT(printf, 4, 5);
 
@@ -509,7 +528,7 @@ size_t my_numcells_mb(CHARSET_INFO *, const char *b, const char *e);
 size_t my_charpos_mb(CHARSET_INFO *, const char *b, const char *e, size_t pos);
 size_t my_well_formed_len_mb(CHARSET_INFO *, const char *b, const char *e,
                              size_t pos, int *error);
-uint my_instr_mb(struct charset_info_st *,
+uint my_instr_mb(CHARSET_INFO *,
                  const char *b, size_t b_length,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch);
@@ -548,10 +567,10 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
                        const char *str, const char *str_end,
                        const char *wildstr, const char *wildend,
                        int escape, int w_one, int w_many,
-                       MY_UNICASE_INFO **weights);
+                       MY_UNICASE_INFO *const *weights);
 
 extern my_bool my_parse_charset_xml(const char *bug, size_t len,
-				    int (*add)(CHARSET_INFO *cs));
+				    int (*add)(struct charset_info_st *cs));
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
 
@@ -565,6 +584,12 @@ my_bool my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs);
 uint my_charset_repertoire(CHARSET_INFO *cs);
 
 my_bool my_charset_is_ascii_compatible(CHARSET_INFO *cs);
+
+my_bool my_uca_have_contractions(CHARSET_INFO *cs);
+my_bool my_uca_can_be_contraction_head(CHARSET_INFO *cs, my_wc_t wc);
+my_bool my_uca_can_be_contraction_tail(CHARSET_INFO *cs, my_wc_t wc);
+const uint16 *my_uca_contraction2_weight(CHARSET_INFO *cs, my_wc_t wc1,
+                                         my_wc_t wc2);
 
 extern size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
                               const char* fmt, va_list ap);
@@ -610,7 +635,6 @@ extern size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
 #define my_wildcmp(cs,s,se,w,we,e,o,m) ((cs)->coll->wildcmp((cs),(s),(se),(w),(we),(e),(o),(m)))
 #define my_strcasecmp(s, a, b)        ((s)->coll->strcasecmp((s), (a), (b)))
 #define my_charpos(cs, b, e, num)     (cs)->cset->charpos((cs), (const char*) (b), (const char *)(e), (num))
-
 
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))

@@ -1,0 +1,1557 @@
+# Tests for two bugs related to ALTER TABLE and aria-specific alter
+# options (PAGE_CHECKSUM and TRANSACTIONAL).
+
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Test for BUG#35441 "Cannot change PAGE_CHECKSUM table option"
+#
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+select @@global.aria_page_checksum;
+
+# we scan through combinations in the cartesian product of
+# (first value of aria_page_checksum) x (clauses in CREATE TABLE) x
+# (second value of aria_page_checksum) x (clauses in ALTER TABLE).
+
+--echo # iteration 1
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 2
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 3
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 4
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 5
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 6
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 7
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 8
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 9
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 10
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 11
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 12
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 13
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 14
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 15
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 16
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 17
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 18
+set global aria_page_checksum = 0 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 19
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 20
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 21
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 22
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 23
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 24
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 25
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 26
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 27
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 28
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 29
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 30
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 31
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 32
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 33
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 0 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 34
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 engine=aria  ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 35
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=0 ;
+show create table t1 /* expecting PAGE_CHECKSUM=0 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+--echo # iteration 36
+set global aria_page_checksum = 1 ;
+create table t1(a int) engine=aria PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+set global aria_page_checksum = 1 ;
+alter table t1 PAGE_CHECKSUM=1 ;
+show create table t1 /* expecting PAGE_CHECKSUM=1 */ ;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    my @content= grep(/Page checksums are used/, <FILE>);
+    print @content ? $content[0] : "Page checksums are not used\n";
+    close FILE;
+EOF
+drop table t1;
+
+#
+# Test for BUG#37005
+# "Aria: ALTER TABLE TRANSACTIONAL=0 leaves table transactional inside Aria"
+#
+
+# we scan through combinations in the cartesian product of
+# (clauses in CREATE TABLE) x (clauses in ALTER TABLE).
+
+--echo # iteration 1
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 2
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 3
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 4
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 5
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 6
+create table t1(a int) engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 7
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 8
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 9
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 10
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 11
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 12
+create table t1(a int) engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 13
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 modify a bigint ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 14
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 15
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1  transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 16
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria  ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 17
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=0 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;
+
+
+--echo # iteration 18
+create table t1(a int) engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+
+alter table t1 engine=aria transactional=1 ;
+show create table t1;
+--exec $MARIA_CHK -dv $MYSQLD_DATADIR/test/t1 >$MYSQLTEST_VARDIR/tmp/ariachk.txt
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/ariachk.txt";
+    open(FILE, "<", $fname) or die;
+    print grep(/Crashsafe/, <FILE>);
+    close FILE;
+EOF
+drop table t1;

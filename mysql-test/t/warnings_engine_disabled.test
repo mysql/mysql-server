@@ -2,23 +2,22 @@
 # Only run this test with a compiled in but disabled
 # engine
 #
-disable_query_log;
---require r/true.require
-select support = 'NO' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
-enable_query_log;
+if (!`SELECT count(*) FROM information_schema.engines WHERE
+      support = 'NO' AND engine = 'innodb'`){
+  skip Needs innodb engine;
+}
 
 
 #
 # Test for handler type, will select MyISAM and print a warning
-# about that - since NDB is disabled
+# about that - since InnoDB is disabled
 #
-create table t1 (id int) engine=NDB;
-alter table t1 engine=NDB;
+create table t1 (id int) engine=InnoDB;
+alter table t1 engine=InnoDB;
 drop table t1;
 
 #
 # Bug#29263 disabled storage engines omitted in SHOW ENGINES
 #
-SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='ndbcluster';
-SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE
-PLUGIN_NAME='ndbcluster';
+SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='InnoDB';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='InnoDB';

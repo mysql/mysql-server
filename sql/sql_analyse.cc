@@ -246,7 +246,8 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
       }
       DBUG_RETURN(0);
     }
-    for (str++; *(end - 1) == '0'; end--) ; // jump over zeros at the end
+    for (str++; *(end - 1) == '0'; end--)  // jump over zeros at the end
+      ;
     if (str == end)		     // number was something like '123.000'
     {
       char *endpos= (char*) str;
@@ -408,7 +409,7 @@ void field_real::add()
 
   if ((decs = decimals()) == NOT_FIXED_DEC)
   {
-    length= sprintf(buff, "%g", num);
+    length= my_sprintf(buff, (buff, "%g", num));
     if (rint(num) != num)
       max_notzero_dec_len = 1;
   }
@@ -419,7 +420,7 @@ void field_real::add()
     snprintf(buff, sizeof(buff)-1, "%-.*f", (int) decs, num);
     length = (uint) strlen(buff);
 #else
-    length= sprintf(buff, "%-.*f", (int) decs, num);
+    length= my_sprintf(buff, (buff, "%-.*f", (int) decs, num));
 #endif
 
     // We never need to check further than this
@@ -1006,9 +1007,9 @@ void field_decimal::get_opt_type(String *answer,
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
-  length= my_snprintf(buff, sizeof(buff), "DECIMAL(%d, %d)",
-                      (int) (max_length - (item->decimals ? 1 : 0)),
-                      item->decimals);
+  length= my_sprintf(buff, (buff, "DECIMAL(%d, %d)",
+                            (int) (max_length - (item->decimals ? 1 : 0)),
+                            item->decimals));
   if (is_unsigned)
     length= (uint) (strmov(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);

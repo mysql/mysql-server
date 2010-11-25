@@ -5,7 +5,7 @@
 #    to wait for operation to complete.  Should be positive.  Test runs
 #    about 25*N seconds (it sleeps most of the time, so CPU speed is not
 #    relevant).
-let $N = 5;
+let $N = 6;
 #
 # 2. Some subtests
 #    - create a new time zone
@@ -35,6 +35,9 @@ let $N = 5;
 #    3. Server start
 #    after a tests would be a perfect replacement.
 #
+
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
 
 --source include/big_test.inc
 
@@ -115,6 +118,7 @@ INSERT INTO mysql.time_zone_transition_type
 let $transition_unix_time= `SELECT @unix_time`;
 let $count= 30;
 --disable_query_log
+begin;
 while ($count)
 {
   eval INSERT INTO mysql.time_zone_transition
@@ -123,6 +127,7 @@ while ($count)
   let $transition_unix_time= `SELECT $transition_unix_time + @step3`;
   dec $count;
 }
+commit;
 --enable_query_log
 let $tz_name = `SELECT CONCAT('b16420_a',UNIX_TIMESTAMP())`;
 --replace_result $tz_name <TZ_NAME_1>
@@ -169,13 +174,13 @@ CREATE EVENT e2 ON SCHEDULE EVERY @step SECOND
 
 # We want to start at the beginning of the DST cycle, so we wait
 # untill current time divides by @step6.
-let $wait_timeout= `SELECT @step6 + 1`;
+let $wait_timeout= `SELECT @step6*2 + 1`;
 let $wait_condition= SELECT UNIX_TIMESTAMP() % @step6 = @step6 - 1;
 --source include/wait_condition.inc
 # The second wait is needed because after the first wait we may end up
 # on the ending edge of a second.  Second wait will bring us to the
 # beginning edge.
-let $wait_timeout= `SELECT @step + 1`;
+let $wait_timeout= `SELECT @step*2 + 1`;
 let $wait_condition= SELECT UNIX_TIMESTAMP() % @step6 = 0;
 --source include/wait_condition.inc
 

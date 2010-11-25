@@ -47,7 +47,15 @@ if ($opt_small_test)
   $create_loop_count/=1000;
 }
 
-$max_tables=min($limits->{'max_tables'},$opt_loop_count);
+if ($opt_temporary_tables)
+{
+    $max_tables=min($limits->{'max_tables'},$opt_loop_count);
+}
+else
+{
+  $max_tables=min($limits->{'max_tables'},$opt_loop_count);
+  $max_tables=400;
+}
 
 if ($opt_small_test)
 {
@@ -71,7 +79,7 @@ $dbh = $server->connect();
 if ($opt_force) # If tables used in this test exist, drop 'em
 {
   print "Okay..Let's make sure that our tables don't exist yet.\n\n";
-  for ($i=1 ; $i <= $max_tables ; $i++)
+  for ($i=1 ; $i <= max($max_tables, $create_loop_count) ; $i++)
   {
     $dbh->do("drop table bench_$i" . $server->{'drop_attr'});
   }
@@ -245,7 +253,7 @@ for ($i=2 ; $i <= $keys ; $i++)
 }
 
 $loop_time=new Benchmark;
-for ($i=1 ; $i <= $opt_loop_count ; $i++)
+for ($i=1 ; $i <= $create_loop_count ; $i++)
 {
   do_many($dbh,$server->create("bench_$i", \@fields, \@keys));
   $dbh->do("drop table bench_$i" . $server->{'drop_attr'}) or die $DBI::errstr;

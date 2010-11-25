@@ -24,7 +24,7 @@
 #include <mysql.h>
 #include <sql_common.h>
 
-#define ADMIN_VERSION "8.42"
+#define ADMIN_VERSION "9.0"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
@@ -97,7 +97,10 @@ enum commands {
   ADMIN_FLUSH_HOSTS,      ADMIN_FLUSH_TABLES,    ADMIN_PASSWORD,
   ADMIN_PING,             ADMIN_EXTENDED_STATUS, ADMIN_FLUSH_STATUS,
   ADMIN_FLUSH_PRIVILEGES, ADMIN_START_SLAVE,     ADMIN_STOP_SLAVE,
-  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD
+  ADMIN_FLUSH_THREADS,    ADMIN_OLD_PASSWORD,    ADMIN_FLUSH_SLOW_LOG,
+  ADMIN_FLUSH_TABLE_STATISTICS, ADMIN_FLUSH_INDEX_STATISTICS,
+  ADMIN_FLUSH_USER_STATISTICS, ADMIN_FLUSH_CLIENT_STATISTICS,
+  ADMIN_FLUSH_ALL_STATUS, ADMIN_FLUSH_ALL_STATISTICS
 };
 static const char *command_names[]= {
   "create",               "drop",                "shutdown",
@@ -107,7 +110,10 @@ static const char *command_names[]= {
   "flush-hosts",          "flush-tables",        "password",
   "ping",                 "extended-status",     "flush-status",
   "flush-privileges",     "start-slave",         "stop-slave",
-  "flush-threads","old-password",
+  "flush-threads", "old-password", "flush-slow-log",
+  "flush-table-statistics", "flush-index-statistics",
+  "flush-user-statistics", "flush-client-statistics",
+  "flush-all-status", "flush-all-statistics",
   NullS
 };
 
@@ -572,11 +578,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     If this behaviour is ever changed, Docs should be notified.
   */
 
-  struct rand_struct rand_st;
+  struct my_rnd_struct rand_st;
 
   for (; argc > 0 ; argv++,argc--)
   {
-    switch (find_type(argv[0],&command_typelib,2)) {
+    int command;
+    switch ((command= find_type(argv[0],&command_typelib,2))) {
     case ADMIN_CREATE:
     {
       char buff[FN_REFLEN+20];
@@ -653,7 +660,11 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       if (mysql_refresh(mysql,
 			(uint) ~(REFRESH_GRANT | REFRESH_STATUS |
 				 REFRESH_READ_LOCK | REFRESH_SLAVE |
-				 REFRESH_MASTER)))
+				 REFRESH_MASTER | REFRESH_TABLE_STATS |
+                                 REFRESH_INDEX_STATS |
+                                 REFRESH_USER_STATS |
+                                 REFRESH_SLOW_QUERY_LOG |
+                                 REFRESH_CLIENT_STATS)))
       {
 	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
@@ -671,7 +682,8 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
+      puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc,\n"
+           "2009 Monty Program Ab");
       puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
@@ -847,9 +859,19 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_LOGS:
     {
-      if (mysql_refresh(mysql,REFRESH_LOG))
+      if (mysql_query(mysql,"flush logs"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_SLOW_LOG:
+    {
+      if (mysql_query(mysql,"flush slow query logs"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -859,7 +881,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush hosts"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -869,7 +891,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush tables"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -879,7 +901,71 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     {
       if (mysql_query(mysql,"flush status"))
       {
-	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_TABLE_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush table_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_INDEX_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush index_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_USER_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush user_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_CLIENT_STATISTICS:
+    {
+      if (mysql_query(mysql,"flush client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_ALL_STATISTICS:
+    {
+      if (mysql_query(mysql,
+                      "flush table_statistics,index_statistics,"
+                      "user_statistics,client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
+			mysql_error(mysql));
+	return -1;
+      }
+      break;
+    }
+    case ADMIN_FLUSH_ALL_STATUS:
+    {
+      if (mysql_query(mysql,
+                      "flush status,table_statistics,index_statistics,"
+                      "user_statistics,client_statistics"))
+      {
+	my_printf_error(0, "flush failed; error: '%s'", error_flags,
 			mysql_error(mysql));
 	return -1;
       }
@@ -893,7 +979,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       char *typed_password= NULL, *verified= NULL;
       /* Do initialization the same way as we do in mysqld */
       start_time=time((time_t*) 0);
-      randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
+      my_rnd_init(&rand_st,(ulong) start_time,(ulong) start_time/2);
 
       if (argc < 1)
       {
@@ -1070,7 +1156,8 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
+  puts("Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc,\n"
+       "2009 Monty Program Ab");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
@@ -1078,16 +1165,23 @@ static void usage(void)
   my_print_variables(my_long_options);
   print_defaults("my",load_default_groups);
   puts("\nWhere command is a one or more of: (Commands may be shortened)\n\
-  create databasename	Create a new database\n\
-  debug			Instruct server to write debug information to log\n\
-  drop databasename	Delete a database and all its tables\n\
-  extended-status       Gives an extended status message from the server\n\
-  flush-hosts           Flush all cached hosts\n\
-  flush-logs            Flush all logs\n\
-  flush-status		Clear status variables\n\
-  flush-tables          Flush all tables\n\
-  flush-threads         Flush the thread cache\n\
-  flush-privileges      Reload grant tables (same as reload)\n\
+  create databasename	  Create a new database\n\
+  debug			  Instruct server to write debug information to log\n\
+  drop databasename	  Delete a database and all its tables\n\
+  extended-status         Gives an extended status message from the server\n\
+  flush-all-statistics    Flush all statistics tables\n\
+  flush-all-status        Flush status and statistics\n\
+  flush-client-statistics Flush client statistics\n\
+  flush-hosts             Flush all cached hosts\n\
+  flush-index-statistics  Flush index statistics\n\
+  flush-logs              Flush all logs\n\
+  flush-privileges        Reload grant tables (same as reload)\n\
+  flush-slow-log          Flush slow query log\n\
+  flush-status		  Clear status variables\n\
+  flush-table-statistics  Clear table statistics\n\
+  flush-tables            Flush all tables\n\
+  flush-threads           Flush the thread cache\n\
+  flush-user-statistics   Flush user statistics\n\
   kill id,id,...	Kill mysql threads");
 #if MYSQL_VERSION_ID >= 32200
   puts("\
@@ -1377,7 +1471,7 @@ static my_bool wait_pidfile(char *pidfile, time_t last_modified,
 			    struct stat *pidfile_status)
 {
   char buff[FN_REFLEN];
-  int error= 1;
+  my_bool error= 1;
   uint count= 0;
   DBUG_ENTER("wait_pidfile");
 

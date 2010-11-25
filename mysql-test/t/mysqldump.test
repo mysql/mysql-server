@@ -1,3 +1,5 @@
+call mtr.add_suppression("@003f.frm' \\(errno: 22\\)");
+
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
@@ -209,7 +211,7 @@ DROP TABLE t1;
 --echo # Test for --insert-ignore
 --echo #
 
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t1 VALUES (4),(5),(6);
 --exec $MYSQL_DUMP --skip-comments --insert-ignore test t1
@@ -1514,13 +1516,12 @@ INSERT INTO t1 VALUES (1), (2);
 
 DROP TABLE t1;
 
-
 #
-# Bug#25993 crashes with a merge table and -c
+# Bug #25993 crashes with a merge table and -c
 #
 
-CREATE TABLE t2 (a INT);
-CREATE TABLE t3 (a INT);
+CREATE TABLE t2 (a INT) ENGINE=MyISAM;
+CREATE TABLE t3 (a INT) ENGINE=MyISAM;
 CREATE TABLE t1 (a INT) ENGINE=merge UNION=(t2, t3);
 --exec $MYSQL_DUMP --skip-comments -c test
 DROP TABLE t1, t2, t3;
@@ -1988,6 +1989,8 @@ drop table if exists `load`;
 create table `load` (a varchar(255));
 
 --copy_file std_data/words.dat $MYSQLTEST_VARDIR/tmp/load.txt
+# LOAD DATA requires the file to be world-readable. This may not be true
+# automatically, depending on how the build directory was created.
 --chmod 0644 $MYSQLTEST_VARDIR/tmp/load.txt
 
 --exec $MYSQL_IMPORT --ignore test $MYSQLTEST_VARDIR/tmp/load.txt

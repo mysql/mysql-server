@@ -76,7 +76,7 @@ class field_info :public Sql_alloc
 protected:
   ulong   treemem, tree_elements, empty, nulls, min_length, max_length;
   uint	  room_in_tree;
-  my_bool found;
+  bool found;
   TREE	  tree;
   Item	  *item;
   analyse *pc;

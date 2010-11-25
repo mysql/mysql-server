@@ -72,3 +72,7 @@ ENDIF(WIN32)
 SET_TARGET_PROPERTIES (mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow mysqlslap 
 PROPERTIES HAS_CXX TRUE)
 
+ADD_DEFINITIONS(-DHAVE_DLOPEN)
+
+INSTALL(TARGETS mysql mysqltest mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow
+	mysqlbinlog mysqladmin mysqlslap echo DESTINATION bin COMPONENT runtime)

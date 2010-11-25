@@ -38,6 +38,7 @@ bin_SCRIPTS =		@server_scripts@ \
 noinst_SCRIPTS =	make_binary_distribution \
 			make_sharedlib_distribution \
 			dheadgen.pl
+			convert-debug-for-diff
 
 EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			make_sharedlib_distribution.sh \
@@ -60,6 +61,7 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 			mysqld_multi.sh \
 			mysqld_safe.sh \
 			dheadgen.pl
+			convert-debug-for-diff.sh
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
@@ -89,7 +91,9 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysqld_multi
+			mysqld_multi \
+			convert-debug-for-diff \
+			$(EXTRA_PROGRAMS)
 
 pkgplugindir =		$(pkglibdir)/plugin
 

@@ -1,1 +1,1 @@
---innodb-autoinc-lock-mode=0
+--loose-innodb-autoinc-lock-mode=0

@@ -114,7 +114,8 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
   {
     { C_STRING_WITH_LEN("sql_mode") },
     { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
-    "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
+    "'IGNORE_SPACE','IGNORE_BAD_TABLE_OPTIONS','ONLY_FULL_GROUP_BY',"
+    "'NO_UNSIGNED_SUBTRACTION',"
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
@@ -431,17 +432,18 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   }
 
   key_copy(key_buf, event_table->record[0], key_info, key_len);
-  if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
-                                               (key_part_map)1,
-                                               HA_READ_PREFIX)))
+  if (!(ret= event_table->file->ha_index_read_map(event_table->record[0],
+                                                  key_buf,
+                                                  (key_part_map)1,
+                                                  HA_READ_PREFIX)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
     {
       ret= copy_event_to_schema_table(thd, schema_table, event_table);
       if (ret == 0)
-        ret= event_table->file->index_next_same(event_table->record[0],
-                                                key_buf, key_len);
+        ret= event_table->file->ha_index_next_same(event_table->record[0],
+                                                   key_buf, key_len);
     } while (ret == 0);
   }
   DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
@@ -481,7 +483,8 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
   READ_RECORD read_record_info;
   DBUG_ENTER("Event_db_repository::table_scan_all_for_i_s");
 
-  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0, FALSE);
+  if (init_read_record(&read_record_info, thd, event_table, NULL, 1, 0, FALSE))
+    DBUG_RETURN(TRUE);
 
   /*
     rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
@@ -616,7 +619,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
-                                  my_bool create_if_not)
+                                  bool create_if_not)
 {
   int ret= 1;
   TABLE *table= NULL;
@@ -912,8 +915,9 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     DBUG_PRINT("info", ("Row not found"));
     DBUG_RETURN(TRUE);
@@ -948,7 +952,9 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     DBUG_VOID_RETURN;
 
   /* only enabled events are in memory, so we go now and delete the rest */
-  init_read_record(&read_record_info, thd, table, NULL, 1, 0, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 1, 0, FALSE))
+    goto end;
+
   while (!ret && !(read_record_info.read_record(&read_record_info)) )
   {
     char *et_field= get_field(thd->mem_root, table->field[field]);
@@ -970,6 +976,8 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     }
   }
   end_read_record(&read_record_info);
+
+end:
   close_thread_tables(thd);
   /*
     Make sure to only release the MDL lock on mysql.event, not other

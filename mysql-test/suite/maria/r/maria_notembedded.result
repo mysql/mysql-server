@@ -1,0 +1,56 @@
+set session storage_engine=aria;
+create table t1 (a int) row_format=page;
+insert delayed into t1 values(1);
+ERROR HY000: DELAYED option not supported for table 't1'
+drop table t1;
+create table t1 (a int) row_format=page transactional=0;
+insert delayed into t1 values(1);
+flush table t1;
+select * from t1;
+a
+1
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+create table t1 (a int) row_format=dynamic;
+insert delayed into t1 values(1);
+flush table t1;
+select * from t1;
+a
+1
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+create table t1 (a int unique) transactional=1;
+insert t1 values (1);
+lock table t1 write concurrent;
+insert t1 values (2);
+lock table t1 write concurrent;
+insert t1 values (3);
+insert t1 values (2);
+lock table t1 write concurrent;
+insert t1 values (4);
+insert t1 values (3);
+lock table t1 write concurrent;
+insert t1 values (5);
+insert t1 values (4);
+lock table t1 write concurrent;
+insert t1 values (6);
+insert t1 values (5);
+insert t1 values (6);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+unlock tables;
+ERROR 23000: Duplicate entry '2' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '3' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '4' for key 'a'
+unlock tables;
+ERROR 23000: Duplicate entry '5' for key 'a'
+unlock tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

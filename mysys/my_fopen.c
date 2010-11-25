@@ -132,7 +132,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
   FILE *fd;
   char type[5];
   DBUG_ENTER("my_fdopen");
-  DBUG_PRINT("my",("Fd: %d  Flags: %d  MyFlags: %d",
+  DBUG_PRINT("my",("fd: %d  Flags: %d  MyFlags: %d",
 		   Filedes, Flags, MyFlags));
 
   make_ftype(type,Flags);

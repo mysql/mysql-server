@@ -1,54 +1,49 @@
-This is a release of MySQL, a dual-license SQL DBMS.
-MySQL is brought to you by the MySQL team at Oracle Corporation.
+This is a release of MariaDB.
+
+MariaDB is designed as a drop-in replacement of MySQL(R) with more
+features, new storage engines, fewer bugs, and better performance.
+
+MariaDB is brought to you by many of the original developers of MySQL
+who now work for Monty Program Ab, and by many people in the
+community.
+
+MySQL, which is the base of MariaDB, is a product and trademark of Sun
+Microsystems, Inc. For a list of developers and other contributors,
+see the Credits appendix.  You can also do 'SHOW authors' to get a
+list of active contributors.
+
+A description of the MariaDB project and a manual can be found at:
+http://askmonty.org/wiki/index.php/MariaDB
+http://askmonty.org/wiki/index.php/MariaDB_versus_MySQL
+http://askmonty.org/wiki/index.php/Manual:Contents
+
+As MariaDB is a full replacement of MySQL, the MySQL manual at
+http://dev.mysql.com/doc is generally applicable.
+
+More help is available from the Maria Discuss mailing list
+https://launchpad.net/~maria-discuss
+and the #maria IRC channel on Freenode.
+
+***********************************************************
+
+NOTE: 
+
+MariaDB is specifically available only under version 2 of the GNU
+General Public License (GPLv2). (I.e. Without the "any later version"
+clause.) This is inherited from MySQL. Please see the README file in
+the MySQL distribution for more information.
+
+License information can be found in the COPYING file and the
+EXCEPTIONS-CLIENT file.
 
 ************************************************************
-LICENSE
-************************************************************
-License information and use restrictions of this software can
-be found in these files:
-- For GPL (free) distributions, see the COPYING file and
-  the EXCEPTIONS-CLIENT file.
-- For commercial distributions, see the LICENSE.mysql file.
 
-GPLv2 Disclaimer
-For the avoidance of doubt, except that if any license choice
-other than GPL or LGPL is available it will apply instead, Oracle
-elects to use only the General Public License version 2 (GPLv2)
-at this time for any software where a choice of GPL license versions
-is made available with the language indicating that GPLv2 or any
-later version may be used, or where a choice of which version of
-the GPL is applied is otherwise unspecified.
-
-************************************************************
-FURTHER INFORMATION
-************************************************************
-For further information about MySQL or additional documentation, see:
-- The latest information about MySQL: http://dev.mysql.com/
-- The current MySQL documentation: http://dev.mysql.com/doc/
-
-Some manual sections of special interest:
-- If you are migrating from an older version of MySQL, please read 
-the "Upgrading from..." section first!
-- To see what MySQL can do, take a look at the features section.
-- For installation instructions, see the Installing and Upgrading
-chapter.
-- For the new features/bugfix history, see the Change History appendix.
-- For the currently known bugs/misfeatures (known errors) see the
-Problems and Common Errors appendix.
-- For a list of developers and other contributors, see the Credits
-appendix.
-
-A local copy of the MySQL Reference Manual can be found in the Docs
-directory in GNU Info format. You can also browse the manual online or
-download it in any of several formats at the URL given earlier in this
-file.
-
-************************************************************
 IMPORTANT:
 
-Bug or error reports should be sent to http://bugs.mysql.com.
-************************************************************
+Bug and/or error reports regarding MariaDB should be submitted at
+https://bugs.launchpad.net/maria
 
+Bugs in the MySQL code can also be submitted at http://bugs.mysql.com
 
 ************************************************************
 THIRD-PARTY SOFTWARE
@@ -188,20 +183,16 @@ cmake-2.4.8/Utilities/cmtar/compat/gethostname.c:
  
 **************************************************************************
                                                                      
-    *
-  Author : Per Foreby, perf@efd.lth.se                               
-    *
-  Author : Juergen Pfeifer, juergen.pfeifer@gmx.net                  
-    *
-                                                                     
+    * Author : Per Foreby, perf@efd.lth.se                               
+    * Author : Juergen Pfeifer, juergen.pfeifer@gmx.net                  
+    * 
     *
 **************************************************************************
 
 ----------------------------------------
 
   Copyright (c) 2002 Insight Consortium. All rights reserved.
-  See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for
-details.
+  See ITKCopyright.txt or http://www.itk.org/HTML/Copyright.htm for details.
 
      This software is distributed WITHOUT ANY WARRANTY; without even
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
@@ -210,9 +201,7 @@ details.
 --------------------------------------------
 
  Skeleton parser for Yacc-like parsing with Bison,
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003 Free
-Software Foundati
-on, Inc.
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -254,11 +243,9 @@ cmake-2.4.8/Utilities/cmzlib/zlib.h:
      claim that you wrote the original software. If you use this software
      in a product, an acknowledgment in the product documentation would be
      appreciated but is not required.
-  2. Altered source versions must be plainly marked as such, and must
-not be
+  2. Altered source versions must be plainly marked as such, and must not be
      misrepresented as being the original software.
-  3. This notice may not be removed or altered from any source
-distribution.
+  3. This notice may not be removed or altered from any source distribution.
 
   Jean-loup Gailly        Mark Adler
 
@@ -269,19 +256,15 @@ distribution.
  use in Curl. His latest changes were done 2000-09-18.
 
  It has since been patched away like a madman by Daniel Stenberg
-  to make it better applied to curl conditions, and to
-make
- it not use globals, pollute name space and more. This source code
-awaits a
+ to make it better applied to curl conditions, and to make
+ it not use globals, pollute name space and more. This source code awaits a
  rewrite to work around the paragraph 2 in the BSD licenses as explained
  below.
 
  Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Hgskolan
  It has since been patched and modified a lot by Daniel Stenberg
-  to make it better applied to curl conditions, and to
-make
- it not use globals, pollute name space and more. This source code
-awaits a
+  to make it better applied to curl conditions, and to make
+ it not use globals, pollute name space and more. This source code awaits a
  rewrite to work around the paragraph 2 in the BSD licenses as explained
  below.
 
@@ -306,19 +289,15 @@ awaits a
 
  THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE
- ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE
-LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.  
+ SUCH DAMAGE.  
 
 ---------------------------------------------
 
@@ -334,8 +313,7 @@ STRICT
 --------------------------------------------------
 
 cmake-2.4.8/Utilities/cmcurl/inet_pton.c,
-cmake-2.4.8/Source/CTest/Curl/inet_pto
-n.c:
+cmake-2.4.8/Source/CTest/Curl/inet_pton.c:
  This is from the BIND 4.9.4 release, modified to compile by itself 
 
  Copyright (c) 1996 by Internet Software Consortium.
@@ -344,16 +322,13 @@ n.c:
  purpose with or without fee is hereby granted, provided that the above
  copyright notice and this permission notice appear in all copies.
 
- THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
-DISCLAIMS
- ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
-WARRANTIES
+ THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
  OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
  CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
  DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
  PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
-OF THIS
+ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  SOFTWARE.
 
 -------------------------------------------------------
@@ -371,24 +346,19 @@ OF THIS
 *    notice, this list of conditions and the following disclaimer in the
 *    documentation and/or other materials provided with the distribution.
 * 3. The name of the author may not be used to endorse or promote products
-*    derived from this software without specific prior written
-permission. 
+*    derived from this software without specific prior written permission. 
 *  
 * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT
-* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-ANY WAY
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-** SUCH DAMAGE. 
+* SUCH DAMAGE. 
 
 ---------------------------------------------------
 
@@ -443,15 +413,12 @@ ANY WAY
 
  THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  SUCH DAMAGE.
@@ -480,61 +447,34 @@ STRICT
 
 ------------------------------------------------------------
 
-***************************************************************************
- Copyright (c) 1998 Free Software Foundation, Inc.                   
-    *
- Copyright (c) 1998,2000 Free Software Foundation, Inc.              
-    *
-                                                                     
-    *
- Permission is hereby granted, free of charge, to any person obtaining
-a  *
- copy of this software and associated documentation files (the       
-    *
- "Software"), to deal in the Software without restriction, including 
-    *
- without limitation the rights to use, copy, modify, merge, publish, 
-    *
- distribute, distribute with modifications, sublicense, and/or sell  
-    *
- copies of the Software, and to permit persons to whom the Software is
-   *
- furnished to do so, subject to the following conditions:            
-    *
-                                                                     
-    *
- The above copyright notice and this permission notice shall be
-included  *
- in all copies or substantial portions of the Software.              
-    *
-                                                                     
-    *
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS  *
- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF          
-    *
- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT.   *
- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM,   *
- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-   *
- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
-   *
- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                          
-    *
-                                                                     
-    *
-                                                                     
-    *
- Except as contained in this notice, the name(s) of the above
-copyright   *
- holders shall not be used in advertising or otherwise to promote the
-    *
- sale, use or other dealings in this Software without prior written  
-    *
- authorization.                                                      
-    *
+****************************************************************************
+ Copyright (c) 1998 Free Software Foundation, Inc.                         *
+ Copyright (c) 1998,2000 Free Software Foundation, Inc.                    *
+                                                                           *
+ Permission is hereby granted, free of charge, to any person obtaining a   *
+ copy of this software and associated documentation files (the             *
+ "Software"), to deal in the Software without restriction, including       *
+ without limitation the rights to use, copy, modify, merge, publish,       *
+ distribute, distribute with modifications, sublicense, and/or sell        *
+ copies of the Software, and to permit persons to whom the Software is     *
+ furnished to do so, subject to the following conditions:                  *
+                                                                           *
+ The above copyright notice and this permission notice shall be included   *
+ in all copies or substantial portions of the Software.                    *
+                                                                           *
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   *
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                *
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.    *
+ IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,    *
+ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     *
+ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR     *
+ THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                *
+                                                                           *
+                                                                           *
+ Except as contained in this notice, the name(s) of the above copyright    *
+ holders shall not be used in advertising or otherwise to promote the      *
+ sale, use or other dealings in this Software without prior written        *
+ authorization.                                                            *
  ***************************************************************************
 
 ------------------------------------------------------
@@ -553,14 +493,12 @@ copyright   *
  3. The name of the author may not be used to endorse or promote products
     derived from this software without specific prior written permission.
 
- THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
-WARRANTIES,
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
  THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS;
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
@@ -568,15 +506,12 @@ PROFITS;
  
  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  SUCH DAMAGE.
@@ -588,7 +523,7 @@ Fred Fish's Dbug Library
 
 Use of any of this software is governed by the terms of the license below:
 
-*
+ *
  *				   N O T I C E				      *
  *									      *
  *		      Copyright Abandoned, 1987, Fred Fish		      *
@@ -613,36 +548,6 @@ Use of any of this software is governed by the terms of the license below:
  *	product  and  explicitly disclaims any implied warranties of mer-     *
  *	chantability or fitness for any particular purpose.		      *
  *
-
-***************************************************************************
-
-%%The following software may be included in this product:
-dbug_analyze.c (part of Fred Fish's Dbug Library)
-
-Use of any of this software is governed by the terms of the license below:
-
-*                                          *
-*              Copyright Abandoned, 1987, Fred Fish              *
-*                                          *
-*                                          *
-*    This previously copyrighted work has been placed into the  public     *
-*    domain    by  the  author  and  may be freely used for any purpose,     *
-*    private or commercial.                              *
-*                                          *
-*    Because of the number of inquiries I was receiving about the  use     *
-*    of this product in commercially developed works I have decided to     *
-*    simply make it public domain to further its unrestricted use.    I     *
-*    specifically  would  be  most happy to see this material become a     *
-*    part of the standard Unix distributions by AT&T and the  Berkeley     *
-*    Computer  Science  Research Group, and a standard part of the GNU     *
-*    system from the Free Software Foundation.                  *
-*                                          *
-*    I would appreciate it, as a courtesy, if this notice is  left  in     *
-*    all copies and derivative works.  Thank you.                  *
-*                                          *
-*    The author makes no warranty of any kind  with    respect  to  this     *
-*    product  and  explicitly disclaims any implied warranties of mer-     *
-*    chantability or fitness for any particular purpose.
 
 ***************************************************************************
 
@@ -1187,8 +1092,7 @@ Use of any of this software is governed by the terms of the license below:
  * Copyright (c) 2000 Dug Song 
  *
  * Copyright (c) 1993
- *      The Regents of the University of California.  All rights
-reserved.
+ *      The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1456,10 +1360,8 @@ text:
    Library General Public License for more details.
 
    You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If
-not,
-   write to the Free Software Foundation, Inc., 59 Temple Place -
-Suite 330,
+   License along with the GNU C Library; see the file COPYING.LIB.  If not,
+   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
 
@@ -1624,7 +1526,7 @@ products and corporate names mentioned herein which are trademarks of a third
 party are used only for explanation and for the owners' benefit and with no
 intent to infringe.
              3. Use of third party products or information referred to herein is
-at the user’s risk.
+at the user's risk.
        6. Miscellaneous.
              1. Jurisdiction and Venue. This server is operated from a location
 in the State of California, United States of America. Unicode makes no
@@ -1639,10 +1541,10 @@ California. The user agrees said courts have personal jurisdiction and agree to
 waive any right to transfer the dispute to any other forum.
              2. Modification by Unicode Unicode shall have the right to modify
 this Agreement at any time by posting it to this site. The user may not assign
-any part of this Agreement without Unicode’s prior written consent.
+any part of this Agreement without Unicode's prior written consent.
              3. Taxes. The user agrees to pay any taxes arising from access to
 this website or use of the information herein, except for those based on
-Unicode’s net income.
+Unicode's net income.
              4. Severability.  If any provision of this Agreement is declared
 invalid or unenforceable, the remaining provisions of this Agreement shall
 remain in effect.
@@ -2266,8 +2168,7 @@ See
 http://src.opensolaris.org/source/xref//sfw/usr/src/cmd/gdb/gdb-6.3/include/ieee.h
 
 
-/* IEEE Standard 695-1980 "Universal Format for Object Modules"
-header file
+/* IEEE Standard 695-1980 "Universal Format for Object Modules" header file
    Contributed by Cygnus Support.  */
 
 ***************************************************************************
@@ -2297,8 +2198,7 @@ Use of any of this software is governed by the terms of the license below:
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.
+ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 ***************************************************************************

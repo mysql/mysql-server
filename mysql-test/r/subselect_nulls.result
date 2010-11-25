@@ -1,0 +1,114 @@
+drop table if exists x1;
+drop table if exists x2;
+create table x1(k int primary key, d1 int, d2 int);
+create table x2(k int primary key, d1 int, d2 int);
+insert into x1 values
+(10,   10,   10),
+(20,   20,   20),
+(21,   20,   null),
+(30,   null, 30),
+(40,   40,   40);
+insert into x2 values
+(10,   10,   10),
+(20,   20,   20),
+(21,   20,   null),
+(30,   null, 30);
+select *
+from x1
+where (d1, d2) in (select d1, d2
+from x2);
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where (d1, d2) in (select d1, d2
+from x2) is true;
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where (d1, d2) in (select d1, d2
+from x2) is false;
+k	d1	d2
+40	40	40
+select *
+from x1
+where (d1, d2) in (select d1, d2
+from x2) is unknown;
+k	d1	d2
+21	20	NULL
+30	NULL	30
+select *
+from x1
+where d1 in (select d1
+from x2
+where x1.d2=x2.d2);
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where d1 in (select d1
+from x2
+where x1.d2=x2.d2) is true;
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where d1 in (select d1
+from x2
+where x1.d2=x2.d2) is false;
+k	d1	d2
+21	20	NULL
+40	40	40
+select *
+from x1
+where d1 in (select d1
+from x2
+where x1.d2=x2.d2) is unknown;
+k	d1	d2
+30	NULL	30
+select *
+from x1
+where 1 in (select 1
+from x2
+where x1.d1=x2.d1 and x1.d2=x2.d2);
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where 1 in (select 1
+from x2
+where x1.d1=x2.d1 and x1.d2=x2.d2) is true;
+k	d1	d2
+10	10	10
+20	20	20
+select *
+from x1
+where 1 in (select 1
+from x2
+where x1.d1=x2.d1 and x1.d2=x2.d2) is false;
+k	d1	d2
+21	20	NULL
+30	NULL	30
+40	40	40
+select *
+from x1
+where 1 in (select 1
+from x2
+where x1.d1=x2.d1 and x1.d2=x2.d2) is unknown;
+k	d1	d2
+select *
+from x1
+where exists (select *
+from x2
+where x1.d1=x2.d1 and x1.d2=x2.d2);
+k	d1	d2
+10	10	10
+20	20	20
+drop table x1;
+drop table x2;

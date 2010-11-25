@@ -15,7 +15,7 @@
 
 /*
   Creates a index for a database by reading keys, sorting them and outputing
-  them in sorted order through SORT_INFO functions.
+  them in sorted order through MI_SORT_INFO functions.
 */
 
 #include "fulltext.h"
@@ -487,8 +487,8 @@ ok:
 
 int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
-  SORT_INFO *sort_info=sort_param->sort_info;
-  MI_CHECK *param=sort_info->param;
+  MI_SORT_INFO *sort_info=sort_param->sort_info;
+  HA_CHECK *param=sort_info->param;
   ulong UNINIT_VAR(length), keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
@@ -903,7 +903,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile int *killed= killed_ptr(info->sort_info->param);
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
@@ -917,13 +916,13 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
 
   if (init_queue(&queue,(uint) (Tb-Fb)+1,offsetof(BUFFPEK,key),0,
                  (int (*)(void*, uchar *,uchar*)) info->key_cmp,
-                 (void*) info))
+                 (void*) info, 0, 0))
     DBUG_RETURN(1); /* purecov: inspected */
 
   for (buffpek= Fb ; buffpek <= Tb ; buffpek++)
   {
     count+= buffpek->count;
-    buffpek->base= strpos;
+    buffpek->base= (uchar*) strpos;
     buffpek->max_keys=maxcount;
     strpos+= (uint) (error=(int) info->read_to_buffer(from_file,buffpek,
                                                       sort_length));
@@ -936,10 +935,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   {
     for (;;)
     {
-      if (*killed)
-      {
-        error=1; goto err;
-      }
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (to_file)
       {
@@ -959,12 +954,18 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       buffpek->key+=sort_length;
       if (! --buffpek->mem_count)
       {
+        /* It's enough to check for killedptr before a slow operation */
+        if (killed_ptr(info->sort_info->param))
+        {
+          error=1;
+          goto err;
+        }
         if (!(error=(int) info->read_to_buffer(from_file,buffpek,sort_length)))
         {
-          uchar *base=buffpek->base;
+          uchar *base= buffpek->base;
           uint max_keys=buffpek->max_keys;
 
-          (void) queue_remove(&queue,0);
+          queue_remove_top(&queue);
 
           /* Put room used by buffer to use in other buffer */
           for (refpek= (BUFFPEK**) &queue_top(&queue);
@@ -989,11 +990,11 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       }
       else if (error == -1)
         goto err;               /* purecov: inspected */
-      queue_replaced(&queue);   /* Top element has been replaced */
+      queue_replace_top(&queue);   /* Top element has been replaced */
     }
   }
   buffpek=(BUFFPEK*) queue_top(&queue);
-  buffpek->base=(uchar *) sort_keys;
+  buffpek->base= (uchar*) sort_keys;
   buffpek->max_keys=keys;
   do
   {
@@ -1008,7 +1009,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= buffpek->key;
+      strpos= (uchar*) buffpek->key;
       for (end=strpos+buffpek->mem_count*sort_length;
            strpos != end ;
            strpos+=sort_length)

@@ -1,0 +1,7 @@
+# Disabling all subquery problems
+
+bug49129             : Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
+bug45221             : Query "SELECT pk FROM C WHERE pk IN (SELECT # int_key)" failing
+bug45219             : Azalea crash on query containing a JOIN in subquery
+
+

@@ -567,7 +567,7 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     if (Count)
     {
       /* We couldn't fulfil the request. Return, how much we got. */
-      info->error= left_length;
+      info->error= (int) left_length;
       DBUG_RETURN(1);
     }
     length=0;				/* Didn't read any chars */
@@ -1306,7 +1306,7 @@ read_append_buffer:
     info->append_read_pos += copy_len;
     Count -= copy_len;
     if (Count)
-      info->error = save_count - Count;
+      info->error= (int) (save_count - Count);
 
     /* Fill read buffer with data from write buffer */
     memcpy(info->buffer, info->append_read_pos,
@@ -1695,8 +1695,8 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
   {
     /* Of no overlap, write everything without buffering */
     if (pos + Count <= info->pos_in_file)
-      return my_pwrite(info->file, Buffer, Count, pos,
-		       info->myflags | MY_NABP);
+      return (int) my_pwrite(info->file, Buffer, Count, pos,
+                             info->myflags | MY_NABP);
     /* Write the part of the block that is before buffer */
     length= (uint) (info->pos_in_file - pos);
     if (my_pwrite(info->file, Buffer, length, pos, info->myflags | MY_NABP))
@@ -1888,6 +1888,9 @@ int end_io_cache(IO_CACHE *info)
     mysql_mutex_destroy(&info->append_buffer_lock);
 #endif
   }
+#ifdef THREAD
+  info->share= 0;
+#endif
   DBUG_RETURN(error);
 } /* end_io_cache */
 

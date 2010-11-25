@@ -45,6 +45,7 @@
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include "create_options.h"
 #include "sp_head.h"
 #include "sp.h"
 #include "sql_trigger.h"
@@ -70,14 +71,8 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           bool tmp_table,
-                           uint *db_options,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count);
-
+static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
+                              bool, uint *, handler *, KEY **, uint *, int);
 
 /**
   @brief Helper function for explain_filename
@@ -2697,7 +2692,12 @@ int prepare_create_field(Create_field *sql_field,
                           (sql_field->decimals << FIELDFLAG_DEC_SHIFT));
     break;
   }
-  if (!(sql_field->flags & NOT_NULL_FLAG))
+  if (sql_field->flags & NOT_NULL_FLAG)
+    DBUG_PRINT("info", ("1"));
+  if (sql_field->vcol_info)
+    DBUG_PRINT("info", ("2"));
+  if (!(sql_field->flags & NOT_NULL_FLAG) ||
+      (sql_field->vcol_info))  /* Make virtual columns allow NULL values */
     sql_field->pack_flag|= FIELDFLAG_MAYBE_NULL;
   if (sql_field->flags & NO_DEFAULT_VALUE_FLAG)
     sql_field->pack_flag|= FIELDFLAG_NO_DEFAULT;
@@ -3050,6 +3050,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             null_fields--;
 	  sql_field->flags=		dup_field->flags;
           sql_field->interval=          dup_field->interval;
+          sql_field->vcol_info=         dup_field->vcol_info;
+          sql_field->stored_in_db=      dup_field->stored_in_db;
 	  it2.remove();			// Remove first (create) definition
 	  select_field_pos--;
 	  break;
@@ -3059,7 +3061,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     /* Don't pack rows in old tables if the user has requested this */
     if ((sql_field->flags & BLOB_FLAG) ||
 	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED))
+         create_info->row_type != ROW_TYPE_FIXED))
       (*db_options)|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
@@ -3082,7 +3084,28 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
-    record_offset+= sql_field->pack_length;
+    if (parse_option_list(thd, &sql_field->option_struct,
+                          sql_field->option_list,
+                          create_info->db_type->field_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
+    /*
+      For now skip fields that are not physically stored in the database
+      (virtual fields) and update their offset later 
+      (see the next loop).
+    */
+    if (sql_field->stored_in_db)
+      record_offset+= sql_field->pack_length;
+  }
+  /* Update virtual fields' offset*/
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    if (!sql_field->stored_in_db)
+    {
+      sql_field->offset= record_offset;
+      record_offset+= sql_field->pack_length;
+    }
   }
   if (timestamps_with_niladic > 1)
   {
@@ -3131,6 +3154,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == Key::FOREIGN_KEY)
     {
       fk_key_count++;
+      if (((Foreign_key *)key)->validate(alter_info->create_list))
+        DBUG_RETURN(TRUE);
       Foreign_key *fk_key= (Foreign_key*) key;
       if (fk_key->ref_columns.elements &&
 	  fk_key->ref_columns.elements != fk_key->columns.elements)
@@ -3260,6 +3285,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
     key_info->algorithm= key->key_create_info.algorithm;
+    key_info->option_list= key->option_list;
+    if (parse_option_list(thd, &key_info->option_struct,
+                          key_info->option_list,
+                          create_info->db_type->index_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
 
     if (key->type == Key::FULLTEXT)
     {
@@ -3424,6 +3455,17 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
 	}
 #endif
+        if (!sql_field->stored_in_db)
+        {
+          /* Key fields must always be physically stored. */
+          my_error(ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
+        if (key->type == Key::PRIMARY && sql_field->vcol_info)
+        {
+          my_error(ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN, MYF(0));
+          DBUG_RETURN(TRUE);
+        }
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)
@@ -3508,7 +3550,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
 	  length=column->length;
       }
-      else if (length == 0)
+      else if (length == 0 && (sql_field->flags & NOT_NULL_FLAG))
       {
 	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
 	  DBUG_RETURN(TRUE);
@@ -3675,6 +3717,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(TRUE);
     }
   }
+
+  if (parse_option_list(thd, &create_info->option_struct,
+                          create_info->option_list,
+                          file->partition_ht()->table_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
 }
@@ -3885,8 +3933,9 @@ bool mysql_create_table_no_lock(THD *thd,
   set_table_default_charset(thd, create_info, (char*) db);
 
   db_options= create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    db_options|=HA_OPTION_PACK_RECORD;
+  if (create_info->row_type != ROW_TYPE_FIXED &&
+      create_info->row_type != ROW_TYPE_DEFAULT)
+    db_options|= HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
   if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
                               create_info->db_type)))
@@ -4091,6 +4140,15 @@ bool mysql_create_table_no_lock(THD *thd,
     goto err;
   }
 
+  /* Give warnings for not supported table options */
+  if (create_info->transactional && !file->ht->commit)
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                        file->engine_name()->str,
+                        "TRANSACTIONAL=1");
+
+
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
     if (!access(path,F_OK))
@@ -4145,7 +4203,6 @@ bool mysql_create_table_no_lock(THD *thd,
           goto warn;
         my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
         goto err;
-        break;
       default:
         DBUG_PRINT("info", ("error: %u from storage engine", retcode));
         my_error(retcode, MYF(0),table_name);
@@ -4379,7 +4436,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char from[FN_REFLEN + 1], to[FN_REFLEN + 1],
     lc_from[FN_REFLEN + 1], lc_to[FN_REFLEN + 1];
   char *from_base= from, *to_base= to;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   handler *file;
   int error=0;
   DBUG_ENTER("mysql_rename_table");
@@ -4765,6 +4822,7 @@ mysql_compare_tables(TABLE *table,
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   THD *thd= table->in_use;
+  uint i;
   /*
     Remember if the new definition has new VARCHAR column;
     create_info->varchar will be reset in mysql_prepare_create_table.
@@ -4790,6 +4848,9 @@ mysql_compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
+
+  /* Set default value for return value (to ensure it's always set) */
+  *need_copy_table= ALTER_TABLE_DATA_CHANGED;
 
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
@@ -4839,6 +4900,8 @@ mysql_compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (table->s->row_type != create_info->row_type) ||
+      create_info->used_fields & HA_CREATE_USED_PAGE_CHECKSUM ||
+      create_info->used_fields & HA_CREATE_USED_TRANSACTIONAL ||
       create_info->used_fields & HA_CREATE_USED_PACK_KEYS ||
       create_info->used_fields & HA_CREATE_USED_MAX_ROWS ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
@@ -4846,9 +4909,15 @@ mysql_compare_tables(TABLE *table,
       !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
   {
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    DBUG_PRINT("info", ("Basic checks -> ALTER_TABLE_DATA_CHANGED"));
     DBUG_RETURN(0);
   }
+
+  if ((create_info->fileds_option_struct=
+       (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
+      (create_info->indexes_option_struct=
+       (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
+    DBUG_RETURN(1);
 
   /*
     Use transformed info to evaluate possibility of fast ALTER TABLE
@@ -4861,12 +4930,15 @@ mysql_compare_tables(TABLE *table,
     Go through fields and check if the original ones are compatible
     with new table.
   */
-  for (f_ptr= table->field, new_field= new_field_it++,
+  for (i= 0, f_ptr= table->field, new_field= new_field_it++,
        tmp_new_field= tmp_new_field_it++;
        (field= *f_ptr);
-       f_ptr++, new_field= new_field_it++,
+       i++, f_ptr++, new_field= new_field_it++,
        tmp_new_field= tmp_new_field_it++)
   {
+    DBUG_ASSERT(i < table->s->fields);
+    create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
+
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
@@ -4875,16 +4947,30 @@ mysql_compare_tables(TABLE *table,
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
     {
+      DBUG_PRINT("info", ("NULL behaviour difference in field '%s' -> "
+                          "ALTER_TABLE_DATA_CHANGED", new_field->field_name));
+      DBUG_RETURN(0);
+    }
+
+    /*
+      Check if the altered column is computed and either
+      is stored or is used in the partitioning expression.
+      TODO: Mark such a column with an alter flag only if
+      the defining expression has changed.
+    */
+    if (field->vcol_info && 
+        (field->stored_in_db || field->vcol_info->is_in_partitioning_expr()))
+    {
       *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
 
     /* Don't pack rows in old tables if the user has requested this. */
-    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(tmp_new_field->flags & BLOB_FLAG) ||
-	(tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED))
-      create_info->table_options|= HA_OPTION_PACK_RECORD;
+      if (create_info->row_type == ROW_TYPE_DYNAMIC ||
+          (tmp_new_field->flags & BLOB_FLAG) ||
+          (tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
+           create_info->row_type != ROW_TYPE_FIXED))
+        create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
     field->flags&= ~FIELD_IS_RENAMED;
@@ -4896,7 +4982,8 @@ mysql_compare_tables(TABLE *table,
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(tmp_new_field)))
     {
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+      DBUG_PRINT("info", ("!field_is_equal('%s') -> ALTER_TABLE_DATA_CHANGED",
+                          new_field->field_name));
       DBUG_RETURN(0);
     }
     // Clear indexed marker
@@ -5005,7 +5092,9 @@ mysql_compare_tables(TABLE *table,
   for (new_key= *key_info_buffer; new_key < new_key_end; new_key++)
   {
     /* Search an old key with the same name. */
-    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    for (i= 0, table_key= table->key_info;
+         table_key < table_key_end;
+         i++, table_key++)
     {
       if (! strcmp(table_key->name, new_key->name))
         break;
@@ -5024,21 +5113,31 @@ mysql_compare_tables(TABLE *table,
       }
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
+    else
+    {
+      DBUG_ASSERT(i < table->s->keys);
+      create_info->indexes_option_struct[i]= new_key->option_struct;
+    }
   }
 
   /* Check if changes are compatible with current handler without a copy */
   if (table->file->check_if_incompatible_data(create_info, changes))
   {
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+    DBUG_PRINT("info", ("check_if_incompatible_data() -> "
+                        "ALTER_TABLE_DATA_CHANGED"));
     DBUG_RETURN(0);
   }
 
   if (*index_drop_count || *index_add_count)
   {
+    DBUG_PRINT("info", ("Index dropped=%u added=%u -> "
+                        "ALTER_TABLE_INDEX_CHANGED",
+                        *index_drop_count, *index_add_count));
     *need_copy_table= ALTER_TABLE_INDEX_CHANGED;
     DBUG_RETURN(0);
   }
 
+  DBUG_PRINT("info", (" -> ALTER_TABLE_METADATA_ONLY"));
   *need_copy_table= ALTER_TABLE_METADATA_ONLY; // Tables are compatible
   DBUG_RETURN(0);
 }
@@ -5157,6 +5256,7 @@ blob_length_by_type(enum_field_types type)
     Sets create_info->varchar if the table has a VARCHAR column.
     Prepares alter_info->create_list and alter_info->key_list with
     columns and keys of the new table.
+
   @retval TRUE   error, out of memory or a semantical error in ALTER
                  TABLE instructions
   @retval FALSE  success
@@ -5183,7 +5283,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
-
+  Create_field *def;
+  Field **f_ptr,*field;
   DBUG_ENTER("mysql_prepare_alter_table");
 
   create_info->varchar= FALSE;
@@ -5204,6 +5305,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
+  if (!(used_fields & HA_CREATE_USED_TRANSACTIONAL))
+    create_info->transactional= table->s->transactional;
 
   if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
   {
@@ -5217,18 +5320,18 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       create_info->tablespace= tablespace;
   }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
-  Create_field *def;
 
+  create_info->option_list= merge_engine_table_options(table->s->option_list,
+                                        create_info->option_list, thd->mem_root);
   /*
     First collect all fields from table which isn't in drop_list
   */
-  Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
+    Alter_drop *drop;
     if (field->type() == MYSQL_TYPE_STRING)
       create_info->varchar= TRUE;
     /* Check if field should be dropped */
-    Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
     {
@@ -5261,6 +5364,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     if (def)
     {						// Field is changed
       def->field=field;
+      if (field->stored_in_db != def->stored_in_db)
+      {
+        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
+                 MYF(0),
+                 "Changing the STORED status");
+        goto err;
+      }
       if (!def->after)
       {
 	new_create_list.push_back(def);
@@ -5302,7 +5412,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     if (def->change && ! def->field)
     {
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change,
+               table->s->table_name.str);
       goto err;
     }
     /*
@@ -5337,7 +5448,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (!find)
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after,
+                 table->s->table_name.str);
         goto err;
       }
       find_it.after(def);			// Put element after this
@@ -5387,6 +5499,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	continue;				// Wrong field (from UNIREG)
       const char *key_part_name=key_part->field->field_name;
       Create_field *cfield;
+      uint key_part_length;
+
       field_it.rewind();
       while ((cfield=field_it++))
       {
@@ -5402,7 +5516,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (!cfield)
 	continue;				// Field is removed
-      uint key_part_length=key_part->length;
+      key_part_length= key_part->length;
       if (cfield->field)			// Not new field
       {
         /*
@@ -5475,7 +5589,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       key= new Key(key_type, key_name, strlen(key_name),
                    &key_create_info,
                    test(key_info->flags & HA_GENERATED_KEY),
-                   key_parts);
+                   key_parts, key_info->option_list);
       new_key_list.push_back(key);
     }
   }
@@ -5483,6 +5597,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
+      if (key->type == Key::FOREIGN_KEY &&
+          ((Foreign_key *)key)->validate(new_create_list))
+        goto err;
       if (key->type != Key::FOREIGN_KEY)
         new_key_list.push_back(key);
       if (key->name.str &&
@@ -5611,6 +5728,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_add_buffer= NULL;
   uint candidate_key_count= 0;
   bool no_pk;
+  ulong explicit_used_fields= 0;
+  enum ha_extra_function extra_func= thd->locked_tables ? HA_EXTRA_NOT_USED
+                                                        : HA_EXTRA_FORCE_REOPEN;
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -5825,19 +5945,21 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
-   If this is an ALTER TABLE and no explicit row type specified reuse
-   the table's row type.
-   Note : this is the same as if the row type was specified explicitly.
+    If this is an ALTER TABLE and no explicit row type specified reuse
+    the table's row type.
+    Note: this is the same as if the row type was specified explicitly and
+    we must thus set HA_CREATE_USED_ROW_FORMAT!
   */
   if (create_info->row_type == ROW_TYPE_NOT_USED)
   {
     /* ALTER TABLE without explicit row type */
     create_info->row_type= table->s->row_type;
-  }
-  else
-  {
-    /* ALTER TABLE with specific row type */
-    create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
+    /*
+      We have to mark the row type as used, as otherwise the engine may
+      change the row format in update_create_info().
+    */
+    create_info->used_fields|= HA_CREATE_USED_ROW_FORMAT;
+    explicit_used_fields|= HA_CREATE_USED_ROW_FORMAT;
   }
 
   DBUG_PRINT("info", ("old type: %s  new type: %s",
@@ -5859,13 +5981,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case LEAVE_AS_IS:
       break;
     case ENABLE:
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      if (wait_while_table_is_used(thd, table, extra_func))
         goto err;
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
     case DISABLE:
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      if (wait_while_table_is_used(thd, table, extra_func))
         goto err;
       error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
@@ -5893,7 +6015,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         simple rename did nothing and therefore we can safely return
         without additional clean-up.
       */
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      if (wait_while_table_is_used(thd, table, extra_func))
         goto err;
       close_all_tables_for_name(thd, table->s, TRUE);
       /*
@@ -5991,6 +6113,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
+  /* Remove markers set for update_create_info */
+  create_info->used_fields&= ~explicit_used_fields;
+
   if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
     need_copy_table= alter_info->change_level;
 
@@ -6340,7 +6465,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else
   {
     if (!table->s->tmp_table &&
-        wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+        wait_while_table_is_used(thd, table, extra_func))
       goto err_new_table_cleanup;
     thd_proc_info(thd, "manage keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
@@ -6384,6 +6509,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       /* Add the indexes. */
       if ((error= table->file->add_index(table, key_info, index_add_count)))
       {
+#warning fix the following
+#ifdef UNKNOWN_MONTY_ADDITION
+        /* Only report error if handler has not already reported an error */
+        if (!thd->main_da.is_error())
+#endif
+        {
         /*
           Exchange the key_info for the error message. If we exchange
           key number by key name in the message later, we need correct info.
@@ -6392,6 +6523,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         table->key_info= key_info;
         table->file->print_error(error, MYF(0));
         table->key_info= save_key_info;
+        }
         goto err_new_table_cleanup;
       }
     }
@@ -6548,11 +6680,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
                               new_alias, FN_FROM_IS_TMP) ||
            ((new_name != table_name || new_db != db) && // we also do rename
-           (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-            mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                               new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias)))
+            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
+             mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                                new_alias, NO_FRM_RENAME)) &&
+            Table_triggers_list::change_table_name(thd, db, table_name,
+                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
     error=1;
@@ -6633,27 +6765,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
     DBUG_RETURN(TRUE);
 
-  if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
-  {
-    /*
-      For the alter table to be properly flushed to the logs, we
-      have to open the new table.  If not, we get a problem on server
-      shutdown. But we do not need to attach MERGE children.
-    */
-    char path[FN_REFLEN];
-    TABLE *t_table;
-    build_table_filename(path + 1, sizeof(path) - 1, new_db, table_name, "", 0);
-    t_table= open_temporary_table(thd, path, new_db, tmp_name, 0);
-    if (t_table)
-    {
-      intern_close_table(t_table);
-      my_free(t_table);
-    }
-    else
-      sql_print_warning("Could not open table %s.%s after rename\n",
-                        new_db,table_name);
-    ha_flush_logs(old_db_type);
-  }
   table_list->table=0;				// For query cache
   query_cache_invalidate3(thd, table_list, 0);
 
@@ -6739,7 +6850,9 @@ err_with_mdl:
   thd->mdl_context.release_all_locks_for_name(mdl_ticket);
   DBUG_RETURN(TRUE);
 }
-/* mysql_alter_table */
+
+
+/* Copy all rows from one table to another */
 
 
 
@@ -6799,9 +6912,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                          enum enum_enable_or_disable keys_onoff,
                          bool error_if_not_empty)
 {
-  int error;
-  Copy_field *copy,*copy_end;
-  ulong found_count,delete_count;
+  int error= 1, errpos= 0;
+  Copy_field *copy= NULL, *copy_end;
+  ha_rows found_count= 0, delete_count= 0;
   THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;
@@ -6811,18 +6924,22 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
-  ulong save_sql_mode;
+  ulong save_sql_mode= thd->variables.sql_mode;
   ulonglong prev_insert_id;
+  List_iterator<Create_field> it(create);
+  Create_field *def;
   DBUG_ENTER("copy_data_between_tables");
 
   if (mysql_trans_prepare_alter_copy_data(thd))
-    DBUG_RETURN(-1);
-  
+    goto err;
+  errpos=1;
+
   if (!(copy= new Copy_field[to->s->fields]))
-    DBUG_RETURN(-1);				/* purecov: inspected */
+    goto err;		/* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK))
-    DBUG_RETURN(-1);
+    goto err;
+  errpos= 2;
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
@@ -6834,11 +6951,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
+  errpos= 3;
 
-  save_sql_mode= thd->variables.sql_mode;
-
-  List_iterator<Create_field> it(create);
-  Create_field *def;
   copy_end=copy;
   for (Field **ptr=to->field ; *ptr ; ptr++)
   {
@@ -6862,8 +6976,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   }
 
-  found_count=delete_count=0;
-
   if (order)
   {
     if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered())
@@ -6883,7 +6995,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
-      error= 1;
 
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
@@ -6899,7 +7010,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE);
+  to->mark_virtual_columns_for_write(TRUE);
+  if (init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1, 1, FALSE))
+    goto err;
+  errpos= 4;
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->warning_info->reset_current_row_for_warning();
@@ -6912,6 +7026,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       error= 1;
       break;
     }
+    update_virtual_fields(thd, from);
     /* Return error if source table isn't empty. */
     if (error_if_not_empty)
     {
@@ -6931,6 +7046,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
+    update_virtual_fields(thd, to, TRUE);
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
@@ -6963,28 +7084,31 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       found_count++;
     thd->warning_info->inc_current_row_for_warning();
   }
-  end_read_record(&info);
-  free_io_cache(from);
-  delete [] copy;				// This is never 0
 
-  if (to->file->ha_end_bulk_insert() && error <= 0)
+err:
+  if (errpos >= 4)
+    end_read_record(&info);
+  free_io_cache(from);
+  delete [] copy;
+
+  if (error > 0)
+    to->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+  if (errpos >= 3 && to->file->ha_end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error= 1;
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  if (mysql_trans_commit_alter_copy_data(thd))
+  if (errpos >= 1 && mysql_trans_commit_alter_copy_data(thd))
     error= 1;
 
- err:
   thd->variables.sql_mode= save_sql_mode;
   thd->abort_on_warning= 0;
-  free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
   to->file->ha_release_auto_increment();
-  if (to->file->ha_external_lock(thd,F_UNLCK))
+  if (errpos >= 2 && to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   if (error < 0 && to->file->extra(HA_EXTRA_PREPARE_FOR_RENAME))
     error= 1;
@@ -7054,7 +7178,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   /* Open one table after the other to keep lock time as short as possible. */
   for (table= tables; table; table= table->next_local)
   {
-    char table_name[NAME_LEN*2+2];
+    char table_name[SAFE_NAME_LEN*2+2];
     TABLE *t;
 
     strxmov(table_name, table->db ,".", table->table_name, NullS);
@@ -7073,11 +7197,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     }
     else
     {
-      if (t->file->ha_table_flags() & HA_HAS_CHECKSUM &&
-	  !(check_opt->flags & T_EXTEND))
+      /* Call ->checksum() if the table checksum matches 'old_mode' settings */
+      if (!(check_opt->flags & T_EXTEND) &&
+          (((t->file->ha_table_flags() & HA_HAS_OLD_CHECKSUM) &&
+            thd->variables.old_mode) ||
+           ((t->file->ha_table_flags() & HA_HAS_NEW_CHECKSUM) &&
+            !thd->variables.old_mode)))
 	protocol->store((ulonglong)t->file->checksum());
-      else if (!(t->file->ha_table_flags() & HA_HAS_CHECKSUM) &&
-	       (check_opt->flags & T_QUICK))
+      else if (check_opt->flags & T_QUICK)
 	protocol->store_null();
       else
       {
@@ -7104,7 +7231,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               goto err;
             }
 	    ha_checksum row_crc= 0;
-            int error= t->file->rnd_next(t->record[0]);
+            int error= t->file->ha_rnd_next(t->record[0]);
             if (unlikely(error))
             {
               if (error == HA_ERR_RECORD_DELETED)
@@ -7125,6 +7252,9 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    {
 	      Field *f= t->field[i];
 
+              if (! thd->variables.old_mode &&
+                  f->is_real_null(0))
+                continue;
              /*
                BLOB and VARCHAR have pointers in their field, we must convert
                to string; GEOMETRY is implemented on top of BLOB.
@@ -7200,7 +7330,7 @@ static bool check_engine(THD *thd, const char *table_name,
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
+               hton_name(*new_engine)->str, "TEMPORARY");
       *new_engine= 0;
       return TRUE;
     }

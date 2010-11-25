@@ -1,0 +1,14 @@
+!include include/default_my.cnf
+
+[mysqld.1]
+test-ignore-wrong-options
+loose-thread-handling=   pool-of-threads
+loose-thread_pool_size=  2
+extra-port=        @mysqld.1.#extra-port
+extra-max-connections=1
+
+[client]
+connect-timeout=   2
+
+[ENV]
+MASTER_EXTRA_PORT= @mysqld.1.#extra-port

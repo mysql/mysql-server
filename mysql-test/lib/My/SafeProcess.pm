@@ -133,7 +133,7 @@ sub new {
   my $input    = delete($opts{'input'});
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
-  my $verbose  = delete($opts{'verbose'});
+  my $verbose  = delete($opts{'verbose'}) || $::opt_verbose;
   my $nocore   = delete($opts{'nocore'});
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});
@@ -349,9 +349,9 @@ sub kill {
 
 
 sub _collect {
-  my ($self)= @_;
+  my ($self, $exit_code)= @_;
 
-  $self->{EXIT_STATUS}= $?;
+  $self->{EXIT_STATUS}= $exit_code;
   _verbose("_collect: $self");
 
   # Take the process out of running list
@@ -418,6 +418,7 @@ sub wait_one {
   #_verbose("blocking: $blocking, use_alarm: $use_alarm");
 
   my $retpid;
+  my $exit_code;
   eval
   {
     # alarm should break the wait
@@ -426,6 +427,7 @@ sub wait_one {
     alarm($timeout) if $use_alarm;
 
     $retpid= waitpid($pid, $blocking ? 0 : &WNOHANG);
+    $exit_code= $?;
 
     alarm(0) if $use_alarm;
   };
@@ -457,7 +459,7 @@ sub wait_one {
   #warn "wait_one: expected pid $pid but got $retpid"
   #  unless( $retpid == $pid );
 
-  $self->_collect();
+  $self->_collect($exit_code);
   return 0;
 }
 
@@ -470,6 +472,8 @@ sub wait_one {
 #
 sub wait_any {
   my $ret_pid;
+  my $exit_code;
+
   if (IS_WIN32PERL) {
     # Can't wait for -1 => use a polling loop
     do {
@@ -479,6 +483,7 @@ sub wait_any {
 	last if $pid == $ret_pid;
       }
     } while ($ret_pid == 0);
+    $exit_code= $?;
   }
   else
   {
@@ -488,6 +493,7 @@ sub wait_any {
       print STDERR "wait_any, got invalid pid: $ret_pid\n";
       return undef;
     }
+    $exit_code= $?;
   }
 
   # Look it up in "running" table
@@ -497,7 +503,7 @@ sub wait_any {
     print STDERR "running: ". join(", ", keys(%running)). "\n";
     return undef;
   }
-  $proc->_collect;
+  $proc->_collect($exit_code);
   return $proc;
 }
 

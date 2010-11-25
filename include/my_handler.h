@@ -19,6 +19,7 @@
 #define _my_handler_h
 
 #include "myisampack.h"
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -38,14 +39,15 @@ extern "C" {
 #define HA_MAX_POSSIBLE_KEY         255         /* For myisamchk */
 /*
   The following defines can be increased if necessary.
-  But beware the dependency of MI_MAX_POSSIBLE_KEY_BUFF and HA_MAX_KEY_LENGTH.
+  But beware the dependency of HA_MAX_POSSIBLE_KEY_BUFF and HA_MAX_KEY_LENGTH.
 */
 
 #define HA_MAX_KEY_LENGTH           1000        /* Max length in bytes */
-#define HA_MAX_KEY_SEG              16          /* Max segments for key */
+#define HA_MAX_KEY_SEG              32          /* Max segments for key */
 
-#define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6)
+#define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6) 
 #define HA_MAX_KEY_BUFF  (HA_MAX_KEY_LENGTH+HA_MAX_KEY_SEG*6+8+8)
+#define HA_MAX_MSG_BUF      1024 /* used in CHECK TABLE, REPAIR TABLE */
 
 typedef struct st_HA_KEYSEG		/* Key-portion */
 {
@@ -63,22 +65,22 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 } HA_KEYSEG;
 
 #define get_key_length(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= (uint) *(uchar*) ((key)++); \
+{ if (*(const uchar*) (key) != 255) \
+    length= (uint) *(const uchar*) ((key)++); \
   else \
   { length= mi_uint2korr((key)+1); (key)+=3; } \
 }
 
 #define get_key_length_rdonly(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= ((uint) *(uchar*) ((key))); \
+{ if (*(const uchar*) (key) != 255) \
+    length= ((uint) *(const uchar*) ((key))); \
   else \
   { length= mi_uint2korr((key)+1); } \
 }
 
 #define get_key_pack_length(length,length_pack,key) \
-{ if (*(uchar*) (key) != 255) \
-  { length= (uint) *(uchar*) ((key)++); length_pack= 1; }\
+{ if (*(const uchar*) (key) != 255) \
+  { length= (uint) *(const uchar*) ((key)++); length_pack= 1; }\
   else \
   { length=mi_uint2korr((key)+1); (key)+= 3; length_pack= 3; } \
 }
@@ -108,13 +110,13 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int ha_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool, my_bool);
-extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-		      register uchar *b, uint key_length, uint nextflag,
-		      uint *diff_pos);
+extern int ha_compare_text(CHARSET_INFO *, const uchar *, uint,
+                           const uchar *, uint , my_bool, my_bool);
+extern int ha_key_cmp(register HA_KEYSEG *keyseg, register const uchar *a,
+		      register const uchar *b, uint key_length,
+                      uint32 nextflag, uint *diff_pos);
 
-extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
+extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);
 /*
@@ -123,6 +125,28 @@ extern void my_handler_error_unregister(void);
   this amount of bytes.
 */
 #define portable_sizeof_char_ptr 8
+
+/**
+  Return values of index_cond_func_xxx functions.
+
+  0=ICP_NO_MATCH  - index tuple doesn't satisfy the pushed index condition (the
+                engine should discard the tuple and go to the next one)
+  1=ICP_MATCH     - index tuple satisfies the pushed index condition (the engine
+                should fetch and return the record)
+  2=ICP_OUT_OF_RANGE - index tuple is out range that we're scanning, e.g. this
+                   if we're scanning "t.key BETWEEN 10 AND 20" and got a
+                   "t.key=21" tuple (the engine should stop scanning and return
+                   HA_ERR_END_OF_FILE right away).
+*/
+
+typedef enum icp_result {
+  ICP_ERROR=-1,
+  ICP_NO_MATCH=0,
+  ICP_MATCH=1,
+  ICP_OUT_OF_RANGE=2
+} ICP_RESULT;
+
+
 #ifdef	__cplusplus
 }
 #endif

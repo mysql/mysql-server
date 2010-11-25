@@ -14,26 +14,26 @@ drop table if exists t1;
 # Create the example functions from udf_example
 #
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_SO";
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
 --error ER_CANT_FIND_DL_ENTRY
-eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION lookup RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_nonexist RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION lookup RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
 eval CREATE FUNCTION reverse_lookup
-        RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+        RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
 eval CREATE AGGREGATE FUNCTION avgcost
-        RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+        RETURNS REAL SONAME "$UDF_EXAMPLE_SO";
 
 --error ER_CANT_INITIALIZE_UDF
 select myfunc_double();
@@ -210,14 +210,14 @@ CREATE FUNCTION metaphon(a int) RETURNS int
 return 0;
 
 # this currently passes, and eclipse the stored function
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 
 DROP FUNCTION metaphon;
 DROP FUNCTION metaphon;
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 
 --error ER_UDF_EXISTS
 CREATE FUNCTION metaphon(a int) RETURNS int
@@ -248,8 +248,8 @@ DROP FUNCTION avgcost;
 #             the UDF
 # 
 select * from mysql.func;
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 
 select IS_const(3);
 
@@ -263,8 +263,8 @@ select is_const(3);
 #
 # Bug#18761: constant expression as UDF parameters not passed in as constant
 #
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION is_const RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 
 select
   is_const(3) as const,
@@ -303,14 +303,14 @@ drop function if exists is_const;
 # Bug #25382: Passing NULL to an UDF called from stored procedures 
 # crashes server
 #
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS REAL SONAME "$UDF_EXAMPLE_SO";
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
 
 delimiter //;
 create function f1(p1 varchar(255))
@@ -345,29 +345,6 @@ drop function myfunc_double;
 drop function myfunc_int;
 
 #
-# Bug #28921: Queries containing UDF functions are cached
-#
-
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-create table t1 (a char);
-
-set GLOBAL query_cache_size=1355776;
-reset query cache;
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-drop table t1;
-drop function metaphon;
-set GLOBAL query_cache_size=default;
-
-#
 # Bug#28318  CREATE FUNCTION (UDF) requires a schema
 #
 
@@ -377,8 +354,8 @@ DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_SO";
 DROP FUNCTION metaphon;
 USE test;
 
@@ -406,8 +383,8 @@ insert into const_len_bug values(str_const, result, "");
 END |
 DELIMITER ;|
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION check_const_len RETURNS string SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION check_const_len RETURNS string SONAME "$UDF_EXAMPLE_SO";
 
 CALL check_const_len_sp("foo");
 
@@ -423,8 +400,8 @@ DROP TABLE const_len_bug;
 # Bug #30355: Incorrect ordering of UDF results
 #
 
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_SO UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_SO";
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (4),(3),(2),(1);

@@ -1178,8 +1178,11 @@ DROP TABLE t1;
 
 create table t1 (a bit(1) not null,b int) engine=myisam;
 create table t2 (c int) engine=innodb;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='partial_match_rowid_merge=off,partial_match_table_scan=off';
 explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
+set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2;
 
 --echo End of 5.0 tests

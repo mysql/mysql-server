@@ -75,7 +75,9 @@ USE hotcopy_test;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --list_files $MYSQLTEST_VARDIR/tmp/hotcopy_test
 #--exec rm -rf $MYSQLTEST_VARDIR/tmp/hotcopy_test
+--disable_warnings
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp/hotcopy_test *
+--enable_warnings
 --rmdir $MYSQLTEST_VARDIR/tmp/hotcopy_test
 
 # backup without full index files

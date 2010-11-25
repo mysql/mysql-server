@@ -1,0 +1,188 @@
+drop table if exists t1,t2;
+create table t1 (a int, b int);
+create table t2 (c int, d int);
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+insert into t2 values(1,2);
+lock table t1 read;
+update t1,t2 set c=a where b=d;
+select c from t2;
+c
+2
+drop table t1;
+drop table t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+insert t1 select * from t2;
+drop table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
+insert t1 select * from t2;
+drop table t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+drop table t1;
+End of 4.1 tests
+create table t1(a int);
+lock tables t1 write;
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+unlock tables;
+drop table t1;
+USE mysql;
+LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+FLUSH TABLES;
+USE mysql;
+SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+OPTIMIZE TABLES columns_priv, db, host, user;
+Table	Op	Msg_type	Msg_text
+mysql.columns_priv	optimize	status	OK
+mysql.db	optimize	status	OK
+mysql.host	optimize	status	OK
+mysql.user	optimize	status	OK
+UNLOCK TABLES;
+Select_priv
+N
+USE test;
+use test;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+DROP DATABASE mysqltest_1;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES;
+DROP DATABASE mysqltest_1;
+ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+alter table t1 auto_increment=0;
+alter table t1 auto_increment=0;
+unlock tables;
+drop table t1;
+create table t1 (a int);
+create table t2 like t1;
+# con1
+lock tables t1 write;
+# con2
+flush tables with read lock;
+# con5
+# global read lock is taken
+# con3
+select * from t2 for update;
+# waiting for release of read lock
+# con4
+# would hang and later cause a deadlock
+flush tables t2;
+# clean up
+unlock tables;
+unlock tables;
+a
+drop table t1,t2;
+#
+# Lightweight version:
+# Ensure that the wait for a GRL is done before opening tables.
+#
+create table t1 (a int);
+create table t2 like t1;
+#
+# UPDATE
+#
+# default
+flush tables with read lock;
+# con1
+update t2 set a = 1;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+#
+# LOCK TABLES .. WRITE
+#
+# default
+flush tables with read lock;
+# con1
+lock tables t2 write;
+# default
+# statement is waiting for release of read lock
+# con2
+flush table t2;
+# default
+unlock tables;
+# con1
+unlock tables;
+drop table t1,t2;
+End of 5.0 tests
+create table t1 (i int);
+lock table t1 read;
+update t1 set i= 10;
+select * from t1;
+Timeout in wait_condition.inc for select count(*) = 1 from information_schema.processlist
+where state = "Locked" and info = "select * from t1"
+kill query ID;
+i
+ERROR 70100: Query execution was interrupted
+unlock tables;
+drop table t1;
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+alter table t1 add column j int;
+connection: insert
+insert into t1 values (1,2);;
+connection: default
+unlock tables;
+connection: flush
+select * from t1;
+i	j
+unlock tables;
+select * from t1;
+i	j
+1	2
+drop table t1;
+drop table if exists t1;
+create table t1 (i int);
+connection: default
+lock tables t1 write;
+connection: flush
+flush tables with read lock;;
+connection: default
+flush tables;
+unlock tables;
+drop table t1;
+drop table if exists t1,t2;
+create table t1 (a int);
+flush status;
+lock tables t1 read;
+insert into t1 values(1);;
+unlock tables;
+drop table t1;
+select @tlwa < @tlwb;
+@tlwa < @tlwb
+1
+End of 5.1 tests

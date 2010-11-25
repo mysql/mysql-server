@@ -1,0 +1,2 @@
+[mysqld_safe]
+syslog

@@ -26,6 +26,10 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
+#ifdef MYSQL_CLIENT
+#error Attempt to use server-side sql_string on client. Use client/sql_string.h
+#endif 
+
 class String;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
@@ -73,6 +77,11 @@ public:
     Ptr=(char*) str; str_length=(uint) strlen(str); Alloced_length=0; alloced=0;
     str_charset=cs;
   }
+  /*
+    NOTE: If one intend to use the c_ptr() method, the following two
+    contructors need the size of memory for STR to be at least LEN+1 (to make
+    room for zero termination).
+  */
   String(const char *str,uint32 len, CHARSET_INFO *cs)
   { 
     Ptr=(char*) str; str_length=len; Alloced_length=0; alloced=0;
@@ -338,6 +347,10 @@ public:
     int4store(Ptr + position,value);
   }
 
+  void qs_append(const char *str)
+  {
+    qs_append(str, strlen(str));
+  }
   void qs_append(const char *str, uint32 len);
   void qs_append(double d);
   void qs_append(double *d);
@@ -347,7 +360,15 @@ public:
      str_length++;
   }
   void qs_append(int i);
-  void qs_append(uint i);
+  void qs_append(uint i)
+  {
+    qs_append((ulonglong)i);
+  }
+  void qs_append(ulong i)
+  {
+    qs_append((ulonglong)i);
+  }
+  void qs_append(ulonglong i);
 
   /* Inline (general) functions used by the protocol functions */
 

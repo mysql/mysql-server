@@ -23,15 +23,14 @@
 #define ROW16_LEN	8
 #define MAX_BUF		64*1024
 
-static CHARSET_INFO all_charsets[512];
-
+static struct charset_info_st all_charsets[512];
 
 void
-print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
+print_array(FILE *f, const char *set, const char *name, const uchar *a, int n)
 {
   int i;
 
-  fprintf(f,"uchar %s_%s[] = {\n", name, set);
+  fprintf(f,"static const uchar %s_%s[] = {\n", name, set);
   
   for (i=0 ;i<n ; i++)
   {
@@ -44,11 +43,11 @@ print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
 
 
 void
-print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
+print_array16(FILE *f, const char *set, const char *name, const uint16 *a, int n)
 {
   int i;
 
-  fprintf(f,"uint16 %s_%s[] = {\n", name, set);
+  fprintf(f,"static const uint16 %s_%s[] = {\n", name, set);
   
   for (i=0 ;i<n ; i++)
   {
@@ -82,7 +81,7 @@ char *mdup(const char *src, uint len)
   return dst;
 }
 
-static void simple_cs_copy_data(CHARSET_INFO *to, CHARSET_INFO *from)
+static void simple_cs_copy_data(struct charset_info_st *to, CHARSET_INFO *from)
 {
   to->number= from->number ? from->number : to->number;
   to->state|= from->state;
@@ -124,7 +123,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 	  (cs->sort_order || (cs->state & MY_CS_BINSORT))));
 }
 
-static int add_collation(CHARSET_INFO *cs)
+static int add_collation(struct charset_info_st *cs)
 {
   if (cs->name && (cs->number || (cs->number=get_charset_number(cs->name))))
   {
@@ -335,7 +334,7 @@ main(int argc, char **argv  __attribute__((unused)))
     }
   }
   
-  fprintf(f,"CHARSET_INFO compiled_charsets[] = {\n");
+  fprintf(f,"struct charset_info_st compiled_charsets[] = {\n");
   for (cs= all_charsets;
        cs < all_charsets + array_elements(all_charsets);
        cs++)

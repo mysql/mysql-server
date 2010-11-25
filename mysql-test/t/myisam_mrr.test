@@ -1,0 +1,126 @@
+#
+# MRR/MyISAM tests.
+#
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+set @mrr_buffer_size_save= @@mrr_buffer_size;
+set mrr_buffer_size=79;
+
+-- source include/mrr_tests.inc
+
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+
+#
+# BUG#30622: Incorrect query results for MRR + filesort
+# 
+CREATE TABLE t1 (
+  ID int(10) unsigned NOT NULL AUTO_INCREMENT,
+  col1 int(10) unsigned DEFAULT NULL,
+  key1 int(10) unsigned NOT NULL DEFAULT '0',
+  key2 int(10) unsigned DEFAULT NULL,
+  text1 text,
+  text2 text,
+  col2 smallint(6) DEFAULT '100',
+  col3 enum('headers','bodyandsubject') NOT NULL DEFAULT 'bodyandsubject',
+  col4 tinyint(3) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (ID),
+  KEY (key1),
+  KEY (key2)
+) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+(1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
+(2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
+(3,NULL,1130,NULL,'red',NULL,100,'bodyandsubject',0),
+(4,NULL,1130,NULL,'yellow',NULL,100,'bodyandsubject',0),
+(5,NULL,1130,NULL,'blue',NULL,100,'bodyandsubject',0);
+
+select * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1;
+
+drop table t1;
+
+
+--echo 
+--echo  BUG#37851: Crash in test_if_skip_sort_order tab->select is zero
+--echo 
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  int_key int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY int_key (int_key)
+);
+INSERT INTO t2 VALUES (1,1),(2,6),(3,0);
+
+EXPLAIN EXTENDED
+SELECT MIN(t1.pk)
+FROM t1 WHERE EXISTS (
+ SELECT t2.pk
+ FROM t2
+ WHERE t2.int_key IS NULL
+ GROUP BY t2.pk
+);
+
+DROP TABLE t1, t2;
+
+-- echo #
+-- echo # BUG#42048 Discrepancy between MyISAM and Maria's ICP implementation
+-- echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b char(20), filler char(200), key(a,b(10)));
+insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t0 C;
+update t1 set b=repeat(char(65+a), 20) where a < 25;
+
+--echo This must show range + using index condition:
+explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+drop table t0,t1;
+
+-- echo #
+-- echo # BUG#41136: ORDER BY + range access: EXPLAIN shows "Using MRR" while MRR is actually not used
+-- echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C; 
+-- echo This mustn't show "Using MRR":
+explain select * from t1 where a < 20  order by a;
+drop table t0, t1;
+
+-- echo #
+-- echo # Part of MWL#67: DS-MRR backport: add an @@optimizer_switch flag for
+-- echo # index_condition pushdown: 
+-- echo #   - engine_condition_pushdown does not affect ICP
+
+
+# Check that optimizer_switch is present
+select @@optimizer_switch like '%index_condition_pushdown=on%';
+
+# Check if it affects ICP 
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C; 
+
+-- echo A query that will use ICP: 
+explain select * from t1 where a < 20;
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='index_condition_pushdown=off';
+explain select * from t1 where a < 20;
+
+set optimizer_switch='index_condition_pushdown=on';
+explain select * from t1 where a < 20;
+
+set optimizer_switch=@save_optimizer_switch;
+
+drop table t0, t1;

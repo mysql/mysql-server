@@ -248,9 +248,10 @@ public:
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
   int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info);                      ///< required
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

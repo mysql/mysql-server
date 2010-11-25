@@ -158,7 +158,7 @@ disable_query_log;
 while ($1)
 {
 #eval means expand $ expressions
- eval insert into t3 values($1 + 4);
+ eval insert HIGH_PRIORITY into t3 values($1 + 4);
  dec $1;
 }
 enable_query_log;

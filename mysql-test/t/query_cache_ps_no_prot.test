@@ -11,8 +11,9 @@
 
 # We cannot run on embedded server because we use multiple sessions.
 --source include/not_embedded.inc
-
 --source include/have_query_cache.inc
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
 
 # The file with expected results fits only to a run without
 # ps-protocol/sp-protocol/cursor-protocol/view-protocol.

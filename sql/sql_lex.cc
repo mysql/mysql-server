@@ -408,6 +408,7 @@ void lex_start(THD *thd)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
   lex->use_only_table_context= FALSE;
+  lex->parse_vcol_expr= FALSE;
 
   lex->name.str= 0;
   lex->name.length= 0;
@@ -908,7 +909,7 @@ int MYSQLlex(void *arg, void *yythd)
 
 int lex_one_token(void *arg, void *yythd)
 {
-  reg1	uchar c= 0;
+  reg1	uchar c;
   bool comment_closed;
   int	tokval, result_state;
   uint length;
@@ -917,10 +918,11 @@ int lex_one_token(void *arg, void *yythd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  CHARSET_INFO *const cs= thd->charset();
+  const uchar *const state_map= cs->state_map;
+  const uchar *const ident_map= cs->ident_map;
 
+  LINT_INIT(c);
   lip->yylval=yylval;			// The global state
 
   lip->start_token();
@@ -986,7 +988,8 @@ int lex_one_token(void *arg, void *yythd)
           its value in a query for the binlog, the query must stay
           grammatically correct.
         */
-        if (c == '?' && lip->stmt_prepare_mode && !ident_map[lip->yyPeek()])
+        if (c == '?' && lip->stmt_prepare_mode &&
+            !ident_map[(uchar) lip->yyPeek()])
         return(PARAM_MARKER);
       }
 
@@ -1054,7 +1057,10 @@ int lex_one_token(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c) ;
+        for (result_state= c;
+             ident_map[(uchar) (c= lip->yyGet())];
+             result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
@@ -1066,9 +1072,11 @@ int lex_one_token(void *arg, void *yythd)
           If we find a space then this can't be an identifier. We notice this
           below by checking start != lex->ptr.
         */
-        for (; state_map[c] == MY_LEX_SKIP ; c= lip->yyGet()) ;
+        for (; state_map[(uchar) c] == MY_LEX_SKIP ; c= lip->yyGet())
+          ;
       }
-      if (start == lip->get_ptr() && c == '.' && ident_map[lip->yyPeek()])
+      if (start == lip->get_ptr() && c == '.' &&
+          ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;
       else
       {					// '(' must follow directly if function
@@ -1111,12 +1119,12 @@ int lex_one_token(void *arg, void *yythd)
 
       return(result_state);			// IDENT or IDENT_QUOTED
 
-    case MY_LEX_IDENT_SEP:		// Found ident and now '.'
+    case MY_LEX_IDENT_SEP:                  // Found ident and now '.'
       yylval->lex_str.str= (char*) lip->get_ptr();
       yylval->lex_str.length= 1;
-      c= lip->yyGet();                  // should be '.'
-      lip->next_state= MY_LEX_IDENT_START;// Next is an ident (not a keyword)
-      if (!ident_map[lip->yyPeek()])            // Probably ` or "
+      c= lip->yyGet();                          // should be '.'
+      lip->next_state= MY_LEX_IDENT_START;      // Next is ident (not keyword)
+      if (!ident_map[(uchar) lip->yyPeek()])    // Probably ` or "
 	lip->next_state= MY_LEX_START;
       return((int) c);
 
@@ -1139,7 +1147,8 @@ int lex_one_token(void *arg, void *yythd)
         }
         else if (c == 'b')
         {
-          while ((c= lip->yyGet()) == '0' || c == '1') ;
+          while ((c= lip->yyGet()) == '0' || c == '1')
+            ;
           if ((lip->yyLength() >= 3) && !ident_map[c])
           {
             /* Skip '0b' */
@@ -1198,11 +1207,12 @@ int lex_one_token(void *arg, void *yythd)
       else
 #endif
       {
-        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c) ;
+        for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c)
+          ;
         /* If there were non-ASCII characters, mark that we must convert */
         result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
       }
-      if (c == '.' && ident_map[lip->yyPeek()])
+      if (c == '.' && ident_map[(uchar) lip->yyPeek()])
 	lip->next_state=MY_LEX_IDENT_SEP;// Next is '.'
 
       yylval->lex_str= get_token(lip, 0, lip->yyLength());
@@ -1301,7 +1311,8 @@ int lex_one_token(void *arg, void *yythd)
 
     case MY_LEX_BIN_NUMBER:           // Found b'bin-string'
       lip->yySkip();                  // Accept opening '
-      while ((c= lip->yyGet()) == '0' || c == '1') ;
+      while ((c= lip->yyGet()) == '0' || c == '1')
+        ;
       if (c != '\'')
         return(ABORT_SYM);            // Illegal hex constant
       lip->yySkip();                  // Accept closing '
@@ -1312,8 +1323,8 @@ int lex_one_token(void *arg, void *yythd)
       return (BIN_NUM);
 
     case MY_LEX_CMP_OP:			// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
         lip->yySkip();
       if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
       {
@@ -1324,11 +1335,11 @@ int lex_one_token(void *arg, void *yythd)
       break;
 
     case MY_LEX_LONG_CMP_OP:		// Incomplete comparison operator
-      if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP ||
-          state_map[lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
+      if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP ||
+          state_map[(uchar) lip->yyPeek()] == MY_LEX_LONG_CMP_OP)
       {
         lip->yySkip();
-        if (state_map[lip->yyPeek()] == MY_LEX_CMP_OP)
+        if (state_map[(uchar) lip->yyPeek()] == MY_LEX_CMP_OP)
           lip->yySkip();
       }
       if ((tokval = find_keyword(lip, lip->yyLength() + 1, 0)))
@@ -1547,7 +1558,7 @@ int lex_one_token(void *arg, void *yythd)
       }
       break;
     case MY_LEX_USER_END:		// end '@' of user@hostname
-      switch (state_map[lip->yyPeek()]) {
+      switch (state_map[(uchar) lip->yyPeek()]) {
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
@@ -1572,7 +1583,7 @@ int lex_one_token(void *arg, void *yythd)
       yylval->lex_str.str=(char*) lip->get_ptr();
       yylval->lex_str.length=1;
       lip->yySkip();                                    // Skip '@'
-      lip->next_state= (state_map[lip->yyPeek()] ==
+      lip->next_state= (state_map[(uchar) lip->yyPeek()] ==
 			MY_LEX_USER_VARIABLE_DELIMITER ?
 			MY_LEX_OPERATOR_OR_IDENT :
 			MY_LEX_IDENT_OR_KEYWORD);
@@ -1584,7 +1595,8 @@ int lex_one_token(void *arg, void *yythd)
 	[(global | local | session) .]variable_name
       */
 
-      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c) ;
+      for (result_state= 0; ident_map[c= lip->yyGet()]; result_state|= c)
+        ;
       /* If there were non-ASCII characters, mark that we must convert */
       result_state= result_state & 0x80 ? IDENT_QUOTED : IDENT;
 
@@ -1714,6 +1726,7 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
+  insert_table_with_stored_vcol= 0;
 }
 
 void st_select_lex::init_query()
@@ -1728,7 +1741,6 @@ void st_select_lex::init_query()
   having= prep_having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
-  group_fix_field= 0;
   context.select_lex= this;
   context.init();
   /*
@@ -1755,11 +1767,14 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+
+  bzero((char*) expr_cache_may_be_used, sizeof(expr_cache_may_be_used));
 }
 
 void st_select_lex::init_select()
 {
   st_select_lex_node::init_select();
+  sj_nests.empty();
   group_list.empty();
   type= db= 0;
   having= 0;
@@ -1951,6 +1966,55 @@ void st_select_lex_unit::exclude_tree()
 }
 
 
+/**
+  Register reference to an item which the subqueries depends on
+
+  @param def_sel         select against which the item is resolved
+  @param dependency      reference to the item
+
+  @details
+  This function puts the reference dependency to an item that is either an
+  outer field or an aggregate function resolved against an outer select into
+  the list 'depends_on'. It adds it to the 'depends_on' lists for each
+  subquery between this one and 'def_sel' - the subquery against which the
+  item is resolved.
+*/
+
+void st_select_lex::register_dependency_item(st_select_lex *def_sel,
+                                             Item **dependency)
+{
+  SELECT_LEX *s= this;
+  DBUG_ENTER("st_select_lex::register_dependency_item");
+  DBUG_ASSERT(this != def_sel);
+  DBUG_ASSERT(*dependency);
+  do
+  {
+    /* check duplicates */
+    List_iterator_fast<Item*> li(s->master_unit()->item->depends_on);
+    Item **dep;
+    while ((dep= li++))
+    {
+      if ((*dep)->eq(*dependency, FALSE))
+      {
+         DBUG_PRINT("info", ("dependency %s already present",
+                             ((*dependency)->name ?
+                              (*dependency)->name :
+                              "<no name>")));
+         DBUG_VOID_RETURN;
+      }
+    }
+
+    s->master_unit()->item->depends_on.push_back(dependency);
+    DBUG_PRINT("info", ("depends_on: Select: %d  added: %s",
+                        s->select_number,
+                        ((*dependency)->name ?
+                         (*dependency)->name :
+                         "<no name>")));
+  } while ((s= s->outer_select()) != def_sel);
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   st_select_lex_node::mark_as_dependent mark all st_select_lex struct from 
   this to 'last' as dependent
@@ -1963,15 +2027,18 @@ void st_select_lex_unit::exclude_tree()
     'last' should be reachable from this st_select_lex_node
 */
 
-void st_select_lex::mark_as_dependent(st_select_lex *last)
+bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency)
 {
+
+  DBUG_ASSERT(this != last);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
   */
-  for (SELECT_LEX *s= this;
-       s && s != last;
-       s= s->outer_select())
+  SELECT_LEX *s= this;
+  do
+  {
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
       // Select is dependent of outer select
@@ -1987,8 +2054,15 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
+
+    Item_subselect *subquery_expr= s->master_unit()->item;
+    if (subquery_expr && subquery_expr->mark_as_dependent(thd, last, 
+                                                          dependency))
+      return TRUE;
+  } while ((s= s->outer_select()) != last && s != 0);
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
+  return FALSE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
@@ -2192,16 +2266,28 @@ void st_select_lex::print_limit(THD *thd,
 {
   SELECT_LEX_UNIT *unit= master_unit();
   Item_subselect *item= unit->item;
-  if (item && unit->global_parameters == this &&
-      (item->substype() == Item_subselect::EXISTS_SUBS ||
-       item->substype() == Item_subselect::IN_SUBS ||
-       item->substype() == Item_subselect::ALL_SUBS))
-  {
-    DBUG_ASSERT(!item->fixed ||
-                (select_limit->val_int() == LL(1) && offset_limit == 0));
-    return;
-  }
 
+  if (item && unit->global_parameters == this)
+  {
+    Item_subselect::subs_type subs_type= item->substype();
+    if (subs_type == Item_subselect::EXISTS_SUBS ||
+        subs_type == Item_subselect::IN_SUBS ||
+        subs_type == Item_subselect::ALL_SUBS)
+    {
+      DBUG_ASSERT(!item->fixed ||
+                  /*
+                    If not using materialization both:
+                    select_limit == 1, and there should be no offset_limit.
+                  */
+                  (((subs_type == Item_subselect::IN_SUBS) &&
+                    ((Item_in_subselect*)item)->exec_method ==
+                    Item_in_subselect::MATERIALIZATION) ?
+                   TRUE :
+                   (select_limit->val_int() == 1LL) &&
+                   offset_limit == 0));
+      return;
+    }
+  }
   if (explicit_limit)
   {
     str->append(STRING_WITH_LEN(" limit "));
@@ -2213,6 +2299,7 @@ void st_select_lex::print_limit(THD *thd,
     select_limit->print(str, query_type);
   }
 }
+
 
 /**
   @brief Restore the LEX and THD in case of a parse error.

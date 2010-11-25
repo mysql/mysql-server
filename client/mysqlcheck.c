@@ -1,4 +1,6 @@
-/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (C) 2000 MySQL AB & Jani Tolonen
+   Copyright (C) 2009 Sun Microsystems, Inc
+   Copyright (C) 2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +17,7 @@
 
 /* By Jani Tolonen, 2001-04-20, MySQL Development Team */
 
-#define CHECK_VERSION "2.5.0"
+#define CHECK_VERSION "2.6.0"
 
 #include "client_priv.h"
 #include <m_ctype.h>
@@ -67,8 +69,8 @@ static struct my_option my_long_options[] =
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory for character set files.", &charsets_dir,
-   &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Directory for character set files.", (char**) &charsets_dir,
+   (char**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"check-only-changed", 'C',
@@ -216,24 +218,26 @@ static void usage(void)
 {
   print_version();
   puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
+  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
+	 my_progname);
+  printf("OR     %s [OPTIONS] --all-databases\n\n", my_progname);
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
-  puts("Please consult the MySQL manual for latest information about the");
-  puts("above. The options -c, -r, -a, and -o are exclusive to each other, which");
+  puts("The options -c, -r, -a, and -o are exclusive to each other, which");
   puts("means that the last option will be used, if several was specified.\n");
-  puts("The option -c will be used by default, if none was specified. You");
-  puts("can change the default behavior by making a symbolic link, or");
+  puts("The option -c (--check) will be used by default, if none was specified.");
+  puts("You can change the default behavior by making a symbolic link, or");
   puts("copying this file somewhere with another name, the alternatives are:");
   puts("mysqlrepair:   The default option will be -r");
   puts("mysqlanalyze:  The default option will be -a");
   puts("mysqloptimize: The default option will be -o\n");
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
-  printf("OR     %s [OPTIONS] --databases DB1 [DB2 DB3...]\n",
-	 my_progname);
-  printf("OR     %s [OPTIONS] --all-databases\n", my_progname);
+  puts("Please consult the MariaDB/MySQL knowledgebase at");
+  puts("http://kb.askmonty.org/v/mysqlcheck for latest information about");
+  puts("this program.");
   print_defaults("my", load_default_groups);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
@@ -406,6 +410,8 @@ static int process_all_databases()
 		    MYF(0), mysql_error(sock));
     return 1;
   }
+  if (verbose)
+    printf("Processing databases\n");
   while ((row = mysql_fetch_row(tableres)))
   {
     if (process_one_db(row[0]))
@@ -419,6 +425,8 @@ static int process_all_databases()
 static int process_databases(char **db_names)
 {
   int result = 0;
+  if (verbose)
+    printf("Processing databases\n");
   for ( ; *db_names ; db_names++)
   {
     if (process_one_db(*db_names))
@@ -511,6 +519,7 @@ static int process_all_tables_in_db(char *database)
   MYSQL_RES *res;
   MYSQL_ROW row;
   uint num_columns;
+  my_bool system_database= 0;
 
   LINT_INIT(res);
   if (use_db(database))
@@ -523,6 +532,9 @@ static int process_all_tables_in_db(char *database)
 		    MYF(0), database, mysql_error(sock));
     return 1;
   }
+
+  if (!strcmp(database, "mysql") || !strcmp(database, "MYSQL"))
+    system_database= 1;
 
   num_columns= mysql_num_fields(res);
 
@@ -566,6 +578,10 @@ static int process_all_tables_in_db(char *database)
       /* Skip views if we don't perform renaming. */
       if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
         continue;
+      if (system_database &&
+          (!strcmp(row[0], "general_log") ||
+           !strcmp(row[0], "slow_log")))
+        continue;                               /* Skip logging tables */
 
       handle_request_for_tables(row[0], fixed_name_length(row[0]));
     }
@@ -614,6 +630,8 @@ static int fix_database_storage_name(const char *name)
 
 static int process_one_db(char *database)
 {
+  if (verbose)
+    puts(database);
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
@@ -696,7 +714,8 @@ static int handle_request_for_tables(char *tables, uint length)
   if (opt_all_in_1)
   {
     /* No backticks here as we added them before */
-    query_length= sprintf(query, "%s TABLE %s %s", op, tables, options);
+    query_length= my_sprintf(query,
+			     (query, "%s TABLE %s %s", op, tables, options));
   }
   else
   {
@@ -723,7 +742,7 @@ static void print_result()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  char prev[NAME_LEN*2+2];
+  char prev[(NAME_LEN+9)*2+2];
   uint i;
   my_bool found_error=0;
 
@@ -753,7 +772,15 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      /*
+        If the error message includes REPAIR TABLE, we assume it means
+        we have to run upgrade on it. In this case we write a nicer message
+        than "Please do "REPAIR TABLE""...
+      */
+      if (!strcmp(row[2],"error") && strinstr(row[3],"REPAIR TABLE") != 0)
+        printf("%-50s %s", row[0], "Needs upgrade");
+      else
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (strcmp(row[2],"note"))
 	found_error=1;
     }
@@ -772,7 +799,7 @@ static void print_result()
 static int dbConnect(char *host, char *user, char *passwd)
 {
   DBUG_ENTER("dbConnect");
-  if (verbose)
+  if (verbose > 1)
   {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
@@ -804,7 +831,7 @@ static int dbConnect(char *host, char *user, char *passwd)
 
 static void dbDisconnect(char *host)
 {
-  if (verbose)
+  if (verbose > 1)
     fprintf(stderr, "# Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
 } /* dbDisconnect */
@@ -848,7 +875,8 @@ int main(int argc, char **argv)
 
   if (!opt_write_binlog)
   {
-    if (disable_binlog()) {
+    if (disable_binlog())
+    {
       first_error= 1;
       goto end;
     }

@@ -1,0 +1,51 @@
+set global aria_log_file_size=4294967295;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+set global aria_checkpoint_interval=0;
+create table t2 (a varchar(100)) engine=myisam;
+insert into t2 select repeat('z',100);
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+* shut down mysqld, removed logs, restarted it
+create table t1 (a varchar(100)) engine=aria transactional=1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(100) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+show engine aria logs;
+Type	Name	Status
+Aria	Size        16384 aria_log.00000001	unknown
+insert into t1 values('a');
+insert into t1 select * from t2;
+show engine aria logs;
+Type	Name	Status
+Aria	Size        24576 aria_log.00000001	unknown
+* shut down mysqld, removed logs, restarted it
+truncate table t1;
+insert into t1 select * from t2;
+show engine aria logs;
+Type	Name	Status
+Aria	Size        16384 aria_log.00000001	unknown
+drop table t1;
+* shut down mysqld, removed logs, restarted it
+create table t1 (a varchar(100)) engine=aria transactional=1;
+insert into t1 values('a');
+create table if not exists t1 select * from t2;
+Warnings:
+Note	1050	Table 't1' already exists
+show engine aria logs;
+Type	Name	Status
+Aria	Size        24576 aria_log.00000001	unknown
+* shut down mysqld, removed logs, restarted it
+drop table t1;
+create table t1 engine=aria transactional=1 select * from t2;
+show engine aria logs;
+Type	Name	Status
+Aria	Size        16384 aria_log.00000001	unknown
+drop database mysqltest;

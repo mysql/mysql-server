@@ -21,7 +21,7 @@ use Cwd;
 use DBI;
 use Benchmark;
 
-$opt_loop_count=10;
+$opt_loop_count=5000;
 
 $pwd = cwd(); $pwd = "." if ($pwd eq '');
 require "$pwd/bench-init.pl" || die "Can't read Configuration file: $!\n";

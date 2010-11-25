@@ -1,3 +1,4 @@
+-- source include/have_working_dns.inc
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
 #

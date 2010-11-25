@@ -22,6 +22,11 @@
 -- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
+set optimizer_switch='index_condition_pushdown=off';
+set @@optimizer_use_mrr=disable;
 
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
@@ -1216,11 +1221,11 @@ drop table t1;
 #
 # Bug #4082: integer truncation
 #
-# disable because the bug has resurfaced
-#create table t1(a int(1) , b int(1)) engine=innodb;
-#insert into t1 values ('1111', '3333');
-#select distinct concat(a, b) from t1;
-#drop table t1;
+
+create table t1(a int(1) , b int(1)) engine=innodb;
+insert into t1 values ('1111', '3333');
+select distinct concat(a, b) from t1;
+drop table t1;
 
 #
 # BUG#7709 test case - Boolean fulltext query against unsupported 
@@ -1334,6 +1339,7 @@ show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 
 # Test for innodb_thread_concurrency variable
+SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=1001;
 show variables like "innodb_thread_concurrency";
@@ -1341,6 +1347,7 @@ set global innodb_thread_concurrency=0;
 show variables like "innodb_thread_concurrency";
 set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
+SET @@global.innodb_thread_concurrency= @old_innodb_thread_concurrency;
 
 # Test for innodb_concurrency_tickets variable
 show variables like "innodb_concurrency_tickets";
@@ -2550,6 +2557,9 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+set optimizer_switch='index_condition_pushdown=default';
+set @@optimizer_use_mrr=default;
 
 #######################################################################
 #                                                                     #

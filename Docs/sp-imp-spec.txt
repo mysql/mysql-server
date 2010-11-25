@@ -1075,7 +1075,7 @@
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',

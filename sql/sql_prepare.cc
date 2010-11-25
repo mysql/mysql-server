@@ -1245,6 +1245,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   if (insert_precheck(thd, table_list))
     goto error;
 
+  upgrade_lock_type_for_insert(thd, &table_list->lock_type, duplic,
+                               values_list.elements > 1);
   /*
     open temporary memory pool for temporary data allocated by derived
     tables & preparation procedure
@@ -1475,6 +1477,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
 
   thd->used_tables= 0;                        // Updated by setup_fields
+  thd->thd_marker.emb_on_expr_nest= 0;
 
   /*
     JOIN::prepare calls
@@ -2167,14 +2170,13 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   Protocol *save_protocol= thd->protocol;
   Prepared_statement *stmt;
   DBUG_ENTER("mysqld_stmt_prepare");
-
   DBUG_PRINT("prep_query", ("%s", packet));
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   if (! (stmt= new Prepared_statement(thd)))
-    DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
+    goto end;           /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
   {
@@ -2182,7 +2184,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
       The error is set in the insert. The statement itself
       will be also deleted there (this is how the hash works).
     */
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   thd->protocol= &thd->protocol_binary;
@@ -2196,6 +2198,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
   thd->protocol= save_protocol;
 
   /* check_prepared_statemnt sends the metadata packet in case of success */
+end:
   DBUG_VOID_RETURN;
 }
 
@@ -2242,7 +2245,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
                                          lex->prepared_stmt_code.length))
         && entry->value)
     {
-      my_bool is_var_null;
+      bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);
       /*
         NULL value of variable checked early as entry->value so here
@@ -2551,7 +2554,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
@@ -2647,7 +2650,8 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("mysqld_stmt_fetch");
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
+
   status_var_increment(thd->status_var.com_stmt_fetch);
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
@@ -2706,7 +2710,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   DBUG_ENTER("mysqld_stmt_reset");
 
   /* First of all clear possible warnings from the previous command */
-  mysql_reset_thd_for_next_command(thd);
+  mysql_reset_thd_for_next_command(thd, opt_userstat_running);
 
   status_var_increment(thd->status_var.com_stmt_reset);
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
@@ -3493,7 +3497,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 bool
 Prepared_statement::reprepare()
 {
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   LEX_STRING stmt_db_name= { db, db_length };
@@ -3653,7 +3657,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   Query_arena *old_stmt_arena;
   bool error= TRUE;
 
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed;

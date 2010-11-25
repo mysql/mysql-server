@@ -1146,7 +1146,6 @@ err:
   DBUG_RETURN(ret);
 }
 
-
 /*
   Check if the error is caused by network.
   @param[in]   errorno   Number of the error.
@@ -1485,18 +1484,27 @@ be equal for the Statement-format replication to work";
     }
     else if (check_io_slave_killed(mi->io_thd, mi, NULL))
       goto slave_killed_err;
-    else if (is_network_error(mysql_errno(mysql)))
+    else if (is_network_error(err_code= mysql_errno(mysql)))
     {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
+      mi->report(ERROR_LEVEL, err_code,
+                 "Get master TIME_ZONE failed with error: %s",
+                 mysql_error(mysql));
       goto network_err;
-    } 
+    }
+    else if (err_code == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      /* We use ERROR_LEVEL to get the error logged to file */
+      mi->report(ERROR_LEVEL, err_code,
+
+                 "MySQL master doesn't have a TIME_ZONE variable. Note that"
+                 "if your timezone is not same between master and slave, your "
+                 "slave may get wrong data into timestamp columns");
+    }
     else
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered \
 when it try to get the value of TIME_ZONE global variable from master.";
-      err_code= mysql_errno(mysql);
       sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
     }
@@ -2019,6 +2027,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
+  thd->variables.log_slow_filter= global_system_variables.log_slow_filter;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
   mysql_mutex_lock(&LOCK_thread_count);
@@ -2348,7 +2357,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (exec_res == 0)
   {
     int error= ev->update_pos(rli);
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     if (!rli->is_fake)
 #endif
     {
@@ -2504,6 +2513,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int temp_err;
+      LINT_INIT(temp_err);
       if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
@@ -3115,7 +3125,6 @@ pthread_handler_t handle_slave_sql(void *arg)
   my_off_t UNINIT_VAR(saved_log_pos);
   my_off_t UNINIT_VAR(saved_master_log_pos);
   my_off_t saved_skip= 0;
-
   Relay_log_info* rli = &((Master_info*)arg)->rli;
   const char *errmsg;
 
@@ -3123,6 +3132,8 @@ pthread_handler_t handle_slave_sql(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
 
+  LINT_INIT(saved_master_log_pos);
+  LINT_INIT(saved_log_pos);
   DBUG_ASSERT(rli->inited);
   mysql_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
@@ -4199,10 +4210,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
       suppress_warnings= 0;
       mi->report(ERROR_LEVEL, last_errno,
                  "error %s to master '%s@%s:%d'"
-                 " - retry-time: %d  retries: %lu",
+                 " - retry-time: %d  retries: %lu  message: %s",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, master_retry_count,
+                 mysql_error(mysql));
     }
     /*
       By default we try forever. The reason is that failure will trigger
@@ -4374,11 +4386,11 @@ bool flush_relay_log_info(Relay_log_info* rli)
   my_b_seek(file, 0L);
   pos=strmov(buff, rli->group_relay_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_relay_log_pos, pos, 10);
+  pos= longlong10_to_str(rli->group_relay_log_pos, pos, 10);
   *pos++='\n';
   pos=strmov(pos, rli->group_master_log_name);
   *pos++='\n';
-  pos=longlong2str(rli->group_master_log_pos, pos, 10);
+  pos=longlong10_to_str(rli->group_master_log_pos, pos, 10);
   *pos='\n';
   if (my_b_write(file, (uchar*) buff, (size_t) (pos-buff)+1))
     error=1;

@@ -41,7 +41,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery)
    sync_counter(0), is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0), cur_log_old_open_count(0), group_relay_log_pos(0), 
    event_relay_log_pos(0),
-#if HAVE_purify
+#if HAVE_valgrind
    is_fake(FALSE),
 #endif
    group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),

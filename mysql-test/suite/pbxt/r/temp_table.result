@@ -1,0 +1,165 @@
+drop table if exists t1,t2;
+drop view if exists v1;
+CREATE TABLE t1 (c int not null, d char (10) not null);
+insert into t1 values(1,""),(2,"a"),(3,"b");
+CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(4,"e"),(5,"f"),(6,"g");
+alter table t1 rename t2;
+select * from t1;
+c	d
+1	
+2	a
+3	b
+select * from t2;
+a	b
+4	e
+5	f
+6	g
+CREATE TABLE t2 (x int not null, y int not null);
+alter table t2 rename t1;
+select * from t1;
+a	b
+4	e
+5	f
+6	g
+create TEMPORARY TABLE t2 engine=heap select * from t1;
+create TEMPORARY TABLE IF NOT EXISTS t2 (a int) engine=heap;
+Warnings:
+Note	1050	Table 't2' already exists
+CREATE TEMPORARY TABLE t1 (a int not null, b char (10) not null);
+ERROR 42S01: Table 't1' already exists
+ALTER TABLE t1 RENAME t2;
+ERROR 42S01: Table 't2' already exists
+select * from t2;
+a	b
+4	e
+5	f
+6	g
+alter table t2 add primary key (a,b);
+drop table t1,t2;
+select * from t1;
+c	d
+1	
+2	a
+3	b
+drop table t2;
+create temporary table t1 engine=myisam select *,2 as "e" from t1;
+select * from t1;
+c	d	e
+1		2
+2	a	2
+3	b	2
+drop table t1;
+drop table t1;
+CREATE TABLE t1 (pkCrash INTEGER PRIMARY KEY,strCrash VARCHAR(255));
+INSERT INTO t1 ( pkCrash, strCrash ) VALUES ( 1, '1');
+SELECT CONCAT_WS(pkCrash, strCrash) FROM t1;
+CONCAT_WS(pkCrash, strCrash)
+1
+drop table t1;
+create temporary table t1 select 1 as 'x';
+drop table t1;
+CREATE TABLE t1 (x INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TEMPORARY TABLE tmp engine=myisam SELECT *, NULL FROM t1;
+drop table t1;
+create temporary table t1 (id int(10) not null unique);
+create temporary table t2 (id int(10) not null primary key, 
+val int(10) not null);
+insert into t1 values (1),(2),(4);
+insert into t2 values (1,1),(2,1),(3,1),(4,2);
+select one.id, two.val, elt(two.val,'one','two') from t1 one, t2 two where two.id=one.id order by one.id;
+id	val	elt(two.val,'one','two')
+1	1	one
+2	1	one
+4	2	two
+drop table t1,t2;
+create temporary table t1 (a int not null);
+insert into t1 values (1),(1);
+alter table t1 add primary key (a);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+drop table t1;
+CREATE TABLE t1 (
+d datetime default NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('2002-10-24 14:50:32'),('2002-10-24 14:50:33'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:34'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:35'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:36'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:37'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:38'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:39'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40'),('2002-10-24 14:50:40');
+flush status;
+select * from t1 group by d;
+d
+2002-10-24 14:50:32
+2002-10-24 14:50:33
+2002-10-24 14:50:34
+2002-10-24 14:50:35
+2002-10-24 14:50:36
+2002-10-24 14:50:37
+2002-10-24 14:50:38
+2002-10-24 14:50:39
+2002-10-24 14:50:40
+show status like "created_tmp%tables";
+Variable_name	Value
+Created_tmp_disk_tables	0
+Created_tmp_tables	1
+drop table t1;
+create temporary table v1 as select 'This is temp. table' A;
+create view v1 as select 'This is view' A;
+select * from v1;
+A
+This is temp. table
+show create table v1;
+Table	Create Table
+v1	CREATE TEMPORARY TABLE `v1` (
+  `A` varchar(19) NOT NULL DEFAULT ''
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+show create view v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	latin1	latin1_swedish_ci
+drop view v1;
+select * from v1;
+A
+This is temp. table
+create view v1 as select 'This is view again' A;
+select * from v1;
+A
+This is temp. table
+drop table v1;
+select * from v1;
+A
+This is view again
+drop view v1;
+create table t1 (a int, b int, index(a), index(b));
+create table t2 (c int auto_increment, d varchar(255), primary key (c));
+insert into t1 values (3,1),(3,2);
+insert into t2 values (NULL, 'foo'), (NULL, 'bar');
+select d, c from t1 left join t2 on b = c where a = 3 order by d;
+d	c
+bar	2
+foo	1
+drop table t1, t2;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT);
+LOCK TABLE t1 WRITE;
+CREATE TEMPORARY TABLE t1 (i INT);
+The following command should not block
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+DROP TEMPORARY TABLE t2, t1;
+ERROR 42S02: Unknown table 't1'
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT * FROM t1;
+i
+DROP TABLE t1;
+End of 4.1 tests.
+create temporary table t1 (a int);
+insert into t1 values (4711);
+select * from t1;
+a
+4711
+truncate t1;
+insert into t1 values (42);
+select * from t1;
+a
+42
+drop table t1;

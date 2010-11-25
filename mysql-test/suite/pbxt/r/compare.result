@@ -1,0 +1,55 @@
+drop table if exists t1;
+CREATE TABLE t1 (id CHAR(12) not null, PRIMARY KEY (id));
+insert into t1 values ('000000000001'),('000000000002');
+explain select * from t1 where id=000000000001;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	12	NULL	2	Using where; Using index
+select * from t1 where id=000000000001;
+id
+000000000001
+delete from t1 where id=000000000002;
+select * from t1;
+id
+000000000001
+drop table t1;
+SELECT 'a' = 'a ';
+'a' = 'a '
+1
+SELECT 'a\0' < 'a';
+'a\0' < 'a'
+1
+SELECT 'a\0' < 'a ';
+'a\0' < 'a '
+1
+SELECT 'a\t' < 'a';
+'a\t' < 'a'
+1
+SELECT 'a\t' < 'a ';
+'a\t' < 'a '
+1
+CREATE TABLE t1 (a char(10) not null);
+INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
+SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
+hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
+61	0	0
+6100	-1	-1
+6109	-1	-1
+61	0	0
+DROP TABLE t1;
+SELECT CHAR(31) = '', '' = CHAR(31);
+CHAR(31) = ''	'' = CHAR(31)
+0	0
+SELECT CHAR(30) = '', '' = CHAR(30);
+CHAR(30) = ''	'' = CHAR(30)
+0	0
+create table t1 (a tinyint(1),b binary(1));
+insert into t1 values (0x01,0x01);
+select * from t1 where a=b;
+a	b
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: ''
+select * from t1 where a=b and b=0x01;
+a	b
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: ''
+drop table if exists t1;

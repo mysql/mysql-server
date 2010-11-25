@@ -1,0 +1,15 @@
+set session debug="t";
+show session variables like 'debug';
+Variable_name	Value
+debug	t
+set session debug="t";
+show session variables like 'debug';
+Variable_name	Value
+debug	t
+set session debug="d:t";
+show session variables like 'debug';
+Variable_name	Value
+debug	d:t
+show session variables like 'debug';
+Variable_name	Value
+debug	t

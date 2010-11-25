@@ -71,7 +71,11 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
+/* MySQL plugin interface version */
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0102
+
+/* MariaDB plugin interface version */
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0100
 
 /*
   The allowable types of plugins
@@ -83,7 +87,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
 #define MYSQL_AUDIT_PLUGIN           5  /* The Audit plugin type        */
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    7  /* The number of plugin types   */
+#define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    8  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -94,6 +99,14 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
 
+/* definitions of code maturity for plugins */
+#define MariaDB_PLUGIN_MATURITY_UNKNOWN 0
+#define MariaDB_PLUGIN_MATURITY_EXPERIMENTAL 1
+#define MariaDB_PLUGIN_MATURITY_ALPHA 2
+#define MariaDB_PLUGIN_MATURITY_BETA 3
+#define MariaDB_PLUGIN_MATURITY_GAMMA 4
+#define MariaDB_PLUGIN_MATURITY_STABLE 5
+
 /*
   Macros for beginning and ending plugin declarations.  Between
   mysql_declare_plugin and mysql_declare_plugin_end there should
@@ -103,14 +116,26 @@ typedef struct st_mysql_xid MYSQL_XID;
 
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
-MYSQL_PLUGIN_EXPORT int VERSION= MYSQL_PLUGIN_INTERFACE_VERSION;                                  \
-MYSQL_PLUGIN_EXPORT int PSIZE= sizeof(struct st_mysql_plugin);                                    \
-MYSQL_PLUGIN_EXPORT struct st_mysql_plugin DECLS[]= {
+int VERSION= MYSQL_PLUGIN_INTERFACE_VERSION;                                  \
+int PSIZE= sizeof(struct st_mysql_plugin);                                    \
+struct st_mysql_plugin DECLS[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                   \
+int VERSION= MARIA_PLUGIN_INTERFACE_VERSION;                                  \
+int PSIZE= sizeof(struct st_maria_plugin);                                    \
+struct st_maria_plugin DECLS[]= {
 #else
+
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
 MYSQL_PLUGIN_EXPORT int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
 MYSQL_PLUGIN_EXPORT int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
 MYSQL_PLUGIN_EXPORT struct st_mysql_plugin _mysql_plugin_declarations_[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                \
+MYSQL_PLUGIN_EXPORT int _maria_plugin_interface_version_= MARIA_PLUGIN_INTERFACE_VERSION;   \
+MYSQL_PLUGIN_EXPORT int _maria_sizeof_struct_st_plugin_= sizeof(struct st_maria_plugin);    \
+MYSQL_PLUGIN_EXPORT struct st_maria_plugin _maria_plugin_declarations_[]= {
+
 #endif
 
 #define mysql_declare_plugin(NAME) \
@@ -119,7 +144,14 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
+#define maria_declare_plugin(NAME) \
+MARIA_DECLARE_PLUGIN__(NAME, \
+                 builtin_maria_ ## NAME ## _plugin_interface_version, \
+                 builtin_maria_ ## NAME ## _sizeof_struct_st_plugin, \
+                 builtin_maria_ ## NAME ## _plugin)
+
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
+#define maria_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins
@@ -239,7 +271,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 #define DECLARE_MYSQL_SYSVAR_BASIC(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
   type *value;                  \
-  const type def_val;           \
+  const type def_val;                 \
 } MYSQL_SYSVAR_NAME(name)
 
 #define DECLARE_MYSQL_SYSVAR_SIMPLE(name, type) struct { \
@@ -276,7 +308,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
 #define DECLARE_MYSQL_THDVAR_TYPELIB(name, type) struct { \
   MYSQL_PLUGIN_VAR_HEADER;      \
   int offset;                   \
-  type def_val;                 \
+  const type def_val;           \
   DECLARE_THDVAR_FUNC(type);    \
   TYPELIB *typelib;             \
 } MYSQL_SYSVAR_NAME(name)
@@ -416,6 +448,30 @@ struct st_mysql_plugin
   void * __reserved1;   /* reserved for dependency checking             */
 };
 
+/*
+  MariaDB extension for plugins declaration structure.
+
+  It also copy current MySQL plugin fields to have more independency
+  in plugins extension
+*/
+
+struct st_maria_plugin
+{
+  int type;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
+  void *info;           /* pointer to type-specific plugin descriptor   */
+  const char *name;     /* plugin name                                  */
+  const char *author;   /* plugin author (for SHOW PLUGINS)             */
+  const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
+  int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
+  int (*init)(void *);  /* the function to invoke when plugin is loaded */
+  int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
+  unsigned int version; /* plugin version (for SHOW PLUGINS)            */
+  struct st_mysql_show_var *status_vars;
+  struct st_mysql_sys_var **system_vars;
+  const char *version_info;  /* plugin version string */
+  unsigned int maturity; /* MariaDB_PLUGIN_MATURITY_XXX */
+};
+
 /*************************************************************************
   API for Full-text parser plugin. (MYSQL_FTPARSER_PLUGIN)
 */
@@ -526,7 +582,6 @@ int thd_in_lock_tables(const MYSQL_THD thd);
 int thd_tablespace_op(const MYSQL_THD thd);
 long long thd_test_options(const MYSQL_THD thd, long long test_options);
 int thd_sql_command(const MYSQL_THD thd);
-const char *thd_proc_info(MYSQL_THD thd, const char *info);
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
@@ -534,6 +589,10 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
+
+#define thd_proc_info(thd, msg)  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+const char *set_thd_proc_info(MYSQL_THD, const char * info, const char *func,
+                              const char *file, const unsigned int line);
 
 /**
   Create a temporary file.

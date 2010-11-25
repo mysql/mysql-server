@@ -374,14 +374,16 @@ DROP TABLE t1;
 #
 
 create table t1(id int not null auto_increment primary key, t char(12));
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 1000;
 while ($1)
  {
   eval insert into t1(t) values ('$1'); 
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 explain select id,t from t1 order by id;
 explain select id,t from t1 force index (primary) order by id;
 drop table t1;
@@ -400,7 +402,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
-EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
+--echo DS-MRR: use two IGNORE INDEX queries, otherwise we get cost races, because
+--echo DS-MRR: records_in_range/read_time return the same numbers for all three indexes
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
+EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
+
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY FieldKey, LongVal;

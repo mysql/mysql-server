@@ -1,0 +1,985 @@
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+#----------------------------------------
+# Bug with auto_increment settings
+
+create table t1 (id int auto_increment key) engine=pbxt auto_increment=200;
+show create table t1;
+
+alter table t1 add column text char(40);
+show create table t1;
+
+alter table t1 auto_increment = 100;
+show create table t1;
+
+#----------------------------------------
+# Short fields
+drop table if exists t1;
+create table t1 (
+ id int,
+ c_char char(3),
+ c_varchar varchar(3),
+ c_char_bin char(3) binary,
+ c_varchar_bin varchar(3) binary,
+ c_char_uni char(3) unicode,
+ c_varchar_uni varchar(3) unicode,
+ c_dec decimal(3),
+ index(c_char),
+ index(c_varchar),
+ index(c_char_bin),
+ index(c_varchar_bin),
+ index(c_char_uni),
+ index(c_varchar_uni),
+ index(c_dec)
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select c_char from t1 where c_char = "ab";
+select c_varchar from t1 where c_varchar = "ab";
+select c_char_bin from t1 where c_char_bin = "ab";
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+select c_char_uni from t1 where c_char_uni = "ab";
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+select c_dec from t1 where c_dec = 12;
+select * from t1 where c_char = "ab ";
+select * from t1 where c_varchar = "ab ";
+select * from t1 where c_char_bin = "ab ";
+select * from t1 where c_varchar_bin = "ab ";
+select * from t1 where c_char_uni = "ab ";
+select * from t1 where c_varchar_uni = "ab ";
+select * from t1 where c_dec = 123;
+
+
+#----------------------------------------
+# Medium fields
+drop table if exists t1;
+create table t1 (
+ id     int,
+ c_char    char(100),
+ c_varchar   varchar(100),
+ c_char_bin   char(100) binary,
+ c_varchar_bin  varchar(100) binary,
+ c_char_uni   char(100) unicode,
+ c_varchar_uni  varchar(100) unicode,
+ c_dec    decimal(65),
+ index(c_char),
+ index(c_varchar),
+ index(c_char_bin),
+ index(c_varchar_bin),
+ index(c_char_uni),
+ index(c_varchar_uni),
+ index(c_dec)
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select * from t1 where c_char = "ab";
+select * from t1 where c_varchar = "ab";
+select * from t1 where c_char_bin = "ab";
+select * from t1 where c_varchar_bin = "ab";
+select * from t1 where c_char_uni = "ab";
+select * from t1 where c_varchar_uni = "ab";
+select * from t1 where c_dec = 12;
+select c_char from t1 where c_char = "ab ";
+select c_varchar from t1 where c_varchar = "ab ";
+select c_char_bin from t1 where c_char_bin = "ab ";
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+select c_char_uni from t1 where c_char_uni = "ab ";
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+select c_dec from t1 where c_dec = 123;
+
+
+#----------------------------------------
+# Large fields
+drop table if exists t1;
+create table t1 (
+ id     int,
+ c_varchar   varchar(300),
+ c_varchar_bin  varchar(300) binary,
+ c_varchar_uni  varchar(300) unicode,
+ c_ttext TINYTEXT,
+ c_text TEXT,
+ c_mtext MEDIUMTEXT,
+ c_ltext LONGTEXT,
+ index(c_varchar),
+ index(c_varchar_bin),
+ index(c_varchar_uni),
+ index(c_ttext(100)),
+ index(c_text(100)),
+ index(c_mtext(100)),
+ index(c_ltext(100))
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", "ab");
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", "ab ");
+select c_varchar from t1 where c_varchar = "ab";
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+select c_ttext from t1 where c_ttext = "ab";
+select c_text from t1 where c_text = "ab";
+select c_mtext from t1 where c_mtext = "ab";
+select c_ltext from t1 where c_ltext = "ab";
+
+select * from t1 where c_varchar = "ab ";
+select * from t1 where c_varchar_bin = "ab ";
+select * from t1 where c_varchar_uni = "ab ";
+select * from t1 where c_ttext = "ab ";
+select * from t1 where c_text = "ab ";
+select * from t1 where c_mtext = "ab ";
+select * from t1 where c_ltext = "ab ";
+
+#----------------------------------------
+# Short fields NOT NULL
+drop table if exists t1;
+create table t1 (
+ id int not null,
+ c_char char(3) not null,
+ c_varchar varchar(3) not null,
+ c_char_bin char(3) binary not null,
+ c_varchar_bin varchar(3) binary not null,
+ c_char_uni char(3) unicode not null,
+ c_varchar_uni varchar(3) unicode not null,
+ c_dec decimal(3) not null,
+ index(c_char),
+ index(c_varchar),
+ index(c_char_bin),
+ index(c_varchar_bin),
+ index(c_char_uni),
+ index(c_varchar_uni),
+ index(c_dec)
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select * from t1 where c_char = "ab";
+select * from t1 where c_varchar = "ab";
+select * from t1 where c_char_bin = "ab";
+select * from t1 where c_varchar_bin = "ab";
+select * from t1 where c_char_uni = "ab";
+select * from t1 where c_varchar_uni = "ab";
+select * from t1 where c_dec = 12;
+select c_char from t1 where c_char = "ab ";
+select c_varchar from t1 where c_varchar = "ab ";
+select c_char_bin from t1 where c_char_bin = "ab ";
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+select c_char_uni from t1 where c_char_uni = "ab ";
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+select c_dec from t1 where c_dec = 123;
+
+
+#----------------------------------------
+# Medium fields NOT NULL
+drop table if exists t1;
+create table t1 (
+ id     int not null,
+ c_char    char(100) not null,
+ c_varchar   varchar(100) not null,
+ c_char_bin   char(100) binary not null,
+ c_varchar_bin  varchar(100) binary not null,
+ c_char_uni   char(100) unicode not null,
+ c_varchar_uni  varchar(100) unicode not null,
+ c_dec    decimal(65),
+ index(c_char),
+ index(c_varchar),
+ index(c_char_bin),
+ index(c_varchar_bin),
+ index(c_char_uni),
+ index(c_varchar_uni),
+ index(c_dec)
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", 12);
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", 123);
+select c_char from t1 where c_char = "ab";
+select c_varchar from t1 where c_varchar = "ab";
+select c_char_bin from t1 where c_char_bin = "ab";
+select c_varchar_bin from t1 where c_varchar_bin = "ab";
+select c_char_uni from t1 where c_char_uni = "ab";
+select c_varchar_uni from t1 where c_varchar_uni = "ab";
+select c_dec from t1 where c_dec = 12;
+select * from t1 where c_char = "ab ";
+select * from t1 where c_varchar = "ab ";
+select * from t1 where c_char_bin = "ab ";
+select * from t1 where c_varchar_bin = "ab ";
+select * from t1 where c_char_uni = "ab ";
+select * from t1 where c_varchar_uni = "ab ";
+select * from t1 where c_dec = 123;
+
+
+#----------------------------------------
+# Large fields NOT NULL
+drop table if exists t1;
+create table t1 (
+ id     int,
+ c_varchar   varchar(300) not null,
+ c_varchar_bin  varchar(300) binary not null,
+ c_varchar_uni  varchar(300) unicode not null,
+ c_ttext TINYTEXT not null,
+ c_text TEXT not null,
+ c_mtext MEDIUMTEXT not null,
+ c_ltext LONGTEXT not null,
+ index(c_varchar),
+ index(c_varchar_bin),
+ index(c_varchar_uni),
+ index(c_ttext(100)),
+ index(c_text(100)),
+ index(c_mtext(100)),
+ index(c_ltext(100))
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab", "ab", "ab", "ab");
+insert t1 values (2, "ab ", "ab ", "ab ", "ab ", "ab ", "ab ", "ab ");
+select * from t1 where c_varchar = "ab";
+select * from t1 where c_varchar_bin = "ab";
+select * from t1 where c_varchar_uni = "ab";
+select * from t1 where c_ttext = "ab";
+select * from t1 where c_text = "ab";
+select * from t1 where c_mtext = "ab";
+select * from t1 where c_ltext = "ab";
+
+select c_varchar from t1 where c_varchar = "ab ";
+select c_varchar_bin from t1 where c_varchar_bin = "ab ";
+select c_varchar_uni from t1 where c_varchar_uni = "ab ";
+select c_ttext from t1 where c_ttext = "ab ";
+select c_text from t1 where c_text = "ab ";
+select c_mtext from t1 where c_mtext = "ab ";
+select c_ltext from t1 where c_ltext = "ab ";
+
+#----------------------------------------
+# UNICODE Tests
+
+drop table if exists t1;
+create table t1 (
+ id     int,
+ c_char_suni  char(4) unicode,
+ c_varchar_suni  varchar(4) unicode,
+ c_char_uni  char(255) unicode,
+ c_varchar_uni  varchar(300) unicode,
+ index(c_char_suni),
+ index(c_varchar_suni),
+ index(c_char_uni),
+ index(c_varchar_uni)
+) engine=pbxt;
+
+insert t1 values (1, "ab", "ab", "ab", "ab");
+insert t1 values (1, "abcd", "abcd", "abcd", "abcd");
+insert t1 values (1, "ab  ", "ab  ", "abcd123123123123123123123123123123123123", "abcd123123123123123123123123123123123123");
+select * from t1 where c_char_suni = "ab";
+select * from t1 where c_varchar_suni = "ab";
+select * from t1 where c_char_uni = "ab";
+select * from t1 where c_varchar_uni = "ab";
+
+
+#----------------------------------------
+# Duplicate key tests
+
+drop table if exists t1;
+create table t1 (id int, name char(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name char(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name varchar(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name varchar(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name varchar(400) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name char(10) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name char(100) key) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+-- error 1062
+insert t1 values (2, "ab ");
+
+
+drop table if exists t1;
+create table t1 (id int, name varchar(10), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+insert t1 values (4, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name varchar(100), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+insert t1 values (4, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name varchar(400), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+insert t1 values (4, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name char(10), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+insert t1 values (4, "ab ");
+
+drop table if exists t1;
+create table t1 (id int, name char(100), index(name)) engine=pbxt;
+insert t1 values (1, "ab");
+select * from t1 where name = "ab";
+insert t1 values (2, "ab ");
+insert t1 values (3, "ab  ");
+select * from t1 where name = "ab";
+insert t1 values (4, "ab ");
+
+
+# BUG: "-49: Record format unknown, either corrupted or upgrade required"
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( id int, name varchar(300)) engine=pbxt;
+begin;
+insert t1(id, name) values(1, "aaa");
+update t1 set name=REPEAT('A', 300) where id = 1;
+commit;
+flush tables;
+select * from t1;
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 ( id int, name varchar(300)) engine=pbxt;
+begin;
+insert t1(id, name) values(1, REPEAT('A', 300));
+update t1 set name="aaa" where id = 1;
+commit;
+flush tables;
+select * from t1;
+
+
+# BUG: failing TRUNCATE TABLE puts handler into an invalid state with later crash
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+create table t1 (s1 int primary key) engine = pbxt;
+insert into t1 values (1);
+create table t2 (s1 int, foreign key (s1) references t1 (s1)) engine = pbxt;
+insert into t2 values (1);
+# this should fail because of FK constraint
+--error 1451
+truncate table t1;
+# this caused a crash
+alter table t1 engine myisam;
+show create table t1;
+
+# BUG: Foreign Keys: missing row in table_constraints
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+create table t1 (s1 int primary key, s2 int unique not null) engine = pbxt; 
+create table t2 (s1 int, foreign key (s1) references t1 (s1)) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+
+select * from information_schema.referential_constraints where table_name = 't2';
+
+drop table t2, t1;
+
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+
+select * from information_schema.referential_constraints where table_name = 't2';
+
+drop table t2, t1;
+
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2), unique key ix2 (s1, s2)) engine = pbxt; 
+create table t2 (s1 int, s2 int, foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+
+select * from information_schema.referential_constraints where table_name = 't2';
+
+drop table t2, t1;
+
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt;
+create table t2 (s1 int, s2 int, 
+  foreign key (s1, s2) references t1 (s1, s2) on delete cascade on update set null) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+
+select * from information_schema.referential_constraints where table_name = 't2';
+
+drop table t2, t1;
+
+create table t2 (s1 int, s2 int, s3 int, s4 int, unique key ix34 (s3, s4),
+  foreign key (s1, s2) references t2 (s3, s4)) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't2';
+
+select * from information_schema.referential_constraints where table_name = 't2';
+
+drop table t2;
+
+create table t1 (s1 int, s2 int, unique key ix1 (s1, s2)) engine = pbxt; 
+create table t2 (s1 int, s2 int, 
+  foreign key (s1, s2) references t1 (s1, s2)) engine = pbxt;
+alter table t1 add constraint s2 foreign key (s1, s2) references t2 (s1, s2);
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  (table_name = 't1' or table_name = 't2');
+
+select * from information_schema.referential_constraints where (table_name = 't1' or table_name = 't2');
+
+set foreign_key_checks = 0;
+drop table t2, t1;
+set foreign_key_checks = 1;
+
+create table t1 (id int primary key, s1 int, foreign key (s1) references t1 (id)) engine = pbxt;
+
+select * from information_schema.table_constraints
+  where constraint_type = 'FOREIGN KEY' and  table_name = 't1';
+
+select * from information_schema.referential_constraints where table_name = 't1';
+
+drop table t1;
+
+# BUGS: 
+# 1. Foreign keys: crash if update cascade and autocommit=0,
+# 2. Foreign keys: crash if update cascade and multi-level recursion
+
+# original test-case
+
+--disable_warnings
+drop table if exists t2,t1;
+--enable_warnings
+
+create table t1 (s1 int primary key) engine = pbxt; 
+create table t2 (s1 int primary key, foreign key (s1) references t1 (s1) on update cascade) engine = pbxt;
+
+set @@autocommit = 0;
+insert into t1 values (1); 
+insert into t2 values (1); 
+update t1 set s1 = 2;
+set @@autocommit = 1;
+
+select * from t1, t2;
+
+# test-case with multiple columns/indexes
+
+drop table t2, t1;
+
+create table t1 (s1 int primary key, s2 int, key (s1, s2)) engine = pbxt; 
+create table t2 (s1 int primary key, s2 int, key (s1, s2), foreign key (s1) references t1 (s1) on update cascade) engine = pbxt;
+
+set @@autocommit = 0;
+insert into t1 values (1, 5); 
+insert into t2 values (1, 6); 
+update t1 set s1 = 2;
+set @@autocommit = 1;
+
+select * from t1, t2;
+
+drop table t2, t1;
+
+# test case for the second bug 
+
+set @@autocommit = 1;
+
+SET foreign_key_checks = 0;
+--disable_warnings
+DROP TABLE IF EXISTS t15,t14,t13,t12,t11,t10,t9,t8,t7,t6,t5,t4,t3,t2,t1;
+--enable_warnings
+SET foreign_key_checks = 1;
+
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT) engine = pbxt; 
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t3 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t2 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t4 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t3 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t5 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t4 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t6 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t5 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t7 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t6 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t8 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t7 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t9 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t8 (s1) ON UPDATE CASCADE) engine = pbxt;
+CREATE TABLE t10(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t9 (s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t11(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t10(s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t12(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t11(s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t13(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t12(s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t14(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t13(s1) ON UPDATE CASCADE) engine = pbxt; 
+CREATE TABLE t15(s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t14(s1) ON UPDATE CASCADE) engine = pbxt; 
+
+ALTER TABLE t1 ADD FOREIGN KEY (s2) REFERENCES t15(s1) ON UPDATE CASCADE; 
+
+SET foreign_key_checks = 0; 
+
+INSERT INTO t1 VALUES (1,NULL); 
+INSERT INTO t2 VALUES (1); 
+INSERT INTO t3 VALUES (1); 
+INSERT INTO t4 VALUES (1); 
+INSERT INTO t5 VALUES (1); 
+INSERT INTO t6 VALUES (1); 
+INSERT INTO t7 VALUES (1); 
+INSERT INTO t8 VALUES (1); 
+INSERT INTO t9 VALUES (1); 
+INSERT INTO t10 VALUES (1); 
+INSERT INTO t11 VALUES (1);
+INSERT INTO t12 VALUES (1);
+INSERT INTO t13 VALUES (1); 
+INSERT INTO t14 VALUES (1); 
+INSERT INTO t15 VALUES (1); 
+
+SET foreign_key_checks = 1; 
+
+UPDATE t1 SET s1 = 2; 
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+
+UPDATE t1 SET s2 = 2;
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+
+# this query works with pbxt, fails with innodb, falcon 6.0.5 ignores constraint actions
+UPDATE t1 SET s1 = 3;
+select * from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15;
+
+SET foreign_key_checks = 0;
+DROP TABLE IF EXISTS t15,t14,t13,t12,t11,t10,t9,t8,t7,t6,t5,t4,t3,t2,t1;
+SET foreign_key_checks = 1;
+
+# BUG: Foreign keys: can't reference with enum
+# correct behavior: references between ENUMs and SETs are allowed as long as they have equal number of members
+
+--disable_warnings
+DROP TABLE IF EXISTS t2,t1;
+--enable_warnings
+
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt; 
+CREATE TABLE t2 (s1 ENUM('A','B'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt; 
+-- error 1005
+CREATE TABLE t2 (s1 ENUM('A','B', 'C'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (s1 ENUM('a','b','c') PRIMARY KEY) engine = pbxt; 
+CREATE TABLE t2 (s1 ENUM('d','e','f'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt; 
+CREATE TABLE t2 (s1 SET('A','B'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt; 
+-- error 1005
+CREATE TABLE t2 (s1 SET('A','B', 'C'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (s1 SET('a','b','c') PRIMARY KEY) engine = pbxt;
+CREATE TABLE t2 (s1 SET('d','e','f'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t2,t1;
+
+CREATE TABLE t1 (s1 SET('a','b') PRIMARY KEY) engine = pbxt;
+-- error 1005
+CREATE TABLE t2 (s1 ENUM('a','b'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY) engine = pbxt;
+-- error 1005
+CREATE TABLE t2 (s1 SET('a','b'), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt;
+
+DROP TABLE t1;
+
+# RN155: Errors during cascade update of VARCHAR values with trailing spaces
+
+DROP TABLE IF EXISTS t2, t1;
+CREATE TABLE t1 (s1 VARCHAR(50) PRIMARY KEY) engine = pbxt; 
+CREATE TABLE t2 (s1 VARCHAR(50), FOREIGN KEY (s1) REFERENCES t1 (s1)) engine = pbxt; 
+
+INSERT INTO t1 VALUES ('A'); 
+INSERT INTO t2 VALUES ('A '); 
+
+UPDATE t1 SET s1 = 'A '; 
+
+DELETE FROM t2;
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES ('A'); 
+INSERT INTO t2 VALUES ('A'); 
+
+UPDATE t1 SET s1 = 'A ';
+UPDATE t2 SET s1 = 'A  ';
+UPDATE t1 SET s1 = 'a';
+UPDATE t2 SET s1 = 'a';
+
+DROP TABLE t2, t1;
+
+# SET DEFAULT produces error
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+CREATE TABLE t2 (s1 INT DEFAULT 2, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1),(2); 
+INSERT INTO t2 VALUES (1); 
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 DATE NOT NULL UNIQUE); 
+CREATE TABLE t2 (s1 DATE DEFAULT '2000-01-01', FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE SET DEFAULT); 
+
+INSERT INTO t1 VALUES ('2001-01-01'); 
+INSERT INTO t2 VALUES ('2001-01-01');
+UPDATE t1 SET s1 = '2001-01-02';
+SELECT * FROM t2;
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1),(2); 
+INSERT INTO t2 VALUES (1); 
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 VARCHAR(45) primary key);
+CREATE TABLE t2 (s1 VARCHAR(45) DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1),(2); 
+INSERT INTO t2 VALUES (1); 
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 VARCHAR(45), INDEX (s1(10)));
+CREATE TABLE t2 (s1 VARCHAR(45) DEFAULT "12345678901", FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1),(2); 
+INSERT INTO t2 VALUES (1); 
+DELETE FROM t1 WHERE s1 = 1;
+SELECT * FROM t2;
+
+# A crash if inserting into a table that has an FK that references a column that has no index on it
+
+DROP TABLE IF EXISTS t2,t1;
+CREATE TABLE t1 (s1 INT);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1); 
+--error 1297
+INSERT INTO t2 VALUES (1);  # this used to crash
+
+# A crash if cascade operation on child table triggers a subsequent cascade operation and that operation fails 
+# (e.g. because of contraint violation)
+
+--disable_warnings
+DROP TABLE IF EXISTS t3,t2,t1;
+--enable_warnings
+CREATE TABLE t1 (s1 INT primary key);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET NULL); 
+CREATE TABLE t3 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t2 (s1) ON DELETE SET NULL); 
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1); 
+INSERT INTO t3 VALUES (1); 
+
+# we don't have on-update action for t3 which means NO ACTION which is basically the same as RESTICT, and the constraints check fails
+--error 1451
+DELETE FROM t1 WHERE s1 = 1;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+# Same as previous test but action is SET DEFAULT
+
+--disable_warnings
+DROP TABLE IF EXISTS t3,t2,t1;
+--enable_warnings
+CREATE TABLE t1 (s1 INT primary key);
+CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE SET DEFAULT); 
+CREATE TABLE t3 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t2 (s1) ON DELETE SET DEFAULT); 
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (1); 
+INSERT INTO t3 VALUES (1); 
+
+# we don't have on-update action for t3 which means NO ACTION which is basically the same as RESTICT, and the constraints check fails
+--error 1451
+DELETE FROM t1 WHERE s1 = 1;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+
+DROP TABLE IF EXISTS t3,t2,t1;
+
+# RN203: Fixed foreign key bug: REPLACE fails with 'on delete cascade'
+
+--disable_warnings
+DROP TABLE IF EXISTS t2,t1;
+--enable_warnings
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 char(1));
+CREATE TABLE t2 (s1 INT, s2 INT PRIMARY KEY,
+	FOREIGN KEY (s1) REFERENCES t1 (s1) ON DELETE CASCADE);
+INSERT INTO t1 VALUES (1,'a');
+INSERT INTO t2 VALUES (1,1);
+REPLACE INTO t1 VALUES (1,'b');
+SELECT COUNT(*) FROM t2;
+
+set foreign_key_checks = 0;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 char(1));
+set foreign_key_checks = 1;
+INSERT INTO t1 VALUES (1,'a');
+REPLACE INTO t1 VALUES (1,'b');
+
+# RN204: Foreign key references are now checked on CREATE TABLE.
+
+--disable_warnings
+DROP TABLE IF EXISTS t3,t2,t1;
+--enable_warnings
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT);
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE);
+CREATE TABLE t3 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t2 (s1) ON UPDATE CASCADE);
+
+DROP TABLE IF EXISTS t3,t2,t1;
+CREATE TABLE t1 (s1 ENUM('a','b') PRIMARY KEY);
+--error 1005
+CREATE TABLE t2 (s1 ENUM('A','B','C'), FOREIGN KEY (s1) REFERENCES t1 (s1));
+
+DROP TABLE IF EXISTS t2,t1;
+
+CREATE TABLE t1 (s1 INT PRIMARY KEY, s2 INT);
+CREATE TABLE t2 (s1 INT PRIMARY KEY, FOREIGN KEY (s1) REFERENCES t1 (s1) ON UPDATE CASCADE);
+
+DROP TABLE IF EXISTS t2,t1;
+
+# Relax restrictions on data types
+
+create table t1 (s1 varchar(40) primary key);
+create table t2 (s1 VARCHAR(30), foreign key (s1) references t1 (s1));
+insert into t1 values ("1");
+insert into t2 values ("1");
+
+DROP TABLE IF EXISTS t2,t1;
+
+# bug 340316: Issue with bigint unsigned auto-increment field
+
+--disable_warnings
+DROP TABLE IF EXISTS t5;
+--enable_warnings
+CREATE TABLE t5 (
+	c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, 
+	c2 BIGINT SIGNED NULL, 
+	c3 BIGINT SIGNED NOT NULL, 
+	c4 TINYINT, c5 SMALLINT, 
+	c6 MEDIUMINT, 
+	c7 INT, 
+	c8 INTEGER, 
+	PRIMARY KEY(c1,c2), UNIQUE INDEX(c3));
+
+INSERT INTO t5 VALUES
+	(0,-9223372036854775808,1,2,3,4,5,5),
+	(255,-2147483648,6,7,8,9,10,10),
+	(65535,-8388608,11,12,13,14,15,15),
+	(16777215,-32768,16,17,18,19,20,20),
+	(4294967295,-128,21,22,23,24,25,25),
+	(18446744073709551615,9223372036854775807,26,27,28,29,30,30);
+
+--error 1467
+INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+--error 1467
+INSERT INTO t5(c2,c3) VALUES(33,34);
+
+SELECT * FROM t5;
+
+DROP TABLE t5;
+
+/* same test as above with signed bigint */
+CREATE TABLE t5 (
+	c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT, 
+	c2 BIGINT SIGNED NULL, 
+	c3 BIGINT SIGNED NOT NULL, 
+	c4 TINYINT, c5 SMALLINT, 
+	c6 MEDIUMINT, 
+	c7 INT, 
+	c8 INTEGER, 
+	PRIMARY KEY(c1,c2), UNIQUE INDEX(c3));
+
+INSERT INTO t5 VALUES
+	(0,-9223372036854775808,1,2,3,4,5,5),
+	(255,-2147483648,6,7,8,9,10,10),
+	(65535,-8388608,11,12,13,14,15,15),
+	(16777215,-32768,16,17,18,19,20,20),
+	(4294967295,-128,21,22,23,24,25,25),
+	(9223372036854775807,9223372036854775807,26,27,28,29,30,30);
+
+--error 1467
+INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+--error 1467
+INSERT INTO t5(c2,c3) VALUES(33,34);
+
+SELECT * FROM t5;
+
+# bug 341115: wrong key comparison algorithm led to endless resultset
+
+CREATE TABLE t2(c1 INT SIGNED NOT NULL, c2 INT UNSIGNED NULL, c3 INT, KEY(c1), KEY(c2));
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+INSERT INTO t2 VALUES(-2147483648,0,13),(2147483647,4294967295,14),(0,2147483648,15),(2147483647,2147483647,16);
+--sorted_result
+SELECT * FROM t2;
+
+# make sure it uses index scan
+EXPLAIN SELECT c1 FROM t2;
+--sorted_result
+SELECT c1 FROM t2;
+
+UPDATE t2 SET c1=-2147483648 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC;
+UPDATE t2 SET c1=-2147483648 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+UPDATE t2 SET c1=-2147483648 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+--sorted_result
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+UPDATE t2 SET c1=-2147483648 WHERE c1=-12 OR c2=1;
+--sorted_result
+SELECT * FROM t2 WHERE c1=-2147483648;
+--sorted_result
+SELECT * FROM t2;
+
+# make sure it uses index scan
+EXPLAIN SELECT c1 FROM t2;
+--sorted_result
+SELECT c1 FROM t2;
+
+# bug 313391: LOAD DATA..REPLACE broken
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (c1 INTEGER NOT NULL PRIMARY KEY, c2 VARCHAR(255));
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/pbxt_load_unique_error1.inc' REPLACE INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (@c1,c2) SET c1 = @c1 % 2;
+--sorted_result
+SELECT * FROM t1 ORDER BY c1;
+DROP TABLE t1;
+
+create table parent (id int primary key);
+create table child (id int PRIMARY KEY, FOREIGN KEY (id) REFERENCES parent(id));
+insert into parent values (2), (3), (4);
+insert into child values (3), (4);
+
+--error 1451
+delete ignore from parent;
+--sorted_result
+select * from parent;
+
+drop table child, parent;
+
+# bug 378222: Drop sakila causes error: Cannot delete or update a parent row: a foreign key constraint fails
+
+create schema test378222;
+use test378222;
+create table t1 (id int primary key);
+create table t2 (id int primary key);
+alter table t1 add constraint foreign key (id) references t2 (id);
+alter table t2 add constraint foreign key (id) references t1 (id);
+drop schema test378222;
+
+create schema test378222a;
+create schema test378222b;
+create table test378222a.t1 (id int primary key);
+create table test378222b.t2 (id int primary key);
+alter table test378222a.t1 add constraint foreign key (id) references test378222b.t2 (id);
+alter table test378222b.t2 add constraint foreign key (id) references test378222a.t1 (id);
+set foreign_key_checks = 1;
+--error 1217
+drop schema test378222a;
+--error 1217
+drop schema test378222b;
+set foreign_key_checks = 0;
+drop schema test378222a;
+drop schema test378222b;
+set foreign_key_checks = 1;
+use test;
+
+# bug 369086: Incosistent/Incorrect Truncate behavior
+CREATE TABLE t1(c1 TINYINT AUTO_INCREMENT NULL KEY ) AUTO_INCREMENT=10;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--disable_query_log
+
+DROP TABLE t2, t5;
+drop database pbxt;
+--enable_query_log

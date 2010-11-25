@@ -1,0 +1,964 @@
+PBXT Release Notes
+==================
+
+------- 1.0.11-7 Pre-GA - 2010-09-09
+
+RN336: Compiled and tested with MySQL 5.1.50.
+
+RN335: Fixed bug #523994: Deleting all records does not update table statistics. 
+
+RN334: Made a change to reduce the time that only temporary tables exist during the ALTER TABLE and REPAIR TABLE statements. This increases the chance of recovery if a crash occurs during these operations.
+
+RN333: Log name of table when PBXT recovers an index on startup. If an error occurs during index recovery, the index is set to "repair pending".
+
+RN332: Fixed an inifinite loop when a record in a row is corrupt. Added logging and set the table to "repair pending" in this case.
+
+RN331: Fixed bug #626890: Crash on truncate table operation.
+
+RN330: Added additional checks for corruption of the index free list.
+
+------- 1.0.11-6 Pre-GA - 2010-07-08
+
+RN329: Fixed bug #601245: make fails. PBXT did not compile if the partition engine was disabled in the MySQL build.
+
+------- 1.0.11-5 Pre-GA - 2010-06-18
+
+RN328: Fixed bug #595478: Compile fails (1.0.11-4).
+
+------- 1.0.11-4 Pre-GA - 2010-06-15
+
+RN327: Fixed a bug that caused a crash during delete on the index. The crash occurred due to memory overwrite when a long key is promoted after a shorter key is deleted, and the difference causes a node size overflow.
+
+------- 1.0.11-3 Pre-GA - 2010-06-11
+
+RN326: Fixed bug #587740: pbxt-1.0.11-pre2-ga first time create partition table error. This was not a new bug. The problem was the PBXT system table's .frm files are corrupted when the first PBXT table created is a partition table.
+
+RN325: Fixed the "to-sweep" column output in xtstat.
+
+------- 1.0.11-2 Pre-GA - 2010-05-26
+
+RN324: Fixed bug #584070:pbxt-1.0.11-pre-ga does not work with mysql 5.1.47. This bug fix removes a hack which was done to avoid running into the LOCK_plugin lock.
+
+------- 1.0.11-1 Pre-GA - 2010-05-19
+
+RN323: Detect corruption of a key length in an index page. This bug fix avoids a possible crash due to index page corruption. 
+
+------- 1.0.11 Pre-GA - 2010-05-11
+
+RN322: Creating a table the references a non-existing table can now only be done if you set: foreign_key_checks = 0. Also fixed a failure when creating tables with recursive foreign key declarations.
+
+RN321: Added "Extended record count" to the CHECK TABLE output. This indicates the number of records that have a data log component.
+
+RN320: All tests now run with MySQL 5.1.46.
+
+------- 1.0.10n RC4 - 2010-04-28
+
+RN319: Fix RN1/3 and RN1/4 back-ported from 1.1: Fixed a deadlock that could occur during low index cache situations and added some checks for index corruption, and added the try lock variation for R/W locks.
+
+RN318: Fixed a bug in the atomic R/W lock. This bug occurred on multi-core Linux when under extrem load. The affect was that an index lookup could fail. The index was not corrupted.
+
+------- 1.0.10m RC4 - 2010-03-29
+
+RN317: This change prevents a unscheduled checkpoint from occurring when the sweeper has work to do. Checkpoint required due to the Checkpoint threshold reached are done as usual.
+
+------- 1.0.10k RC4 - 2010-03-29
+
+RN316: Set the maximum delay, while waiting for previous transactions to commit to 1/100s. This situation occurs when cleanup begins of a long running transaction.
+
+RN315: Fixed a bug that could lead to a data log error, for example: Data log not found: '.../dlog-129602.xt'. This error occurred after a duplicate key error, dending on the table structure, because the row buffer was not restored after writing an extended record.
+
+RN314: Server startup time could be very long when data logs become large because the log size was not save in the header when a data log is full.
+
+------- 1.0.10j RC4 - 2010-03-24
+
+RN313: Fixed an error in the calculation of the handle data record (.xtd files) size when AVG_ROW_LENGTH is set explicitly to a value less than 12. For example:
+
+CREATE TABLE objs (
+  id int(10)  unsigned   NOT NULL,
+  objdata     mediumblob NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=PBXT AVG_ROW_LENGTH=10
+
+This table definition previously lead to corruption of the table because the handle data record was set to 24 (14+10), which is less than the minimum (for variable length records) handle data record size of 26.
+
+This minimum consists of 14 byte record header and 12 bytes reference to the extended record data (the part of the record in the data log).
+
+Tip: when setting AVG_ROW_LENGTH you should normally add 12 to the average row length estimate to ensure that the average length part of the record is always in the handle data file. This is important, for example if you wish to make sure that the rows used to build indexes are in the handle data file. CHECK TABLE tells you how many rows are in the "fixed length part" of the record (output in MySQL error log). In the example above, this would be AVG_ROW_LENGTH=17.
+
+The maximum size of a field can be calculated adding the maximum byte size as described here: http://dev.mysql.com/doc/refman/5.1/en/storage-requirements.html, and then add the following values, depending on the byte size:
+
+byte size <= 240, add 1
+byte size < 2^16 (65536), add 3
+byte size < 2^24 (16777216), add 4
+byte size > 2^24, add 5
+
+------- 1.0.10i RC4 - 2010-03-17
+
+RN312: Fixed bug #534361: Valgrind error: write of uninitialised bytes in xt_flush_indices()
+
+RN311: Fixed ilog corruption when running out of disk space during an index flush operation, which lead to corruption of the index.
+
+------- 1.0.10h RC4 - 2010-02-25
+
+RN310: Fixed Windows atomic INC/DEC operations, which lead to atomic R/W lock not working correctly. The result was that some index entries were not foound.
+
+RN309: Fixed a bug that caused a crash when the index was corrupted. The crash occurs if the index page in not completely written, and an item in the index has a bad length.
+
+RN308: Fixed bug #509803: can't run tpcc (cannot compare FKs that rely on indexes of different length).
+
+------- 1.0.10g RC4 - 2010-02-11
+
+RN307:  2010-02-15: Set the internal version number 1.0.10g.
+
+RN306: All tests now run with MySQL 5.1.42.
+
+RN305: Fixed a bug that could cause a crash in filesort. The problem was that the return row estimate was incorrect, which caused the result of estimate_rows_upper_bound() to overflow to zero. Row estimate has been changed, and no longer takes into account deleted rows (so the row estimate is now a maximum).
+
+RN304: Fixed bug #513012: On a table with a trigger the same record is updated more than once in one statement
+
+------- 1.0.10f RC4 - 2010-01-29
+
+RN303: Fix RN1/10 back-ported from 1.1: Fixed a bug in the record cache that caused PBXT to think it had run out of cache memory. The effect was that PBXT used less and less cache over time. The bug occurs during heavy concurrent access on the record cache. The affect is the PBXT gets slower and slower.
+
+RN302: Fix RN1/11 back-ported from 1.1: Corrected a problem that sometimes caused a pause in activity when the record cache was full.
+
+------- 1.0.10e RC4 - 2010-01-25
+
+RN301: Fixed index statistics calculation. This bug lead to the wrong indices being selected by the optimizer because all indices returned the same cost. 
+
+RN300: Fixed bug #509968: START TRANSACTION WITH CONSISTENT SNAPSHOT breaks transactional flow.
+
+RN299: Fixed bug #509218: Server asserts with Assertion `mutex->__data.__owner == 0' failed on high concurrency OLTP test.
+
+------- 1.0.10d RC4 - 2010-01-11
+
+RN298: Fixed a bug that caused huge amounts of transaction log to be written when pbxt_flush_log_at_trx_commit = 2.
+
+------- 1.0.10c RC4 - 2009-12-29
+
+RN297: Updated "LOCK TABLES ... READ LOCAL" behavior to be more restrictive and compatible with InnoDB 
+
+RN296: Fixed bug #499026: START TRANSACTION WITH CONSISTENT SNAPSHOT does not work for PBXT
+
+------- 1.0.10 RC4 - 2009-12-18
+
+RN295: PBXT tests now all run with MySQL 5.1.41.
+
+RN294: Fixed bug #483714: a broken table can prevent other tables from opening
+
+RN293: Added system variable pbxt_flush_log_at_trx_commit. The value of this variable determines whether the transaction log is written and/or flushed when a transaction is ended. A value of 0 means don't write or flush the transaction log, 1 means write and flush and 2 means write, but do not flush. No matter what the setting is choosen, the transaction log is written and flushed at least once per second.
+
+------- 1.0.09g RC3 - 2009-12-16
+
+RN292: Fixed a bug that resulted in 2-phase commit not being used between PBXT and the binlog. This bug was a result of a hack which as added to solve a problem in an pre-release version of MySQL 5.1. The hack was removed. 
+
+------- 1.0.09f RC3 - 2009-11-30
+
+RN291: Fixed bug #489088: On shutdown MySQL reports: [Warning] Plugin 'PBXT' will be forced to shutdown.
+
+RN290: Fixed bug #345524: pbxt does not compile on 64 bit windows. Currently atomic operations are not supported on this platform.
+
+RN286: Fixed a bug introduced in RN281, which could cause an index scan to hang. The original change was to prevent a warning in Valgrind.
+
+RN285: Merged changes required to compile with Drizzle.
+
+RN284: Fixed bug that cause the error "[ERROR] Invalid (old?) table or database name 'mysqld.1'", when running temp_table.test under MariaDB (thanks to Monty for his initial bug fix). Added a fix for partition table names as well.
+
+RN283: Added win_inttypes.h to the distribution. This file is only required for the Windows build.
+
+RN282: Fixed bug #451101: jump or move depends on uninitialised value in myxt_get_key_length
+
+RN281: Fixed bug #451080: Uninitialised memory write in XTDatabaseLog::xlog_append
+
+RN280: Fixed bug #451085: jump or move depends on uninitialised value in my_type_to_string
+
+RN279: Fixed bug #441000: xtstat crashes with segmentation fault on startup if max_pbxt_threads exceeded.
+
+------- 1.0.09e RC3 - 2009-11-20
+
+RN278: Fixed compile error with MySQL 5.1.41.
+
+------- 1.0.09d RC3 - 2009-09-30
+
+RN277: Added r/o flag to pbxt_max_threads server variable (this fix is related to bug #430637)
+
+RN276: Added test case for replication on tables w/o PKs (see bug #430716)
+
+RN275: Fixed bug #430600: 'Failed to read auto-increment value from storage engine' error.
+
+RN274: Fixed bug #431240: This report is public edit xtstat fails if no PBXT table has been created. xtstat now accepts --database=information_schema or --database=pbxt. Depending on this setting PBXT will either use the information_schema.pbxt_statistics or the pbxt.statistics table. If information_schema is used, then the statistics are displayed even when no PBXT table exists. Recovery activity is also displayed, unless pbxt_support_xa=1, in which case MySQL will wait for PBXT recovery to complete before allowing connections. 
+
+RN273: Fixed bug #430633: XA_RBDEADLOCK is not returned on XA END after the transacting ended with a deadlock.
+
+RN272: Fixed bug #430596: Backup/restore does not work well even on a basic PBXT table with auto-increment.
+
+------- 1.0.09c RC3 - 2009-09-16
+
+RN271: Windows build update: now you can simply put the pbxt directory under <mysql-root>/storage and build the PBXT engine as a part of the source tree. The engine will be linked statically. Be sure to specify the WITH_PBXT_STORAGE_ENGINE option when running win\configure.js
+
+RN270: Correctly disabled PBMS so that this version now compiles under Windows. If PBMS_ENABLED is defined, PBXT will not compile under Windows becaause of a getpid() call in pbms.h.
+
+------- 1.0.09 RC3 - 2009-09-09
+
+RN269: Implemented online backup. A native online backup driver now performs BACKUP and RESTORE DATABASE operations for PBXT. NOTE: This feature is only supported by MySQL 6.0.9 or later.
+
+RN268: Implemented XA support. PBXT now supports all XA related MySQL statements. The variable pbxt_support_xa determines if XA support is enabled. Note: due to MySQL bug #47134, enabling XA support could lead to a crash. 
+
+------- 1.0.08d RC2 - 2009-09-02
+
+RN267: Fixed a bug that caused MySQL to crash on shutdown, after an incorrect command line parameter was given. The crash occurred because the background recovery task was not cleaned up before the PBXT engine was de-initialized.
+
+------- 1.0.08c RC2 - 2009-08-18
+
+RN266: Updated BLOB streaming glue, used with the PBMS engine. The glue code is now identical to the version of "1.0.08-rc-pbms" version of PBXT available from http://blobstreaming.org/download.
+
+RN265: Changes the sequential reading of data log files to skip gaps, instead of returning EOF. This ensures that extended data records are preserved even when something goes wrong with the way the file is written.
+
+RN264: Fixed a bug that cased an "Data log not found" error after an out of disk space error on a log file. This bug is similar to RN262 in that it allows "gaps" to appear in the data logs.
+
+RN263: Updated xtstat to compile on Windows/MS Visual C++.
+
+RN262: Merged changes for PBMS version 0.5.09.
+
+RN261: Concerning bug #377788: Cannot find index for FK. Fixed buffer overflow which occurred when the error was reported.
+
+RN260: Fixed bug #377788: Cannot find index for FK. PBXT now correctly uses prefix of an index to support FK references (e.g. if key = (c1, c2) then an index on (c1, c2, c3) will work). Also fixed buffer overflow, which occurred when reporting the error.
+
+RN259: Fixed bug #309424: xtstat doesn't use my.cnf. You can now add an [xtstat] section to my.cnf, for use with xtstat.
+
+RN258: updated xt_p_join implementation for Windows to check if a thread has already exited or has not yet started
+
+RN257: Removed false assertion that could fail during restore if a transaction log page was zero-filled
+
+RN256: Update datalog eof pointer only if write opearions were sucessful
+
+RN255: Added re-allocation of of filemap if allocating the of the new map failed. This often happens if there's not enough space on disk.
+
+RN254: When a table with a corrupted index is detected, PBXT creates a file called 'repair-pending' in the pbxt directory, with the name of the table in it. Each table in the file is listed on a line by itself (the last line has no trailing \n). When the table is repaired (using the REPAIR TABLE command), this entry is removed from the file.
+
+RN253: Use fcntl(F_FULLFSYNC) instead of fsync on platforms that support it. Improper fsync operation was presumably the reason of index corruption on Mac OS X.
+
+RN252: Fixed bug #368692: PBXT not reporting data size correctly in information_schema.
+
+------- 1.0.08 RC2 - 2009-06-30
+
+RN251: A Windows-specific test update, also removed false assertion that failed on Windows.
+
+RN250: Fixed a bug that caused recovery to fail when the transaction log ID exceeded 255. The problem was a checksum failed in the log record.
+
+RN249: Fixed bug #313176: Test case timeout. This happened because record cache pages where not properly freed and as soon as cache filled up the performacne degraded.
+
+RN248: PBXT now compiles and runs with MySQL 5.1.35. All tests pass.
+
+RN247: Fixed bug #369086: Incosistent/Incorrect Truncate behavior
+
+RN246: Fixed bug #378222: Drop sakila causes error: Cannot delete or update a parent row: a foreign key constraint fails
+
+RN245: Fixed bug #379315: Inconsistent behavior of DELETE IGNORE and FK constraint.
+
+RN244: Fixed a recovery problem: during the recovery of "record modified" action the table was updated before the old index entries were removed; then the xres_remove_index_entries was supplied the new record which lead to incorrect index update.
+
+RN243: Fixed a bug that caused a recovery failure if partitioned pbxt tables where present. This happended because the recovery used a MySQL function to open tables and the PBXT handler was not yet registered
+
+RN242: Fixed a bug that caused a deadlock if pbxt initialization failed. This happened because pbxt ceanup was done from pbxt_init() with PLUGIN_lock being held by MySQL which lead to a deadlock in the freeer thread
+
+RN241: Fixed a heap corruption bug (writing to a freed memory location). It happened only when memory mapped files were used leading to heap inconsistency and program crash or termination by heap checker. Likely to happen right after or during DROP TABLE but possible in other cases too.
+
+RN240: Load the record cache on read when no using memory mapped files.
+
+RN239: Added PBXT variable pbxt_max_threads. This is the maximum number of threads that can be created PBXT. By default this value is set to 0 which means the number of threads is derived from the MySQL variable max_connections. The value used is max_connections+7. Under Drizzle the default value is 500.
+
+RN238: Added an option to wait for the sweeper to clean up old transactions on a particular connection. This prevents the sweeper from getting too far behind.
+
+RN237: Added an option to lazy delete fixed length index entries. This means the index entries are just marked for deletion, instead of removing the items from the index page. This has the advantage that an exclusive lock is not always required for deletion.
+
+RN236: Fixed bug #349177: a bug in configure.in script.
+
+RN235: Fixed bug 349176: a compiler warning.
+
+RN234: Completed Drizzle integration. All Drizzle tests now run with PBXT.
+
+RN233: Fixed bugs which occur when PBXT is used together with PBMS (BLOB Streaming engine).
+
+RN232: Merged Drizzle-specific changes into the main tree.
+
+RN231: Fixed a bug that caused bad performance as the number of threads increased. This occurred when the number of open table handles exceeded 'table_open_cache', and MySQL started closing open table handlers. PBXT was flushing a table when all table handlers were closed. PBXT will now only do this when the FLUSH TABLES statement is used.
+
+RN230: Improved efficiency of conflict resolution: Implemented a queue for threads waiting for a lock. Threads no longer poll to take a lock. If a temp lock is granted because of an update, then the thread granted the temp lock will also wait for the transaction that did the update to quit.
+
+RN229: Fixed bug #313391: LOAD DATA ... REPLACE broken.
+
+RN228: Fixed bug #341115: 'Out of memory' error (a bug in key comparison algorithm).
+
+RN227: Changed conflict handling to use spin locks and improve efficiency.
+
+RN226: Fixed bug #340316: Issue with bigint unsigned auto-increment field.
+
+RN225: Fixed bug #308557: UPDATE fails to match all rows in a transactional scenario.
+
+RN224: Fixed a deadlock which could occur during table scans.
+
+RN223: Index scans now use handles to cache buffers instead of making a copy of the index page. The handles are "copy-on-write".
+
+RN222: Fixed a bug that caused the server to hang on startup if PBXT ran out of record cache while waiting for the sweeper to complete.
+
+RN221: Fixed an index recovery bug. This occurred if the server crashed after operating in low index cache sitations. 
+
+RN220: Improved index selectivity estimation: added scanning from the end of index backwards.
+
+RN219: Fixed a problem: during intersected range scan not all fields were returned by engine to MySQL.
+
+RN218: Changed the way row locking (used by SELECT FOR UPDATE) works. Previously we locked a group of rows at once (although there were many groups). However, this caused conflicts even when the same rows were not locked. We now locks individual rows.
+
+RN217: Fixed bug #315564: Rollbacked inserts remain permanently in table.
+
+RN216: Added lock tracing. In DEBUG mode, each thread has a list of locks (semaphores, mutexes, r/w locks that it holds).
+
+RN215: Fixed a bug that caused a crash during restart if an index file was flushed during recovery.
+
+RN214: Fixed bug #310184: Deadlock when trying to wake up transactions
+
+RN213: Fixed an index corruption bug on SPARC Solaris. Note this error will occur on any machine that does not use the x86 (little endian) byte order.
+
+------- 1.0.07 RC - 2008-12-15
+
+RN212: Fixed build problems on NetBSD.
+
+RN211: Fixed build problems on FreeBSD.
+
+RN210: Fixed build problems on OpenSolaris.
+
+RN209: Added handling of the foreign_key_checks system flag.
+
+RN208: xtstat will now automatically reconnect if the connection to server is lost. 
+
+RN207: Foreign key references are now checked on CREATE TABLE.
+
+RN206: Fixed a crash if inserting into a table that has an FK that references a column that has no index on it.
+
+RN205: Added processing of foreign key action SET DEFAULT.
+
+RN204: Fixed an index recovery problem: unswept index entries were not recovered correctly 
+
+RN203: Fixed foreign key bug: REPLACE fails with 'on delete cascade'
+
+RN202: Fixes and updates to tests, now all tests pass on windows and linux.
+
+RN201: Fixed ref-counting for mmapped files.
+
+RN200: Fixed an index recovery problem: unswept index entries were not recovered correctly .
+
+RN199: Recovery now takes place on plug-in startup. Previously recovery occurred when the first PBXT table was accessed.
+
+RN198: Fixed a recovery bug that caused index entries to get out of sync with the data file.
+
+RN197: Improved the efficiency of group commit.
+
+RN196: Changed checkpointing so that it now works during idle time. Every record, row or index file fllush now also contributes to the checkpoint (fuzzy checkpointing). Checkpointing is forced to complete after about 50% of the checkpoint threshold in order to ensure the correct maximum for log reading on recovery.
+
+RN195: Fixed scheduling bug that caused sweeper to get behind with the cleanup, which caused performance problems in high conflict situations. Foreground threads will now wait if the sweeper gets too far behind.
+
+RN194: Created the xtstat program which monitors the internal performance of PBXT. Run xtstat --help for more details information of the output. 
+
+RN193: Implemented the pbxt.statistics virtual table. The statistics table returns information about the internal activity of the engine. This includes I/O byte counts, cache hit counts and usage, commit count, etc. 
+
+RN192: Due to timing issues in the engine API it could happen that the client received an OK for a committed transaction before the transaction was actually committed. This problem has been fixed.
+
+RN191: Fixed a bug that caused a hang when conflicts occured while reading a covering index.
+
+RN190: Previously the sweeper delayed deletion of transaction structures until all transactions that were running during sweeping have quit. This is now handled by the same code that fixed the bug in RN189.
+
+RN189: Fixed a bug that could cause a row to go missing due to a visibility issue.
+
+RN188: Fixed a bug which ocurred when using CREATE TABLE ... AVG_ROW_LENGTH=x, and the table contained BLOBs. In this case, alter table corrupted the table.
+
+RN187: Windows now stores paths in the location file in UNIX format by converting all '\' characters to '/'. Note that the location file is only cross-platform if the paths are relative (which is the default).
+
+RN186: Set version number to 1.0.07.
+
+------- 1.0.06 Beta 2 - 2008-11-06
+
+RN185: Disabled support for INSERT DELAYED because of MySQL bug #40505
+
+RN184: Implemented info(flag == HA_STATUS_AUTO) engine API call. This call returns the next value that will be assigned as auto-increment value on the table.
+
+RN183: Turned off streaming on Windows (see XT_STREAMING macro in sources)
+
+RN182: Switch code base to the latest version of BLOB streaming engine (PBMS): www.blobstreaming.org.
+
+RN181: Updated pbxt-test-run default parameters (--force is on, --default-storage-engine is pbxt, --base-dir is set according to config)
+
+RN180: PBXT can now cope with a missing .xti file (the file that contains the table indexes). This file can be regenerated using REPAIR TABLE.
+
+RN179: On recovery PBXT now creates a filed called 'recovery-progress' in the pbxt database. The recovery percentage complete is written to this file as recovery progresses. Note that this file will not be created if no recoery is necessary or if PBXT estimates that it will read less then 10MB to do recovery.
+
+RN178: Fixed a problem in CHECK TABLE that caused memory corruption for fixed-size records
+
+RN177: Added "crash debugging". When enabled, crash debugging does the following:
+  - Create a core dump on Windows if the server crashes.
+  - Make a backup copy of the datadir directory before recovery if the server crashes.
+  - Keep at least 5 of the previous transaction logs.
+Currently crash debugging is disabled by default. To disable, create a file called 'no-debug' in the pbxt database folder, and restart the server. When crash debugging is disabled by default, it can be enabled by creating a file called 'crash-debug; in the pbxt database folder.
+
+RN176: Fixed a bug: a lock was not released appropriately
+
+RN175: Fixed some debug assertions
+
+RN174: Fixed some of test/mysql-test tests
+
+RN173: Fixed a RENAME TABLE bug, that prevented index files from being properly recreated
+
+RN172: Added the file ./pbxt/lock-pid. This file is locked while the server is running, and  contains the process of the server. PBXT will return an error on startup if the file is locked or the process is still running in order to prevent a second server from being started.
+
+RN171: Implemented the AVG_ROW_LENGTH table attribute. When set, this value determines the size of the fixed length data component of a record. Normally this size is estimated depending on the column definitions. The command CHECK TABLE dumps the current average row length to the log. This can be used to find a suitable value for AVG_ROW_LENGTH.
+
+RN170: Changed configure so that debug/optimize flags set for building the engine override the flags set for MySQL. If --with-debug is not specified, then the engine will use the flags set when building MySQL. If MySQL was built with --with-debug=full, the DEBUG will be defined for the engine. When building the engine, the following flags can be set:
+  yes  - Debug symbols enabled, no optimization, DEBUG not defined.
+  full - Debug symbols enabled, no optimization, DEBUG defined.
+  only - Debug symbols enabled, MySQL flags used, DEBUG not defined.
+  prof - Profile code enabled, optimization on, DEBUG not defined.
+  no   - No debug symbols, optimization on, DEBUG not defined.
+
+RN169: Used MySQL root Makefile instead of config.status in order to extract settings (such as CFLAGS and CXXFLAGS) for the PBXT build.
+
+RN168: Fixed Windows build after merging changes for Drizzle.
+
+RN167: Fixed "This table requires primary key" error in sql-bench.
+
+RN166: Fixed threading problems that caused crashes in sql-bench.
+
+RN165: Added sql-bench to pbxt source tree.
+
+RN164: Ported PBXT to Drizzle. To compile for Drizzle DRIZZLED must be defined on the command line. The -drz.am and -drz.in files are must be used when PBXT is embedded in Drizzle.
+
+RN163: Added "make test" build step. Running "make test" from the root of pbxt source tree will launch test/mysql-test/pbxt-test-run.pl with appropriate options to execute the pbxt functional test suite. On Windows where 
+pbxt is statically linked into mysql server binary pbxt testing works by going to test/mysql-test directory and running ./pbxt-test-run.pl with --base-dir argument pointing to a mysql source tree (mysql binaries are taken 
+from there) and passing the rest of usual arguments (--force --mysqld=--default-storage-engine=pbxt) 
+
+RN162: The 'pbxt' database must now be dropped explicitly. It is automatically created when the first PBXT table is created. After that, the pbxt database can be dropped once all PBXT tables have been dropped. Dropping the pbxt database will also cause all transaction (pbxt/system directory) and data logs (pbxt/data directory) to also be deleted.
+
+RN161: Added pbxt.location system table. This table can only be dropped when all PBXT tables have been deleted. Dropping the system table will cause all transaction (pbxt/system directory) and data logs (pbxt/data directory) to also be deleted.
+
+RN160: Made changes to run with MySQL 6.0.6.
+
+RN159: Changes to configure: added --with-plugindir=<path>, which should be used to specify the plugin directory. This means that --libdir should no longer be used. For backwards compatibility configure will still recognize this options if the path ends with 'plugin'.
+
+Also updated --help, to include all options, and better desciptions of the options.
+
+The configure options are now as follows:
+
+--with-mysql=<path> - (Required) It specifies the path to the MySQL source tree. The source should already be built. All other options will be taken from the MySQL build by default.
+--with-debug=yes/no - (Optional) Specify if then engine should be built with different debug options to the MySQL source tree.
+--with-plugindur=<path> - (Optional) Specify an alternative installation directory for the plugin. By default it will be installed in the plugin directory of the MySQL installation.
+
+
+RN158: Added support for core dumps on Windows. This can be enabled by defining XT_COREDUMP. On by default at the moment. If the server crashes a file called PBXTCore00000001.dmp will be created in the data directory. This file can be openned using MS VS.
+
+RN157: Fixed a compile problem with tv_nsec which is not supported on all platforms.
+
+RN156: Updated tests to run with MySQL 5.1.28.
+
+RN155: Errors during cascade update of VARCHAR values with trailing spaces
+
+RN154: Fixed a bug: impossible to create a foreign key that referenced an ENUM or SET column
+
+RN153: Fixed a bug that caused the following problems: #1. Foreign keys: crash if update cascade and autocommit=0 #2. Foreign keys: crash if update cascade and multi-level recursion
+
+RN152: Fixed missing information about foreign keys in I_S.table_constraints and I_S.referential_constraints
+
+------- 1.0.05 Beta - 2008-08-30
+
+RN151: "Quick config": It is now possible to configure the engine by just specifying the mysql source code tree (the --with-mysql option). The --libdir and --with-debug setting will be deduced automatically. 
+
+RN150: Added system variable pbxt_sweeper_priority, 0 = low (default), 1 = normal (same as user threads), 2 = high. The sweeper cleans up deleted records (deleted records also result from an update). If allowed to accumulate, these records can slow searches. Higher priority for the sweeper is recommended on systems with 4 or more cores.  
+
+RN149: Record cleanup is now initiated if a deleted record is found, and the transaction that deleted the record has ended. Since waking up the sweeper is an expensive operation, normally the sweeper will run every 1/10th of a second.
+
+RN148: Fixed a bug which caused transaction starvation (one transaction was constantly locked out) during high conflict updates. This lead to cleanup of records not being done, which lead to a general slow down.
+
+RN147: Fixed a problem with TRUNCATE TABLE: a failed TRUNCATE TABLE could put the engine into an invalid state that later caused a crash
+
+RN146: Fixed a bug that caused the error: "-49: Record format unknown, either corrupted or upgrade required".
+
+RN145: Added pbxt_db_offline_log_function system variable, 0 = recycle logs (default), 1 = delete logs (default on Mac OS X), 2 = keep logs.
+
+------- 1.0.04 Alpha - 2008-08-02
+
+RN144: Completed port and testing of Windows version.
+
+RN143: Fixed a bug which caused the free-er thread to hang. This was a result of an invalid operation ID, which was the result of the checkpointer flushing the table at the same time as a foreground thread.
+
+RN142: The fast RW/mutex lock can now handle nested calls. This is possible during a sequential scan.
+
+RN141: The normal behavior in MySQL is that an auto-increment values will be re-issued if you delete the row containing the current maximum auto-increment value and then restart the server. To prevent this you can use ALTER TABLE my_table AUTO_INCREMENT = <current-max-auto-increment> + 1, before deleting the current maximum auto-increment value.
+
+A new system variable, pbxt_auto_increment_mode, has been added so that this work around is not necessary. When set to 0 (the default), auto-increment works as described above. When set to 1, the AUTO_INCREMENT value of the table is automatically to prevent previously issued auto-increment values being returned.
+
+However, if the server crashes, a gap of up to 100 unique values can result, because the table AUTO_INCREMENT value is incremented in steps of 100.
+
+RN140: Index statistics are now automatically recalculated when the table row count exceeds 200. 
+
+RN139: Fixed a bug that caused index corruption, error: "int idx_push(index_xt.cc:172) -2: Core B-tree too deep".
+
+RN138: Handle startup and recovery when an index is corrupted.
+
+RN137: Fixed a bug in the zero wait R/W lock that caused the lock to fail (the state is extremely volatile, and must be written to memory after increment).
+
+RN136: Fixed a bug that cause the error "int xt_pwrite_file(filesys_xt.cc:789) errno (14): Bad address".
+
+RN135: Fixed TRUNCATE TABLE that did not work correctly when the table contained BLOBs stored in the BLOB streaming engine (www.blobstreaming.org).
+
+RN134: Fixed a bug that caused duplicate rows to be returned from an index scan (using a SELECT FOR UPDATE) if a concurrent update was done.
+
+RN133: Optimised PBXT for multi-processor scale-up. This mostly involved using different types of locks instead of the standard pthread mutex and reader/writer locks [TODO: 0038].
+
+------- 1.0.03 Alpha - 2008-05-30
+
+RN132: Fixed bug when using PBXT in conjunction with the BLOB streaming engine (www.blobstreaming.org). Uploaded BLOBs could not be inserted into a table.
+
+RN131: Fixed wait for background processes on shutdown. Shutdown will wait a maximum of 16 seconds for each process.
+
+RN130: Fixed calculation of bytes to be read for recovery.
+
+RN129: Fixed bug in cleanup of unterminated transactions.
+
+RN128: The writer will now start working when one of the following is true:
+- it is time for a checkpoint,
+- the log cache is almost full,
+- the free'er is waiting for the writer,
+- there is no other activity.
+
+RN127: Fixed checkpoint frequency. Checkpointing is now done correctly after 'pbxt_checkpoint_frequency' bytes.
+
+RN126: Implemented index consistent write [TODO: 0050].
+
+RN125: Implemented memory mapping for row pointer (.xtr) and handle data files (.xtd).
+
+RN124: Index files now use direct I/O.
+
+------- 1.0.02 Alpha - 2008-04-25
+
+RN123: Fixed compile errors with MySQL 5.1.24.
+
+------- 1.0.01 Alpha - 2008-03-28
+
+RN122: ++++ NOTE: This version is not compatible with older versions of PBXT ++++.
+
+RN121: Transaction logs are now global so that multi-database statements are now possible. This makes it also possible to work PBXT temporary tables.
+
+RN120: Transaction logs pre-allocated and recycled.
+
+RN119: Transaction log writes on 512 byte boundaries only.
+
+------- 1.0.00 Alpha - 2008-03-10
+
+This version has alpha status because of the large number of changes done for full durability.
+
+RN118: ++++ NOTE: This version is incompatible to older versions of PBXT ++++.
+
+RN117: Documentation now avaliable at http://www.primebase.org/documentation.
+
+RN116: Corrected the plug.in file so that PBXT compiles when dropped into the storage directory in the MySQL source tree.
+
+RN115: Compiled and tested with MySQL 5.1.23.
+
+RN114: Increased index block size. Minimum is now 4K. Default is 16K.
+
+RN113: Calculate index selectivity to return a more accurate value from records_in_range(). NOTE: FLUSH TABLESl will update the index statistics, after data has been inserted or updated.
+
+RN112: Optimized table storage, saving 8 bytes per row.
+
+RN111: Optimized search on keys containing 2 or 3 not null integer values.
+
+RN110: Optimization: store the row ID in the index so that an index entry can be verified as current without loading the record. This is necessary to optimize an access with index coverage.
+
+RN109: Optimization: only load the record extended data if required.
+
+RN108: Implemented SHOW ENGINE PBXT STATUS;
+
+RN107: Added the following system variables:
+
+pbxt_index_cache_size - The amount of memory allocated to the index cache, used only to cache index data
+pbxt_record_cache_size - The amount of memory allocated to the record cache used to cache table data
+pbxt_log_cache_size - The amount of memory allocated to the transaction log cache used to cache on transaction log data
+pbxt_log_file_threshold - The size of a transaction log before rollover, and a new log is created
+pbxt_transaction_buffer_size - The size of the global transaction log buffer (the engine allocates 2 buffers of this size)
+pbxt_log_buffer_size - The size of the buffer used to cache data from transaction and data logs during sequential scans, or when writing a data log
+pbxt_checkpoint_frequency - The amount of data written to the transaction log before a checkpoint is performed
+pbxt_data_log_threshold - The maximum size of a data log file
+pbxt_garbage_threshold - The percentage of garbage in a data log file before it is compacted
+
+RN106: PBXT now compiles for MySQL 6.0.3.
+
+RN104: Updates now locks a record temporarily. This prevents most "record changed" errors, however, it makes UPDATE statements a type of "committed read". This means that you may update a different value to that which you selected in repeatable read mode. To avoid this, use SELECT FOR UPDATE if you plan to UPDATE records after reading.
+
+RN103: Implemented SELECT FOR UPDATE. This is implemented by turning SELECT FOR UPDATE into a type of "committed read". This means that, if you do a SELECT followed by a SELECT FOR UPDATE you can get different results, even in repeatable read mode.
+
+RN102: Implemented recovery of index entries. Note: indexes are not yet fully consistent. This means that index can become currupted due to a crash. Data, however, cannot be lost. The indices can be rebuild using REPAIR TABLE.
+
+RN101: Writing and flushing of a single transaction write-ahead log.
+
+RN100: Automatic rollover of transaction logs as they become full.
+
+RN99: Implementation of the transaction log cache.
+
+RN98: Group commit.
+
+RN97: Implementation of the writer thread that applies changes in the transaction log to the database.
+
+RN96: Implementation of the checkpointer thread that periodically flushes the database and writes a checkpoint which determines the recovery start point.
+
+RN95: Implementation of the free'er thread that is responsible for keeping the record cache at a preset level.
+
+RN94: Modifications to the record cache so that rows are stored in pages, in order to speed up sequence access.
+
+RN93: Implemented the recovery process which applies changes written to the log that are not in the database, on startup.
+
+RN92: Modification of the sweeper thread which cleans up rolled-back transactions and deleted data, to use the new transaction log format.
+
+RN91: Modifications to the data logs so that they use the same record structure as the transaction logs.
+
+RN90: The data logs are now managed "per database" in order to minimize the work done to flush and commit a transaction.
+
+RN89: Implementation of a file handle pool for the data logs.
+
+------- 0.9.91 Beta - 2007-10-30
+
+RN88: The format of the URL genearated by MyBS has been changed. The format of the BLOB URLs is now as follows:
+
+'~*' <db-name> '/' <type-char> <table-id> '-' <blob-id> '-' <access-code> '-' <server-id>
+
+Where <type-char> is '_' or '~'.
+
+Examples: ~*test/_11-128-fbd590b-0, ~*test/~1-524-3dc45b09-0
+
+In other words, the characters '>' has been replace by '*', '^' has been replace by '_' and ':' has been replace by '~'. The reason for this is that the characters '>' and '^' are not allowed in URLs, and must be URL-encoded. The character ':' is reserved, but allowed.
+
+NOTE: This change makes this version incompatible with previous versions of MyBS. If you have a table with BLOB URLs, you can upgrade the URLs as follows:
+
+UPDATE blob_table SET blob_col = REPLACE(REPLACE(blob_col, '~>', '~*'), '/:', '/~');
+
+Replacing '^' is not necessary because BLOB URLs with '^' should not appear in tables. 
+
+------- 0.9.90 Beta - 2007-10-17
+
+RN87: Corrected stack trace of errors passed through the BLOB streaming API.
+
+RN86: Added new engine API accessor functions that appeared in 5.1.21 (thanks Stewart).
+
+RN85: Added plug.in file. PBXT now compiles when dropped into the storage directory of the MySQL build tree. However, you have rebuild configure. For example:
+
+rm -rf autom4te.cache/
+aclocal
+autoconf
+autoheader
+automake -a
+./configure --help
+./configure --with-plugins=max --without-innodb --prefix=/usr/local/mysql --with-debug=full
+
+NOTE: ./configure --help should show that the PBXT has been included.
+
+RN84: Fixed several problems with shutdown of PBXT in combiniation with MyBS.
+
+------- 0.9.89 Beta - 2007-08-17
+
+RN83 (2007-08-21): Fixed a crash due to a compile bug that does not like the contruct *((xtWordPS *) &(v)) = (xtWordPS) (x) (macro allocr_() and alloczr_()).
+
+RN82: It is now possible to insert non-URL values into a LONGBLOB field, in the previous version the generated an "Invalid URL" error. Such values can be retrieved as a stream using a field reference.
+
+RN81: Fixed a bug that caused PBXT to crash during certina operations when MyBS was not installed.
+
+RN80: Set engine as capable of row-level replication, but not as statement replication. Statement replication does not work because MVCC is not serializable.
+
+------- 0.9.88 Beta - 2007-07-25
+
+RN79: Made some corrections in order to compile with MySQL 5.1.20.
+
+RN78: Support for the features of the MyBS BLOB Streaming engine, version 0.5 Alpha.
+
+RN77: Bugfix: The server crashes during BLOB data handling. The reason is the table field structure is shared, and may not be changed.
+
+------- 0.9.87 Beta - 2007-06-19
+
+RN76: The major feature of this release is support for the BLOB Streaming Engine. The current version enables the download of specific BLOB columns via the Streaming Engine. For example:
+
+use test;
+CREATE TABLE notes_tab (
+  n_id        INTEGER PRIMARY KEY,
+  n_text      BLOB
+) ENGINE=pbxt;
+INSERT notes_tab VALUES (1, "This is a BLOB streaming test!");
+
+The URL:
+
+http://localhost:8080/test/notes_tab/n_text/n_id=1
+
+will return the value "This is a BLOB streaming test!"
+
+RN75: Bugfix: MySQL prints error: "Plugin 'PBXT' will be forced to shutdown". This error was caused by the plug-in having a reference to itself.
+
+RN74: Added system variable pbxt_index_cache_size and pbxt_record_cache_size. These variable can now be set on the mysqld command line (for example: --pbxt_record_cache_size=50MB). The values are also displayed by SHOW VARIABLES.
+
+------- 0.9.86 Beta - 2007-04-07
+
+RN74: ++++ NOTE: This version is incompatible to older versions of PBXT ++++.
+
+In order to upgrade, install the older version of PBXT. Convert all tables to MyISAM using ALTER TABLE t1 ENGINE=MyISAM. Then install the new version of PBXT and convert back using ALTER TABLE t1 ENGINE=PBXT.
+
+RN73: Each table will now use a maximum of 4 data log files. This means a maximum of 7 files per table. The minimum is 3 for tables that do not have a variable field that exceeds about 40 bytes in size. This means that under Linux PBXT requires a maximum of 7 file handles per table used. Windows lock of pread/pwrite (atomic seek and read/write) functions means it requires a file handler per file per open table handler. [TODO: 0044]
+
+RN72: All threads now write to the same data log file. Recovery and compaction take this fact into account. Each thread still writes its own transaction log.
+
+RN71: Removed all directory scans when creating and dropping table. Increased the table limit to 10000.
+
+RN70: Changed locking to avoid a deadlock when TRUNCATE TABLE is used together with other DML.
+
+RN69: procedures and functions are now considered atomic, and execute in a single transaction.
+
+RN68: Bug fixed: all files are now correctly flushed before commit.
+
+------- 0.9.85 Beta - 2007-03-15
+
+RN67: Changed the implementation of the pushsr_ and allocr_ macros because "*((void **) &(v) = " caused a crash due to a compiler error on some platforms (thanks Luciano for your help on this one and RN66).
+
+RN66: Fixed a bug that caused PBXT to corrupt the index file when the size exceeded 4GB. [TODO: 0031]
+
+RN65: PBXT now runs under Windows. This source tree must be placed in the MySQL source storage directory in order to compile. Further details of how to build are in the windows-readme.txt file. [TODO: 0027]
+
+RN64: Improved speed of table lookup by ID after a table has been deleted. The sweeper needs to ignore these records. Scanning the directory each time was too slow.
+
+RN63: Added checking for repeat update of a record in a statement.
+
+RN62: Committed read no longer blocks due to a change made by another transaction (the XT_REPEATABLE_READ_BLOCKS define, turns blocking on).
+
+RN61: Avoid checking for duplicates if an index is not modified by an update.
+
+RN60: Records updated repeatedly by a transaction are now updated in place. [TODO: 0040]
+
+------- 0.9.8 Beta - 2007-01-30
+
+RN59: Reduced the number of file handles used to a maximum of one per file. This assumes that pread() and pwrite() allows multiple threads to use the same file handle (according to my tests, this is the case).
+
+RN58: Added the configure flag --with-debug=only which compiles a version of the plug-in with debug symbols that will link to an non-debug MySQL server.
+
+RN57: Changed error number returned on lock from 1205 (lock timeout) to 1020 (optimistic lock failure).
+
+RN56: Added UNIX environment variable for PBXT system parameters. These must be set before starting mysqld, for example:
+
+setenv pbxt_index_cache_size 400MB
+setenv pbxt_record_cache_size "1 GB"
+
+Values are in bytes unless one of the following units is specified: GB, MB, Kb
+
+RN55: Fixed a bug which prevented VARCHAR values from being compressed correctly when stored in variable length rows.
+
+RN54: Fixed a bug which caused a crash when PBXT was used with MySQL 5.1.14. This bug also caused data to be corrupted on insert.
+
+RN53: Set query caching mode to transactional. [TODO: 0027]
+
+RN52: Added conditions so that the engine compiles with MySQL 5.1.14 and 5.1.13.
+
+------- 0.9.74 Beta - 2006-12-14
+
+RN51: DELETE FROM <table>; is no longer implemented by  re-creating the table. This statement now works by deleting all rows. TRUNCATE is implemented as before, by re-creating the table.
+
+RN50: The test scripts innodb.test and innodb-mysql.test have been modified to run with PBXT.
+
+RN49: [TODO: 0020] Implemented foreign keys. Functionality is identical to InnoDB with 2 exceptions:
+
+* Data types of referenced columns must be an exact match (e.g. you cannot mix VARCHAR and CHAR values).
+* Currently an exact matching index is required on referenced columns (i.e. the index may not have more columns that the columns used in the foreign key definition).
+
+Also note the following:
+
+* It is possible to create foreign keys that reference non-existent tables or columns. An error will occur when updating a table with an incorrect foreign key declaration.
+* If you alter the data-type of a column referenced by a foreign key set you need to set foreign_key_checks=0; or an error will occur.
+
+RN48: Fixed a bug in the implementation of indexes on ENUM and SET types.
+
+RN47: Fixed a bug that caused a crash when an index was place on a BLOB column, and data was retrieved from the index directly.
+
+------- 0.9.73 Beta - 2006-10-31
+
+RN46: Updated test scripts to run with MySQL 5.1.13.
+
+------- 0.9.72 Beta - 2006-10-19
+
+RN45: Corrected compilation errors that occurred due to a change to struct st_mysql_plugin.
+
+------- 0.9.71 Beta - 2006-10-04
+
+RN44: Corrected compilation errors that occurred due to changes in the storage engine API.
+
+------- 0.9.7 Beta - 2006-09-20
+
+RN43: This is the first Beta release of PrimeBase XT. It has been integrated into MySQL 4.1.21 and is available as a plug-in for MySQL 5.1.12, or later. This version has been extensively tested using mysql-test-run, on various Linux and Mac OS X platforms.
+
+RN42: ++++ NOTE: This version is incompatible to older versions of PBXT ++++. Files created by older versions cannot be opened by version 0.9.7.
+
+RN41: Renaming or deleting a table while using a name with different case to the original created name did not work.
+
+RN40: Fixed a bug when grouping and searching on indexed columns that contain a null.
+
+RN39: Fixed bugs related to trailing spaces on VARCHAR values. Values that only vary by the number of trailing spaces (for example "aa" and "aa "), are now correctly handled as identical.
+
+RN38: The default AUTO_INCREMENT value was not correctly preserved during ALTER TABLE.
+
+RN37: Created a MySQL 5.1 Plugin version of PBXT. [TODO: 0017]
+
+RN36: Fixed a race condition in the row cache which had the affect that inserted rows dissappeared after cleanup because the cache was out of date. I was only able to reproduce this error on multi-processor machines.
+
+------- 0.9.6 - 2006-08-05
+
+RN35: ++++ NOTE: This version is incompatible to older versions of PBXT ++++.
+
+The disk format of tables and log files has changed slightly in this version. As a result, files created by older versions cannot be opened by version 0.9.6. An error will be generated. If you have data wish to preserve, first start the older version of XT and convert all tables to MyISAM. The stop the server and removed all transaction log file (files of the form xtlog-*.xt). Then start the new version and convert tables back to XT.
+
+RN34: Implemented READ COMMITTED transaction mode. XT now supports READ COMMITTED and SERIALIZABLE transaction modes. NOTE: if the mode is set to REPEATABLE READ, SERIALIZABLE is used. If the mode is set to READ UNCOMMITTED READ COMMITTED is used.
+
+RN33: The implementation of AUTO_INCREMENT on a paritial index is non-standard. A unique value is generated without regard to the value of the index prefix. For example, assume we have the following table: CREATE TABLE t1 (c1 CHAR(10) not null, c2 INT not null AUTO_INCREMENT, PRIMARY KEY(c1, c2));
+
+With the following contents:   c1 c2
+                               A  8
+                               B  1
+
+After executing the following statement: insert into t1 (c1) values ('B');
+
+This is the result using PBXT: c1 c2
+                               A  8
+                               B  1
+                               B  9
+
+The standard result would be:  c1 c2
+                               A  8
+                               B  1
+                               B  2
+
+RN32: PBXT does not permit access to multiple databases within a single transaction. For example:
+
+begin;
+update database_1.t1 set a=10;
+update database_2.t2 set d=10;
+commit;
+
+In this case the following error is returned: 1015: Can't lock file (errno: -1)
+
+RN31: The implementation of COUNT(*) has changed. For effectiency, rows are not counted. The information is taken from the header of the record (.xtr) files. This information is only 100% accurate after transaction cleanup has completed. Which basically means, only when PBXT is idle. ANALYZE TABLE waits for all background activity to stop, so the statement may be executed before a COUNT(*) to ensure an accurate result. NOTE: Other then waiting for background processes, ANALYSE TABLE is not implemented.
+
+RN30: Two concurrency bugs have been fixed: a shared lock was used instead of an exclusive lock when deleting from a transaction list, the transaction segment semaphore was not initialized. XT now runs correctly in a multi-processor environment. The test used was sysbench on a dual-process, dual-core, AMD 64-bit machine running SUSE Linux 10.0.
+
+RN29: PBXT compiles and runs on under 64-bit Lunix. [TODO: 0009]
+
+RN28: ./mysql-test-run --force --mysqld=--default-storage-engine=pbxt will now execute most tests successfully. Changes to the tests and the result have been documented in http://www.primebase.com/xt/download/pbxt-test-run-changes.txt. [TODO: 0004, 0019]
+
+RN27: Fixed a bug that caused the server to crash if when using tables locks and transactions. For example: LOCK TABLES, BEGIN, COMMIT, SELECT. This sequence now returns an error. The correct sequence is:
+
+LOCK TABLES, BEGIN, COMMIT, UNLOCK TABLES, SELECT
+or
+LOCK TABLES, BEGIN, COMMIT, BEGIN, SELECT COMMIT, UNLOCK TABLES
+
+RN26: Fixed a concurrency problem which caused a number of threads to hang during the sysbench test - see RN30 above (bug reported by Vadim).
+
+RN25: Fixed a bug that caused the server to hang when ha_pbxt::create() and ha_pbxt::ha_open() where given different, but equivalent paths for a particular table.
+
+RN24: Fixed bug in the indexing of blob columns, for example: create table t1(name_id int, name blob, INDEX name_idx (name(5)));
+
+RN23: When a duplicate key error occurs in auto-commit mode, the transaction is now rolled back.
+
+RN22: Fixed incorrect duplicate key error. In the case of a unique key which allows NULLs, duplicates are allowed if the inserted key contains a NULL. For example:
+
+create table t1 (id int not null, str char(10), unique(str));
+insert into t1 values (1, null),(2, null),(3, "foo"),(4, "bar");
+
+RN21: PBXT now returns the correct error code on duplicate key: 1062 instead of 1022.
+
+RN19: Implemented AUTO_INCREMENT on partial keys. However, the XT implementation is non-standard. Increment of partial index works, but the ID generated is incremented like a non-partial index. For example:
+
+create table t1 (c1 char(10) not null, c2 int not null auto_increment, primary key(c1, c2));
+select * from t1;
+c1 c2
+A  8
+B  1
+
+insert into t1 (c1) values ('B');
+select * from t1;
+c1 c2
+A  8
+B  1
+B  9
+
+The standard result would be:
+c1 c2
+A  8
+B  1
+B  2
+
+RN18: Implemented TRUNCATE TABLE and DELETE FROM <table>; (i.e. a DELETE without WHERE clause). Previously DELETE FROM <table>; did not cause an error, but no rows where deleted (TRUNCATE TABLE returned an error). [TODO: 0012, 0022]
+
+RN17: Implemented CREATE TABLE (...) auto_increment=<value>;
+
+------- 0.9.51 - 2006-07-06
+
+RN16: Fixed crash which could occur when creating the first table in a database (bug reported by Hakan). 
+
+------- 0.9.5 - 2006-07-03
+
+RN15: This version concludes the re-structuring of the PBXT implementation. I have made a number of major changes, including:
+
+- All files except the transaction logs are now associated with a particular table. All table related files begin with the name of the table. The extension indicates the function. 
+
+- I have merged the handle and the fixed length row data for performance reasons.
+
+- Only the variable size component of a row is stored in the data log files. As a result the data logs can now be considered as a type of "overflow" area.
+
+- Memory mapped files are no longer used because it is not possible to flush changes to the disk.
+
+RN14: File names have the following forms:
+
+[table-name]-[table-id].xtr - These files contains the table row pointers. Each row pointer occupies 8 bytes and refers to a list of records. The file name also contains the table ID. This is a unique number which is used internally by XT to identify the table. 
+
+[table-name].xtd - This file contains the fixed length data of a table. Each data item includes a handle and a record. The handle references a record in the data log file if the table contains variable length records.
+
+[table-name].xti - This file contains the index data of the table.
+
+[table-name]-[log-id].xtl - This is a data log file. It contains the variable length data of the table. A table may have any number of data log files, each with a unique ID.
+
+xtlog-[log-id].xt - These files are the transaction logs. Log entries that specify updates reference a data file record. Each active thread has its own transaction log in order to avoid contension.
+
+RN13: Fixed the bug "Hang on DROP DATABASE". [TODO: 0016] 
+
+RN12: PBXT currently only supports the "Serializable" transaction isolation level. This is the highest isolation level possible and includes the "repeatable-read" functionality [TODO: 0015]. This is implemented by giving every transaction a snapshot of the database at the point when the transaction is started.
+
+If the transaction tries to update a record that was updated by some other transaction after the snapshot was taken, a locked error is returned. A deadlock can occur if 2 transactions update the same record in a different order. PBXT can detect all deadlocks.
+
+RN11: I have implemented write buffering on the table data files. [TODO: 0013]
+
+RN10: The unique constraint (UNIQUE INDEX/PRIMARY KEY) is now checked correctly. [TODO: 0008]
+
+RN9: I have implemented a conventional B-tree algorithm for the indices (instead of the Lehman and Yoa B*-link tree). Although this reduces concurrency it improves the performance of queries significantly because of the simplicity of the algorithm. Deletion is also implemented in a very simple manner. [TODO: 0007]
+
+RN8: PBXT now has only 2 caches [TODO: 0006]:
+
+The Index Cache (pbxt_index_cache_size): This is the amount of memory the PBXT storage engine uses to cache index data and row pointers. This is all the data in the files with the extensions '.xti' and '.xtr'. This cache is managed in blocks of 2K.
+
+The Record Cache (pbxt_record_cache_size): This is the amount of memory the PBXT storage engine uses to cache table row data (handles and records). This is all the data in the files with the extension '.xtd'.
+
+The size of the caches are determined by the values of the system variables pbxt_index_cache_size and pbxt_row_cache_size. By default these values are set to 32MB.
+
+RN7: Auto-increment is now implemented in memory. This is done by doing a MAX() select when a table is first opened to get the high value. After that, then high value is incremented in memory on INSERT. On UPDATE (or INSERT) the value in memory is adjusted if necessary. This method also makes it possible for rows to be inserted simultaneously on the same table. [TODO: 0005, 0014]
+
+RN6: ./run-all-tests --create-options=TYPE=PBXT succeeds. [TODO: 0004]
+
+RN5: Using sql-bench and my own Java based test I have confirmed that PBXT behaves correctly during multi-threaded access. [PARTIALY TODO: 0002]
+
+RN4: Load/Stability test. Using sql-bench I have tested PBXT under load over a long period of time. [PARTIALY TODO: 0001]
+
+------- 0.9.2 - 2006-04-01
+
+RN3: Fixed a bug that cause the error "-6: Handle is out of range: [0:0]".
+
+RN2: Implemented SET, ENUM and YEAR data types.
+
+RN1: Fixed a bug in the error reporting when a table is created with a datatype that is not supported. [TODO: 0011]
+
+

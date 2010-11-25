@@ -44,9 +44,9 @@ ERROR 42000: DELETE command denied to user 'ssl_user4'@'localhost' for table 't1
 drop user ssl_user1@localhost, ssl_user2@localhost,
 ssl_user3@localhost, ssl_user4@localhost, ssl_user5@localhost;
 drop table t1;
-mysqltest: Could not open connection 'default': 2026 SSL connection error
-mysqltest: Could not open connection 'default': 2026 SSL connection error
-mysqltest: Could not open connection 'default': 2026 SSL connection error
+mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
+mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
+mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
 SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 SSL error: Unable to get certificate from ''
@@ -189,7 +189,7 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std_data/client-cert.pem'
-mysqldump: Got error: 2026: SSL connection error when trying to connect
+mysqldump: Got error: 2026: "SSL connection error" when trying to connect
 DROP TABLE t1;
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA

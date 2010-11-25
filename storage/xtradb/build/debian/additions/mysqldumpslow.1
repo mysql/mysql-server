@@ -1,0 +1,50 @@
+.TH mysql 1 "17 March 2003" "MySQL 3.23" "MySQL database"
+.SH NAME
+mysqldumpslow \- Parse and summarize the MySQL slow query log.
+.SH SYNOPSIS
+mysqldumpslow [options]
+.SH DESCRIPTION
+This program parses and summarizes a 'slow query log'.
+
+.TP
+\fB\-v\fR 
+verbose
+.TP
+\fB\-d\fR 
+debug
+.TP
+\fB\-s=WORD\fR 
+what to sort by (t, at, l, al, r, ar etc)
+.TP
+\fB\-r\fR  
+reverse the sort order (largest last instead of first)
+.TP
+\fB\-t=NUMBER\fR 
+just show the top n queries
+.TP
+\fB\-a\fR  
+don't abstract all numbers to N and strings to 'S'
+.TP
+\fB\-n=NUMBER\fR
+abstract numbers with at least n digits within names
+.TP
+\fB\-g=WORD\fR 
+grep: only consider stmts that include this string
+.TP
+\fB\-h=WORD\fR
+hostname of db server for *-slow.log filename (can be wildcard)
+.TP
+\fB\-i=WORD\fR 
+name of server instance (if using mysql.server startup script)
+.TP
+\fB\-l\fR  
+don't subtract lock time from total time
+
+.SH "SEE ALSO"
+mysql (1), mysqld (1)
+.SH AUTHOR
+This manpage was written by Christian Hammers <ch@debian.org> based on
+the commends in the code.
+
+MySQL is available at http://www.mysql.com/.
+.\" end of man page

@@ -211,8 +211,9 @@ static bool servers_load(THD *thd, TABLE_LIST *tables)
   free_root(&mem, MYF(0));
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  init_read_record(&read_record_info,thd,table=tables[0].table,NULL,1,0, 
-                   FALSE);
+  if (init_read_record(&read_record_info,thd,table=tables[0].table,NULL,1,0, 
+                       FALSE))
+    DBUG_RETURN(1);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     /* return_val is already TRUE, so no need to set */
@@ -544,10 +545,10 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
                          system_charset_info);
 
   /* read index until record is that specified in server_name */
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              HA_WHOLE_KEY,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     /* if not found, err */
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -888,10 +889,10 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
                          server->server_name_length,
                          system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              ~(longlong)0,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 ~(longlong)0,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));
@@ -947,10 +948,10 @@ delete_server_record(TABLE *table,
   /* set the field that's the PK to the value we're looking for */
   table->field[0]->store(server_name, server_name_length, system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                          (uchar *)table->field[0]->ptr,
-                                          HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));

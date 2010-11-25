@@ -24,7 +24,15 @@ typedef struct st_lex_user LEX_USER;
 typedef struct user_conn USER_CONN;
 
 void init_max_user_conn(void);
+void init_global_user_stats(void);
+void init_global_table_stats(void);
+void init_global_index_stats(void);
+void init_global_client_stats(void);
 void free_max_user_conn(void);
+void free_global_user_stats(void);
+void free_global_table_stats(void);
+void free_global_index_stats(void);
+void free_global_client_stats(void);
 
 pthread_handler_t handle_one_connection(void *arg);
 void do_handle_one_connection(THD *thd_arg);
@@ -36,12 +44,14 @@ void decrease_user_connections(USER_CONN *uc);
 void thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
 
-int check_user(THD *thd, enum enum_server_command command,
-	       const char *passwd, uint passwd_len, const char *db,
-	       bool check_count);
-
 bool login_connection(THD *thd);
 void prepare_new_connection_state(THD* thd);
 void end_connection(THD *thd);
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
+int get_or_create_user_conn(THD *thd, const char *user,
+                            const char *host, USER_RESOURCES *mqh);
+int check_for_max_user_connections(THD *thd, USER_CONN *uc);
+
+
 
 #endif /* SQL_CONNECT_INCLUDED */

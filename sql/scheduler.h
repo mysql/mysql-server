@@ -30,7 +30,8 @@ class THD;
 
 struct scheduler_functions
 {
-  uint max_threads;
+  uint max_threads, *connection_count;
+  ulong *max_connections;
   bool (*init)(void);
   bool (*init_new_connection_thread)(void);
   void (*add_connection)(THD *thd);
@@ -62,8 +63,8 @@ enum scheduler_types
   SCHEDULER_TYPES_COUNT
 };
 
-void one_thread_per_connection_scheduler();
-void one_thread_scheduler();
+scheduler_functions *one_thread_per_connection_scheduler(ulong *, uint *);
+scheduler_functions *one_thread_scheduler();
 
 enum pool_command_op
 {
@@ -98,7 +99,5 @@ public:
   thd_scheduler();
   ~thd_scheduler();
 };
-
-extern scheduler_functions *thread_scheduler;
 
 #endif

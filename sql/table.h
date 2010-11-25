@@ -176,6 +176,9 @@ protected:
   CHARSET_INFO *m_connection_cl;
 };
 
+class Query_arena;
+
+/*************************************************************************/
 
 /**
  View_creation_ctx -- creation context of view objects.
@@ -573,6 +576,9 @@ struct TABLE_SHARE
   I_P_List <TABLE, TABLE_share> used_tables;
   I_P_List <TABLE, TABLE_share> free_tables;
 
+  engine_option_value *option_list;     /* text options for table */
+  void *option_struct;                  /* structure with parsed options */
+
   /* The following is copied to each TABLE on OPEN */
   Field **field;
   Field **found_next_number_field;
@@ -612,6 +618,8 @@ struct TABLE_SHARE
   ulong   avg_row_length;		/* create information */
   ulong   version, mysql_version;
   ulong   reclength;			/* Recordlength */
+  /* Stored record length. No generated-only virtual fields are included */
+  ulong   stored_rec_length;            
 
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
@@ -622,11 +630,23 @@ struct TABLE_SHARE
   enum row_type row_type;		/* How rows are stored */
   enum tmp_table_type tmp_table;
 
+  /** Transactional or not. */
+  enum ha_choice transactional;
+  /** Per-page checksums or not. */
+  enum ha_choice page_checksum;
+
   uint ref_count;                       /* How many TABLE objects uses this */
   uint blob_ptr_size;			/* 4 or 8 */
   uint key_block_size;			/* create key_block_size, if used */
   uint null_bytes, last_null_bit_pos;
+  /*
+    Same as null_bytes, except that if there is only a 'delete-marker' in
+    the record then this value is 0.
+  */
+  uint null_bytes_for_compare;
   uint fields;				/* Number of fields */
+  /* Number of stored fields, generated-only virtual fields are not included */
+  uint stored_fields;                   
   uint rec_buff_length;                 /* Size of table->record[] buffer */
   uint keys, key_parts;
   uint max_key_length, max_unique_length, total_key_length;
@@ -647,12 +667,16 @@ struct TABLE_SHARE
   uint error, open_errno, errarg;       /* error from open_table_def() */
   uint column_bitmap_size;
   uchar frm_version;
+  uint vfields;                         /* Number of computed (virtual) fields */
   bool null_field_first;
   bool system;                          /* Set if system table (one record) */
   bool crypted;                         /* If .frm file is crypted */
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
+  bool deleting;                        /* going to delete this table */
+  bool can_cmp_whole_record;
+#warning look at can_cmp_whole_record
   ulong table_map_id;                   /* for row-based replication */
 
   /*
@@ -948,6 +972,7 @@ public:
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
   Field_timestamp *timestamp_field;
+  Field **vfield;                       /* Pointer to virtual fields*/
 
   /* Table's triggers, 0 if there are no of them */
   Table_triggers_list *triggers;
@@ -958,8 +983,8 @@ public:
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
-  MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
-  MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+  MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
+  MY_BITMAP     *read_set, *write_set, *vcol_set; /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -1024,10 +1049,11 @@ public:
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		status;                 /* What's in record[0] */
   uint		db_stat;		/* mode of file as in handler.h */
+  uint          max_keys;               /* Size of allocated key_info array. */
   /* number of select if it is derived table */
   uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
-  my_bool copy_blobs;			/* copy_blobs when storing */
+  bool copy_blobs;			/* copy_blobs when storing */
 
   /*
     0 or JOIN_TYPE_{LEFT|RIGHT}. Currently this is only compared to 0.
@@ -1039,56 +1065,64 @@ public:
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see maybe_null).
   */
-  my_bool null_row;
+  bool null_row;
 
   /*
     TODO: Each of the following flags take up 8 bits. They can just as easily
     be put into one single unsigned long and instead of taking up 18
     bytes, it would take up 4.
   */
-  my_bool force_index;
+  bool force_index;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR ORDER BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_order;
+  bool force_index_order;
 
   /**
     Flag set when the statement contains FORCE INDEX FOR GROUP BY
     See TABLE_LIST::process_index_hints().
   */
-  my_bool force_index_group;
-  my_bool distinct,const_table,no_rows;
+  bool force_index_group;
+  bool distinct,const_table,no_rows;
 
   /**
      If set, the optimizer has found that row retrieval should access index 
      tree only.
    */
-  my_bool key_read;
-  my_bool no_keyread;
-  my_bool locked_by_logger;
-  my_bool no_replicate;
-  my_bool locked_by_name;
-  my_bool fulltext_searched;
-  my_bool no_cache;
+  bool key_read;
+  bool no_keyread;
+  bool locked_by_logger;
+  bool no_replicate;
+  bool locked_by_name;
+  bool fulltext_searched;
+  bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
-  my_bool open_by_handler;
+  bool open_by_handler;
   /*
     To indicate that a non-null value of the auto_increment field
     was provided by the user or retrieved from the current record.
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
-  my_bool auto_increment_field_not_null;
-  my_bool insert_or_update;             /* Can be used by the handler */
-  my_bool alias_name_used;		/* true if table_name is alias */
-  my_bool get_fields_in_item_tree;      /* Signal to fix_field */
-  my_bool m_needs_reopen;
+  bool auto_increment_field_not_null;
+  bool insert_or_update;             /* Can be used by the handler */
+  bool alias_name_used;		/* true if table_name is alias */
+  bool get_fields_in_item_tree;      /* Signal to fix_field */
+  bool m_needs_reopen;
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
   GRANT_INFO grant;
   FILESORT_INFO sort;
+  /*
+    The arena which the items for expressions from the table definition
+    are associated with.  
+    Currently only the items of the expressions for virtual columns are
+    associated with this arena.
+    TODO: To attach the partitioning expressions to this arena.  
+  */
+  Query_arena *expr_arena;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
   bool no_partitions_used; /* If true, all partitions have been pruned away */
@@ -1107,11 +1141,23 @@ public:
   void mark_columns_needed_for_update(void);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
+  bool mark_virtual_col(Field *field);
+  void mark_virtual_columns_for_write(bool insert_fl);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
                                  MY_BITMAP *write_set_arg)
   {
     read_set= read_set_arg;
     write_set= write_set_arg;
+    if (file)
+      file->column_bitmaps_signal();
+  }
+  inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
+                                 MY_BITMAP *write_set_arg,
+                                 MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
     if (file)
       file->column_bitmaps_signal();
   }
@@ -1121,6 +1167,14 @@ public:
     read_set= read_set_arg;
     write_set= write_set_arg;
   }
+  inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
+                                           MY_BITMAP *write_set_arg,
+                                           MY_BITMAP *vcol_set_arg)
+  {
+    read_set= read_set_arg;
+    write_set= write_set_arg;
+    vcol_set= vcol_set_arg;
+  }
   inline void use_all_columns()
   {
     column_bitmaps_set(&s->all_set, &s->all_set);
@@ -1129,24 +1183,33 @@ public:
   {
     read_set= &def_read_set;
     write_set= &def_write_set;
+    vcol_set= &def_vcol_set;
   }
   /** Should this instance of the table be reopened? */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
 
-  inline void set_keyread(bool flag)
+  bool alloc_keys(uint key_count);
+  bool add_tmp_key(uint key, uint key_parts,
+                   uint (*next_field_no) (uchar *), uchar *arg,
+                   bool unique);
+  inline void enable_keyread()
   {
-    DBUG_ASSERT(file);
-    if (flag && !key_read)
-    {
-      key_read= 1;
-      file->extra(HA_EXTRA_KEYREAD);
-    }
-    else if (!flag && key_read)
+    DBUG_ENTER("enable_keyread");
+    DBUG_ASSERT(key_read == 0);
+    key_read= 1;
+    file->extra(HA_EXTRA_KEYREAD);
+    DBUG_VOID_RETURN;
+  }
+  inline void disable_keyread()
+  {
+    DBUG_ENTER("disable_keyread");
+    if (key_read)
     {
       key_read= 0;
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
+    DBUG_VOID_RETURN;
   }
 
   bool update_const_key_parts(COND *conds);
@@ -1334,6 +1397,11 @@ enum enum_open_type
 };
 
 
+class SJ_MATERIALIZATION_INFO;
+class Index_hint;
+class Item_in_subselect;
+
+
 /*
   Table reference in the FROM clause.
 
@@ -1406,6 +1474,20 @@ struct TABLE_LIST
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
   Item		*on_expr;		/* Used with outer join */
+
+  Item          *sj_on_expr;
+  /*
+    (Valid only for semi-join nests) Bitmap of tables that are within the
+    semi-join (this is different from bitmap of all nest's children because
+    tables that were pulled out of the semi-join nest remain listed as
+    nest's children).
+  */
+  table_map     sj_inner_tables;
+  /* Number of IN-compared expressions */
+  uint          sj_in_exprs; 
+  Item_in_subselect  *sj_subq_pred;
+  SJ_MATERIALIZATION_INFO *sj_mat_info;
+
   /*
     The structure of ON expression presented in the member above
     can be changed during certain optimizations. This member
@@ -1643,6 +1725,7 @@ struct TABLE_LIST
   */
   bool          is_fqtn;
 
+  bool          deleting;               /* going to delete this table */
 
   /* View creation context. */
 
@@ -1695,7 +1778,8 @@ struct TABLE_LIST
   {
     return derived || view || schema_table || !table;
   }
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(THD *thd, table_map eliminated_tables, String *str, 
+             enum_query_type query_type);
   bool check_single_table(TABLE_LIST **table, table_map map,
                           TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);
@@ -1928,7 +2012,11 @@ public:
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
-  table_map         used_tables;     /* bitmap of tables in the nested join */
+  /* 
+    Bitmap of tables within this nested join (including those embedded within
+    its children), including tables removed by table elimination.
+  */
+  table_map         used_tables;
   table_map         not_null_tables; /* tables that rejects nulls           */
   /**
     Used for pointing out the first table in the plan being covered by this
@@ -1943,7 +2031,20 @@ typedef struct st_nested_join
     Before each use the counters are zeroed by reset_nj_counters.
   */
   uint              counter;
+  /*
+    Number of elements in join_list that were not (or contain table(s) that 
+    weren't) removed by table elimination.
+  */
+  uint              n_tables;
   nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  /*
+    (Valid only for semi-join nests) Bitmap of tables outside the semi-join
+    that are used within the semi-join's ON condition.
+  */
+  table_map         sj_depends_on;
+  /* Outer non-trivially correlated tables */
+  table_map         sj_corr_tables;
+  List<Item>        sj_outer_expr_list;
   /**
      True if this join nest node is completely covered by the query execution
      plan. This means two things.

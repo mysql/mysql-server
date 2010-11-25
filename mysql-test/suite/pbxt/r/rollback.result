@@ -1,0 +1,29 @@
+drop table if exists t1;
+create table t1 (n int not null primary key) engine=myisam;
+begin work;
+insert into t1 values (4);
+insert into t1 values (5);
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+select @@warning_count;
+@@warning_count
+1
+select @@error_count;
+@@error_count
+0
+show warnings;
+Level	Code	Message
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show errors;
+Level	Code	Message
+select * from t1;
+n
+4
+5
+select @@warning_count;
+@@warning_count
+0
+show warnings;
+Level	Code	Message
+drop table t1;

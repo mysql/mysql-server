@@ -1,0 +1,14 @@
+# test for BUG#36981 "innodb crash when selecting for update"
+
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+# crash requires this
+set session debug="+d,optimizer_innodb_icp";
+
+create table `t1` (`c1` char(1) default null,`c2` char(10) default null,
+key (`c1`))
+engine=innodb default charset=latin1;
+insert into `t1` values ('3',null);
+select * from `t1` where `c1`='3' for update;
+drop table `t1`;

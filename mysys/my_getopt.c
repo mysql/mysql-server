@@ -157,7 +157,7 @@ int handle_options(int *argc, char ***argv,
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
-  const char *UNINIT_VAR(prev_found);
+  const char *prev_found;
   const struct my_option *optp;
   void *value;
   int error, i;
@@ -228,6 +228,7 @@ int handle_options(int *argc, char ***argv,
 	  Find first the right option. Return error in case of an ambiguous,
 	  or unknown option
 	*/
+        LINT_INIT(prev_found);
 	optp= longopts;
 	if (!(opt_found= findopt(opt_str, length, &optp, &prev_found)))
 	{
@@ -859,7 +860,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   return num;
 }
 
-/* 
+/*
   function: getopt_ll
 
   Evaluates and returns the value that user gave as an argument
@@ -1008,7 +1009,6 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
                              optp->name, ullstr(old, buf1), ullstr(num, buf2));
-
   return num;
 }
 
@@ -1069,8 +1069,8 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
 
   SYNOPSIS
     init_one_value()
-    option		Option to initialize
-    value		Pointer to variable
+    option              Option to initialize
+    value               Pointer to variable
 */
 
 static void init_one_value(const struct my_option *option, void *variable,
@@ -1171,7 +1171,7 @@ void my_cleanup_options(const struct my_option *options)
 }
 
 
-/* 
+/*
   initialize all variables to their default values
 
   SYNOPSIS
@@ -1375,7 +1375,7 @@ void my_print_variables(const struct my_option *options)
 	printf("%d\n", *((int*) value));
 	break;
       case GET_UINT:
-	printf("%d\n", *((uint*) value));
+	printf("%u\n", *((uint*) value));
 	break;
       case GET_LONG:
 	printf("%ld\n", *((long*) value));
@@ -1387,7 +1387,7 @@ void my_print_variables(const struct my_option *options)
 	printf("%s\n", llstr(*((longlong*) value), buff));
 	break;
       case GET_ULL:
-	longlong2str(*((ulonglong*) value), buff, 10);
+	longlong10_to_str(*((ulonglong*) value), buff, 10);
 	printf("%s\n", buff);
 	break;
       case GET_DOUBLE:

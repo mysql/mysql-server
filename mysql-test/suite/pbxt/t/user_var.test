@@ -1,0 +1,228 @@
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+--error 1054
+set @a := foo;
+set @a := connection_id() + 3;
+select @a - connection_id();
+
+set @b := 1;
+select @b;
+
+# Check using and setting variables with SELECT DISTINCT
+
+CREATE TABLE t1 ( i int not null, v int not null,index (i));
+insert into t1 values (1,1),(1,3),(2,1); 
+create table t2 (i int not null, unique (i));
+insert into t2 select distinct i from t1;
+select * from t2; 
+select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
+explain select * from t1 where i=@vv1;
+select @vv1,i,v from t1 where i=@vv1;
+explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
+explain select @vv1:=i from t1 where i=@vv1;
+explain select * from t1 where i=@vv1;
+drop table t1,t2;
+
+# Check types of variables
+set @a=0,@b=0;
+select @a:=10,   @b:=1,   @a > @b, @a < @b;
+# Note that here a and b will be avaluated as number
+select @a:="10", @b:="1", @a > @b, @a < @b;
+# Note that here a and b will be avaluated as strings
+select @a:=10,   @b:=2,   @a > @b, @a < @b;
+select @a:="10", @b:="2", @a > @b, @a < @b;
+
+# Fixed bug #1194
+select @a:=1;
+select @a, @a:=1;
+
+create table t1 (id int, d double, c char(10));
+insert into t1 values (1,2.0, "test");
+select @c:=0;
+update t1 SET id=(@c:=@c+1);
+select @c;
+select @c:=0;
+update t1 set id=(@c:=@c+1);
+select @c;
+select @c:=0;
+select @c:=@c+1;
+select @d,(@d:=id),@d from t1;
+select @e,(@e:=d),@e from t1;
+select @f,(@f:=c),@f from t1;
+set @g=1;
+select @g,(@g:=c),@g from t1;
+select @c, @d, @e, @f;
+select @d:=id, @e:=id, @f:=id, @g:=@id from t1;
+select @c, @d, @e, @f, @g;
+drop table t1;
+
+# just for fun :)
+select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b;
+
+#
+# bug#1739
+# Item_func_set_user_var sets update_query_id, Item_func_get_user_var checks it
+#
+create table t1 (i int not null);
+insert t1 values (1),(2),(2),(3),(3),(3);
+select @a:=0; select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
+select @a:=0; select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
+
+set @a=0;
+select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
+select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
+drop table t1;
+
+#
+# Bug #2244: User variables didn't copy collation and derivation
+# attributes from values they were initialized to.
+#
+
+set @a=_latin2'test';
+select charset(@a),collation(@a),coercibility(@a);
+select @a=_latin2'TEST';
+select @a=_latin2'TEST' collate latin2_bin;
+
+set @a=_latin2'test' collate latin2_general_ci;
+select charset(@a),collation(@a),coercibility(@a);
+select @a=_latin2'TEST';
+select @a=_latin2'TEST' collate latin2_bin;
+
+#
+# Check the same invoking Item_set_user_var
+#
+select charset(@a:=_latin2'test');
+select collation(@a:=_latin2'test');
+select coercibility(@a:=_latin2'test');
+select collation(@a:=_latin2'test' collate latin2_bin);
+select coercibility(@a:=_latin2'test' collate latin2_bin);
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST';
+select charset(@a),collation(@a),coercibility(@a);
+select (@a:=_latin2'test' collate latin2_bin) = _latin2'TEST' collate latin2_general_ci;
+
+#
+# Bug #6321 strange error:
+#   string function FIELD(<uservariable content NULL>, ...)
+#
+set @var= NULL ;
+select FIELD( @var,'1it','Hit') as my_column;
+
+#
+# Bug#9425 A user variable doesn't always have implicit coercibility
+#
+select @v, coercibility(@v);
+set @v1=null, @v2=1, @v3=1.1, @v4=now();
+select coercibility(@v1),coercibility(@v2),coercibility(@v3),coercibility(@v4);
+
+#
+# Bug #9286  SESSION/GLOBAL should be disallowed for user variables
+#
+--error 1064
+set session @honk=99;
+--error 1382
+set one_shot @honk=99;
+
+#
+# Bug #10724  @@local not preserved in column name of select
+#
+# The value doesn't actually matter, we just care about the column name
+--replace_column 1 #
+select @@local.max_allowed_packet;
+--replace_column 1 #
+select @@session.max_allowed_packet;
+--replace_column 1 #
+select @@global.max_allowed_packet;
+--replace_column 1 #
+select @@max_allowed_packet;
+--replace_column 1 #
+select @@Max_Allowed_Packet;
+--replace_column 1 #
+select @@version;
+--replace_column 1 #
+select @@global.version;
+
+--echo End of 4.1 tests
+
+# Bug #6598: problem with cast(NULL as signed integer);
+#
+
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= cast(NULL as signed integer);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= NULL;
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var= concat(NULL);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+set @first_var=1;
+set @first_var= cast(NULL as CHAR);
+create table t1 select @first_var;
+show create table t1;
+drop table t1;
+
+#
+# Bug #7498 User variable SET saves SIGNED BIGINT as UNSIGNED BIGINT
+#
+
+# First part, set user var to large number and select it
+set @a=18446744071710965857;
+select @a;
+
+# Second part, set user var from large number in table
+# then select it
+CREATE TABLE `bigfailure` (
+  `afield` BIGINT UNSIGNED NOT NULL
+);
+INSERT INTO `bigfailure` VALUES (18446744071710965857);
+SELECT * FROM bigfailure;
+select * from (SELECT afield FROM bigfailure) as b;
+select * from bigfailure where afield = (SELECT afield FROM bigfailure);
+select * from bigfailure where afield = 18446744071710965857;
+# This is fixed in 5.0, to be uncommented there
+#select * from bigfailure where afield = '18446744071710965857';
+select * from bigfailure where afield = 18446744071710965856+1;
+
+SET @a := (SELECT afield FROM bigfailure);
+SELECT @a;
+SET @a := (select afield from (SELECT afield FROM bigfailure) as b);
+SELECT @a;
+SET @a := (select * from bigfailure where afield = (SELECT afield FROM bigfailure));
+SELECT @a;
+
+drop table bigfailure;
+
+#
+# Bug#16861: User defined variable can have a wrong value if a tmp table was
+#            used.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values (1,2),(2,3),(3,1);
+select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+select @var;
+create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+select * from t2;
+select @var;
+drop table t1,t2;
+
+#
+# Bug#19024 - SHOW COUNT(*) WARNINGS not return Errors 
+#
+--error 1064
+insert into city 'blah';
+SHOW COUNT(*) WARNINGS;
+SHOW COUNT(*) ERRORS;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log

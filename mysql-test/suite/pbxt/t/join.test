@@ -1,0 +1,654 @@
+#
+# Initialization
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+#
+# Test different join syntaxes
+#
+
+CREATE TABLE t1 (S1 INT);
+CREATE TABLE t2 (S1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 JOIN t2;
+SELECT * FROM t1 INNER JOIN t2;
+SELECT * from t1 JOIN t2 USING (S1);
+SELECT * FROM t1 INNER JOIN t2 USING (S1);
+SELECT * from t1 CROSS JOIN t2;
+SELECT * from t1 LEFT JOIN t2 USING(S1);
+SELECT * from t1 LEFT JOIN t2 ON(t2.S1=2);
+SELECT * from t1 RIGHT JOIN t2 USING(S1);
+SELECT * from t1 RIGHT JOIN t2 ON(t1.S1=1);
+drop table t1,t2;
+
+#
+# This failed for lia Perminov
+#
+
+create table t1 (id int primary key);
+create table t2 (id int);
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+
+insert into t2 values (107),(75),(1000);
+
+select t1.id, t2.id from t1, t2 where t2.id = t1.id;
+select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
+select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
+
+#
+# Test problems with impossible ON or WHERE
+#
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
+explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
+drop table t1,t2;
+
+#
+# problem with join
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  token varchar(100) DEFAULT '' NOT NULL,
+  count int(11) DEFAULT '0' NOT NULL,
+  qty int(11),
+  phone char(1) DEFAULT '' NOT NULL,
+  timestamp datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  PRIMARY KEY (id),
+  KEY token (token(15)),
+  KEY timestamp (timestamp),
+  UNIQUE token_2 (token(75),count,phone)
+);
+
+INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
+INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
+INSERT INTO t1 VALUES (18,'346d1cb63c89285b2351f0ca4de40eda',3,13200,'b','1999-12-23 11:58:04');
+INSERT INTO t1 VALUES (17,'ca6ddeb689e1b48a04146b1b5b6f936a',4,15000,'b','1999-12-23 11:36:53');
+INSERT INTO t1 VALUES (16,'ca6ddeb689e1b48a04146b1b5b6f936a',3,13200,'b','1999-12-23 11:36:53');
+INSERT INTO t1 VALUES (26,'a71250b7ed780f6ef3185bfffe027983',5,1500,'b','1999-12-27 09:44:24');
+INSERT INTO t1 VALUES (24,'4d75906f3c37ecff478a1eb56637aa09',3,5400,'y','1999-12-23 17:29:12');
+INSERT INTO t1 VALUES (25,'4d75906f3c37ecff478a1eb56637aa09',4,6500,'y','1999-12-23 17:29:12');
+INSERT INTO t1 VALUES (27,'a71250b7ed780f6ef3185bfffe027983',3,6200,'b','1999-12-27 09:44:24');
+INSERT INTO t1 VALUES (28,'a71250b7ed780f6ef3185bfffe027983',3,5400,'y','1999-12-27 09:44:36');
+INSERT INTO t1 VALUES (29,'a71250b7ed780f6ef3185bfffe027983',4,17700,'b','1999-12-27 09:45:05');
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL auto_increment,
+  category int(11) DEFAULT '0' NOT NULL,
+  county int(11) DEFAULT '0' NOT NULL,
+  state int(11) DEFAULT '0' NOT NULL,
+  phones int(11) DEFAULT '0' NOT NULL,
+  nophones int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (id),
+  KEY category (category,county,state)
+);
+INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
+INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
+INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
+select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
+select a.id, b.category as catid, b.state as stateid, b.county as
+countyid from t1 a, t2 b where (a.token =
+'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id) order by a.id;
+
+drop table t1, t2;
+
+#
+# Test of join of many tables.
+
+create table t1 (a int primary key);
+insert into t1 values(1),(2);
+select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a);
+--replace_result "31 tables" "XX tables" "61 tables" "XX tables"
+--error 1116
+select t1.a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
+select a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a);
+--replace_result "31 tables" "XX tables" "61 tables" "XX tables"
+--error 1116
+select a from t1 as t1 left join t1 as t2 using (a) left join t1 as t3 using (a) left join t1 as t4 using (a) left join t1 as t5 using (a) left join t1 as t6 using (a) left join t1 as t7 using (a) left join t1 as t8 using (a) left join t1 as t9 using (a) left join t1 as t10 using (a) left join t1 as t11 using (a) left join t1 as t12 using (a) left join t1 as t13 using (a) left join t1 as t14 using (a) left join t1 as t15 using (a) left join t1 as t16 using (a) left join t1 as t17 using (a) left join t1 as t18 using (a) left join t1 as t19 using (a) left join t1 as t20 using (a) left join t1 as t21 using (a) left join t1 as t22 using (a) left join t1 as t23 using (a) left join t1 as t24 using (a) left join t1 as t25 using (a) left join t1 as t26 using (a) left join t1 as t27 using (a) left join t1 as t28 using (a) left join t1 as t29 using (a) left join t1 as t30 using (a) left join t1 as t31 using (a) left join t1 as t32 using (a) left join t1 as t33 using (a) left join t1 as t34 using (a) left join t1 as t35 using (a) left join t1 as t36 using (a) left join t1 as t37 using (a) left join t1 as t38 using (a) left join t1 as t39 using (a) left join t1 as t40 using (a) left join t1 as t41 using (a) left join t1 as t42 using (a) left join t1 as t43 using (a) left join t1 as t44 using (a) left join t1 as t45 using (a) left join t1 as t46 using (a) left join t1 as t47 using (a) left join t1 as t48 using (a) left join t1 as t49 using (a) left join t1 as t50 using (a) left join t1 as t51 using (a) left join t1 as t52 using (a) left join t1 as t53 using (a) left join t1 as t54 using (a) left join t1 as t55 using (a) left join t1 as t56 using (a) left join t1 as t57 using (a) left join t1 as t58 using (a) left join t1 as t59 using (a) left join t1 as t60 using (a) left join t1 as t61 using (a) left join t1 as t62 using (a) left join t1 as t63 using (a) left join t1 as t64 using (a) left join t1 as t65 using (a);
+drop table t1;
+
+#
+# Simple join test. This failed in 3.23.42, there should have been
+# no matches, still three matches were found.
+#
+ 
+CREATE TABLE t1 (
+  a int(11) NOT NULL,
+  b int(11) NOT NULL,
+  PRIMARY KEY  (a,b)
+) ENGINE=MyISAM;
+ 
+INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(2,3);
+ 
+CREATE TABLE t2 (
+  a int(11) default NULL
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (2),(3);
+SELECT t1.a,t2.a,b FROM t1,t2 WHERE t1.a=t2.a AND (t1.a=1 OR t1.a=2) AND b>=1 AND b<=3;
+DROP TABLE t1, t2;
+
+#
+# TEST LEFT JOIN with DATE columns
+#
+
+CREATE TABLE t1 (d DATE NOT NULL);
+CREATE TABLE t2 (d DATE NOT NULL);
+INSERT INTO t1 (d) VALUES ('2001-08-01'),('0000-00-00');
+SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE t2.d IS NULL;
+SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE d IS NULL;
+SELECT * from t1 WHERE t1.d IS NULL;
+SELECT * FROM t1 WHERE 1/0 IS NULL;
+DROP TABLE t1,t2;
+
+#
+# Problem with reference from const tables
+#
+CREATE TABLE t1 (
+  Document_ID varchar(50) NOT NULL default '',
+  Contractor_ID varchar(6) NOT NULL default '',
+  Language_ID char(3) NOT NULL default '',
+  Expiration_Date datetime default NULL,
+  Publishing_Date datetime default NULL,
+  Title text,
+  Column_ID varchar(50) NOT NULL default '',
+  PRIMARY KEY  (Language_ID,Document_ID,Contractor_ID)
+);
+
+INSERT INTO t1 VALUES ('xep80','1','ger','2001-12-31 20:00:00','2001-11-12 10:58:00','Kartenbestellung - jetzt auch online','anle'),('','999998','',NULL,NULL,NULL,'');
+
+CREATE TABLE t2 (
+  Contractor_ID char(6) NOT NULL default '',
+  Language_ID char(3) NOT NULL default '',
+  Document_ID char(50) NOT NULL default '',
+  CanRead char(1) default NULL,
+  Customer_ID int(11) NOT NULL default '0',
+  PRIMARY KEY  (Contractor_ID,Language_ID,Document_ID,Customer_ID)
+);
+
+INSERT INTO t2 VALUES ('5','ger','xep80','1',999999),('1','ger','xep80','1',999999);
+CREATE TABLE t3 (
+  Language_ID char(3) NOT NULL default '',
+  Column_ID char(50) NOT NULL default '',
+  Contractor_ID char(6) NOT NULL default '',
+  CanRead char(1) default NULL,
+  Active char(1) default NULL,
+  PRIMARY KEY  (Language_ID,Column_ID,Contractor_ID)
+);
+INSERT INTO t3 VALUES ('ger','home','1','1','1'),('ger','Test','1','0','0'),('ger','derclu','1','0','0'),('ger','clubne','1','0','0'),('ger','philos','1','0','0'),('ger','clubko','1','0','0'),('ger','clubim','1','1','1'),('ger','progra','1','0','0'),('ger','progvo','1','0','0'),('ger','progsp','1','0','0'),('ger','progau','1','0','0'),('ger','progku','1','0','0'),('ger','progss','1','0','0'),('ger','nachl','1','0','0'),('ger','mitgli','1','0','0'),('ger','mitsu','1','0','0'),('ger','mitbus','1','0','0'),('ger','ergmar','1','1','1'),('ger','home','4','1','1'),('ger','derclu','4','1','1'),('ger','clubne','4','0','0'),('ger','philos','4','1','1'),('ger','clubko','4','1','1'),('ger','clubim','4','1','1'),('ger','progra','4','1','1'),('ger','progvo','4','1','1'),('ger','progsp','4','1','1'),('ger','progau','4','0','0'),('ger','progku','4','1','1'),('ger','progss','4','1','1'),('ger','nachl','4','1','1'),('ger','mitgli','4','0','0'),('ger','mitsu','4','0','0'),('ger','mitbus','4','0','0'),('ger','ergmar','4','1','1'),('ger','progra2','1','0','0'),('ger','archiv','4','1','1'),('ger','anmeld','4','1','1'),('ger','thema','4','1','1'),('ger','edito','4','1','1'),('ger','madis','4','1','1'),('ger','enma','4','1','1'),('ger','madis','1','1','1'),('ger','enma','1','1','1'),('ger','vorsch','4','0','0'),('ger','veranst','4','0','0'),('ger','anle','4','1','1'),('ger','redak','4','1','1'),('ger','nele','4','1','1'),('ger','aukt','4','1','1'),('ger','callcenter','4','1','1'),('ger','anle','1','0','0');
+delete from t1 where Contractor_ID='999998';
+insert into t1 (Contractor_ID) Values ('999998');
+SELECT DISTINCT COUNT(t1.Title) FROM t1,
+t2, t3 WHERE 
+t1.Document_ID='xep80' AND t1.Contractor_ID='1' AND 
+t1.Language_ID='ger' AND '2001-12-21 23:14:24' >= 
+Publishing_Date AND '2001-12-21 23:14:24' <= Expiration_Date AND 
+t1.Document_ID = t2.Document_ID AND 
+t1.Language_ID = t2.Language_ID AND 
+t1.Contractor_ID = t2.Contractor_ID AND ( 
+t2.Customer_ID = '4'  OR 
+t2.Customer_ID = '999999'  OR 
+t2.Customer_ID = '1' )AND t2.CanRead 
+= '1'  AND t1.Column_ID=t3.Column_ID AND 
+t1.Language_ID=t3.Language_ID AND ( 
+t3.Contractor_ID = '4'  OR 
+t3.Contractor_ID = '999999'  OR 
+t3.Contractor_ID = '1') AND 
+t3.CanRead='1' AND t3.Active='1';
+SELECT DISTINCT COUNT(t1.Title) FROM t1,
+t2, t3 WHERE 
+t1.Document_ID='xep80' AND t1.Contractor_ID='1' AND 
+t1.Language_ID='ger' AND '2001-12-21 23:14:24' >= 
+Publishing_Date AND '2001-12-21 23:14:24' <= Expiration_Date AND 
+t1.Document_ID = t2.Document_ID AND 
+t1.Language_ID = t2.Language_ID AND 
+t1.Contractor_ID = t2.Contractor_ID AND ( 
+t2.Customer_ID = '4'  OR 
+t2.Customer_ID = '999999'  OR 
+t2.Customer_ID = '1' )AND t2.CanRead 
+= '1'  AND t1.Column_ID=t3.Column_ID AND 
+t1.Language_ID=t3.Language_ID AND ( 
+t3.Contractor_ID = '4'  OR 
+t3.Contractor_ID = '999999'  OR 
+t3.Contractor_ID = '1') AND 
+t3.CanRead='1' AND t3.Active='1';
+drop table t1,t2,t3;
+
+#
+# Bug when doing full join and NULL fields.
+#
+
+CREATE TABLE t1 (
+  t1_id int(11) default NULL,
+  t2_id int(11) default NULL,
+  type enum('Cost','Percent') default NULL,
+  cost_unit enum('Cost','Unit') default NULL,
+  min_value double default NULL,
+  max_value double default NULL,
+  t3_id int(11) default NULL,
+  item_id int(11) default NULL
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (12,5,'Percent','Cost',-1,0,-1,-1),(14,4,'Percent','Cost',-1,0,-1,-1),(18,5,'Percent','Cost',-1,0,-1,-1),(19,4,'Percent','Cost',-1,0,-1,-1),(20,5,'Percent','Cost',100,-1,22,291),(21,5,'Percent','Cost',100,-1,18,291),(22,1,'Percent','Cost',100,-1,6,291),(23,1,'Percent','Cost',100,-1,21,291),(24,1,'Percent','Cost',100,-1,9,291),(25,1,'Percent','Cost',100,-1,4,291),(26,1,'Percent','Cost',100,-1,20,291),(27,4,'Percent','Cost',100,-1,7,202),(28,1,'Percent','Cost',50,-1,-1,137),(29,2,'Percent','Cost',100,-1,4,354),(30,2,'Percent','Cost',100,-1,9,137),(93,2,'Cost','Cost',-1,10000000,-1,-1);
+CREATE TABLE t2 (
+  id int(10) unsigned NOT NULL auto_increment,
+  name varchar(255) default NULL,
+  PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
+select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
+drop table t1,t2;
+
+#
+# Bug in range optimiser with MAYBE_KEY
+#
+
+CREATE TABLE t1 (
+  siteid varchar(25) NOT NULL default '',
+  emp_id varchar(30) NOT NULL default '',
+  rate_code varchar(10) default NULL,
+  UNIQUE KEY site_emp (siteid,emp_id),
+  KEY siteid (siteid)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('rivercats','psmith','cust'), ('rivercats','KWalker','cust');
+CREATE TABLE t2 (
+  siteid varchar(25) NOT NULL default '',
+  rate_code varchar(10) NOT NULL default '',
+  base_rate float NOT NULL default '0',
+  PRIMARY KEY  (siteid,rate_code),
+  FULLTEXT KEY rate_code (rate_code)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('rivercats','cust',20);
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE emp.emp_id = 'psmith' AND lr.siteid = 'rivercats';
+SELECT emp.rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE lr.siteid = 'rivercats' AND emp.emp_id = 'psmith';
+SELECT rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE emp.emp_id = 'psmith' AND siteid = 'rivercats';
+SELECT rate_code, lr.base_rate FROM t1 AS emp LEFT JOIN t2 AS lr USING (siteid, rate_code) WHERE siteid = 'rivercats' AND emp.emp_id = 'psmith';
+drop table t1,t2;
+
+#
+# Problem with internal list handling when reducing WHERE
+#
+
+CREATE TABLE t1 (ID INTEGER NOT NULL PRIMARY KEY, Value1 VARCHAR(255));
+CREATE TABLE t2 (ID INTEGER NOT NULL PRIMARY KEY, Value2 VARCHAR(255));
+INSERT INTO t1 VALUES (1, 'A');
+INSERT INTO t2 VALUES (1, 'B');
+
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND (Value1 = 'A' AND Value2 <> 'B');
+SELECT * FROM t1 NATURAL JOIN t2 WHERE 1 AND Value1 = 'A' AND Value2 <> 'B';
+SELECT * FROM t1 NATURAL JOIN t2 WHERE (Value1 = 'A' AND Value2 <> 'B') AND 1;
+drop table t1,t2;
+
+#
+# dummy natural join (no common columns) Bug #4807
+#
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TABLE t3 (c int);
+SELECT * FROM t1 NATURAL JOIN t2 NATURAL JOIN t3;
+DROP TABLE t1, t2, t3;
+
+#
+# Test combination of join methods
+#
+
+create table t1 (i int);
+create table t2 (i int);
+create table t3 (i int);
+insert into t1 values(1),(2);
+insert into t2 values(2),(3);
+insert into t3 values (2),(4);
+
+select * from t1 natural left join t2;
+select * from t1 left join t2 on (t1.i=t2.i);
+select * from t1 natural left join t2 natural left join t3;
+select * from t1 left join t2 on (t1.i=t2.i) left join t3 on (t2.i=t3.i);
+
+select * from t3 natural right join t2;
+select * from t3 right join t2 on (t3.i=t2.i);
+select * from t3 natural right join t2 natural right join t1;
+select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
+
+select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
+select * from t1,t2 left join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 natural left join t3,t1 order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 left join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+
+select * from t1,t2 natural right join t3 order by t1.i,t2.i,t3.i;
+select * from t1,t2 right join t3 on (t2.i=t3.i) order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 natural right join t3,t1 order by t1.i,t2.i,t3.i;
+select t1.i,t2.i,t3.i from t2 right join t3 on (t2.i=t3.i),t1 order by t1.i,t2.i,t3.i;
+drop table t1,t2,t3;
+
+# End of 4.1 tests
+
+#
+#  Tests for WL#2486 Natural/using join according to SQL:2003.
+#
+#  NOTICE:
+#  - The tests are designed so that all statements, except MySQL
+#    extensions run on any SQL server. Please do no change.
+#  - Tests marked with TODO will be submitted as bugs.
+#
+
+create table t1 (c int, b int);
+create table t2 (a int, b int);
+create table t3 (b int, c int);
+create table t4 (y int, c int);
+create table t5 (y int, z int);
+create table t6 (a int, c int);
+
+insert into t1 values (10,1);
+insert into t1 values (3 ,1);
+insert into t1 values (3 ,2);
+insert into t2 values (2, 1);
+insert into t3 values (1, 3);
+insert into t3 values (1,10);
+insert into t4 values (11,3);
+insert into t4 values (2, 3);
+insert into t5 values (11,4);
+insert into t6 values (2, 3);
+
+# Views with simple natural join.
+create algorithm=merge view v1a as
+select * from t1 natural join t2;
+# as above, but column names are cross-renamed: a->c, c->b, b->a
+create algorithm=merge view v1b(a,b,c) as
+select * from t1 natural join t2;
+# as above, but column names are aliased: a->c, c->b, b->a
+create algorithm=merge view v1c as
+select b as a, c as b, a as c from t1 natural join t2;
+#  as above, but column names are cross-renamed, and aliased
+#  a->c->b, c->b->a, b->a->c
+create algorithm=merge view v1d(b, a, c) as
+select a as c, c as b, b as a from t1 natural join t2;
+
+# Views with JOIN ... ON
+create algorithm=merge view v2a as
+select t1.c, t1.b, t2.a from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+create algorithm=merge view v2b as
+select t1.c as b, t1.b as a, t2.a as c
+from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+
+# Views with bigger natural join
+create algorithm=merge view v3a as
+select * from t1 natural join t2 natural join t3;
+create algorithm=merge view v3b as
+select * from t1 natural join (t2 natural join t3);
+
+# View over views with mixed natural join and join ... on
+create algorithm=merge view v4 as
+select * from v2a natural join v3a;
+
+# Nested natural/using joins.
+select * from (t1 natural join t2) natural join (t3 natural join t4);
+select * from (t1 natural join t2) natural left join (t3 natural join t4);
+select * from (t3 natural join t4) natural right join (t1 natural join t2);
+select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
+select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+select * from t1 natural join t2 natural join t3 natural join t4;
+select * from ((t1 natural join t2) natural join t3) natural join t4;
+select * from t1 natural join (t2 natural join (t3 natural join t4));
+# BUG#15355: this query fails in 'prepared statements' mode
+# select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
+# select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
+select * from (t1 natural join t2), (t3 natural join t4);
+# MySQL extension - nested comma ',' operator instead of cross join.
+select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
+
+select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
+
+
+# Other clauses refer to NJ columns.
+select a,b,c from (t1 natural join t2) natural join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a having min(b) < max(y) order by a;
+select * from (t1 natural join t2) natural left join (t3 natural join t4)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+select * from (t3 natural join t4) natural right join (t1 natural join t2)
+where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a, y;
+
+# Qualified column references to NJ columns.
+select * from t1 natural join t2 where t1.c > t2.a;
+select * from t1 natural join t2 where t1.b > t2.b;
+select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
+
+# Nested 'join ... on' - name resolution of ON conditions
+select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+select * from t1 natural join (t2 join t4 on b + 1 = y);
+select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
+
+# MySQL extension - 'join ... on' over nested comma operator
+select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
+
+# MySQL extension - refererence qualified coalesced columns
+select * from t1 natural join t2 where t1.b > 0;
+select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
+
+# MySQL extension - select qualified columns of NJ columns
+select t1.*, t2.* from t1 natural join t2;
+select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
+
+# Queries over subselects in the FROM clause
+select * from (select * from t1 natural join t2) as t12
+              natural join
+              (select * from t3 natural join t4) as t34;
+select * from (select * from t1 natural join t2) as t12
+              natural left join
+              (select * from t3 natural join t4) as t34;
+select * from (select * from t3 natural join t4) as t34
+              natural right join
+              (select * from t1 natural join t2) as t12;
+
+# Queries over views
+select * from v1a;
+select * from v1b;
+select * from v1c;
+select * from v1d;
+select * from v2a;
+select * from v2b;
+select * from v3a;
+select * from v3b;
+select * from v4;
+select * from v1a natural join v2a;
+select v2a.* from v1a natural join v2a;
+select * from v1b join v2a on v1b.b = v2a.c;
+select * from v1c join v2a on v1c.b = v2a.c;
+select * from v1d join v2a on v1d.a = v2a.c;
+select * from v1a join (t3 natural join t4) on a = y;
+
+# TODO: add tests with correlated subqueries for natural join/join on.
+# related to BUG#15269
+
+
+#--------------------------------------------------------------------
+# Negative tests (tests for errors)
+#--------------------------------------------------------------------
+-- error 1052
+select * from t1 natural join (t3 cross join t4); # works in Oracle - bug
+-- error 1052
+select * from (t3 cross join t4) natural join t1; # works in Oracle - bug
+-- error 1052
+select * from t1 join (t2, t3) using (b);
+-- error 1052
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+-- error 1052
+select * from ((t1 natural join t2), (t3 natural join t4)) natural join t6;
+-- error 1052
+select * from t6 natural join ((t1 natural join t2),  (t3 natural join t4));
+-- error 1052
+select * from (t1 join t2 on t1.b=t2.b) natural join (t3 natural join t4);
+-- error 1052
+select * from  (t3 natural join t4) natural join (t1 join t2 on t1.b=t2.b);
+# this one is OK, the next equivalent one is incorrect (bug in Oracle)
+-- error 1052
+select * from (t3 join (t4 natural join t5) on (b < z))
+              natural join
+              (t1 natural join t2);
+-- error 1052
+select * from (t1 natural join t2) natural join (t3 join (t4 natural join t5) on (b < z));
+
+-- error 1054
+select t1.b from v1a;
+-- error 1054
+select * from v1a join v1b on t1.b = t2.b;
+
+#
+# Bug #17523 natural join and information_schema
+#
+# We mask out the Privileges column because it differs with embedded server
+--replace_column 31 #
+select * from information_schema.statistics join information_schema.columns
+              using(table_name,column_name) where table_name='user';
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+drop table t6;
+
+drop view v1a;
+drop view v1b;
+drop view v1c;
+drop view v1d;
+drop view v2a;
+drop view v2b;
+drop view v3a;
+drop view v3b;
+drop view v4;
+
+#
+# BUG#15229 - columns of nested joins that are not natural joins incorrectly
+# materialized
+#
+create table t1 (a1 int, a2 int);
+create table t2 (a1 int, b int);
+create table t3 (c1 int, c2 int);
+create table t4 (c2 int);
+
+insert into t1 values (1,1);
+insert into t2 values (1,1);
+insert into t3 values (1,1);
+insert into t4 values (1);
+
+select * from t1 join t2 using (a1) join t3 on b=c1 join t4 using (c2);
+select * from t3 join (t1 join t2 using (a1)) on b=c1 join t4 using (c2);
+select a2 from t1 join t2 using (a1) join t3 on b=c1 join t4 using (c2);
+select a2 from t3 join (t1 join t2 using (a1)) on b=c1 join t4 using (c2);
+select a2 from ((t1 join t2 using (a1)) join t3 on b=c1) join t4 using (c2);
+select a2 from ((t1 natural join t2) join t3 on b=c1) natural join t4;
+
+drop table t1,t2,t3,t4;
+
+#
+# BUG#15355: Common natural join column not resolved in prepared statement nested query
+#
+create table t1 (c int, b int);
+create table t2 (a int, b int);
+create table t3 (b int, c int);
+create table t4 (y int, c int);
+create table t5 (y int, z int);
+
+insert into t1 values (3,2);
+insert into t2 values (1,2);
+insert into t3 values (2,3);
+insert into t4 values (1,3);
+insert into t5 values (1,4);
+
+# this fails
+prepare stmt1 from "select * from ((t3 natural join (t1 natural join t2))
+natural join t4) natural join t5";
+execute stmt1;
+
+# this works
+select * from ((t3 natural join (t1 natural join t2)) natural join t4)
+  natural join t5;
+drop table t1, t2, t3, t4, t5;
+
+# End of tests for WL#2486 - natural/using join
+
+#
+# BUG#14940: Make E(#rows) from "range" access be re-used by range optimizer
+#
+create table t1 (a int); 
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, filler char(100), key(a), key(b));
+create table t3 (a int, b int, filler char(100), key(a), key(b));
+
+insert into t2 
+  select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
+insert into t3 select * from t2 where a < 800;
+
+# The order of tables must be t2,t3:
+explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+
+drop table t1, t2, t3;
+
+# BUG#14940 {Wrong query plan is chosen because of odd results of
+# prev_record_reads() function }
+create table t1 (a int); 
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, primary key(a));
+insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
+
+explain select * from t1;
+show status like '%cost%';
+select 'The cost of accessing t1 (dont care if it changes' '^';
+
+select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
+
+explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
+show status like '%cost%';
+select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+
+
+
+drop table t1, t2;
+# BUG#25106: A USING clause in combination with a VIEW results in column 
+#            aliases ignored
+#
+CREATE TABLE t1 (ID INTEGER, Name VARCHAR(50));
+CREATE TABLE t2 (Test_ID INTEGER);
+CREATE VIEW v1 (Test_ID, Description) AS SELECT ID, Name FROM t1;
+
+CREATE TABLE tv1 SELECT Description AS Name FROM v1 JOIN t2
+ USING (Test_ID);
+DESCRIBE tv1;
+CREATE TABLE tv2 SELECT Description AS Name FROM v1 JOIN t2
+ ON v1.Test_ID = t2.Test_ID;
+DESCRIBE tv2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,tv1,tv2;
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo End of 5.0 tests.

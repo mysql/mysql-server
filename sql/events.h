@@ -103,7 +103,7 @@ public:
   get_db_repository() { return db_repository; }
 
   static bool
-  init(my_bool opt_noacl);
+  init(bool opt_noacl);
 
   static void
   deinit();

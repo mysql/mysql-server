@@ -25,3 +25,8 @@
 
 #include "sql_priv.h"
 #include "hash_filo.h"
+
+#ifdef __WIN__
+// Remove linker warning 4221 about empty file
+namespace { char dummy; };
+#endif // __WIN__

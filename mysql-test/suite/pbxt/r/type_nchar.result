@@ -1,0 +1,50 @@
+drop table if exists t1;
+create table t1 (c nchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c national char(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c national varchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c nvarchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c nchar varchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c national character varying(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (c nchar varying(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;

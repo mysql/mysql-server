@@ -21,6 +21,7 @@
 /* class for the the myisam handler */
 
 #include <myisam.h>
+#include <myisamchk.h>
 #include <ft_global.h>
 #include "handler.h"                            /* handler */
 #include "table.h"                              /* TABLE_SHARE */
@@ -39,13 +40,17 @@ extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
 
+C_MODE_START
+ICP_RESULT index_cond_func_myisam(void *arg);
+C_MODE_END
+
 class ha_myisam: public handler
 {
   MI_INFO *file;
   ulonglong int_table_flags;
   char    *data_file_name, *index_file_name;
   bool can_enable_indexes;
-  int repair(THD *thd, MI_CHECK &param, bool optimize);
+  int repair(THD *thd, HA_CHECK &param, bool optimize);
 
  public:
   ha_myisam(handlerton *hton, TABLE_SHARE *table_arg);
@@ -55,15 +60,19 @@ class ha_myisam: public handler
   const char *index_type(uint key_number);
   const char **bas_ext() const;
   ulonglong table_flags() const { return int_table_flags; }
+  int index_init(uint idx, bool sorted);
+  int index_end();
+  int rnd_end();
+
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY);
+            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
-  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return HA_MAX_KEY_LENGTH; }
   uint checksum() const;
 
   int open(const char *name, int mode, uint test_if_locked);
@@ -76,7 +85,6 @@ class ha_myisam: public handler
   int index_read_idx_map(uchar *buf, uint index, const uchar *key,
                          key_part_map keypart_map,
                          enum ha_rkey_function find_flag);
-  int index_read_last_map(uchar *buf, const uchar *key, key_part_map keypart_map);
   int index_next(uchar * buf);
   int index_prev(uchar * buf);
   int index_first(uchar * buf);
@@ -99,7 +107,8 @@ class ha_myisam: public handler
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);
-  int restart_rnd_next(uchar *buf, uchar *pos);
+  int remember_rnd_pos();
+  int restart_rnd_next(uchar *buf);
   void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
@@ -124,6 +133,7 @@ class ha_myisam: public handler
                                   ulonglong *nb_reserved_values);
   int rename_table(const char * from, const char * to);
   int delete_table(const char *name);
+  int check_for_upgrade(HA_CHECK_OPT *check_opt);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
@@ -134,6 +144,7 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
+  bool check_if_supported_virtual_columns(void) { return TRUE;}
 #ifdef HAVE_QUERY_CACHE
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
@@ -145,4 +156,23 @@ class ha_myisam: public handler
   {
     return file;
   }
+public:
+  /**
+   * Multi Range Read interface
+   */
+  int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
+                            uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int multi_range_read_next(char **range_info);
+  ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                      void *seq_init_param, 
+                                      uint n_ranges, uint *bufsz,
+                                      uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
+  
+  /* Index condition pushdown implementation */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+private:
+  DsMrr_impl ds_mrr;
+  friend ICP_RESULT index_cond_func_myisam(void *arg);
 };

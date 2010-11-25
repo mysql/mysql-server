@@ -42,6 +42,19 @@ volatile my_bool alarm_thread_running= 0;
 time_t next_alarm_expire_time= ~ (time_t) 0;
 static sig_handler process_alarm_part2(int sig);
 
+#ifdef DBUG_OFF
+#define reset_index_in_queue(alarm_data)
+#else
+#define reset_index_in_queue(alarm_data) alarm_data->index_in_queue= 0;
+#endif /* DBUG_OFF */
+
+#ifndef USE_ONE_SIGNAL_HAND
+#define one_signal_hand_sigmask(A,B,C) pthread_sigmask((A), (B), (C))
+#else
+#define one_signal_hand_sigmask(A,B,C)
+#endif
+
+
 #if !defined(__WIN__)
 
 static mysql_mutex_t LOCK_alarm;
@@ -73,8 +86,8 @@ void init_thr_alarm(uint max_alarms)
   DBUG_ENTER("init_thr_alarm");
   alarm_aborted=0;
   next_alarm_expire_time= ~ (time_t) 0;
-  init_queue(&alarm_queue,max_alarms+1,offsetof(ALARM,expire_time),0,
-	     compare_ulong,NullS);
+  init_queue(&alarm_queue, max_alarms+1, offsetof(ALARM,expire_time), 0,
+	     compare_ulong, NullS, offsetof(ALARM, index_in_queue)+1, 0);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
@@ -151,7 +164,7 @@ void resize_thr_alarm(uint max_alarms)
 
 my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 {
-  time_t now;
+  time_t now, next;
 #ifndef USE_ONE_SIGNAL_HAND
   sigset_t old_mask;
 #endif
@@ -161,79 +174,68 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
   now= my_time(0);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
-#endif
+  if (!alarm_data)
+  {
+    if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
+      goto abort_no_unlock;
+    alarm_data->malloced= 1;
+  }
+  else
+    alarm_data->malloced= 0;
+  next= now + sec;
+  alarm_data->expire_time= next;
+  alarm_data->alarmed=   0;
+  alarm_data->thread=    current_my_thread_var->pthread_self;
+  alarm_data->thread_id= current_my_thread_var->id;
+
+  one_signal_hand_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   mysql_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
-  if (alarm_aborted > 0)
+  if (unlikely(alarm_aborted))
   {					/* No signal thread */
     DBUG_PRINT("info", ("alarm aborted"));
-    *alrm= 0;					/* No alarm */
-    mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-    pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
-    DBUG_RETURN(1);
-  }
-  if (alarm_aborted < 0)
+    if (alarm_aborted > 0)
+      goto abort;
     sec= 1;					/* Abort mode */
-
+  }
   if (alarm_queue.elements >= max_used_alarms)
   {
     if (alarm_queue.elements == alarm_queue.max_elements)
     {
       DBUG_PRINT("info", ("alarm queue full"));
       fprintf(stderr,"Warning: thr_alarm queue is full\n");
-      *alrm= 0;					/* No alarm */
-      mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-      pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
-      DBUG_RETURN(1);
+      goto abort;
     }
     max_used_alarms=alarm_queue.elements+1;
   }
-  reschedule= (ulong) next_alarm_expire_time > (ulong) now + sec;
-  if (!alarm_data)
-  {
-    if (!(alarm_data=(ALARM*) my_malloc(sizeof(ALARM),MYF(MY_WME))))
-    {
-      DBUG_PRINT("info", ("failed my_malloc()"));
-      *alrm= 0;					/* No alarm */
-      mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-      pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
-      DBUG_RETURN(1);
-    }
-    alarm_data->malloced=1;
-  }
-  else
-    alarm_data->malloced=0;
-  alarm_data->expire_time=now+sec;
-  alarm_data->alarmed=0;
-  alarm_data->thread=    current_my_thread_var->pthread_self;
-  alarm_data->thread_id= current_my_thread_var->id;
+  reschedule= (ulong) next_alarm_expire_time > (ulong) next;
   queue_insert(&alarm_queue,(uchar*) alarm_data);
+  assert(alarm_data->index_in_queue > 0);
 
   /* Reschedule alarm if the current one has more than sec left */
-  if (reschedule)
+  if (unlikely(reschedule))
   {
     DBUG_PRINT("info", ("reschedule"));
     if (pthread_equal(pthread_self(),alarm_thread))
     {
       alarm(sec);				/* purecov: inspected */
-      next_alarm_expire_time= now + sec;
+      next_alarm_expire_time= next;
     }
     else
       reschedule_alarms();			/* Reschedule alarms */
   }
   mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
+  one_signal_hand_sigmask(SIG_SETMASK,&old_mask,NULL);
   (*alrm)= &alarm_data->alarmed;
   DBUG_RETURN(0);
+
+abort:
+  if (alarm_data->malloced)
+    my_free(alarm_data, MYF(0));
+  mysql_mutex_unlock(&LOCK_alarm);
+  one_signal_hand_sigmask(SIG_SETMASK,&old_mask,NULL);
+abort_no_unlock:
+  *alrm= 0;					/* No alarm */
+  DBUG_RETURN(1);
 }
 
 
@@ -247,41 +249,18 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 #ifndef USE_ONE_SIGNAL_HAND
   sigset_t old_mask;
 #endif
-  uint i, found=0;
   DBUG_ENTER("thr_end_alarm");
 
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
-#endif
-  mysql_mutex_lock(&LOCK_alarm);
-
+  one_signal_hand_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   alarm_data= (ALARM*) ((uchar*) *alarmed - offsetof(ALARM,alarmed));
-  for (i=0 ; i < alarm_queue.elements ; i++)
-  {
-    if ((ALARM*) queue_element(&alarm_queue,i) == alarm_data)
-    {
-      queue_remove(&alarm_queue,i),MYF(0);
-      if (alarm_data->malloced)
-	my_free(alarm_data);
-      found++;
-#ifdef DBUG_OFF
-      break;
-#endif
-    }
-  }
-  DBUG_ASSERT(!*alarmed || found == 1);
-  if (!found)
-  {
-    if (*alarmed)
-      fprintf(stderr,"Warning: Didn't find alarm 0x%lx in queue of %d alarms\n",
-	      (long) *alarmed, alarm_queue.elements);
-    DBUG_PRINT("warning",("Didn't find alarm 0x%lx in queue\n",
-			  (long) *alarmed));
-  }
+  mysql_mutex_lock(&LOCK_alarm);
+  DBUG_ASSERT(alarm_data->index_in_queue != 0);
+  DBUG_ASSERT(queue_element(&alarm_queue, alarm_data->index_in_queue) ==
+              alarm_data);
+  queue_remove(&alarm_queue, alarm_data->index_in_queue);
   mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-  pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
+  one_signal_hand_sigmask(SIG_SETMASK,&old_mask,NULL);
+  reset_index_in_queue(alarm_data);
   DBUG_VOID_RETURN;
 }
 
@@ -344,12 +323,13 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 #if defined(MAIN) && !defined(__bsdi__)
   printf("process_alarm\n"); fflush(stdout);
 #endif
-  if (alarm_queue.elements)
+  if (likely(alarm_queue.elements))
   {
-    if (alarm_aborted)
+    if (unlikely(alarm_aborted))
     {
       uint i;
-      for (i=0 ; i < alarm_queue.elements ;)
+      for (i= queue_first_element(&alarm_queue) ;
+           i <= queue_last_element(&alarm_queue) ;)
       {
 	alarm_data=(ALARM*) queue_element(&alarm_queue,i);
 	alarm_data->alarmed=1;			/* Info to thread */
@@ -360,6 +340,7 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	  printf("Warning: pthread_kill couldn't find thread!!!\n");
 #endif
 	  queue_remove(&alarm_queue,i);		/* No thread. Remove alarm */
+          reset_index_in_queue(alarm_data);
 	}
 	else
 	  i++;					/* Signal next thread */
@@ -371,8 +352,8 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
     }
     else
     {
-      ulong now=(ulong) my_time(0);
-      ulong next=now+10-(now%10);
+      time_t now= my_time(0);
+      time_t next= now+10-(now%10);
       while ((alarm_data=(ALARM*) queue_top(&alarm_queue))->expire_time <= now)
       {
 	alarm_data->alarmed=1;			/* Info to thread */
@@ -382,15 +363,16 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	{
 #ifdef MAIN
 	  printf("Warning: pthread_kill couldn't find thread!!!\n");
-#endif
-	  queue_remove(&alarm_queue,0);		/* No thread. Remove alarm */
+#endif /* MAIN */
+	  queue_remove_top(&alarm_queue); /* No thread. Remove alarm */
+          reset_index_in_queue(alarm_data);
 	  if (!alarm_queue.elements)
 	    break;
 	}
 	else
 	{
 	  alarm_data->expire_time=next;
-	  queue_replaced(&alarm_queue);
+	  queue_replace_top(&alarm_queue);
 	}
       }
 #ifndef USE_ALARM_THREAD
@@ -483,21 +465,27 @@ void end_thr_alarm(my_bool free_structures)
 void thr_alarm_kill(my_thread_id thread_id)
 {
   uint i;
+  DBUG_ENTER("thr_alarm_kill");
+
   if (alarm_aborted)
     return;
   mysql_mutex_lock(&LOCK_alarm);
-  for (i=0 ; i < alarm_queue.elements ; i++)
+  for (i= queue_first_element(&alarm_queue) ;
+       i <= queue_last_element(&alarm_queue);
+       i++)
   {
-    if (((ALARM*) queue_element(&alarm_queue,i))->thread_id == thread_id)
+    ALARM *element= (ALARM*) queue_element(&alarm_queue,i);
+    if (element->thread_id == thread_id)
     {
-      ALARM *tmp=(ALARM*) queue_remove(&alarm_queue,i);
-      tmp->expire_time=0;
-      queue_insert(&alarm_queue,(uchar*) tmp);
+      DBUG_PRINT("info", ("found thread; Killing it"));
+      element->expire_time= 0;
+      queue_replace(&alarm_queue, i);
       reschedule_alarms();
       break;
     }
   }
   mysql_mutex_unlock(&LOCK_alarm);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -508,7 +496,7 @@ void thr_alarm_info(ALARM_INFO *info)
   info->max_used_alarms= max_used_alarms;
   if ((info->active_alarms=  alarm_queue.elements))
   {
-    ulong now=(ulong) my_time(0);
+    time_t now= my_time(0);
     long time_diff;
     ALARM *alarm_data= (ALARM*) queue_top(&alarm_queue);
     time_diff= (long) (alarm_data->expire_time - now);
@@ -556,7 +544,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   {
     if (alarm_queue.elements)
     {
-      ulong sleep_time,now= my_time(0);
+      time_t sleep_time,now= my_time(0);
       if (alarm_aborted)
 	sleep_time=now+1;
       else
@@ -791,19 +779,6 @@ static void *test_thread(void *arg)
   free((uchar*) arg);
   return 0;
 }
-
-#ifdef USE_ONE_SIGNAL_HAND
-static sig_handler print_signal_warning(int sig)
-{
-  printf("Warning: Got signal %d from thread %s\n",sig,my_thread_name());
-  fflush(stdout);
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);		/* int. thread system calls */
-#endif
-  if (sig == SIGALRM)
-    alarm(2);					/* reschedule alarm */
-}
-#endif /* USE_ONE_SIGNAL_HAND */
 
 
 static void *signal_hand(void *arg __attribute__((unused)))

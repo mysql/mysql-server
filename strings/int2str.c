@@ -19,9 +19,9 @@
 /*
   _dig_vec arrays are public because they are used in several outer places.
 */
-char _dig_vec_upper[] =
+const char _dig_vec_upper[] =
   "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-char _dig_vec_lower[] =
+const char _dig_vec_lower[] =
   "0123456789abcdefghijklmnopqrstuvwxyz";
 
 
@@ -56,7 +56,7 @@ int2str(register long int val, register char *dst, register int radix,
   char buffer[65];
   register char *p;
   long int new_val;
-  char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
+  const char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
   ulong uval= (ulong) val;
 
   if (radix < 0)

@@ -17,6 +17,8 @@
 #include "mysys_err.h"
 #include <errno.h>
 
+ulong my_sync_count;                           /* Count number of sync calls */
+
 /*
   Sync data in file to disk
 
@@ -44,8 +46,12 @@ int my_sync(File fd, myf my_flags)
 {
   int res;
   DBUG_ENTER("my_sync");
-  DBUG_PRINT("my",("Fd: %d  my_flags: %d", fd, my_flags));
+  DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
+  if (my_disable_sync)
+    DBUG_RETURN(0);
+
+  statistic_increment(my_sync_count,&THR_LOCK_open);
   do
   {
 #if defined(F_FULLFSYNC)
@@ -62,6 +68,8 @@ int my_sync(File fd, myf my_flags)
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)
     res= fsync(fd);
+    if (res == -1 && errno == ENOLCK)
+      res= 0;                                   /* Result Bug in Old FreeBSD */
 #elif defined(_WIN32)
     res= my_win_fsync(fd);
 #else

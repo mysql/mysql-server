@@ -1,0 +1,741 @@
+drop table if exists t1;
+create table t1 (a int unsigned)
+partition by range (a)
+(partition pnull values less than (0),
+partition p0 values less than (1),
+partition p1 values less than(2));
+insert into t1 values (null),(0),(1);
+select * from t1 where a is null;
+a
+NULL
+select * from t1 where a >= 0;
+a
+0
+1
+select * from t1 where a < 0;
+a
+select * from t1 where a <= 0;
+a
+0
+select * from t1 where a > 1;
+a
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	3	Using where
+drop table t1;
+create table t1 (a int unsigned, b int unsigned)
+partition by range (a)
+subpartition by hash (b)
+subpartitions 2
+(partition pnull values less than (0),
+partition p0 values less than (1),
+partition p1 values less than(2));
+insert into t1 values (null,0),(null,1),(0,0),(0,1),(1,0),(1,1);
+select * from t1 where a is null;
+a	b
+NULL	0
+NULL	1
+select * from t1 where a >= 0;
+a	b
+0	0
+0	1
+1	0
+1	1
+select * from t1 where a < 0;
+a	b
+select * from t1 where a <= 0;
+a	b
+0	0
+0	1
+select * from t1 where a > 1;
+a	b
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+explain partitions select * from t1 where a >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+explain partitions select * from t1 where a < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+explain partitions select * from t1 where a <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	6	Using where
+explain partitions select * from t1 where a > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	6	Using where
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than maxvalue tablespace ts3);
+INSERT into t1 values (1, 1, 1);
+INSERT into t1 values (6, 1, 1);
+INSERT into t1 values (10, 1, 1);
+INSERT into t1 values (15, 1, 1);
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+15	1	1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = PBXT,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = PBXT,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = PBXT) */
+ALTER TABLE t1
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than maxvalue tablespace ts3);
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+15	1	1
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION x1 VALUES LESS THAN (5) TABLESPACE = ts1 ENGINE = PBXT,
+ PARTITION x2 VALUES LESS THAN (10) TABLESPACE = ts2 ENGINE = PBXT,
+ PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = ts3 ENGINE = PBXT) */
+drop table if exists t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null)
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than maxvalue tablespace ts3);
+INSERT into t1 values (1, 1, 1);
+INSERT into t1 values (6, 1, 1);
+INSERT into t1 values (10, 1, 1);
+INSERT into t1 values (15, 1, 1);
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+15	1	1
+ALTER TABLE t1
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than maxvalue tablespace ts3);
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+15	1	1
+drop table if exists t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than (15) tablespace ts3);
+INSERT into t1 values (1, 1, 1);
+INSERT into t1 values (6, 1, 1);
+INSERT into t1 values (10, 1, 1);
+INSERT into t1 values (15, 1, 1);
+ERROR HY000: Table has no partition for value 15
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+ALTER TABLE t1
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) tablespace ts1,
+partition x2 values less than (10) tablespace ts2,
+partition x3 values less than (15) tablespace ts3);
+select * from t1;
+a	b	c
+1	1	1
+6	1	1
+10	1	1
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+partition by range (a)
+(partition x1 values less than (1));
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b)) 
+partition by range (a)
+subpartition by hash (a+b) 
+( partition x1 values less than (1)
+( subpartition x11,
+subpartition x12),
+partition x2 values less than (5)
+( subpartition x21,
+subpartition x22)
+);
+SELECT * from t1;
+a	b	c
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a+b)
+(PARTITION x1 VALUES LESS THAN (1)
+ (SUBPARTITION x11 ENGINE = PBXT,
+  SUBPARTITION x12 ENGINE = PBXT),
+ PARTITION x2 VALUES LESS THAN (5)
+ (SUBPARTITION x21 ENGINE = PBXT,
+  SUBPARTITION x22 ENGINE = PBXT)) */
+ALTER TABLE t1 ADD COLUMN d int;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a+b)
+(PARTITION x1 VALUES LESS THAN (1)
+ (SUBPARTITION x11 ENGINE = PBXT,
+  SUBPARTITION x12 ENGINE = PBXT),
+ PARTITION x2 VALUES LESS THAN (5)
+ (SUBPARTITION x21 ENGINE = PBXT,
+  SUBPARTITION x22 ENGINE = PBXT)) */
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1 nodegroup 0,
+subpartition x12 tablespace t2 nodegroup 1),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1 nodegroup 0,
+subpartition x22 tablespace t2 nodegroup 1)
+);
+SELECT * from t1;
+a	b	c
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1 nodegroup 0,
+subpartition x12 tablespace t2 nodegroup 1),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1 nodegroup 0,
+subpartition x22 tablespace t2 nodegroup 1)
+);
+SELECT * from t1;
+a	b	c
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 nodegroup 0,
+subpartition x12 nodegroup 1),
+partition x2 values less than (5)
+( subpartition x21 nodegroup 0,
+subpartition x22 nodegroup 1)
+);
+INSERT into t1 VALUES (1,1,1);
+INSERT into t1 VALUES (4,1,1);
+INSERT into t1 VALUES (5,1,1);
+ERROR HY000: Table has no partition for value 5
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+ALTER TABLE t1
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 nodegroup 0,
+subpartition x12 nodegroup 1),
+partition x2 values less than (5)
+( subpartition x21 nodegroup 0,
+subpartition x22 nodegroup 1)
+);
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1,
+subpartition x12 tablespace t2),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1,
+subpartition x22 tablespace t2)
+);
+INSERT into t1 VALUES (1,1,1);
+INSERT into t1 VALUES (4,1,1);
+INSERT into t1 VALUES (5,1,1);
+ERROR HY000: Table has no partition for value 5
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+ALTER TABLE t1
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1,
+subpartition x12 tablespace t2),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1,
+subpartition x22 tablespace t2)
+);
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1,
+subpartition x12 tablespace t2),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1,
+subpartition x22 tablespace t2)
+);
+INSERT into t1 VALUES (1,1,1);
+INSERT into t1 VALUES (4,1,1);
+INSERT into t1 VALUES (5,1,1);
+ERROR HY000: Table has no partition for value 5
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+ALTER TABLE t1
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11 tablespace t1,
+subpartition x12 tablespace t2),
+partition x2 values less than (5)
+( subpartition x21 tablespace t1,
+subpartition x22 tablespace t2)
+);
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+drop table t1;
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key (a,b))
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11,
+subpartition x12),
+partition x2 values less than (5)
+( subpartition x21,
+subpartition x22)
+);
+INSERT into t1 VALUES (1,1,1);
+INSERT into t1 VALUES (4,1,1);
+INSERT into t1 VALUES (5,1,1);
+ERROR HY000: Table has no partition for value 5
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+ALTER TABLE t1
+partition by range (a)
+subpartition by hash (a+b)
+( partition x1 values less than (1)
+( subpartition x11,
+subpartition x12),
+partition x2 values less than (5)
+( subpartition x21,
+subpartition x22)
+);
+SELECT * from t1;
+a	b	c
+1	1	1
+4	1	1
+drop table t1;
+CREATE TABLE t1 (c1 int default NULL, c2 varchar(30) default NULL, 
+c3 date default NULL) engine=myisam
+PARTITION BY RANGE (year(c3)) (PARTITION p0 VALUES LESS THAN (1995),
+PARTITION p1 VALUES LESS THAN (1996) , PARTITION p2 VALUES LESS THAN (1997) ,
+PARTITION p3 VALUES LESS THAN (1998) , PARTITION p4 VALUES LESS THAN (1999) ,
+PARTITION p5 VALUES LESS THAN (2000) , PARTITION p6 VALUES LESS THAN (2001) ,
+PARTITION p7 VALUES LESS THAN (2002) , PARTITION p8 VALUES LESS THAN (2003) ,
+PARTITION p9 VALUES LESS THAN (2004) , PARTITION p10 VALUES LESS THAN (2010),
+PARTITION p11 VALUES LESS THAN MAXVALUE );
+INSERT INTO t1 VALUES (1, 'testing partitions', '1995-07-17'),
+(3, 'testing partitions','1995-07-31'),
+(5, 'testing partitions','1995-08-13'),
+(7, 'testing partitions','1995-08-26'),
+(9, 'testing partitions','1995-09-09'),
+(0, 'testing partitions','2000-07-10'),
+(2, 'testing partitions','2000-07-23'),
+(4, 'testing partitions','2000-08-05'),
+(6, 'testing partitions','2000-08-19'),
+(8, 'testing partitions','2000-09-01');
+SELECT COUNT(*) FROM t1 WHERE c3 BETWEEN '1996-12-31' AND '2000-12-31';
+COUNT(*)
+5
+SELECT COUNT(*) FROM t1 WHERE c3 < '2000-12-31';
+COUNT(*)
+10
+DROP TABLE t1;
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (10),
+partition p1 values less than (0));
+ERROR HY000: VALUES LESS THAN value must be strictly increasing for each partition
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (0),
+partition p1 values less than (10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = PBXT,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = PBXT) */
+drop table t1;
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (2),
+partition p1 values less than (10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (2) ENGINE = PBXT,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = PBXT) */
+insert into t1 values (0xFFFFFFFFFFFFFFFF);
+ERROR HY000: Table has no partition for value 18446744073709551615
+drop table t1;
+create table t1 (a int)
+partition by range (MOD(a,3))
+subpartition by hash(a)
+subpartitions 2
+(partition p0 values less than (1),
+partition p1 values less than (2),
+partition p2 values less than (3),
+partition p3 values less than (4));
+ALTER TABLE t1 DROP PARTITION p3;
+ALTER TABLE t1 DROP PARTITION p1;
+ALTER TABLE t1 DROP PARTITION p2;
+drop table t1;
+create table t1 (a int)
+partition by range (MOD(a,3))
+subpartition by hash(a)
+subpartitions 2
+(partition p0 values less than (1),
+partition p1 values less than (2),
+partition p2 values less than (3),
+partition p3 values less than (4));
+ALTER TABLE t1 DROP PARTITION p0;
+ALTER TABLE t1 DROP PARTITION p1;
+ALTER TABLE t1 DROP PARTITION p2;
+drop table t1;
+create table t1 (a int DEFAULT NULL,
+b varchar(30) DEFAULT NULL,
+c date DEFAULT NULL)
+ENGINE=MYISAM DEFAULT CHARSET=latin1;
+insert into t1 values (1, 'abc', '1995-01-01');
+insert into t1 values (1, 'abc', '1995-01-02');
+insert into t1 values (1, 'abc', '1995-01-03');
+insert into t1 values (1, 'abc', '1995-01-04');
+insert into t1 values (1, 'abc', '1995-01-05');
+insert into t1 values (1, 'abc', '1995-01-06');
+insert into t1 values (1, 'abc', '1995-01-07');
+insert into t1 values (1, 'abc', '1995-01-08');
+insert into t1 values (1, 'abc', '1995-01-09');
+insert into t1 values (1, 'abc', '1995-01-10');
+insert into t1 values (1, 'abc', '1995-01-11');
+insert into t1 values (1, 'abc', '1995-01-12');
+insert into t1 values (1, 'abc', '1995-01-13');
+insert into t1 values (1, 'abc', '1995-01-14');
+insert into t1 values (1, 'abc', '1995-01-15');
+insert into t1 values (1, 'abc', '1997-01-01');
+insert into t1 values (1, 'abc', '1997-01-02');
+insert into t1 values (1, 'abc', '1997-01-03');
+insert into t1 values (1, 'abc', '1997-01-04');
+insert into t1 values (1, 'abc', '1997-01-05');
+insert into t1 values (1, 'abc', '1997-01-06');
+insert into t1 values (1, 'abc', '1997-01-07');
+insert into t1 values (1, 'abc', '1997-01-08');
+insert into t1 values (1, 'abc', '1997-01-09');
+insert into t1 values (1, 'abc', '1997-01-10');
+insert into t1 values (1, 'abc', '1997-01-11');
+insert into t1 values (1, 'abc', '1997-01-12');
+insert into t1 values (1, 'abc', '1997-01-13');
+insert into t1 values (1, 'abc', '1997-01-14');
+insert into t1 values (1, 'abc', '1997-01-15');
+insert into t1 values (1, 'abc', '1998-01-01');
+insert into t1 values (1, 'abc', '1998-01-02');
+insert into t1 values (1, 'abc', '1998-01-03');
+insert into t1 values (1, 'abc', '1998-01-04');
+insert into t1 values (1, 'abc', '1998-01-05');
+insert into t1 values (1, 'abc', '1998-01-06');
+insert into t1 values (1, 'abc', '1998-01-07');
+insert into t1 values (1, 'abc', '1998-01-08');
+insert into t1 values (1, 'abc', '1998-01-09');
+insert into t1 values (1, 'abc', '1998-01-10');
+insert into t1 values (1, 'abc', '1998-01-11');
+insert into t1 values (1, 'abc', '1998-01-12');
+insert into t1 values (1, 'abc', '1998-01-13');
+insert into t1 values (1, 'abc', '1998-01-14');
+insert into t1 values (1, 'abc', '1998-01-15');
+insert into t1 values (1, 'abc', '1999-01-01');
+insert into t1 values (1, 'abc', '1999-01-02');
+insert into t1 values (1, 'abc', '1999-01-03');
+insert into t1 values (1, 'abc', '1999-01-04');
+insert into t1 values (1, 'abc', '1999-01-05');
+insert into t1 values (1, 'abc', '1999-01-06');
+insert into t1 values (1, 'abc', '1999-01-07');
+insert into t1 values (1, 'abc', '1999-01-08');
+insert into t1 values (1, 'abc', '1999-01-09');
+insert into t1 values (1, 'abc', '1999-01-10');
+insert into t1 values (1, 'abc', '1999-01-11');
+insert into t1 values (1, 'abc', '1999-01-12');
+insert into t1 values (1, 'abc', '1999-01-13');
+insert into t1 values (1, 'abc', '1999-01-14');
+insert into t1 values (1, 'abc', '1999-01-15');
+insert into t1 values (1, 'abc', '2000-01-01');
+insert into t1 values (1, 'abc', '2000-01-02');
+insert into t1 values (1, 'abc', '2000-01-03');
+insert into t1 values (1, 'abc', '2000-01-04');
+insert into t1 values (1, 'abc', '2000-01-05');
+insert into t1 values (1, 'abc', '2000-01-06');
+insert into t1 values (1, 'abc', '2000-01-07');
+insert into t1 values (1, 'abc', '2000-01-08');
+insert into t1 values (1, 'abc', '2000-01-09');
+insert into t1 values (1, 'abc', '2000-01-15');
+insert into t1 values (1, 'abc', '2000-01-11');
+insert into t1 values (1, 'abc', '2000-01-12');
+insert into t1 values (1, 'abc', '2000-01-13');
+insert into t1 values (1, 'abc', '2000-01-14');
+insert into t1 values (1, 'abc', '2000-01-15');
+insert into t1 values (1, 'abc', '2001-01-01');
+insert into t1 values (1, 'abc', '2001-01-02');
+insert into t1 values (1, 'abc', '2001-01-03');
+insert into t1 values (1, 'abc', '2001-01-04');
+insert into t1 values (1, 'abc', '2001-01-05');
+insert into t1 values (1, 'abc', '2001-01-06');
+insert into t1 values (1, 'abc', '2001-01-07');
+insert into t1 values (1, 'abc', '2001-01-08');
+insert into t1 values (1, 'abc', '2001-01-09');
+insert into t1 values (1, 'abc', '2001-01-15');
+insert into t1 values (1, 'abc', '2001-01-11');
+insert into t1 values (1, 'abc', '2001-01-12');
+insert into t1 values (1, 'abc', '2001-01-13');
+insert into t1 values (1, 'abc', '2001-01-14');
+insert into t1 values (1, 'abc', '2001-01-15');
+alter table t1
+partition by range (year(c))
+(partition p5 values less than (2000), partition p10 values less than (2010));
+alter table t1
+reorganize partition p5 into
+(partition p1 values less than (1996),
+partition p2 values less than (1997),
+partition p3 values less than (1998),
+partition p4 values less than (1999),
+partition p5 values less than (2000));
+drop table t1;
+CREATE TABLE t1 (a date)
+PARTITION BY RANGE (TO_DAYS(a))
+(PARTITION p3xx VALUES LESS THAN (TO_DAYS('2004-01-01')),
+PARTITION p401 VALUES LESS THAN (TO_DAYS('2004-02-01')),
+PARTITION p402 VALUES LESS THAN (TO_DAYS('2004-03-01')),
+PARTITION p403 VALUES LESS THAN (TO_DAYS('2004-04-01')),
+PARTITION p404 VALUES LESS THAN (TO_DAYS('2004-05-01')),
+PARTITION p405 VALUES LESS THAN (TO_DAYS('2004-06-01')),
+PARTITION p406 VALUES LESS THAN (TO_DAYS('2004-07-01')),
+PARTITION p407 VALUES LESS THAN (TO_DAYS('2004-08-01')),
+PARTITION p408 VALUES LESS THAN (TO_DAYS('2004-09-01')),
+PARTITION p409 VALUES LESS THAN (TO_DAYS('2004-10-01')),
+PARTITION p410 VALUES LESS THAN (TO_DAYS('2004-11-01')),
+PARTITION p411 VALUES LESS THAN (TO_DAYS('2004-12-01')),
+PARTITION p412 VALUES LESS THAN (TO_DAYS('2005-01-01')),
+PARTITION p501 VALUES LESS THAN (TO_DAYS('2005-02-01')),
+PARTITION p502 VALUES LESS THAN (TO_DAYS('2005-03-01')),
+PARTITION p503 VALUES LESS THAN (TO_DAYS('2005-04-01')),
+PARTITION p504 VALUES LESS THAN (TO_DAYS('2005-05-01')),
+PARTITION p505 VALUES LESS THAN (TO_DAYS('2005-06-01')),
+PARTITION p506 VALUES LESS THAN (TO_DAYS('2005-07-01')),
+PARTITION p507 VALUES LESS THAN (TO_DAYS('2005-08-01')),
+PARTITION p508 VALUES LESS THAN (TO_DAYS('2005-09-01')),
+PARTITION p509 VALUES LESS THAN (TO_DAYS('2005-10-01')),
+PARTITION p510 VALUES LESS THAN (TO_DAYS('2005-11-01')),
+PARTITION p511 VALUES LESS THAN (TO_DAYS('2005-12-01')),
+PARTITION p512 VALUES LESS THAN (TO_DAYS('2006-01-01')),
+PARTITION p601 VALUES LESS THAN (TO_DAYS('2006-02-01')),
+PARTITION p602 VALUES LESS THAN (TO_DAYS('2006-03-01')),
+PARTITION p603 VALUES LESS THAN (TO_DAYS('2006-04-01')),
+PARTITION p604 VALUES LESS THAN (TO_DAYS('2006-05-01')),
+PARTITION p605 VALUES LESS THAN (TO_DAYS('2006-06-01')),
+PARTITION p606 VALUES LESS THAN (TO_DAYS('2006-07-01')),
+PARTITION p607 VALUES LESS THAN (TO_DAYS('2006-08-01')));
+INSERT INTO t1 VALUES ('2003-01-13'),('2003-06-20'),('2003-08-30');
+INSERT INTO t1 VALUES ('2003-04-13'),('2003-07-20'),('2003-10-30');
+INSERT INTO t1 VALUES ('2003-05-13'),('2003-11-20'),('2003-12-30');
+INSERT INTO t1 VALUES ('2004-01-13'),('2004-01-20'),('2004-01-30');
+INSERT INTO t1 VALUES ('2004-02-13'),('2004-02-20'),('2004-02-28');
+INSERT INTO t1 VALUES ('2004-03-13'),('2004-03-20'),('2004-03-30');
+INSERT INTO t1 VALUES ('2004-04-13'),('2004-04-20'),('2004-04-30');
+INSERT INTO t1 VALUES ('2004-05-13'),('2004-05-20'),('2004-05-30');
+INSERT INTO t1 VALUES ('2004-06-13'),('2004-06-20'),('2004-06-30');
+INSERT INTO t1 VALUES ('2004-07-13'),('2004-07-20'),('2004-07-30');
+INSERT INTO t1 VALUES ('2004-08-13'),('2004-08-20'),('2004-08-30');
+INSERT INTO t1 VALUES ('2004-09-13'),('2004-09-20'),('2004-09-30');
+INSERT INTO t1 VALUES ('2004-10-13'),('2004-10-20'),('2004-10-30');
+INSERT INTO t1 VALUES ('2004-11-13'),('2004-11-20'),('2004-11-30');
+INSERT INTO t1 VALUES ('2004-12-13'),('2004-12-20'),('2004-12-30');
+INSERT INTO t1 VALUES ('2005-01-13'),('2005-01-20'),('2005-01-30');
+INSERT INTO t1 VALUES ('2005-02-13'),('2005-02-20'),('2005-02-28');
+INSERT INTO t1 VALUES ('2005-03-13'),('2005-03-20'),('2005-03-30');
+INSERT INTO t1 VALUES ('2005-04-13'),('2005-04-20'),('2005-04-30');
+INSERT INTO t1 VALUES ('2005-05-13'),('2005-05-20'),('2005-05-30');
+INSERT INTO t1 VALUES ('2005-06-13'),('2005-06-20'),('2005-06-30');
+INSERT INTO t1 VALUES ('2005-07-13'),('2005-07-20'),('2005-07-30');
+INSERT INTO t1 VALUES ('2005-08-13'),('2005-08-20'),('2005-08-30');
+INSERT INTO t1 VALUES ('2005-09-13'),('2005-09-20'),('2005-09-30');
+INSERT INTO t1 VALUES ('2005-10-13'),('2005-10-20'),('2005-10-30');
+INSERT INTO t1 VALUES ('2005-11-13'),('2005-11-20'),('2005-11-30');
+INSERT INTO t1 VALUES ('2005-12-13'),('2005-12-20'),('2005-12-30');
+INSERT INTO t1 VALUES ('2006-01-13'),('2006-01-20'),('2006-01-30');
+INSERT INTO t1 VALUES ('2006-02-13'),('2006-02-20'),('2006-02-28');
+INSERT INTO t1 VALUES ('2006-03-13'),('2006-03-20'),('2006-03-30');
+INSERT INTO t1 VALUES ('2006-04-13'),('2006-04-20'),('2006-04-30');
+INSERT INTO t1 VALUES ('2006-05-13'),('2006-05-20'),('2006-05-30');
+INSERT INTO t1 VALUES ('2006-06-13'),('2006-06-20'),('2006-06-30');
+INSERT INTO t1 VALUES ('2006-07-13'),('2006-07-20'),('2006-07-30');
+SELECT * FROM t1
+WHERE a >= '2004-07-01' AND a <= '2004-09-30';
+a
+2004-07-13
+2004-07-20
+2004-07-30
+2004-08-13
+2004-08-20
+2004-08-30
+2004-09-13
+2004-09-20
+2004-09-30
+EXPLAIN PARTITIONS SELECT * FROM t1
+WHERE a >= '2004-07-01' AND a <= '2004-09-30';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3xx,p407,p408,p409	ALL	NULL	NULL	NULL	NULL	18	Using where
+SELECT * from t1
+WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
+(a >= '2005-07-01' AND a <= '2005-09-30');
+a
+2004-07-13
+2004-07-20
+2004-07-30
+2004-08-13
+2004-08-20
+2004-08-30
+2004-09-13
+2004-09-20
+2004-09-30
+2005-07-13
+2005-07-20
+2005-07-30
+2005-08-13
+2005-08-20
+2005-08-30
+2005-09-13
+2005-09-20
+2005-09-30
+EXPLAIN PARTITIONS SELECT * from t1
+WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
+(a >= '2005-07-01' AND a <= '2005-09-30');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3xx,p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	27	Using where
+DROP TABLE t1;

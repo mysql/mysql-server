@@ -75,6 +75,7 @@ extern PSI_file_key key_file_proc_meminfo;
 extern PSI_file_key key_file_charset, key_file_cnf;
 #endif /* HAVE_PSI_INTERFACE */
 
+
 /*
   EDQUOT is used only in 3 C files only in mysys/. If it does not exist on
   system, we set it to some value which can never happen.
@@ -84,6 +85,7 @@ extern PSI_file_key key_file_charset, key_file_cnf;
 #endif
 
 void my_error_unregister_all(void);
+<<<<<<< TREE
 
 #ifdef _WIN32
 #include <sys/stat.h>

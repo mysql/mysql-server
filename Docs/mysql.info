@@ -1,3 +1,10 @@
+MariaDB is in most aspects identical to MySQL.
+
+Differences between MySQL and MariaDB can be found at:
+http://askmonty.org/wiki/index.php/MariaDB_versus_MySQL
+
+The MariaDB references manual can be found at:
+http://askmonty.org/wiki/index.php/Manual
 
 The MySQL Reference Manual is available in various formats on
 http://dev.mysql.com/doc; if you're interested in the DocBook XML

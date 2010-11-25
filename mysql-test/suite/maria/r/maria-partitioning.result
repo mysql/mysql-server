@@ -1,0 +1,30 @@
+set global storage_engine=aria;
+set session storage_engine=aria;
+DROP TABLE if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t2(a blob) engine=aria;
+create table t1(a int primary key) engine=aria;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+drop table t1,t2;
+create table t2(a blob) engine= aria;
+create table t1(a int primary key) engine= aria PARTITION BY HASH (a) PARTITIONS 2;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+a	a
+drop table t1,t2;

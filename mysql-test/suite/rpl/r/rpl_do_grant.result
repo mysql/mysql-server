@@ -162,10 +162,11 @@ SELECT * FROM mysql.procs_priv;
 Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
 SELECT upgrade_alter_func();
 ERROR HY000: The user specified as a definer ('create_rout_db'@'localhost') does not exist
-USE bug42217_db;
-DROP FUNCTION upgrade_del_func;
-DROP FUNCTION upgrade_alter_func;
+USE test;
+DROP FUNCTION bug42217_db.upgrade_del_func;
+DROP FUNCTION bug42217_db.upgrade_alter_func;
 DROP DATABASE bug42217_db;
+stop slave;
 DROP USER 'create_rout_db'@'localhost';
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;

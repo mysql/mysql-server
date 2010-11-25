@@ -20,69 +20,6 @@ let $merge_table_support= 1;
 --source include/index_merge_2sweeps.inc
 --source include/index_merge_ror_cpk.inc
 
---echo #
---echo # Generic @@optimizer_switch tests (move those into a separate file if
---echo #  we get another @@optimizer_switch user)
---echo #
-
-select @@optimizer_switch;
-
-set optimizer_switch='index_merge=off,index_merge_union=off';
-select @@optimizer_switch;
-
-set optimizer_switch='index_merge_union=on';
-select @@optimizer_switch;
-
-set optimizer_switch='default,index_merge_sort_union=off';
-select @@optimizer_switch;
-
-set optimizer_switch=4;
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch=NULL;
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='default,index_merge';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge=index_merge';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge=on,but...';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge=';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='on';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge=on,index_merge=off';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='index_merge_union=on,index_merge_union=default';
-
---error ER_WRONG_VALUE_FOR_VAR
-set optimizer_switch='default,index_merge=on,index_merge=off,default';
-
-set optimizer_switch=default;
-set optimizer_switch='index_merge=off,index_merge_union=off,default';
-select @@optimizer_switch;
-set optimizer_switch=default;
-
-# Check setting defaults for global vars
-select @@global.optimizer_switch;
-set @@global.optimizer_switch=default;
-select @@global.optimizer_switch;
-
---echo #
---echo # Check index_merge's @@optimizer_switch flags
---echo #
-select @@optimizer_switch;
-
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -181,7 +118,6 @@ set optimizer_switch='default,index_merge_union=off';
 explain select * from t1 where a=10 and b=10 or c=10;
 
 set optimizer_switch=default;
-show variables like 'optimizer_switch';
 
 drop table t0, t1;
 

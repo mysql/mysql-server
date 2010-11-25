@@ -51,22 +51,36 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
     error=_mi_search(info,share->keyinfo+inx,info->lastkey,
 		     USE_WHOLE_KEY, flag, share->state.key_root[inx]);
 
-  if (share->concurrent_insert)
+  if (!error)
   {
-    if (!error)
+    int res= 0;
+    while ((share->concurrent_insert && 
+            info->lastpos >= info->state->data_file_length) ||
+           (info->index_cond_func &&
+            !(res= mi_check_index_cond(info, inx, buf))))
     {
-      while (info->lastpos >= info->state->data_file_length)
-      {
-	/* Skip rows that are inserted by other threads since we got a lock */
-	if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
-				    info->lastkey_length,
-				    SEARCH_SMALLER,
-				    share->state.key_root[inx])))
-	  break;
-      }
+      /* 
+         Skip rows that are either inserted by other threads since
+         we got a lock or do not match pushed index conditions
+      */
+      if  ((error=_mi_search_next(info,share->keyinfo+inx,info->lastkey,
+                                  info->lastkey_length,
+                                  SEARCH_SMALLER,
+                                  share->state.key_root[inx])))
+        break;
     }
-    mysql_rwlock_unlock(&share->key_root_lock[inx]);
+    if (!error && res == 2) 
+    {
+      if (share->concurrent_insert)
+        rw_unlock(&share->key_root_lock[inx]);
+      info->lastpos= HA_OFFSET_ERROR;
+      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+    }
   }
+
+  if (share->concurrent_insert)
+    mysql_rwlock_unlock(&share->key_root_lock[inx]);
+
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
   if (error)

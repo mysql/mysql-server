@@ -20,7 +20,8 @@ delete from mysql.user where user=_binary'mysqltest_1';
 create table t1(id1 int not null auto_increment primary key, t char(12));
 create table t2(id2 int not null, t char(12));
 create table t3(id3 int not null, t char(12), index(id3));
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 100;
 while ($1)
  {
@@ -39,7 +40,8 @@ while ($1)
    }
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 
 select count(*) from t1 where id1 > 95;
 select count(*) from t2 where id2 > 95;
@@ -75,7 +77,8 @@ drop table t1,t2,t3;
 
 create table t1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
 create table t2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
-disable_query_log;
+--disable_query_log
+begin;
 let $1 = 1000;
 while ($1)
  {
@@ -88,7 +91,8 @@ while ($1)
    }
   dec $1;
  }
-enable_query_log;
+commit;
+--enable_query_log
 delete t1  from t1,t2 where t1.id1 = t2.id2 and t1.id1 > 500;
 drop table t1,t2;
 

@@ -31,6 +31,9 @@
 #  - BUG#25705
 #  - BUG#44171
 
+# Temporarily disabled on Windows due to bug #47638 
+--source include/not_windows.inc
+
 source include/have_debug.inc;
 source include/master-slave.inc;
 

@@ -1,0 +1,305 @@
+# translation of mysql-dfsg-5.1_5.0.32-6_ru.po to Russian
+# Russian messages:
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'#
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
+#    Developers do not need to manually edit POT or PO files.
+# Ilgiz Kalmetev <translator@ilgiz.pp.ru>, 2003.
+# Yuriy Talakan' <yt@amur.elektra.ru>, 2005, 2006.
+# Yuriy Talakan' <yt@drsk.ru>, 2007.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-5.1_5.0.32-6_ru\n"
+"Report-Msgid-Bugs-To: percona-xtradb-dfsg-5.1@packages.debian.org\n"
+"POT-Creation-Date: 2010-02-15 17:10-0500\n"
+"PO-Revision-Date: 2007-02-19 11:28+0900\n"
+"Last-Translator: Yuriy Talakan' <yt@drsk.ru>\n"
+"Language-Team: Russian <debian-l10n-russian@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.9.1\n"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+#, fuzzy
+#| msgid "Do you really want to downgrade?"
+msgid "Really proceed with downgrade?"
+msgstr "Вы действительно желаете понизить версию?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+#, fuzzy
+#| msgid ""
+#| "WARNING: The file /var/lib/mysql/debian-*.flag exists. This indicates "
+#| "that a mysql-server package with a higher version has been installed "
+#| "before. It can not be guaranteed that this version can use its data."
+msgid ""
+"Such file is an indication that a mysql-server package with a higher version "
+"has been installed earlier."
+msgstr ""
+"ВНИМАНИЕ: Найден файл /var/lib/mysql/debian-*.flag. Это означает, что ранее "
+"был установлен пакет mysql-server более высокой версии. Невозможно "
+"гарантировать, что текущая версия сможет использовать его данные."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+#, fuzzy
+#| msgid "Important note for NIS/YP users!"
+msgid "Important note for NIS/YP users"
+msgstr "Важное замечание для пользователей NIS/YP!"
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"To use MySQL, the following entries for users and groups should be added to "
+"the system:"
+msgstr ""
+
+#. Type: note
+#. Description
+#: ../percona-xtradb-server-5.1.templates:3001
+msgid ""
+"You should also check the permissions and the owner of the /var/lib/mysql "
+"directory:"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid "Remove all Percona SQL databases?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the Percona SQL databases is "
+"about to be removed."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:4001
+#, fuzzy
+#| msgid ""
+#| "The script is about to remove the data directory /var/lib/mysql. If it is "
+#| "planned to just install a higher MySQL version or if a different mysql-"
+#| "server package is already using it, the data should be kept."
+msgid ""
+"If you're removing the Percona SQL package in order to later install a more "
+"recent version or if a different mysql-server package is already using it, "
+"the data should be kept."
+msgstr ""
+"Сценарий собирается удалить директорию данных /var/lib/mysql. Если "
+"планируется установить новую версию MySQL или есть другие пакеты mysql-"
+"server, использующие эту директорию, то данные надо сохранить."
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid "Should MySQL start on boot?"
+msgid "Start the Percona SQL server on boot?"
+msgstr "Запускать MySQL при загрузке системы?"
+
+#. Type: boolean
+#. Description
+#: ../percona-xtradb-server-5.1.templates:5001
+#, fuzzy
+#| msgid ""
+#| "The MySQL can start automatically on boot time or only if you manually "
+#| "type '/etc/init.d/mysql start'."
+msgid ""
+"The Percona SQL server can be launched automatically at boot time or "
+"manually with the '/etc/init.d/mysql start' command."
+msgstr ""
+"MySQL может запускаться при загрузке системы, либо только если вы вручную "
+"введете команду '/etc/init.d/mysql start'. "
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid "New password for MySQL \"root\" user:"
+msgid "New password for the Percona SQL \"root\" user:"
+msgstr "Новый пароль для MySQL пользователя \"root\":"
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+#, fuzzy
+#| msgid ""
+#| "It is highly recommended that you set a password for the MySQL "
+#| "administrative \"root\" user."
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the Percona SQL administrative \"root\" user."
+msgstr ""
+"Крайне рекомендуется установить пароль для административного MySQL "
+"пользователя \"root\"."
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:6001
+msgid "If that field is left blank, the password will not be changed."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../percona-xtradb-server-5.1.templates:7001
+#, fuzzy
+#| msgid "New password for MySQL \"root\" user:"
+msgid "Repeat password for the Percona SQL \"root\" user:"
+msgstr "Новый пароль для MySQL пользователя \"root\":"
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid "Unable to set password for MySQL \"root\" user"
+msgid "Unable to set password for the Percona SQL \"root\" user"
+msgstr "Невозможно задать пароль MySQL пользователю \"root\""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+#, fuzzy
+#| msgid ""
+#| "It seems an error occurred while setting the password for the MySQL "
+#| "administrative user.  This may have happened because the user already has "
+#| "a password, or because there was a problem communicating with the MySQL "
+#| "server."
+msgid ""
+"An error occurred while setting the password for the Percona SQL "
+"administrative user. This may have happened because the account already has "
+"a password, or because of a communication problem with the Percona SQL "
+"server."
+msgstr ""
+"В процессе задания пароля административного MySQL пользователя произошла "
+"ошибка.  Это могло произойти если у пользователя уже был задан пароль, или "
+"из-за проблем соединения с сервером MySQL."
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid "You should check the account's password after the package installation."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:8001
+msgid ""
+"Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for more "
+"information."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../percona-xtradb-server-5.1.templates:10001
+msgid ""
+"Percona-SQL-5.1 has orphaned NDB Cluster support. Please migrate to the new "
+"mysql-cluster package and remove all lines starting with \"ndb\" from all "
+"config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "Support MySQL connections from hosts running Debian \"sarge\" or older?"
+#~ msgstr ""
+#~ "Нужна поддержка подключений к MySQL с машин, работающих под Debian \"sarge"
+#~ "\" или старше?"
+
+#, fuzzy
+#~| msgid ""
+#~| "The way passwords were stored was not very secure. This has been "
+#~| "improved with the drawback that clients (e.g. PHP) from hosts running "
+#~| "Debian 3.1 Sarge will not be able to connect to account which are new or "
+#~| "whose password have been changed. See /usr/share/doc/mysql-server-5.1/"
+#~| "README.Debian."
+#~ msgid ""
+#~ "In old versions of MySQL clients on Debian, passwords were not stored "
+#~ "securely. This has been improved since then, however clients (such as "
+#~ "PHP) from hosts running Debian 3.1 Sarge will not be able to connect to "
+#~ "recent accounts or accounts whose password have been changed."
+#~ msgstr ""
+#~ "Метод хранения пароля был не очень безопасен. Это было сделано из-за "
+#~ "того, клиенты (например, PHP) с машин, работающих под Debian 3.1 Sarge не "
+#~ "смогут подключиться к учетной записи если она новая, или пароль был "
+#~ "изменен. См. /usr/share/doc/mysql-server-5.1/README.Debian."
+
+#~ msgid ""
+#~ "To use mysql you must install an equivalent user and group to the "
+#~ "following and ensure yourself that /var/lib/mysql has the right "
+#~ "permissions (the uid/gid may be different)."
+#~ msgstr ""
+#~ "Чтобы использовать mysql, Вы должны установить эквивалентные пользователя "
+#~ "и группу, как указано ниже и убедиться, что /var/lib/mysql имеет "
+#~ "правильные права (uid/gid могут отличаться)."
+
+#~ msgid ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+#~ msgstr ""
+#~ "/etc/passwd:      mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false"
+
+#~ msgid "/etc/group:       mysql:x:101:"
+#~ msgstr "/etc/group:       mysql:x:101:"
+
+#~ msgid "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+#~ msgstr "/var/lib/mysql:   drwxr-xr-x   mysql    mysql"
+
+#~ msgid "Remove the databases used by all MySQL versions?"
+#~ msgstr "Удалить базы данных, используемые всеми версиями MySQL?"
+
+#~ msgid ""
+#~ "If you do not provide a password no changes will be made to the account."
+#~ msgstr "Если вы не зададите пароль, то учетная запись не будет изменена."
+
+#~ msgid ""
+#~ "When installation finishes, you should verify that the account is "
+#~ "properly protected with a password (see README.Debian for more "
+#~ "information)."
+#~ msgstr ""
+#~ "Когда установка завершится, вы должны убедиться, что учетная запись "
+#~ "защищена паролем (подробную информацию см. в README.Debian)."

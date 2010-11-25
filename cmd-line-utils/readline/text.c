@@ -1169,7 +1169,7 @@ rl_insert_comment (count, key)
   int rl_comment_len;
 
   rl_beg_of_line (1, key);
-  rl_comment_text = _rl_comment_begin ? _rl_comment_begin : RL_COMMENT_BEGIN_DEFAULT;
+  rl_comment_text = _rl_comment_begin ? _rl_comment_begin : (char*) RL_COMMENT_BEGIN_DEFAULT;
 
   if (rl_explicit_arg == 0)
     rl_insert_text (rl_comment_text);
@@ -1386,10 +1386,11 @@ rl_transpose_chars (count, key)
 #if defined (HANDLE_MULTIBYTE)
   char *dummy;
   int i;
+  int prev_point;
 #else
   char dummy[2];
 #endif
-  int char_length, prev_point;
+  int char_length;
 
   if (count == 0)
     return 0;
@@ -1408,7 +1409,9 @@ rl_transpose_chars (count, key)
       count = 1;
     }
 
+#if defined (HANDLE_MULTIBYTE)
   prev_point = rl_point;
+#endif
   rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_NONZERO);
 
 #if defined (HANDLE_MULTIBYTE)

@@ -42,7 +42,7 @@
 
 static void
 memory_error_and_abort (fname)
-     char *fname;
+     const char *fname;
 {
   fprintf (stderr, "%s: out of virtual memory\n", fname);
   exit (2);

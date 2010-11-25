@@ -331,7 +331,7 @@ static int examine_log(char * file_name, char **table_names)
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
 	    (tree_element_free) file_info_free, NULL);
   (void) init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,KEY_CACHE_SIZE,
-                      0, 0);
+                      0, 0, 0);
 
   files_open=0; access_time=0;
   while (access_time++ != number_of_commands &&
@@ -806,7 +806,7 @@ static int find_record_with_key(struct file_info *file_info, uchar *record)
 {
   uint key;
   MI_INFO *info=file_info->isam;
-  uchar tmp_key[MI_MAX_KEY_BUFF];
+  uchar tmp_key[HA_MAX_KEY_BUFF];
 
   for (key=0 ; key < info->s->base.keys ; key++)
   {

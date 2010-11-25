@@ -5,7 +5,6 @@
 drop table if exists t1;
 --enable_warnings
 
-
 # Add the datadir to the bootstrap command
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $MYSQLD_BOOTSTRAP_CMD= $MYSQLD_BOOTSTRAP_CMD --datadir=$MYSQLD_DATADIR --default-storage-engine=MyISAM --skip-innodb;

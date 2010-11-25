@@ -1,6 +1,3 @@
-#ifndef MY_ATOMIC_INCLUDED
-#define MY_ATOMIC_INCLUDED
-
 /* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -28,10 +25,9 @@
     store 'what' in *var, and return the old value of *var
 
   my_atomic_cas#(&var, &old, new)
-    An odd variation of 'Compare And Set/Swap'
+    'Compare And Swap'
     if *var is equal to *old, then store 'new' in *var, and return TRUE
     otherwise store *var in *old, and return FALSE
-    Usually, &old should not be accessed if the operation is successful.
 
   my_atomic_load#(&var)
     return *var

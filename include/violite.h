@@ -132,8 +132,8 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout);
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,

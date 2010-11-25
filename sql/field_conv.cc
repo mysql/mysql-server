@@ -676,10 +676,10 @@ Copy_field::get_copy_func(Field *to,Field *from)
       */
       if (to->real_type() != from->real_type() ||
           !compatible_db_low_byte_first ||
-          (((to->table->in_use->variables.sql_mode &
+          ((to->table->in_use->variables.sql_mode &
             (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
-           to->type() == MYSQL_TYPE_DATE) ||
-           to->type() == MYSQL_TYPE_DATETIME))
+           (to->type() == MYSQL_TYPE_DATE ||
+            to->type() == MYSQL_TYPE_DATETIME)))
       {
 	if (from->real_type() == MYSQL_TYPE_ENUM ||
 	    from->real_type() == MYSQL_TYPE_SET)
@@ -695,8 +695,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           if (from->real_type() == MYSQL_TYPE_ENUM &&
               to->real_type() == MYSQL_TYPE_ENUM)
             return do_field_enum;
-          else
-            return do_field_string;
+          return do_field_string;
         }
       }
       else if (to->charset() != from->charset())
@@ -720,10 +719,8 @@ Copy_field::get_copy_func(Field *to,Field *from)
       {
         if (to->charset() == &my_charset_bin)
           return do_expand_binary;
-        else
-          return do_expand_string;
+        return do_expand_string;
       }
-
     }
     else if (to->real_type() != from->real_type() ||
 	     to_length != from_length ||
@@ -749,7 +746,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
       }
     }
   }
-    /* Eq fields */
+  /* Identical field types */
   switch (to_length) {
   case 1: return do_field_1;
   case 2: return do_field_2;
@@ -775,8 +772,8 @@ int field_conv(Field *to,Field *from)
 	to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
-         (to->field_length == from->field_length &&
-          (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
+         ((to->field_length == from->field_length &&
+           (((Field_num*)to)->dec == ((Field_num*)from)->dec)))) &&
         from->charset() == to->charset() &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
@@ -787,7 +784,7 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /* This may happen if one does 'UPDATE ... SET x=x' */
       if (to->ptr != from->ptr)
 #endif

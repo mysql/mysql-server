@@ -68,6 +68,19 @@ SET GLOBAL log_warnings = @old_log_warnings;
 # Count the number of times the "Unsafe" message was printed
 # to the error log.
 Occurrences: 1
+create table t1 (n1 int, n2 int, n3 int,
+key (n1, n2, n3),
+key (n2, n3, n1),
+key (n3, n1, n2));
+insert into t1 values (1,1,1);
+insert into t1 values (RAND()*1000+10, RAND()*1000+10, RAND()*1000+10);
+update t1 set n1=rand() where n1=1;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+delete from t1 where n2=1 + rand()*0;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+drop table t1;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int auto_increment primary key, b int);

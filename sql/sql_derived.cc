@@ -172,7 +172,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     */
     if ((res= derived_result->create_result_table(thd, &unit->types, FALSE,
                                                  create_options,
-                                                 orig_table_list->alias)))
+                                                 orig_table_list->alias,
+                                                 FALSE)))
       goto exit;
 
     table= derived_result->table;

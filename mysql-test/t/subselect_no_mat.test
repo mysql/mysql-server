@@ -1,0 +1,11 @@
+# 
+# Run subselect.test without semi-join optimization (test materialize)
+#
+select @@optimizer_switch like '%materialization=on%';
+set optimizer_switch='materialization=off';
+
+--source t/subselect.test
+
+set optimizer_switch=default;
+select @@optimizer_switch like '%materialization=on%';
+

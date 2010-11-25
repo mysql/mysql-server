@@ -5,6 +5,11 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_query_log
+# Set timezone to something specific, to make it possible to use unix_timestamp
+set time_zone="+03:00";
+--enable_query_log
+
 #
 # Simple IF tests
 #
@@ -163,9 +168,7 @@ SELECT * FROM (SELECT MAX(IFNULL(CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 
 DROP TABLE t1;
 
-
 --echo End of 5.0 tests
-
 
 --echo #
 --echo # Bug#55077: Assertion failed: width > 0 && to != ((void *)0), file .\dtoa.c

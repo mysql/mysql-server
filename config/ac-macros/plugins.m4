@@ -26,7 +26,7 @@ AC_DEFUN([MYSQL_PLUGIN],[
   [__MYSQL_PLUGIN_]AS_TR_CPP([$1])[__],
   m4_default([$2], [$1 plugin]),
   m4_default([$3], [plugin for $1]),
-  m4_default([$4], []),
+  m4_default([[$4]], []),
  )
 ])
 
@@ -38,6 +38,7 @@ AC_DEFUN([_MYSQL_PLUGIN],[
   _MYSQL_PLUGAPPEND([__mysql_plugin_list__],[$1])
   m4_define([MYSQL_PLUGIN_NAME_]AS_TR_CPP([$1]), [$3])
   m4_define([MYSQL_PLUGIN_DESC_]AS_TR_CPP([$1]), [$4])
+  m4_ifdef([_AC_ENABLE_IF], [_AC_ENABLE_IF([with],[plugin-$1])])
   _MYSQL_PLUGAPPEND_META([$1], $5)
   ifelse(m4_bregexp(__mysql_include__,[/plug\.in$]),-1,[],[
      MYSQL_PLUGIN_DIRECTORY([$1],
@@ -60,7 +61,7 @@ dnl
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_STORAGE_ENGINE],[
- MYSQL_PLUGIN([$1], [$3], [$4], [[$5]])
+ MYSQL_PLUGIN([$1], [$3], [$4], [$5])
  MYSQL_PLUGIN_DEFINE([$1], [WITH_]AS_TR_CPP([$1])[_STORAGE_ENGINE])
  ifelse([$2],[no],[],[
   _MYSQL_LEGACY_STORAGE_ENGINE(
@@ -202,6 +203,30 @@ AC_DEFUN([_MYSQL_PLUGIN_DISABLED],[
 
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_PLUGIN_WITHOUT
+dnl
+dnl SYNOPSIS
+dnl   MYSQL_PLUGIN_WITHOUT([name])
+dnl
+dnl DESCRIPTION
+dnl   Exclude the plugin from being built, as if --without-plugin-name
+dnl   was specified.
+dnl   If the plugin was selected manually by --with-plugin-name,
+dnl   excluding it here will abort the configure script with an error,
+dnl   otherwise plugin will be silently disabled.
+dnl
+dnl ---------------------------------------------------------------------------
+
+AC_DEFUN([MYSQL_PLUGIN_WITHOUT],[
+ MYSQL_REQUIRE_PLUGIN([$1])
+ if test "X[$with_plugin_]$1" = Xyes; then
+   AC_MSG_ERROR([Plugin $1 cannot be built])
+ else
+   [with_plugin_]$1=no
+ fi
+])
+
+dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_PLUGIN_DEPENDS
 dnl
 dnl SYNOPSIS
@@ -267,7 +292,6 @@ dnl   we have to recompile these modules when we want to
 dnl   to compile server parts with the different #defines
 dnl   Normally it happens when we compile the embedded server
 dnl   Thus one should mark such files in his handler using this macro
-dnl    (currently only one such a file per plugin is supported)
 dnl
 dnl ---------------------------------------------------------------------------
 
@@ -280,7 +304,7 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CONFIGURE_PLUGINS
 dnl
 dnl SYNOPSIS
-dnl   MYSQL_PLUGIN_DEPENDS([name,name...])
+dnl   MYSQL_CONFIGURE_PLUGINS([name,name...])
 dnl
 dnl DESCRIPTION
 dnl   Used last, emits all required shell code to configure the plugins
@@ -343,7 +367,7 @@ AC_DEFUN([_MYSQL_EMIT_CHECK_PLUGIN],[
 
 AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  m4_ifdef([$5],[
-  AH_TEMPLATE($5, [Include ]$4[ into mysqld])
+  AH_TEMPLATE($5, [Include ]$3[ into mysqld])
  ])
  AC_MSG_CHECKING([whether to use ]$3)
  mysql_use_plugin_dir=""
@@ -351,10 +375,10 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   if test "X[$mysql_plugin_]$2" = Xyes -a \
           "X[$with_plugin_]$2" != Xno -o \
           "X[$with_plugin_]$2" = Xyes; then
-    AC_MSG_RESULT([error])
+    __MYSQL_EMIT_CHECK_RESULT($3,[error])
     AC_MSG_ERROR([disabled])
   fi
-  AC_MSG_RESULT([no])
+  __MYSQL_EMIT_CHECK_RESULT($3,[no])
  ],[
 
   # Plugin is not disabled, determine if it should be built,
@@ -365,7 +389,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
       # Plugin directory was removed after autoconf was run; treat
       # this as a disabled plugin
       if test "X[$with_plugin_]$2" = Xyes; then
-        AC_MSG_RESULT([error])
+        __MYSQL_EMIT_CHECK_RESULT($3,[error])
         AC_MSG_ERROR([disabled])
       fi
 
@@ -376,7 +400,7 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 
   m4_ifdef([$9],[
    if test "X[$with_plugin_]$2" = Xno; then
-     AC_MSG_RESULT([error])
+     __MYSQL_EMIT_CHECK_RESULT($3,[error])
      AC_MSG_ERROR([cannot disable mandatory plugin])
    fi
    [mysql_plugin_]$2=yes
@@ -391,11 +415,19 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
 	   fi
      ;;
    esac
+   # Similarly, disable shared plugins when configured with --disable-shared
+   # as libtool will not be able to produce them
+   if test "X[$enable_shared]" = Xno; then
+     if test "X[$mysql_plugin_]$2" != Xyes -a \
+             "X[$with_plugin_]$2" != Xyes; then
+       [with_plugin_]$2=no
+     fi
+   fi
   ])
 
 
   if test "X[$with_plugin_]$2" = Xno; then
-    AC_MSG_RESULT([no])
+    __MYSQL_EMIT_CHECK_RESULT($3,[no])
   else
     m4_ifdef([$8],m4_ifdef([$7],[],[[with_plugin_]$2='']))
     if test "X[$mysql_plugin_]$2" != Xyes -a \
@@ -408,16 +440,16 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
        [with_plugin_]$2=yes
-       AC_MSG_RESULT([plugin])
+       __MYSQL_EMIT_CHECK_RESULT($3,[plugin])
        m4_ifdef([$6],[
          else
            [mysql_plugin_]$2=no
-           AC_MSG_RESULT([no])
+           __MYSQL_EMIT_CHECK_RESULT($3,[no])
          fi
        ])
       ],[
        [with_plugin_]$2=no
-       AC_MSG_RESULT([no])
+       __MYSQL_EMIT_CHECK_RESULT($3,[no])
       ])
     else
       m4_ifdef([$7],[
@@ -450,7 +482,7 @@ dnl Although this is "pretty", it breaks libmysqld build
        AC_SUBST([plugin_]$2[_shared_target], [""])
       ],[
        m4_ifdef([$6],[
-        AC_MSG_RESULT([error])
+        __MYSQL_EMIT_CHECK_RESULT($3,[error])
         AC_MSG_ERROR([Plugin $1 does not support static linking])
        ],[
         m4_ifdef([$5],[
@@ -461,17 +493,19 @@ dnl Although this is "pretty", it breaks libmysqld build
        ])
       ])
       m4_ifdef([$9],[
-        mysql_mandatory_plugins="$mysql_mandatory_plugins [builtin_]$2[_plugin],"
+        mysql_mandatory_plugins="$mysql_mandatory_plugins [builtin_maria_]$2[_plugin],"
       ],[
-        mysql_optional_plugins="$mysql_optional_plugins [builtin_]$2[_plugin],"
+        mysql_optional_plugins="$mysql_optional_plugins [builtin_maria_]$2[_plugin],"
       ])
       [with_plugin_]$2=yes
-      AC_MSG_RESULT([yes])
-      m4_ifdef([$11],[
-       condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
-       condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp($11, [[^/]+\.], [\&o])"
-       condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
-       condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
+      __MYSQL_EMIT_CHECK_RESULT($3,[yes])
+      m4_ifdef([$11], [
+        m4_foreach([plugin], [$11], [
+           condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp(plugin, [[^/]+$], [\&])"
+           condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp(plugin, [[^/]+\.], [\&o])"
+           condition_dependent_plugin_links="$condition_dependent_plugin_links $6/plugin"
+           condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp(plugin, [^.+[/$]], [\&])"
+        ])
       ])
     fi
   fi
@@ -518,6 +552,12 @@ dnl
     fi
   ])
  ])
+])
+
+AC_DEFUN([__MYSQL_EMIT_CHECK_RESULT],[
+  AC_MSG_RESULT($2)
+  plugin_report="[$plugin_report]
+m4_format([  * %-32s $2],$1:)"
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_ACTIONS],[
@@ -788,7 +828,7 @@ AC_DEFUN([_MYSQL_CHECK_PLUGIN_ARGS],[
 AC_DEFUN([__MYSQL_CHECK_PLUGIN_ARGS],[
  AC_ARG_WITH([plugins],
 AS_HELP_STRING([--with-plugins=PLUGIN[[[[[,PLUGIN..]]]]]],
-               [Plugins to include in mysqld. (default is: $1) Must be a
+               [Plugins to include in mysqld. Must be a
                 configuration name or a comma separated list of plugins.])
 AS_HELP_STRING([],
                [Available configurations are:] dnl

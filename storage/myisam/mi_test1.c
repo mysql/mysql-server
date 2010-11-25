@@ -49,7 +49,8 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
   if (key_cacheing)
-    init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0);
+    init_key_cache(dflt_key_cache,KEY_CACHE_BLOCK_SIZE,IO_SIZE*16,0,0,
+                   DEFAULT_KEY_CACHE_PARTITIONS);
   get_options(argc,argv);
 
   exit(run_test("test1"));
@@ -79,6 +80,8 @@ static int run_test(const char *filename)
   recinfo[2].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr : 24);
   if (extra_field == FIELD_VARCHAR)
     recinfo[2].length+= HA_VARCHAR_PACKLENGTH(recinfo[2].length);
+  recinfo[1].null_bit= null_fields ? 2 : 0;
+
   if (opt_unique)
   {
     recinfo[3].type=FIELD_CHECK;
@@ -630,7 +633,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     key_type= HA_KEYTYPE_VARTEXT1;
     break;
   case 'k':
-    if (key_length < 4 || key_length > MI_MAX_KEY_LENGTH)
+    if (key_length < 4 || key_length > HA_MAX_KEY_LENGTH)
     {
       fprintf(stderr,"Wrong key length\n");
       exit(1);

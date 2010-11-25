@@ -1,0 +1,391 @@
+drop table if exists t1,t2,t3;
+select * from (select 2 from DUAL) b;
+2
+2
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
+ERROR 42S22: Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
+ERROR 42S22: Unknown column 'a' in 'field list'
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+select t1.a,t3.y from t1,(select a as y from t2  where b='c') as t3  where t1.a = t3.y;
+a	y
+3	3
+3	3
+select t1.a,t3.a from t1,(select * from t2  where b='c') as t3  where t1.a = t3.a;
+a	a
+3	3
+3	3
+CREATE TABLE t3 (a int not null, b char (10) not null);
+insert into t3 values (3,'f'),(4,'y'),(5,'z'),(6,'c');
+select t1.a,t4.y from t1,(select t2.a as y from t2,(select t3.b from t3 where t3.a>3) as t5  where t2.b=t5.b) as t4  where t1.a = t4.y;
+a	y
+3	3
+3	3
+SELECT a FROM (SELECT 1 FROM (SELECT 1) a HAVING a=1) b;
+ERROR 42S22: Unknown column 'a' in 'having clause'
+SELECT a,b as a FROM (SELECT '1' as a,'2' as b) b  HAVING a=1;
+ERROR 23000: Column 'a' in having clause is ambiguous
+SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=2;
+a	a
+1	2
+SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=1;
+a	a
+SELECT 1 FROM (SELECT 1) a WHERE a=2;
+ERROR 42S22: Unknown column 'a' in 'where clause'
+SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
+ERROR 42S22: Unknown column 'a' in 'having clause'
+select * from t1 as x1, (select * from t1) as x2;
+a	b	a	b
+1	a	1	a
+2	b	1	a
+3	c	1	a
+3	c	1	a
+1	a	2	b
+2	b	2	b
+3	c	2	b
+3	c	2	b
+1	a	3	c
+2	b	3	c
+3	c	3	c
+3	c	3	c
+1	a	3	c
+2	b	3	c
+3	c	3	c
+3	c	3	c
+explain select * from t1 as x1, (select * from t1) as x2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+drop table if exists  t2,t3;
+select * from (select 1) as a;
+1
+1
+select a from (select 1 as a) as b;
+a
+1
+select 1 from (select 1) as a;
+1
+1
+select * from (select * from t1 union select * from t1) a;
+a	b
+1	a
+2	b
+3	c
+select * from (select * from t1 union all select * from t1) a;
+a	b
+1	a
+2	b
+3	c
+3	c
+1	a
+2	b
+3	c
+3	c
+select * from (select * from t1 union all select * from t1 limit 2) a;
+a	b
+1	a
+2	b
+explain select * from (select * from t1 union select * from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+explain select * from (select * from t1 union all select * from t1) a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	8	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	4	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+CREATE TABLE t2 (a int not null);
+insert into t2 values(1);
+select * from (select * from t1 where t1.a=(select a from t2 where t2.a=t1.a)) a;
+a	b
+1	a
+select * from (select * from t1 where t1.a=(select t2.a from t2 where t2.a=t1.a) union select t1.a, t1.b from t1) a;
+a	b
+1	a
+2	b
+3	c
+explain select * from (select t1.*, t2.a as t2a from t1,t2 where t1.a=t2.a) t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer
+drop table t1, t2;
+create table t1(a int not null, t char(8), index(a));
+SELECT * FROM (SELECT * FROM t1) as b ORDER BY a  ASC LIMIT 0,20;
+a	t
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+9	9
+10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
+explain select count(*) from t1 as tt1, (select * from t1) as tt2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	tt1	index	NULL	a	4	NULL	10000	Using index
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	10000	
+drop table t1;
+SELECT * FROM (SELECT (SELECT * FROM (SELECT 1 as a) as a )) as b;
+(SELECT * FROM (SELECT 1 as a) as a )
+1
+select * from (select 1 as a) b  left join (select 2 as a) c using(a);
+a
+1
+SELECT * FROM (SELECT 1 UNION SELECT a) b;
+ERROR 42S22: Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT a UNION SELECT 1) b;
+ERROR 42S22: Unknown column 'a' in 'field list'
+SELECT 1 as a FROM (SELECT 1 UNION SELECT a) b;
+ERROR 42S22: Unknown column 'a' in 'field list'
+select 1 from  (select 2) a order by 0;
+ERROR 42S22: Unknown column '0' in 'order clause'
+create table t1 (id int);
+insert into t1 values (1),(2),(3);
+describe select * from (select * from t1 group by id) bar;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+drop table t1;
+create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
+insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
+insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
+SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+pla_id	mat_id
+100	1
+101	1
+102	1
+103	2
+104	2
+105	3
+SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+pla_id	test
+100	1
+101	1
+102	1
+103	2
+104	2
+105	3
+explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
+drop table t1,t2;
+SELECT a.x FROM (SELECT 1 AS x) AS a HAVING a.x = 1;
+x
+1
+create user mysqltest_1;
+create table t1 select 1 as a;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select 2 as a from (select * from t1) b;
+ERROR 3D000: No database selected
+use test;
+select 2 as a from (select * from t1) b;
+a
+2
+drop table t1;
+select mail_id,  if(folder.f_description!='', folder.f_description, folder.f_name) as folder_name,  date, address_id, phrase, address,  subject from folder, (select  mail.mail_id as mail_id,  date_format(mail.h_date, '%b %e, %Y %h:%i') as date,  mail.folder_id,  sender.address_id as address_id,  sender.phrase as phrase, sender.address as address,    mail.h_subject as subject from    mail left join mxa as mxa_sender on mail.mail_id=mxa_sender.mail_id and mxa_sender.type='from' left join address as sender on mxa_sender.address_id=sender.address_id  mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_recipient.mail_id   and mxa_recipient.address_id=recipient.address_id   and mxa_recipient.type='to'  and  match(sender.phrase, sender.address, sender.comment) against ('jeremy' in boolean mode)   and  match(recipient.phrase, recipient.address, recipient.comment) against ('monty' in boolean mode) order by mail.h_date desc limit 0, 25 ) as query where query.folder_id=folder.folder_id;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mxa as mxa_recipient,   address as recipient, where 1     and mail.mail_id=mxa_r' at line 1
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+update (select * from t1) as t1 set a = 5;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+delete from (select * from t1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1)' at line 1
+insert into  (select * from t1) values (5);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select * from t1) values (5)' at line 1
+drop table t1;
+create table t1 (E1 INTEGER UNSIGNED NOT NULL, E2 INTEGER UNSIGNED NOT NULL, E3 INTEGER UNSIGNED NOT NULL, PRIMARY KEY(E1)
+);
+insert into t1 VALUES(1,1,1), (2,2,1);
+select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+count(*)
+2
+explain select count(*) from t1 INNER JOIN (SELECT A.E1, A.E2, A.E3 FROM t1 AS A WHERE A.E3 = (SELECT MAX(B.E3) FROM t1 AS B WHERE A.E2 = B.E2)) AS THEMAX ON t1.E1 = THEMAX.E2 AND t1.E1 = t1.E2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	THEMAX.E2	1	Using where
+2	DERIVED	A	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2);
+select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+a	a
+1	1
+2	1
+1	2
+2	2
+explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
+NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
+3	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+drop table t1;
+CREATE TABLE `t1` (
+`N` int(11) unsigned NOT NULL default '0',
+`M` tinyint(1) default '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
+UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
+select * from t1;
+N	M
+1	2
+1	2
+1	2
+2	2
+2	2
+3	0
+UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2, P2.N = 2;
+ERROR HY000: The target table P2 of the UPDATE is not updatable
+UPDATE `t1` AS P1 INNER JOIN (SELECT aaaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
+ERROR 42S22: Unknown column 'aaaa' in 'field list'
+delete P1.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
+select * from t1;
+N	M
+3	0
+delete P1.*,p2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS p2 ON P1.N = p2.N;
+ERROR 42S02: Unknown table 'p2' in MULTI DELETE
+delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
+ERROR 42S22: Unknown column 'aaa' in 'field list'
+drop table t1;
+CREATE TABLE t1 (
+OBJECTID int(11) NOT NULL default '0',
+SORTORDER int(11) NOT NULL auto_increment,
+KEY t1_SortIndex (SORTORDER),
+KEY t1_IdIndex (OBJECTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+ID int(11) default NULL,
+PARID int(11) default NULL,
+UNIQUE KEY t2_ID_IDX (ID),
+KEY t2_PARID_IDX (PARID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
+CREATE TABLE t3 (
+ID int(11) default NULL,
+DATA decimal(10,2) default NULL,
+UNIQUE KEY t3_ID_IDX (ID)
+) engine=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
+select 497, TMP.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as TMP;
+497	ID	NULL
+drop table t1, t2, t3;
+CREATE TABLE t1 (name char(1) default NULL, val int(5) default NULL);
+INSERT INTO t1 VALUES ('a',1),  ('a',2),  ('a',2),  ('a',2),  ('a',3),  ('a',6), ('a',7), ('a',11), ('a',11), ('a',12), ('a',13), ('a',13), ('a',20), ('b',2), ('b',3), ('b',4), ('b',5);
+SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
+name	median
+a	7.0000
+b	3.5000
+explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+2	DERIVED	x	ALL	NULL	NULL	NULL	NULL	17	Using temporary; Using filesort
+2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer
+drop table t1;
+create table t2 (a int, b int, primary key (a));
+insert into t2 values (1,7),(2,7);
+explain select a from t2 where a>1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+explain select a from (select a from t2 where a>1) tt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+drop table t2;
+CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
+insert into t1 values (128, 'rozn', 2, now(), 10),(128, 'rozn', 1, now(), 10);
+Warnings:
+Note	1265	Data truncated for column 'date_' at row 1
+Note	1265	Data truncated for column 'date_' at row 2
+SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
+min	max	avg
+10.00	10.00	10
+DROP TABLE t1;
+create table t1 (a integer, b integer);
+insert into t1 values (1,4), (2,2),(2,2), (4,1),(4,1),(4,1),(4,1);
+select distinct sum(b) from t1 group by a;
+sum(b)
+4
+select distinct sum(b) from (select a,b from t1) y group by a;
+sum(b)
+4
+drop table t1;
+CREATE TABLE t1 (a char(10), b char(10));
+INSERT INTO t1 VALUES ('root','localhost'), ('root','%');
+SELECT * FROM (SELECT (SELECT a.a FROM t1 AS a WHERE a.a = b.a) FROM t1 AS b) AS c;
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+insert into t1 values(1),(1);
+insert into t2 values(2),(2);
+insert into t3 values(3),(3);
+select * from t1 union distinct select * from t2 union all select * from t3;
+a
+1
+2
+3
+3
+select * from (select * from t1 union distinct select * from t2 union all select * from t3) X;
+a
+1
+2
+3
+3
+drop table t1, t2, t3;
+create table t1 (a int);
+create table t2 (a int);
+select * from (select * from t1,t2) foo;
+ERROR 42S21: Duplicate column name 'a'
+drop table t1,t2;
+create table t1 (ID int unsigned not null auto_increment,
+DATA varchar(5) not null, primary key (ID));
+create table t2 (ID int unsigned not null auto_increment,
+DATA varchar(5) not null, FID int unsigned not null,
+primary key (ID));
+select A.* from (t1 inner join (select * from t2) as A on t1.ID = A.FID);
+ID	DATA	FID
+select t2.* from ((select * from t1) as A inner join t2 on A.ID = t2.FID);
+ID	DATA	FID
+select t2.* from (select * from t1) as A inner join t2 on A.ID = t2.FID;
+ID	DATA	FID
+drop table t1, t2;
+drop user mysqltest_1;

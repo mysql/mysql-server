@@ -22,6 +22,7 @@ SET(STRINGS_SOURCES bchange.c bmove_upp.c ctype-big5.c ctype-bin.c ctype-cp932.c
                 is_prefix.c llstr.c longlong2str.c my_strtoll10.c my_vsnprintf.c
                 str2int.c str_alloc.c strcend.c strend.c strfill.c strmake.c strmov.c strnmov.c 
                 strxmov.c strxnmov.c xml.c
+                strmov_overlapp.c
 		my_strchr.c strcont.c strappend.c)
 
 IF(NOT HAVE_STRNLEN)

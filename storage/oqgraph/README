@@ -1,0 +1,16 @@
+OQGraph storage engine
+Copyright (C) 2007-2009 Arjen G Lentz & Antony T Curtis for Open Query
+
+The Open Query GRAPH engine (OQGRAPH) is a computation engine allowing
+hierarchies and more complex graph structures to be handled in a
+relational fashion. In a nutshell, tree structures and
+friend-of-a-friend style searches can now be done using standard SQL
+syntax, and results joined onto other tables.
+
+See http://openquery.com/graph for more information.
+
+
+INSTALLATION
+
+OQGraph requires at least version 1.40.0 of the Boost library. To
+obtain a copy of the Boost library, see http://www.boost.org/

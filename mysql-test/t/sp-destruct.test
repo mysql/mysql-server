@@ -17,6 +17,7 @@ call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, foun
 
 # Backup proc table
 let $MYSQLD_DATADIR= `select @@datadir`;
+flush table mysql.proc;
 --copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
 --copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
 --copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI

@@ -316,3 +316,17 @@ SHOW ERRORS;
 Level	Code	Message
 Error	1051	Unknown table 't1'
 End of 5.0 tests
+set sql_mode = default;
+select CAST(a AS DECIMAL(13,5)) FROM (SELECT '' as a) t;
+CAST(a AS DECIMAL(13,5))
+0.00000
+Warnings:
+Error	1366	Incorrect decimal value: '' for column '' at row 0
+Warning	1292	Truncated incorrect DECIMAL value: ''
+create table t1 (a integer unsigned);
+insert into t1 values (1),(-1),(0),(-2);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 4
+drop table t1;
+End of 5.1 tests

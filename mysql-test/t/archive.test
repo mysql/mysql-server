@@ -1578,11 +1578,13 @@ CREATE TABLE t1(a VARCHAR(510)) ENGINE = ARCHIVE;
 
 let $bug31036=41;
 --disable_query_log
+begin;
 while($bug31036)
 {
   INSERT INTO t1(a) VALUES (REPEAT('a', 510));
   dec $bug31036;
 }
+commit;
 --enable_query_log
 INSERT INTO t1(a) VALUES ('');
 
@@ -1701,7 +1703,6 @@ SELECT * FROM t1;
 REPAIR TABLE t1 EXTENDED;
 SELECT * FROM t1;
 DROP TABLE t1;
-
 
 --echo #
 --echo # Bug#45377: ARCHIVE tables aren't discoverable after OPTIMIZE

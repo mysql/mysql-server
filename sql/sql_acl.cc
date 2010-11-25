@@ -44,6 +44,8 @@
 #include "transaction.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "records.h"             // init_read_record, end_read_record
+#include <sql_common.h>
+#include <mysql/plugin_auth.h>
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -164,6 +166,87 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+static LEX_STRING native_password_plugin_name= {
+  C_STRING_WITH_LEN("mysql_native_password")
+};
+  
+static LEX_STRING old_password_plugin_name= {
+  C_STRING_WITH_LEN("mysql_old_password")
+};
+  
+/// @todo make it configurable
+LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
+
+static plugin_ref native_password_plugin;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+static plugin_ref old_password_plugin;
+#endif
+
+/* Classes */
+
+struct acl_host_and_ip
+{
+  char *hostname;
+  long ip,ip_mask;                      // Used with masked ip:s
+};
+
+class ACL_ACCESS {
+public:
+  ulong sort;
+  ulong access;
+};
+
+/* ACL_HOST is used if no host is specified */
+
+class ACL_HOST :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  char *db;
+};
+
+class ACL_USER :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  uint hostname_length;
+  USER_RESOURCES user_resource;
+  char *user;
+  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
+  uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 4.0,  20 - 4.1.1 
+  enum SSL_type ssl_type;
+  const char *ssl_cipher, *x509_issuer, *x509_subject;
+  LEX_STRING plugin;
+  LEX_STRING auth_string;
+
+  ACL_USER *copy(MEM_ROOT *root)
+  {
+    ACL_USER *dst= (ACL_USER *)alloc_root(root, sizeof(ACL_USER));
+    if (!dst)
+      return 0;
+    *dst= *this;
+    dst->user= safe_strdup_root(root, user);
+    dst->ssl_cipher= safe_strdup_root(root, ssl_cipher);
+    dst->x509_issuer= safe_strdup_root(root, x509_issuer);
+    dst->x509_subject= safe_strdup_root(root, x509_subject);
+    if (plugin.str == native_password_plugin_name.str ||
+        plugin.str == old_password_plugin_name.str)
+      dst->plugin= plugin;
+    else
+      dst->plugin.str= strmake_root(root, plugin.str, plugin.length);
+    dst->auth_string.str = safe_strdup_root(root, auth_string.str);
+    dst->host.hostname= safe_strdup_root(root, host.hostname);
+    return dst;
+  }
+};
+
+class ACL_DB :public ACL_ACCESS
+{
+public:
+  acl_host_and_ip host;
+  char *user,*db;
+};
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 #define FIRST_NON_YN_FIELD 26
@@ -187,6 +270,24 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 #define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
 
+#if defined(HAVE_OPENSSL)
+/*
+  Without SSL the handshake consists of one packet. This packet
+  has both client capabilites and scrambled password.
+  With SSL the handshake might consist of two packets. If the first
+  packet (client capabilities) has CLIENT_SSL flag set, we have to
+  switch to SSL and read the second packet. The scrambled password
+  is in the second packet and client_capabilites field will be ignored.
+  Maybe it is better to accept flags other than CLIENT_SSL from the
+  second packet?
+*/
+#define SSL_HANDSHAKE_SIZE      2
+#define NORMAL_HANDSHAKE_SIZE   6
+#define MIN_HANDSHAKE_SIZE      2
+#else
+#define MIN_HANDSHAKE_SIZE      6
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
 static bool initialized=0;
@@ -202,9 +303,8 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, TABLE *table,
-                              const char *host, const char *user,
-			      const char *new_password, uint new_password_len);
+static bool update_user_table(THD *, TABLE *, const char *, const char *,
+                              const char *, uint);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
@@ -235,6 +335,48 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
     acl_user->salt_len= 0;
 }
 
+static char *fix_plugin_ptr(char *name)
+{
+  if (my_strcasecmp(system_charset_info, name,
+                    native_password_plugin_name.str) == 0)
+    return native_password_plugin_name.str;
+  else
+  if (my_strcasecmp(system_charset_info, name,
+                    old_password_plugin_name.str) == 0)
+    return old_password_plugin_name.str;
+  else
+    return name;
+}
+
+/**
+  Fix ACL::plugin pointer to point to a hard-coded string, if appropriate
+
+  Make sure that if ACL_USER's plugin is a built-in, then it points
+  to a hard coded string, not to an allocated copy. Run-time, for
+  authentication, we want to be able to detect built-ins by comparing
+  pointers, not strings.
+
+  Additionally - update the salt if the plugin is built-in.
+
+  @retval 0 the pointers were fixed
+  @retval 1 this ACL_USER uses a not built-in plugin
+*/
+static bool fix_user_plugin_ptr(ACL_USER *user)
+{
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    native_password_plugin_name.str) == 0)
+    user->plugin= native_password_plugin_name;
+  else
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    old_password_plugin_name.str) == 0)
+    user->plugin= old_password_plugin_name;
+  else
+    return true;
+  
+  set_user_salt(user, user->auth_string.str, user->auth_string.length);
+  return false;
+}
+
 /*
   Initialize structures responsible for user/db-level privilege checking and
   load privilege information for them from tables in the 'mysql' database.
@@ -263,6 +405,19 @@ my_bool acl_init(bool dont_read_acl_tables)
                            (my_hash_get_key) acl_entry_get_key,
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);
+
+  /*
+    cache built-in native authentication plugins,
+    to avoid hash searches and a global mutex lock on every connect
+  */
+  native_password_plugin= my_plugin_lock_by_name(0,
+           &native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
+  old_password_plugin= my_plugin_lock_by_name(0,
+           &old_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
+
+  if (!native_password_plugin || !old_password_plugin)
+    DBUG_RETURN(1);
+
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */
@@ -309,7 +464,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   READ_RECORD read_record_info;
   my_bool return_val= TRUE;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[SAFE_NAME_LEN+1];
   int password_length;
   ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("acl_load");
@@ -321,8 +476,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
-  init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
-                   FALSE);
+  if (init_read_record(&read_record_info,thd,table= tables[0].table,NULL,1,0, 
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50);
   while (!(read_record_info.read_record(&read_record_info)))
@@ -371,7 +528,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_hosts);
 
-  init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
   password_length= table->field[2]->field_length /
@@ -419,6 +579,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
+    char *password;
+    uint password_len;
+
+    bzero(&user, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
     if (check_no_resolve && hostname_requires_resolving(user.host.hostname))
@@ -430,27 +594,34 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    const char *password= get_field(thd->mem_root, table->field[2]);
-    uint password_len= password ? strlen(password) : 0;
+    password= get_field(&mem, table->field[2]);
+    password_len= password ? strlen(password) : 0;
+    user.auth_string.str= password ? password : const_cast<char*>("");
+    user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
-    if (user.salt_len == 0 && password_len != 0)
-    {
-      switch (password_len) {
-      case 45: /* 4.1: to be removed */
-        sql_print_warning("Found 4.1 style password for user '%s@%s'. "
-                          "Ignoring user. "
-                          "You should change password for this user.",
-                          user.user ? user.user : "",
-                          user.host.hostname ? user.host.hostname : "");
-        break;
-      default:
-        sql_print_warning("Found invalid password for user: '%s@%s'; "
-                          "Ignoring user", user.user ? user.user : "",
-                           user.host.hostname ? user.host.hostname : "");
-        break;
-      }
+
+    switch (password_len) {
+    case 0: /* no password */
+    case SCRAMBLED_PASSWORD_CHAR_LENGTH:
+      user.plugin= native_password_plugin_name;
+      break;
+    case SCRAMBLED_PASSWORD_CHAR_LENGTH_323:
+      user.plugin= old_password_plugin_name;
+      break;
+    case 45: /* 4.1: to be removed */
+      sql_print_warning("Found 4.1.0 style password for user '%s@%s'. "
+                        "Ignoring user. "
+                        "You should change password for this user.",
+                        user.user ? user.user : "",
+                        user.host.hostname ? user.host.hostname : "");
+      continue;
+    default:
+      sql_print_warning("Found invalid password for user: '%s@%s'; "
+                        "Ignoring user", user.user ? user.user : "",
+                         user.host.hostname ? user.host.hostname : "");
+      continue;
     }
-    else                                        // password is correct
+    
     {
       uint next_field;
       user.access= get_access(table,3,&next_field) & GLOBAL_ACLS;
@@ -527,13 +698,35 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           ptr= get_field(thd->mem_root, table->field[next_field++]);
           user.user_resource.user_conn= ptr ? atoi(ptr) : 0;
         }
-        else
-          user.user_resource.user_conn= 0;
+
+        if (table->s->fields >= 41)
+        {
+          /* We may have plugin & auth_String fields */
+          char *tmpstr= get_field(&mem, table->field[next_field++]);
+          if (tmpstr)
+          {
+            user.plugin.str= tmpstr;
+            user.plugin.length= strlen(user.plugin.str);
+            if (user.auth_string.length)
+            {
+              sql_print_warning("'user' entry '%s@%s' has both a password "
+                                "and an authentication plugin specified. The "
+                                "password will be ignored.",
+                                user.user ? user.user : "",
+                                user.host.hostname ? user.host.hostname : "");
+            }
+            user.auth_string.str= get_field(&mem, table->field[next_field++]);
+            if (!user.auth_string.str)
+              user.auth_string.str= const_cast<char*>("");
+            user.auth_string.length= strlen(user.auth_string.str);
+
+            fix_user_plugin_ptr(&user);
+          }
+        }
       }
       else
       {
         user.ssl_type=SSL_TYPE_NONE;
-        bzero((char *)&(user.user_resource),sizeof(user.user_resource));
 #ifndef TO_BE_REMOVED
         if (table->s->fields <= 13)
         {						// Without grant
@@ -559,7 +752,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_users);
 
-  init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,FALSE);
+  if (init_read_record(&read_record_info,thd,table=tables[2].table,NULL,1,0,
+                       FALSE))
+    goto end;
+
   table->use_all_columns();
   (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
   while (!(read_record_info.read_record(&read_record_info)))
@@ -636,6 +832,8 @@ void acl_free(bool end)
   delete_dynamic(&acl_dbs);
   delete_dynamic(&acl_wild_hosts);
   my_hash_free(&acl_check_hosts);
+  plugin_unlock(0, native_password_plugin);
+  plugin_unlock(0, old_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
@@ -830,246 +1028,10 @@ static int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 
 
 /*
-  Seek ACL entry for a user, check password, SSL cypher, and if
-  everything is OK, update THD user data and USER_RESOURCES struct.
-
-  IMPLEMENTATION
-   This function does not check if the user has any sensible privileges:
-   only user's existence and  validity is checked.
-   Note, that entire operation is protected by acl_cache_lock.
+  Gets user credentials without authentication and resource limit checks.
 
   SYNOPSIS
     acl_getroot()
-    thd         thread handle. If all checks are OK,
-                thd->security_ctx->priv_user/master_access are updated.
-                thd->security_ctx->host/ip/user are used for checks.
-    mqh         user resources; on success mqh is reset, else
-                unchanged
-    passwd      scrambled & crypted password, received from client
-                (to check): thd->scramble or thd->scramble_323 is
-                used to decrypt passwd, so they must contain
-                original random string,
-    passwd_len  length of passwd, must be one of 0, 8,
-                SCRAMBLE_LENGTH_323, SCRAMBLE_LENGTH
-    'thd' and 'mqh' are updated on success; other params are IN.
-  
-  RETURN VALUE
-    0  success: thd->priv_user, thd->priv_host, thd->master_access, mqh are
-       updated
-    1  user not found or authentication failure
-    2  user found, has long (4.1.1) salt, but passwd is in old (3.23) format.
-   -1  user found, has short (3.23) salt, but passwd is in new (4.1.1) format.
-*/
-
-int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
-                const char *passwd, uint passwd_len)
-{
-  ulong user_access= NO_ACCESS;
-  int res= 1;
-  ACL_USER *acl_user= 0;
-  Security_context *sctx= thd->security_ctx;
-  DBUG_ENTER("acl_getroot");
-
-  if (!initialized)
-  {
-    /* 
-      here if mysqld's been started with --skip-grant-tables option.
-    */
-    sctx->skip_grants();
-    bzero((char*) mqh, sizeof(*mqh));
-    DBUG_RETURN(0);
-  }
-
-  mysql_mutex_lock(&acl_cache->lock);
-
-  /*
-    Find acl entry in user database. Note, that find_acl_user is not the same,
-    because it doesn't take into account the case when user is not empty,
-    but acl_user->user is empty
-  */
-
-  for (uint i=0 ; i < acl_users.elements ; i++)
-  {
-    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
-    if (!acl_user_tmp->user || !strcmp(sctx->user, acl_user_tmp->user))
-    {
-      if (compare_hostname(&acl_user_tmp->host, sctx->host, sctx->ip))
-      {
-        /* check password: it should be empty or valid */
-        if (passwd_len == acl_user_tmp->salt_len)
-        {
-          if (acl_user_tmp->salt_len == 0 ||
-              (acl_user_tmp->salt_len == SCRAMBLE_LENGTH ?
-              check_scramble(passwd, thd->scramble, acl_user_tmp->salt) :
-              check_scramble_323(passwd, thd->scramble,
-                                 (ulong *) acl_user_tmp->salt)) == 0)
-          {
-            acl_user= acl_user_tmp;
-            res= 0;
-          }
-        }
-        else if (passwd_len == SCRAMBLE_LENGTH &&
-                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH_323)
-          res= -1;
-        else if (passwd_len == SCRAMBLE_LENGTH_323 &&
-                 acl_user_tmp->salt_len == SCRAMBLE_LENGTH)
-          res= 2;
-        /* linear search complete: */
-        break;
-      }
-    }
-  }
-  /*
-    This was moved to separate tree because of heavy HAVE_OPENSSL case.
-    If acl_user is not null, res is 0.
-  */
-
-  if (acl_user)
-  {
-    /* OK. User found and password checked continue validation */
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    Vio *vio=thd->net.vio;
-    SSL *ssl= (SSL*) vio->ssl_arg;
-    X509 *cert;
-#endif
-
-    /*
-      At this point we know that user is allowed to connect
-      from given host by given username/password pair. Now
-      we check if SSL is required, if user is using SSL and
-      if X509 certificate attributes are OK
-    */
-    switch (acl_user->ssl_type) {
-    case SSL_TYPE_NOT_SPECIFIED:		// Impossible
-    case SSL_TYPE_NONE:				// SSL is not required
-      user_access= acl_user->access;
-      break;
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    case SSL_TYPE_ANY:				// Any kind of SSL is ok
-      if (vio_type(vio) == VIO_TYPE_SSL)
-	user_access= acl_user->access;
-      break;
-    case SSL_TYPE_X509: /* Client should have any valid certificate. */
-      /*
-	Connections with non-valid certificates are dropped already
-	in sslaccept() anyway, so we do not check validity here.
-
-	We need to check for absence of SSL because without SSL
-	we should reject connection.
-      */
-      if (vio_type(vio) == VIO_TYPE_SSL &&
-	  SSL_get_verify_result(ssl) == X509_V_OK &&
-	  (cert= SSL_get_peer_certificate(ssl)))
-      {
-	user_access= acl_user->access;
-        X509_free(cert);
-      }
-      break;
-    case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
-      /*
-	We do not check for absence of SSL because without SSL it does
-	not pass all checks here anyway.
-	If cipher name is specified, we compare it to actual cipher in
-	use.
-      */
-      if (vio_type(vio) != VIO_TYPE_SSL ||
-	  SSL_get_verify_result(ssl) != X509_V_OK)
-	break;
-      if (acl_user->ssl_cipher)
-      {
-	DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
-			   acl_user->ssl_cipher,SSL_get_cipher(ssl)));
-	if (!strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
-	  user_access= acl_user->access;
-	else
-	{
-	  if (global_system_variables.log_warnings)
-	    sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
-			      acl_user->ssl_cipher,
-			      SSL_get_cipher(ssl));
-	  break;
-	}
-      }
-      /* Prepare certificate (if exists) */
-      DBUG_PRINT("info",("checkpoint 1"));
-      if (!(cert= SSL_get_peer_certificate(ssl)))
-      {
-	user_access=NO_ACCESS;
-	break;
-      }
-      DBUG_PRINT("info",("checkpoint 2"));
-      /* If X509 issuer is specified, we check it... */
-      if (acl_user->x509_issuer)
-      {
-        DBUG_PRINT("info",("checkpoint 3"));
-        char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-        DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
-			   acl_user->x509_issuer, ptr));
-        if (strcmp(acl_user->x509_issuer, ptr))
-        {
-          if (global_system_variables.log_warnings)
-            sql_print_information("X509 issuer mismatch: should be '%s' "
-			      "but is '%s'", acl_user->x509_issuer, ptr);
-          free(ptr);
-          X509_free(cert);
-          user_access=NO_ACCESS;
-          break;
-        }
-        user_access= acl_user->access;
-        free(ptr);
-      }
-      DBUG_PRINT("info",("checkpoint 4"));
-      /* X509 subject is specified, we check it .. */
-      if (acl_user->x509_subject)
-      {
-        char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-        DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
-                           acl_user->x509_subject, ptr));
-        if (strcmp(acl_user->x509_subject,ptr))
-        {
-          if (global_system_variables.log_warnings)
-            sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
-                            acl_user->x509_subject, ptr);
-          free(ptr);
-          X509_free(cert);
-          user_access=NO_ACCESS;
-          break;
-        }
-        user_access= acl_user->access;
-        free(ptr);
-      }
-      /* Deallocate the X509 certificate. */
-      X509_free(cert);
-      break;
-#else  /* HAVE_OPENSSL */
-    default:
-      /*
-        If we don't have SSL but SSL is required for this user the 
-        authentication should fail.
-      */
-      break;
-#endif /* HAVE_OPENSSL */
-    }
-    sctx->master_access= user_access;
-    sctx->priv_user= acl_user->user ? sctx->user : (char *) "";
-    *mqh= acl_user->user_resource;
-
-    if (acl_user->host.hostname)
-      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
-    else
-      *sctx->priv_host= 0;
-  }
-  mysql_mutex_unlock(&acl_cache->lock);
-  DBUG_RETURN(res);
-}
-
-
-/*
-  This is like acl_getroot() above, but it doesn't check password,
-  and we don't care about the user resources.
-
-  SYNOPSIS
-    acl_getroot_no_password()
       sctx               Context which should be initialized
       user               user name
       host               host name
@@ -1081,13 +1043,13 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     TRUE   Error
 */
 
-bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
-                             char *ip, char *db)
+bool acl_getroot(Security_context *sctx, char *user, char *host,
+                 char *ip, char *db)
 {
   int res= 1;
   uint i;
   ACL_USER *acl_user= 0;
-  DBUG_ENTER("acl_getroot_no_password");
+  DBUG_ENTER("acl_getroot");
 
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', db: '%s'",
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
@@ -1110,8 +1072,7 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
 
   sctx->master_access= 0;
   sctx->db_access= 0;
-  sctx->priv_user= (char *) "";
-  *sctx->priv_host= 0;
+  *sctx->priv_user= *sctx->priv_host= 0;
 
   /*
      Find acl entry in user database.
@@ -1153,7 +1114,11 @@ bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
       }
     }
     sctx->master_access= acl_user->access;
-    sctx->priv_user= acl_user->user ? user : (char *) "";
+
+    if (acl_user->user)
+      strmake(sctx->priv_user, user, USERNAME_LENGTH);
+    else
+      *sctx->priv_user= 0;
 
     if (acl_user->host.hostname)
       strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME - 1);
@@ -1179,7 +1144,9 @@ static void acl_update_user(const char *user, const char *host,
 			    const char *x509_issuer,
 			    const char *x509_subject,
 			    USER_RESOURCES  *mqh,
-			    ulong privileges)
+			    ulong privileges,
+			    const LEX_STRING *plugin,
+			    const LEX_STRING *auth)
 {
   mysql_mutex_assert_owner(&acl_cache->lock);
 
@@ -1191,8 +1158,24 @@ static void acl_update_user(const char *user, const char *host,
     {
       if ((!acl_user->host.hostname && !host[0]) ||
 	  (acl_user->host.hostname &&
-	  !my_strcasecmp(system_charset_info, host, acl_user->host.hostname)))
+           !my_strcasecmp(system_charset_info, host, acl_user->host.hostname)))
       {
+        if (plugin->str[0])
+        {
+          acl_user->plugin= *plugin;
+          acl_user->auth_string.str= auth->str ?
+            strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
+          acl_user->auth_string.length= auth->length;
+          if (fix_user_plugin_ptr(acl_user))
+            acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
+        }
+        else
+          if (password)
+          {
+            acl_user->auth_string.str= strmake_root(&mem, password, password_len);
+            acl_user->auth_string.length= password_len;
+            set_user_salt(acl_user, password, password_len);
+          }
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
@@ -1212,8 +1195,6 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-	if (password)
-	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1229,7 +1210,9 @@ static void acl_insert_user(const char *user, const char *host,
 			    const char *x509_issuer,
 			    const char *x509_subject,
 			    USER_RESOURCES *mqh,
-			    ulong privileges)
+			    ulong privileges,
+			    const LEX_STRING *plugin,
+			    const LEX_STRING *auth)
 {
   ACL_USER acl_user;
 
@@ -1237,6 +1220,24 @@ static void acl_insert_user(const char *user, const char *host,
 
   acl_user.user=*user ? strdup_root(&mem,user) : 0;
   update_hostname(&acl_user.host, *host ? strdup_root(&mem, host): 0);
+  if (plugin->str[0])
+  {
+    acl_user.plugin= *plugin;
+    acl_user.auth_string.str= auth->str ?
+      strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
+    acl_user.auth_string.length= auth->length;
+    if (fix_user_plugin_ptr(&acl_user))
+      acl_user.plugin.str= strmake_root(&mem, plugin->str, plugin->length);
+  }
+  else
+  {
+    acl_user.plugin= password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
+      old_password_plugin_name : native_password_plugin_name;
+    acl_user.auth_string.str= strmake_root(&mem, password, password_len);
+    acl_user.auth_string.length= password_len;
+    set_user_salt(&acl_user, password, password_len);
+  }
+
   acl_user.access=privileges;
   acl_user.user_resource = *mqh;
   acl_user.sort=get_sort(2,acl_user.host.hostname,acl_user.user);
@@ -1246,8 +1247,6 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
   acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
   acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
-
-  set_user_salt(&acl_user, password, password_len);
 
   (void) push_dynamic(&acl_users,(uchar*) &acl_user);
   if (!acl_user.host.hostname ||
@@ -1275,10 +1274,11 @@ static void acl_update_db(const char *user, const char *host, const char *db,
     {
       if ((!acl_db->host.hostname && !host[0]) ||
 	  (acl_db->host.hostname &&
-          !strcmp(host, acl_db->host.hostname)))
+	   !strcmp(host, acl_db->host.hostname)))
       {
 	if ((!acl_db->db && !db[0]) ||
 	    (acl_db->db && !strcmp(db,acl_db->db)))
+
 	{
 	  if (privileges)
 	    acl_db->access=privileges;
@@ -1633,7 +1633,13 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
   /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
+  if (acl_user->plugin.str == native_password_plugin_name.str || 
+      acl_user->plugin.str == old_password_plugin_name.str)
+  {
+    acl_user->auth_string.str= strmake_root(&mem, new_password, new_password_len);
+    acl_user->auth_string.length= new_password_len;
+    set_user_salt(acl_user, new_password, new_password_len);
+  }
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -1649,10 +1655,12 @@ bool change_password(THD *thd, const char *host, const char *user,
   result= 0;
   if (mysql_bin_log.is_open())
   {
-    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
-                          acl_user->user ? acl_user->user : "",
-                          acl_user->host.hostname ? acl_user->host.hostname : "",
-                          new_password);
+    query_length=
+      my_sprintf(buff,
+                 (buff,"SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                  acl_user->user ? acl_user->user : "",
+                  acl_user->host.hostname ? acl_user->host.hostname : "",
+                  new_password));
     thd->clear_error();
     result= thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
                               FALSE, FALSE, FALSE, 0);
@@ -1898,9 +1906,9 @@ static bool update_user_table(THD *thd, TABLE *table,
   key_copy((uchar *) user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar *) user_key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar *) user_key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
                MYF(0));	/* purecov: deadcode */
@@ -1990,9 +1998,9 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /* what == 'N' means revoke */
     if (what == 'N')
@@ -2024,6 +2032,15 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
                thd->security_ctx->user, thd->security_ctx->host_or_ip);
       goto end;
     }
+    else if (combo.plugin.str[0])
+    {
+      if (!plugin_is_ready(&combo.plugin, MYSQL_AUTHENTICATION_PLUGIN))
+      {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), combo.plugin.str);
+        goto end;
+      }
+    }
+
     old_row_exists = 0;
     restore_record(table,s->default_values);
     table->field[0]->store(combo.host.str,combo.host.length,
@@ -2037,7 +2054,7 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   {
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
-    if (combo.password.str)			// If password given
+    if (combo.password.str)                             // If password given
       table->field[2]->store(password, password_len, system_charset_info);
     else if (!rights && !revoke_grant &&
              lex->ssl_type == SSL_TYPE_NOT_SPECIFIED &&
@@ -2118,7 +2135,17 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
         (mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS))
       table->field[next_field+3]->store((longlong) mqh.user_conn, TRUE);
     mqh_used= mqh_used || mqh.questions || mqh.updates || mqh.conn_per_hour;
+
+    next_field+=4;
+    if (table->s->fields >= 41 && combo.plugin.str[0])
+    {
+      table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
+                  system_charset_info);
+      table->field[next_field+1]->store(combo.auth.str, combo.auth.length,
+                  system_charset_info);
+    }
   }
+
   if (old_row_exists)
   {
     /*
@@ -2162,7 +2189,9 @@ end:
 		      lex->x509_issuer,
 		      lex->x509_subject,
 		      &lex->mqh,
-		      rights);
+		      rights,
+		      &combo.plugin,
+		      &combo.auth);
     else
       acl_insert_user(combo.user.str, combo.host.str, password, password_len,
 		      lex->ssl_type,
@@ -2170,7 +2199,9 @@ end:
 		      lex->x509_issuer,
 		      lex->x509_subject,
 		      &lex->mqh,
-		      rights);
+		      rights,
+		      &combo.plugin,
+		      &combo.auth);
   }
   DBUG_RETURN(error);
 }
@@ -2214,9 +2245,9 @@ static int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0],0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0],0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     if (what == 'N')
     { // no row, no revoke
@@ -2448,8 +2479,9 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
     col_privs->file->ha_index_init(0, 1);
-    if (col_privs->file->index_read_map(col_privs->record[0], (uchar*) key,
-                                        (key_part_map)15, HA_READ_KEY_EXACT))
+    if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
+                                           (key_part_map)15,
+                                           HA_READ_KEY_EXACT))
     {
       cols = 0; /* purecov: deadcode */
       col_privs->file->ha_index_end();
@@ -2475,7 +2507,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
         privs= cols= 0;
         return;
       }
-    } while (!col_privs->file->index_next(col_privs->record[0]) &&
+    } while (!col_privs->file->ha_index_next(col_privs->record[0]) &&
              !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
@@ -2510,7 +2542,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact, bool name_tolower)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  char helping [SAFE_NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
@@ -2620,8 +2652,8 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    if (table->file->index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       HA_WHOLE_KEY, HA_READ_KEY_EXACT))
     {
       if (revoke_grant)
       {
@@ -2702,9 +2734,9 @@ static int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
 
-    if (table->file->index_read_map(table->record[0], user_key,
-                                    (key_part_map)15,
-                                    HA_READ_KEY_EXACT))
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       (key_part_map)15,
+                                       HA_READ_KEY_EXACT))
       goto end;
 
     /* Scan through all rows with the same host,db,user and table */
@@ -2755,7 +2787,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 	    my_hash_delete(&g_t->hash_columns,(uchar*) grant_column);
 	}
       }
-    } while (!table->file->index_next(table->record[0]) &&
+    } while (!table->file->ha_index_next(table->record[0]) &&
 	     !key_cmp_if_same(table, key, 0, key_prefix_length));
   }
 
@@ -2817,9 +2849,9 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -2942,10 +2974,10 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
-  if (table->file->index_read_idx_map(table->record[0], 0,
-                                      (uchar*) table->field[0]->ptr,
-                                      HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         (uchar*) table->field[0]->ptr,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     /*
       The following should never happen as we first check the in memory
@@ -3504,7 +3536,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str;
-  char tmp_db[NAME_LEN+1];
+  char tmp_db[SAFE_NAME_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
@@ -3706,7 +3738,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   p_table->file->ha_index_init(0, 1);
   p_table->use_all_columns();
 
-  if (!p_table->file->index_first(p_table->record[0]))
+  if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3758,7 +3790,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         goto end_unlock;
       }
     }
-    while (!p_table->file->index_next(p_table->record[0]));
+    while (!p_table->file->ha_index_next(p_table->record[0]));
   }
   /* Return ok */
   return_val= 0;
@@ -3808,7 +3840,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   t_table->use_all_columns();
   c_table->use_all_columns();
 
-  if (!t_table->file->index_first(t_table->record[0]))
+  if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
     my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
@@ -3843,7 +3875,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 	goto end_unlock;
       }
     }
-    while (!t_table->file->index_next(t_table->record[0]));
+    while (!t_table->file->ha_index_next(t_table->record[0]));
   }
 
   return_val=0;					// Return ok
@@ -4160,6 +4192,8 @@ err:
   {
     char command[128];
     get_privilege_desc(command, sizeof(command), want_access);
+    status_var_increment(thd->status_var.access_denied_errors);
+
     my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
              command,
              sctx->priv_user,
@@ -4436,7 +4470,7 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 bool check_grant_db(THD *thd,const char *db)
 {
   Security_context *sctx= thd->security_ctx;
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
+  char helping [SAFE_NAME_LEN + USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
 
@@ -4574,14 +4608,14 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
-  Security_context *sctx= thd->security_ctx;
-  const char *db = table->db ? table->db : thd->db;
   GRANT_TABLE *grant_table;
 
-  mysql_rwlock_rdlock(&LOCK_grant);
+  rw_rdlock(&LOCK_grant);
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
+  Security_context *sctx= thd->security_ctx;
+  const char *db = table->db ? table->db : thd->db;
   grant_table= table_hash_search(sctx->host, sctx->ip, db, sctx->priv_user,
 				 table->table_name, 0);
 #endif
@@ -4774,16 +4808,27 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
-    if (acl_user->salt_len)
+    if (acl_user->plugin.str == native_password_plugin_name.str ||
+        acl_user->plugin.str == old_password_plugin_name.str)
     {
-      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-      if (acl_user->salt_len == SCRAMBLE_LENGTH)
-        make_password_from_salt(passwd_buff, acl_user->salt);
-      else
-        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if (acl_user->auth_string.length)
+      {
+        DBUG_ASSERT(acl_user->salt_len);
+        global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+        global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+        global.append('\'');
+      }
+    }
+    else
+    {
+        global.append(STRING_WITH_LEN(" IDENTIFIED VIA "));
+        global.append(acl_user->plugin.str, acl_user->plugin.length);
+        if (acl_user->auth_string.length)
+        {
+          global.append(STRING_WITH_LEN(" USING '"));
+          global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+          global.append('\'');
+        }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
@@ -5407,9 +5452,9 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
-    if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                                user_key, (key_part_map)3,
-                                                HA_READ_KEY_EXACT)))
+    if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                   user_key, (key_part_map)3,
+                                                   HA_READ_KEY_EXACT)))
     {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
@@ -5444,7 +5489,7 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
                          table->s->table_name.str, user_str, host_str));
 #endif
-      while ((error= table->file->rnd_next(table->record[0])) != 
+      while ((error= table->file->ha_rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
       {
         if (error)
@@ -5589,7 +5634,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= grant_name->host.hostname;
       break;
     default:
-      assert(0);
+      DBUG_ASSERT(0);
     }
     if (! user)
       user= "";
@@ -6478,38 +6523,44 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   tables->db= (char*)sp_db;
   tables->table_name= tables->alias= (char*)sp_name;
 
-  combo->host.length= strlen(combo->host.str);
-  combo->user.length= strlen(combo->user.str);
-  combo->host.str= thd->strmake(combo->host.str,combo->host.length);
-  combo->user.str= thd->strmake(combo->user.str,combo->user.length);
+  thd->make_lex_string(&combo->user,
+                       combo->user.str, strlen(combo->user.str), 0);
+  thd->make_lex_string(&combo->host,
+                       combo->host.str, strlen(combo->host.str), 0);
 
+  combo->password= empty_lex_str;
+  combo->plugin= empty_lex_str;
+  combo->auth= empty_lex_str;
 
-  if(au && au->salt_len)
+  if(au)
   {
-    if (au->salt_len == SCRAMBLE_LENGTH)
+    if (au->salt_len)
     {
-      make_password_from_salt(passwd_buff, au->salt);
-      combo->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+      if (au->salt_len == SCRAMBLE_LENGTH)
+      {
+        make_password_from_salt(passwd_buff, au->salt);
+        combo->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+      }
+      else if (au->salt_len == SCRAMBLE_LENGTH_323)
+      {
+        make_password_from_salt_323(passwd_buff, (ulong *) au->salt);
+        combo->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+      }
+      else
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_PASSWD_LENGTH,
+                            ER(ER_PASSWD_LENGTH), SCRAMBLED_PASSWORD_CHAR_LENGTH);
+        return TRUE;
+      }
+      combo->password.str= passwd_buff;
     }
-    else if (au->salt_len == SCRAMBLE_LENGTH_323)
+
+    if (au->plugin.str != native_password_plugin_name.str &&
+        au->plugin.str != old_password_plugin_name.str)
     {
-      make_password_from_salt_323(passwd_buff, (ulong *) au->salt);
-      combo->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+      combo->plugin= au->plugin;
+      combo->auth= au->auth_string;
     }
-    else
-    {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_PASSWD_LENGTH,
-                          ER(ER_PASSWD_LENGTH),
-                          SCRAMBLED_PASSWORD_CHAR_LENGTH);
-      return TRUE;
-    }
-    combo->password.str= passwd_buff;
-  }
-  else
-  {
-    combo->password.str= (char*)"";
-    combo->password.length= 0;
   }
 
   if (user_list.push_back(combo))
@@ -7109,3 +7160,1469 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 }
 
 
+/****************************************************************************
+   AUTHENTICATION CODE
+   including initial connect handshake, invoking appropriate plugins,
+   client-server plugin negotiation, COM_CHANGE_USER, and native
+   MySQL authentication plugins.
+****************************************************************************/
+
+/* few defines to have less ifdef's in the code below */
+#ifdef EMBEDDED_LIBRARY
+#undef HAVE_OPENSSL
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+#define initialized 0
+#define decrease_user_connections(X)        /* nothing */
+#define check_for_max_user_connections(X,Y)   0
+#define get_or_create_user_conn(A,B,C,D) 0
+#endif
+#endif
+#ifndef HAVE_OPENSSL
+#define ssl_acceptor_fd 0
+#define sslaccept(A,B,C,D) 1
+#define NORMAL_HANDSHAKE_SIZE   6
+#endif
+
+/**
+  The internal version of what plugins know as MYSQL_PLUGIN_VIO,
+  basically the context of the authentication session
+*/
+struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
+{
+  MYSQL_SERVER_AUTH_INFO auth_info;
+  THD *thd;
+  ACL_USER *acl_user;       ///< a copy, independent from acl_users array
+  plugin_ref plugin;        ///< what plugin we're under
+  LEX_STRING db;            ///< db name from the handshake packet
+  /** when restarting a plugin this caches the last client reply */
+  struct {
+    char *plugin, *pkt;     ///< pointers into NET::buff
+    uint pkt_len;
+  } cached_client_reply;
+  /** this caches the first plugin packet for restart request on the client */
+  struct {
+    char *pkt;
+    uint pkt_len;
+  } cached_server_packet;
+  int packets_read, packets_written; ///< counters for send/received packets
+  uint connect_errors;      ///< if there were connect errors for this host
+  /** when plugin returns a failure this tells us what really happened */
+  enum { SUCCESS, FAILURE, RESTART } status;
+};
+
+
+/**
+  a helper function to report an access denied error in all the proper places
+*/
+
+static void login_failed_error(THD *thd, bool passwd_used)
+{
+  my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+           thd->main_security_ctx.user,
+           thd->main_security_ctx.host_or_ip,
+           passwd_used ? ER(ER_YES) : ER(ER_NO));
+  general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                    thd->main_security_ctx.user,
+                    thd->main_security_ctx.host_or_ip,
+                    passwd_used ? ER(ER_YES) : ER(ER_NO));
+  status_var_increment(thd->status_var.access_denied_errors);
+  /* 
+    Log access denied messages to the error log when log-warnings = 2
+    so that the overhead of the general query log is not required to track 
+    failed connections.
+  */
+  if (global_system_variables.log_warnings > 1)
+  {
+    sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
+                      thd->main_security_ctx.user,
+                      thd->main_security_ctx.host_or_ip,
+                      passwd_used ? ER(ER_YES) : ER(ER_NO));      
+  }
+}
+
+
+/**
+  sends a server handshake initialization packet, the very first packet
+  after the connection was established
+
+  Packet format:
+   
+    Bytes       Content
+    -----       ----
+    1           protocol version (always 10)
+    n           server version string, \0-terminated
+    4           thread id
+    8           first 8 bytes of the plugin provided data (scramble)
+    1           \0 byte, terminating the first part of a scramble
+    2           server capabilities (two lower bytes)
+    1           server character set
+    2           server status
+    2           server capabilities (two upper bytes)
+    1           length of the scramble
+    10          reserved, always 0
+    n           rest of the plugin provided data (at least 12 bytes)
+    1           \0 byte, terminating the second part of a scramble
+
+  @retval 0 ok
+  @retval 1 error
+*/
+
+static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
+                                         const char *data, uint data_len)
+{
+  DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
+  DBUG_ASSERT(data_len <= 255);
+
+  THD *thd= mpvio->thd;
+  char *buff= (char *)my_alloca(1 + SERVER_VERSION_LENGTH + 1 + data_len + 64);
+  char scramble_buf[SCRAMBLE_LENGTH];
+  char *end= buff;
+
+  *end++= protocol_version;
+
+  thd->client_capabilities= CLIENT_BASIC_FLAGS;
+
+  if (data_len)
+  {
+    mpvio->cached_server_packet.pkt= (char*)thd->memdup(data, data_len);
+    mpvio->cached_server_packet.pkt_len= data_len;
+  }
+
+  if (data_len < SCRAMBLE_LENGTH)
+  {
+    if (data_len)
+    { /*
+        the first packet *must* have at least 20 bytes of a scramble.
+        if a plugin provided less, we pad it to 20 with zeros
+      */
+      memcpy(scramble_buf, data, data_len);
+      bzero(scramble_buf+data_len, SCRAMBLE_LENGTH-data_len);
+      data= scramble_buf;
+    }
+    else
+    {
+      /*
+        if the default plugin does not provide the data for the scramble at
+        all, we generate a scramble internally anyway, just in case the
+        user account (that will be known only later) uses a
+        native_password_plugin (which needs a scramble). If we don't send a
+        scramble now - wasting 20 bytes in the packet -
+        native_password_plugin will have to send it in a separate packet,
+        adding one more round trip.
+      */
+      create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
+      data= thd->scramble;
+    }
+    data_len= SCRAMBLE_LENGTH;
+  }
+
+  if (opt_using_transactions)
+    thd->client_capabilities|= CLIENT_TRANSACTIONS;
+
+  thd->client_capabilities|= CAN_CLIENT_COMPRESS;
+
+  if (ssl_acceptor_fd)
+  {
+    thd->client_capabilities |= CLIENT_SSL;
+    thd->client_capabilities |= CLIENT_SSL_VERIFY_SERVER_CERT;
+  }
+
+  end= strnmov(end, server_version, SERVER_VERSION_LENGTH) + 1;
+  int4store((uchar*) end, mpvio->thd->thread_id);
+  end+= 4;
+
+  /*
+    Old clients does not understand long scrambles, but can ignore packet
+    tail: that's why first part of the scramble is placed here, and second
+    part at the end of packet.
+  */
+  end= (char*)memcpy(end, data, SCRAMBLE_LENGTH_323);
+  end+= SCRAMBLE_LENGTH_323;
+  *end++= 0;
+ 
+  int2store(end, thd->client_capabilities);
+  /* write server characteristics: up to 16 bytes allowed */
+  end[2]=(char) default_charset_info->number;
+  int2store(end+3, mpvio->thd->server_status);
+  int2store(end+5, thd->client_capabilities >> 16);
+  end[7]= data_len;
+  bzero(end+8, 10);
+  end+= 18;
+  /* write scramble tail */
+  end= (char*)memcpy(end, data + SCRAMBLE_LENGTH_323,
+                     data_len - SCRAMBLE_LENGTH_323);
+  end+= data_len - SCRAMBLE_LENGTH_323;
+  end= strmake(end, plugin_name(mpvio->plugin)->str,
+                    plugin_name(mpvio->plugin)->length);
+
+  int res= my_net_write(&mpvio->thd->net, (uchar*) buff, (size_t) (end-buff)) ||
+           net_flush(&mpvio->thd->net);
+  my_afree(buff);
+  return res;
+}
+
+static bool secure_auth(THD *thd)
+{
+  if (!opt_secure_auth)
+    return 0;
+
+  /*
+    If the server is running in secure auth mode, short scrambles are 
+    forbidden. Extra juggling to report the same error as the old code.
+  */
+  if (thd->client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
+             thd->security_ctx->user,
+             thd->security_ctx->host_or_ip);
+    general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                      thd->security_ctx->user,
+                      thd->security_ctx->host_or_ip);
+  }
+  else
+  {
+    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
+    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+  }
+  return 1;
+}
+
+/**
+  sends a "change plugin" packet, requesting a client to restart authentication
+  using a different authentication plugin
+
+  Packet format:
+   
+    Bytes       Content
+    -----       ----
+    1           byte with the value 254
+    n           client plugin to use, \0-terminated
+    n           plugin provided data
+
+  In a special case of switching from native_password_plugin to
+  old_password_plugin, the packet contains only one - the first - byte,
+  plugin name is omitted, plugin data aren't needed as the scramble was
+  already sent. This one-byte packet is identical to the "use the short
+  scramble" packet in the protocol before plugins were introduced.
+
+  @retval 0 ok
+  @retval 1 error
+*/
+
+static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
+                                       const uchar *data, uint data_len)
+{
+  DBUG_ASSERT(mpvio->packets_written == 1);
+  DBUG_ASSERT(mpvio->packets_read == 1);
+  NET *net= &mpvio->thd->net;
+  static uchar switch_plugin_request_buf[]= { 254 };
+
+
+  mpvio->status= MPVIO_EXT::FAILURE; // the status is no longer RESTART
+
+  const char *client_auth_plugin=
+    ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+
+  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(my_strcasecmp(system_charset_info, client_auth_plugin,
+                            mpvio->cached_client_reply.plugin));
+
+  /*
+    we send an old "short 4.0 scramble request", if we need to request a
+    client to use 4.0 auth plugin (short scramble) and the scramble was
+    already sent to the client
+
+    below, cached_client_reply.plugin is the plugin name that client has used,
+    client_auth_plugin is derived from mysql.user table, for the given
+    user account, it's the plugin that the client need to use to login.
+  */
+  bool switch_from_long_to_short_scramble=
+    native_password_plugin_name.str == mpvio->cached_client_reply.plugin &&
+    client_auth_plugin == old_password_plugin_name.str;
+
+  if (switch_from_long_to_short_scramble)
+    return secure_auth(mpvio->thd) ||
+           my_net_write(net, switch_plugin_request_buf, 1) ||
+           net_flush(net);
+
+  /*
+    We never request a client to switch from a short to long scramble.
+    Plugin-aware clients can do that, but traditionally it meant to
+    ask an old 4.0 client to use the new 4.1 authentication protocol.
+  */
+  bool switch_from_short_to_long_scramble=
+    old_password_plugin_name.str == mpvio->cached_client_reply.plugin &&
+    client_auth_plugin == native_password_plugin_name.str;
+
+  if (switch_from_short_to_long_scramble)
+  {
+    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
+    general_log_print(mpvio->thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    return 1;
+  }
+
+  return net_write_command(net, switch_plugin_request_buf[0],
+                           (uchar*)client_auth_plugin,
+                           strlen(client_auth_plugin)+1,
+                           (uchar*)data, data_len);
+}
+
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/**
+   Finds acl entry in user database for authentication purposes.
+   
+   Finds a user and copies it into mpvio. Reports an authentication
+   failure if a user is not found.
+
+   @note find_acl_user is not the same, because it doesn't take into
+   account the case when user is not empty, but acl_user->user is empty
+
+   @retval 0    found
+   @retval 1    not found
+*/
+
+static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
+{
+  DBUG_ASSERT(mpvio->acl_user == 0);
+
+  pthread_mutex_lock(&acl_cache->lock);
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    ACL_USER *acl_user_tmp= dynamic_element(&acl_users,i,ACL_USER*);
+    if ((!acl_user_tmp->user || !strcmp(sctx->user, acl_user_tmp->user)) &&
+        compare_hostname(&acl_user_tmp->host, sctx->host, sctx->ip))
+    {
+      mpvio->acl_user= acl_user_tmp->copy(mpvio->thd->mem_root);
+      break;
+    }
+  }
+  pthread_mutex_unlock(&acl_cache->lock);
+
+  if (!mpvio->acl_user)
+  {
+    login_failed_error(mpvio->thd, 0);
+    return 1;
+  }
+
+  /* user account requires non-default plugin and the client is too old */
+  if (mpvio->acl_user->plugin.str != native_password_plugin_name.str &&
+      mpvio->acl_user->plugin.str != old_password_plugin_name.str &&
+      !(mpvio->thd->client_capabilities & CLIENT_PLUGIN_AUTH))
+  {
+    DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
+                              native_password_plugin_name.str));
+    DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
+                              old_password_plugin_name.str));
+    my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
+    general_log_print(mpvio->thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    return 1;
+  }
+
+  mpvio->auth_info.user_name= sctx->user;
+  mpvio->auth_info.auth_string= mpvio->acl_user->auth_string.str;
+  strmake(mpvio->auth_info.authenticated_as, mpvio->acl_user->user ?
+          mpvio->acl_user->user : "", USERNAME_LENGTH);
+
+  return 0;
+}
+#endif
+
+
+/* the packet format is described in send_change_user_packet() */
+static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
+{
+  THD *thd= mpvio->thd;
+  NET *net= &thd->net;
+  Security_context *sctx= thd->security_ctx;
+
+  char *user= (char*) net->read_pos;
+  char *end= user + packet_length;
+  /* Safe because there is always a trailing \0 at the end of the packet */
+  char *passwd= strend(user)+1;
+  uint user_len= passwd - user - 1;
+  char *db= passwd;
+  char db_buff[SAFE_NAME_LEN + 1];            // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	      // buffer to store user in utf8
+  uint dummy_errors;
+
+  if (passwd >= end)
+  {
+    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    return 1;
+  }
+
+  /*
+    Old clients send null-terminated string as password; new clients send
+    the size (1 byte) + string (not null-terminated). Hence in case of empty
+    password both send '\0'.
+
+    This strlen() can't be easily deleted without changing protocol.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127+ after casting to uint.
+  */
+  uint passwd_len= (thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
+                    (uchar)(*passwd++) : strlen(passwd));
+
+  db+= passwd_len + 1;
+  /*
+    Database name is always NUL-terminated, so in case of empty database
+    the packet must contain at least the trailing '\0'.
+  */
+  if (db >= end)
+  {
+    my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+    return 1;
+  }
+
+  uint db_len= strlen(db);
+
+  char *ptr= db + db_len + 1;
+
+  if (ptr+1 < end)
+  {
+    uint cs_number= uint2korr(ptr);
+    thd_init_client_charset(thd, cs_number);
+    thd->update_charset();
+  }
+
+  /* Convert database and user names to utf8 */
+  db_len= copy_and_convert(db_buff, sizeof(db_buff)-1, system_charset_info,
+                           db, db_len, thd->charset(), &dummy_errors);
+
+  user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+                             system_charset_info, user, user_len,
+                             thd->charset(), &dummy_errors);
+
+  if (!(sctx->user= my_strndup(user_buff, user_len, MYF(MY_WME))))
+    return 1;
+
+  /* Clear variables that are allocated */
+  thd->user_connect= 0;
+  strmake(sctx->priv_user, sctx->user, USERNAME_LENGTH);
+
+  if (thd->make_lex_string(&mpvio->db, db_buff, db_len, 0) == 0)
+    return 1; /* The error is set by make_lex_string(). */
+
+  /*
+    Clear thd->db as it points to something, that will be freed when
+    connection is closed. We don't want to accidentally free a wrong
+    pointer if connect failed.
+  */
+  thd->reset_db(NULL, 0);
+
+  if (!initialized)
+  {
+    // if mysqld's been started with --skip-grant-tables option
+    mpvio->status= MPVIO_EXT::SUCCESS;
+    return 0;
+  }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (find_mpvio_user(mpvio, sctx))
+    return 1;
+
+  char *client_plugin;
+  if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
+  {
+    client_plugin= ptr + 2;
+    if (client_plugin >= end)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      return 1;
+    }
+    client_plugin= fix_plugin_ptr(client_plugin);
+  }
+  else
+  {
+    if (thd->client_capabilities & CLIENT_SECURE_CONNECTION)
+      client_plugin= native_password_plugin_name.str;
+    else
+    {
+      client_plugin=  old_password_plugin_name.str;
+      /*
+        For a passwordless accounts we use native_password_plugin.
+        But when an old 4.0 client connects to it, we change it to
+        old_password_plugin, otherwise MySQL will think that server 
+        and client plugins don't match.
+      */
+      if (mpvio->acl_user->auth_string.length == 0)
+        mpvio->acl_user->plugin= old_password_plugin_name;
+    }
+  }
+  
+  /* remember the data part of the packet, to present it to plugin in read_packet() */
+  mpvio->cached_client_reply.pkt= passwd;
+  mpvio->cached_client_reply.pkt_len= passwd_len;
+  mpvio->cached_client_reply.plugin= client_plugin;
+  mpvio->status= MPVIO_EXT::RESTART;
+#endif
+
+  return 0;
+}
+
+
+/* the packet format is described in send_client_reply_packet() */
+static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
+                                           uchar **buff, ulong pkt_len)
+{
+#ifndef EMBEDDED_LIBRARY
+  THD *thd= mpvio->thd;
+  NET *net= &thd->net;
+  char *end;
+
+  DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
+
+  if (pkt_len < MIN_HANDSHAKE_SIZE)
+    return packet_error;
+
+  if (mpvio->connect_errors)
+    reset_host_errors(thd->main_security_ctx.ip);
+
+  ulong client_capabilities= uint2korr(net->read_pos);
+  if (client_capabilities & CLIENT_PROTOCOL_41)
+  {
+    client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
+    thd->max_client_packet_length= uint4korr(net->read_pos+4);
+    DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
+    thd_init_client_charset(thd, (uint) net->read_pos[8]);
+    thd->update_charset();
+    end= (char*) net->read_pos+32;
+  }
+  else
+  {
+    thd->max_client_packet_length= uint3korr(net->read_pos+2);
+    end= (char*) net->read_pos+5;
+  }
+
+  /* Disable those bits which are not supported by the client. */
+  thd->client_capabilities&= client_capabilities;
+
+  if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
+    thd->variables.sql_mode|= MODE_IGNORE_SPACE;
+
+  DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
+  if (thd->client_capabilities & CLIENT_SSL)
+  {
+    char error_string[1024] __attribute__((unused));
+
+    /* Do the SSL layering. */
+    if (!ssl_acceptor_fd)
+      return packet_error;
+
+    DBUG_PRINT("info", ("IO layer change in progress..."));
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, error_string))
+    {
+      DBUG_PRINT("error", ("Failed to accept new SSL connection"));
+      return packet_error;
+    }
+
+    DBUG_PRINT("info", ("Reading user information over SSL layer"));
+    pkt_len= my_net_read(net);
+    if (pkt_len == packet_error || pkt_len < NORMAL_HANDSHAKE_SIZE)
+    {
+      DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
+			   pkt_len));
+      return packet_error;
+    }
+  }
+
+  if (end >= (char*) net->read_pos+ pkt_len +2)
+    return packet_error;
+
+  if (thd->client_capabilities & CLIENT_INTERACTIVE)
+    thd->variables.net_wait_timeout= thd->variables.net_interactive_timeout;
+  if ((thd->client_capabilities & CLIENT_TRANSACTIONS) &&
+      opt_using_transactions)
+    net->return_status= &thd->server_status;
+
+  char *user= end;
+  char *passwd= strend(user)+1;
+  uint user_len= passwd - user - 1, db_len;
+  char *db= passwd;
+  char db_buff[SAFE_NAME_LEN + 1];      // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
+  uint dummy_errors;
+
+  /*
+    Old clients send null-terminated string as password; new clients send
+    the size (1 byte) + string (not null-terminated). Hence in case of empty
+    password both send '\0'.
+
+    This strlen() can't be easily deleted without changing protocol.
+
+    Cast *passwd to an unsigned char, so that it doesn't extend the sign for
+    *passwd > 127 and become 2**32-127+ after casting to uint.
+  */
+  uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
+                   (uchar)(*passwd++) : strlen(passwd);
+
+  if (thd->client_capabilities & CLIENT_CONNECT_WITH_DB)
+  {
+    db= db + passwd_len + 1;
+    /* strlen() can't be easily deleted without changing protocol */
+    db_len= strlen(db);
+  }
+  else
+  {
+    db= 0;
+    db_len= 0;
+  }
+
+  if (passwd + passwd_len + db_len > (char *)net->read_pos + pkt_len)
+    return packet_error;
+
+  char *client_plugin= passwd + passwd_len + (db ? db_len + 1 : 0);
+
+  /* Since 4.1 all database names are stored in utf8 */
+  if (db)
+  {
+    db_len= copy_and_convert(db_buff, sizeof(db_buff)-1, system_charset_info,
+                             db, db_len, thd->charset(), &dummy_errors);
+    db= db_buff;
+  }
+
+  user_len= copy_and_convert(user_buff, sizeof(user_buff)-1,
+                             system_charset_info, user, user_len,
+                             thd->charset(), &dummy_errors);
+  user= user_buff;
+
+  /* If username starts and ends in "'", chop them off */
+  if (user_len > 1 && user[0] == '\'' && user[user_len - 1] == '\'')
+  {
+    user++;
+    user_len-= 2;
+  }
+
+  Security_context *sctx= thd->security_ctx;
+
+  if (thd->make_lex_string(&mpvio->db, db, db_len, 0) == 0)
+    return packet_error; /* The error is set by make_lex_string(). */
+  my_free(sctx->user);
+  if (!(sctx->user= my_strndup(user, user_len, MYF(MY_WME))))
+    return packet_error; /* The error is set by my_strdup(). */
+
+  /*
+    Clear thd->db as it points to something, that will be freed when
+    connection is closed. We don't want to accidentally free a wrong
+    pointer if connect failed.
+  */
+  thd->reset_db(NULL, 0);
+
+  if (!initialized)
+  {
+    // if mysqld's been started with --skip-grant-tables option
+    mpvio->status= MPVIO_EXT::SUCCESS;
+    return packet_error;
+  }
+
+  if (find_mpvio_user(mpvio, sctx))
+    return packet_error;
+
+  if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
+  {
+    if ((client_plugin + strlen(client_plugin)) > 
+          (char *)net->read_pos + pkt_len)
+      return packet_error;
+    client_plugin= fix_plugin_ptr(client_plugin);
+  }
+  else
+  {
+    if (thd->client_capabilities & CLIENT_SECURE_CONNECTION)
+      client_plugin= native_password_plugin_name.str;
+    else
+    {
+      client_plugin=  old_password_plugin_name.str;
+      /*
+        For a passwordless accounts we use native_password_plugin.
+        But when an old 4.0 client connects to it, we change it to
+        old_password_plugin, otherwise MySQL will think that server 
+        and client plugins don't match.
+      */
+      if (mpvio->acl_user->auth_string.length == 0)
+        mpvio->acl_user->plugin= old_password_plugin_name;
+    }
+  }
+  
+  /*
+    if the acl_user needs a different plugin to authenticate
+    (specified in GRANT ... AUTHENTICATED VIA plugin_name ..)
+    we need to restart the authentication in the server.
+    But perhaps the client has already used the correct plugin -
+    in that case the authentication on the client may not need to be
+    restarted and a server auth plugin will read the data that the client
+    has just send. Cache them to return in the next server_mpvio_read_packet().
+  */
+  if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
+                    plugin_name(mpvio->plugin)->str) != 0)
+  {
+    mpvio->cached_client_reply.pkt= passwd;
+    mpvio->cached_client_reply.pkt_len= passwd_len;
+    mpvio->cached_client_reply.plugin= client_plugin;
+    mpvio->status= MPVIO_EXT::RESTART;
+    return packet_error;
+  }
+
+  /*
+    ok, we don't need to restart the authentication on the server.
+    but if the client used the wrong plugin, we need to restart
+    the authentication on the client. Do it here, the server plugin
+    doesn't need to know.
+  */
+  const char *client_auth_plugin=
+    ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+
+  if (client_auth_plugin &&
+      my_strcasecmp(system_charset_info, client_plugin, client_auth_plugin))
+  {
+    mpvio->cached_client_reply.plugin= client_plugin;
+    if (send_plugin_request_packet(mpvio,
+                                   (uchar*)mpvio->cached_server_packet.pkt,
+                                   mpvio->cached_server_packet.pkt_len))
+      return packet_error;
+
+    passwd_len= my_net_read(&mpvio->thd->net);
+    passwd = (char*)mpvio->thd->net.read_pos;
+  }
+
+  *buff= (uchar*)passwd;
+  return passwd_len;
+#else
+  return 0;
+#endif
+}
+
+
+/**
+  vio->write_packet() callback method for server authentication plugins
+
+  This function is called by a server authentication plugin, when it wants
+  to send data to the client.
+
+  It transparently wraps the data into a handshake packet,
+  and handles plugin negotiation with the client. If necessary,
+  it escapes the plugin data, if it starts with a mysql protocol packet byte.
+*/
+
+static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
+                                   const uchar *packet, int packet_len)
+{
+  MPVIO_EXT *mpvio= (MPVIO_EXT*)param;
+  int res;
+
+  /* reset cached_client_reply */
+  mpvio->cached_client_reply.pkt= 0;
+  /* for the 1st packet we wrap plugin data into the handshake packet */
+  if (mpvio->packets_written == 0)
+    res= send_server_handshake_packet(mpvio, (char*)packet, packet_len);
+  else if (mpvio->status == MPVIO_EXT::RESTART)
+    res= send_plugin_request_packet(mpvio, packet, packet_len);
+  else if (packet_len > 0 && (*packet == 1 || *packet == 255 || *packet == 254))
+  {
+    /*
+      we cannot allow plugin data packet to start from 255 or 254 -
+      as the client will treat it as an error or "change plugin" packet.
+      We'll escape these bytes with \1. Consequently, we
+      have to escape \1 byte too.
+    */
+    res= net_write_command(&mpvio->thd->net, 1, (uchar*)"", 0,
+                           packet, packet_len);
+  }
+  else
+  {
+    res= my_net_write(&mpvio->thd->net, packet, packet_len) ||
+         net_flush(&mpvio->thd->net);
+  }
+  mpvio->packets_written++;
+  return res;
+}
+
+
+/**
+  vio->read_packet() callback method for server authentication plugins
+
+  This function is called by a server authentication plugin, when it wants
+  to read data from the client.
+
+  It transparently extracts the client plugin data, if embedded into
+  a client authentication handshake packet, and handles plugin negotiation
+  with the client, if necessary.
+*/
+
+static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
+{
+  MPVIO_EXT *mpvio= (MPVIO_EXT*)param;
+  ulong pkt_len;
+
+  if (mpvio->packets_written == 0)
+  {
+    /*
+      plugin wants to read the data without sending anything first.
+      send an empty packet to force a server handshake packet to be sent
+    */
+    if (server_mpvio_write_packet(mpvio, 0, 0))
+      pkt_len= packet_error;
+    else
+      pkt_len= my_net_read(&mpvio->thd->net);
+  }
+  else 
+  if (mpvio->cached_client_reply.pkt)
+  {
+    DBUG_ASSERT(mpvio->status == MPVIO_EXT::RESTART);
+    DBUG_ASSERT(mpvio->packets_read > 0);
+    /*
+      if the have the data cached from the last server_mpvio_read_packet
+      (which can be the case if it's a restarted authentication)
+      and a client has used the correct plugin, then we can return the
+      cached data straight away and avoid one round trip.
+    */
+    const char *client_auth_plugin=
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+    if (client_auth_plugin == 0 ||
+        my_strcasecmp(system_charset_info, mpvio->cached_client_reply.plugin,
+                      client_auth_plugin) == 0)
+    {
+      mpvio->status= MPVIO_EXT::FAILURE;
+      *buf= (uchar*)mpvio->cached_client_reply.pkt;
+      mpvio->cached_client_reply.pkt= 0;
+      mpvio->packets_read++;
+      return (int)mpvio->cached_client_reply.pkt_len;
+    }
+    /*
+      But if the client has used the wrong plugin, the cached data are
+      useless. Furthermore, we have to send a "change plugin" request
+      to the client.
+    */
+    if (server_mpvio_write_packet(mpvio, 0, 0))
+      pkt_len= packet_error;
+    else
+      pkt_len= my_net_read(&mpvio->thd->net);
+  }
+  else
+    pkt_len= my_net_read(&mpvio->thd->net);
+
+  if (pkt_len == packet_error)
+    goto err;
+
+  mpvio->packets_read++;
+
+  /*
+    the 1st packet has the plugin data wrapped into the client authentication
+    handshake packet
+  */
+  if (mpvio->packets_read == 1)
+  {
+    pkt_len= parse_client_handshake_packet(mpvio, buf, pkt_len);
+    if (pkt_len == packet_error)
+      goto err;
+  }
+  else
+    *buf = mpvio->thd->net.read_pos;
+
+  return (int)pkt_len;
+
+err:
+  if (mpvio->status == MPVIO_EXT::FAILURE && !mpvio->thd->is_error())
+  {
+    inc_host_errors(mpvio->thd->main_security_ctx.ip);
+    my_error(ER_HANDSHAKE_ERROR, MYF(0),
+             mpvio->thd->security_ctx->host_or_ip);
+  }
+  return -1;
+}
+
+
+/**
+  fills MYSQL_PLUGIN_VIO_INFO structure with the information about the
+  connection
+*/
+
+static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
+                              MYSQL_PLUGIN_VIO_INFO *info)
+{
+  MPVIO_EXT *mpvio= (MPVIO_EXT*)vio;
+  mpvio_info(mpvio->thd->net.vio, info);
+}
+
+
+static bool acl_check_ssl(THD *thd, ACL_USER *acl_user)
+{
+#if defined(HAVE_OPENSSL)
+  Vio *vio=thd->net.vio;
+  SSL *ssl= (SSL*) vio->ssl_arg;
+  X509 *cert;
+#endif
+
+  /*
+    At this point we know that user is allowed to connect
+    from given host by given username/password pair. Now
+    we check if SSL is required, if user is using SSL and
+    if X509 certificate attributes are OK
+  */
+  switch (acl_user->ssl_type) {
+  case SSL_TYPE_NOT_SPECIFIED:                  // Impossible
+  case SSL_TYPE_NONE:                           // SSL is not required
+    return 0;
+#if defined(HAVE_OPENSSL)
+  case SSL_TYPE_ANY:                            // Any kind of SSL is ok
+    return vio_type(vio) != VIO_TYPE_SSL;
+  case SSL_TYPE_X509: /* Client should have any valid certificate. */
+    /*
+      Connections with non-valid certificates are dropped already
+      in sslaccept() anyway, so we do not check validity here.
+
+      We need to check for absence of SSL because without SSL
+      we should reject connection.
+    */
+    if (vio_type(vio) == VIO_TYPE_SSL &&
+        SSL_get_verify_result(ssl) == X509_V_OK &&
+        (cert= SSL_get_peer_certificate(ssl)))
+    {
+      X509_free(cert);
+      return 0;
+    }
+    return 1;
+  case SSL_TYPE_SPECIFIED: /* Client should have specified attrib */
+    /* If a cipher name is specified, we compare it to actual cipher in use. */
+    if (vio_type(vio) != VIO_TYPE_SSL ||
+        SSL_get_verify_result(ssl) != X509_V_OK)
+      return 1;
+    if (acl_user->ssl_cipher)
+    {
+      DBUG_PRINT("info",("comparing ciphers: '%s' and '%s'",
+                         acl_user->ssl_cipher,SSL_get_cipher(ssl)));
+      if (strcmp(acl_user->ssl_cipher,SSL_get_cipher(ssl)))
+      {
+        if (global_system_variables.log_warnings)
+          sql_print_information("X509 ciphers mismatch: should be '%s' but is '%s'",
+                            acl_user->ssl_cipher, SSL_get_cipher(ssl));
+        return 1;
+      }
+    }
+    /* Prepare certificate (if exists) */
+    if (!(cert= SSL_get_peer_certificate(ssl)))
+      return 1;
+    /* If X509 issuer is specified, we check it... */
+    if (acl_user->x509_issuer)
+    {
+      char *ptr = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+      DBUG_PRINT("info",("comparing issuers: '%s' and '%s'",
+                         acl_user->x509_issuer, ptr));
+      if (strcmp(acl_user->x509_issuer, ptr))
+      {
+        if (global_system_variables.log_warnings)
+          sql_print_information("X509 issuer mismatch: should be '%s' "
+                            "but is '%s'", acl_user->x509_issuer, ptr);
+        free(ptr);
+        X509_free(cert);
+        return 1;
+      }
+      free(ptr);
+    }
+    /* X509 subject is specified, we check it .. */
+    if (acl_user->x509_subject)
+    {
+      char *ptr= X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+      DBUG_PRINT("info",("comparing subjects: '%s' and '%s'",
+                         acl_user->x509_subject, ptr));
+      if (strcmp(acl_user->x509_subject,ptr))
+      {
+        if (global_system_variables.log_warnings)
+          sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
+                          acl_user->x509_subject, ptr);
+        free(ptr);
+        X509_free(cert);
+        return 1;
+      }
+      free(ptr);
+    }
+    X509_free(cert);
+    return 0;
+#else  /* HAVE_OPENSSL */
+  default:
+    /*
+      If we don't have SSL but SSL is required for this user the 
+      authentication should fail.
+    */
+    return 1;
+#endif /* HAVE_OPENSSL */
+  }
+  return 1;
+}
+
+static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
+                        MPVIO_EXT *mpvio)
+{
+  int res= CR_OK, old_status= MPVIO_EXT::FAILURE;
+  bool unlock_plugin= false;
+  plugin_ref plugin;
+
+#ifdef EMBEDDED_LIBRARY
+  plugin= native_password_plugin;
+#else
+  if (auth_plugin_name->str == native_password_plugin_name.str)
+    plugin= native_password_plugin;
+  else if (auth_plugin_name->str == old_password_plugin_name.str)
+    plugin= old_password_plugin;
+  else if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
+                                           MYSQL_AUTHENTICATION_PLUGIN)))
+    unlock_plugin= true;
+#endif
+
+  mpvio->plugin= plugin;
+  old_status= mpvio->status;
+
+  if (plugin)
+  {
+    st_mysql_auth *auth= (st_mysql_auth*)plugin_decl(plugin)->info;
+    res= auth->authenticate_user(mpvio, &mpvio->auth_info);
+
+    if (unlock_plugin)
+      plugin_unlock(thd, plugin);
+  }
+  else
+  {
+    /* Server cannot load the required plugin. */
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin_name->str);
+    res= CR_ERROR;
+  }
+
+  /*
+    If the status was MPVIO_EXT::RESTART before the authenticate_user() call
+    it can never be MPVIO_EXT::RESTART after the call, because any call
+    to write_packet() or read_packet() will reset the status.
+
+    But (!) if a plugin never called a read_packet() or write_packet(), the
+    status will stay unchanged. We'll fix it, by resetting the status here.
+  */
+  if (old_status == MPVIO_EXT::RESTART && mpvio->status == MPVIO_EXT::RESTART)
+    mpvio->status= MPVIO_EXT::FAILURE; // reset to the default
+
+  return res;
+}
+
+/**
+  Perform the handshake, authorize the client and update thd sctx variables.
+
+  @param thd                     thread handle
+  @param connect_errors          number of previous failed connect attemps
+                                 from this host
+  @param com_change_user_pkt_len size of the COM_CHANGE_USER packet
+                                 (without the first, command, byte) or 0
+                                 if it's not a COM_CHANGE_USER (that is, if
+                                 it's a new connection)
+
+  @retval 0  success, thd is updated.
+  @retval 1  error
+*/
+
+bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
+{
+  int res= CR_OK;
+  MPVIO_EXT mpvio;
+  LEX_STRING *auth_plugin_name= default_auth_plugin_name;
+  enum  enum_server_command command= com_change_user_pkt_len ? COM_CHANGE_USER
+                                                             : COM_CONNECT;
+  DBUG_ENTER("acl_authenticate");
+
+  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
+
+  bzero(&mpvio, sizeof(mpvio));
+  mpvio.read_packet= server_mpvio_read_packet;
+  mpvio.write_packet= server_mpvio_write_packet;
+  mpvio.info= server_mpvio_info;
+  mpvio.thd= thd;
+  mpvio.connect_errors= connect_errors;
+  mpvio.status= MPVIO_EXT::FAILURE;
+
+  if (command == COM_CHANGE_USER)
+  {
+    mpvio.packets_written++; // pretend that a server handshake packet was sent
+    mpvio.packets_read++;    // take COM_CHANGE_USER packet into account
+
+    if (parse_com_change_user_packet(&mpvio, com_change_user_pkt_len))
+      DBUG_RETURN(1);
+
+    DBUG_ASSERT(mpvio.status == MPVIO_EXT::RESTART ||
+                mpvio.status == MPVIO_EXT::SUCCESS);
+  }
+  else
+  {
+    /* mark the thd as having no scramble yet */
+    thd->scramble[SCRAMBLE_LENGTH]= 1;
+
+    /*
+      perform the first authentication attempt, with the default plugin.
+      This sends the server handshake packet, reads the client reply
+      with a user name, and performs the authentication if everyone has used
+      the correct plugin.
+    */
+    res= do_auth_once(thd, auth_plugin_name, &mpvio);
+  }
+
+  /*
+    retry the authentication, if - after receiving the user name -
+    we found that we need to switch to a non-default plugin
+  */
+  if (mpvio.status == MPVIO_EXT::RESTART)
+  {
+    DBUG_ASSERT(mpvio.acl_user);
+    DBUG_ASSERT(command == COM_CHANGE_USER ||
+                my_strcasecmp(system_charset_info, auth_plugin_name->str,
+                              mpvio.acl_user->plugin.str));
+    auth_plugin_name= &mpvio.acl_user->plugin;
+    res= do_auth_once(thd, auth_plugin_name, &mpvio);
+  }
+
+  Security_context *sctx= thd->security_ctx;
+  ACL_USER *acl_user= mpvio.acl_user;
+
+  thd->password= mpvio.auth_info.password_used;  // remember for error messages 
+
+  /*
+    Log the command here so that the user can check the log
+    for the tried logins and also to detect break-in attempts.
+
+    if sctx->user is unset it's protocol failure, bad packet.
+  */
+  if (sctx->user)
+  {
+    if (strcmp(sctx->priv_user, sctx->user))
+    {
+      general_log_print(thd, command, "%s@%s as %s on %s",
+                        sctx->user, sctx->host_or_ip,
+                        sctx->priv_user[0] ? sctx->priv_user : "anonymous",
+                        mpvio.db.str ? mpvio.db.str : (char*) "");
+    }
+    else
+      general_log_print(thd, command, (char*) "%s@%s on %s",
+                        sctx->user, sctx->host_or_ip,
+                        mpvio.db.str ? mpvio.db.str : (char*) "");
+  }
+
+  if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
+  {
+    DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
+
+    if (!thd->is_error())
+      login_failed_error(thd, thd->password);
+    DBUG_RETURN(1);
+  }
+
+  if (initialized) // if not --skip-grant-tables
+  {
+    sctx->master_access= acl_user->access;
+    strmake(sctx->priv_user, mpvio.auth_info.authenticated_as, USERNAME_LENGTH);
+    if (acl_user->host.hostname)
+      strmake(sctx->priv_host, acl_user->host.hostname, MAX_HOSTNAME);
+    else
+      *sctx->priv_host= 0;
+
+    /*
+      OK. Let's check the SSL. Historically it was checked after the password,
+      as an additional layer, not instead of the password
+      (in which case it would've been a plugin too).
+    */
+    if (acl_check_ssl(thd, acl_user))
+    {
+      login_failed_error(thd, thd->password);
+      DBUG_RETURN(1);
+    }
+
+    /* Don't allow the user to connect if he has done too many queries */
+    if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
+         acl_user->user_resource.conn_per_hour ||
+         acl_user->user_resource.user_conn ||
+         global_system_variables.max_user_connections) &&
+        get_or_create_user_conn(thd,
+          (opt_old_style_user_limits ? sctx->user : sctx->priv_user),
+          (opt_old_style_user_limits ? sctx->host_or_ip : sctx->priv_host),
+          &acl_user->user_resource))
+      DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
+  }
+  else
+    sctx->skip_grants();
+
+  if (thd->user_connect &&
+      (thd->user_connect->user_resources.conn_per_hour ||
+       thd->user_connect->user_resources.user_conn ||
+       global_system_variables.max_user_connections) &&
+      check_for_max_user_connections(thd, thd->user_connect))
+  {
+    status_var_increment(denied_connections);
+    DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
+  }
+
+  DBUG_PRINT("info",
+             ("Capabilities: %lu  packet_length: %ld  Host: '%s'  "
+              "Login user: '%s' Priv_user: '%s'  Using password: %s "
+              "Access: %lu  db: '%s'",
+              thd->client_capabilities, thd->max_client_packet_length,
+              sctx->host_or_ip, sctx->user, sctx->priv_user,
+              thd->password ? "yes": "no",
+              sctx->master_access, mpvio.db.str));
+
+  if (command == COM_CONNECT &&
+      !(thd->main_security_ctx.master_access & SUPER_ACL))
+  {
+    pthread_mutex_lock(&LOCK_connection_count);
+    bool count_ok= (*thd->scheduler->connection_count <=
+                    *thd->scheduler->max_connections);
+    VOID(pthread_mutex_unlock(&LOCK_connection_count));
+    if (!count_ok)
+    {                                         // too many connections
+      my_error(ER_CON_COUNT_ERROR, MYF(0));
+      DBUG_RETURN(1);
+    }
+  }
+
+  /*
+    This is the default access rights for the current database.  It's
+    set to 0 here because we don't have an active database yet (and we
+    may not have an active database to set.
+  */
+  sctx->db_access=0;
+
+  /* Change a database if necessary */
+  if (mpvio.db.length)
+  {
+    if (mysql_change_db(thd, &mpvio.db, FALSE))
+    {
+      /* mysql_change_db() has pushed the error message. */
+      if (thd->user_connect)
+      {
+        status_var_increment(thd->status_var.access_denied_errors);
+        decrease_user_connections(thd->user_connect);
+        thd->user_connect= 0;
+      }
+      DBUG_RETURN(1);
+    }
+  }
+
+  thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
+
+  if (res == CR_OK_HANDSHAKE_COMPLETE)
+    thd->main_da.disable_status();
+  else
+    my_ok(thd);
+
+  /* Ready to handle queries */
+  DBUG_RETURN(0);
+}
+
+
+/**
+  MySQL Server Password Authentication Plugin
+
+  In the MySQL authentication protocol:
+  1. the server sends the random scramble to the client
+  2. client sends the encrypted password back to the server
+  3. the server checks the password.
+*/
+
+static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
+                                        MYSQL_SERVER_AUTH_INFO *info)
+{
+  uchar *pkt;
+  int pkt_len;
+  MPVIO_EXT *mpvio=(MPVIO_EXT*)vio;
+  THD *thd=mpvio->thd;
+
+  /* generate the scramble, or reuse the old one */
+  if (thd->scramble[SCRAMBLE_LENGTH])
+  {
+    create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
+    /* and send it to the client */
+    if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+      return CR_ERROR;
+  }
+
+  /* reply and authenticate */
+
+  /*
+    <digression>
+      This is more complex than it looks.
+
+      The plugin (we) may be called right after the client was connected -
+      and will need to send a scramble, read reply, authenticate.
+
+      Or the plugin may be called after another plugin has sent a scramble,
+      and read the reply. If the client has used the correct client-plugin,
+      we won't need to read anything here from the client, the client
+      has already sent a reply with everything we need for authentication.
+
+      Or the plugin may be called after another plugin has sent a scramble,
+      and read the reply, but the client has used the wrong client-plugin.
+      We'll need to sent a "switch to another plugin" packet to the
+      client and read the reply. "Use the short scramble" packet is a special
+      case of "switch to another plugin" packet.
+
+      Or, perhaps, the plugin may be called after another plugin has
+      done the handshake but did not send a useful scramble. We'll need
+      to send a scramble (and perhaps a "switch to another plugin" packet)
+      and read the reply.
+
+      Besides, a client may be an old one, that doesn't understand plugins.
+      Or doesn't even understand 4.0 scramble.
+
+      And we want to keep the same protocol on the wire  unless non-native
+      plugins are involved.
+
+      Anyway, it still looks simple from a plugin point of view:
+      "send the scramble, read the reply and authenticate".
+      All the magic is transparently handled by the server.
+    </digression>
+  */
+
+  /* read the reply with the encrypted password */
+  if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
+    return CR_ERROR;
+
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+  return CR_OK;
+#endif
+
+  if (pkt_len == 0) /* no password */
+    return info->auth_string[0] ? CR_ERROR : CR_OK;
+
+  info->password_used = 1;
+  if (pkt_len == SCRAMBLE_LENGTH)
+    return info->auth_string[0] == 0 ||
+           check_scramble(pkt, thd->scramble, mpvio->acl_user->salt) ?
+             CR_ERROR : CR_OK;
+
+  inc_host_errors(mpvio->thd->main_security_ctx.ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+  return CR_ERROR;
+}
+
+
+static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
+                                     MYSQL_SERVER_AUTH_INFO *info)
+{
+  uchar *pkt;
+  int pkt_len;
+  MPVIO_EXT *mpvio=(MPVIO_EXT*)vio;
+  THD *thd=mpvio->thd;
+
+  /* generate the scramble, or reuse the old one */
+  if (thd->scramble[SCRAMBLE_LENGTH])
+  {
+    create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
+    /* and send it to the client */
+    if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+      return CR_ERROR;
+  }
+
+  /* read the reply and authenticate */
+  if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
+    return CR_ERROR;
+
+#ifdef NO_EMBEDDED_ACCESS_CHECKS
+  return CR_OK;
+#endif
+
+  /*
+    legacy: if switch_from_long_to_short_scramble,
+    the password is sent \0-terminated, the pkt_len is always 9 bytes.
+    We need to figure out the correct scramble length here.
+  */
+  if (pkt_len == SCRAMBLE_LENGTH_323+1)
+    pkt_len= strnlen((char*)pkt, pkt_len);
+
+  if (pkt_len == 0) /* no password */
+    return info->auth_string[0] ? CR_ERROR : CR_OK;
+
+  if (secure_auth(thd))
+    return CR_ERROR;
+
+  info->password_used = 1;
+
+  if (pkt_len == SCRAMBLE_LENGTH_323)
+    return info->auth_string[0] == 0 ||
+           check_scramble_323(pkt, thd->scramble,
+                             (ulong *)mpvio->acl_user->salt) ? CR_ERROR : CR_OK;
+
+  inc_host_errors(mpvio->thd->main_security_ctx.ip);
+  my_error(ER_HANDSHAKE_ERROR, MYF(0), thd->main_security_ctx.host_or_ip);
+  return CR_ERROR;
+}
+
+static struct st_mysql_auth native_password_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  native_password_plugin_name.str,
+  native_password_authenticate
+};
+
+static struct st_mysql_auth old_password_handler=
+{
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  old_password_plugin_name.str,
+  old_password_authenticate
+};
+
+mysql_declare_plugin(mysql_password)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &native_password_handler,                     /* type descriptor  */
+  native_password_plugin_name.str,              /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Native MySQL authentication",                /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  NULL                                          /* config options   */
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &old_password_handler,                        /* type descriptor  */
+  old_password_plugin_name.str,                 /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Old MySQL-4.0 authentication",               /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  NULL                                          /* config options   */
+}
+mysql_declare_plugin_end;
+
+maria_declare_plugin(mysql_password)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &native_password_handler,                     /* type descriptor  */
+  native_password_plugin_name.str,              /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Native MySQL authentication",                /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &old_password_handler,                        /* type descriptor  */
+  old_password_plugin_name.str,                 /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Old MySQL-4.0 authentication",               /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+}
+maria_declare_plugin_end;

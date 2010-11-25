@@ -20,28 +20,29 @@
 #include <my_base.h>
 #include <my_handler.h>
 #include <my_sys.h>
-
 #include "my_handler_errors.h"
 
 #define CMP_NUM(a,b)    (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
-int ha_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
-		    uchar *b, uint b_length, my_bool part_key,
+int ha_compare_text(CHARSET_INFO *charset_info, const uchar *a, uint a_length,
+		    const uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-                                           b, b_length, (my_bool)!skip_end_space);
+                                           b, b_length,
+                                           (my_bool)!skip_end_space);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
                                        b, b_length, part_key);
 }
 
 
-static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
+static int compare_bin(const uchar *a, uint a_length,
+                       const uchar *b, uint b_length,
                        my_bool part_key, my_bool skip_end_space)
 {
   uint length= min(a_length,b_length);
-  uchar *end= a+ length;
+  const uchar *end= a+ length;
   int flag;
 
   while (a < end)
@@ -85,13 +86,15 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
     ha_key_cmp()
     keyseg	Array of key segments of key to compare
     a		First key to compare, in format from _mi_pack_key()
-		This is normally key specified by user
-    b		Second key to compare.  This is always from a row
-    key_length	Length of key to compare.  This can be shorter than
-		a to just compare sub keys
+		This is always from the row
+    b		Second key to compare.  This is from the row or the user
+    key_length	Length of key to compare, based on key b.  This can be shorter
+		than b to just compare sub keys
     next_flag	How keys should be compared
 		If bit SEARCH_FIND is not set the keys includes the row
 		position and this should also be compared
+                If SEARCH_PAGE_KEY_HAS_TRANSID is set then 'a' has transid
+                If SEARCH_USER_KEY_HAS_TRANSID is set then 'b' has transid
     diff_pos    OUT Number of first keypart where values differ, counting 
                 from one.
     diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
@@ -120,8 +123,8 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
 
 #define FCMP(A,B) ((int) (A) - (int) (B))
 
-int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
-	       register uchar *b, uint key_length, uint nextflag,
+int ha_key_cmp(register HA_KEYSEG *keyseg, register const uchar *a,
+	       register const uchar *b, uint key_length, uint32 nextflag,
 	       uint *diff_pos)
 {
   int flag;
@@ -131,12 +134,12 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
   float f_1,f_2;
   double d_1,d_2;
   uint next_key_length;
-  uchar *orig_b= b;
+  const uchar *orig_b= b;
 
   *diff_pos=0;
   for ( ; (int) key_length >0 ; key_length=next_key_length, keyseg++)
   {
-    uchar *end;
+    const uchar *end;
     uint piks=! (keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
     diff_pos[1]= (uint)(b - orig_b);
@@ -153,8 +156,13 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       b++;
       if (!*a++)                                /* If key was NULL */
       {
-        if (nextflag == (SEARCH_FIND | SEARCH_UPDATE))
-          nextflag=SEARCH_SAME;                 /* Allow duplicate keys */
+        if ((nextflag & (SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT |
+                         SEARCH_NULL_ARE_EQUAL)) ==
+            (SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT))
+        {
+          /* Allow duplicate keys */
+          nextflag= (nextflag & ~(SEARCH_FIND | SEARCH_UPDATE)) | SEARCH_SAME;
+        }
   	else if (nextflag & SEARCH_NULL_ARE_NOT_EQUAL)
 	{
 	  /*
@@ -367,7 +375,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 
       if (keyseg->flag & HA_REVERSE_SORT)
       {
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
         swap_flag=1;                            /* Remember swap of a & b */
         end= a+ (int) (end-b);
       }
@@ -392,7 +400,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 	  if (*b != '-')
 	    return -1;
 	  a++; b++;
-	  swap_variables(uchar*, a, b);
+	  swap_variables(const uchar*, a, b);
 	  swap_variables(int, alength, blength);
 	  swap_flag=1-swap_flag;
 	  alength--; blength--;
@@ -421,7 +429,7 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
       }
 
       if (swap_flag)                            /* Restore pointers */
-        swap_variables(uchar*, a, b);
+        swap_variables(const uchar*, a, b);
       break;
     }
 #ifdef HAVE_LONG_LONG
@@ -456,18 +464,90 @@ int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 end:
   if (!(nextflag & SEARCH_FIND))
   {
+    /*
+      Compare rowid and possible transid
+      This happens in the following case:
+      - INSERT, UPDATE, DELETE when we have not unique keys or
+        are using versioning
+      - SEARCH_NEXT, SEARCH_PREVIOUS when we need to restart search
+
+      The logic for comparing transid are as follows:
+      Keys with have a transid have lowest bit in the rowidt. This means that
+      if we are comparing a key with a transid with another key that doesn't
+      have a tranid, we must reset the lowest bit for both keys.
+
+      When we have transid, the keys are compared in transid order.
+      A key without a transid is regared to be smaller than a key with
+      a transid.
+    */
+
     uint i;
+    uchar key_mask, tmp_a, tmp_b;
+
     if (nextflag & (SEARCH_NO_FIND | SEARCH_LAST)) /* Find record after key */
       return (nextflag & (SEARCH_BIGGER | SEARCH_LAST)) ? -1 : 1;
-    flag=0;
-    for (i=keyseg->length ; i-- > 0 ; )
+    key_mask= (uchar) 255;
+
+    if (!(nextflag & (SEARCH_USER_KEY_HAS_TRANSID |
+                      SEARCH_PAGE_KEY_HAS_TRANSID)))
+    {
+      /*
+        Neither key has a trid.  Only compare row id's and don't
+        try to store rows in trid order
+      */
+      key_length= keyseg->length;
+      nextflag&= ~SEARCH_INSERT;
+    }
+    else
+    {
+      /*
+        Set key_mask so that we reset the last bit in the rowid before
+        we compare it. This is needed as the lowest bit in the rowid is
+        used to mark if the key has a transid or not.
+      */
+      key_mask= (uchar) 254;
+      if (!test_all_bits(nextflag, (SEARCH_USER_KEY_HAS_TRANSID |
+                                    SEARCH_PAGE_KEY_HAS_TRANSID)))
+      {
+        /*
+          No transaction id for user key or for key on page 
+          Ignore transid as at least one of the keys are visible for all
+        */
+        key_length= keyseg->length;
+      }
+      else
+      {
+        /*
+          Both keys have trids. No need of special handling of incomplete
+          trids below.
+        */
+        nextflag&= ~SEARCH_INSERT;
+      }
+    }
+    DBUG_ASSERT(key_length > 0);
+
+    for (i= key_length-1 ; (int) i-- > 0 ; )
     {
       if (*a++ != *b++)
       {
         flag= FCMP(a[-1],b[-1]);
-        break;
+        goto found;
       }
     }
+    tmp_a= *a & key_mask;
+    tmp_b= *b & key_mask;
+    flag= FCMP(tmp_a, tmp_b);
+
+    if (flag == 0 && (nextflag & SEARCH_INSERT))
+    {
+      /*
+        Ensure that on insert we get rows stored in trid order.
+        If one of the parts doesn't have a trid, this should be regarded
+        as smaller than the other
+      */
+        return (nextflag & SEARCH_USER_KEY_HAS_TRANSID) ? -1 : 1;
+    }
+found:
     if (nextflag & SEARCH_SAME)
       return (flag);                            /* read same */
     if (nextflag & SEARCH_BIGGER)
@@ -499,11 +579,11 @@ end:
     NULLs.
 */
 
-HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
+HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a)
 {
   for (; (enum ha_base_keytype) keyseg->type != HA_KEYTYPE_END; keyseg++)
   {
-    uchar *end;
+    const uchar *end;
     if (keyseg->null_bit)
     {
       if (!*a++)
@@ -566,7 +646,6 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
   }
   return keyseg;
 }
-
 
 
 /*

@@ -1,0 +1,46 @@
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+create table t1 (a varchar(10000)) engine=aria;
+* TEST of over-allocated bitmap not flushed by checkpoint
+insert into t1 values ("bbbbbbb");
+flush table t1;
+* copied t1 for comparison
+insert into t1 values ("bbbbbbb");
+delete from t1 limit 1;
+set session debug="+d,info,enter,exit,maria_over_alloc_bitmap";
+insert into t1 values ("aaaaaaaaa");
+set global aria_checkpoint_interval=1;
+SET SESSION debug="+d,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+* TEST of bitmap flushed without REDO-UNDO in the log (WAL violation)
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values (REPEAT('a', 6000));
+SET SESSION debug="+d,maria_flush_bitmap,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+drop table t1;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

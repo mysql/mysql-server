@@ -1,7 +1,9 @@
 # test the auto-recover (--myisam-recover) of partitioned myisam tables
 
-call mtr.add_suppression("./test/t1_will_crash");
-call mtr.add_suppression("Got an error from unknown thread");
+--disable_query_log
+call mtr.add_suppression("..test.t1_will_crash");
+call mtr.add_suppression("Got an error from unknown thread, ha_myisam.cc");
+--enable_query_log
 
 --source include/have_partition.inc
 --disable_warnings
@@ -20,7 +22,11 @@ FLUSH TABLES;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
+# Embedded server doesn't chdir to data directory
+--replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
+--disable_prepare_warnings
 DROP TABLE t1_will_crash;
 CREATE TABLE t1_will_crash (a INT, KEY (a))
 ENGINE=MyISAM
@@ -33,5 +39,9 @@ FLUSH TABLES;
 --echo # head -c1024 t1#P#p1.MYI > corrupt_t1#P#p1.MYI 
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
+# Embedded server doesn't chdir to data directory
+--replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--enable_prepare_warnings
 SELECT * FROM t1_will_crash;
+--disable_prepare_warnings
 DROP TABLE t1_will_crash;

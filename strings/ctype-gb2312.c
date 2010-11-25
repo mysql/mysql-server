@@ -29,7 +29,7 @@
 
 #ifdef HAVE_CHARSET_gb2312
 
-static uchar ctype_gb2312[257] =
+static const uchar ctype_gb2312[257] =
 {
   0,				/* For standard library */
   32,32,32,32,32,32,32,32,32,40,40,40,40,40,32,32,
@@ -50,7 +50,7 @@ static uchar ctype_gb2312[257] =
   3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,
 };
 
-static uchar to_lower_gb2312[]=
+static const uchar to_lower_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -86,7 +86,7 @@ static uchar to_lower_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar to_upper_gb2312[]=
+static const uchar to_upper_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -122,7 +122,7 @@ static uchar to_upper_gb2312[]=
   (uchar) '\370',(uchar) '\371',(uchar) '\372',(uchar) '\373',(uchar) '\374',(uchar) '\375',(uchar) '\376',(uchar) '\377',
 };
 
-static uchar sort_order_gb2312[]=
+static const uchar sort_order_gb2312[]=
 {
   '\000','\001','\002','\003','\004','\005','\006','\007',
   '\010','\011','\012','\013','\014','\015','\016','\017',
@@ -820,7 +820,7 @@ static MY_UNICASE_INFO *my_caseinfo_gb2312[256]=
 
 
 /* page 0 0x2121-0x2658 */
-static uint16 tab_gb2312_uni0[]={
+static const uint16 tab_gb2312_uni0[]={
 0x3000,0x3001,0x3002,0x30FB,0x02C9,0x02C7,0x00A8,0x3003,
 0x3005,0x2015,0xFF5E,0x2016,0x2026,0x2018,0x2019,0x201C,
 0x201D,0x3014,0x3015,0x3008,0x3009,0x300A,0x300B,0x300C,
@@ -991,7 +991,7 @@ static uint16 tab_gb2312_uni0[]={
 };
 
 /* page 1 0x2721-0x296F */
-static uint16 tab_gb2312_uni1[]={
+static const uint16 tab_gb2312_uni1[]={
 0x0410,0x0411,0x0412,0x0413,0x0414,0x0415,0x0401,0x0416,
 0x0417,0x0418,0x0419,0x041A,0x041B,0x041C,0x041D,0x041E,
 0x041F,0x0420,0x0421,0x0422,0x0423,0x0424,0x0425,0x0426,
@@ -1068,7 +1068,7 @@ static uint16 tab_gb2312_uni1[]={
 0x2545,0x2546,0x2547,0x2548,0x2549,0x254A,0x254B};
 
 /* page 2 0x3021-0x777E */
-static uint16 tab_gb2312_uni2[]={
+static const uint16 tab_gb2312_uni2[]={
 0x554A,0x963F,0x57C3,0x6328,0x54CE,0x5509,0x54C0,0x7691,
 0x764C,0x853C,0x77EE,0x827E,0x788D,0x7231,0x9698,0x978D,
 0x6C28,0x5B89,0x4FFA,0x6309,0x6697,0x5CB8,0x80FA,0x6848,
@@ -3366,7 +3366,7 @@ static int func_gb2312_uni_onechar(int code){
 
 
 /* page 0 0x00A4-0x01DC */
-static uint16 tab_uni_gb23120[]={
+static const uint16 tab_uni_gb23120[]={
 0x2168,     0,     0,0x216C,0x2127,     0,     0,     0,
      0,     0,     0,     0,0x2163,0x2140,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
@@ -3409,7 +3409,7 @@ static uint16 tab_uni_gb23120[]={
 0x2838};
 
 /* page 1 0x02C7-0x0451 */
-static uint16 tab_uni_gb23121[]={
+static const uint16 tab_uni_gb23121[]={
 0x2126,     0,0x2125,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,     0,     0,     0,     0,
@@ -3462,7 +3462,7 @@ static uint16 tab_uni_gb23121[]={
 0x2771,     0,0x2757};
 
 /* page 2 0x2015-0x2312 */
-static uint16 tab_uni_gb23122[]={
+static const uint16 tab_uni_gb23122[]={
 0x212A,0x212C,     0,0x212E,0x212F,     0,     0,0x2130,
 0x2131,     0,     0,     0,     0,     0,     0,     0,
      0,0x212D,     0,     0,     0,     0,     0,     0,
@@ -3561,7 +3561,7 @@ static uint16 tab_uni_gb23122[]={
      0,     0,     0,     0,     0,0x2150};
 
 /* page 3 0x2460-0x2642 */
-static uint16 tab_uni_gb23123[]={
+static const uint16 tab_uni_gb23123[]={
 0x2259,0x225A,0x225B,0x225C,0x225D,0x225E,0x225F,0x2260,
 0x2261,0x2262,     0,     0,     0,     0,     0,     0,
      0,     0,     0,     0,0x2245,0x2246,0x2247,0x2248,
@@ -3625,7 +3625,7 @@ static uint16 tab_uni_gb23123[]={
 0x2162,     0,0x2161};
 
 /* page 4 0x3000-0x3129 */
-static uint16 tab_uni_gb23124[]={
+static const uint16 tab_uni_gb23124[]={
 0x2121,0x2122,0x2123,0x2128,     0,0x2129,     0,     0,
 0x2134,0x2135,0x2136,0x2137,0x2138,0x2139,0x213A,0x213B,
 0x213E,0x213F,     0,0x217E,0x2132,0x2133,0x213C,0x213D,
@@ -3666,12 +3666,12 @@ static uint16 tab_uni_gb23124[]={
 0x2868,0x2869};
 
 /* page 5 0x3220-0x3229 */
-static uint16 tab_uni_gb23125[]={
+static const uint16 tab_uni_gb23125[]={
 0x2265,0x2266,0x2267,0x2268,0x2269,0x226A,0x226B,0x226C,
 0x226D,0x226E};
 
 /* page 6 0x4E00-0x9B54 */
-static uint16 tab_uni_gb23126[]={
+static const uint16 tab_uni_gb23126[]={
 0x523B,0x3621,     0,0x465F,     0,     0,     0,0x4D72,
 0x5549,0x487D,0x494F,0x4F42,0x5822,0x323B,0x536B,     0,
 0x5824,0x3373,     0,0x5728,0x4752,0x5827,0x4A40,     0,
@@ -6149,7 +6149,7 @@ static uint16 tab_uni_gb23126[]={
      0,0x774E,     0,     0,0x4427};
 
 /* page 7 0x9C7C-0x9CE2 */
-static uint16 tab_uni_gb23127[]={
+static const uint16 tab_uni_gb23127[]={
 0x5363,     0,     0,0x764F,     0,0x4233,0x7650,     0,
      0,0x7651,0x7652,0x7653,0x7654,     0,     0,0x7656,
      0,0x312B,0x7657,     0,0x7658,0x7659,0x765A,     0,
@@ -6165,7 +6165,7 @@ static uint16 tab_uni_gb23127[]={
 0x772C,0x772D,0x415B,0x772E,     0,     0,0x772F};
 
 /* page 8 0x9E1F-0x9FA0 */
-static uint16 tab_uni_gb23128[]={
+static const uint16 tab_uni_gb23128[]={
 0x4471,0x702F,0x3C26,0x7030,0x4379,     0,0x4538,0x513B,
      0,0x7031,0x7032,0x7033,0x7034,0x7035,0x513C,     0,
 0x516C,     0,0x7037,0x7036,0x5427,     0,0x4D52,0x7038,
@@ -6217,7 +6217,7 @@ static uint16 tab_uni_gb23128[]={
 0x396A,0x595F};
 
 /* page 9 0xFF01-0xFFE5 */
-static uint16 tab_uni_gb23129[]={
+static const uint16 tab_uni_gb23129[]={
 0x2321,0x2322,0x2323,0x2167,0x2325,0x2326,0x2327,0x2328,
 0x2329,0x232A,0x232B,0x232C,0x232D,0x232E,0x232F,0x2330,
 0x2331,0x2332,0x2333,0x2334,0x2335,0x2336,0x2337,0x2338,
@@ -6407,7 +6407,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_gb2312_chinese_ci=
+struct charset_info_st my_charset_gb2312_chinese_ci=
 {
     24,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_PRIMARY,	/* state      */
@@ -6439,7 +6439,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci=
     &my_collation_ci_handler
 };
 
-CHARSET_INFO my_charset_gb2312_bin=
+struct charset_info_st my_charset_gb2312_bin=
 {
     86,0,0,		/* number */
     MY_CS_COMPILED|MY_CS_BINSORT,	/* state      */

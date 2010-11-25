@@ -360,7 +360,8 @@ int sigwait(sigset_t *setp, int *sigp)
 
 #include <netdb.h>
 
-int my_pthread_mutex_init(pthread_mutex_t *mp, const pthread_mutexattr_t *attr)
+int my_pthread_mutex_noposix_init(pthread_mutex_t *mp,
+                                  const pthread_mutexattr_t *attr)
 {
   int error;
   if (!attr)
@@ -370,7 +371,8 @@ int my_pthread_mutex_init(pthread_mutex_t *mp, const pthread_mutexattr_t *attr)
   return error;
 }
 
-int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
+int my_pthread_cond_noposix_init(pthread_cond_t *mp,
+                                 const pthread_condattr_t *attr)
 {
   int error;
   if (!attr)

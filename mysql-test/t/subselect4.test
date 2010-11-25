@@ -63,6 +63,30 @@ DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.
 
+#
+# Fix for LP#612894
+# Some aggregate functions (such as MIN MAX) work incorrectly in subqueries
+# after getting NULL value
+#
+
+CREATE TABLE t1 (col_int_nokey int(11) NOT NULL, col_varchar_nokey varchar(1) NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (2,'s'),(0,'v'),(2,'s');
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+ `col_int_key` int(11) NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY `col_int_key` (`col_int_key`),
+  KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4,10,'g'), (5,20,'v');
+
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+
+SELECT t1.col_int_nokey,(SELECT MIN( t2_a.col_int_key ) +1 FROM t2 t2_a, t2 t2_b, t1 t1_a WHERE t1_a.col_varchar_nokey = t2_b.col_varchar_key and t1.col_int_nokey ) as sub FROM t1;
+
+DROP TABLE t1,t2;
+
 --echo #
 --echo # Bug#54568: create view cause Assertion failed: 0, 
 --echo # file .\item_subselect.cc, line 836
@@ -136,9 +160,281 @@ SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
 
 DROP TABLE t1, t2, t3, t4, t5;
 
-
 --echo #
 --echo # End of 5.1 tests.
+--echo #
+
+--echo #
+--echo # BUG#46743 "Azalea processing correlated, aggregate SELECT
+--echo # subqueries incorrectly"
+--echo #
+
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (d int , KEY (d)); # index is needed for bug
+INSERT INTO t2 VALUES (NULL),(NULL); # two rows needed for bug
+# we see that subquery returns 0 rows
+--echo 0 rows in subquery
+SELECT 1 AS RESULT FROM t2,t1 WHERE d = c;
+# so here it ends up as NULL
+--echo base query
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+--echo first equivalent variant
+SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
+--echo second equivalent variant
+# used to fail with 1242: Subquery returns more than 1 row
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#45928 "Differing query results depending on MRR and
+--echo # engine_condition_pushdown settings"
+--echo #
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `time_nokey` time NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `varchar_key` (`varchar_key`)
+) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
+
+set @old_optimizer_switch          = @@session.optimizer_switch,
+    @old_optimizer_use_mrr         = @@session.optimizer_use_mrr,
+    @old_engine_condition_pushdown = @@session.engine_condition_pushdown;
+
+SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off';
+SET SESSION optimizer_use_mrr = 'force';
+SET SESSION engine_condition_pushdown = 1;
+
+ SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
+SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
+BY `pk`   ;
+
+set @@session.optimizer_switch          = @old_optimizer_switch,
+    @@session.optimizer_use_mrr         = @old_optimizer_use_mrr,
+    @@session.engine_condition_pushdown = @old_engine_condition_pushdown;
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
+--echo #            file item.cc, line 4448"
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS C, BB;
+--enable_warnings
+
+CREATE TABLE C (
+  varchar_nokey varchar(1) NOT NULL
+);
+INSERT INTO C VALUES
+  ('k'),('a'),(''),('u'),('e'),('v'),('i'),
+  ('t'),('u'),('f'),('u'),('m'),('j'),('f'),
+  ('v'),('j'),('g'),('e'),('h'),('z');
+CREATE TABLE BB (
+  varchar_nokey varchar(1) NOT NULL
+);
+INSERT INTO BB VALUES ('i'),('t');
+-- error ER_OPERAND_COLUMNS
+SELECT varchar_nokey FROM C
+WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
+                                FROM BB);
+-- error ER_BAD_FIELD_ERROR
+SELECT varchar_nokey FROM C
+WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
+                                FROM BB);
+DROP TABLE C,BB;
+
+--echo #
+--echo # During work with BUG#45863 I had problems with a query that was
+--echo # optimized differently in regular and prepared mode.
+--echo # Because there was a bug in one of the selected strategies, I became
+--echo # aware of the problem. Adding an EXPLAIN query to catch this.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+CREATE TABLE t1
+ (EMPNUM   CHAR(3) NOT NULL,
+  EMPNAME  CHAR(20),
+  GRADE    DECIMAL(4),
+  CITY     CHAR(15));
+
+CREATE TABLE t2
+ (PNUM     CHAR(3) NOT NULL,
+  PNAME    CHAR(20),
+  PTYPE    CHAR(6),
+  BUDGET   DECIMAL(9),
+  CITY     CHAR(15));
+
+CREATE TABLE t3
+ (EMPNUM   CHAR(3) NOT NULL,
+  PNUM     CHAR(3) NOT NULL,
+  HOURS    DECIMAL(5));
+
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET @old_join_cache_level = @@session.join_cache_level;
+SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,semijoin=on';
+SET SESSION join_cache_level = 1;
+
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP INDEX t1_IDX ON t1;
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET SESSION optimizer_switch = @old_optimizer_switch;
+SET SESSION join_cache_level = @old_join_cache_level;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#45221 Query SELECT pk FROM C WHERE pk IN (SELECT int_key) failing
+--echo #
+
+CREATE TABLE t1 (
+  i1_key INT,
+  i2 INT,
+  i3 INT,
+  KEY i1_index (i1_key)
+);
+
+INSERT INTO t1 VALUES (9,1,2), (9,2,1);
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  i1 INT,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (9,1);
+
+--echo # Enable Index condition pushdown
+--replace_column 1 #
+SELECT @old_icp:=@@engine_condition_pushdown;
+SET SESSION engine_condition_pushdown = 'ON';
+
+--echo
+SELECT pk
+FROM t2
+WHERE 
+   pk IN ( 
+     SELECT i1_key
+     FROM t1
+     WHERE t1.i2 < t1.i3 XOR t2.i1 > 1
+     ORDER BY t1.i2 desc);
+
+--echo # Restore old value for Index condition pushdown
+SET SESSION engine_condition_pushdown=@old_icp;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # End of 5.3 tests.
 --echo #
 
 --echo #
@@ -169,3 +465,4 @@ WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
 ;
 
 drop table t1;
+

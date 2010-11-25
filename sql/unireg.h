@@ -163,6 +163,13 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 
+/* The length of the header part for each virtual column in the .frm file */
+#define FRM_VCOL_HEADER_SIZE 3
+
+/* Maximum length of the defining expression for a virtual columns */
+#define VIRTUAL_COLUMN_EXPRESSION_MAXLEN 255 - FRM_VCOL_HEADER_SIZE
+
+
 /* Include prototypes for unireg */
 
 #include "mysqld_error.h"

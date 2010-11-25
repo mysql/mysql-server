@@ -62,8 +62,6 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 }
 
 
-
-
 /*
   net_store_data() - extended version with character set conversion.
   
@@ -83,6 +81,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
   uint dummy_errors;
   /* Calculate maxumum possible result length */
   uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+
   if (conv_length > 250)
   {
     /*
@@ -349,24 +348,6 @@ static bool write_eof_packet(THD *thd, NET *net,
 }
 
 /**
-  Please client to send scrambled_password in old format.
-     
-  @param thd thread handle
-
-  @retval
-    0  ok
-  @retval
-   !0  error
-*/
-
-bool send_old_password_request(THD *thd)
-{
-  NET *net= &thd->net;
-  return my_net_write(net, eof_buff, 1) || net_flush(net);
-}
-
-
-/**
   @param thd Thread handler
   @param sql_errno The error code to send
   @param err A pointer to the error message
@@ -546,7 +527,6 @@ void Protocol::end_statement()
   DBUG_VOID_RETURN;
 }
 
-
 /**
   A default implementation of "OK" packet response to the client.
 
@@ -651,7 +631,8 @@ void Protocol::init(THD *thd_arg)
 
 void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd_arg, thd_arg->server_status, 0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status,
+               0 /* no warnings, we're inside SP */);
 }
 
 
@@ -1001,8 +982,8 @@ bool Protocol_text::store(const char *from, size_t length,
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
-  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %s", field_pos,
-                      field_count, (length == 0? "" : from)));
+  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
+                      field_count, (int) length, (length == 0? "" : from)));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
@@ -1155,12 +1136,16 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 #endif
   char buff[40];
   uint length;
-  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                  (int) tm->year, (int) tm->month,
-                  (int) tm->day, (int) tm->hour,
-                  (int) tm->minute, (int) tm->second);
+  length= my_sprintf(buff,(buff, "%04d-%02d-%02d %02d:%02d:%02d",
+			   (int) tm->year,
+			   (int) tm->month,
+			   (int) tm->day,
+			   (int) tm->hour,
+			   (int) tm->minute,
+			   (int) tm->second));
   if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+    length+= my_sprintf(buff+length,(buff+length, ".%06d",
+                                     (int)tm->second_part));
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1194,11 +1179,13 @@ bool Protocol_text::store_time(MYSQL_TIME *tm)
   char buff[40];
   uint length;
   uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
-                  (long) day*24L+(long) tm->hour, (int) tm->minute,
-                  (int) tm->second);
+  length= my_sprintf(buff,(buff, "%s%02ld:%02d:%02d",
+			   tm->neg ? "-" : "",
+			   (long) day*24L+(long) tm->hour,
+			   (int) tm->minute,
+			   (int) tm->second));
   if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+    length+= my_sprintf(buff+length,(buff+length, ".%06d", (int)tm->second_part));
   return net_store_data((uchar*) buff, length);
 }
 

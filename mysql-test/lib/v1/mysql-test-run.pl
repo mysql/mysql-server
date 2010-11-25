@@ -134,8 +134,9 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $default_vardir;
 
 our $opt_usage;
+our $opt_list_options;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,maria"; # Default suites to run
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -171,6 +172,7 @@ our @opt_combinations;
 our $opt_skip_combination;
 
 our @opt_extra_mysqld_opt;
+our @opt_extra_mysqltest_opt;
 
 our $opt_compress;
 our $opt_ssl;
@@ -430,7 +432,7 @@ sub main () {
     my $tests= collect_test_cases($opt_suites);
 
     # Turn off NDB and other similar options if no tests use it
-    my ($need_ndbcluster,$need_im);
+    my ($need_ndbcluster,$need_im, $need_debug);
     foreach my $test (@$tests)
     {
       next if $test->{skip};
@@ -438,6 +440,7 @@ sub main () {
       if (!$opt_extern)
       {
 	$need_ndbcluster||= $test->{ndb_test};
+        $need_debug||=$test->{need_debug};
 	$need_im||= $test->{component_id} eq 'im';
 
 	# Count max number of slaves used by a test case
@@ -461,6 +464,11 @@ sub main () {
     {
       $opt_skip_ndbcluster= 1;
       $opt_skip_ndbcluster_slave= 1;
+    }
+
+    if ( !$need_debug && !$opt_debug)
+    {
+      $opt_debug=0;
     }
 
     # Check if slave cluster can be skipped
@@ -547,7 +555,7 @@ sub command_line_setup () {
   );
 
   Getopt::Long::Configure("pass_through");
-  GetOptions(
+  my %options=(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
@@ -598,6 +606,9 @@ sub command_line_setup () {
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
+
+             # Extra options used when starting mysqld
+             'mysqltest=s'                 => \@opt_extra_mysqltest_opt,
 
              # Run test on running server
              'extern'                   => \$opt_extern,
@@ -682,9 +693,13 @@ sub command_line_setup () {
              (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
-            ) or usage("Can't read options");
+             'list-options'             => \$opt_list_options,
+            );
+
+  GetOptions(%options) or usage("Can't read options");
 
   usage("") if $opt_usage;
+  list_options(\%options) if $opt_list_options;
 
   $glob_scriptname=  basename($0);
 
@@ -990,7 +1005,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   if ($opt_extern)
   {
-    mtr_report("Disable instance manager when running with extern mysqld");
+    # mtr_report("Disable instance manager when running with extern mysqld");
     $opt_skip_im= 1;
   }
   elsif ( $mysql_version_id < 50000 )
@@ -1365,19 +1380,6 @@ sub command_line_setup () {
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
-
-  if ( $opt_valgrind and $opt_debug )
-  {
-    # When both --valgrind and --debug is selected, send
-    # all output to the trace file, making it possible to
-    # see the exact location where valgrind complains
-    foreach my $mysqld (@{$master}, @{$slave})
-    {
-      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
-      $mysqld->{path_myerr}=
-	"$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
-    }
-  }
 }
 
 #
@@ -2136,7 +2138,10 @@ sub environment_setup () {
     $ENV{'MYSQL_UPGRADE'}= mysql_upgrade_arguments();
   }
 
-  $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  if ( !$opt_extern )
+  {
+    $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
@@ -2153,6 +2158,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
 
+#warning remove the below
   # ----------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # ----------------------------------------------------
@@ -2184,6 +2190,22 @@ sub environment_setup () {
                         "$path_client_bindir/myisampack",
                         "$glob_bindir/storage/myisam/myisampack",
                         "$glob_bindir/myisam/myisampack"));
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute aria_pack and aria_chk
+  # ----------------------------------------------------
+  $ENV{'ARIA_CHK'}= mtr_native_path(mtr_exe_maybe_exists(
+                       vs_config_dirs('storage/maria', 'aria_chk'),
+                       vs_config_dirs('maria', 'aria_chk'),
+                       "$path_client_bindir/aria_chk",
+                       "$glob_basedir/storage/maria/aria_chk",
+                       "$glob_basedir/maria/aria_chk"));
+  $ENV{'ARIA_PACK'}= mtr_native_path(mtr_exe_maybe_exists(
+                        vs_config_dirs('storage/maria', 'aria_pack'),
+                        vs_config_dirs('maria', 'aria_pack'),
+                        "$path_client_bindir/aria_pack",
+                        "$glob_basedir/storage/maria/aria_pack",
+                        "$glob_basedir/maria/aria_pack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
@@ -2429,6 +2451,25 @@ sub setup_vardir() {
   foreach my $name (glob("r/*.progress r/*.log r/*.warnings"))
   {
     unlink($name);
+  }
+  if ( $opt_valgrind and $opt_debug )
+  {
+    # When both --valgrind and --debug is selected, send
+    # all output to the trace file, making it possible to
+    # see the exact location where valgrind complains
+    foreach my $mysqld (@{$master}, @{$slave})
+    {
+      my $sidx= $mysqld->{idx} ? "$mysqld->{idx}" : "";
+      my $trace_name= "$opt_vardir/log/" . $mysqld->{type} . "$sidx.trace";
+      open(LOG, ">$mysqld->{path_myerr}") or die "Can't create $mysqld->{path_myerr}\n";
+      print LOG "
+NOTE: When running with --valgrind --debug the output from the .err file is
+stored together with the trace file to make it easier to find the exact
+position for valgrind errors.
+See trace file $trace_name.\n";
+      close(LOG);
+      $mysqld->{path_myerr}= $trace_name;
+    }
   }
 }
 
@@ -2882,7 +2923,7 @@ sub run_benchmarks ($) {
 
   if ( ! $benchmark )
   {
-    mtr_add_arg($args, "--log");
+    mtr_add_arg($args, "--general-log");
     mtr_run("$glob_mysql_bench_dir/run-all-tests", $args, "", "", "", "");
     # FIXME check result code?!
   }
@@ -3106,16 +3147,25 @@ sub install_db ($$) {
 
   mtr_report("Installing \u$type Database");
 
-
   my $args;
+  my $cmd_args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
   mtr_add_arg($args, "--basedir=%s", $path_my_basedir);
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-ndbcluster");
+  mtr_add_arg($args, "--loose-skip-aria");
+  mtr_add_arg($args, "--disable-sync-frm");
+  mtr_add_arg($args, "--loose-disable-debug");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
+
+  #
+  # Setup args for bootstrap.test
+  #
+  mtr_init_args(\$cmd_args);
+  mtr_add_arg($cmd_args, "--loose-skip-aria");
 
   if ( $opt_debug )
   {
@@ -3145,7 +3195,8 @@ sub install_db ($$) {
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args) .
+    " " . join(" ", @$cmd_args);
 
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file
@@ -3321,6 +3372,24 @@ sub restore_slave_databases ($) {
 sub run_testcase_check_skip_test($)
 {
   my ($tinfo)= @_;
+
+  # ----------------------------------------------------------------------
+  # Skip some tests silently
+  # ----------------------------------------------------------------------
+
+  if ( $::opt_start_from )
+  {
+    if ($tinfo->{'name'} eq $::opt_start_from )
+    {
+      ## Found parting test. Run this test and all tests after this one
+      $::opt_start_from= "";
+    }
+    else
+    {
+      $tinfo->{'result'}= 'MTR_RES_SKIPPED';
+      return 1;
+    }
+  }
 
   # ----------------------------------------------------------------------
   # If marked to skip, just print out and return.
@@ -3904,17 +3973,22 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--datadir=%s", $prefix,
 	      $mysqld->{'path_myddir'});
 
+  mtr_add_arg($args, "%s--disable-sync-frm", $prefix);  # Faster test
 
-  if ( $mysql_version_id >= 50106 )
+  if (!$opt_extern and $mysql_version_id >= 50106 )
   {
     # Turn on logging to bothe tables and file
     mtr_add_arg($args, "%s--log-output=table,file", $prefix);
   }
 
   my $log_base_path= "$opt_vardir/log/$mysqld->{'type'}$sidx";
-  mtr_add_arg($args, "%s--log=%s.log", $prefix, $log_base_path);
+  mtr_add_arg($args, "%s--general-log-file=%s.log",
+              $prefix, $log_base_path);
+  mtr_add_arg($args, "%s--general-log", $prefix);
   mtr_add_arg($args,
-	      "%s--log-slow-queries=%s-slow.log", $prefix, $log_base_path);
+	      "%s--slow-query-log-file=%s-slow.log",
+              $prefix, $log_base_path);
+  mtr_add_arg($args, "%s--slow-query-log", $prefix);
 
   # Check if "extra_opt" contains --skip-log-bin
   my $skip_binlog= grep(/^--skip-log-bin/, @$extra_opt, @opt_extra_mysqld_opt);
@@ -4038,10 +4112,17 @@ sub mysqld_arguments ($$$$) {
 
   } # end slave
 
-  if ( $opt_debug )
+  if ( $debug_compiled_binaries && defined $opt_debug )
   {
-    mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s%s.trace",
-		$prefix, $path_vardir_trace, $mysqld->{'type'}, $sidx);
+    if ( $opt_debug )
+    {
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s%s.trace",
+                  $prefix, $path_vardir_trace, $mysqld->{'type'}, $sidx);
+    }
+    else
+    {
+      mtr_add_arg($args, "--disable-debug");
+    }
   }
 
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);
@@ -4894,6 +4975,11 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--skip-ssl");
   }
 
+  foreach my $arg ( @opt_extra_mysqltest_opt )
+  {
+    mtr_add_arg($args, "%s", $arg);
+  }
+
   # ----------------------------------------------------------------------
   # If embedded server, we create server args to give mysqltest to pass on
   # ----------------------------------------------------------------------
@@ -5009,13 +5095,9 @@ sub gdb_arguments {
   else
   {
     # write init file for mysqld
-    mtr_tofile($gdb_init_file,
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+    mtr_tofile($gdb_init_file, <<EOGDB );
+set args $str
+EOGDB
   }
 
   if ( $opt_manual_gdb )
@@ -5075,11 +5157,7 @@ sub ddd_arguments {
     # write init file for mysqld
     mtr_tofile($gdb_init_file,
 	       "file $$exe\n" .
-	       "set args $str\n" .
-	       "break mysql_parse\n" .
-	       "commands 1\n" .
-	       "disable 1\n" .
-	       "end");
+	       "set args $str\n");
   }
 
   if ( $opt_manual_ddd )
@@ -5367,3 +5445,16 @@ HERE
   mtr_exit(1);
 
 }
+
+sub list_options ($) {
+  my $hash= shift;
+
+  for (keys %$hash) {
+    s/(=.*|!)$//;
+    s/\|/\n--/g;
+    print "--$_\n";
+  }
+
+  mtr_exit(1);
+}
+

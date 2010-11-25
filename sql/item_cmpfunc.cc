@@ -827,7 +827,6 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
   return cmp_type;
 }
 
-
 /*
   Retrieves correct TIME value from the given item.
 
@@ -881,10 +880,15 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
       (item->type() != Item::FUNC_ITEM ||
        ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int();
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_longlong(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
@@ -896,7 +900,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  enum enum_date_cmp_type cmp_type;
   ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
   owner= owner_arg;
@@ -905,7 +908,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   b= a2;
   thd= current_thd;
 
-  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
+  if (can_compare_as_dates(*a, *b, &const_value))
   {
     a_type= (*a)->field_type();
     b_type= (*b)->field_type();
@@ -918,18 +921,23 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
+      Query_arena backup;
+      Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
       Item_cache_int *cache= new Item_cache_int();
+      if (save_arena)
+        thd->set_query_arena(save_arena);
+
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
       {
-        cache->store((*a), const_value);
+        cache->store_longlong((*a), const_value);
         a_cache= cache;
         a= (Item **)&a_cache;
       }
       else
       {
-        cache->store((*b), const_value);
+        cache->store_longlong((*b), const_value);
         b_cache= cache;
         b= (Item **)&b_cache;
       }
@@ -1155,10 +1163,15 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       (item->type() != Item::FUNC_ITEM ||
        ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
   {
+    Query_arena backup;
+    Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);
     Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
+    if (save_arena)
+      thd->set_query_arena(save_arena);
+      
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
-    cache->store(item, value);
+    cache->store_longlong(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
@@ -1771,6 +1784,52 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 
 /**
+  Add an expression cache for this subquery if it is needed
+
+  @param thd_arg         Thread handle
+
+  @details
+  The function checks whether an expression cache is needed for this item
+  and if if so wraps the item into an item of the class
+  Item_exp_cache_wrapper with an appropriate expression cache set up there.
+
+  @note
+  used from Item::transform()
+
+  @return
+  new wrapper item if an expression cache is needed,
+  this item - otherwise
+*/
+
+Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
+{
+  THD *thd= (THD*) thd_arg;
+  DBUG_ENTER("Item_in_optimizer::expr_cache_insert_transformer");
+  List<Item*> &depends_on= ((Item_subselect *)args[1])->depends_on;
+
+  if (expr_cache)
+    DBUG_RETURN(expr_cache);
+
+  /* Add left expression to the list of the parameters of the subquery */
+  if (args[0]->cols() == 1)
+    depends_on.push_front((Item**)args);
+  else
+  {
+    for (uint i= 0; i < args[0]->cols(); i++)
+    {
+      depends_on.push_front(args[0]->addr(i));
+    }
+  }
+
+  if (args[1]->expr_cache_is_needed(thd) &&
+      (expr_cache= set_expr_cache(thd, depends_on)))
+    DBUG_RETURN(expr_cache);
+
+  depends_on.pop();
+  DBUG_RETURN(this);
+}
+
+/**
    The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
    predicates. The implementation works as follows.
 
@@ -1839,7 +1898,8 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
      @see Item_in_subselect::val_bool()
      @see Item_is_not_null_test::val_int()
- */
+*/
+
 longlong Item_in_optimizer::val_int()
 {
   bool tmp;
@@ -1941,6 +2001,7 @@ void Item_in_optimizer::cleanup()
   Item_bool_func::cleanup();
   if (!save_cache)
     cache= 0;
+  expr_cache= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1949,6 +2010,70 @@ bool Item_in_optimizer::is_null()
 {
   val_int();
   return null_value;
+}
+
+
+/**
+  Transform an Item_in_optimizer and its arguments with a callback function.
+
+  @param transformer the transformer callback function to be applied to the
+         nodes of the tree of the object
+  @param parameter to be passed to the transformer
+
+  @detail
+    Recursively transform the left and the right operand of this Item. The
+    Right operand is an Item_in_subselect or its subclass. To avoid the
+    creation of new Items, we use the fact the the left operand of the
+    Item_in_subselect is the same as the one of 'this', so instead of
+    transforming its operand, we just assign the left operand of the
+    Item_in_subselect to be equal to the left operand of 'this'.
+    The transformation is not applied further to the subquery operand
+    if the IN predicate.
+
+  @returns
+    @retval pointer to the transformed item
+    @retval NULL if an error occurred
+*/
+
+Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument)
+{
+  Item *new_item;
+
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT(arg_count == 2);
+
+  /* Transform the left IN operand. */
+  new_item= (*args)->transform(transformer, argument);
+  if (!new_item)
+    return 0;
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if ((*args) != new_item)
+    current_thd->change_item_tree(args, new_item);
+
+  /*
+    Transform the right IN operand which should be an Item_in_subselect or a
+    subclass of it. The left operand of the IN must be the same as the left
+    operand of this Item_in_optimizer, so in this case there is no further
+    transformation, we only make both operands the same.
+    TODO: is it the way it should be?
+  */
+  DBUG_ASSERT((args[1])->type() == Item::SUBSELECT_ITEM &&
+              (((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::IN_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ALL_SUBS ||
+               ((Item_subselect*)(args[1]))->substype() ==
+               Item_subselect::ANY_SUBS));
+
+  Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
+  in_arg->left_expr= args[0];
+
+  return (this->*transformer)(argument);
 }
 
 
@@ -3049,6 +3174,16 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+    if (with_sum_func || current_thd->lex->current_select->group_list.elements)
+    {
+      /*
+        See TODO commentary in the setup_copy_fields function:
+        item in a group may be wrapped with an Item_copy_string item.
+        That item has a STRING_RESULT result type, so we need
+        to take this type into account.
+      */
+      found_types |= (1 << item_cmp_type(left_result_type, STRING_RESULT));
+    }
 
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
@@ -3085,9 +3220,8 @@ void Item_func_case::fix_length_and_dec()
       agg_num_lengths(args[i + 1]);
     if (else_expr_num != -1) 
       agg_num_lengths(args[else_expr_num]);
-    max_length= my_decimal_precision_to_length_no_truncation(max_length +
-                                                             decimals, decimals,
-                                                             unsigned_flag);
+    max_length= my_decimal_precision_to_length(max_length + decimals, decimals,
+                                               unsigned_flag);
   }
 }
 
@@ -3323,19 +3457,19 @@ int cmp_longlong(void *cmp_arg,
       One of the args is unsigned and is too big to fit into the 
       positive signed range. Report no match.
     */  
-    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX) ||
+    if ((a->unsigned_flag && ((ulonglong) a->val) > (ulonglong) LONGLONG_MAX)
+        ||
         (b->unsigned_flag && ((ulonglong) b->val) > (ulonglong) LONGLONG_MAX))
       return a->unsigned_flag ? 1 : -1;
     /*
       Although the signedness differs both args can fit into the signed 
       positive range. Make them signed and compare as usual.
     */  
-    return cmp_longs (a->val, b->val);
+    return cmp_longs(a->val, b->val);
   }
   if (a->unsigned_flag)
-    return cmp_ulongs ((ulonglong) a->val, (ulonglong) b->val);
-  else
-    return cmp_longs (a->val, b->val);
+    return cmp_ulongs((ulonglong) a->val, (ulonglong) b->val);
+  return cmp_longs(a->val, b->val);
 }
 
 static int cmp_double(void *cmp_arg, double *a,double *b)
@@ -4201,9 +4335,13 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
+  TABLE_LIST *save_emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
   uchar buff[sizeof(char*)];			// Max local vars in function
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
+
+  if (functype() != COND_AND_FUNC)
+    thd->thd_marker.emb_on_expr_nest= NULL;
   /*
     and_table_cache is the value that Item_cond_or() returns for
     not_null_tables()
@@ -4262,10 +4400,44 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null=1;
   }
   thd->lex->current_select->cond_count+= list.elements;
+  thd->thd_marker.emb_on_expr_nest= save_emb_on_expr_nest;
   fix_length_and_dec();
   fixed= 1;
   return FALSE;
 }
+
+
+void Item_cond::fix_after_pullout(st_select_lex *new_parent, Item **ref)
+{
+  List_iterator<Item> li(list);
+  Item *item;
+
+  used_tables_cache=0;
+  const_item_cache=1;
+
+  and_tables_cache= ~(table_map) 0; // Here and below we do as fix_fields does
+  not_null_tables_cache= 0;
+
+  while ((item=li++))
+  {
+    table_map tmp_table_map;
+    item->fix_after_pullout(new_parent, li.ref());
+    item= *li.ref();
+    used_tables_cache|= item->used_tables();
+    const_item_cache&= item->const_item();
+
+    if (item->const_item())
+      and_tables_cache= (table_map) 0;
+    else
+    {
+      tmp_table_map= item->not_null_tables();
+      not_null_tables_cache|= tmp_table_map;
+      and_tables_cache&= tmp_table_map;
+      const_item_cache= FALSE;
+    }  
+  }
+}
+
 
 bool Item_cond::walk(Item_processor processor, bool walk_subquery, uchar *arg)
 {
@@ -4761,8 +4933,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       We could also do boyer-more for non-const items, but as we would have to
       recompute the tables for each row it's not worth it.
     */
-    if (args[1]->const_item() && !use_strnxfrm(collation.collation) &&
-       !(specialflag & SPECIAL_NO_NEW_FUNC))
+    if (args[1]->const_item() && !use_strnxfrm(collation.collation))
     {
       String* res2 = args[1]->val_str(&cmp.value2);
       if (!res2)
@@ -5523,33 +5694,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  bool swap;
-  List_iterator<Item_field> it(fields);
-  do
-  {
-    Item_field *item1= it++;
-    Item_field **ref1= it.ref();
-    Item_field *item2;
-
-    swap= FALSE;
-    while ((item2= it++))
-    {
-      Item_field **ref2= it.ref();
-      if (compare(item1, item2, arg) < 0)
-      {
-        Item_field *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
-        swap= TRUE;
-      }
-      else
-      {
-        item1= item2;
-        ref1= ref2;
-      }
-    }
-    it.rewind();
-  } while (swap);
+  exchange_sort<Item_field>(&fields, compare, arg);
 }
 
 
@@ -5618,6 +5763,7 @@ void Item_equal::update_used_tables()
   not_null_tables_cache= used_tables_cache= 0;
   if ((const_item_cache= cond_false))
     return;
+  const_item_cache= 1;
   while ((item=li++))
   {
     item->update_used_tables();
@@ -5634,7 +5780,7 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
-  if ((null_value= item->null_value))
+  if ((null_value= item->is_null()))
     return 0;
   eval_item->store_value(item);
   while ((item_field= it++))
@@ -5642,7 +5788,7 @@ longlong Item_equal::val_int()
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if ((null_value= item_field->is_null()) || eval_item->cmp(item_field))
         return 0;
     }
   }
@@ -5651,7 +5797,7 @@ longlong Item_equal::val_int()
 
 void Item_equal::fix_length_and_dec()
 {
-  Item *item= get_first();
+  Item *item= get_first(NULL);
   eval_item= cmp_item::get_comparator(item->result_type(),
                                       item->collation.collation);
 }
@@ -5714,3 +5860,127 @@ void Item_equal::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+/*
+  @brief Get the first equal field of multiple equality.
+  @param[in] field   the field to get equal field to
+
+  @details Get the first field of multiple equality that is equal to the
+  given field. In order to make semi-join materialization strategy work
+  correctly we can't propagate equal fields from upper select to a
+  materialized semi-join.
+  Thus the fields is returned according to following rules:
+
+  1) If the given field belongs to a semi-join then the first field in
+     multiple equality which belong to the same semi-join is returned.
+     Otherwise NULL is returned.
+  2) If the given field doesn't belong to a semi-join then
+     the first field in the multiple equality that doesn't belong to any
+     semi-join is returned.
+     If all fields in the equality are belong to semi-join(s) then NULL
+     is returned.
+  3) If no field is given then the first field in the multiple equality
+     is returned without regarding whether it belongs to a semi-join or not.
+
+  @retval Found first field in the multiple equality.
+  @retval 0 if no field found.
+*/
+
+Item_field* Item_equal::get_first(Item_field *field)
+{
+  List_iterator<Item_field> it(fields);
+  Item_field *item;
+  JOIN_TAB *field_tab;
+  if (!field)
+    return fields.head();
+
+  /*
+    Of all equal fields, return the first one we can use. Normally, this is the
+    field which belongs to the table that is the first in the join order.
+
+    There is one exception to this: When semi-join materialization strategy is
+    used, and the given field belongs to a table within the semi-join nest, we
+    must pick the first field in the semi-join nest.
+
+    Example: suppose we have a join order:
+
+       ot1 ot2  SJ-Mat(it1  it2  it3)  ot3
+
+    and equality ot2.col = it1.col = it2.col
+    If we're looking for best substitute for 'it2.col', we should pick it1.col
+    and not ot2.col.
+    
+    eliminate_item_equal() also has code that deals with equality substitution
+    in presense of SJM nests.
+  */
+
+  field_tab= field->field->table->reginfo.join_tab;
+
+  TABLE_LIST *emb_nest= field->field->table->pos_in_table_list->embedding;
+
+  if (emb_nest && emb_nest->sj_mat_info && emb_nest->sj_mat_info->is_used)
+  {
+    /*
+      It's a field from an materialized semi-join. We can substitute it only
+      for a field from the same semi-join.
+    */
+    JOIN_TAB *first;
+    JOIN *join= field_tab->join;
+    int tab_idx= field_tab - field_tab->join->join_tab;
+
+    /* Find the first table of this semi-join nest */
+    for (int i= tab_idx; i >= (int)join->const_tables; i--)
+    {
+      if (join->join_tab[i].table->map & emb_nest->sj_inner_tables)
+        first= join->join_tab + i;
+      else
+        // Found first tab that doesn't belong to current SJ.
+        break;
+    }
+    /* Find an item to substitute for. */
+    while ((item= it++))
+    {
+      if (item->field->table->reginfo.join_tab >= first)
+      {
+        /*
+          If we found given field then return NULL to avoid unnecessary
+          substitution.
+        */
+        return (item != field) ? item : NULL;
+      }
+    }
+  }
+  else
+  {
+#if 0    
+    /*
+      The field is not in SJ-Materialization nest. We must return the first
+      field that's not embedded in a SJ-Materialization nest.
+      Example: suppose we have a join order:
+
+          SJ-Mat(it1  it2)  ot1  ot2
+
+      and equality ot2.col = ot1.col = it2.col
+      If we're looking for best substitute for 'ot2.col', we should pick ot1.col
+      and not it2.col, because when we run a join between ot1 and ot2
+      execution of SJ-Mat(...) has already finished and we can't rely on the
+      value of it*.*.
+      psergey-fix-fix: ^^ THAT IS INCORRECT ^^. Pick the first, whatever that
+      is.
+    */
+    while ((item= it++))
+    {
+      TABLE_LIST *emb_nest= item->field->table->pos_in_table_list->embedding;
+      if (!emb_nest || !emb_nest->sj_mat_info || 
+          !emb_nest->sj_mat_info->is_used)
+      {
+        return item;
+      }
+    }
+#endif
+    return fields.head();
+  }
+  // Shouldn't get here.
+  DBUG_ASSERT(0);
+  return NULL;
+}

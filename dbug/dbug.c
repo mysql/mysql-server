@@ -86,6 +86,7 @@
 
 #undef SAFE_MUTEX
 #include <my_global.h>
+#undef SAFE_MUTEX
 #include <m_string.h>
 #include <errno.h>
 
@@ -279,7 +280,7 @@ typedef struct _db_code_state_ {
 #define ListDel(A,B,C) ListAddDel(A,B,C,EXCLUDE)
 static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
-static int InList(struct link *linkp,const char *cp);
+static int InList(struct link *linkp,const char *cp, int exact_match);
 static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
@@ -373,7 +374,7 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
-    pthread_mutex_init(&THR_LOCK_dbug, NULL);
+    pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
@@ -487,12 +488,18 @@ int DbugParse(CODE_STATE *cs, const char *control)
   const char *end;
   int rel, f_used=0;
   struct settings *stack;
+  int org_cs_locked;
 
   stack= cs->stack;
 
+  if (!(org_cs_locked= cs->locked))
+  {
+    cs->locked= 1;
+    pthread_mutex_lock(&THR_LOCK_dbug);
+  }
+
   if (control[0] == '-' && control[1] == '#')
     control+=2;
-
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
@@ -540,7 +547,8 @@ int DbugParse(CODE_STATE *cs, const char *control)
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
     if (sign) control++;
     c= *control++;
-    if (*control == ',') control++;
+    if (*control == ',')
+      control++;
     /* XXX when adding new cases here, don't forget _db_explain_ ! */
     switch (c) {
     case 'd':
@@ -558,7 +566,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
       {
         if (DEBUGGING)
           stack->keywords= ListDel(stack->keywords, control, end);
-      break;
+        break;
       }
       stack->keywords= ListAdd(stack->keywords, control, end);
       stack->flags |= DEBUG_ON;
@@ -700,9 +708,14 @@ int DbugParse(CODE_STATE *cs, const char *control)
     control=end+1;
     end= DbugStrTok(control);
   }
+  if (!org_cs_locked)
+  {
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+    cs->locked= 0;
+  }
   return !rel || f_used;
 }
-
+  
 #define framep_trace_flag(cs, frp) (frp ?                                    \
                                      frp->level & TRACE_ON :                 \
                               (ListFlags(cs->stack->functions) & INCLUDE) ?  \
@@ -851,7 +864,7 @@ void _db_set_(const char *control)
  *
  *      Given pointer to a debug control string in "control", pushes
  *      the current debug settings, parses the control string, and sets
- *      up a new debug settings with DbugParse()
+ *      up a new debug settings
  *
  */
 
@@ -865,7 +878,6 @@ void _db_push_(const char *control)
   if (DbugParse(cs, control))
     FixTraceFlags(old_fflags, cs);
 }
-
 
 /**
   Returns TRUE if session-local settings have been set.
@@ -954,7 +966,7 @@ void _db_pop_()
       } while (0)
 #define str_to_buf(S)    do {                   \
         char_to_buf(',');                       \
-        buf=strnmov(buf, (S), len+1);           \
+        buf=strnmov(buf, (S), (uint) (end-buf)); \
         if (buf >= end) goto overflow;          \
       } while (0)
 #define list_to_buf(l, f)  do {                 \
@@ -1221,6 +1233,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
     my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
     DbugExit(buf);
   }
+
 #ifndef THREAD
   if (DoProfile(cs))
     (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
@@ -1313,11 +1326,11 @@ void _db_doprnt_(const char *format,...)
 
   va_start(args,format);
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, cs->u_keyword, 0))
   {
     int save_errno=errno;
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, cs->u_line);
     if (TRACING)
       Indent(cs, cs->level + 1);
@@ -1328,6 +1341,9 @@ void _db_doprnt_(const char *format,...)
     DbugFlush(cs);
     errno=save_errno;
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
+
   va_end(args);
 }
 
@@ -1369,10 +1385,10 @@ void _db_dump_(uint _line_, const char *keyword,
   CODE_STATE *cs;
   get_code_state_or_return;
 
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
   if (_db_keyword_(cs, keyword, 0))
   {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
     DoPrefix(cs, _line_);
     if (TRACING)
     {
@@ -1402,6 +1418,8 @@ void _db_dump_(uint _line_, const char *keyword,
     (void) fputc('\n',cs->stack->out_file);
     DbugFlush(cs);
   }
+  else if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
 
@@ -1546,13 +1564,13 @@ static struct link *ListCopy(struct link *orig)
  *
  */
 
-static int InList(struct link *linkp, const char *cp)
+static int InList(struct link *linkp, const char *cp, int exact_match)
 {
   int result;
 
   for (result=MATCHED; linkp != NULL; linkp= linkp->next_link)
   {
-    if (!fnmatch(linkp->str, cp, 0))
+    if (!(exact_match ? strcmp(linkp->str,cp) : fnmatch(linkp->str, cp, 0)))
       return linkp->flags;
     if (!(linkp->flags & EXCLUDE))
       result=NOT_MATCHED;
@@ -1721,8 +1739,8 @@ void _db_end_()
 static int DoTrace(CODE_STATE *cs)
 {
   if ((cs->stack->maxdepth == 0 || cs->level <= cs->stack->maxdepth) &&
-      InList(cs->stack->processes, cs->process) & (MATCHED|INCLUDE))
-    switch(InList(cs->stack->functions, cs->func)) {
+      InList(cs->stack->processes, cs->process, 0) & (MATCHED|INCLUDE))
+    switch(InList(cs->stack->functions, cs->func, 0)) {
     case INCLUDE|SUBDIR:  return ENABLE_TRACE;
     case INCLUDE:         return DO_TRACE;
     case MATCHED|SUBDIR:
@@ -1759,10 +1777,10 @@ static int DoTrace(CODE_STATE *cs)
 #ifndef THREAD
 static BOOLEAN DoProfile(CODE_STATE *cs)
 {
-  return PROFILING &&
-         cs->level <= cs->stack->maxdepth &&
-         InList(cs->stack->p_functions, cs->func) & (INCLUDE|MATCHED) &&
-         InList(cs->stack->processes, cs->process) & (INCLUDE|MATCHED);
+  return (PROFILING &&
+          cs->level <= cs->stack->maxdepth &&
+          InList(cs->stack->p_functions, cs->func, 0) & (INCLUDE|MATCHED) &&
+          InList(cs->stack->processes, cs->process, 0) & (INCLUDE|MATCHED));
 }
 #endif
 
@@ -1795,11 +1813,11 @@ FILE *_db_fp_(void)
 
 BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
+  int match= strict ? INCLUDE : INCLUDE|MATCHED;
   get_code_state_if_not_set_or_return FALSE;
-  strict=strict ? INCLUDE : INCLUDE|MATCHED;
 
-  return DEBUGGING && DoTrace(cs) & DO_TRACE &&
-         InList(cs->stack->keywords, keyword) & strict;
+  return (DEBUGGING && DoTrace(cs) & DO_TRACE &&
+          InList(cs->stack->keywords, keyword, strict) & match);
 }
 
 /*
@@ -2084,7 +2102,8 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
   if (fp && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
-    pthread_mutex_lock(&THR_LOCK_dbug);
+    if (!cs->locked)
+      pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
     DbugFlush(cs);

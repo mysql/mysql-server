@@ -191,7 +191,7 @@ extern const char *in_left_expr_name, *in_additional_cond, *in_having_cond;
 extern SHOW_VAR status_vars[];
 extern struct system_variables max_system_variables;
 extern struct system_status_var global_status_var;
-extern struct rand_struct sql_rand;
+extern struct my_rnd_struct sql_rand;
 extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
@@ -358,11 +358,13 @@ enum options_mysqld
   OPT_CONSOLE,
   OPT_DEBUG_SYNC_TIMEOUT,
   OPT_DELAY_KEY_WRITE_ALL,
+  OPT_DEPRECATED_OPTION,
   OPT_ISAM_LOG,
   OPT_KEY_BUFFER_SIZE,
   OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_BLOCK_SIZE,
   OPT_KEY_CACHE_DIVISION_LIMIT,
+  OPT_KEY_CACHE_PARTITIONS,
   OPT_LOWER_CASE_TABLE_NAMES,
   OPT_ONE_THREAD,
   OPT_POOL_OF_THREADS,
@@ -377,7 +379,6 @@ enum options_mysqld
   OPT_SERVER_ID,
   OPT_SKIP_HOST_CACHE,
   OPT_SKIP_LOCK,
-  OPT_SKIP_NEW,
   OPT_SKIP_PRIOR,
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
@@ -502,4 +503,26 @@ inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
+/*
+  @todo remove, make it static in ha_maria.cc
+  currently it's needed for sql_select.cc
+*/
+extern handlerton *maria_hton;
+
+extern HASH global_user_stats;
+extern HASH global_client_stats;
+extern HASH global_table_stats;
+extern HASH global_index_stats;
+
+extern mysql_mutex_t LOCK_global_user_client_stats;
+extern mysql_mutex_t LOCK_global_table_stats;
+extern mysql_mutex_t LOCK_global_index_stats;
+extern mysql_mutex_t LOCK_stats;
+
+extern uint extra_connection_count;
+extern my_bool opt_userstat_running, debug_assert_if_crashed_table;
+extern uint mysqld_extra_port;
+extern ulong extra_max_connections;
+extern ulonglong denied_connections;
+extern ulong thread_created;
 #endif /* MYSQLD_INCLUDED */

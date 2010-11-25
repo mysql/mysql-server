@@ -1,0 +1,103 @@
+# Activate master-slave replication
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+# Make table t for test
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+# Start slave replication
+START SLAVE;
+INSERT INTO t VALUES (1);
+# Read information about master binlog
+# Sync(1) slave thread
+# Read and change log_slow_slave_statements to ON on slave
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	OFF
+set global log_slow_slave_statements=ON;
+show variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+INSERT INTO t VALUES (2);
+# Read information about master binlog
+# Sync slave(2) thread
+# Restart slave
+STOP SLAVE;
+START SLAVE;
+INSERT INTO t VALUES (3);
+# Read information about master binlog
+# Sync(3) slave thread
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
+set global long_query_time=0;
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
+INSERT INTO t VALUES (4);
+# Read information about master binlog
+# Sync slave(4) thread
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	1.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	OFF
+set global  use_global_long_query_time=1;
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	ON
+INSERT INTO t VALUES (5);
+# Read information about master binlog
+# Sync slave(5) thread
+show        variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'long_query_time';
+Variable_name	Value
+long_query_time	0.000000
+show global variables like 'use_global_long_query_time';
+Variable_name	Value
+use_global_long_query_time	ON
+set global long_query_time=1;
+set global use_global_long_query_time=0;
+# Analyse master slow_query_log
+0
+0
+0
+0
+0
+# Analyse slave slow_query_log
+0
+0
+0
+0
+1
+set global log_slow_slave_statements=OFF;
+DROP TABLE t;
+# Read information about master binlog
+# Sync slave(6) thread

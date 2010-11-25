@@ -1,0 +1,343 @@
+#
+# Test of date format functions
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
+SHOW GLOBAL VARIABLES LIKE "%_format%";
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
+SHOW SESSION VARIABLES LIKE "%_format%";
+
+#
+# Test setting a lot of different formats to see which formats are accepted and
+# which aren't
+#
+
+SET time_format='%H%i%s';
+SET time_format='%H:%i:%s.%f';
+SET time_format='%h-%i-%s.%f%p';
+SET time_format='%h:%i:%s.%f %p';
+SET time_format='%h:%i:%s%p';
+
+SET date_format='%Y%m%d';
+SET date_format='%Y.%m.%d';
+SET date_format='%d.%m.%Y';
+SET date_format='%m-%d-%Y';
+
+set datetime_format= '%Y%m%d%H%i%s';
+set datetime_format= '%Y-%m-%d %H:%i:%s';
+set datetime_format= '%m-%d-%y %H:%i:%s.%f';
+set datetime_format= '%d-%m-%Y %h:%i:%s%p';
+set datetime_format= '%H:%i:%s %Y-%m-%d';
+set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
+set datetime_format= '%h:%i:%s %p %Y-%m-%d';
+set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
+
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
+SHOW SESSION VARIABLES LIKE "%format";
+
+--error 1231
+SET time_format='%h:%i:%s';
+--error 1231
+SET time_format='%H %i:%s';
+--error 1231
+SET time_format='%H::%i:%s';
+--error 1231
+SET time_format='%H:%i:%s%f';
+--error 1231
+SET time_format='%H:%i.%f:%s';
+--error 1231
+SET time_format='%H:%i:%s%p';
+--error 1231
+SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
+--error 1231
+SET time_format='%H%i%s.%f';
+--error 1231
+SET time_format='%H:%i-%s.%f';
+--error 1231
+SET date_format='%d.%m.%d';
+--error 1231
+SET datetime_format='%h.%m.%y %d.%i.%s';
+--error 1231
+set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
+
+#
+# Test GLOBAL values
+
+set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
+SET SESSION datetime_format=default;
+select @@global.datetime_format, @@session.datetime_format;
+SET GLOBAL datetime_format=default;
+SET SESSION datetime_format=default;
+select @@global.datetime_format, @@session.datetime_format;
+
+SET GLOBAL date_format=default;
+SET GLOBAL time_format=default;
+SET GLOBAL datetime_format=default;
+SET time_format=default;
+SET date_format=default;
+SET datetime_format=default;
+
+#
+# The following tests will work only when we at some point will enable
+# dynamic changing of formats
+#
+
+# SET date_format='%d.%m.%Y';
+# select CAST('01.01.2001' as DATE) as a;
+# SET datetime_format='%d.%m.%Y %H.%i.%s';
+# select CAST('01.01.2001 05.12.06' as DATETIME) as a;
+# SET time_format='%H.%i.%s';
+# select CAST('05.12.06' as TIME) as a;
+# 
+# SET datetime_format='%d.%m.%Y %h:%i:%s %p';
+# select CAST('01.01.2001 05:12:06AM' as DATETIME) as a;
+# select CAST('01.01.2001 05:12:06 PM' as DATETIME) as a;
+# 
+# SET time_format='%h:%i:%s %p';
+# select CAST('05:12:06 AM' as TIME) as a;
+# select CAST('05:12:06.1234PM' as TIME) as a;
+# 
+# SET time_format='%h.%i.%s %p';
+# SET date_format='%d.%m.%y';
+# SET datetime_format='%d.%m.%y %h.%i.%s %p';
+# select CAST('12-12-06' as DATE) as a;
+# 
+# select adddate('01.01.97 11.59.59.000001 PM', 10);
+# select datediff('31.12.97 11.59:59.000001 PM','01.01.98');
+# select weekofyear('31.11.97 11:59:59.000001 PM');
+# select makedate(1997,1);
+# select addtime('31.12.97 11.59.59.999999 PM', '1 1.1.1.000002');
+# select maketime(23,11,12);
+# select timediff('01.01.97 11:59:59.000001 PM','31.12.95 11:59:59.000002 PM');
+# 
+# SET time_format='%i:%s:%H';
+# select cast(str_to_date('15-01-2001 12:59:59', '%d-%m-%Y %H:%i:%S') as TIME);
+
+#
+# Test of str_to_date
+#
+
+# PS doesn't support fraction of a seconds
+--disable_ps_protocol
+select str_to_date(concat('15-01-2001',' 2:59:58.999'),
+	           concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
+select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
+--enable_ps_protocol
+
+create table t1 (date char(30), format char(30) not null);
+insert into t1 values
+('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
+('03-01-02 8:11:2.123456', '%y-%m-%d %H:%i:%S.%#'),
+('2003-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p'),
+('2003-01-02 01:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f%p'),
+('2003-01-02 02:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f %p'),
+('2003-01-02 12:11:12.12345 am', '%Y-%m-%d %h:%i:%S.%f%p'),
+('2003-01-02 11:11:12Pm', '%Y-%m-%d %h:%i:%S%p'),
+('10:20:10', '%H:%i:%s'),
+('10:20:10', '%h:%i:%s.%f'),
+('10:20:10', '%T'),
+('10:20:10AM', '%h:%i:%s%p'),
+('10:20:10AM', '%r'),
+('10:20:10.44AM', '%h:%i:%s.%f%p'),
+('15-01-2001 12:59:58', '%d-%m-%Y %H:%i:%S'),
+('15 September 2001', '%d %M %Y'),
+('15 SEPTEMB 2001', '%d %M %Y'),
+('15 MAY 2001', '%d %b %Y'),
+('15th May 2001', '%D %b %Y'),
+('Sunday 15 MAY 2001', '%W %d %b %Y'),
+('Sund 15 MAY 2001', '%W %d %b %Y'),
+('Tuesday 00 2002', '%W %U %Y'),
+('Thursday 53 1998', '%W %u %Y'),
+('Sunday 01 2001', '%W %v %x'),
+('Tuesday 52 2001', '%W %V %X'),
+('060 2004', '%j %Y'),
+('4 53 1998', '%w %u %Y'),
+('15-01-2001', '%d-%m-%Y %H:%i:%S'),
+('15-01-20', '%d-%m-%y'),
+('15-2001-1', '%d-%Y-%c');
+
+# PS doesn't support fractional seconds
+--disable_ps_protocol
+select date,format,str_to_date(date, format) as str_to_date from t1;
+# Use as a string
+select date,format,concat('',str_to_date(date, format)) as con from t1;
+# Use as datetime
+select date,format,cast(str_to_date(date, format) as datetime) as datetime from t1;
+select date,format,DATE(str_to_date(date, format)) as date2 from t1;
+select date,format,TIME(str_to_date(date, format)) as time from t1;
+select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
+# Test small bug in %f handling
+select concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'));
+
+# Test wrong dates or converion specifiers
+
+truncate table t1;
+insert into t1 values
+('2003-01-02 10:11:12 PM', '%Y-%m-%d %H:%i:%S %p'),
+('2003-01-02 10:11:12.123456', '%Y-%m-%d %h:%i:%S %p'),
+('2003-01-02 10:11:12AM', '%Y-%m-%d %h:%i:%S.%f %p'),
+('2003-01-02 10:11:12AN', '%Y-%m-%d %h:%i:%S%p'),
+('2003-01-02 10:11:12 PM', '%y-%m-%d %H:%i:%S %p'),
+('10:20:10AM', '%H:%i:%s%p'),
+('15 Septembei 2001', '%d %M %Y'),
+('15 Ju 2001', '%d %M %Y'),
+('Sund 15 MA', '%W %d %b %Y'),
+('Thursdai 12 1998', '%W %u %Y'),
+('Sunday 01 2001', '%W %v %X'),
+('Tuesday 52 2001', '%W %V %x'),
+('Tuesday 52 2001', '%W %V %Y'),
+('Tuesday 52 2001', '%W %u %x'),
+('7 53 1998', '%w %u %Y'),
+(NULL, get_format(DATE,'USA'));
+select date,format,str_to_date(date, format) as str_to_date from t1;
+select date,format,concat(str_to_date(date, format),'') as con from t1;
+
+# Test 'maybe' date formats and 'strange but correct' results
+
+truncate table t1;
+insert into t1 values
+('10:20:10AM', '%h:%i:%s'),
+('2003-01-02 10:11:12', '%Y-%m-%d %h:%i:%S'),
+('03-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p');
+
+select date,format,str_to_date(date, format) as str_to_date from t1;
+select date,format,concat(str_to_date(date, format),'') as con from t1;
+
+drop table t1;
+--enable_ps_protocol
+
+#
+# Test of get_format
+#
+
+select get_format(DATE, 'USA') as a;
+select get_format(TIME, 'internal') as a;
+select get_format(DATETIME, 'eur') as a;
+select get_format(TIMESTAMP, 'eur') as a;
+select get_format(DATE, 'TEST') as a;
+select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
+
+explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
+
+#
+# Test of date_format()
+#
+
+create table t1 (d date);
+insert into t1 values ('2004-07-14'),('2005-07-14');
+select date_format(d,"%d") from t1 order by 1;
+drop table t1;
+
+# PS doesn't support fractional seconds
+--disable_ps_protocol
+select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
+
+
+create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+			str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
+			str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+			str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
+describe t1;
+select * from t1;
+drop table t1;
+
+create table t1 select "02 10" as a, "%d %H" as b;
+select str_to_date(a,b) from t1;
+create table t2 select str_to_date(a,b) from t1;
+describe t2;
+select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+       str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S") as f2,
+       str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+       str_to_date("02 10:11:12", "%d %H:%i:%S.%f") as f4,
+       str_to_date("02 10:11:12", "%d %H:%i:%S") as f5,
+       str_to_date("02 10", "%d %f") as f6;
+drop table t1, t2;
+select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1,
+       addtime("-01:01:01.01 GGG", "-23:59:59.1") as f2,
+       microsecond("1997-12-31 23:59:59.01XXXX") as f3;
+
+select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
+       str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
+--enable_ps_protocol
+
+#
+# Test of locale dependent date format (WL#2928 Date Translation NRE)
+#
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set lc_time_names=ru_RU;
+set names koi8r;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set lc_time_names=de_DE;
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set names latin1;
+set lc_time_names=en_US;
+
+#
+# Bug #14016 
+#
+create table t1 (f1 datetime);
+insert into t1 (f1) values ("2005-01-01");
+insert into t1 (f1) values ("2005-02-01");
+select date_format(f1, "%m") as d1, date_format(f1, "%M") as d2 from t1 order by date_format(f1, "%M");
+drop table t1;
+
+#
+# Bug #15828
+#
+select str_to_date( 1, NULL );
+select str_to_date( NULL, 1 );
+select str_to_date( 1, IF(1=1,NULL,NULL) );
+
+#
+# Bug#11326
+# TIME_FORMAT using "%r" returns wrong hour using 24:00:00 in TIME column
+#
+# This tests that 24:00:00 does not return PM, when it should be AM.
+# Some other values are being tested same time.
+#
+
+SELECT TIME_FORMAT("24:00:00", '%r');
+SELECT TIME_FORMAT("00:00:00", '%r');
+SELECT TIME_FORMAT("12:00:00", '%r');
+SELECT TIME_FORMAT("15:00:00", '%r');
+SELECT TIME_FORMAT("01:00:00", '%r');
+SELECT TIME_FORMAT("25:00:00", '%r');
+
+#
+# Bug#11324
+# TIME_FORMAT using "%l:%i" returns 36:00 with 24:00:00 in TIME column
+#
+# This tests that 24:00:00 does not change to "36:00 AM". Testing
+# some other values same time.
+#
+
+SELECT TIME_FORMAT("00:00:00", '%l %p');
+SELECT TIME_FORMAT("01:00:00", '%l %p');
+SELECT TIME_FORMAT("12:00:00", '%l %p');
+SELECT TIME_FORMAT("23:00:00", '%l %p');
+SELECT TIME_FORMAT("24:00:00", '%l %p');
+SELECT TIME_FORMAT("25:00:00", '%l %p');
+
+#
+# Bug#20729:  Bad date_format() call makes mysql server crash
+#
+SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
+
+#
+# Bug #22029: str_to_date returning NULL
+#
+
+select str_to_date('04 /30/2004', '%m /%d/%Y');
+select str_to_date('04/30 /2004', '%m /%d /%Y');
+select str_to_date('04/30/2004 ', '%m/%d/%Y ');
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo "End of 4.1 tests"

@@ -4,7 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+SET sql_log_bin = 0;
+SET sql_log_bin = 1;
 reset master;
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 (a char(1));
@@ -129,6 +130,8 @@ select * from t1;
 a
 1
 drop table t1;
+SET sql_log_bin = 0;
+SET sql_log_bin = 1;
 -- Bug#43748
 -- make a user on the slave that can list but not kill system threads.
 FLUSH PRIVILEGES;

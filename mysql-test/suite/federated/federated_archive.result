@@ -34,6 +34,6 @@ id	name
 DROP TABLE federated.t1;
 DROP TABLE federated.archive_table;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;

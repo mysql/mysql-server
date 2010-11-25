@@ -1,4 +1,6 @@
-/* Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (C) 2000-2009 MySQL AB
+   Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +16,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define COPYRIGHT_NOTICE "\
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL v2 license\n"
 
@@ -48,7 +49,7 @@ and you are welcome to modify and redistribute it under the GPL v2 license\n"
 #include <locale.h>
 #endif
 
-const char *VER= "14.14";
+const char *VER= "14.16";
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -86,8 +87,9 @@ extern "C" {
 #include <term.h>
 #endif
 #endif
-#endif
+#endif /* defined(HAVE_CURSES_H) && defined(HAVE_TERM_H) */
 
+#undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
 #include <conio.h>
 #else
@@ -95,7 +97,6 @@ extern "C" {
 #define HAVE_READLINE
 #define USE_POPEN
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
 
 #if !defined(HAVE_VIDATTR)
@@ -143,16 +144,18 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       opt_secure_auth= 0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
-               show_warnings= 0, executing_query= 0, interrupted_query= 0,
+               show_warnings= 0, executing_query= 0,
                ignore_spaces= 0;
-static my_bool debug_info_flag, debug_check_flag;
+static my_bool debug_info_flag, debug_check_flag, batch_abort_on_error;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
+static my_bool in_com_source, aborted= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int connect_flag=CLIENT_INTERACTIVE;
+static int interrupted_query= 0;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -166,6 +169,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
+static char *opt_plugin_dir= 0, *opt_default_auth;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1022,7 +1026,7 @@ static const char *load_default_groups[]= { "mysql","client",0 };
 static int         embedded_server_arg_count= 0;
 static char       *embedded_server_args[MAX_SERVER_ARGS];
 static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
+{ "server", "embedded", "mysql_SERVER", "mariadb_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 /*
@@ -1078,9 +1082,10 @@ int main(int argc,char *argv[])
   delimiter_str= delimiter;
   default_prompt = my_strdup(getenv("MYSQL_PS1") ? 
 			     getenv("MYSQL_PS1") : 
-			     "mysql> ",MYF(MY_WME));
+			     "\\N [\\d]> ",MYF(MY_WME));
   current_prompt = my_strdup(default_prompt,MYF(MY_WME));
   prompt_counter=0;
+  aborted= 0;
 
   outfile[0]=0;			// no (default) outfile
   strmov(pager, "stdout");	// the default, if --pager wasn't given
@@ -1169,10 +1174,11 @@ int main(int argc,char *argv[])
   window_resize(0);
 #endif
 
-  put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
+  put_info("Welcome to the MariaDB monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %lu\nServer version: %s\n",
+	  "Your %s connection id is %lu\nServer version: %s\n",
+          mysql_get_server_name(&mysql),
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
@@ -1285,14 +1291,15 @@ sig_handler mysql_end(int sig)
 /*
   This function handles sigint calls
   If query is in process, kill query
+  If 'source' is executed, abort source command
   no query in process, terminate like previous behavior
  */
+
 sig_handler handle_sigint(int sig)
 {
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
 
-  /* terminate if no query being executed, or we already tried interrupting */
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || (interrupted_query == 2))
   {
@@ -1308,6 +1315,7 @@ sig_handler handle_sigint(int sig)
     goto err;
   }
 
+  /* First time try to kill the query, second time the connection */
   interrupted_query++;
 
   /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
@@ -1318,11 +1326,15 @@ sig_handler handle_sigint(int sig)
   sprintf(kill_buffer, "KILL %s%lu",
           (interrupted_query == 1) ? "QUERY " : "",
           mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n", kill_buffer);
+  if (verbose)
+    tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n",
+                kill_buffer);
   mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Ctrl-C -- query aborted.\n");
-
+  tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
+  interrupted_query= 0;
+  if (in_com_source)
+    aborted= 1;                                 // Abort source command
   return;
 
 err:
@@ -1334,7 +1346,6 @@ err:
    handler called mysql_end(). 
   */
   mysql_thread_end();
-  return;
 #else
   mysql_end(sig);
 #endif  
@@ -1357,6 +1368,10 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"abort-source-on-error", OPT_ABORT_SOURCE_ON_ERROR,
+   "Abort 'source filename' operations in case of errors",
+   &batch_abort_on_error, &batch_abort_on_error, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"auto-rehash", OPT_AUTO_REHASH,
    "Enable automatic rehashing. One doesn't need to use 'rehash' to get table "
    "and field completion, but startup and reconnecting may take a longer time. "
@@ -1413,7 +1428,7 @@ static struct my_option my_long_options[] =
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
    &vertical, &vertical, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"force", 'f', "Continue even if we get an SQL error.",
+  {"force", 'f', "Continue even if we get an SQL error. Sets abort-source-on-error to 0",
    &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"named-commands", 'G',
@@ -1564,6 +1579,13 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     &show_warnings, &show_warnings, 0, GET_BOOL, NO_ARG,
     0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_PLUGIN_DIR,
+    "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1747,6 +1769,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
     break;
 #include <sslopt-case.h>
+  case 'f':
+    batch_abort_on_error= 0;
+    break;
   case 'V':
     usage(1);
     exit(0);
@@ -1830,7 +1855,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= 0;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -1838,7 +1863,7 @@ static int read_and_execute(bool interactive)
   bool truncated= 0;
   status.exit_status=1;
   
-  for (;;)
+  while (!aborted)
   {
     if (!interactive)
     {
@@ -1996,12 +2021,12 @@ static COMMANDS *find_command(char *name,char cmd_char)
   for (uint i= 0; commands[i].name; i++)
   {
     if (commands[i].func &&
-	((name &&
-	  !my_strnncoll(&my_charset_latin1, (uchar*)name, len,
-				     (uchar*)commands[i].name,len) &&
-	  !commands[i].name[len] &&
-	  (!end || (end && commands[i].takes_params))) ||
-	 (!name && commands[i].cmd_char == cmd_char)))
+        (((name &&
+           !my_strnncoll(&my_charset_latin1, (uchar*) name, len,
+                         (uchar*) commands[i].name, len) &&
+           !commands[i].name[len] &&
+           (!end || (end && commands[i].takes_params)))) ||
+         (!name && commands[i].cmd_char == cmd_char)))
     {
       DBUG_PRINT("exit",("found command: %s", commands[i].name));
       DBUG_RETURN(&commands[i]);
@@ -2159,16 +2184,21 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
       buffer.length(0);
     }
-    else if (!*ml_comment && (!*in_string && (inchar == '#' ||
-                                              (inchar == '-' && pos[1] == '-' &&
-                              /*
-                                The third byte is either whitespace or is the
-                                end of the line -- which would occur only
-                                because of the user sending newline -- which is
-                                itself whitespace and should also match.
-                              */
-			      (my_isspace(charset_info,pos[2]) ||
-                               !pos[2])))))
+    else if (!*ml_comment &&
+             (!*in_string &&
+              (inchar == '#' ||
+               (inchar == '-' && pos[1] == '-' &&
+               /*
+                 The third byte is either whitespace or is the end of
+                 the line -- which would occur only because of the
+                 user sending newline -- which is itself whitespace
+                 and should also match.
+                 We also ignore lines starting with '--', even if there
+                 isn't a whitespace after. (This makes it easier to run
+                 mysql-test-run cases through the client)
+               */
+                ((my_isspace(charset_info,pos[2]) || !pos[2]) ||
+                 (buffer.is_empty() && out == line))))))
     {
       // Flush previously accepted characters
       if (out != line)
@@ -2855,13 +2885,8 @@ com_help(String *buffer __attribute__((unused)),
 	  return com_server_help(buffer,line,help_arg);
   }
 
-  put_info("\nFor information about MySQL products and services, visit:\n"
-           "   http://www.mysql.com/\n"
-           "For developer information, including the MySQL Reference Manual, "
-           "visit:\n"
-           "   http://dev.mysql.com/\n"
-           "To buy MySQL Enterprise support, training, or other products, visit:\n"
-           "   https://shop.mysql.com/\n", INFO_INFO);
+  put_info("\nGeneral information about MariaDB can be found at\n"
+           "http://askmonty.org/wiki/index.php/Manual:Contents\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
@@ -3858,8 +3883,9 @@ static int
 com_edit(String *buffer,char *line __attribute__((unused)))
 {
   char	filename[FN_REFLEN],buff[160];
-  int	fd,tmp;
+  int	fd,tmp,error;
   const char *editor;
+  MY_STAT stat_arg;
 
   if ((fd=create_temp_file(filename,NullS,"sql", O_CREAT | O_WRONLY,
 			   MYF(MY_WME))) < 0)
@@ -3875,10 +3901,14 @@ com_edit(String *buffer,char *line __attribute__((unused)))
       !(editor = (char *)getenv("VISUAL")))
     editor = "vi";
   strxmov(buff,editor," ",filename,NullS);
-  if(system(buff) == -1)
+  if ((error= system(buff)))
+  {
+    char errmsg[100];
+    sprintf(errmsg, "Command '%.40s' failed", buff);
+    put_info(errmsg, INFO_ERROR, 0, NullS);
     goto err;
+  }
 
-  MY_STAT stat_arg;
   if (!my_stat(filename,&stat_arg,MYF(MY_WME)))
     goto err;
   if ((fd = my_open(filename,O_RDONLY, MYF(MY_WME))) < 0)
@@ -3961,7 +3991,7 @@ static int
 com_connect(String *buffer, char *line)
 {
   char *tmp, buff[256];
-  bool save_rehash= opt_rehash;
+  my_bool save_rehash= opt_rehash;
   int error;
 
   bzero(buff, sizeof(buff));
@@ -4018,6 +4048,7 @@ static int com_source(String *buffer, char *line)
   int error;
   STATUS old_status;
   FILE *sql_file;
+  my_bool save_ignore_errors;
 
   /* Skip space from file name */
   while (my_isspace(charset_info,*line))
@@ -4049,16 +4080,27 @@ static int com_source(String *buffer, char *line)
 
   /* Save old status */
   old_status=status;
+  save_ignore_errors= ignore_errors;
   bfill((char*) &status,sizeof(status),(char) 0);
 
   status.batch=old_status.batch;		// Run in batch mode
   status.line_buff=line_buff;
   status.file_name=source_name;
   glob_buffer.length(0);			// Empty command buffer
+  ignore_errors= !batch_abort_on_error;
+  in_com_source= 1;
   error= read_and_execute(false);
+  ignore_errors= save_ignore_errors;
   status=old_status;				// Continue as before
+  in_com_source= aborted= 0;
   my_fclose(sql_file,MYF(0));
   batch_readline_end(line_buff);
+  /*
+    If we got an error during source operation, don't abort the client
+    if ignore_errors is set
+  */
+  if (error && ignore_errors)
+    error= -1;                                  // Ignore error
   return error;
 }
 
@@ -4247,6 +4289,57 @@ char *get_arg(char *line, my_bool get_next_arg)
 }
 
 
+/**
+  An example of mysql_authentication_dialog_ask callback.
+
+  The C function with the name "mysql_authentication_dialog_ask", if exists,
+  will be used by the "dialog" client authentication plugin when user
+  input is needed. This function should be of mysql_authentication_dialog_ask_t
+  type. If the function does not exists, a built-in implementation will be
+  used.
+
+  @param mysql          mysql
+  @param type           type of the input
+                        1 - normal string input
+                        2 - password string
+  @param prompt         prompt
+  @param buf            a buffer to store the use input
+  @param buf_len        the length of the buffer
+
+  @retval               a pointer to the user input string.
+                        It may be equal to 'buf' or to 'mysql->password'.
+                        In all other cases it is assumed to be an allocated
+                        string, and the "dialog" plugin will free() it.
+*/
+
+extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                                 const char *prompt,
+                                                 char *buf, int buf_len)
+{
+  char *s=buf;
+
+  fputs("[mariadb] ", stdout);
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
+
+  if (type == 2) /* password */
+  {
+    s= get_tty_password("");
+    strnmov(buf, s, buf_len);
+    buf[buf_len-1]= 0;
+    my_free(s, MYF(0));
+  }
+  else
+  {
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else if (buf[0] && (s= strend(buf))[-1] == '\n')
+      s[-1]= 0;
+  }
+
+  return buf;
+}
+
 static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
@@ -4294,7 +4387,13 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
 
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
-  
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_STATEMENTS))
@@ -4411,6 +4510,7 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
   tee_fprintf(stdout, "Using delimiter:\t%s\n", delimiter);
+  tee_fprintf(stdout, "Server:\t\t\t%s\n", mysql_get_server_name(&mysql));
   tee_fprintf(stdout, "Server version:\t\t%s\n", server_version_string(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
@@ -4579,12 +4679,19 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       if (error)
       {
 	if (sqlstate)
-          (void) tee_fprintf(file, "ERROR %d (%s): ", error, sqlstate);
+          (void) tee_fprintf(file, "ERROR %d (%s)", error, sqlstate);
         else
-          (void) tee_fprintf(file, "ERROR %d: ", error);
+          (void) tee_fprintf(file, "ERROR %d", error);
       }
       else
-        tee_puts("ERROR: ", file);
+        tee_fputs("ERROR", file);
+      if (status.query_start_line && line_numbers)
+      {
+	(void) fprintf(file," at line %lu",status.query_start_line);
+	if (status.file_name)
+	  (void) fprintf(file," in file: '%s'", status.file_name);
+      }
+      tee_fputs(": ", file);
     }
     else
       vidattr(A_BOLD);
@@ -4593,7 +4700,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   }
   if (unbuffered)
     fflush(file);
-  return info_type == INFO_ERROR ? -1 : 0;
+  return info_type == INFO_ERROR ? (ignore_errors ? -1 : 1): 0;
 }
 
 
@@ -4730,7 +4837,7 @@ static void mysql_end_timer(ulong start_time,char *buff)
   strmov(strend(buff),")");
 }
 
-static const char* construct_prompt()
+static const char *construct_prompt()
 {
   processed_prompt.free();			// Erase the old prompt
   time_t  lclock = time(NULL);			// Get the date struct
@@ -4759,6 +4866,12 @@ static const char* construct_prompt()
       case 'd':
 	processed_prompt.append(current_db ? current_db : "(none)");
 	break;
+      case 'N':
+        if (connected)
+          processed_prompt.append(mysql_get_server_name(&mysql));
+        else
+          processed_prompt.append("unknown");
+        break;
       case 'h':
       {
 	const char *prompt;

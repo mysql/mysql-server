@@ -308,6 +308,7 @@ insert into t1 values (1, 2, 11), (1, 2, 7), (2, 2, 8), (1,2,9),(1,3,9);
 insert into t2 values (1, 2, 3),(2, 2, 8), (4,3,9),(3,2,10);
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1;
+--sorted_result
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1 order by t1.o;
 drop table t1,t2;
@@ -980,5 +981,53 @@ EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
  ON 1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#49600: outer join of two single-row tables with joining attributes
+--echo #            evaluated to nulls
+
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1, NULL);
+insert into t2 values (2, NULL);
+
+select * from t1 left join t2 on t1.b=t2.b;
+
+select * from t1 left join t2 on t1.b=t2.b where 1=1;
+
+drop table t1,t2;
+
+--echo #
+--echo # Bug#53161: outer join in the derived table is erroneously converted
+--echo #            into an inner join for a query with a group by clause
+--echo # 
+
+create table t1 (pk int not null primary key, a int not null);
+create table t2 like t1;
+create table t3 like t1;
+create table t4 (pk int not null primary key);
+insert into t1 values (1000, 1), (1001, 1);
+insert into t2 values (2000, 2), (2001, 2);
+insert into t3 values (3000, 3), (3001, 2);
+insert into t4 values (4000), (4001);
+
+explain extended
+select t2.pk, 
+      (select t3.pk+if(isnull(t4.pk),0,t4.pk) 
+         from t3 left join t4 on t4.pk=t3.pk 
+           where t3.pk=t2.pk+1000 limit 1 ) as t
+  from t1,t2 
+    where t2.pk=t1.pk+1000 and t1.pk>1000
+  group by t2.pk;
+
+select t2.pk, 
+      (select t3.pk+if(isnull(t4.pk),0,t4.pk)
+         from t3 left join t4 on t4.pk=t3.pk 
+           where t3.pk=t2.pk+1000 limit 1 ) as t
+  from t1,t2 
+    where t2.pk=t1.pk+1000 and t1.pk>1000
+  group by t2.pk;
+
+drop table t1,t2,t3,t4;
 
 --echo End of 5.1 tests

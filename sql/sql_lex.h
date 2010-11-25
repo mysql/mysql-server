@@ -190,6 +190,9 @@ enum enum_sql_command {
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
   SQLCOM_SHOW_RELAYLOG_EVENTS, 
+  SQLCOM_SHOW_USER_STATS, SQLCOM_SHOW_TABLE_STATS, SQLCOM_SHOW_INDEX_STATS,
+  SQLCOM_SHOW_CLIENT_STATS,
+
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...
@@ -631,6 +634,13 @@ public:
   bool describe; /* union exec() called for EXPLAIN */
   Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
+  /* 
+    Insert table with stored virtual columns.
+    This is used only in those rare cases 
+    when the list of inserted values is empty.
+  */
+  TABLE *insert_table_with_stored_vcol;
+
   void init_query();
   st_select_lex_unit* master_unit();
   st_select_lex* outer_select();
@@ -658,7 +668,8 @@ public:
   bool add_fake_select_lex(THD *thd);
   void init_prepare_fake_select_lex(THD *thd);
   inline bool is_prepared() { return prepared; }
-  bool change_result(select_subselect *result, select_subselect *old_result);
+  bool change_result(select_result_interceptor *result,
+                     select_result_interceptor *old_result);
   void set_limit(st_select_lex *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
   inline bool is_union (); 
@@ -703,6 +714,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  List<TABLE_LIST> sj_nests;      /* Semi-join nests within this join */
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected
@@ -743,8 +755,6 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
-  /* TRUE when GROUP BY fix field called in processing of this SELECT */
-  bool group_fix_field;
   /* List of references to fields referenced from inner selects */
   List<Item_outer_ref> inner_refs_list;
   /* Number of Item_sum-derived objects in this SELECT */
@@ -754,6 +764,11 @@ public:
 
   /* explicit LIMIT clause was used */
   bool explicit_limit;
+  /*
+    This array is used to note  whether we have any candidates for
+    expression caching in the corresponding clauses
+  */
+  bool expr_cache_may_be_used[PARSING_PLACE_SIZE];
   /*
     there are subquery in HAVING clause => we can't close tables before
     query processing end even if we use temporary table
@@ -832,8 +847,10 @@ public:
   {
     return master_unit()->return_after_parsing();
   }
+  inline bool is_subquery_function() { return master_unit()->item != 0; }
 
-  void mark_as_dependent(st_select_lex *last);
+  bool mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency);
+  void register_dependency_item(st_select_lex *last, Item **dependency);
 
   bool set_braces(bool value);
   bool inc_in_sum_expr();
@@ -918,7 +935,7 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
-
+  bool is_part_of_union() { return master_unit()->is_union(); }
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;
@@ -1060,6 +1077,7 @@ enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
+extern const LEX_STRING empty_lex_str;
 
 class Sroutine_hash_entry;
 
@@ -2157,6 +2175,7 @@ struct LEX: public Query_tables_list
   LEX_USER *grant_user;
   XID *xid;
   THD *thd;
+  Virtual_column_info *vcol_info;
 
   /* maintain a list of used plugins for this LEX */
   DYNAMIC_ARRAY plugins;
@@ -2242,6 +2261,14 @@ struct LEX: public Query_tables_list
     syntax error back.
   */
   bool expr_allows_subselect;
+  /*
+    A special command "PARSE_VCOL_EXPR" is defined for the parser 
+    to translate a defining expression of a virtual column into an 
+    Item object.
+    The following flag is used to prevent other applications to use 
+    this command.
+  */
+  bool parse_vcol_expr;
 
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
@@ -2364,6 +2391,11 @@ struct LEX: public Query_tables_list
   };
 
   const char *stmt_definition_end;
+
+  /**
+    Collects create options for Field and KEY
+  */
+  engine_option_value *option_list, *option_list_last;
 
   /**
     During name resolution search only in the table list given by 

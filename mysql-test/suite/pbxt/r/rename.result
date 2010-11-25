@@ -1,0 +1,68 @@
+drop table if exists t0,t1,t2,t3,t4;
+drop table if exists t0,t5,t6,t7,t8,t9,t1_1,t1_2,t9_1,t9_2;
+create table t0 SELECT 1,"table 1";
+create table t2 SELECT 2,"table 2";
+create table t3 SELECT 3,"table 3";
+rename table t0 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+3	table 3
+3	table 3
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t1;
+select * from t1;
+1	table 1
+1	table 1
+rename table t1 to t2;
+Got one of the listed errors
+rename table t1 to t1;
+Got one of the listed errors
+rename table t3 to t4, t2 to t3, t1 to t2, t4 to t2;
+Got one of the listed errors
+show tables like "t_";
+Tables_in_test (t_)
+t1
+t2
+t3
+rename table t3 to t1, t2 to t3, t1 to t2, t4 to t1;
+Got one of the listed errors
+rename table t3 to t4, t5 to t3, t1 to t2, t4 to t1;
+Got one of the listed errors
+select * from t1;
+1	table 1
+1	table 1
+select * from t2;
+2	table 2
+2	table 2
+select * from t3;
+3	table 3
+3	table 3
+drop table if exists t1,t2,t3,t4;
+Warnings:
+Note	1051	Unknown table 't4'
+CREATE TABLE t1 (a int);
+CREATE TABLE t3 (a int);
+FLUSH TABLES WITH READ LOCK;
+RENAME TABLE t1 TO t2, t3 to t4;
+show tables;
+Tables_in_test
+t1
+t3
+UNLOCK TABLES;
+show tables;
+Tables_in_test
+t2
+t4
+drop table t2, t4;
+End of 4.1 tests
+create table t1(f1 int);
+create view v1 as select * from t1;
+alter table v1 rename to v2;
+alter table v1 rename to v2;
+ERROR 42S02: Table 'test.v1' doesn't exist
+rename table v2 to v1;
+rename table v2 to v1;
+ERROR 42S01: Table 'v1' already exists
+drop view v1;
+drop table t1;
+End of 5.0 tests

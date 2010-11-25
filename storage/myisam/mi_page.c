@@ -87,10 +87,11 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
       info->state->key_file_length != page+length)
     length= ((mi_getint(buff)+IO_SIZE-1) & (uint) ~(IO_SIZE-1));
   DBUG_RETURN((key_cache_write(info->s->key_cache,
-                         info->s->kfile,page, level, (uchar*) buff,length,
-			 (uint) keyinfo->block_length,
-			 (int) ((info->lock_type != F_UNLCK) ||
-				info->s->delay_key_write))));
+			       info->s->kfile, &info->s->dirty_part_map,
+                               page, level, (uchar*) buff, length,
+			       (uint) keyinfo->block_length,
+			       (int) ((info->lock_type != F_UNLCK) ||
+				     info->s->delay_key_write))));
 } /* mi_write_keypage */
 
 
@@ -109,7 +110,8 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(key_cache_write(info->s->key_cache,
-                              info->s->kfile, pos , level, buff,
+                              info->s->kfile, &info->s->dirty_part_map,
+                              pos , level, buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
 			      (int) (info->lock_type != F_UNLCK)));

@@ -115,10 +115,11 @@ typedef struct {
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
-/* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+3) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+3)];
-#endif
+/* we want sizeof(LF_PINS) to be 128 to avoid false sharing */
+  char pad[128-sizeof(uint32)*2
+              -sizeof(LF_PINBOX *)
+              -sizeof(void*)
+              -sizeof(void *)*(LF_PINBOX_PINS+1)];
 } LF_PINS;
 
 /*
@@ -187,6 +188,8 @@ typedef struct st_lf_allocator {
   uchar * volatile top;
   uint element_size;
   uint32 volatile mallocs;
+  void (*constructor)(uchar *); /* called, when an object is malloc()'ed */
+  void (*destructor)(uchar *);  /* called, when an object is free()'d    */
 } LF_ALLOCATOR;
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
@@ -220,7 +223,8 @@ C_MODE_START
 
 #define LF_HASH_UNIQUE 1
 
-/* lf_hash overhead per element is sizeof(LF_SLIST). */
+/* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
+extern const int LF_HASH_OVERHEAD;
 
 typedef struct {
   LF_DYNARRAY array;                    /* hash itself */

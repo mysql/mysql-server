@@ -19,6 +19,7 @@
 #include "sp_defs.h"
 #include "rt_index.h"
 #include <m_ctype.h>
+#include <mysql_version.h>
 
 #ifdef __WIN__
 #include <fcntl.h>
@@ -50,6 +51,8 @@ MI_INFO *test_if_reopen(char *filename)
   {
     MI_INFO *info=(MI_INFO*) pos->data;
     MYISAM_SHARE *share=info->s;
+    DBUG_ASSERT(strcmp(share->unique_file_name,filename) ||
+                share->last_version);
     if (!strcmp(share->unique_file_name,filename) && share->last_version)
       return info;
   }
@@ -75,8 +78,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
-  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong *rec_per_key_part= 0;
+  my_off_t *key_root, *key_del;
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
@@ -88,7 +91,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   bzero((uchar*) &info,sizeof(info));
 
   realpath_err= my_realpath(name_buff,
-                  fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
+                            fn_format(org_name,name,"",MI_NAME_IEXT,4),MYF(0));
   if (my_is_symlink(org_name) &&
       (realpath_err || (*myisam_test_invalid_symlink)(name_buff)))
   {
@@ -101,14 +104,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   {
     share= &share_buff;
     bzero((uchar*) &share_buff,sizeof(share_buff));
-    share_buff.state.rec_per_key_part=rec_per_key_part;
-    share_buff.state.key_root=key_root;
-    share_buff.state.key_del=key_del;
     share_buff.key_cache= multi_key_cache_search((uchar*) name_buff,
-                                                 strlen(name_buff));
+                                                 strlen(name_buff),
+                                                 dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/t1"))
+                    if (strstr(name, "/crashed"))
                     {
                       my_errno= HA_ERR_CRASHED;
                       goto err;
@@ -132,12 +133,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
     }
-    if (memcmp((uchar*) share->state.header.file_version,
-	       (uchar*) myisam_file_magic, 4))
+    if (bcmp(share->state.header.file_version, myisam_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump", share->state.header.file_version,
-		head_length);
+		(size_t) head_length);
       my_errno=HA_ERR_NOT_A_TABLE;
       goto err;
     }
@@ -147,7 +147,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
 	  HA_OPTION_TEMP_COMPRESS_RECORD | HA_OPTION_CHECKSUM |
           HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
-          HA_OPTION_RELIES_ON_SQL_LAYER))
+          HA_OPTION_RELIES_ON_SQL_LAYER | HA_OPTION_NULL_FIELDS))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
       my_errno=HA_ERR_OLD_FILE;
@@ -183,7 +183,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
 			      MYF(open_flags & HA_OPEN_WAIT_IF_LOCKED ?
-				  0 : MY_DONT_WAIT))) &&
+				  0 : MY_SHORT_WAIT))) &&
 	  !(open_flags & HA_OPEN_IGNORE_IF_LOCKED))
 	goto err;
     }
@@ -207,14 +207,19 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
     share->state_diff_length=len-MI_STATE_INFO_SIZE;
 
-    mi_state_info_read(disk_cache, &share->state);
+    if (!mi_state_info_read(disk_cache, &share->state))
+      goto err;
+    rec_per_key_part= share->state.rec_per_key_part;
+    key_root= share->state.key_root;
+    key_del=  share->state.key_del;
+
     len= mi_uint2korr(share->state.header.base_info_length);
     if (len != MI_BASE_INFO_SIZE)
     {
       DBUG_PRINT("warning",("saved_base_info_length: %d  base_info_length: %d",
 			    len,MI_BASE_INFO_SIZE));
     }
-    disk_pos= my_n_base_info_read(disk_cache + base_pos, &share->base);
+    disk_pos= mi_n_base_info_read(disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -239,8 +244,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
 
     key_parts+=fulltext_keys*FT_SEGS;
-    if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
-	key_parts > MI_MAX_KEY * MI_MAX_KEY_SEG)
+    if (share->base.max_key_length > HA_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
+	key_parts > MI_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;
@@ -440,13 +445,20 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       share->rec[i].pack_type=0;
       share->rec[i].huff_tree=0;
       share->rec[i].offset=offset;
-      if (share->rec[i].type == (int) FIELD_BLOB)
+      if (share->rec[i].type == FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->rec[i].length-portable_sizeof_char_ptr;
+	  share->rec[i].length - portable_sizeof_char_ptr;
 	share->blobs[j].offset=offset;
 	j++;
       }
+#if MYSQL_VERSION_ID <= 60100
+      /* This is to detect old checksum option */
+      if (share->rec[i].null_bit)
+        share->has_null_fields= 1;
+      if (share->rec[i].type == FIELD_VARCHAR)
+        share->has_varchar_fields= 1;
+#endif
       offset+=share->rec[i].length;
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
@@ -526,6 +538,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	share->lock.update_status=mi_update_status;
         share->lock.restore_status= mi_restore_status;
 	share->lock.check_status=mi_check_status;
+        share->lock.fix_status= (void (*)(void *, void *)) mi_fix_status;
       }
     }
 #endif
@@ -576,6 +589,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   info.s=share;
   info.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
+  info.open_flag= open_flags;
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile; /* Uniq number in process */
   if (share->data_file_type == COMPRESSED_RECORD)
@@ -634,6 +648,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   mysql_mutex_unlock(&THR_LOCK_myisam);
 
   bzero(info.buff, share->base.max_key_block_length * 2);
+  my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
 
   if (myisam_log_file >= 0)
   {
@@ -663,6 +678,7 @@ err:
   case 3:
     if (! lock_error)
       (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
+    my_free(rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
     /* fall through */
   case 2:
     my_afree(disk_cache);
@@ -735,12 +751,14 @@ void mi_setup_functions(register MYISAM_SHARE *share)
   {
     share->read_record=_mi_read_pack_record;
     share->read_rnd=_mi_read_rnd_pack_record;
-    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
-      share->calc_checksum=0;				/* No checksum */
-    else if (share->options & HA_OPTION_PACK_RECORD)
+    if ((share->options &
+              (HA_OPTION_PACK_RECORD | HA_OPTION_NULL_FIELDS)))
       share->calc_checksum= mi_checksum;
     else
       share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
+    if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
+      share->calc_checksum=0;				/* No checksum */
   }
   else if (share->options & HA_OPTION_PACK_RECORD)
   {
@@ -750,6 +768,7 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->compare_record=_mi_cmp_dynamic_record;
     share->compare_unique=_mi_cmp_dynamic_unique;
     share->calc_checksum= mi_checksum;
+    share->calc_check_checksum= share->calc_checksum;
 
     /* add bits used to pack data to pack_reclength for faster allocation */
     share->base.pack_reclength+= share->base.pack_bits;
@@ -773,7 +792,11 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->update_record=_mi_update_static_record;
     share->write_record=_mi_write_static_record;
     share->compare_unique=_mi_cmp_static_unique;
-    share->calc_checksum= mi_static_checksum;
+    if (share->options & HA_OPTION_NULL_FIELDS)
+      share->calc_checksum= mi_checksum;
+    else
+      share->calc_checksum= mi_static_checksum;
+    share->calc_check_checksum= share->calc_checksum;
   }
   share->file_read= mi_nommap_pread;
   share->file_write= mi_nommap_pwrite;
@@ -943,6 +966,16 @@ uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state)
 
   ptr+= state->state_diff_length;
 
+  if (!state->rec_per_key_part)
+  {
+    if (!my_multi_malloc(MY_WME,
+			 &state->rec_per_key_part,sizeof(long)*key_parts,
+			 &state->key_root, keys*sizeof(my_off_t),
+			 &state->key_del,  key_blocks*sizeof(my_off_t),
+                         NullS))
+      return(0);
+  }
+
   for (i=0; i < keys; i++)
   {
     state->key_root[i]= mi_sizekorr(ptr);	ptr +=8;
@@ -1022,7 +1055,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
 }
 
 
-uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
+uchar *mi_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
 {
   base->keystart = mi_sizekorr(ptr);			ptr +=8;
   base->max_data_file_length = mi_sizekorr(ptr);	ptr +=8;

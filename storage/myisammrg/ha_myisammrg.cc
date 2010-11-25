@@ -141,9 +141,11 @@ static const char *ha_myisammrg_exts[] = {
 };
 extern int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                         MI_COLUMNDEF **recinfo_out, uint *records_out);
-extern int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
+extern int check_definition(MI_KEYDEF *t1_keyinfo,
+                            MI_COLUMNDEF *t1_recinfo,
                             uint t1_keys, uint t1_recs,
-                            MI_KEYDEF *t2_keyinfo, MI_COLUMNDEF *t2_recinfo,
+                            MI_KEYDEF *t2_keyinfo,
+                            MI_COLUMNDEF *t2_recinfo,
                             uint t2_keys, uint t2_recs, bool strict,
                             TABLE *table_arg);
 static void split_file_name(const char *file_name,
@@ -649,7 +651,6 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
 }
 
 CPP_UNNAMED_NS_END
-
 
 /**
    Returns a cloned instance of the current handler.
@@ -1261,7 +1262,7 @@ int ha_myisammrg::info(uint flag)
   {
     if (table->s->key_parts && mrg_info.rec_per_key)
     {
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
       /*
         valgrind may be unhappy about it, because optimizer may access values
         between file->keys and table->key_parts, that will be uninitialized.
@@ -1318,7 +1319,8 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   /* As this is just a mapping, we don't have to force the underlying
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
-      operation == HA_EXTRA_PREPARE_FOR_DROP)
+      operation == HA_EXTRA_PREPARE_FOR_DROP ||
+      operation == HA_EXTRA_PREPARE_FOR_RENAME)
     return 0;
   if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
     return 0;
@@ -1368,6 +1370,33 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 					 THR_LOCK_DATA **to,
 					 enum thr_lock_type lock_type)
 {
+  MYRG_TABLE *open_table;
+
+  /*
+    This method can be called while another thread is attaching the
+    children. If the processor reorders instructions or write to memory,
+    'children_attached' could be set before 'open_tables' has all the
+    pointers to the children. Use of a mutex here and in
+    myrg_attach_children() forces consistent data.
+  */
+  pthread_mutex_lock(&this->file->mutex);
+
+  /*
+    When MERGE table is open, but not yet attached, other threads
+    could flush it, which means call mysql_lock_abort_for_thread()
+    on this threads TABLE. 'children_attached' is FALSE in this
+    situaton. Since the table is not locked, return no lock data.
+  */
+  if (!this->file->children_attached)
+    goto end; /* purecov: tested */
+
+  for (open_table=file->open_tables ;
+       open_table != file->end_table ;
+       open_table++)
+    open_table->table->lock.priority|= THR_LOCK_MERGE_PRIV;
+
+ end:
+  pthread_mutex_unlock(&this->file->mutex);
   return to;
 }
 
@@ -1621,3 +1650,20 @@ mysql_declare_plugin(myisammrg)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(myisammrg)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisammrg_storage_engine,
+  "MRG_MYISAM",
+  "MySQL AB",
+  "Collection of identical MyISAM tables",
+  PLUGIN_LICENSE_GPL,
+  myisammrg_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

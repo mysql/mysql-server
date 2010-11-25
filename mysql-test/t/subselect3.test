@@ -1,5 +1,5 @@
 --disable_warnings
-drop table if exists t0, t1, t2, t3, t4, t5;
+drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
 #
@@ -59,9 +59,13 @@ select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
 show status like 'Handler_read_rnd_next';
 select ' ^ This must show 11' Z;
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 # This must show trigcond:
 explain extended select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
 
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
 
 # 
@@ -94,10 +98,12 @@ show status like '%Handler_read_rnd_next';
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 
+set optimizer_switch='subquery_cache=off';
 flush status;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
 show status like '%Handler_read%';
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1, t2;
 
@@ -529,6 +535,9 @@ SELECT a, MAX(b),
 
 DROP TABLE t1, t2;
 
+# The next three test cases must be executed with the IN=>EXISTS strategy
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 
 #
 # Bug #27870: crash of an equijoin query with WHERE condition containing 
@@ -588,6 +597,8 @@ EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 
 DROP TABLE t1, t2;
 
+set @@optimizer_switch=@save_optimizer_switch;
+
 #
 # Bug #34763: item_subselect.cc:1235:Item_in_subselect::row_value_transformer:
 #             Assertion failed, unexpected error message:
@@ -617,6 +628,20 @@ CREATE TABLE t2 SELECT * FROM t1;
 SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 
 DROP TABLE t1, t2;
+
+#
+# Bug 2198
+#
+
+create table t1 (a int, b decimal(13, 3)); 
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+drop table t1;
+let $datadir=`select @@datadir`;
+--remove_file $datadir/test/subselect.out.file.1
 
 #
 # Bug #37894: Assertion in init_read_record_seq in handler.h line 1444
@@ -672,6 +697,8 @@ SELECT ROW(1,2) = (SELECT    1,    2), ROW(1,2) IN (SELECT    1,    2);
 #
 # Bug #37362      Crash in do_field_eq
 #
+# Note that currently this test produces wrong output, see MBug#430669.
+#
 CREATE TABLE t1 (a INT, b INT, c INT);
 INSERT INTO t1 VALUES (1,1,1), (1,1,1);
 
@@ -689,6 +716,13 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+--echo #  
+--echo # BUG#36896: Server crash on SELECT FROM DUAL
+--echo # 
+create table t1 (a int);
+select 1 as res from dual where (1) in (select * from t1);
+drop table t1;
 
 #
 # BUG#36135 "void Diagnostics_area::set_eof_status(THD*): Assertion `!is_set()' failed."
@@ -762,6 +796,8 @@ SELECT i1, i2 FROM t1;
 SELECT i1, i2 FROM t2 ORDER BY i1;
 
 FLUSH STATUS;
+set @save_optimizer_switch2=@@optimizer_switch;
+set optimizer_switch='subquery_cache=off';
 
 --echo 
 SELECT i1, i2
@@ -790,10 +826,363 @@ WHERE (i1, i2)
 --echo # (read record from t1, but do not read from t2)
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
-
+set @@optimizer_switch=@save_optimizer_switch2;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests
+
+#
+# Test for the problem with using sj-materialization when subquery's select 
+# list element SCOL is covered by equality propagation and has preceding equal
+# column PCOL which belongs to a table within the the semi-join nest: SJM-Scan
+# process should unpack column value not to SCOL but rather to PCOL, as 
+# substitute_best_equal has made all conditions to refer to PCOL.
+#
+CREATE TABLE t1 (
+  a int(11) NOT NULL,
+  b int(11) NOT NULL,
+  c datetime default NULL,
+  PRIMARY KEY  (a),
+  KEY idx_bc (b,c)
+);
+
+INSERT INTO t1 VALUES 
+(406989,67,'2006-02-23 17:08:46'), (150078,67,'2005-10-26 11:17:45'),
+(406993,67,'2006-02-27 11:20:57'), (245655,67,'2005-12-08 15:59:08'),
+(406994,67,'2006-02-27 11:26:46'), (256,67,NULL),
+(398341,67,'2006-02-20 04:48:44'), (254,67,NULL),(1120,67,NULL),
+(406988,67,'2006-02-23 17:07:22'), (255,67,NULL),
+(398340,67,'2006-02-20 04:38:53'),(406631,67,'2006-02-23 10:49:42'),
+(245653,67,'2005-12-08 15:59:07'),(406992,67,'2006-02-24 16:47:18'),
+(245654,67,'2005-12-08 15:59:08'),(406995,67,'2006-02-28 11:55:00'),
+(127261,67,'2005-10-13 12:17:58'),(406991,67,'2006-02-24 16:42:32'),
+(245652,67,'2005-12-08 15:58:27'),(398545,67,'2006-02-20 04:53:13'),
+(154504,67,'2005-10-28 11:53:01'),(9199,67,NULL),(1,67,'2006-02-23 15:01:35'),
+(223456,67,NULL),(4101,67,NULL),(1133,67,NULL),
+(406990,67,'2006-02-23 18:01:45'),(148815,67,'2005-10-25 15:34:17'),
+(148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
+(154503,67,'2005-10-28 11:52:38');
+
+create table t11 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
+create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
+create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
+create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+
+update t22 set c = '2005-12-08 15:58:27' where a = 255;
+explain select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+
+drop table t1, t11, t12, t21, t22;
+
+#
+# Test sj-materialization re-execution. The test isn't meaningful (materialized
+# table stays the same across all executions) because it's hard to create a
+# dataset that would verify correct re-execution without hitting BUG#31480
+# 
+create table t1(a int);
+insert into t1 values (0),(1);
+
+set @@optimizer_switch='firstmatch=off';
+explain 
+select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
+select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
+set @@optimizer_switch=default;
+
+drop table t1;
+
+#
+# Test confluent duplicate weedout
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select * from t0;
+insert into t1 select a+10 from t0;
+set @@optimizer_switch='firstmatch=off,materialization=off';
+insert into t0 values(2);
+explain select * from t1 where 2 in (select a from t0);
+select * from t1 where 2 in (select a from t0);
+set @@optimizer_switch='default,materialization=off';
+explain select * from t1 where 2 in (select a from t0);
+select * from t1 where 2 in (select a from t0);
+set @@optimizer_switch=default;
+
+
+# 
+# FirstMatch referring to a derived table
+#
+explain select * from (select a from t0) X where a in (select a from t1);
+drop table t0, t1;
+
+#
+# LooseScan: Check if we can pick it together with range access
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (kp1 int, kp2 int, c int, filler char(100), key(kp1, kp2));
+insert into t1 select A.a+10*(B.a+10*C.a), 0, 0, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 select * from t1 where kp1 < 20;
+
+create table t3 (a int);
+insert into t3 select A.a + 10*B.a from t0 A, t0 B;
+
+explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+
+create table t4 (pk int primary key);
+insert into t4 select a from t3;
+
+explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
+and t4.pk=t1.c);
+
+drop table t1, t3, t4;
+
+#
+# Test if we handle duplicate elimination temptable overflowing to disk
+#
+create table t1 (a int) as select * from t0 where a < 5;
+
+set @save_max_heap_table_size=@@max_heap_table_size;
+set @@optimizer_switch='firstmatch=off,materialization=off';
+set @@max_heap_table_size= 16384;
+
+explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+flush status;
+select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+show status like 'Created_tmp_disk_tables';
+set @save_max_heap_table_size=@@max_heap_table_size;
+set @@optimizer_switch=default;
+drop table t0, t1;
+
+#
+# Materialize + Scan + ref access to the subsequent table based on scanned
+# value
+# 
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a int);
+insert into t2 values (1),(2);
+create table t3 ( a int , filler char(100), key(a)); 
+insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
+explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10); 
+select * from t3 where a in (select a from t2); 
+
+drop table t0, t2, t3;
+
+#
+# DATETIME type checks
+#
+set @@optimizer_switch='firstmatch=off,materialization=off';
+create table t1 (a date);
+insert into t1 values ('2008-01-01'),('2008-01-01'),('2008-02-01'),('2008-02-01');
+create table t2 (a int);
+insert into t2 values (1),(2);
+create table t3 (a char(10));
+insert into t3 select * from t1;
+insert into t3 values (1),(2);
+explain select * from t2 where a in (select a from t1);
+explain select * from t2 where a in (select a from t2);
+explain select * from t2 where a in (select a from t3);
+explain select * from t1 where a in (select a from t3);
+drop table t1, t2, t3;
+create table t1 (a decimal);
+insert into t1 values (1),(2);
+explain select * from t1 where a in (select a from t1);
+drop table t1;
+set @@optimizer_switch=default;
+
+#
+# SJ-Materialization-scan for non-first table
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 as select * from t1;
+create table t3 (a int, b int, filler char(100), key(a));
+insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
+explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
+
+#
+# Verify that straight_join modifier in parent or child prevents flattening
+#
+explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
+explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
+explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
+explain select straight_join * from t2 X, t2 Y 
+where X.a in (select straight_join A.a from t1 A, t1 B);
+
+#
+# SJ-Materialization scan + first table being system const table
+#
+create table t0 (a int, b int);
+insert into t0 values(1,1);
+explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
+create table t4 as select a as x, a as y from t1;
+explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
+drop table t0,t1,t2,t3,t4;
+
+#
+# LooseScan with ref access
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, filler char(100), key(a,b));
+insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
+create table t2 as select * from t1;
+
+explain select * from t2 where a in (select b from t1 where a=3);
+explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
+
+drop table t1,t2;
+
+#
+# Multi-column sj-materialization with lookups
+#
+create table t1 (a int, b int);
+insert into t1 select a,a from t0;
+create table t2 (a int, b int); 
+insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
+
+set @@optimizer_switch='firstmatch=off';
+explain select * from t1 where (a,b) in (select a,b from t2);
+
+# A smallish test if find_best() still works for semi-join optimization:
+set @save_optimizer_search_depth=@@optimizer_search_depth;
+set @@optimizer_search_depth=63;
+explain select * from t1 where (a,b) in (select a,b from t2);
+set @@optimizer_search_depth=@save_optimizer_search_depth;
+set @@optimizer_switch=default;
+
+drop table t0, t1, t2;
+
+
+#
+# Primitive SJ-Materialization tests for DECIMAL and DATE
+#
+create table t0 (a decimal(4,2));
+insert into t0 values (10.24), (22.11);
+create table t1 as select * from t0;
+insert into t1 select * from t0;
+explain select * from t0 where a in (select a from t1);
+select * from t0 where a in (select a from t1);
+drop table t0, t1;
+
+create table t0(a date);
+insert into t0 values ('2008-01-01'),('2008-02-02');
+create table t1 as select * from t0;
+insert into t1 select * from t0;
+explain select * from t0 where a in (select a from t1);
+select * from t0 where a in (select a from t1);
+drop table t0, t1;
+
+#
+# Fix a trivial crash with SJ-Materialization lookup, multiple tables in the
+# subquery, and a condition on some of inner tables but not others
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select a as a, a as b, a as c from t0 where a < 3;
+create table t2 as select a as a, a as b from t0 where a < 3;
+insert into t2 select * from t2;
+
+explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
+
+drop table t0,t1,t2;
+
+--echo
+--echo BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
+--echo
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,9),(2,3),(3,8),(4,6),(5,9),(6,5),(7,5),(8,9),(9,1),(10,10);
+SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
+ SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
+);
+DROP TABLE t1;
+
+--echo 
+--echo BUG#40118 Crash when running Batched Key Access and requiring one match for each key
+--echo
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, key(a));
+insert into t1 select * from t0;
+alter table t1 add b int not null, add filler char(200);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=6;
+select * from t0 where t0.a in (select t1.a from t1 where t1.b=0); 
+set join_cache_level=@save_join_cache_level;
+drop table t0, t1;
+
+--echo # 
+--echo # BUG#32665 Query with dependent subquery is too slow
+--echo #
+create table t1 (
+  idIndividual int primary key
+);
+insert into t1 values (1),(2);
+
+create table t2 (
+  idContact int primary key,
+  contactType int,
+  idObj int
+);
+insert into t2 values (1,1,1),(2,2,2),(3,3,3);
+
+create table t3 (
+  idAddress int primary key,
+  idContact int,
+  postalStripped varchar(100)
+);
+
+insert into t3 values (1,1, 'foo'), (2,2,'bar');
+
+--echo The following must be converted to a semi-join:
+explain extended SELECT a.idIndividual FROM t1 a 
+WHERE a.idIndividual IN 
+	(	SELECT c.idObj FROM t3 cona 
+		INNER JOIN t2 c ON c.idContact=cona.idContact 
+		WHERE cona.postalStripped='T2H3B2'
+	);
+drop table t1,t2,t3;
+
+--echo #
+--echo # BUG#47367 Crash in Name_resolution_context::process_error
+--echo #
+
+SET SESSION optimizer_switch = 'default,semijoin=off';
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 LIKE t1;
+delimiter |;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+delimiter ;|
+CALL p1;
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+DROP PROCEDURE p1;
+--echo # Restore the original column list of table t2:
+ALTER TABLE t2 CHANGE COLUMN my_column f1 INT;
+
+SET SESSION optimizer_switch = 'semijoin=on';
+delimiter |;
+--echo # Recreate procedure so that we eliminate any caching effects
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+delimiter ;|
+CALL p1;
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+--error ER_BAD_FIELD_ERROR
+CALL p1;
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+--echo End of 5.3 tests
 
 --echo #
 --echo # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 

@@ -97,12 +97,12 @@ class File_parser: public Sql_alloc
 {
   char *buff, *start, *end;
   LEX_STRING file_type;
-  my_bool content_ok;
+  bool content_ok;
 public:
   File_parser() :buff(0), start(0), end(0), content_ok(0)
     { file_type.str= 0; file_type.length= 0; }
 
-  my_bool ok() { return content_ok; }
+  bool ok() { return content_ok; }
   LEX_STRING *type() { return &file_type; }
   my_bool parse(uchar* base, MEM_ROOT *mem_root,
 		struct File_option *parameters, uint required,

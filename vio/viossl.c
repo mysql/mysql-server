@@ -44,8 +44,13 @@ report_errors(SSL* ssl)
   }
 
   if (ssl)
-    DBUG_PRINT("error", ("error: %s",
-                         ERR_error_string(SSL_get_error(ssl, l), buf)));
+  {
+#ifndef DBUG_OFF
+    int error= SSL_get_error(ssl, l);
+    DBUG_PRINT("error", ("error: %s (%d)",
+                         ERR_error_string(error, buf), error));
+#endif
+  }
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -144,15 +149,16 @@ void vio_ssl_delete(Vio *vio)
 
 
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
-                  int (*connect_accept_func)(SSL*))
+                  int (*connect_accept_func)(SSL*), char *error_string)
 {
   SSL *ssl;
   my_bool unused;
   my_bool was_blocking;
-
   DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
                        (long) ptr, vio->sd, (long) ptr->ssl_context));
+
+  error_string[0]= 0;
 
   /* Set socket to blocking if not already set */
   vio_blocking(vio, 1, &was_blocking);
@@ -161,6 +167,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   {
     DBUG_PRINT("error", ("SSL_new failure"));
     report_errors(ssl);
+    strmov(error_string, "SSL_new failed");
     vio_blocking(vio, was_blocking, &unused);
     DBUG_RETURN(1);
   }
@@ -173,6 +180,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   {
     DBUG_PRINT("error", ("SSL_connect/accept failure"));
     report_errors(ssl);
+    ERR_error_string(SSL_get_error(ssl, 0), error_string);
     SSL_free(ssl);
     vio_blocking(vio, was_blocking, &unused);
     DBUG_RETURN(1);
@@ -220,17 +228,19 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 }
 
 
-int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
+int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+              char *error_string)
 {
   DBUG_ENTER("sslaccept");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept));
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_accept, error_string));
 }
 
 
-int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
+int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+               char *error_string)
 {
   DBUG_ENTER("sslconnect");
-  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect));
+  DBUG_RETURN(ssl_do(ptr, vio, timeout, SSL_connect, error_string));
 }
 
 

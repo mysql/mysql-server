@@ -1,0 +1,148 @@
+create table t1 (s1 binary(3));
+insert into t1 values (0x61), (0x6120), (0x612020);
+select hex(s1) from t1;
+hex(s1)
+610000
+612000
+612020
+drop table t1;
+create table t1 (s1 binary(2), s2 varbinary(2));
+insert into t1 values (0x4100,0x4100);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+delete from t1;
+insert into t1 values (0x4120,0x4120);
+select length(concat('*',s1,'*',s2,'*')) from t1;
+length(concat('*',s1,'*',s2,'*'))
+7
+drop table t1;
+create table t1 (s1 varbinary(20), s2 varbinary(20));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `s1` varbinary(20) DEFAULT NULL,
+  `s2` varbinary(20) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+insert into t1 values (0x41,0x4100),(0x41,0x4120),(0x4100,0x4120);
+select hex(s1), hex(s2) from t1;
+hex(s1)	hex(s2)
+41	4100
+41	4120
+4100	4120
+select count(*) from t1 where s1 < s2;
+count(*)
+3
+drop table t1;
+create table t1 (s1 varbinary(2), s2 varchar(1));
+insert into t1 values (0x41,'a'), (0x4100,'b'), (0x41,'c'), (0x4100,'d');
+select hex(s1),s2 from t1 order by s1,s2;
+hex(s1)	s2
+41	a
+41	c
+4100	b
+4100	d
+drop table t1;
+create table t1 (s1 binary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+ERROR 23000: Duplicate entry '' for key 'PRIMARY'
+select hex(s1) from t1 order by s1;
+hex(s1)
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+2
+drop table t1;
+create table t1 (s1 varbinary(2) primary key);
+insert into t1 values (0x01);
+insert into t1 values (0x0120);
+insert into t1 values (0x0100);
+select hex(s1) from t1 order by s1;
+hex(s1)
+01
+0100
+0120
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+alter table t1 drop primary key;
+select hex(s1) from t1 where s1=0x01;
+hex(s1)
+01
+select hex(s1) from t1 where s1=0x0120;
+hex(s1)
+0120
+select hex(s1) from t1 where s1=0x0100;
+hex(s1)
+0100
+select count(distinct s1) from t1;
+count(distinct s1)
+3
+drop table t1;
+select hex(cast(0x10 as binary(2)));
+hex(cast(0x10 as binary(2)))
+1000
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'vb' at row 1
+drop table t1;
+create table t1 (c char(2), vc varchar(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, 0x412020);
+Warnings:
+Note	1265	Data truncated for column 'vc' at row 1
+drop table t1;
+set @old_sql_mode= @@sql_mode, sql_mode= 'traditional';
+create table t1 (b binary(2), vb varbinary(2));
+insert into t1 values(0x4120, 0x4120);
+insert into t1 values(0x412020, NULL);
+ERROR 22001: Data too long for column 'b' at row 1
+insert into t1 values(NULL, 0x412020);
+ERROR 22001: Data too long for column 'vb' at row 1
+drop table t1;
+set @@sql_mode= @old_sql_mode;
+create table t1(f1 int, f2 binary(2) not null, f3 char(2) not null);
+insert into t1 set f1=1;
+Warnings:
+Warning	1364	Field 'f2' doesn't have a default value
+Warning	1364	Field 'f3' doesn't have a default value
+select hex(f2), hex(f3) from t1;
+hex(f2)	hex(f3)
+0000	
+drop table t1;
+End of 5.0 tests

@@ -1,0 +1,58 @@
+# Aria tests which require partitioning enabled
+
+--source include/have_partition.inc
+-- source include/have_maria.inc
+
+let $default_engine=`select @@global.storage_engine`;
+let $default_checksum=`select @@global.aria_page_checksum`;
+set global storage_engine=aria;
+set session storage_engine=aria;
+set global aria_page_checksum=0;
+
+# Initialise
+--disable_warnings
+drop table if exists t1,t2;
+drop view if exists v1;
+--enable_warnings
+SET SQL_WARNINGS=1;
+
+#
+# Bug #39227 Aria: crash with ALTER TABLE PARTITION
+#
+
+create table t1 (s1 int);
+insert into t1 values (1);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+alter table t1 partition by list (s1) (partition p1 values in (2));
+drop table t1;
+
+#
+# Test outer join const propagation
+#
+create table t2(a blob) engine=aria;
+create table t1(a int primary key) engine=aria;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+drop table t1,t2;
+
+create table t2(a blob);
+create table t1(a int primary key) PARTITION BY HASH (a) PARTITIONS 2;
+insert into t2 values ('foo'),('bar');
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (1);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+insert into t1 values (2);
+select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
+drop table t1,t2;
+
+# Set defaults back
+--disable_result_log
+--disable_query_log
+eval set global storage_engine=$default_engine, aria_page_checksum=$default_checksum;
+set global aria_log_file_size=default;
+--enable_result_log
+--enable_query_log

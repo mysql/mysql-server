@@ -528,7 +528,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   DBUG_ENTER("rtree_insert_req");
 
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
-                                     MI_MAX_KEY_BUFF)))
+                                     HA_MAX_KEY_BUFF)))
   {
     my_errno = HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(-1); /* purecov: inspected */

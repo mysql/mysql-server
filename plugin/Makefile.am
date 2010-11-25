@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved. 
+# Copyright (C) 2005-2006 MySQL AB
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,3 @@ EXTRA_DIST =	fulltext/configure.in
 SUBDIRS =	@mysql_pg_dirs@
 DIST_SUBDIRS =	@mysql_pg_distdirs@
 
-# As of 5.5.3-m3, we want to include the plugin files of a debug build in the package
-install-exec-hook:
-	$(mkinstalldirs) $(DESTDIR)$(pkglibdir) $(DESTDIR)$(pkglibdir)/plugin
-	test ! -d debug || $(TAR) cf - debug | ( cd $(DESTDIR)$(pkglibdir)/plugin && $(TAR) xvf - )

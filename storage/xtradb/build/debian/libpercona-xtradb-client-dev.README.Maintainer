@@ -1,0 +1,4 @@
+The examples directory includes files that might be needed by some
+developers:
+- header files not installed by default
+- the example file udf_example.c

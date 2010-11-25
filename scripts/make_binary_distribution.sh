@@ -169,9 +169,9 @@ case $VERSION_NAME in
   *-ndb-* )  VERSION_NAME=`echo $VERSION_NAME | sed -e 's/[.0-9]*-ndb-//'` ;;
 esac
 if [ x"$SHORT_PRODUCT_TAG" != x"" ] ; then
-  NEW_NAME=mysql-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
+  NEW_NAME=mariadb-$SHORT_PRODUCT_TAG-$VERSION_NAME-$PLATFORM$SUFFIX
 else
-  NEW_NAME=mysql@MYSQL_SERVER_SUFFIX@-$VERSION_NAME-$PLATFORM$SUFFIX
+  NEW_NAME=mariadb@MYSQL_SERVER_SUFFIX@-$VERSION_NAME-$PLATFORM$SUFFIX
 fi
 
 # ----------------------------------------------------------------------
@@ -227,6 +227,18 @@ fi
 # ----------------------------------------------------------------------
 set -e
 
+#
+# Check that the client is compiled with libmysqlclient.a
+#
+if test -f ./client/.libs/mysql
+then
+  echo ""
+  echo "The MySQL clients are compiled dynamicly, which is not allowed for"
+  echo "a MySQL binary tar file.  Please configure with"
+  echo "--with-client-ldflags=-all-static and try again"
+  exit 1;
+fi
+
 # ----------------------------------------------------------------------
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
@@ -235,8 +247,8 @@ set -e
 # ----------------------------------------------------------------------
 
 cd scripts
-rm -f mysql_install_db
-@MAKE@ mysql_install_db \
+rm -f mysql_install_db mysqld_safe mysql_fix_privilege_tables
+@MAKE@ mysql_install_db mysqld_safe mysql_fix_privilege_tables \
   prefix=. \
   bindir=./bin \
   sbindir=./bin \
@@ -253,7 +265,7 @@ rm -f mysql.server
   sbindir=./bin \
   scriptdir=./bin \
   libexecdir=./bin \
-  pkgdatadir=@pkgdatadir@
+  pkgdatadir=./share 
 cd ..
 
 # ----------------------------------------------------------------------
@@ -295,11 +307,6 @@ if [ -n "$MALLOC_LIB" ]; then
   cp "$MALLOC_LIB" "$DEST/lib/"
 fi
 
-# FIXME let this script be in "bin/", where it is in the RPMs?
-# http://dev.mysql.com/doc/refman/5.1/en/mysql-install-db-problems.html
-mkdir $DEST/scripts
-mv $DEST/bin/mysql_install_db $DEST/scripts/
-
 # Note, no legacy "safe_mysqld" link to "mysqld_safe" in 5.1
 
 # Copy readme and license files
@@ -322,6 +329,40 @@ cp support-files/magic      $DEST/support-files/
 mkdir       $DEST/data $DEST/data/mysql $DEST/data/test
 chmod o-rwx $DEST/data $DEST/data/mysql $DEST/data/test
 
+# Remove not needed files
+rm $DEST/share/mysql/errmsg.txt
+
+# Remove NDB files
+rm -f $DEST/share/mysql/ndb-config-2-node.ini \
+    $DEST/share/mysql/config*
+
+#
+# Move things to make them easier to find in tar installation
+#
+
+# The following test is needed if the original configure was done with
+# something like --libexecdir=/usr/local/mysql/bin
+if test -f $DEST/libexec/mysqld
+then
+  mv $DEST/libexec/* $DEST/bin
+  rmdir $DEST/libexec
+fi
+mv $DEST/share/man $DEST
+mv $DEST/share/mysql/binary-configure $DEST/configure
+mv $DEST/share/mysql/*.sql $DEST/share
+mv $DEST/share/mysql/*.cnf $DEST/share/mysql/*.server $DEST/share/mysql/mysql-log-rotate $DEST/support-files
+
+#
+# Move some scripts that are only run once to 'scripts' directory
+# but add symbolic links instead to old place for compatibility
+#
+mkdir $DEST/scripts
+for i in mysql_secure_installation mysql_fix_extensions mysql_fix_privilege_tables mysql_install_db
+do
+  mv $DEST/bin/$i $DEST/scripts
+  ln -s "../scripts/$i" $DEST/bin/$i
+done
+
 # ----------------------------------------------------------------------
 # Create the result tar file
 # ----------------------------------------------------------------------
@@ -340,3 +381,4 @@ echo "$NEW_NAME.tar.gz created"
 echo "Removing temporary directory"
 rm -rf $BASE
 exit 0
+

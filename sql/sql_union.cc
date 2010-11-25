@@ -60,15 +60,18 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1);
+  fill_record(thd, table->field, values, TRUE, FALSE);
   if (thd->is_error())
     return 1;
 
   if ((error= table->file->ha_write_row(table->record[0])))
   {
-    /* create_myisam_from_heap will generate error if needed */
+    /* create_internal_tmp_table_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
+        create_internal_tmp_table_from_heap(thd, table,
+                                            tmp_table_param.start_recinfo, 
+                                            &tmp_table_param.recinfo, error,
+                                            1))
       return 1;
   }
   return 0;
@@ -103,6 +106,8 @@ bool select_union::flush()
       is_union_distinct  if set, the temporary table will eliminate
                          duplicates on insert
       options            create options
+      table_alias        name of the temporary table
+      bit_fields_as_long convert bit fields to ulonglong
 
   DESCRIPTION
     Create a temporary table that is used to store the result of a UNION,
@@ -116,11 +121,13 @@ bool select_union::flush()
 bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
-                                  const char *alias)
+                                  const char *alias,
+                                   bool bit_fields_as_long)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
+  tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
@@ -129,6 +136,22 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   return FALSE;
+}
+
+
+/**
+  Reset and empty the temporary table that stores the materialized query result.
+
+  @note The cleanup performed here is exactly the same as for the two temp
+  tables of JOIN - exec_tmp_table_[1 | 2].
+*/
+
+void select_union::cleanup()
+{
+  table->file->extra(HA_EXTRA_RESET_STATE);
+  table->file->ha_delete_all_rows();
+  free_io_cache(table);
+  filesort_free_buffers(table,0);
 }
 
 
@@ -378,7 +401,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, ""))
+                                          create_options, "", FALSE))
       goto err;
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -742,8 +765,8 @@ void st_select_lex_unit::reinit_exec_mechanism()
     TRUE  - error
 */
 
-bool st_select_lex_unit::change_result(select_subselect *new_result,
-                                       select_subselect *old_result)
+bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
+                                       select_result_interceptor *old_result)
 {
   bool res= FALSE;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())

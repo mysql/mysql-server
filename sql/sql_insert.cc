@@ -86,22 +86,13 @@ static void unlink_blobs(register TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
-/* Define to force use of my_malloc() if the allocated memory block is big */
-
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, min_length) my_alloca(size)
-#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
-#else
-#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
-#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr)
-#endif
-
 /*
   Check that insert/update fields are from the same single table of a view.
 
   SYNOPSIS
     check_view_single_update()
     fields            The insert/update fields to be checked.
+    values            Values to use for update
     view              The view for insert.
     map     [in/out]  The insert table map.
 
@@ -143,7 +134,6 @@ bool check_view_single_update(List<Item> &fields, List<Item> *values,
   /* Convert to real table bits */
   tables&= ~PSEUDO_TABLE_BITS;
 
-
   /* Check found map against provided map */
   if (*map)
   {
@@ -177,6 +167,10 @@ error:
     fields                      The insert fields.
     values                      The insert values.
     check_unique                If duplicate values should be rejected.
+    fields_and_values_from_different_maps
+				Set to 1 if fields and values are using
+                                different table maps, like on select ... insert
+    map                         Store here table map for used fields
 
   NOTE
     Clears TIMESTAMP_AUTO_SET_ON_INSERT from table->timestamp_field_type
@@ -291,6 +285,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       }
     }
   }
+  /* Mark virtual columns used in the insert statement */
+  if (table->vfield)
+    table->mark_virtual_columns_for_write(TRUE);
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
@@ -332,7 +329,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_values, table_map *map)
 {
   TABLE *table= insert_table_list->table;
-  my_bool timestamp_mark= 0;
+  my_bool timestamp_mark;
+  LINT_INIT(timestamp_mark);
 
   if (table->timestamp_field)
   {
@@ -417,10 +415,9 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
   downgrade the lock in handler::store_lock() method.
 */
 
-static
-void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
-                       enum_duplicates duplic,
-                       bool is_multi_insert)
+void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
+                                  enum_duplicates duplic,
+                                  bool is_multi_insert)
 {
   if (duplic == DUP_UPDATE ||
       (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
@@ -666,6 +663,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
+  bool using_bulk_insert= 0;
   uint value_count;
   ulong counter = 1;
   ulonglong id;
@@ -693,8 +691,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     Upgrade lock type if the requested lock is incompatible with
     the current connection mode or table operation.
   */
-  upgrade_lock_type(thd, &table_list->lock_type, duplic,
-                    values_list.elements > 1);
+  upgrade_lock_type_for_insert(thd, &table_list->lock_type, duplic,
+                               values_list.elements > 1);
 
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
@@ -840,8 +838,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       Engines can't handle a bulk insert in parallel with a read form the
       same table in the same connection.
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+       values_list.elements > 1)
+    {
+      using_bulk_insert= 1;
       table->file->ha_start_bulk_insert(values_list.elements);
+    }
   }
 
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
@@ -964,8 +966,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       auto_inc values from the delayed_insert thread as they share TABLE.
     */
     table->file->ha_release_auto_increment();
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-        table->file->ha_end_bulk_insert() && !error)
+    if (using_bulk_insert && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
       error=1;
@@ -990,7 +991,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
     if ((changed && error <= 0) ||
         thd->transaction.stmt.modified_non_trans_table ||
-        was_insert_delayed)
+	was_insert_delayed)
     {
       if (mysql_bin_log.is_open())
       {
@@ -1333,7 +1334,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   bool res= 0;
   table_map map= 0;
   DBUG_ENTER("mysql_prepare_insert");
-  DBUG_PRINT("enter", ("table_list 0x%lx, table 0x%lx, view %d",
+  DBUG_PRINT("enter", ("table_list: 0x%lx  table: 0x%lx  view: %d",
 		       (ulong)table_list, (ulong)table,
 		       (int)insert_into_view));
   /* INSERT should have a SELECT or VALUES clause */
@@ -1368,7 +1369,6 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
   if (mysql_prepare_insert_check_table(thd, table_list, fields, select_insert))
     DBUG_RETURN(TRUE);
-
 
   /* Prepare the fields in the statement. */
   if (values)
@@ -1421,6 +1421,18 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
   if (!table)
     table= table_list->table;
+
+  if (!fields.elements && table->vfield)
+  {
+    for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+    {
+      if ((*vfield_ptr)->stored_in_db)
+      {
+        thd->lex->unit.insert_table_with_stored_vcol= table;
+        break;
+      }
+    }
+  }
 
   if (!select_insert)
   {
@@ -1563,7 +1575,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-	if (table->file->rnd_pos(table->record[1],table->file->dup_ref))
+	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
 	  goto err;
       }
       else
@@ -1584,9 +1596,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  }
 	}
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
-	if ((error=(table->file->index_read_idx_map(table->record[1],key_nr,
-                                                    (uchar*) key, HA_WHOLE_KEY,
-                                                    HA_READ_KEY_EXACT))))
+	if ((error= (table->file->ha_index_read_idx_map(table->record[1],
+                                                        key_nr, (uchar*) key,
+                                                        HA_WHOLE_KEY,
+                                                        HA_READ_KEY_EXACT))))
 	  goto err;
       }
       if (info->handle_duplicates == DUP_UPDATE)
@@ -1622,7 +1635,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
+        if (((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
              !bitmap_is_subset(table->write_set, table->read_set)) ||
             compare_record(table))
         {
@@ -1898,8 +1911,10 @@ public:
      status(0), handler_thread_initialized(FALSE), group_count(0)
   {
     DBUG_ENTER("Delayed_insert constructor");
-    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
+    strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
+            USERNAME_LENGTH);
     thd.current_tablenr=0;
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
@@ -2270,7 +2285,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (share->fields+1)*sizeof(Field**)+
 				   share->reclength +
-                                   share->column_bitmap_size*2);
+                                   share->column_bitmap_size*3);
   if (!copy)
     goto error;
 
@@ -2280,7 +2295,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
   bitmap= (uchar*) (field + share->fields + 1);
-  copy->record[0]= (bitmap + share->column_bitmap_size * 2);
+  copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
   /*
     Make a copy of all fields.
@@ -2322,10 +2337,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   copy->def_read_set.bitmap= (my_bitmap_map*) bitmap;
   copy->def_write_set.bitmap= ((my_bitmap_map*)
                                (bitmap + share->column_bitmap_size));
+  copy->def_vcol_set.bitmap= ((my_bitmap_map*)
+                               (bitmap + 2*share->column_bitmap_size));
   copy->tmp_set.bitmap= 0;                      // To catch errors
-  bzero((char*) bitmap, share->column_bitmap_size*2);
+  bzero((char*) bitmap, share->column_bitmap_size*3);
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
+  copy->vcol_set= &copy->def_vcol_set;
 
   DBUG_RETURN(copy);
 
@@ -2473,6 +2491,7 @@ void kill_delayed_threads(void)
   while ((di= it++))
   {
     di->thd.killed= THD::KILL_CONNECTION;
+    pthread_mutex_lock(&di->thd.LOCK_thd_data);
     if (di->thd.mysys_var)
     {
       mysql_mutex_lock(&di->thd.mysys_var->mutex);
@@ -2490,6 +2509,7 @@ void kill_delayed_threads(void)
       }
       mysql_mutex_unlock(&di->thd.mysys_var->mutex);
     }
+    pthread_mutex_unlock(&di->thd.LOCK_thd_data);
   }
   mysql_mutex_unlock(&LOCK_delayed_insert); // For unlink from list
 }
@@ -2814,7 +2834,7 @@ bool Delayed_insert::handle_inserts(void)
       or if another thread is removing the current table definition
       from the table cache.
     */
-    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
+    my_error(ER_DELAYED_CANT_CHANGE_LOCK, MYF(ME_FATALERROR | ME_NOREFRESH),
              table->s->table_name.str);
     goto err;
   }
@@ -2995,10 +3015,11 @@ bool Delayed_insert::handle_inserts(void)
 	if (thr_reschedule_write_lock(*thd.lock->locks,
                                 thd.variables.lock_wait_timeout))
 	{
-    /* This is not known to happen. */
-    my_error(ER_DELAYED_CANT_CHANGE_LOCK,MYF(ME_FATALERROR),
-             table->s->table_name.str);
-    goto err;
+          /* This is not known to happen. */
+          my_error(ER_DELAYED_CANT_CHANGE_LOCK,
+                   MYF(ME_FATALERROR | ME_NOREFRESH),
+                   table->s->table_name.str);
+          goto err;
 	}
 	if (!using_bin_log)
 	  table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -3452,8 +3473,7 @@ bool select_insert::send_eof()
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  changed= (info.copied || info.deleted || info.updated);
-  if (changed)
+  if ((changed= (info.copied || info.deleted || info.updated)))
   {
     /*
       We must invalidate the table in the query cache before binlog writing
@@ -3648,17 +3668,20 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_low_byte_first= 
         test(create_info->db_type == myisam_hton ||
              create_info->db_type == heap_hton);
-  tmp_table.null_row=tmp_table.maybe_null=0;
+  tmp_table.null_row= 0;
+  tmp_table.maybe_null= 0;
 
   while ((item=it++))
   {
     Create_field *cr_field;
     Field *field, *def_field;
     if (item->type() == Item::FUNC_ITEM)
+    {
       if (item->result_type() != STRING_RESULT)
         field= item->tmp_table_field(&tmp_table);
       else
         field= item->tmp_table_field_from_field_type(&tmp_table, 0);
+    }
     else
       field= create_tmp_field(thd, &tmp_table, item, item->type(),
                               (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0,
@@ -3747,6 +3770,12 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1, 0)) ||
         hooks->postlock(&table, 1))
   {
+    /* purecov: begin tested */
+    /*
+      This can happen in innodb when you get a deadlock when using same table
+      in insert and select
+    */
+    my_error(ER_CANT_LOCK, MYF(0), my_errno);
     if (*lock)
     {
       mysql_unlock_tables(thd, *lock);
@@ -3754,6 +3783,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     }
     drop_open_table(thd, table, create_table->db, create_table->table_name);
     DBUG_RETURN(0);
+    /* purecov: end */
   }
   DBUG_RETURN(table);
 }
@@ -3869,7 +3899,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     DBUG_RETURN(-1);
   }
 
- /* First field to copy */
+  /* First field to copy */
   field= table->field+table->s->fields - values.elements;
 
   /* Mark all fields that are given values */

@@ -9,6 +9,14 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+# Some tests below connect/disconnect rapidly in a loop. This causes a race
+# where mysqld may not have time to register the previous disconnects before
+# new connects, and eventually we run out of connections. So we need to
+# increase the maximum.
+let $saved_max_connections = `SELECT @@global.max_connections`;
+SET GLOBAL max_connections = 1000;
+
+
 # ============================================================================
 #
 # Test of mysqltest itself
@@ -98,7 +106,7 @@ select otto from (select 1 as otto) as t1;
 # expecting a SQL-state for a command that can't give one should fail
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "error S00000; remove_file $MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp;" | $MYSQL_TEST  2>&1
+--exec echo "disable_warnings ; error S00000;  remove_file $MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp;" | $MYSQL_TEST  2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -1623,12 +1631,14 @@ select "this will be executed";
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  > /dev/null 2>&1
 
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.result;
+--disable_warnings
 --error 0,1
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.reject;
 --error 0,1
 remove_file $MYSQLTEST_VARDIR/tmp/zero_length_file.log;
 --error 0,1
 remove_file $MYSQL_TEST_DIR/r/zero_length_file.reject;
+--enable_warnings
 
 #
 # Test that a test file that does not generate any output fails.
@@ -1822,11 +1832,13 @@ drop table t1;
 # test for remove_file
 # ----------------------------------------------------------------------------
 
+--disable_warnings
 --error 1
 --exec echo "remove_file ;" | $MYSQL_TEST 2>&1
 
 --error 1
 remove_file non_existing_file;
+--enable_warnings
 
 # ----------------------------------------------------------------------------
 # test for remove_files_wildcard
@@ -1866,7 +1878,7 @@ Content for test_file1 contains EOF
 END_DELIMITER
 file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
-# write to already exisiting file
+# write to already existing file
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
 --exec echo "write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;" | $MYSQL_TEST 2>&1
@@ -1982,8 +1994,10 @@ EOF
 --error 1
 --exec echo "file_exists ;" | $MYSQL_TEST 2>&1
 
+--disable_warnings
 --error 0,1
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+--enable_warnings
 --error 1
 file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
@@ -2020,6 +2034,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
 
 # - Check that if source file does not exist, nothing will be created.
 
+--disable_warnings
 --error 1
 file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
 --error 1
@@ -2030,6 +2045,7 @@ move_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
 file_exists $MYSQLTEST_VARDIR/tmp/file1.tmp;
 --error 1
 file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+--enable_warnings
 
 # - Check that if source file exists, everything works properly.
 
@@ -2602,3 +2618,7 @@ disconnect $y;
 connection default;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--disable_query_log
+--eval SET GLOBAL max_connections = $saved_max_connections
+--enable_query_log

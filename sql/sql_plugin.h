@@ -21,7 +21,7 @@
   that is defined in plugin.h
 */
 #define SHOW_always_last SHOW_KEY_CACHE_LONG, \
-            SHOW_KEY_CACHE_LONGLONG, SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
+            SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
             SHOW_HAVE, SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, \
             SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS, SHOW_LEX_STRING
 #include <mysql/plugin.h>
@@ -78,8 +78,10 @@ struct st_plugin_dl
 {
   LEX_STRING dl;
   void *handle;
-  struct st_mysql_plugin *plugins;
-  int version;
+  struct st_maria_plugin *plugins;
+  int mysqlversion;
+  int mariaversion;
+  bool   allocated;
   uint ref_count;            /* number of plugins loaded from the library */
 };
 
@@ -88,7 +90,7 @@ struct st_plugin_dl
 struct st_plugin_int
 {
   LEX_STRING name;
-  struct st_mysql_plugin *plugin;
+  struct st_maria_plugin *plugin;
   struct st_plugin_dl *plugin_dl;
   uint state;
   uint ref_count;               /* number of threads using the plugin */
@@ -105,6 +107,8 @@ struct st_plugin_int
 */
 #ifdef DBUG_OFF
 typedef struct st_plugin_int *plugin_ref;
+#define plugin_ref_to_int(A) A
+#define plugin_int_to_ref(A) A
 #define plugin_decl(pi) ((pi)->plugin)
 #define plugin_dlib(pi) ((pi)->plugin_dl)
 #define plugin_data(pi,cast) ((cast)((pi)->data))
@@ -113,6 +117,8 @@ typedef struct st_plugin_int *plugin_ref;
 #define plugin_equals(p1,p2) ((p1) == (p2))
 #else
 typedef struct st_plugin_int **plugin_ref;
+#define plugin_ref_to_int(A) (A ? A[0] : NULL)
+#define plugin_int_to_ref(A) &(A)
 #define plugin_decl(pi) ((pi)[0]->plugin)
 #define plugin_dlib(pi) ((pi)[0]->plugin_dl)
 #define plugin_data(pi,cast) ((cast)((pi)[0]->data))
@@ -127,6 +133,9 @@ extern char *opt_plugin_load;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
+extern uint plugin_maturity;
+extern TYPELIB plugin_maturity_values;
+extern const char *plugin_maturity_names[];
 
 extern int plugin_init(int *argc, char **argv, int init_flags);
 extern void plugin_shutdown(void);
@@ -136,7 +145,7 @@ extern bool plugin_is_ready(const LEX_STRING *name, int type);
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
 #define my_plugin_lock(A,B) plugin_lock(A,B)
 #define my_plugin_lock_ci(A,B) plugin_lock(A,B)
-extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr);
+extern plugin_ref plugin_lock(THD *thd, plugin_ref ptr CALLER_INFO_PROTO);
 extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name,
                                       int type);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);

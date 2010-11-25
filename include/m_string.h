@@ -59,10 +59,14 @@
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
+# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#if !defined(bzero) && !defined(HAVE_BZERO)
-# define bzero(A,B)             memset((A),0,(B))
+#if !defined(HAVE_BCMP)
+# define bcopy(s, d, n)		memcpy((d), (s), (n))
+# define bcmp(A,B,C)		memcmp((A),(B),(C))
+# define bzero(A,B)		memset((A),0,(B))
+# define bmove_align(A,B,C)     memcpy((A),(B),(C))
 #endif
 
 #if defined(__cplusplus)
@@ -78,21 +82,15 @@ extern void (*my_str_free)(void *);
 
 #if defined(HAVE_STPCPY)
 #define strmov(A,B) stpcpy((A),(B))
-#ifndef stpcpy
-extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
-#endif
 #endif
 
 /* Declared in int2str() */
-extern char _dig_vec_upper[];
-extern char _dig_vec_lower[];
+extern const char _dig_vec_upper[];
+extern const char _dig_vec_lower[];
 
-#ifndef strmov
-#define strmov_overlapp(A,B) strmov(A,B)
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
-#endif
+extern char *strmov_overlapp(char *dest, const char *src);
 
-	/* Prototypes for string functions */
+/* Prototypes for string functions */
 
 #if !defined(bfill) && !defined(HAVE_BFILL)
 extern	void bfill(uchar *dst,size_t len,pchar fill);
@@ -113,8 +111,6 @@ extern	char *strmake(char *dst,const char *src,size_t length);
 
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
-#else
-extern	char *strmov_overlapp(char *dst,const char *src);
 #endif
 extern	char *strnmov(char *dst, const char *src, size_t n);
 extern	char *strcont(const char *src, const char *set);
@@ -229,6 +225,14 @@ struct st_mysql_const_lex_string
   size_t length;
 };
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+/* A variant with const and unsigned */
+struct st_mysql_const_unsigned_lex_string
+{
+  const uchar *str;
+  size_t length;
+};
+typedef struct st_mysql_const_unsigned_lex_string LEX_CUSTRING;
 
 /* SPACE_INT is a word that contains only spaces */
 #if SIZEOF_INT == 4

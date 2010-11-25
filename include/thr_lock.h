@@ -76,6 +76,12 @@ enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
                             THR_LOCK_WAIT_TIMEOUT= 2, THR_LOCK_DEADLOCK= 3 };
 
 
+/* Priority for locks */
+#define THR_LOCK_LATE_PRIV  1	/* For locks to be merged with org lock */
+#define THR_LOCK_MERGE_PRIV 2	/* For merge tables */
+
+#define THR_UNLOCK_UPDATE_STATUS 1
+
 extern ulong max_write_lock_count;
 extern my_bool thr_lock_inited;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
@@ -97,10 +103,11 @@ typedef struct st_thr_lock_data {
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
   mysql_cond_t *cond;
-  enum thr_lock_type type;
   void *status_param;			/* Param to status functions */
   void *debug_print_param;
   struct PSI_table *m_psi;
+  enum thr_lock_type type;
+  uint priority;
 } THR_LOCK_DATA;
 
 struct st_lock_list {
@@ -117,11 +124,14 @@ typedef struct st_thr_lock {
   /* write_lock_count is incremented for write locks and reset on read locks */
   ulong write_lock_count;
   uint read_no_write_count;
-  void (*get_status)(void*, int);	/* When one gets a lock */
+  void (*get_status)(void*, my_bool);	/* When one gets a lock */
   void (*copy_status)(void*,void*);
   void (*update_status)(void*);		/* Before release of write */
-  void (*restore_status)(void*);         /* Before release of read */
+  void (*restore_status)(void*);        /* Before release of read */
+  my_bool (*start_trans)(void*);	/* When all locks are taken */
   my_bool (*check_status)(void *);
+  void   (*fix_status)(void *, void *);/* For thr_merge_locks() */
+  my_bool allow_multiple_concurrent_insert;
 } THR_LOCK;
 
 
@@ -134,17 +144,14 @@ void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
 void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 			void *status_param);
-enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
-                                   THR_LOCK_INFO *owner,
-                                   enum thr_lock_type lock_type,
-                                   ulong lock_wait_timeout);
-void thr_unlock(THR_LOCK_DATA *data);
+void thr_unlock(THR_LOCK_DATA *data, uint unlock_flags);
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
                                          uint count, THR_LOCK_INFO *owner,
                                          ulong lock_wait_timeout);
-void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
-void
-thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
+void thr_multi_unlock(THR_LOCK_DATA **data,uint count, uint unlock_flags);
+#error keep both thr_merge* or what?
+void thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
+void thr_merge_locks(THR_LOCK_DATA **data, uint org_count, uint new_count);
 void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock);
 my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
 void thr_print_locks(void);		/* For debugging */
@@ -155,8 +162,6 @@ void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
 my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
                                   ulong lock_wait_timeout);
-void thr_set_lock_wait_callback(void (*before_wait)(void),
-                                void (*after_wait)(void));
 #ifdef	__cplusplus
 }
 #endif

@@ -1,0 +1,913 @@
+drop table if exists t1,t2;
+drop database if exists mysqltest;
+create table t1 (
+col1 int not null auto_increment primary key,
+col2 varchar(30) not null,
+col3 varchar (20) not null,
+col4 varchar(4) not null,
+col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
+col6 int not null, to_be_deleted int);
+insert into t1 values (2,4,3,5,"PENDING",1,7);
+alter table t1
+add column col4_5 varchar(20) not null after col4,
+add column col7 varchar(30) not null after col5,
+add column col8 datetime not null, drop column to_be_deleted,
+change column col2 fourth varchar(30) not null after col3,
+modify column col6 int not null first;
+select * from t1;
+col6	col1	col3	fourth	col4	col4_5	col5	col7	col8
+1	2	3	4	5		PENDING		0000-00-00 00:00:00
+drop table t1;
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL);
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+bandID	payoutID	new_col
+6	1	NULL
+3	4	NULL
+1	6	NULL
+2	6	NULL
+4	9	NULL
+5	10	NULL
+7	12	NULL
+8	12	NULL
+alter table t1 order by bandid,payoutid;
+select * from t1;
+bandID	payoutID	new_col
+1	6	NULL
+2	6	NULL
+3	4	NULL
+4	9	NULL
+5	10	NULL
+6	1	NULL
+7	12	NULL
+8	12	NULL
+drop table t1;
+CREATE TABLE t1 (
+GROUP_ID int(10) unsigned DEFAULT '0' NOT NULL,
+LANG_ID smallint(5) unsigned DEFAULT '0' NOT NULL,
+NAME varchar(80) DEFAULT '' NOT NULL,
+PRIMARY KEY (GROUP_ID,LANG_ID),
+KEY NAME (NAME));
+ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+GROUP_ID	int(10) unsigned	NULL	NO	PRI	0		#	
+LANG_ID	smallint(5) unsigned	NULL	NO	PRI	0		#	
+NAME	char(80)	latin1_swedish_ci	NO	MUL	NULL		#	
+DROP TABLE t1;
+create table t1 (n int);
+insert into t1 values(9),(3),(12),(10);
+alter table t1 order by n;
+select * from t1;
+n
+3
+9
+10
+12
+drop table t1;
+CREATE TABLE t1 (
+id int(11) unsigned NOT NULL default '0',
+category_id tinyint(4) unsigned NOT NULL default '0',
+type_id tinyint(4) unsigned NOT NULL default '0',
+body text NOT NULL,
+user_id int(11) unsigned NOT NULL default '0',
+status enum('new','old') NOT NULL default 'new',
+PRIMARY KEY (id)
+) ENGINE=MyISAM;
+ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
+DROP TABLE t1;
+CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=myisam;
+insert into t1 values (null,"hello");
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD Column new_col int not null;
+UNLOCK TABLES;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
+create table t1 (i int unsigned not null auto_increment primary key);
+insert into t1 values (null),(null),(null),(null);
+alter table t1 drop i,add i int unsigned not null auto_increment, drop primary key, add primary key (i);
+select * from t1;
+i
+1
+2
+3
+4
+drop table t1;
+create table t1 (name char(15));
+insert into t1 (name) values ("current");
+create database mysqltest;
+create table mysqltest.t1 (name char(15));
+insert into mysqltest.t1 (name) values ("mysqltest");
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+alter table t1 rename mysqltest.t1;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+name
+current
+select * from mysqltest.t1;
+name
+mysqltest
+drop table t1;
+drop database mysqltest;
+create table t1 (n1 int not null, n2 int, n3 int, n4 float,
+unique(n1),
+key (n1, n2, n3, n4),
+key (n2, n3, n4, n1),
+key (n3, n4, n1, n2),
+key (n4, n1, n2, n3) );
+alter table t1 disable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	n1	1	n1	A	0	NULL	NULL		BTREE	
+t1	1	n1_2	1	n1	A	0	NULL	NULL		BTREE	
+t1	1	n1_2	2	n2	A	0	NULL	NULL	YES	BTREE	
+t1	1	n1_2	3	n3	A	0	NULL	NULL	YES	BTREE	
+t1	1	n1_2	4	n4	A	0	NULL	NULL	YES	BTREE	
+t1	1	n2	1	n2	A	0	NULL	NULL	YES	BTREE	
+t1	1	n2	2	n3	A	0	NULL	NULL	YES	BTREE	
+t1	1	n2	3	n4	A	0	NULL	NULL	YES	BTREE	
+t1	1	n2	4	n1	A	0	NULL	NULL		BTREE	
+t1	1	n3	1	n3	A	0	NULL	NULL	YES	BTREE	
+t1	1	n3	2	n4	A	0	NULL	NULL	YES	BTREE	
+t1	1	n3	3	n1	A	0	NULL	NULL		BTREE	
+t1	1	n3	4	n2	A	0	NULL	NULL	YES	BTREE	
+t1	1	n4	1	n4	A	0	NULL	NULL	YES	BTREE	
+t1	1	n4	2	n1	A	0	NULL	NULL		BTREE	
+t1	1	n4	3	n2	A	0	NULL	NULL	YES	BTREE	
+t1	1	n4	4	n3	A	0	NULL	NULL	YES	BTREE	
+insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(7,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(6,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(5,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(4,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
+alter table t1 enable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	n1	1	n1	A	10	NULL	NULL		BTREE	
+t1	1	n1_2	1	n1	A	10	NULL	NULL		BTREE	
+t1	1	n1_2	2	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n1_2	3	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n1_2	4	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	1	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	2	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	3	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n2	4	n1	A	10	NULL	NULL		BTREE	
+t1	1	n3	1	n3	A	10	NULL	NULL	YES	BTREE	
+t1	1	n3	2	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n3	3	n1	A	10	NULL	NULL		BTREE	
+t1	1	n3	4	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	1	n4	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	2	n1	A	10	NULL	NULL		BTREE	
+t1	1	n4	3	n2	A	10	NULL	NULL	YES	BTREE	
+t1	1	n4	4	n3	A	10	NULL	NULL	YES	BTREE	
+drop table t1;
+create table t1 (i int unsigned not null auto_increment primary key);
+alter table t1 rename t2;
+alter table t2 rename t1, add c char(10) comment "no comment";
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+i	int(10) unsigned	NO	PRI	NULL	auto_increment
+c	char(10)	YES		NULL	
+drop table t1;
+create table t1 (a int, b int);
+insert into t1 values(1,100), (2,100), (3, 100);
+insert into t1 values(1,99), (2,99), (3, 99);
+insert into t1 values(1,98), (2,98), (3, 98);
+insert into t1 values(1,97), (2,97), (3, 97);
+insert into t1 values(1,96), (2,96), (3, 96);
+insert into t1 values(1,95), (2,95), (3, 95);
+insert into t1 values(1,94), (2,94), (3, 94);
+insert into t1 values(1,93), (2,93), (3, 93);
+insert into t1 values(1,92), (2,92), (3, 92);
+insert into t1 values(1,91), (2,91), (3, 91);
+insert into t1 values(1,90), (2,90), (3, 90);
+insert into t1 values(1,89), (2,89), (3, 89);
+insert into t1 values(1,88), (2,88), (3, 88);
+insert into t1 values(1,87), (2,87), (3, 87);
+insert into t1 values(1,86), (2,86), (3, 86);
+insert into t1 values(1,85), (2,85), (3, 85);
+insert into t1 values(1,84), (2,84), (3, 84);
+insert into t1 values(1,83), (2,83), (3, 83);
+insert into t1 values(1,82), (2,82), (3, 82);
+insert into t1 values(1,81), (2,81), (3, 81);
+insert into t1 values(1,80), (2,80), (3, 80);
+insert into t1 values(1,79), (2,79), (3, 79);
+insert into t1 values(1,78), (2,78), (3, 78);
+insert into t1 values(1,77), (2,77), (3, 77);
+insert into t1 values(1,76), (2,76), (3, 76);
+insert into t1 values(1,75), (2,75), (3, 75);
+insert into t1 values(1,74), (2,74), (3, 74);
+insert into t1 values(1,73), (2,73), (3, 73);
+insert into t1 values(1,72), (2,72), (3, 72);
+insert into t1 values(1,71), (2,71), (3, 71);
+insert into t1 values(1,70), (2,70), (3, 70);
+insert into t1 values(1,69), (2,69), (3, 69);
+insert into t1 values(1,68), (2,68), (3, 68);
+insert into t1 values(1,67), (2,67), (3, 67);
+insert into t1 values(1,66), (2,66), (3, 66);
+insert into t1 values(1,65), (2,65), (3, 65);
+insert into t1 values(1,64), (2,64), (3, 64);
+insert into t1 values(1,63), (2,63), (3, 63);
+insert into t1 values(1,62), (2,62), (3, 62);
+insert into t1 values(1,61), (2,61), (3, 61);
+insert into t1 values(1,60), (2,60), (3, 60);
+insert into t1 values(1,59), (2,59), (3, 59);
+insert into t1 values(1,58), (2,58), (3, 58);
+insert into t1 values(1,57), (2,57), (3, 57);
+insert into t1 values(1,56), (2,56), (3, 56);
+insert into t1 values(1,55), (2,55), (3, 55);
+insert into t1 values(1,54), (2,54), (3, 54);
+insert into t1 values(1,53), (2,53), (3, 53);
+insert into t1 values(1,52), (2,52), (3, 52);
+insert into t1 values(1,51), (2,51), (3, 51);
+insert into t1 values(1,50), (2,50), (3, 50);
+insert into t1 values(1,49), (2,49), (3, 49);
+insert into t1 values(1,48), (2,48), (3, 48);
+insert into t1 values(1,47), (2,47), (3, 47);
+insert into t1 values(1,46), (2,46), (3, 46);
+insert into t1 values(1,45), (2,45), (3, 45);
+insert into t1 values(1,44), (2,44), (3, 44);
+insert into t1 values(1,43), (2,43), (3, 43);
+insert into t1 values(1,42), (2,42), (3, 42);
+insert into t1 values(1,41), (2,41), (3, 41);
+insert into t1 values(1,40), (2,40), (3, 40);
+insert into t1 values(1,39), (2,39), (3, 39);
+insert into t1 values(1,38), (2,38), (3, 38);
+insert into t1 values(1,37), (2,37), (3, 37);
+insert into t1 values(1,36), (2,36), (3, 36);
+insert into t1 values(1,35), (2,35), (3, 35);
+insert into t1 values(1,34), (2,34), (3, 34);
+insert into t1 values(1,33), (2,33), (3, 33);
+insert into t1 values(1,32), (2,32), (3, 32);
+insert into t1 values(1,31), (2,31), (3, 31);
+insert into t1 values(1,30), (2,30), (3, 30);
+insert into t1 values(1,29), (2,29), (3, 29);
+insert into t1 values(1,28), (2,28), (3, 28);
+insert into t1 values(1,27), (2,27), (3, 27);
+insert into t1 values(1,26), (2,26), (3, 26);
+insert into t1 values(1,25), (2,25), (3, 25);
+insert into t1 values(1,24), (2,24), (3, 24);
+insert into t1 values(1,23), (2,23), (3, 23);
+insert into t1 values(1,22), (2,22), (3, 22);
+insert into t1 values(1,21), (2,21), (3, 21);
+insert into t1 values(1,20), (2,20), (3, 20);
+insert into t1 values(1,19), (2,19), (3, 19);
+insert into t1 values(1,18), (2,18), (3, 18);
+insert into t1 values(1,17), (2,17), (3, 17);
+insert into t1 values(1,16), (2,16), (3, 16);
+insert into t1 values(1,15), (2,15), (3, 15);
+insert into t1 values(1,14), (2,14), (3, 14);
+insert into t1 values(1,13), (2,13), (3, 13);
+insert into t1 values(1,12), (2,12), (3, 12);
+insert into t1 values(1,11), (2,11), (3, 11);
+insert into t1 values(1,10), (2,10), (3, 10);
+insert into t1 values(1,9), (2,9), (3, 9);
+insert into t1 values(1,8), (2,8), (3, 8);
+insert into t1 values(1,7), (2,7), (3, 7);
+insert into t1 values(1,6), (2,6), (3, 6);
+insert into t1 values(1,5), (2,5), (3, 5);
+insert into t1 values(1,4), (2,4), (3, 4);
+insert into t1 values(1,3), (2,3), (3, 3);
+insert into t1 values(1,2), (2,2), (3, 2);
+insert into t1 values(1,1), (2,1), (3, 1);
+alter table t1 add unique (a,b), add key (b);
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	300	NULL	NULL	YES	BTREE	
+t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	300	NULL	NULL	YES	BTREE	
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	300	NULL	NULL	YES	BTREE	
+t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	300	NULL	NULL	YES	BTREE	
+drop table t1;
+CREATE TABLE t1 (i int(10), index(i) );
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 VALUES(1),(2),(3);
+ALTER TABLE t1 ENABLE KEYS;
+drop table t1;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User)
+) ENGINE=MyISAM;
+ALTER TABLE t1 DISABLE KEYS;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
+ALTER TABLE t1 ENABLE KEYS;
+UNLOCK TABLES;
+CHECK TABLES t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User),
+KEY  (Host)
+) ENGINE=MyISAM;
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
+ALTER TABLE t1 ENABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	2	NULL	NULL		BTREE	
+t1	1	Host	1	Host	A	1	NULL	NULL		BTREE	
+UNLOCK TABLES;
+CHECK TABLES t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 RENAME t2;
+UNLOCK TABLES;
+select * from t2;
+Host	User
+localhost	
+localhost	root
+DROP TABLE t2;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User),
+KEY  (Host)
+) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE	
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE	
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled
+DROP TABLE t1;
+create table t1 (a int);
+alter table t1 rename to ``;
+ERROR 42000: Incorrect table name ''
+rename table t1 to ``;
+ERROR 42000: Incorrect table name ''
+drop table t1;
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
+create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
+flush tables;
+alter table t1 modify a varchar(10);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
+flush tables;
+alter table t1 modify a varchar(10) not null;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`)
+drop table if exists t1, t2;
+create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+alter table t1 modify a int;
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+drop table t1;
+create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+Warning	1364	Field 'e' doesn't have a default value
+Warning	1364	Field 'f' doesn't have a default value
+Warning	1364	Field 'g' doesn't have a default value
+Warning	1364	Field 'h' doesn't have a default value
+Warning	1364	Field 'i' doesn't have a default value
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+drop table t1;
+set names koi8r;
+create table t1 (a char(10) character set koi8r);
+insert into t1 values ('тест');
+select a,hex(a) from t1;
+a	hex(a)
+тест	D4C5D3D4
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+a	hex(a)
+тест	F2E5F1F2
+alter table t1 change a a binary(4);
+select a,hex(a) from t1;
+a	hex(a)
+РЕЯР	F2E5F1F2
+alter table t1 change a a char(10) character set cp1251;
+select a,hex(a) from t1;
+a	hex(a)
+тест	F2E5F1F2
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+a	hex(a)
+тест	D4C5D3D4
+alter table t1 change a a varchar(10) character set cp1251;
+select a,hex(a) from t1;
+a	hex(a)
+тест	F2E5F1F2
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+a	hex(a)
+тест	D4C5D3D4
+alter table t1 change a a text character set cp1251;
+select a,hex(a) from t1;
+a	hex(a)
+тест	F2E5F1F2
+alter table t1 change a a char(10) character set koi8r;
+select a,hex(a) from t1;
+a	hex(a)
+тест	D4C5D3D4
+delete from t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table t1 DEFAULT CHARACTER SET latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table t1 CONVERT TO CHARACTER SET latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+alter table t1 DEFAULT CHARACTER SET cp1251;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(10) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=cp1251
+drop table t1;
+create table t1 (myblob longblob,mytext longtext) 
+default charset latin1 collate latin1_general_cs;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext COLLATE latin1_general_cs
+) ENGINE=PBXT DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs
+alter table t1 character set latin2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `myblob` longblob,
+  `mytext` longtext CHARACTER SET latin1 COLLATE latin1_general_cs
+) ENGINE=PBXT DEFAULT CHARSET=latin2
+drop table t1;
+CREATE TABLE t1 (a int PRIMARY KEY, b INT UNIQUE);
+ALTER TABLE t1 DROP PRIMARY KEY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+ALTER TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
+DROP TABLE t1;
+create table t1 (a int, b int, key(a));
+insert into t1 values (1,1), (2,2);
+alter table t1 drop key no_such_key;
+ERROR 42000: Can't DROP 'no_such_key'; check that column/key exists
+alter table t1 drop key a;
+drop table t1;
+CREATE TABLE T12207(a int) ENGINE=MYISAM;
+ALTER TABLE T12207 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 'T12207' doesn't have this option
+DROP TABLE T12207;
+create table t1 (a text) character set koi8r;
+insert into t1 values (_koi8r'тест');
+select hex(a) from t1;
+hex(a)
+D4C5D3D4
+alter table t1 convert to character set cp1251;
+select hex(a) from t1;
+hex(a)
+F2E5F1F2
+drop table t1;
+create table t1 ( a timestamp );
+alter table t1 add unique ( a(1) );
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+drop table t1;
+drop table if exists t1;
+create table t1 (a int, key(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+"this used not to disable the index"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 add b char(10), disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+"this however did"
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	bigint(20)	YES	MUL	NULL	
+b	char(10)	YES		NULL	
+c	decimal(10,2)	YES		NULL	
+alter table t1 add d decimal(15,5);
+"The key should still be disabled"
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+drop table t1;
+"Now will test with one unique index"
+create table t1(a int, b char(10), unique(a));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"Unique index, no change"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"Unique index, no change"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 modify a bigint;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+drop table t1;
+"Now will test with one unique and one non-unique index"
+create table t1(a int, b char(10), unique(a), key(b));
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"The non-unique index will be disabled"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+"Change the type implying data copy"
+"The non-unique index will be disabled"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+"Change again the type, but leave the indexes as_is"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+"Try the same. When data is no copied on similar tables, this is noop"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	a	1	a	A	0	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	0	NULL	NULL	YES	BTREE	
+drop table t1;
+create database mysqltest;
+create table t1 (c1 int);
+alter table t1 rename mysqltest.t1;
+drop table t1;
+ERROR 42S02: Unknown table 't1'
+alter table mysqltest.t1 rename t1;
+drop table t1;
+create table t1 (c1 int);
+use mysqltest;
+drop database mysqltest;
+alter table test.t1 rename t1;
+ERROR 3D000: No database selected
+alter table test.t1 rename test.t1;
+use test;
+drop table t1;
+CREATE TABLE t1(a INT) ROW_FORMAT=FIXED;
+CREATE INDEX i1 ON t1(a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  KEY `i1` (`a`)
+) ENGINE=PBXT DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+DROP INDEX i1 ON t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+DROP TABLE t1;
+DROP TABLE IF EXISTS bug24219;
+DROP TABLE IF EXISTS bug24219_2;
+CREATE TABLE bug24219 (a INT, INDEX(a));
+SHOW INDEX FROM bug24219;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
+SHOW INDEX FROM bug24219_2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+bug24219_2	1	a	1	a	A	0	NULL	NULL	YES	BTREE	
+DROP TABLE bug24219_2;
+create table t1 (mycol int(10) not null);
+alter table t1 alter column mycol set default 0;
+desc t1;
+Field	Type	Null	Key	Default	Extra
+mycol	int(10)	NO		0	
+drop table t1;
+create table t1 (v varchar(32));
+insert into t1 values ('def'),('abc'),('hij'),('3r4f');
+select * from t1;
+v
+def
+abc
+hij
+3r4f
+alter table t1 change v v2 varchar(32);
+select * from t1;
+v2
+def
+abc
+hij
+3r4f
+alter table t1 change v2 v varchar(64);
+select * from t1;
+v
+def
+abc
+hij
+3r4f
+update t1 set v = 'lmn' where v = 'hij';
+select * from t1;
+v
+def
+abc
+3r4f
+lmn
+alter table t1 add i int auto_increment not null primary key first;
+select * from t1;
+i	v
+1	def
+2	abc
+3	3r4f
+4	lmn
+update t1 set i=5 where i=3;
+select * from t1;
+i	v
+1	def
+2	abc
+4	lmn
+5	3r4f
+alter table t1 change i i bigint;
+select * from t1;
+i	v
+1	def
+2	abc
+4	lmn
+5	3r4f
+alter table t1 add unique key (i, v);
+select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
+i	v
+4	lmn
+drop table t1;
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;
+CREATE TABLE t1 (s CHAR(8) BINARY);
+INSERT INTO t1 VALUES ('test');
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+4
+ALTER TABLE t1 MODIFY s CHAR(10) BINARY;
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+4
+DROP TABLE t1;
+CREATE TABLE t1 (s BINARY(8));
+INSERT INTO t1 VALUES ('test');
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+8
+SELECT HEX(s) FROM t1;
+HEX(s)
+7465737400000000
+ALTER TABLE t1 MODIFY s BINARY(10);
+SELECT HEX(s) FROM t1;
+HEX(s)
+74657374000000000000
+SELECT LENGTH(s) FROM t1;
+LENGTH(s)
+10
+DROP TABLE t1;
+CREATE TABLE t1 (v VARCHAR(3), b INT);
+INSERT INTO t1 VALUES ('abc', 5);
+SELECT * FROM t1;
+v	b
+abc	5
+ALTER TABLE t1 MODIFY COLUMN v VARCHAR(4);
+SELECT * FROM t1;
+v	b
+abc	5
+DROP TABLE t1;
+DROP TABLE IF EXISTS `t+1`, `t+2`;
+CREATE TABLE `t+1` (c1 INT);
+ALTER TABLE  `t+1` RENAME `t+2`;
+CREATE TABLE `t+1` (c1 INT);
+ALTER TABLE  `t+1` RENAME `t+2`;
+ERROR 42S01: Table 't+2' already exists
+DROP TABLE   `t+1`, `t+2`;
+CREATE TEMPORARY TABLE `tt+1` (c1 INT);
+ALTER TABLE  `tt+1` RENAME `tt+2`;
+CREATE TEMPORARY TABLE `tt+1` (c1 INT);
+ALTER TABLE  `tt+1` RENAME `tt+2`;
+ERROR 42S01: Table 'tt+2' already exists
+SHOW CREATE TABLE `tt+1`;
+Table	Create Table
+tt+1	CREATE TEMPORARY TABLE `tt+1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+SHOW CREATE TABLE `tt+2`;
+Table	Create Table
+tt+2	CREATE TEMPORARY TABLE `tt+2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+DROP TABLE   `tt+1`, `tt+2`;
+CREATE TABLE `#sql1` (c1 INT);
+CREATE TABLE `@0023sql2` (c1 INT);
+SHOW TABLES;
+Tables_in_test
+#sql1
+@0023sql2
+RENAME TABLE `#sql1`     TO `@0023sql1`;
+RENAME TABLE `@0023sql2` TO `#sql2`;
+SHOW TABLES;
+Tables_in_test
+#sql2
+@0023sql1
+ALTER TABLE `@0023sql1`  RENAME `#sql-1`;
+ALTER TABLE `#sql2`      RENAME `@0023sql-2`;
+SHOW TABLES;
+Tables_in_test
+#sql-1
+@0023sql-2
+INSERT INTO `#sql-1`     VALUES (1);
+INSERT INTO `@0023sql-2` VALUES (2);
+DROP TABLE `#sql-1`, `@0023sql-2`;
+CREATE TEMPORARY TABLE `#sql1` (c1 INT);
+CREATE TEMPORARY TABLE `@0023sql2` (c1 INT);
+SHOW TABLES;
+Tables_in_test
+ALTER TABLE `#sql1`      RENAME `@0023sql1`;
+ALTER TABLE `@0023sql2`  RENAME `#sql2`;
+SHOW TABLES;
+Tables_in_test
+INSERT INTO `#sql2`      VALUES (1);
+INSERT INTO `@0023sql1`  VALUES (2);
+SHOW CREATE TABLE `#sql2`;
+Table	Create Table
+#sql2	CREATE TEMPORARY TABLE `#sql2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+SHOW CREATE TABLE `@0023sql1`;
+Table	Create Table
+@0023sql1	CREATE TEMPORARY TABLE `@0023sql1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+DROP TABLE `#sql2`, `@0023sql1`;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+int_field	int(10) unsigned	NO	MUL	NULL	
+char_field	char(10)	YES		NULL	
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	int_field	1	int_field	A	0	NULL	NULL		BTREE	
+INSERT INTO t1 VALUES (1, "edno"), (1, "edno"), (2, "dve"), (3, "tri"), (5, "pet");
+"Non-copy data change - new frm, but old data and index files"
+ALTER TABLE t1
+CHANGE int_field unsigned_int_field INTEGER UNSIGNED NOT NULL,
+RENAME t2;
+SELECT * FROM t1 ORDER BY int_field;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT * FROM t2 ORDER BY unsigned_int_field;
+unsigned_int_field	char_field
+1	edno
+1	edno
+2	dve
+3	tri
+5	pet
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL	NULL	
+char_field	char(10)	YES		NULL	
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	int(10) unsigned	NO	MUL	NULL	
+char_field	char(10)	YES		NULL	
+ALTER TABLE t2 MODIFY unsigned_int_field BIGINT UNSIGNED NOT NULL;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+unsigned_int_field	bigint(20) unsigned	NO	MUL	NULL	
+char_field	char(10)	YES		NULL	
+DROP TABLE t2;

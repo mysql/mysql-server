@@ -6,15 +6,9 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 }
 
 #
-# Check if the variable SIMPLE_PARSER is set
+# Check if the variable MYPLUGLIB_SO is set
 #
-if (`SELECT LENGTH('$SIMPLE_PARSER') = 0`) {
-  --skip simple parser requires the environment variable \$SIMPLE_PARSER to be set (normally done by mtr)
-}
-
-#
-# Check if --plugin-dir was setup for simple parser
-#
-if (`SELECT CONCAT('--plugin-dir=', @@plugin_dir) != '$SIMPLE_PARSER_OPT'`) {
-  --skip simple parser requires that --plugin-dir is set to the udf plugin dir (either the .opt file does not contain \$UDF_EXAMPLE_LIB_OPT or another plugin is in use)
-}
+--require r/have_simple_parser.require
+disable_query_log;
+eval select LENGTH('$MYPLUGLIB_SO') > 0 as 'have_simple_parser';
+enable_query_log;

@@ -22,7 +22,7 @@
 
 #define is_field_separator(X) ((X) == ',' || (X) == '=')
 
-int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+int find_type_with_warning(const char *x, TYPELIB *typelib, const char *option)
 {
   int res;
   const char **ptr;
@@ -38,9 +38,17 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
     while (*++ptr)
       fprintf(stderr, ",'%s'", *ptr);
     fprintf(stderr, "\n");
-    exit(1);
   }
   return res;
+}
+
+
+uint find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
+{
+  int res;
+  if ((res= find_type_with_warning(x, typelib, option)) <= 0)
+    exit(1);
+  return (uint) res;
 }
 
 

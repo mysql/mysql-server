@@ -58,6 +58,10 @@ drop function if exists f1;
 drop view if exists v1, v2;
 --enable_warnings
 
+# Avoid selecting from a huge table possibly left over from previous tests,
+# as this really hurts --valgrind testing.
+TRUNCATE TABLE mysql.general_log;
+
 delimiter |;
 create procedure p_verify_reprepare_count(expected int)
 begin

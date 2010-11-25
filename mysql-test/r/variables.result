@@ -19,14 +19,13 @@ set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
 set @my_net_buffer_length         =@@global.net_buffer_length;
 set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
-set @my_query_cache_limit         =@@global.query_cache_limit;
-set @my_query_cache_type          =@@global.query_cache_type;
 set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
+set @my_delay_key_write           =@@global.delay_key_write;
 set @my_join_buffer_size          =@@global.join_buffer_size;
 set @`test`=1;
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
@@ -214,7 +213,6 @@ default_storage_engine	MRG_MYISAM
 select * from information_schema.global_variables where variable_name like 'default_storage_engine';
 VARIABLE_NAME	VARIABLE_VALUE
 DEFAULT_STORAGE_ENGINE	MRG_MYISAM
-set GLOBAL query_cache_size=102400;
 set GLOBAL myisam_max_sort_file_size=2000000;
 Warnings:
 Warning	1292	Truncated incorrect myisam_max_sort_file_size value: '2000000'
@@ -433,8 +431,6 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of '2'
 show local variables like 'default_storage_engine';
 Variable_name	Value
 default_storage_engine	MEMORY
-set SESSION query_cache_size=10000;
-ERROR HY000: Variable 'query_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 set character_set_client=UNKNOWN_CHARACTER_SET;
 ERROR 42000: Unknown character set: 'UNKNOWN_CHARACTER_SET'
 set collation_connection=UNKNOWN_COLLATION;
@@ -533,11 +529,6 @@ Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
 set net_read_timeout=100;
 set net_write_timeout=100;
-set global query_cache_limit=100;
-set global query_cache_size=100;
-Warnings:
-Warning	1292	Truncated incorrect query_cache_size value: '100'
-set global query_cache_type=demand;
 set read_buffer_size=100;
 Warnings:
 Warning	1292	Truncated incorrect read_buffer_size value: '100'
@@ -581,9 +572,7 @@ set global table_open_cache=100;
 set default_storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
-set tmp_table_size=100;
-Warnings:
-Warning	1292	Truncated incorrect tmp_table_size value: '100'
+set tmp_table_size=1024;
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;
@@ -1061,8 +1050,6 @@ set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
-set global query_cache_limit         =@my_query_cache_limit;
-set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 Warnings:
 Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
@@ -1070,7 +1057,8 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
-set global max_allowed_packet        =@my_max_allowed_packet;
+set global max_allowed_packet        = default;
+set global delay_key_write           =@my_delay_key_write;
 set global join_buffer_size          =@my_join_buffer_size;
 show global variables where Variable_name='table_definition_cache';
 Variable_name	Value
@@ -1284,12 +1272,12 @@ ERROR HY000: Variable 'lower_case_table_names' is a read only variable
 #
 SHOW VARIABLES like 'myisam_recover_options';
 Variable_name	Value
-myisam_recover_options	OFF
+myisam_recover_options	DEFAULT
 SELECT @@session.myisam_recover_options;
 ERROR HY000: Variable 'myisam_recover_options' is a GLOBAL variable
 SELECT @@global.myisam_recover_options;
 @@global.myisam_recover_options
-OFF
+DEFAULT
 SET @@session.myisam_recover_options= 'x';
 ERROR HY000: Variable 'myisam_recover_options' is a read only variable
 SET @@global.myisam_recover_options= 'x';

@@ -238,6 +238,44 @@ TEST_join(JOIN *join)
 }
 
 
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+
+void print_keyuse(KEYUSE *keyuse)
+{
+  char buff[256];
+  char buf2[64]; 
+  const char *fieldname;
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
+  keyuse->val->print(&str, QT_ORDINARY);
+  str.append('\0');
+  if (keyuse->keypart == FT_KEYPART)
+    fieldname= "FT_KEYPART";
+  else
+    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
+  longlong2str(keyuse->used_tables, buf2, 16, 0); 
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
+          "ref_table_rows= %lu keypart_map= %0lx\n",
+          keyuse->table->alias, fieldname, str.ptr(),
+          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
+          keyuse->keypart_map);
+  DBUG_UNLOCK_FILE;
+  //key_part_map keypart_map; --?? there can be several? 
+}
+
+
+/* purecov: begin inspected */
+void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
+{
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "KEYUSE array (%d elements)\n", keyuse_array->elements);
+  DBUG_UNLOCK_FILE;
+  for(uint i=0; i < keyuse_array->elements; i++)
+    print_keyuse((KEYUSE*)dynamic_array_ptr(keyuse_array, i));
+}
+
+
 /* 
   Print the current state during query optimization.
 
@@ -337,6 +375,27 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
   DBUG_UNLOCK_FILE;
 }
+
+
+void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
+{
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "\nsemi-join nest{\n");
+  fprintf(DBUG_FILE, "  tables { \n");
+  for (uint i= 0;i < sjm->tables; i++)
+  {
+    fprintf(DBUG_FILE, "    %s%s\n", 
+            sjm->positions[i].table->table->alias,
+            (i == sjm->tables -1)? "": ",");
+  }
+  fprintf(DBUG_FILE, "  }\n");
+  fprintf(DBUG_FILE, "  materialize_cost= %g\n",
+          sjm->materialization_cost.total_cost());
+  fprintf(DBUG_FILE, "  rows= %g\n", sjm->rows);
+  fprintf(DBUG_FILE, "}\n");
+  DBUG_UNLOCK_FILE;
+}
+/* purecov: end */
 
 #endif
 
@@ -471,11 +530,15 @@ static int print_key_cache_status(const char *name, KEY_CACHE *key_cache)
   }
   else
   {
+    KEY_CACHE_STATISTICS stats;
+    get_key_cache_statistics(key_cache, 0, &stats);
+
     printf("%s\n\
 Buffer_size:    %10lu\n\
 Block_size:     %10lu\n\
 Division_limit: %10lu\n\
-Age_limit:      %10lu\n\
+Age_threshold:  %10lu\n\
+Partitions:     %10lu\n\
 blocks used:    %10lu\n\
 not flushed:    %10lu\n\
 w_requests:     %10s\n\
@@ -483,15 +546,17 @@ writes:         %10s\n\
 r_requests:     %10s\n\
 reads:          %10s\n\n",
 	   name,
-	   (ulong) key_cache->param_buff_size,
+	   (ulong)key_cache->param_buff_size,
            (ulong)key_cache->param_block_size,
 	   (ulong)key_cache->param_division_limit,
            (ulong)key_cache->param_age_threshold,
-	   key_cache->blocks_used,key_cache->global_blocks_changed,
-	   llstr(key_cache->global_cache_w_requests,llbuff1),
-           llstr(key_cache->global_cache_write,llbuff2),
-	   llstr(key_cache->global_cache_r_requests,llbuff3),
-           llstr(key_cache->global_cache_read,llbuff4));
+           key_cache->param_partitions,
+	   (ulong)stats.blocks_used,
+           (ulong)stats.blocks_changed,
+	   llstr(stats.write_requests,llbuff1),
+           llstr(stats.writes,llbuff2),
+	   llstr(stats.read_requests,llbuff3),
+           llstr(stats.reads,llbuff4));
   }
   return 0;
 }

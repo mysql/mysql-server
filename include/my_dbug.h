@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB & 2009 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,6 +59,7 @@ extern  const char* _db_get_func_(void);
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
 #define DBUG_LEAVE _db_return_ (__LINE__, &_db_stack_frame_)
+
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
@@ -110,10 +111,10 @@ extern  const char* _db_get_func_(void);
   DBUG_CHECK_CRASH(_db_get_func_(), "_crash_return")
 #define DBUG_CRASH_VOID_RETURN \
   DBUG_CHECK_CRASH (_db_get_func_(), "_crash_return")
-
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
 #define DBUG_LEAVE
 #define DBUG_RETURN(a1)                 do { return(a1); } while(0)
 #define DBUG_VOID_RETURN                do { return; } while(0)

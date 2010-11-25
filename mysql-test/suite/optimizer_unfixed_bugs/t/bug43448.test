@@ -1,0 +1,58 @@
+--echo #
+--echo # Bug#43448 - Server crashes on multi table delete with Innodb
+--echo #
+
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+# crash requires ICP support in InnoDB
+set session debug="+d,optimizer_innodb_icp";
+
+CREATE TABLE t1 (
+  id1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  t CHAR(12)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id2 INT NOT NULL, 
+  t CHAR(12)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3(
+  id3 INT NOT NULL, 
+  t CHAR(12), 
+  INDEX(id3)
+) ENGINE=InnoDB;
+
+disable_query_log;
+
+let $1 = 100;
+while ($1)
+{
+  let $2 = 5;
+  eval INSERT INTO t1(t) VALUES ('$1');
+  while ($2)
+  {
+    eval INSERT INTO t2(id2,t) VALUES ($1,'$2');
+    let $3 = 10;
+    while ($3)
+    {
+      eval INSERT INTO t3(id3,t) VALUES ($1,'$2');
+      dec $3;
+    }
+    dec $2;
+  }
+  dec $1;
+}
+
+enable_query_log;
+
+SELECT COUNT(*) FROM t1 WHERE id1 > 90;
+SELECT COUNT(*) FROM t2 WHERE id2 > 90;
+SELECT COUNT(*) FROM t3 WHERE id3 > 90;
+
+DELETE t1, t2, t3 
+FROM t1, t2, t3 
+WHERE t1.id1 = t2.id2 AND t2.id2 = t3.id3 AND t1.id1 > 5;
+
+DROP TABLE t1, t2, t3;

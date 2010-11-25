@@ -233,7 +233,6 @@ common_1_lev_code:
   case INTERVAL_MICROSECOND:
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
     return 1;
-    break;
   case INTERVAL_QUARTER:
     expr/= 3;
     close_quote= FALSE;
@@ -791,7 +790,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 */
 
 bool
-Events::init(my_bool opt_noacl_or_bootstrap)
+Events::init(bool opt_noacl_or_bootstrap)
 {
 
   THD *thd;
@@ -1091,7 +1090,12 @@ Events::load_events_from_db(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
-  init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE);
+  if (init_read_record(&read_record_info, thd, table, NULL, 0, 1, FALSE))
+  {
+    close_thread_tables(thd);
+    DBUG_RETURN(TRUE);
+  }
+
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
@@ -1142,8 +1146,9 @@ Events::load_events_from_db(THD *thd)
       }
     }
   }
-  sql_print_information("Event Scheduler: Loaded %d event%s",
-                        count, (count == 1) ? "" : "s");
+  if (global_system_variables.log_warnings)
+    sql_print_information("Event Scheduler: Loaded %d event%s",
+                          count, (count == 1) ? "" : "s");
   ret= FALSE;
 
 end:

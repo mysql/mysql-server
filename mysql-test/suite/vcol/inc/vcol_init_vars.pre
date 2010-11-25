@@ -1,0 +1,17 @@
+################################################################################
+# inc/vcol_init_vars.pre                                                       #
+#                                                                              #
+# Purpose:                                                                     #
+#  Initialize variables used in t/<name> test cases.                           #
+#                                                                              #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: Andrey Zhakov                                               #
+# Original Date: 2008-08-31                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+let $skip_full_text_check = 0;
+let $skip_spatial_index_check = 0;

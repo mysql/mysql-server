@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
@@ -358,7 +358,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1,t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
@@ -368,10 +368,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition; Using MRR
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c,c_2	c	5	const	1	Using where
+1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
 explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
@@ -553,22 +553,22 @@ insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
 Table	Checksum
-test.t1	2948697075
+test.t1	3442722830
 test.t2	NULL
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 checksum table t1, t2, t3 extended;
 Table	Checksum
-test.t1	2948697075
-test.t2	2948697075
+test.t1	3442722830
+test.t2	3442722830
 test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
@@ -1232,7 +1232,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1408,7 +1408,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2256,6 +2256,37 @@ Key Start Len Index   Type
 1   2     30  multip. varchar              
 2   33    30  multip. char NULL            
 DROP TABLE t1;
+create table t1 (n int not null, c char(1)) transactional=1;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
+drop table t1;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+Table	Checksum
+test.t1	326284887
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+Table	Checksum
+test.t2	326284887
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+Table	Checksum
+test.t3	326284887
+drop table t1,t2,t3;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32)) engine=myisam;
+drop table t1;
+create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int, a33 int,
+key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32,a33)) engine=myisam;
+ERROR 42000: Too many key parts specified; max 32 parts allowed
 CREATE TABLE t1 (
 c INT,
 d bit(1),
@@ -2350,6 +2381,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT, b BIT(1));
 INSERT INTO t1 VALUES(1, 0), (2, 1);
 CREATE TABLE t2 SELECT * FROM t1;
+FLUSH TABLES;
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	3775188275

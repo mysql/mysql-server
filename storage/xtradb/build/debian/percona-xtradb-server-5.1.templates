@@ -1,0 +1,90 @@
+# These templates have been reviewed by the debian-l10n-english
+# team
+#
+# If modifications/additions/rewording are needed, please ask
+# for an advice to debian-l10n-english@lists.debian.org
+#
+# Even minor modifications require translation updates and such
+# changes should be coordinated with translators and reviewers.
+
+Template: percona-xtradb-server-5.1/really_downgrade
+Type: boolean
+Default: false
+_Description: Really proceed with downgrade?
+ A file named /var/lib/mysql/debian-*.flag exists on this system.
+ .
+ Such file is an indication that a percona-xtradb-server package with a higher
+ version has been installed earlier.
+ .
+ There is no guarantee that the version you're currently installing
+ will be able to use the current databases.
+
+Template: percona-xtradb-server-5.1/nis_warning
+Type: note
+#flag:translate!:3,5
+_Description: Important note for NIS/YP users
+ To use MySQL, the following entries for users and groups should be added
+ to the system:
+ .
+  /etc/passwd   : mysql:x:100:101:Percona SQL Server:/var/lib/mysql:/bin/false
+  /etc/group    : mysql:x:101:
+ .
+ You should also check the permissions and the owner of the
+ /var/lib/mysql directory:
+ .
+  /var/lib/mysql: drwxr-xr-x   mysql    mysql
+
+Template: percona-xtradb-server-5.1/postrm_remove_databases
+Type: boolean
+Default: false
+_Description: Remove all Percona SQL databases?
+ The /var/lib/mysql directory which contains the Percona SQL databases is about
+ to be removed.
+ .
+ If you're removing the Percona SQL package in order to later install a more
+ recent version or if a different percona-xtradb-server package is already
+ using it, the data should be kept.
+
+Template: percona-xtradb-server-5.1/start_on_boot
+Type: boolean
+Default: true
+_Description: Start the Percona SQL server on boot?
+ The Percona SQL server can be launched automatically at boot time or manually
+ with the '/etc/init.d/mysql start' command.
+
+Template: percona-xtradb-server/root_password
+Type: password
+_Description: New password for the Percona SQL "root" user:
+ While not mandatory, it is highly recommended that you set a password
+ for the Percona SQL administrative "root" user.
+ .
+ If that field is left blank, the password will not be changed.
+
+Template: percona-xtradb-server/root_password_again
+Type: password
+_Description: Repeat password for the Percona SQL "root" user:
+
+Template: percona-xtradb-server/error_setting_password
+Type: error
+_Description: Unable to set password for the Percona SQL "root" user
+ An error occurred while setting the password for the Percona SQL
+ administrative user. This may have happened because the account
+ already has a password, or because of a communication problem with
+ the Percona SQL server.
+ .
+ You should check the account's password after the package installation.
+ .
+ Please read the /usr/share/doc/percona-xtradb-server-5.1/README.Debian file
+ for more information.
+
+Template: percona-xtradb-server/password_mismatch
+Type: error
+_Description: Password input error
+ The two passwords you entered were not the same. Please try again.
+
+Template: percona-xtradb-server/no_upgrade_when_using_ndb
+Type: error
+_Description: NDB Cluster seems to be in use
+ Percona-SQL-5.1 has orphaned NDB Cluster support. Please migrate to the new
+ mysql-cluster package and remove all lines starting with "ndb" from
+ all config files below /etc/mysql/.

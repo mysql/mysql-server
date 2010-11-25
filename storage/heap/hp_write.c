@@ -109,7 +109,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
   if (keyinfo->flag & HA_NOSAME)
   {
-    custom_arg.search_flag= SEARCH_FIND | SEARCH_UPDATE;
+    custom_arg.search_flag= SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT;
     keyinfo->rb_tree.flag= TREE_NO_DUPS;
   }
   else

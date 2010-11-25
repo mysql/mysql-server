@@ -41,6 +41,8 @@ typedef struct {
   */
 } LF_SLIST;
 
+const int LF_HASH_OVERHEAD= sizeof(LF_SLIST);
+
 /*
   a structure to pass the context (pointers two the three successive elements
   in a list) from lfind to linsert/ldelete
@@ -121,8 +123,8 @@ retry:
         we found a deleted node - be nice, help the other thread
         and remove this deleted node
       */
-      if (my_atomic_casptr((void **)cursor->prev,
-                           (void **)&cursor->curr, cursor->next))
+      if (my_atomic_casptr((void **) cursor->prev,
+                           (void **)(char*) &cursor->curr, cursor->next))
         _lf_alloc_free(pins, cursor->curr);
       else
       {
@@ -168,7 +170,8 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
       node->link= (intptr)cursor.curr;
       DBUG_ASSERT(node->link != (intptr)node); /* no circular references */
       DBUG_ASSERT(cursor.prev != &node->link); /* no circular references */
-      if (my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
+      if (my_atomic_casptr((void **) cursor.prev,
+                           (void **)(char*) &cursor.curr, node))
       {
         res= 1; /* inserted ok */
         break;
@@ -215,13 +218,13 @@ static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
     else
     {
       /* mark the node deleted */
-      if (my_atomic_casptr((void **)&(cursor.curr->link),
-                           (void **)&cursor.next,
+      if (my_atomic_casptr((void **) (char*) &(cursor.curr->link),
+                           (void **) (char*) &cursor.next,
                            (void *)(((intptr)cursor.next) | 1)))
       {
         /* and remove it from the list */
         if (my_atomic_casptr((void **)cursor.prev,
-                             (void **)&cursor.curr, cursor.next))
+                             (void **)(char*)&cursor.curr, cursor.next))
           _lf_alloc_free(pins, cursor.curr);
         else
         {
@@ -490,7 +493,7 @@ static int initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
     my_free(dummy);
     dummy= cur;
   }
-  my_atomic_casptr((void **)node, (void **)&tmp, dummy);
+  my_atomic_casptr((void **)node, (void **)(char*) &tmp, dummy);
   /*
     note that if the CAS above failed (after linsert() succeeded),
     it would mean that some other thread has executed linsert() for

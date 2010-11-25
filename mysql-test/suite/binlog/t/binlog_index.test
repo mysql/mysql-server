@@ -11,6 +11,8 @@ call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered
 call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
 call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+flush tables;
+
 let $old=`select @@debug`;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -26,6 +28,7 @@ flush logs;
 
 source include/show_binary_logs.inc;
 remove_file $MYSQLD_DATADIR/master-bin.000001;
+flush tables;
 
 # there must be a warning with file names
 replace_regex /\.[\\\/]master/master/;

@@ -40,7 +40,8 @@ my_bool my_init_done= 0;
 /** True if @c my_basic_init() has been called. */
 my_bool my_basic_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
-ulong   my_thread_stack_size= 65536;
+
+ulong   my_thread_stack_size= (sizeof(void*) <= 4)? 65536: ((256-16)*1024);
 
 static ulong atoi_octal(const char *str)
 {
@@ -91,17 +92,16 @@ my_bool my_basic_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
+  my_progname_short= "unknown";
+  if (my_progname)
+    my_progname_short= my_progname + dirname_length(my_progname);
+
+  /* Initalize our mutex handling */
+  my_mutex_init();
+
 #if defined(THREAD)
   if (my_thread_global_init())
     return 1;
-#  if defined(SAFE_MUTEX)
-  safe_mutex_global_init();		/* Must be called early */
-#  endif
-#endif
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
-  fastmutex_global_init();              /* Must be called early */
-#endif
-#ifdef THREAD
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
@@ -203,7 +203,7 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     /* Purify assumes that rus is uninitialized after getrusage call */
     bzero((char*) &rus, sizeof(rus));
 #endif
@@ -243,6 +243,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #ifdef THREAD
   my_thread_end();
   my_thread_global_end();
+  my_mutex_end();
 #if defined(SAFE_MUTEX)
   /*
     Check on destroying of mutexes. A few may be left that will get cleaned
@@ -262,6 +263,13 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   my_basic_init_done= 0;
 } /* my_end */
 
+#ifndef DBUG_OFF
+/* Dummy tag function for debugging */
+
+void my_debug_put_break_here(void)
+{
+}
+#endif
 
 #ifdef __WIN__
 

@@ -63,6 +63,7 @@ public:
     return 0;
   };
   bool fix_fields(THD *thd, Item **ref);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void cleanup();
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   table_map used_tables() const { return used_tables_cache; };
@@ -81,6 +82,7 @@ public:
   bool check_cols(uint c);
   bool null_inside() { return with_null; };
   void bring_value();
+  bool check_vcol_func_processor(uchar *int_arg) {return FALSE; } 
 };
 
 #endif /* ITEM_ROW_INCLUDED */

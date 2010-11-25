@@ -4,6 +4,6 @@ path=`dirname $0`
 . "$path/SETUP.sh"
 
 extra_flags="$pentium64_cflags $gprof_compile_flags"
-extra_configs="$pentium64_configs $debug_configs $gprof_link_flags"
+extra_configs="$pentium_configs $max_configs $gprof_link_flags --with-zlib-dir=bundled"
 
 . "$path/FINISH.sh"

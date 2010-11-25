@@ -27,7 +27,8 @@ connect (con1, localhost, root,,);
 
 CREATE TABLE t1(data LONGBLOB);
 INSERT INTO t1 SELECT REPEAT('1', 2*1024*1024);
-
+# The following is to remove the race between end of insert and start of MYSQL_DUMP:
+SELECT COUNT(*) FROM t1;
 let $outfile= $MYSQLTEST_VARDIR/tmp/bug41486.sql;
 --error 0,1
 remove_file $outfile;

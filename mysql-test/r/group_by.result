@@ -1543,8 +1543,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	144	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where
+1	PRIMARY	t1	index	PRIMARY,i2	PRIMARY	4	NULL	144	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t1)
 CREATE TABLE t2 (a INT, b INT, KEY(a));
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3,3), (4,4);
 EXPLAIN SELECT a, SUM(b) FROM t2 GROUP BY a LIMIT 2;
@@ -1556,8 +1556,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where
+1	PRIMARY	t2	index	a	a	5	NULL	4	Using index
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	144	Using where; FirstMatch(t2)
 SHOW VARIABLES LIKE 'old';
 Variable_name	Value
 old	OFF
@@ -1743,7 +1743,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a`) + 0)
+Note	1003	select <expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by (<expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) + 0)
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1751,7 +1751,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a`))
+Note	1003	select <expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -(<expr_cache><`test`.`t1`.`a`>((select `test`.`t1`.`a`)))
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
@@ -1810,6 +1810,23 @@ SELECT MAX(t2.a) FROM t2 LEFT JOIN t1 ON t2.a = t1.a;
 MAX(t2.a)
 2
 DROP TABLE t1, t2;
+CREATE TABLE t1 (a int(11) NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (
+key_col int(11) NOT NULL,
+KEY (key_col)
+);
+INSERT INTO t2 VALUES (1),(2);
+select min(t2.key_col) from t1,t2 where t1.a=1;
+min(t2.key_col)
+1
+select min(t2.key_col) from t1,t2 where t1.a > 1000;
+min(t2.key_col)
+NULL
+select min(t2.key_col)+1 from t1,t2 where t1.a> 1000;
+min(t2.key_col)+1
+NULL
+drop table t1,t2;
 #
 # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
 #

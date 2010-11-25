@@ -1,0 +1,578 @@
+-- source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# Test to see if select will get the lock ahead of low priority update
+
+connect (locker,localhost,root,,);
+connect (reader,localhost,root,,);
+connect (writer,localhost,root,,);
+
+#
+# Test problem when using locks with multi-updates
+# It should not block when multi-update is reading on a read-locked table
+#
+
+connection locker;
+create table t1 (a int, b int);
+create table t2 (c int, d int);
+insert into t1 values(1,1);
+insert into t1 values(2,2);
+insert into t2 values(1,2);
+lock table t1 read;
+connection writer;
+update t1,t2 set c=a where b=d;
+connection reader;
+select c from t2;
+connection locker;
+drop table t1;
+drop table t2;
+
+#
+# Test problem when using locks on many tables and dropping a table that
+# is to-be-locked by another thread
+#
+#
+connection locker;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+connection reader;
+send
+insert t1 select * from t2;
+connection locker;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "insert t1 select * from t2";
+--source include/wait_condition.inc
+drop table t2;
+connection reader;
+--error ER_NO_SUCH_TABLE
+reap;
+connection locker;
+drop table t1;
+
+#
+# Same test as above, but with the dropped table locked twice
+#
+
+connection locker;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
+connection reader;
+send
+insert t1 select * from t2;
+connection locker;
+# Sleep a bit till the insert of connection reader is in work and hangs
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "insert t1 select * from t2";
+--source include/wait_condition.inc
+drop table t2;
+connection reader;
+--error ER_NO_SUCH_TABLE
+reap;
+connection locker;
+drop table t1;
+
+
+--echo End of 4.1 tests
+
+#
+# Bug#9998 MySQL client hangs on USE "database"
+#
+create table t1(a int);
+lock tables t1 write;
+connection reader;
+show columns from t1;
+connection locker;
+unlock tables;
+drop table t1;
+
+#
+# Bug#16986 Deadlock condition with MyISAM tables
+#
+
+# Need a matching user in mysql.user for multi-table select
+--source include/add_anonymous_users.inc
+
+connection locker;
+USE mysql;
+LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+FLUSH TABLES;
+#
+connection reader;
+USE mysql;
+# Note:  This must be a multi-table select, otherwise the deadlock will not occur
+send
+SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+#
+connection locker;
+# Sleep a bit till the select of connection reader is in work and hangs
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info =
+  "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
+--source include/wait_condition.inc
+# Make test case independent from earlier grants.
+--replace_result "Table is already up to date" "OK"
+OPTIMIZE TABLES columns_priv, db, host, user;
+UNLOCK TABLES;
+#
+connection reader;
+reap;
+USE test;
+#
+connection locker;
+use test;
+#
+connection default;
+#
+# Test if CREATE TABLE with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send
+FLUSH TABLES WITH READ LOCK;
+#
+connection writer;
+# Sleep a bit till the flush of connection locker is in work and hangs
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+--source include/wait_condition.inc
+# This must not block.
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1, t2;
+#
+# Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send
+FLUSH TABLES WITH READ LOCK;
+#
+# This must not block.
+connection writer;
+# Sleep a bit till the flush of connection locker is in work and hangs
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+--source include/wait_condition.inc
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE t2 AS SELECT * FROM t1;
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1;
+
+--source include/delete_anonymous_users.inc
+
+#
+# Bug#19815 CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
+#
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+#
+connection con1;
+CREATE DATABASE mysqltest_1;
+FLUSH TABLES WITH READ LOCK;
+#
+# With bug in place: acquire LOCK_mysql_create_table and
+# wait in wait_if_global_read_lock().
+connection con2;
+send
+DROP DATABASE mysqltest_1;
+#
+# With bug in place: try to acquire LOCK_mysql_create_table...
+# When fixed: Reject dropping db because of the read lock.
+connection con1;
+# Wait a bit so that the session con2 is in state "Waiting for release of readlock"
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock"
+  and info = "DROP DATABASE mysqltest_1";
+--source include/wait_condition.inc
+--error ER_CANT_UPDATE_WITH_READLOCK
+DROP DATABASE mysqltest_1;
+UNLOCK TABLES;
+#
+connection con2;
+reap;
+#
+connection default;
+disconnect con1;
+disconnect con2;
+# This must have been dropped by connection 2 already,
+# which waited until the global read lock was released.
+--error ER_DB_DROP_EXISTS
+DROP DATABASE mysqltest_1;
+
+#
+# Bug#17264 MySQL Server freeze
+#
+connection locker;
+# Disable warnings to allow test to run also without InnoDB
+--disable_warnings
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+--enable_warnings
+lock tables t1 write;
+connection writer;
+send
+alter table t1 auto_increment=0;
+connection reader;
+# Wait till connection writer is blocked
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "alter table t1 auto_increment=0";
+--source include/wait_condition.inc
+send
+alter table t1 auto_increment=0;
+connection locker;
+# Wait till connection reader is blocked
+let $wait_condition=
+  select count(*) = 2 from information_schema.processlist
+  where state = "Locked" and info = "alter table t1 auto_increment=0";
+--source include/wait_condition.inc
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+connection locker;
+drop table t1;
+
+#
+# Bug#43230: SELECT ... FOR UPDATE can hang with FLUSH TABLES WITH READ LOCK indefinitely
+#
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+connect (con4,localhost,root,,);
+connect (con5,localhost,root,,);
+
+create table t1 (a int);
+create table t2 like t1;
+
+connection con1;
+--echo # con1
+lock tables t1 write;
+connection con2;
+--echo # con2
+send flush tables with read lock;
+connection con5;
+--echo # con5
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Flushing tables';
+--source include/wait_show_condition.inc
+--echo # global read lock is taken
+connection con3;
+--echo # con3
+send select * from t2 for update;
+connection con5;
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # waiting for release of read lock
+connection con4;
+--echo # con4
+--echo # would hang and later cause a deadlock
+flush tables t2;
+connection con1;
+--echo # clean up
+unlock tables;
+connection con2;
+--reap
+unlock tables;
+connection con3;
+--reap
+connection default;
+disconnect con5;
+disconnect con4;
+disconnect con3;
+disconnect con2;
+disconnect con1;
+
+drop table t1,t2;
+
+--echo #
+--echo # Lightweight version:
+--echo # Ensure that the wait for a GRL is done before opening tables.
+--echo #
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+create table t1 (a int);
+create table t2 like t1;
+
+--echo #
+--echo # UPDATE
+--echo #
+
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send update t2 set a = 1;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
+--reap
+
+--echo #
+--echo # LOCK TABLES .. WRITE
+--echo #
+
+connection default;
+--echo # default
+flush tables with read lock;
+connection con1;
+--echo # con1
+send lock tables t2 write;
+connection default;
+--echo # default
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+let $condition= = 'Waiting for release of readlock';
+--source include/wait_show_condition.inc
+--echo # statement is waiting for release of read lock
+connection con2;
+--echo # con2
+flush table t2;
+connection default;
+--echo # default
+unlock tables;
+connection con1;
+--echo # con1
+--reap
+unlock tables;
+
+connection default;
+disconnect con2;
+disconnect con1;
+
+drop table t1,t2;
+
+
+--echo End of 5.0 tests
+
+
+#
+# Bug#21281 Pending write lock is incorrectly removed when its
+#           statement being KILLed
+#
+create table t1 (i int);
+connection locker;
+lock table t1 read;
+connection writer;
+send
+update t1 set i= 10;
+connection reader;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "update t1 set i= 10";
+--source include/wait_condition.inc
+send
+select * from t1;
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "select * from t1";
+--source include/wait_condition.inc
+let $ID= `select id from information_schema.processlist where state = "Locked" and info = "update t1 set i= 10"`;
+--replace_result $ID ID
+eval kill query $ID;
+connection reader;
+--reap
+connection writer;
+--error ER_QUERY_INTERRUPTED
+--reap
+connection locker;
+unlock tables;
+connection default;
+drop table t1;
+
+# Disconnect sessions used in many subtests above
+disconnect locker;
+disconnect reader;
+disconnect writer;
+
+#
+# Bug#32395 Alter table under a impending global read lock causes a server crash
+#
+
+#
+# Test ALTER TABLE under LOCK TABLES and FLUSH TABLES WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+alter table t1 add column j int;
+connect (insert,localhost,root,,test,,);
+connection insert;
+--echo connection: insert
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+--send insert into t1 values (1,2);
+--echo connection: default
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock";
+--source include/wait_condition.inc
+unlock tables;
+connection flush;
+--echo connection: flush
+--reap
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock";
+--source include/wait_condition.inc
+select * from t1;
+unlock tables;
+connection insert;
+--reap
+connection default;
+let $wait_condition=
+  select count(*) = 1 from t1;
+--source include/wait_condition.inc
+select * from t1;
+drop table t1;
+disconnect flush;
+disconnect insert;
+
+#
+# Test that FLUSH TABLES under LOCK TABLES protects write locked tables
+# from a impending FLUSH TABLES WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+flush tables;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+unlock tables;
+let $wait_condition=
+  select count(*) = 0 from information_schema.processlist
+  where state = "Flushing tables";
+--source include/wait_condition.inc
+connection flush;
+--reap
+connection default;
+disconnect flush;
+drop table t1;
+
+#
+# Bug#30331 Table_locks_waited shows inaccurate values
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+flush status;
+lock tables t1 read;
+let $tlwa= `show status like 'Table_locks_waited'`;
+connect (waiter,localhost,root,,);
+connection waiter;
+--send insert into t1 values(1);
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "insert into t1 values(1)";
+--source include/wait_condition.inc
+let $tlwb= `show status like 'Table_locks_waited'`;
+unlock tables;
+drop table t1;
+disconnect waiter;
+connection default;
+--disable_query_log
+eval SET @tlwa= SUBSTRING_INDEX('$tlwa', '	', -1);
+eval SET @tlwb= SUBSTRING_INDEX('$tlwb', '	', -1);
+drop database pbxt;
+--enable_query_log
+select @tlwa < @tlwb;
+
+--echo End of 5.1 tests
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

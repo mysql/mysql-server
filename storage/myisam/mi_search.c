@@ -66,7 +66,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   int error,flag;
   uint nod_flag;
   uchar *keypos,*maxpos;
-  uchar lastkey[MI_MAX_KEY_BUFF],*buff;
+  uchar lastkey[HA_MAX_KEY_BUFF],*buff;
   DBUG_ENTER("_mi_search");
   DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
                       (ulong) pos, nextflag, (ulong) info->lastpos));
@@ -248,7 +248,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 {
   int UNINIT_VAR(flag);
   uint nod_flag,UNINIT_VAR(length),not_used[2];
-  uchar t_buff[MI_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
   end= page+mi_getint(page);
@@ -300,8 +300,8 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uint UNINIT_VAR(prefix_len), suffix_len;
   int key_len_skip, UNINIT_VAR(seg_len_pack), key_len_left;
   uchar *end, *kseg, *vseg;
-  uchar *sort_order=keyinfo->seg->charset->sort_order;
-  uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
+  const uchar *sort_order= keyinfo->seg->charset->sort_order;
+  uchar tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
   uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
   uchar *UNINIT_VAR(saved_vseg);
   uint  saved_length=0, saved_prefix_len=0;
@@ -919,7 +919,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   DBUG_ENTER("_mi_get_binary_pack_key");
 
   page= *page_pos;
-  page_end=page+MI_MAX_KEY_BUFF+1;
+  page_end=page+HA_MAX_KEY_BUFF+1;
   start_key=key;
 
   /*
@@ -1237,7 +1237,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 {
   int error;
   uint nod_flag;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_search_next");
   DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu",
                       nextflag, (ulong) info->lastpos,
@@ -1467,7 +1467,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
-  uchar *start,*end,*key_end,*sort_order;
+  uchar *start,*end,*key_end;
+  const uchar *sort_order;
   my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;
@@ -1748,7 +1749,7 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint length,key_length,ref_length;
 
   s_temp->totlength=key_length=_mi_keylength(keyinfo,key)+nod_flag;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
   s_temp->n_length= s_temp->n_ref_length=0;	/* For valgrind */
 #endif
   s_temp->key=key;
@@ -1801,13 +1802,13 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
     }
     /* Check how many characters are identical to next key */
     key= s_temp->key+next_length;
+    s_temp->prev_length= 0;
     while (*key++ == *next_key++) ;
     if ((ref_length= (uint) (key - s_temp->key)-1) == next_length)
     {
       s_temp->next_key_pos=0;
       return length;                            /* can't pack next key */
     }
-    s_temp->prev_length=0;
     s_temp->n_ref_length=ref_length;
     return (int) (length-(ref_length - next_length) - next_length_pack +
                   get_pack_length(ref_length));

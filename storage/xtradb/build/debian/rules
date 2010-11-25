@@ -1,0 +1,322 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+PACKAGE=percona-xtradb-dfsg-5.1
+
+include /usr/share/dpatch/dpatch.make
+
+TMP=$(CURDIR)/debian/tmp/
+
+ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
+
+DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
+DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
+DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
+DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
+DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
+
+DISTRIBUTION = $(shell echo "Percona SQL Server (GPL), XtraDB 10")
+
+MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
+ifeq (${MAKE_J}, -j0)
+  MAKE_J = -j1
+endif
+
+MAKE_TEST_TARGET=test-force
+ifneq ($(findstring $(DEB_BUILD_OPTIONS),fulltest),)
+# make test-bt is the testsuite run by the MySQL build team 
+# before a release, but it is long
+    MAKE_TEST_TARGET=test-bt
+endif
+
+USE_ASSEMBLER=--enable-assembler 
+
+#ifneq ($(findstring $(ARCH), alpha amd64 arm armel ia64 i386 hppa mipsel powerpc s390 sparc),)
+#   TESTSUITE_FAIL_CMD=true
+#else
+   TESTSUITE_FAIL_CMD=exit 1
+#endif
+
+# This causes seg11 crashes if LDAP is used for groups in /etc/nsswitch.conf
+# so it is disabled by default although, according to MySQL, it brings >10%
+# performance gain if enabled. See #299382.
+ifeq ($(STATIC_MYSQLD), 1)
+    USE_STATIC_MYSQLD=--with-mysqld-ldflags=-all-static
+endif
+		
+configure: patch configure-stamp
+configure-stamp:
+	@echo "RULES.configure-stamp"
+	dh_testdir
+
+ifneq ($(ARCH_OS),hurd)
+	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
+endif
+
+	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
+	    	CC=$${MYSQL_BUILD_CC:-gcc} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O3 -DBIG_JOINS=1 ${FORCE_FPIC_CFLAGS}"} \
+	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -DBIG_JOINS=1 -felide-constructors -fno-exceptions -fno-rtti ${FORCE_FPIC_CFLAGS}"} \
+	    ./configure \
+		--build=${DEB_BUILD_GNU_TYPE} \
+		--host=${DEB_HOST_GNU_TYPE} \
+		\
+		--prefix=/usr \
+	        --exec-prefix=/usr \
+	        --libexecdir=/usr/sbin \
+	        --datadir=/usr/share \
+	        --localstatedir=/var/lib/mysql \
+	        --includedir=/usr/include \
+	        --infodir=/usr/share/info \
+	        --mandir=/usr/share/man \
+		\
+		--with-server-suffix="-$(DEBVERSION)" \
+		--with-comment="($(DISTRIBUTION))" \
+		--with-system-type="debian-linux-gnu" \
+		\
+		--enable-shared \
+		--enable-static \
+		--enable-thread-safe-client \
+	        $(USE_ASSEMBLER) \
+		--enable-local-infile \
+		$(FORCE_FPIC) \
+		--with-fast-mutexes \
+                --with-big-tables \
+		--with-unix-socket-path=/var/run/mysqld/mysqld.sock \
+	       	--with-mysqld-user=mysql \
+		--with-libwrap \
+		$(USE_STATIC_MYSQLD) \
+		--with-ssl \
+	    	--without-docs \
+		--with-extra-charsets=all \
+		--with-plugins=max-no-ndb \
+		\
+		--without-embedded-server \
+		--with-embedded-privilege-control'
+		
+	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!
+	#
+	#	--with-debug
+	
+	touch configure-stamp
+
+
+build: build-stamp
+build-stamp: configure
+	dh_testdir
+
+	$(MAKE) $(MAKE_J)
+
+ifeq ($(findstring $(DEB_BUILD_OPTIONS),nocheck),)
+	if [ ! -f testsuite-stamp ] ; then \
+	  $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
+	fi
+endif
+
+	touch testsuite-stamp
+
+	touch build-stamp
+	
+
+clean: clean-patched unpatch
+	rm -rf debian/patched
+clean-patched:
+	@echo "RULES.clean-patched"
+	dh_testdir 
+	dh_testroot
+	rm -f configure-stamp
+	rm -f build-stamp
+	rm -f testsuite-stamp
+	
+	[ ! -f Makefile ] || $(MAKE) clean
+	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
+
+	# We like to see how long this is neccessary
+	@echo "CRUFT BEGIN" 
+	@find -type l -print0 | xargs --no-run-if-empty -0 rm -v
+	@find -name .deps -type d -print0 | xargs --no-run-if-empty -0 rm -rfv
+	@rm -vrf ndb/docs/.doxy* ndb/docs/*html ndb/docs/*pdf innobase/autom4te.cache
+	@for i in \
+	  readline/Makefile \
+	  sql-bench/Makefile \
+	  scripts/make_win_binary_distribution \
+	  scripts/mysqlbug \
+	  sql/gen_lex_hash \
+	  sql/lex_hash.h \
+	  strings/ctype_autoconf.c \
+	  config.log \
+	  config.cache \
+	  ; \
+	do \
+	  rm -vf $$i; \
+	done
+	@echo "CRUFT END"
+
+	debconf-updatepo
+	dh_clean -v
+
+	
+install:
+install: build
+	@echo "RULES.install"
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	# some self written manpages which hopefully
+	# gets overwritten sooner or later with upstreams
+	mkdir -p $(TMP)/usr/share/man/man1/
+	mkdir -p $(TMP)/usr/share/man/man8/
+	cp debian/additions/*.1 $(TMP)/usr/share/man/man1/
+	mkdir -p $(TMP)/etc/mysql/conf.d/
+	cp debian/additions/mysqld_safe_syslog.cnf $(TMP)/etc/mysql/conf.d/
+	ln -s mysqlmanager.1 $(TMP)/usr/share/man/man1/mysqlmanager-pwgen.1
+	ln -s mysqlmanager.1 $(TMP)/usr/share/man/man1/mysqlmanagerc.1
+
+	# make install (trailing slash needed for innobase)
+	$(MAKE) install DESTDIR=$(TMP)/
+		
+	# After installing, remove rpath to make lintian happy.
+	set +e; \
+	find ./debian/tmp/ -type f -print0 \
+		| xargs -0 --no-run-if-empty chrpath -k 2>/dev/null \
+		| fgrep RPATH= \
+		| cut -d: -f 1 \
+		| xargs --no-run-if-empty chrpath -d; \
+	set -e
+
+	# libmysqlclient: move shared libraries (but not the rest like libheap.a & co)
+	mv $(TMP)/usr/lib/mysql/libmysqlclient* $(TMP)/usr/lib
+	perl -pi -e 's#/usr/lib/mysql#/usr/lib#' $(TMP)/usr/lib/libmysqlclient.la
+	perl -pi -e 's#/usr/lib/mysql#/usr/lib#' $(TMP)/usr/lib/libmysqlclient_r.la
+	# Check if our beloved versioned symbols are really there
+	if [ "`objdump -T $(TMP)/usr/lib/libmysqlclient.so.16.0.0 | grep -c libmysqlclient_16`" -lt 500 ]; then \
+	  echo "ERROR: versioned symbols are absent"; \
+	  exit 1; \
+	fi     
+
+	# libmysqlclient-dev: forgotten header file since 3.23.25?
+	cp include/my_config.h $(TMP)/usr/include/mysql/
+	cp include/my_dir.h $(TMP)/usr/include/mysql/
+
+	# percona-xtradb-common: We now provide our own config file.
+	install -d $(TMP)/etc/mysql
+	install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
+
+	# percona-xtradb-client
+	install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
+	install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
+	install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
+	install -m 0644 -D debian/additions/innotop/InnoDBParser.pm $(TMP)/usr/share/perl5/InnoDBParser.pm
+
+	# percona-xtradb-server
+	install -m 0755 scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
+	mkdir -p $(TMP)/usr/share/doc/percona-xtradb-server-5.1/examples
+	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-xtradb-server-5.1/examples/
+	rm -vf $(TMP)/usr/share/mysql/mi_test_all* \
+	       $(TMP)/usr/share/mysql/mysql-log-rotate \
+	       $(TMP)/usr/share/mysql/mysql.server \
+	       $(TMP)/usr/share/mysql/binary-configure
+	nm -n sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-xtradb-server-5.1/mysqld.sym.gz
+	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+	# lintian overrides
+	mkdir -p $(TMP)/usr/share/lintian/overrides/
+	cp debian/percona-xtradb-common.lintian-overrides     $(TMP)/usr/share/lintian/overrides/percona-xtradb-common
+	cp debian/percona-xtradb-server-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-xtradb-server-5.1
+	cp debian/percona-xtradb-client-5.1.lintian-overrides $(TMP)/usr/share/lintian/overrides/percona-xtradb-client-5.1
+
+	# For 5.0 -> 5.1 transition
+	d=$(TMP)/usr/share/percona-xtradb-common/internal-use-only/; \
+	mkdir -p $$d; \
+	cp debian/percona-xtradb-server-5.1.mysql.init $$d/_etc_init.d_mysql; \
+	cp debian/percona-xtradb-server-5.1.logrotate $$d/_etc_logrotate.d_percona-xtradb-server; \
+	cp debian/additions/debian-start $$d/_etc_mysql_debian-start;
+
+	dh_movefiles
+	
+# Build architecture-independent files here.
+binary-indep: build install
+	@echo "RULES.binary-indep"
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdebconf -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installmenu -i
+	dh_installlogrotate -i
+	dh_installinit -i
+	dh_installcron -i 
+	dh_installman -i
+	dh_installinfo -i
+	dh_installlogcheck -i
+	dh_installchangelogs -i
+	dh_link -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_perl -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+	
+# Build architecture-dependent files here.
+binary-arch: build install
+	@echo "RULES.binary-arch"
+	dh_testdir 
+	dh_testroot
+
+	dh_installdebconf -a
+	dh_installdocs -a
+	dh_installexamples -a
+	dh_installmenu -a
+	dh_installlogrotate -a --name percona-xtradb-server
+	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
+	# started which might depend on a running database server.
+	dh_installinit -a --name=mysql -- defaults 19 21
+	dh_installcron -a --name percona-xtradb-server
+	dh_installman -a
+	dh_installinfo -a
+	dh_installlogcheck -a
+	dh_installchangelogs -a
+	dh_strip -a
+	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -a
+	dh_makeshlibs -plibmysqlclient16 -V'libmysqlclient16 (>= 5.1.21-1)'
+	dh_installdeb -a
+	dh_perl -a
+	dh_shlibdeps -a -l debian/libmysqlclient16/usr/lib -L libmysqlclient16
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+source diff:
+	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
+
+binary:	binary-indep binary-arch
+
+get-orig-source:
+	@wget -nv -T10 -t3 \
+	  -O /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz \
+	  http://ftp.gwdg.de/pub/misc/mysql/Downloads/MySQL-$(DEB_UPSTREAM_VERSION_MAJOR_MINOR)/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
+	@tar xfz /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz -C /tmp
+	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/Docs
+	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/debian
+	@mv /tmp/mysql-$(DEB_UPSTREAM_VERSION) /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+	@cd /tmp ; tar czf $(DEB_SOURCE_PACKAGE)_$(DEB_UPSTREAM_VERSION).orig.tar.gz $(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+	@rm -f /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
+	@rm -rf /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
+
+.PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch unpatch
+
+# vim: ts=8

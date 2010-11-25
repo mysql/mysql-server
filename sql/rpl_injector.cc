@@ -40,6 +40,7 @@ injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   m_start_pos.m_file_name= my_strdup(log_info.log_file_name, MYF(0));
   m_start_pos.m_file_pos= log_info.pos;
 
+  m_thd->lex->start_transaction_opt= 0; /* for begin_trans() */
   trans_begin(m_thd);
 }
 

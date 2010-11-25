@@ -115,7 +115,7 @@ void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg)
 {
   DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
-  compile_time_assert(sizeof(LF_PINS) == 64);
+  compile_time_assert(sizeof(LF_PINS) == 128);
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver= 0;
   pinbox->pins_in_array= 0;
@@ -448,6 +448,8 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->top= 0;
   allocator->mallocs= 0;
   allocator->element_size= size;
+  allocator->constructor= 0;
+  allocator->destructor= 0;
   DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
 }
 
@@ -468,6 +470,8 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
   while (node)
   {
     uchar *tmp= anext_node(node);
+    if (allocator->destructor)
+      allocator->destructor(node);
     my_free(node);
     node= tmp;
   }
@@ -496,6 +500,8 @@ void *_lf_alloc_new(LF_PINS *pins)
     if (!node)
     {
       node= (void *)my_malloc(allocator->element_size, MYF(MY_WME));
+      if (allocator->constructor)
+        allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
       if (likely(node != 0))
         my_atomic_add32(&allocator->mallocs, 1);

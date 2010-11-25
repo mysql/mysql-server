@@ -4,6 +4,7 @@
 #
 
 integer.cpp: .*control reaches end of non-void function.*: 1288-1427
+integer.cpp: .*no return statement in function returning non-void.*: 1288-1427
 DictTabInfo.cpp : .*invalid access to non-static.*
 DictTabInfo.cpp : .*macro was used incorrectly.*
 DbdihMain.cpp : .*unused variable.* : 6666-7013
@@ -23,8 +24,29 @@ sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 # Things that can be ignored in InnoDB
 #
 pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
+pars0grm.c: 'yyerrorlab' : unreferenced label
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
+lexyy.c : not enough actual parameters for macro 'yywrap'
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
+btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
+include/buf0buf\.ic: unused parameter .*mtr.*
+fil/fil0fil\.c: pointer targets in passing argument.*differ in signedness
+fil/fil0fil\.c: comparison between signed and unsigned : 3100-3199
+fil/fil0fil\.c: unused parameter
+log/log0recv\.c: unused variable
+os/os0file\.c: unused parameter
+os/os0file\.c: pointer targets in assignment differ in signedness
+handler/i_s\.cc: unused variable
+sync/sync0rw\.c: unused parameter
+sync/sync0sync\.c: unused parameter
+sync/sync0sync\.c: unused variable
+ut/ut0ut\.c: ignoring return value of
+srv/srv0srv\.c: value computed is not used
+buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
+btr/btr0cur\.c: null argument where non-null required: 1800-3000
+btr/btr0btr\.c: null argument where non-null required: 2500-3000
+ibuf/ibuf0ibuf.c: null argument where non-null required: 700-1000
+fsp0fsp\.c: result of 32-bit shift implicitly converted to 64 bits
 
 #
 # bdb is not critical to keep up to date
@@ -39,6 +61,34 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # readline is not maintained by us
 #
 .*/cmd-line-utils/readline/.* : .*
+readline\.c : unused parameter
+term\.c : unused parameter
+vi\.c : unused parameter
+common\.c : unused parameter
+term\.c : .*
+
+
+#
+# Ignore some warnings in libevent, which is not maintained by us.
+#
+.*/extra/libevent/.* : .*unused parameter.*
+.*/extra/libevent/select\.c : .*comparison between signed and unsigned.* : 270-280
+signal\.c : .*unused parameter.*
+
+#
+# Ignore warnings from system libraries
+#
+/usr/share/aclocal/audiofile.m4 : .*
+
+#
+# Ignore strict-aliasing warnings (for now)
+#
+.*: break strict-aliasing rules
+
+#
+# Ignore not important declaration warnings
+#
+.*: only defines private constructors and has no friends
 
 #
 # Ignore all conversion warnings on windows 64
@@ -61,6 +111,12 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .* : conversion from '.*size_t' to 'UINT'.*
 .* : conversion from '.*size_t' to 'uInt'.*
 .* : conversion from '.*size_t' to 'uint16'.*
+.* : The following environment variables were not found.*
+.* : no public symbols found; archive member will be inaccessible
+.* : DESCRIPTION statement not supported
+
+# Ignore uninitialized local variables on windows
+.* : uninitialized local variable .* used
 
 #
 # The following should be fixed by the ndb team
@@ -70,16 +126,60 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .*/ndb/.* : .*defined but not used.*
 
 #
+# Aria warning that is ok in debug builds
+#
+storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
+
+#
+# Pbxt
+#
+xaction_xt\.cc: may be used uninitialized in this function
+lock_xt\.cc : uninitialized local variable .* used
+restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
+
+#
+# I think these are due to mix of C and C++.
+#
+storage/pbxt/ : typedef.*was ignored in this declaration
+ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
+table_xt\.cc : variable.*might be clobbered by.*longjmp
+
+#
+# Yassl
+include/runtime.hpp: .*pure_error.*
+.*/extra/yassl/.*taocrypt/.*: comparison with string literal
+.*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
+.*/extra/yassl/taocrypt/src/file\.cpp: ignoring return value
+.*/extra/yassl/taocrypt/src/integer\.cpp: control reaches end of non-void function
+mySTL/algorithm\.hpp: is used uninitialized in this function
+
+#
+# Groff warnings on OpenSUSE.
+#
+.*/dbug/.*(groff|<standard input>) : .*
+
+#
 # Unexplanable (?) stuff
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
 
+#
+# Ignorable warnings from header files
+#
+backward_warning\.h : This file includes at least one
+
 # allow a little moving space for the warning below
-mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
+mi_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
+ma_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-650
 
 #
 # Wrong compiler warnings
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
-ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+ctype-simple\.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+
+# Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
+regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
+libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
+storage/xtradb/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500

@@ -159,7 +159,7 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
     DBUG_RETURN(my_errno=HA_ERR_CRASHED);
   }
   if (!(root_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
-				      MI_MAX_KEY_BUFF*2)))
+				      HA_MAX_KEY_BUFF*2)))
   {
     DBUG_PRINT("error",("Couldn't allocate memory"));
     DBUG_RETURN(my_errno=ENOMEM);
@@ -171,8 +171,9 @@ static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
     goto err;
   }
   if ((error=d_search(info,keyinfo,
-                      (keyinfo->flag & HA_FULLTEXT ? SEARCH_FIND | SEARCH_UPDATE
-                                                   : SEARCH_SAME),
+                      (keyinfo->flag & HA_FULLTEXT ?
+                       SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT :
+                       SEARCH_SAME),
                        key,key_length,old_root,root_buff)) >0)
   {
     if (error == 2)
@@ -221,7 +222,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   my_bool last_key;
   uchar *leaf_buff,*keypos;
   my_off_t UNINIT_VAR(leaf_page),next_block;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
 
@@ -310,7 +311,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   {
     leaf_page=_mi_kpos(nod_flag,keypos);
     if (!(leaf_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
-					MI_MAX_KEY_BUFF*2)))
+					HA_MAX_KEY_BUFF*2)))
     {
       DBUG_PRINT("error",("Couldn't allocate memory"));
       my_errno=ENOMEM;
@@ -369,9 +370,7 @@ static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
     {				/* This happens only with packed keys */
       DBUG_PRINT("test",("Enlarging of key when deleting"));
       if (!_mi_get_last_key(info,keyinfo,anc_buff,lastkey,keypos,&length))
-      {
 	goto err;
-      }
       ret_value=_mi_insert(info,keyinfo,key,anc_buff,keypos,lastkey,
 			   (uchar*) 0,(uchar*) 0,(my_off_t) 0,(my_bool) 0);
     }
@@ -409,7 +408,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   int ret_value,length;
   uint a_length,nod_flag,tmp;
   my_off_t next_page;
-  uchar keybuff[MI_MAX_KEY_BUFF],*endpos,*next_buff,*key_start, *prev_key;
+  uchar keybuff[HA_MAX_KEY_BUFF],*endpos,*next_buff,*key_start, *prev_key;
   MYISAM_SHARE *share=info->s;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("del");
@@ -426,7 +425,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
   {
     next_page= _mi_kpos(nod_flag,endpos);
     if (!(next_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
-					MI_MAX_KEY_BUFF*2)))
+					HA_MAX_KEY_BUFF*2)))
       DBUG_RETURN(-1);
     if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,next_buff,0))
       ret_value= -1;
@@ -513,7 +512,7 @@ static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   uint length,anc_length,buff_length,leaf_length,p_length,s_length,nod_flag,
        key_reflength,key_length;
   my_off_t next_page;
-  uchar anc_key[MI_MAX_KEY_BUFF],leaf_key[MI_MAX_KEY_BUFF],
+  uchar anc_key[HA_MAX_KEY_BUFF],leaf_key[HA_MAX_KEY_BUFF],
         *buff,*endpos,*next_keypos,*anc_pos,*half_pos,*temp_pos,*prev_key,
         *after_key;
   MI_KEY_PARAM s_temp;

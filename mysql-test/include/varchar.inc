@@ -11,6 +11,11 @@ enable_query_log;
 # Simple basic test that endspace is saved
 #
 
+#
+# Remember to check that one doesn't get a warning or a note
+# from a char field when end spaces get removed. SQL standard!
+#
+
 create table t1 (v varchar(10), c char(10), t text);
 insert into t1 values('+ ', '+ ', '+ ');
 set @a=repeat(' ',20);
@@ -81,6 +86,8 @@ explain select count(*) from t1 where v between 'a' and 'a ';
 --replace_column 9 #
 explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  ' and 'b\n';
 
+# Which duplicate entry triggers error is not deterministic.
+--replace_regex /Duplicate entry '[^']+' for key/Duplicate entry '{ ' for key/
 --error ER_DUP_ENTRY
 alter table t1 add unique(v);
 alter table t1 add key(v);

@@ -1,0 +1,16 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+
+@DPATCH@
+
+--- a/scripts/mysql_install_db.sh	2009-08-08 09:20:07.000000000 +0000
++++ b/scripts/mysql_install_db.sh	2009-08-08 09:29:23.000000000 +0000
+@@ -469,6 +469,9 @@
+   echo
+   echo "Please report any problems with the $scriptdir/mysqlbug script!"
+   echo
++  echo "For commercial support please contact Percona at http://www.percona.com/contacts.html"
++  echo
++
+ fi
+
+ exit 0

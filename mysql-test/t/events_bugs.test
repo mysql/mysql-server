@@ -1203,8 +1203,6 @@ set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
-# Rename SQL modes that differ in name between the server and the table definition.
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.event where name = 'e1' and sql_mode = @full_mode;
 drop event e1;

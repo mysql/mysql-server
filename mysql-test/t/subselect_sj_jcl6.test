@@ -1,0 +1,39 @@
+# 
+# Run subselect_sj.test with BKA enabled 
+#
+
+set join_cache_level=6;
+show variables like 'join_cache_level';
+
+--source t/subselect_sj.test
+
+--echo #
+--echo # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
+--echo #
+CREATE TABLE t0 (a INT);
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4);
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 SELECT a, a from t0;
+CREATE TABLE t2 (a INT, b INT, PRIMARY KEY(a));
+INSERT INTO t2 SELECT * FROM t1;
+UPDATE t1 SET a=3, b=11 WHERE a=4;
+UPDATE t2 SET b=11 WHERE a=3;
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+
+--echo The following should use a join order of t0,t1,t2, with DuplicateElimination:
+explain
+SELECT * FROM t0 WHERE t0.a IN 
+  (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
+
+SELECT * FROM t0 WHERE t0.a IN 
+  (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
+
+set optimizer_switch=@save_optimizer_switch;
+drop table t0, t1, t2;
+
+--echo # End
+
+set join_cache_level=default;
+show variables like 'join_cache_level';

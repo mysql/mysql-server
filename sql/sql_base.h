@@ -182,7 +182,7 @@ bool setup_fields(THD *thd, Item** ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors);
+                 bool ignore_errors, bool use_value);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
@@ -289,6 +289,7 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
+int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
 
 extern TABLE *unused_tables;
 extern Item **not_found_item;

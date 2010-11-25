@@ -1,0 +1,37 @@
+--source include/have_query_cache.inc
+--source include/have_debug.inc
+set GLOBAL query_cache_size=1355776;
+--source include/percona_query_cache_with_comments_clear.inc
+
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+CREATE TABLE t(id INT, number INT);
+INSERT INTO t VALUES (0,1);
+INSERT INTO t VALUES (1,2);
+INSERT INTO t VALUES (2,3);
+SELECT number from t where id > 0;
+--connect (conn0,localhost,root,,)
+--connect (conn1,localhost,root,,)
+--connect (conn2,localhost,root,,)
+
+--connection conn0
+--error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+SEND SELECT number from t where id > 0;
+SLEEP 1.0;
+
+--connection conn1
+--error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+SEND SELECT number from t where id > 0;
+SLEEP 1.0;
+
+--connection conn2
+--error 0, ER_UNKNOWN_SYSTEM_VARIABLE
+SET SESSION debug="+d,status_wait_query_cache_mutex_sleep";
+--replace_column 1 Id 6 Time
+SHOW PROCESSLIST;
+
+DROP TABLE t;
+set GLOBAL query_cache_size=0;

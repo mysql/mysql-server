@@ -1,0 +1,584 @@
+drop table if exists t1;
+SHOW GLOBAL VARIABLES LIKE "%_format%";
+Variable_name	Value
+binlog_format	<format>
+date_format	%Y-%m-%d
+datetime_format	%Y-%m-%d %H:%i:%s
+default_week_format	0
+time_format	%H:%i:%s
+SHOW SESSION VARIABLES LIKE "%_format%";
+Variable_name	Value
+binlog_format	<format>
+date_format	%Y-%m-%d
+datetime_format	%Y-%m-%d %H:%i:%s
+default_week_format	0
+time_format	%H:%i:%s
+SET time_format='%H%i%s';
+SET time_format='%H:%i:%s.%f';
+SET time_format='%h-%i-%s.%f%p';
+SET time_format='%h:%i:%s.%f %p';
+SET time_format='%h:%i:%s%p';
+SET date_format='%Y%m%d';
+SET date_format='%Y.%m.%d';
+SET date_format='%d.%m.%Y';
+SET date_format='%m-%d-%Y';
+set datetime_format= '%Y%m%d%H%i%s';
+set datetime_format= '%Y-%m-%d %H:%i:%s';
+set datetime_format= '%m-%d-%y %H:%i:%s.%f';
+set datetime_format= '%d-%m-%Y %h:%i:%s%p';
+set datetime_format= '%H:%i:%s %Y-%m-%d';
+set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
+set datetime_format= '%h:%i:%s %p %Y-%m-%d';
+set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
+SHOW SESSION VARIABLES LIKE "%format";
+Variable_name	Value
+binlog_format	<format>
+date_format	%m-%d-%Y
+datetime_format	%h:%i:%s.%f %p %Y-%m-%d
+default_week_format	0
+time_format	%h:%i:%s%p
+SET time_format='%h:%i:%s';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s'
+SET time_format='%H %i:%s';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H %i:%s'
+SET time_format='%H::%i:%s';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H::%i:%s'
+SET time_format='%H:%i:%s%f';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i:%s%f'
+SET time_format='%H:%i.%f:%s';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i.%f:%s'
+SET time_format='%H:%i:%s%p';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i:%s%p'
+SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%h:%i:%s.%f %p %Y-%m-%d'
+SET time_format='%H%i%s.%f';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H%i%s.%f'
+SET time_format='%H:%i-%s.%f';
+ERROR 42000: Variable 'time_format' can't be set to the value of '%H:%i-%s.%f'
+SET date_format='%d.%m.%d';
+ERROR 42000: Variable 'date_format' can't be set to the value of '%d.%m.%d'
+SET datetime_format='%h.%m.%y %d.%i.%s';
+ERROR 42000: Variable 'datetime_format' can't be set to the value of '%h.%m.%y %d.%i.%s'
+set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
+ERROR 42000: Variable 'datetime_format' can't be set to the value of '%H:%i:%s.%f %p %Y-%m-%d'
+set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
+SET SESSION datetime_format=default;
+select @@global.datetime_format, @@session.datetime_format;
+@@global.datetime_format	@@session.datetime_format
+%H:%i:%s %Y-%m-%d	%H:%i:%s %Y-%m-%d
+SET GLOBAL datetime_format=default;
+SET SESSION datetime_format=default;
+select @@global.datetime_format, @@session.datetime_format;
+@@global.datetime_format	@@session.datetime_format
+%Y-%m-%d %H:%i:%s	%Y-%m-%d %H:%i:%s
+SET GLOBAL date_format=default;
+SET GLOBAL time_format=default;
+SET GLOBAL datetime_format=default;
+SET time_format=default;
+SET date_format=default;
+SET datetime_format=default;
+select str_to_date(concat('15-01-2001',' 2:59:58.999'),
+concat('%d-%m-%Y',' ','%H:%i:%s.%f'));
+str_to_date(concat('15-01-2001',' 2:59:58.999'),
+concat('%d-%m-%Y',' ','%H:%i:%s.%f'))
+2001-01-15 02:59:58.999000
+select STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T');
+STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
+NULL
+Warnings:
+Error	1411	Incorrect time value: '22.30.61' for function str_to_date
+create table t1 (date char(30), format char(30) not null);
+insert into t1 values
+('2003-01-02 10:11:12', '%Y-%m-%d %H:%i:%S'),
+('03-01-02 8:11:2.123456', '%y-%m-%d %H:%i:%S.%#'),
+('2003-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p'),
+('2003-01-02 01:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f%p'),
+('2003-01-02 02:11:12.12345AM', '%Y-%m-%d %h:%i:%S.%f %p'),
+('2003-01-02 12:11:12.12345 am', '%Y-%m-%d %h:%i:%S.%f%p'),
+('2003-01-02 11:11:12Pm', '%Y-%m-%d %h:%i:%S%p'),
+('10:20:10', '%H:%i:%s'),
+('10:20:10', '%h:%i:%s.%f'),
+('10:20:10', '%T'),
+('10:20:10AM', '%h:%i:%s%p'),
+('10:20:10AM', '%r'),
+('10:20:10.44AM', '%h:%i:%s.%f%p'),
+('15-01-2001 12:59:58', '%d-%m-%Y %H:%i:%S'),
+('15 September 2001', '%d %M %Y'),
+('15 SEPTEMB 2001', '%d %M %Y'),
+('15 MAY 2001', '%d %b %Y'),
+('15th May 2001', '%D %b %Y'),
+('Sunday 15 MAY 2001', '%W %d %b %Y'),
+('Sund 15 MAY 2001', '%W %d %b %Y'),
+('Tuesday 00 2002', '%W %U %Y'),
+('Thursday 53 1998', '%W %u %Y'),
+('Sunday 01 2001', '%W %v %x'),
+('Tuesday 52 2001', '%W %V %X'),
+('060 2004', '%j %Y'),
+('4 53 1998', '%w %u %Y'),
+('15-01-2001', '%d-%m-%Y %H:%i:%S'),
+('15-01-20', '%d-%m-%y'),
+('15-2001-1', '%d-%Y-%c');
+select date,format,str_to_date(date, format) as str_to_date from t1;
+date	format	str_to_date
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12.123450
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02 23:11:12
+10:20:10	%H:%i:%s	0000-00-00 10:20:10
+10:20:10	%h:%i:%s.%f	0000-00-00 10:20:10
+10:20:10	%T	0000-00-00 10:20:10
+10:20:10AM	%h:%i:%s%p	0000-00-00 10:20:10
+10:20:10AM	%r	0000-00-00 10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.440000
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
+15 September 2001	%d %M %Y	2001-09-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
+15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
+15th May 2001	%D %b %Y	2001-05-15 00:00:00
+Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Tuesday 00 2002	%W %U %Y	2002-01-01 00:00:00
+Thursday 53 1998	%W %u %Y	1998-12-31 00:00:00
+Sunday 01 2001	%W %v %x	2001-01-07 00:00:00
+Tuesday 52 2001	%W %V %X	2002-01-01 00:00:00
+060 2004	%j %Y	2004-02-29 00:00:00
+4 53 1998	%w %u %Y	1998-12-31 00:00:00
+15-01-2001	%d-%m-%Y %H:%i:%S	2001-01-15 00:00:00
+15-01-20	%d-%m-%y	2020-01-15 00:00:00
+15-2001-1	%d-%Y-%c	2001-01-15 00:00:00
+select date,format,concat('',str_to_date(date, format)) as con from t1;
+date	format	con
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12.123450
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02 23:11:12
+10:20:10	%H:%i:%s	0000-00-00 10:20:10
+10:20:10	%h:%i:%s.%f	0000-00-00 10:20:10
+10:20:10	%T	0000-00-00 10:20:10
+10:20:10AM	%h:%i:%s%p	0000-00-00 10:20:10
+10:20:10AM	%r	0000-00-00 10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.440000
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
+15 September 2001	%d %M %Y	2001-09-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
+15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
+15th May 2001	%D %b %Y	2001-05-15 00:00:00
+Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Tuesday 00 2002	%W %U %Y	2002-01-01 00:00:00
+Thursday 53 1998	%W %u %Y	1998-12-31 00:00:00
+Sunday 01 2001	%W %v %x	2001-01-07 00:00:00
+Tuesday 52 2001	%W %V %X	2002-01-01 00:00:00
+060 2004	%j %Y	2004-02-29 00:00:00
+4 53 1998	%w %u %Y	1998-12-31 00:00:00
+15-01-2001	%d-%m-%Y %H:%i:%S	2001-01-15 00:00:00
+15-01-20	%d-%m-%y	2020-01-15 00:00:00
+15-2001-1	%d-%Y-%c	2001-01-15 00:00:00
+select date,format,cast(str_to_date(date, format) as datetime) as datetime from t1;
+date	format	datetime
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02 10:11:12
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02 08:11:02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 01:11:12.123450
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02 02:11:12.123450
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02 00:11:12.123450
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02 23:11:12
+10:20:10	%H:%i:%s	0000-00-00 10:20:10
+10:20:10	%h:%i:%s.%f	0000-00-00 10:20:10
+10:20:10	%T	0000-00-00 10:20:10
+10:20:10AM	%h:%i:%s%p	0000-00-00 10:20:10
+10:20:10AM	%r	0000-00-00 10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00 10:20:10.440000
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15 12:59:58
+15 September 2001	%d %M %Y	2001-09-15 00:00:00
+15 SEPTEMB 2001	%d %M %Y	2001-09-15 00:00:00
+15 MAY 2001	%d %b %Y	2001-05-15 00:00:00
+15th May 2001	%D %b %Y	2001-05-15 00:00:00
+Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Sund 15 MAY 2001	%W %d %b %Y	2001-05-15 00:00:00
+Tuesday 00 2002	%W %U %Y	2002-01-01 00:00:00
+Thursday 53 1998	%W %u %Y	1998-12-31 00:00:00
+Sunday 01 2001	%W %v %x	2001-01-07 00:00:00
+Tuesday 52 2001	%W %V %X	2002-01-01 00:00:00
+060 2004	%j %Y	2004-02-29 00:00:00
+4 53 1998	%w %u %Y	1998-12-31 00:00:00
+15-01-2001	%d-%m-%Y %H:%i:%S	2001-01-15 00:00:00
+15-01-20	%d-%m-%y	2020-01-15 00:00:00
+15-2001-1	%d-%Y-%c	2001-01-15 00:00:00
+select date,format,DATE(str_to_date(date, format)) as date2 from t1;
+date	format	date2
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	2003-01-02
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	2003-01-02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	2003-01-02
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	2003-01-02
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	2003-01-02
+10:20:10	%H:%i:%s	0000-00-00
+10:20:10	%h:%i:%s.%f	0000-00-00
+10:20:10	%T	0000-00-00
+10:20:10AM	%h:%i:%s%p	0000-00-00
+10:20:10AM	%r	0000-00-00
+10:20:10.44AM	%h:%i:%s.%f%p	0000-00-00
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	2001-01-15
+15 September 2001	%d %M %Y	2001-09-15
+15 SEPTEMB 2001	%d %M %Y	2001-09-15
+15 MAY 2001	%d %b %Y	2001-05-15
+15th May 2001	%D %b %Y	2001-05-15
+Sunday 15 MAY 2001	%W %d %b %Y	2001-05-15
+Sund 15 MAY 2001	%W %d %b %Y	2001-05-15
+Tuesday 00 2002	%W %U %Y	2002-01-01
+Thursday 53 1998	%W %u %Y	1998-12-31
+Sunday 01 2001	%W %v %x	2001-01-07
+Tuesday 52 2001	%W %V %X	2002-01-01
+060 2004	%j %Y	2004-02-29
+4 53 1998	%w %u %Y	1998-12-31
+15-01-2001	%d-%m-%Y %H:%i:%S	2001-01-15
+15-01-20	%d-%m-%y	2020-01-15
+15-2001-1	%d-%Y-%c	2001-01-15
+select date,format,TIME(str_to_date(date, format)) as time from t1;
+date	format	time
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	10:11:12
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	08:11:02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	22:11:12
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	01:11:12.123450
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	00:11:12.123450
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	23:11:12
+10:20:10	%H:%i:%s	10:20:10
+10:20:10	%h:%i:%s.%f	10:20:10
+10:20:10	%T	10:20:10
+10:20:10AM	%h:%i:%s%p	10:20:10
+10:20:10AM	%r	10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	10:20:10.440000
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	12:59:58
+15 September 2001	%d %M %Y	00:00:00
+15 SEPTEMB 2001	%d %M %Y	00:00:00
+15 MAY 2001	%d %b %Y	00:00:00
+15th May 2001	%D %b %Y	00:00:00
+Sunday 15 MAY 2001	%W %d %b %Y	00:00:00
+Sund 15 MAY 2001	%W %d %b %Y	00:00:00
+Tuesday 00 2002	%W %U %Y	00:00:00
+Thursday 53 1998	%W %u %Y	00:00:00
+Sunday 01 2001	%W %v %x	00:00:00
+Tuesday 52 2001	%W %V %X	00:00:00
+060 2004	%j %Y	00:00:00
+4 53 1998	%w %u %Y	00:00:00
+15-01-2001	%d-%m-%Y %H:%i:%S	00:00:00
+15-01-20	%d-%m-%y	00:00:00
+15-2001-1	%d-%Y-%c	00:00:00
+select date,format,concat(TIME(str_to_date(date, format))) as time2 from t1;
+date	format	time2
+2003-01-02 10:11:12	%Y-%m-%d %H:%i:%S	10:11:12
+03-01-02 8:11:2.123456	%y-%m-%d %H:%i:%S.%#	08:11:02
+2003-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	22:11:12
+2003-01-02 01:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f%p	01:11:12.123450
+2003-01-02 02:11:12.12345AM	%Y-%m-%d %h:%i:%S.%f %p	02:11:12.123450
+2003-01-02 12:11:12.12345 am	%Y-%m-%d %h:%i:%S.%f%p	00:11:12.123450
+2003-01-02 11:11:12Pm	%Y-%m-%d %h:%i:%S%p	23:11:12
+10:20:10	%H:%i:%s	10:20:10
+10:20:10	%h:%i:%s.%f	10:20:10
+10:20:10	%T	10:20:10
+10:20:10AM	%h:%i:%s%p	10:20:10
+10:20:10AM	%r	10:20:10
+10:20:10.44AM	%h:%i:%s.%f%p	10:20:10.440000
+15-01-2001 12:59:58	%d-%m-%Y %H:%i:%S	12:59:58
+15 September 2001	%d %M %Y	00:00:00
+15 SEPTEMB 2001	%d %M %Y	00:00:00
+15 MAY 2001	%d %b %Y	00:00:00
+15th May 2001	%D %b %Y	00:00:00
+Sunday 15 MAY 2001	%W %d %b %Y	00:00:00
+Sund 15 MAY 2001	%W %d %b %Y	00:00:00
+Tuesday 00 2002	%W %U %Y	00:00:00
+Thursday 53 1998	%W %u %Y	00:00:00
+Sunday 01 2001	%W %v %x	00:00:00
+Tuesday 52 2001	%W %V %X	00:00:00
+060 2004	%j %Y	00:00:00
+4 53 1998	%w %u %Y	00:00:00
+15-01-2001	%d-%m-%Y %H:%i:%S	00:00:00
+15-01-20	%d-%m-%y	00:00:00
+15-2001-1	%d-%Y-%c	00:00:00
+select concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'));
+concat('',str_to_date('8:11:2.123456 03-01-02','%H:%i:%S.%f %y-%m-%d'))
+2003-01-02 08:11:02.123456
+truncate table t1;
+insert into t1 values
+('2003-01-02 10:11:12 PM', '%Y-%m-%d %H:%i:%S %p'),
+('2003-01-02 10:11:12.123456', '%Y-%m-%d %h:%i:%S %p'),
+('2003-01-02 10:11:12AM', '%Y-%m-%d %h:%i:%S.%f %p'),
+('2003-01-02 10:11:12AN', '%Y-%m-%d %h:%i:%S%p'),
+('2003-01-02 10:11:12 PM', '%y-%m-%d %H:%i:%S %p'),
+('10:20:10AM', '%H:%i:%s%p'),
+('15 Septembei 2001', '%d %M %Y'),
+('15 Ju 2001', '%d %M %Y'),
+('Sund 15 MA', '%W %d %b %Y'),
+('Thursdai 12 1998', '%W %u %Y'),
+('Sunday 01 2001', '%W %v %X'),
+('Tuesday 52 2001', '%W %V %x'),
+('Tuesday 52 2001', '%W %V %Y'),
+('Tuesday 52 2001', '%W %u %x'),
+('7 53 1998', '%w %u %Y'),
+(NULL, get_format(DATE,'USA'));
+select date,format,str_to_date(date, format) as str_to_date from t1;
+date	format	str_to_date
+2003-01-02 10:11:12 PM	%Y-%m-%d %H:%i:%S %p	NULL
+2003-01-02 10:11:12.123456	%Y-%m-%d %h:%i:%S %p	NULL
+2003-01-02 10:11:12AM	%Y-%m-%d %h:%i:%S.%f %p	NULL
+2003-01-02 10:11:12AN	%Y-%m-%d %h:%i:%S%p	NULL
+2003-01-02 10:11:12 PM	%y-%m-%d %H:%i:%S %p	NULL
+10:20:10AM	%H:%i:%s%p	NULL
+15 Septembei 2001	%d %M %Y	NULL
+15 Ju 2001	%d %M %Y	NULL
+Sund 15 MA	%W %d %b %Y	NULL
+Thursdai 12 1998	%W %u %Y	NULL
+Sunday 01 2001	%W %v %X	NULL
+Tuesday 52 2001	%W %V %x	NULL
+Tuesday 52 2001	%W %V %Y	NULL
+Tuesday 52 2001	%W %u %x	NULL
+7 53 1998	%w %u %Y	NULL
+NULL	%m.%d.%Y	NULL
+Warnings:
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+select date,format,concat(str_to_date(date, format),'') as con from t1;
+date	format	con
+2003-01-02 10:11:12 PM	%Y-%m-%d %H:%i:%S %p	NULL
+2003-01-02 10:11:12.123456	%Y-%m-%d %h:%i:%S %p	NULL
+2003-01-02 10:11:12AM	%Y-%m-%d %h:%i:%S.%f %p	NULL
+2003-01-02 10:11:12AN	%Y-%m-%d %h:%i:%S%p	NULL
+2003-01-02 10:11:12 PM	%y-%m-%d %H:%i:%S %p	NULL
+10:20:10AM	%H:%i:%s%p	NULL
+15 Septembei 2001	%d %M %Y	NULL
+15 Ju 2001	%d %M %Y	NULL
+Sund 15 MA	%W %d %b %Y	NULL
+Thursdai 12 1998	%W %u %Y	NULL
+Sunday 01 2001	%W %v %X	NULL
+Tuesday 52 2001	%W %V %x	NULL
+Tuesday 52 2001	%W %V %Y	NULL
+Tuesday 52 2001	%W %u %x	NULL
+7 53 1998	%w %u %Y	NULL
+NULL	%m.%d.%Y	NULL
+Warnings:
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12.123456' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AM' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12AN' for function str_to_date
+Error	1411	Incorrect datetime value: '2003-01-02 10:11:12 PM' for function str_to_date
+Error	1411	Incorrect datetime value: '10:20:10AM' for function str_to_date
+Error	1411	Incorrect datetime value: '15 Septembei 2001' for function str_to_date
+Error	1411	Incorrect datetime value: '15 Ju 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Sund 15 MA' for function str_to_date
+Error	1411	Incorrect datetime value: 'Thursdai 12 1998' for function str_to_date
+Error	1411	Incorrect datetime value: 'Sunday 01 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: 'Tuesday 52 2001' for function str_to_date
+Error	1411	Incorrect datetime value: '7 53 1998' for function str_to_date
+truncate table t1;
+insert into t1 values
+('10:20:10AM', '%h:%i:%s'),
+('2003-01-02 10:11:12', '%Y-%m-%d %h:%i:%S'),
+('03-01-02 10:11:12 PM', '%Y-%m-%d %h:%i:%S %p');
+select date,format,str_to_date(date, format) as str_to_date from t1;
+date	format	str_to_date
+10:20:10AM	%h:%i:%s	0000-00-00 10:20:10
+2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
+03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
+Warnings:
+Warning	1292	Incorrect datetime value: '10:20:10AM'
+select date,format,concat(str_to_date(date, format),'') as con from t1;
+date	format	con
+10:20:10AM	%h:%i:%s	0000-00-00 10:20:10
+2003-01-02 10:11:12	%Y-%m-%d %h:%i:%S	2003-01-02 10:11:12
+03-01-02 10:11:12 PM	%Y-%m-%d %h:%i:%S %p	2003-01-02 22:11:12
+Warnings:
+Warning	1292	Incorrect datetime value: '10:20:10AM'
+drop table t1;
+select get_format(DATE, 'USA') as a;
+a
+%m.%d.%Y
+select get_format(TIME, 'internal') as a;
+a
+%H%i%s
+select get_format(DATETIME, 'eur') as a;
+a
+%Y-%m-%d %H.%i.%s
+select get_format(TIMESTAMP, 'eur') as a;
+a
+%Y-%m-%d %H.%i.%s
+select get_format(DATE, 'TEST') as a;
+a
+NULL
+select str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'));
+str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
+NULL
+Warnings:
+Error	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
+explain extended select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select makedate(1997,1) AS `makedate(1997,1)`,addtime('31.12.97 11.59.59.999999 PM','1 1.1.1.000002') AS `addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,subtime('31.12.97 11.59.59.999999 PM','1 1.1.1.000002') AS `subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002")`,timediff('01.01.97 11:59:59.000001 PM','31.12.95 11:59:59.000002 PM') AS `timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM")`,cast(str_to_date('15-01-2001 12:59:59','%d-%m-%Y %H:%i:%S') as time) AS `cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME)`,maketime(23,11,12) AS `maketime(23,11,12)`,microsecond('1997-12-31 23:59:59.000001') AS `microsecond("1997-12-31 23:59:59.000001")`
+create table t1 (d date);
+insert into t1 values ('2004-07-14'),('2005-07-14');
+select date_format(d,"%d") from t1 order by 1;
+date_format(d,"%d")
+14
+14
+drop table t1;
+select str_to_date("2003-....01ABCD-02 10:11:12.0012", "%Y-%.%m%@-%d %H:%i:%S.%f") as a;
+a
+2003-01-02 10:11:12.001200
+create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
+str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
+describe t1;
+Field	Type	Null	Key	Default	Extra
+f1	datetime	YES		NULL	
+f2	time	YES		NULL	
+f3	date	YES		NULL	
+f4	date	YES		NULL	
+f5	time	YES		NULL	
+select * from t1;
+f1	f2	f3	f4	f5
+2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-02	58:00:00
+drop table t1;
+create table t1 select "02 10" as a, "%d %H" as b;
+select str_to_date(a,b) from t1;
+str_to_date(a,b)
+0000-00-02 10:00:00
+create table t2 select str_to_date(a,b) from t1;
+describe t2;
+Field	Type	Null	Key	Default	Extra
+str_to_date(a,b)	datetime	YES		NULL	
+select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S.%f") as f1,
+str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%S") as f2,
+str_to_date("2003-01-02", "%Y-%m-%d") as f3,
+str_to_date("02 10:11:12", "%d %H:%i:%S.%f") as f4,
+str_to_date("02 10:11:12", "%d %H:%i:%S") as f5,
+str_to_date("02 10", "%d %f") as f6;
+f1	f2	f3	f4	f5	f6
+2003-01-02 10:11:12.001200	2003-01-02 10:11:12	2003-01-02	58:11:12	58:11:12	48:00:00.100000
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012'
+drop table t1, t2;
+select str_to_date("2003-01-02 10:11:12.0012ABCD", "%Y-%m-%d %H:%i:%S.%f") as f1,
+addtime("-01:01:01.01 GGG", "-23:59:59.1") as f2,
+microsecond("1997-12-31 23:59:59.01XXXX") as f3;
+f1	f2	f3
+2003-01-02 10:11:12.001200	-25:01:00.110000	10000
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2003-01-02 10:11:12.0012ABCD'
+Warning	1292	Truncated incorrect time value: '-01:01:01.01 GGG'
+Warning	1292	Truncated incorrect time value: '1997-12-31 23:59:59.01XXXX'
+select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
+str_to_date("2003-04-05 10:11:12.101010234567", "%Y-%m-%d %H:%i:%S.%f") as f2;
+f1	f2
+2003-04-05	2003-04-05 10:11:12.101010
+Warnings:
+Warning	1292	Truncated incorrect date value: '2003-04-05  g'
+Warning	1292	Truncated incorrect datetime value: '2003-04-05 10:11:12.101010234567'
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Thursday (Thu), 1 January (Jan) 2004
+set lc_time_names=ru_RU;
+set names koi8r;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Четверг (Чтв), 1 Января (Янв) 2004
+set lc_time_names=de_DE;
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Donnerstag (Do), 1 Januar (Jan) 2004
+set names latin1;
+set lc_time_names=en_US;
+create table t1 (f1 datetime);
+insert into t1 (f1) values ("2005-01-01");
+insert into t1 (f1) values ("2005-02-01");
+select date_format(f1, "%m") as d1, date_format(f1, "%M") as d2 from t1 order by date_format(f1, "%M");
+d1	d2
+02	February
+01	January
+drop table t1;
+select str_to_date( 1, NULL );
+str_to_date( 1, NULL )
+NULL
+select str_to_date( NULL, 1 );
+str_to_date( NULL, 1 )
+NULL
+select str_to_date( 1, IF(1=1,NULL,NULL) );
+str_to_date( 1, IF(1=1,NULL,NULL) )
+NULL
+SELECT TIME_FORMAT("24:00:00", '%r');
+TIME_FORMAT("24:00:00", '%r')
+12:00:00 AM
+SELECT TIME_FORMAT("00:00:00", '%r');
+TIME_FORMAT("00:00:00", '%r')
+12:00:00 AM
+SELECT TIME_FORMAT("12:00:00", '%r');
+TIME_FORMAT("12:00:00", '%r')
+12:00:00 PM
+SELECT TIME_FORMAT("15:00:00", '%r');
+TIME_FORMAT("15:00:00", '%r')
+03:00:00 PM
+SELECT TIME_FORMAT("01:00:00", '%r');
+TIME_FORMAT("01:00:00", '%r')
+01:00:00 AM
+SELECT TIME_FORMAT("25:00:00", '%r');
+TIME_FORMAT("25:00:00", '%r')
+01:00:00 AM
+SELECT TIME_FORMAT("00:00:00", '%l %p');
+TIME_FORMAT("00:00:00", '%l %p')
+12 AM
+SELECT TIME_FORMAT("01:00:00", '%l %p');
+TIME_FORMAT("01:00:00", '%l %p')
+1 AM
+SELECT TIME_FORMAT("12:00:00", '%l %p');
+TIME_FORMAT("12:00:00", '%l %p')
+12 PM
+SELECT TIME_FORMAT("23:00:00", '%l %p');
+TIME_FORMAT("23:00:00", '%l %p')
+11 PM
+SELECT TIME_FORMAT("24:00:00", '%l %p');
+TIME_FORMAT("24:00:00", '%l %p')
+12 AM
+SELECT TIME_FORMAT("25:00:00", '%l %p');
+TIME_FORMAT("25:00:00", '%l %p')
+1 AM
+SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
+DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '%Y-%m-%d %H:%i:%s'
+select str_to_date('04 /30/2004', '%m /%d/%Y');
+str_to_date('04 /30/2004', '%m /%d/%Y')
+2004-04-30
+select str_to_date('04/30 /2004', '%m /%d /%Y');
+str_to_date('04/30 /2004', '%m /%d /%Y')
+2004-04-30
+select str_to_date('04/30/2004 ', '%m/%d/%Y ');
+str_to_date('04/30/2004 ', '%m/%d/%Y ')
+2004-04-30
+"End of 4.1 tests"

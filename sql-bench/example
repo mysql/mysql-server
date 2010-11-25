@@ -6,15 +6,14 @@ machine="Linux-x64"
 
 # InnoDB tests
 
-./run-all-tests --suffix=-innodb --comments="Engine=InnoDB --innodb_log_file_size=100M" --create-options="ENGINE=InnoDB" --hw="$hw" --optimization="$optimization" --machine="$machine" --log
+./run-all-tests --suffix=-innodb --comments="Engine=InnoDB --innodb_buffer_pool_size=256M --innodb_additional_mem_pool_size=20M --innodb_log_file_size=1000M --innodb_log_buffer_size=16M --innodb_lock_wait_timeout=50 --innodb_flush_log_at_trx_commit=1 --innodb_flush_method=O_DIRECT --innodb_log_files_in_group=2 --skip-innodb-doublewrite" --create-options="ENGINE=InnoDB" --hw="$hw" --optimization="$optimization" --machine="$machine" --log
 
-./run-all-tests --suffix=_fast-innodb --comments="Engine=InnoDB --innodb_log_file_size=100M" --create-options="ENGINE=InnoDB" --hw="$hw" --optimization="$optimization" --machine="$machine" --fast --log
-
+./run-all-tests --suffix=_fast-innodb --comments="Engine=InnoDB --innodb_buffer_pool_size=256M --innodb_additional_mem_pool_size=20M --innodb_log_file_size=1000M --innodb_log_buffer_size=16M --innodb_lock_wait_timeout=50 --innodb_flush_log_at_trx_commit=1 --innodb_flush_method=O_DIRECT --innodb_log_files_in_group=2 --skip-innodb-doublewrite" --create-options="ENGINE=InnoDB" --hw="$hw" --optimization="$optimization" --machine="$machine" --fast --log
 
 # MyISAM tests
 
-./run-all-tests --suffix=-myisam --comments="Engine=MyISAM key_buffer_size=16M" --create-options="ENGINE=myisam" --hw="$hw" --optimization="$optimization" --machine="$machine" --log
+./run-all-tests --suffix=-myisam --comments="Engine=MyISAM key_buffer_size=256M" --create-options="ENGINE=myisam" --hw="$hw" --optimization="$optimization" --machine="$machine" --log
 
-./run-all-tests --suffix=_fast-myisam --comments="Engine=MyISAM key_buffer_size=16M" --create-options="ENGINE=myisam" --hw="$hw" --optimization="$optimization" --machine="$machine" --fast --log
+./run-all-tests --suffix=_fast-myisam --comments="Engine=MyISAM key_buffer_size=256M" --create-options="ENGINE=myisam" --hw="$hw" --optimization="$optimization" --machine="$machine" --fast --log
 
 compare-results --relative output/RUN-mysql-myisam-* output/RUN-mysql_fast-myisam* output/RUN-mysql*

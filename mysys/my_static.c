@@ -26,7 +26,7 @@ my_bool timed_mutexes= 0;
 
 	/* from my_init */
 char *	home_dir=0;
-const char      *my_progname=0;
+const char      *my_progname= NULL, *my_progname_short= NULL;
 char		curr_dir[FN_REFLEN]= {0},
 		home_dir_buff[FN_REFLEN]= {0};
 ulong		my_stream_opened=0,my_file_opened=0, my_tmp_file_created=0;
@@ -89,6 +89,18 @@ static const char *proc_info_dummy(void *a __attribute__((unused)),
 const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
                               const unsigned int)= proc_info_dummy;
 
+static const char *proc_info_dummy(void *a __attribute__((unused)),
+                                   const char *b __attribute__((unused)),
+                                   const char *c __attribute__((unused)),
+                                   const char *d __attribute__((unused)),
+                                   const unsigned int e __attribute__((unused)))
+{
+  return 0;
+}
+
+/* this is to be able to call set_thd_proc_info from the C code */
+const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
+                              const unsigned int)= proc_info_dummy;
 #if defined(ENABLED_DEBUG_SYNC)
 /**
   Global pointer to be set if callback function is defined
@@ -104,6 +116,7 @@ ulonglong query_performance_frequency, query_performance_offset;
 
 	/* How to disable options */
 my_bool my_disable_locking=0;
+my_bool my_disable_sync=0;
 my_bool my_disable_async_io=0;
 my_bool my_disable_flush_key_blocks=0;
 my_bool my_disable_symlinks=0;

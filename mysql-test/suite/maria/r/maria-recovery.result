@@ -1,0 +1,242 @@
+set global aria_log_file_size=4294967295;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+* shut down mysqld, removed logs, restarted it
+create table t1 (a varchar(1000)) engine=aria;
+* TEST of REDO: see if recovery can reconstruct if we give it an old table
+* copied t1 for feeding_recovery
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+* compared t1 to old version
+use mysqltest;
+select * from t1;
+a
+00000000
+* TEST of REDO+UNDO: normal recovery test (no moving tables under its feet)
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_page_cache,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_states,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+00000000
+insert into t1 values ("00000000");
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values ("aaaaaaaaa");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+select * from t1;
+a
+00000000
+00000000
+00000000
+00000000
+00000000
+drop table t1;
+* TEST of two REDOs for same page in one REDO group
+* shut down mysqld, removed logs, restarted it
+CREATE TABLE t1 (
+i int,
+b blob default NULL,
+c varchar(6000) default NULL
+) ENGINE=ARIA CHECKSUM=1;
+* copied t1 for feeding_recovery
+INSERT INTO t1 VALUES (1, REPEAT('a', 5000), REPEAT('b', 5000));
+UPDATE t1 SET i=3, b=CONCAT(b,'c') WHERE i=1;
+SELECT LENGTH(b) FROM t1 WHERE i=3;
+LENGTH(b)
+5001
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+SELECT LENGTH(b) FROM t1 WHERE i=3;
+LENGTH(b)
+5001
+drop table t1;
+* TEST of INSERT vs state.auto_increment
+* shut down mysqld, removed logs, restarted it
+CREATE TABLE t1 (
+i int auto_increment primary key,
+c varchar(6),
+key(c)
+) ENGINE=ARIA;
+insert into t1 values(null,"b");
+* copied t1 for feeding_recovery
+insert into t1 values(null,"a"), (null,"c"), (null,"d");
+delete from t1 where c="d";
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `c` varchar(6) DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `c` (`c`)
+) ENGINE=Aria AUTO_INCREMENT=5 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+* TEST of UPDATE vs state.auto_increment
+* copied t1 for feeding_recovery
+update t1 set i=15 where c="a";
+flush table t1;
+* copied t1 for comparison
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* copied t1 back for feeding_recovery
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `c` varchar(6) DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `c` (`c`)
+) ENGINE=Aria AUTO_INCREMENT=16 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+* TEST of INSERT's rollback vs state.auto_increment
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values(null, "e");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global aria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `c` varchar(6) DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `c` (`c`)
+) ENGINE=Aria AUTO_INCREMENT=17 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+insert into t1 values(null, "f");
+drop table t1;
+drop database mysqltest_for_feeding_recovery;
+drop database mysqltest_for_comparison;
+drop database mysqltest;

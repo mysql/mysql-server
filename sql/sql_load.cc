@@ -802,7 +802,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
     it.rewind();
     uchar *pos=read_info.row_start;
-#ifdef HAVE_purify
+#ifdef HAVE_valgrind
     read_info.row_end[0]=0;
 #endif
 
@@ -944,11 +944,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       real_item= item->real_item();
 
       if ((!read_info.enclosed &&
-	  (enclosed_length && length == 4 &&
-           !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
+           (enclosed_length && length == 4 &&
+            !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
 	  (length == 1 && read_info.found_null))
       {
-
         if (real_item->type() == Item::FIELD_ITEM)
         {
           Field *field= ((Item_field *)real_item)->field;
@@ -1295,7 +1294,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)
-  :file(file_par),escape_char(escape)
+  :file(file_par),buffer(0),escape_char(escape)
 {
   read_charset= cs;
   field_term_ptr=(char*) field_term.ptr();
@@ -1495,8 +1494,9 @@ int READ_INFO::read_field()
 	// End of enclosed field if followed by field_term or line_term
 	if (chr == my_b_EOF ||
 	    (chr == line_term_char && terminator(line_term_ptr,
-						line_term_length)))
-	{					// Maybe unexpected linefeed
+                                                 line_term_length)))
+        {
+          /* Maybe unexpected linefeed */
 	  enclosed=1;
 	  found_end_of_line=1;
 	  row_start=buffer+1;

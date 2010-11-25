@@ -1,0 +1,128 @@
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4;
+--enable_warnings
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=aria;
+
+--source include/mrr_tests.inc 
+
+set storage_engine= @save_storage_engine;
+
+#
+# Bug #665049:  index condition pushdown with Maria 
+#
+
+CREATE TABLE t1(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES 
+  (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
+  (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
+  (11,186,'x'), (12,1,'g'), (13,8,'q'), (14,226,'m'), (15,133,'p');
+
+CREATE TABLE t2(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 VALUES (77, 333, 'z');
+
+CREATE TABLE t3(
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx (v, i)
+) ENGINE=ARIA;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t3 VALUES (88, 442, 'y'), (99, 445, 'w') ;
+
+SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+EXPLAIN 
+SELECT COUNT(t1.v) FROM t1, t2 IGNORE INDEX (idx), t3 IGNORE INDEX (idx)
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+
+SELECT COUNT(t1.v) FROM t1, t2, t3 
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+EXPLAIN 
+  SELECT COUNT(t1.v) FROM t1, t2, t3
+  WHERE t3.v = t2.v AND t3.i < t2.i AND t3.pk > 0 AND t2.pk > 0;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #669420: MRR for Range checked for each record
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL PRIMARY KEY,
+  j int NOT NULL,
+  i int NOT NULL,
+  v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  INDEX i (i),
+  INDEX vi (v,i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES (10,3,8,'v'),(11,3,8,'f');
+
+CREATE TABLE t2 (
+  pk int NOT NULL PRIMARY KEY,
+  j int  NOT NULL,
+  i int  NOT NULL,
+  v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  INDEX i (i),
+  INDEX vi (v,i)
+) ENGINE=ARIA;
+INSERT INTO t2 VALUES (10,9,3,'i'),(11,101,186,'x'),(12,0,1,'g');
+
+SET SESSION join_cache_level=0;
+
+EXPLAIN 
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+  WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+  WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+
+SET SESSION join_cache_level=1;
+
+EXPLAIN 
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+  WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
+  WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+
+SET SESSION join_cache_level=DEFAULT;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (
+  pk int NOT NULL PRIMARY KEY,
+  j int NOT NULL,
+  i int NOT NULL,
+  v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
+  INDEX i (i)
+) ENGINE=ARIA;
+INSERT INTO t1 VALUES 
+  (10,3,8,'v'),(11,3,8,'f'),(12,3,5,'v'),(13,2,8,'s'),(14,1,8,'a'),
+  (15,0,6,'p'),(16,8,7,'z'),(17,5,2,'a'),(18,9,5,'h'),(19,5,7,'h'),
+  (20,4,2,'v'),(21,2,9,'v'),(22,33,142,'b'),(23,5,3,'y'),(24,1,0,'v'),
+  (25,9,3,'m'),(26,1,5,'z'),(27,3,9,'n'),(28,8,1,'d'),(29,231,107,'a');
+
+SET SESSION join_cache_level = 0;
+
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
+
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
+
+EXPLAIN
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
+SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
+
+SET SESSION join_cache_level=DEFAULT;
+
+DROP TABLE t1;

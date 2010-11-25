@@ -45,9 +45,8 @@ private:
     partition_index_first= 1,
     partition_index_first_unordered= 2,
     partition_index_last= 3,
-    partition_index_read_last= 4,
-    partition_read_range = 5,
-    partition_no_index_scan= 6
+    partition_read_range = 4,
+    partition_no_index_scan= 5
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -232,6 +231,7 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
+  bool check_if_supported_virtual_columns(void) { return TRUE;}
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
 private:
@@ -448,8 +448,6 @@ public:
   virtual int index_first(uchar * buf);
   virtual int index_last(uchar * buf);
   virtual int index_next_same(uchar * buf, const uchar * key, uint keylen);
-  virtual int index_read_last_map(uchar * buf, const uchar * key,
-                                  key_part_map keypart_map);
 
   /*
     read_first_row is virtual method but is only implemented by
@@ -1100,6 +1098,29 @@ public:
     -------------------------------------------------------------------------
     virtual void append_create_info(String *packet)
   */
+
+  /*
+    the following heavily relies on the fact that all partitions
+    are in the same storage engine.
+
+    When this limitation is lifted, the following hack should go away,
+    and a proper interface for engines needs to be introduced:
+
+      an PARTITION_SHARE structure that has a pointer to the TABLE_SHARE.
+      is given to engines everywhere where TABLE_SHARE is used now
+      has members like option_struct, ha_data
+      perhaps TABLE needs to be split the same way too...
+
+    this can also be done before partition will support a mix of engines,
+    but preferably together with other incompatible API changes.
+  */
+  virtual handlerton *partition_ht() const
+  {
+    handlerton *h= m_file[0]->ht;
+    for (uint i=1; i < m_tot_parts; i++)
+      DBUG_ASSERT(h == m_file[i]->ht);
+    return h;
+  }
 };
 
 #endif /* HA_PARTITION_INCLUDED */

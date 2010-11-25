@@ -50,6 +50,14 @@ Master_info::Master_info(bool is_slave_recovery)
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
+
+#ifdef SAFE_MUTEX
+  /* Define mutex order for locks to find wrong lock usage */
+  mysql_mutex_lock(&data_lock);
+  mysql_mutex_lock(&run_lock);
+  mysql_mutex_unlock(&run_lock);
+  mysql_mutex_unlock(&data_lock);
+#endif
 }
 
 Master_info::~Master_info()

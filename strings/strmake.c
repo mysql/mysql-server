@@ -29,26 +29,38 @@
 
 char *strmake(register char *dst, register const char *src, size_t length)
 {
-#ifdef EXTRA_DEBUG
-  /*
-    'length' is the maximum length of the string; the buffer needs
-    to be one character larger to accomodate the terminating '\0'.
-    This is easy to get wrong, so we make sure we write to the
-    entire length of the buffer to identify incorrect buffer-sizes.
-    We only initialise the "unused" part of the buffer here, a) for
-    efficiency, and b) because dst==src is allowed, so initialising
-    the entire buffer would overwrite the source-string. Also, we
-    write a character rather than '\0' as this makes spotting these
-    problems in the results easier.
-  */
-  uint n= 0;
-  while (n < length && src[n++]);
-  memset(dst + n, (int) 'Z', length - n + 1);
-#endif
-
   while (length--)
+  {
     if (! (*dst++ = *src++))
+    {
+#ifdef EXTRA_DEBUG
+      /*
+        'length' is the maximum length of the string; the buffer needs
+        to be one character larger to accommodate the terminating
+        '\0'.  This is easy to get wrong, so we make sure we write to
+        the entire length of the buffer to identify incorrect
+        buffer-sizes.  We only initialism the "unused" part of the
+        buffer here, a) for efficiency, and b) because dst==src is
+        allowed, so initializing the entire buffer would overwrite the
+        source-string. Also, we write a character rather than '\0' as
+        this makes spotting these problems in the results easier.
+
+        If we are using purify/valgrind, we only set one character at
+        end to be able to detect also wrong accesses after the end of
+        dst.
+      */
+      if (length)
+      {
+#ifdef HAVE_valgrind
+        dst[length-1]= 'Z';
+#else
+        bfill(dst, length-1, (int) 'Z');
+#endif /* HAVE_valgrind */
+      }
+#endif /* EXTRA_DEBUG */
       return dst-1;
+    }
+  }
   *dst=0;
   return dst;
 }

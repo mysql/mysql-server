@@ -25,7 +25,7 @@ use DBI;
 use Benchmark;
 
 $opt_start_field_count=8;	# start with this many fields
-$opt_loop_count=100;		# How many tests to do
+$opt_loop_count=10000;		# How many tests to do
 $opt_row_count=1000; 		# Rows in the table
 $opt_field_count=1000;		# Add until this many fields.
 $opt_time_limit=10*60;		# Don't wait more than 10 min for some tests

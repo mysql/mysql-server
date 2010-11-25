@@ -267,7 +267,7 @@ int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
     comp_flag=SEARCH_BIGGER;			/* Put after same key */
   else if (keyinfo->flag & (HA_NOSAME|HA_FULLTEXT))
   {
-    comp_flag=SEARCH_FIND | SEARCH_UPDATE;	/* No duplicates */
+    comp_flag=SEARCH_FIND | SEARCH_UPDATE | SEARCH_INSERT; /* No duplicates */
     if (keyinfo->flag & HA_NULL_ARE_EQUAL)
       comp_flag|= SEARCH_NULL_ARE_EQUAL;
   }
@@ -341,7 +341,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   int error,flag;
   uint nod_flag, search_key_length;
   uchar *temp_buff,*keypos;
-  uchar keybuff[MI_MAX_KEY_BUFF];
+  uchar keybuff[HA_MAX_KEY_BUFF];
   my_bool was_last_key;
   my_off_t next_page, dupp_key_pos;
   DBUG_ENTER("w_search");
@@ -349,7 +349,7 @@ static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   search_key_length= (comp_flag & SEARCH_FIND) ? key_length : USE_WHOLE_KEY;
   if (!(temp_buff= (uchar*) my_alloca((uint) keyinfo->block_length+
-				      MI_MAX_KEY_BUFF*2)))
+				      HA_MAX_KEY_BUFF*2)))
     DBUG_RETURN(-1);
   if (!_mi_fetch_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff,0))
     goto err;
@@ -697,20 +697,22 @@ uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
 } /* _mi_find_half_pos */
 
 
-	/*
-	  Split buffer at last key
-	  Returns pointer to the start of the key before the last key
-	  key will contain the last key
-	*/
+/*
+  Split buffer at last key
+  Returns pointer to the start of the key before the last key
+  key will contain the last key
+*/
 
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key)
 {
-  uint keys,length,UNINIT_VAR(last_length),key_ref_length;
-  uchar *end,*lastpos,*UNINIT_VAR(prevpos);
-  uchar key_buff[MI_MAX_KEY_BUFF];
+  uint keys,length,last_length,key_ref_length;
+  uchar *end,*lastpos,*prevpos;
+  uchar key_buff[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_find_last_pos");
+
+  LINT_INIT(last_length);
 
   key_ref_length=2;
   length=mi_getint(page)-key_ref_length;
@@ -728,10 +730,12 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
   }
 
   end=page+length-key_ref_length;
+  DBUG_ASSERT(page < end);
   *key='\0';
   length=0;
   lastpos=page;
-  while (page < end)
+
+  do
   {
     prevpos=lastpos; lastpos=page;
     last_length=length;
@@ -742,7 +746,8 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);
     }
-  }
+  } while (page < end);
+
   *return_key_length=last_length;
   *after_key=lastpos;
   DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  end: 0x%lx",
@@ -764,7 +769,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
        length,keys;
   uchar *pos,*buff,*extra_buff;
   my_off_t next_page,new_pos;
-  uchar tmp_part_key[MI_MAX_KEY_BUFF];
+  uchar tmp_part_key[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_balance_page");
 
   k_length=keyinfo->keylength;
@@ -930,7 +935,7 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
     Probably I can use info->lastkey here, but I'm not sure,
     and to be safe I'd better use local lastkey.
   */
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   uint keylen;
   MI_KEYDEF *keyinfo;
 

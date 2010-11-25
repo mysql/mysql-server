@@ -41,7 +41,7 @@ int decimal_operation_results(int result)
   case E_DEC_TRUNCATED:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
-			"", (long)-1);
+			"", (ulong) 0);
     break;
   case E_DEC_OVERFLOW:
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -57,7 +57,7 @@ int decimal_operation_results(int result)
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
 			ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-			"decimal", "", "", (long)-1);
+			"decimal", "", "", (ulong) 0);
     break;
   case E_DEC_OOM:
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -305,12 +305,12 @@ print_decimal(const my_decimal *dec)
   int i, end;
   char buff[512], *pos;
   pos= buff;
-  pos+= sprintf(buff, "Decimal: sign: %d  intg: %d  frac: %d  { ",
-                dec->sign(), dec->intg, dec->frac);
+  pos+= my_sprintf(buff, (buff, "Decimal: sign: %d  intg: %d  frac: %d  { ",
+                          dec->sign(), dec->intg, dec->frac));
   end= ROUND_UP(dec->frac)+ROUND_UP(dec->intg)-1;
   for (i=0; i < end; i++)
-    pos+= sprintf(pos, "%09d, ", dec->buf[i]);
-  pos+= sprintf(pos, "%09d }\n", dec->buf[i]);
+    pos+= my_sprintf(pos, (pos, "%09d, ", dec->buf[i]));
+  pos+= my_sprintf(pos, (pos, "%09d }\n", dec->buf[i]));
   fputs(buff, DBUG_FILE);
 }
 

@@ -1,0 +1,87 @@
+drop table if exists t1;
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	452555338
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	452555338
+drop table if exists t1;
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=1;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	452555338
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	452555338
+drop table if exists t1;
+create table t1 (a int null, v varchar(100)) engine=innodb checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	452555338
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	452555338
+drop table t1;
+create table t1 (a int null, v varchar(100)) engine=maria checksum=0;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	452555338
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	452555338
+drop table t1;
+create table t1 (a int null, v varchar(100)) engine=maria checksum=1;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	452555338
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	452555338
+drop table t1;
+create table t1 (a int null, v varchar(100)) engine=myisam checksum=1 row_format=fixed;
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	4108368782
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	4108368782
+drop table if exists t1;
+create table t1 (a int null, v varchar(100)) engine=innodb checksum=0 row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+insert into t1 values(null, null), (1, "hello");
+checksum table t1;
+Table	Checksum
+test.t1	4108368782
+checksum table t1 quick;
+Table	Checksum
+test.t1	NULL
+checksum table t1 extended;
+Table	Checksum
+test.t1	4108368782
+drop table t1;

@@ -15,6 +15,8 @@
 
 /* Test av locking */
 
+#ifndef _WIN32 /*no fork() in Windows*/
+
 #include "myisam.h"
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
@@ -175,8 +177,10 @@ void start_test(int id)
     exit(1);
   }
   if (key_cacheing && rnd(2) == 0)
-    init_key_cache(dflt_key_cache, KEY_CACHE_BLOCK_SIZE, 65536L, 0, 0);
-  printf("Process %d, pid: %d\n",id,getpid()); fflush(stdout);
+    init_key_cache(dflt_key_cache, KEY_CACHE_BLOCK_SIZE, 65536L, 0, 0,
+                   DEFAULT_KEY_CACHE_PARTITIONS);
+  printf("Process %d, pid: %ld\n", id, (long) getpid());
+  fflush(stdout);
 
   for (error=i=0 ; i < tests && !error; i++)
   {
@@ -360,7 +364,7 @@ int test_write(MI_INFO *file,int id,int lock_type)
       mi_extra(file,HA_EXTRA_WRITE_CACHE,0);
   }
 
-  sprintf((char*) record.id,"%7d",getpid());
+  sprintf((char*) record.id,"%7ld",(long) getpid());
   strnmov((char*) record.text,"Testing...", sizeof(record.text));
 
   tries=(uint) rnd(100)+10;
@@ -487,3 +491,14 @@ int test_update(MI_INFO *file,int id,int lock_type)
 }
 
 #include "mi_extrafunc.h"
+#else /* _WIN32 */
+
+#include <stdio.h>
+
+int main()
+{
+	fprintf(stderr,"this test has not been ported to Windows\n");
+	return 0;
+}
+
+#endif /* _WIN32 */

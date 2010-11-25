@@ -1,0 +1,88 @@
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+create table t1 (id int, index (id)) engine = pbxt;
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+select * from t1 where id < 5 for update;
+id
+1
+2
+3
+4
+update t1 set id = 8 where id = 5;
+update t1 set id = 8 where id = 4;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+x	root	x	test	Query	x	NULL	show processlist
+x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 4
+commit;
+select * from t1;
+id
+1
+2
+3
+8
+8
+drop table if exists t1;
+create table t1 (id int) engine = pbxt;
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+select * from t1 where id > 10 for update;
+id
+update t1 set id = 8;
+commit;
+select * from t1;
+id
+8
+8
+8
+8
+8
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt;
+insert into t1 values (1), (2), (3), (4), (5);
+begin;
+select * from t1 where id = 5 for update;
+id
+5
+update t1 set id = 8 where id < 4;
+update t1 set id = 8 where id = 5;
+show processlist;
+Id	User	Host	db	Command	Time	State	Info
+x	root	x	test	Query	x	NULL	show processlist
+x	root	x	test	Query	x	Searching rows for update	update t1 set id = 8 where id = 5
+commit;
+select * from t1;
+id
+4
+8
+8
+8
+8
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt;
+insert into t1 values (1), (2), (3), (4), (5);
+select * from t1 for update;
+id
+1
+2
+3
+4
+5
+update t1 set id = 8;
+drop table if exists t1;
+create table t1 (id int, index (id)) engine = pbxt;
+insert into t1 values (1), (2), (3), (4), (5);
+create procedure p1 ()
+begin
+select * from t1 for update;
+end|
+call p1 ();
+id
+1
+2
+3
+4
+5
+update t1 set id = 8;

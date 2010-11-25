@@ -1,0 +1,11 @@
+FederatedX
+
+Patrick Galbraith <patg@patg.net> - Federated
+
+Pluggable Storage Engine Skeleton setup
+
+Brian Aker  <brian@mysql.com> | <brian@tangent.org> - Original Design
+Calvin Sun - Windows Support
+Brian Miezejewski - Bug fixes
+Antony T Curtis   - Help in inital development, transactions and various help
+Michael Widenius  - Bug fixes and some simple early optimizations

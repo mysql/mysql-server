@@ -396,9 +396,9 @@ public:
 
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
-
   bool write_incident(THD *thd, bool lock);
-  int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  int  write_cache(THD *thd, IO_CACHE *cache, bool lock_log,
+                   bool flush_and_sync);
   void set_write_error(THD *thd);
   bool check_write_error(THD *thd);
 

@@ -198,6 +198,26 @@ sub mtr_milli_sleep ($) {
   select(undef, undef, undef, ($millis/1000));
 }
 
+sub mtr_wait_lock_file {
+  die "usage: mtr_wait_lock_file(path_to_file, keep_alive)" unless @_ == 2;
+  my ($file, $keep_alive)= @_;
+  my $waited= 0;
+  my $msg_counter= $keep_alive;
+
+  while ( -e $file)
+  {
+    if ($keep_alive && !$msg_counter)
+    {
+       print "\n-STOPPED- [pass] ".$keep_alive."\n";
+       $msg_counter= $keep_alive;
+    }
+    mtr_milli_sleep(1000);
+    $waited= 1;
+    $msg_counter--;
+  }
+  return ($waited);
+}
+
 # Simple functions to start and check timers (have to be actively polled)
 # Timer can be "killed" by setting it to 0
 

@@ -1196,5 +1196,49 @@ SELECT COUNT(*)
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+# !!!Remove the following if brackets after having merged the code of MWL#128 
+if (`SELECT @@join_cache_level=1`)
+{  
+#
+# BUG#49322: Nested left joins + not-exist optimization
+#
+
+CREATE TABLE t1 (
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+CREATE TABLE t2 (
+  pk int  NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+CREATE TABLE t3 (
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int DEFAULT NULL,
+  KEY idx(a)
+);
+
+INSERT INTO t1 VALUES 
+  (1,2), (2,7), (3,5), (4,7), (5,5), (6,NULL), (7,NULL), (8,9);
+INSERT INTO t2 VALUES 
+  (1,NULL), (4,2), (5,2), (3,4), (2,8);
+INSERT INTO t3 VALUES
+  (1,9), (2,2), (3,5), (4,2), (5,7), (6,0), (7,5);
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a;
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a
+  WHERE t2.pk IS NULL;
+
+SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t3.a=t2.a) ON t2.a=t1.a
+  WHERE t3.pk IS NULL;
+
+DROP TABLE t1, t2, t3;
+}
+
 --echo End of 5.0 tests
 

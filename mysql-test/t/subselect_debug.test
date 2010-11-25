@@ -9,8 +9,9 @@ CREATE TABLE t1(id INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t1 SELECT a.id FROM t1 a,t1 b,t1 c,t1 d;
 # Setup the mysqld to crash at certain point
-SET SESSION debug="d,subselect_exec_fail";
+SET @orig_debug=@@debug;
+SET GLOBAL debug="d,subselect_exec_fail";
 SELECT SUM(EXISTS(SELECT RAND() FROM t1)) FROM t1;
 SELECT REVERSE(EXISTS(SELECT RAND() FROM t1));
-SET SESSION debug=DEFAULT;
+SET GLOBAL debug=@orig_debug;
 DROP TABLE t1;

@@ -27,7 +27,12 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MySQL Server], [5.5.7-rc], [], [mysql])
+dnl
+dnl When merging new MySQL releases, update the version number to match the
+dnl MySQL version number.
+dnl
+dnl Note: the following line must be parseable by win/configure.js:GetVersion()
+AC_INIT([MariaDB Server], [5.5.7-MariaDB-alpha], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -92,6 +97,7 @@ sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
 sinclude(config/ac-macros/readline.m4)
 sinclude(config/ac-macros/ssl.m4)
+sinclude(config/ac-macros/libevent.m4)
 sinclude(config/ac-macros/zlib.m4)
 
 # Remember to add a directory sql/share/LANGUAGE
@@ -250,14 +256,6 @@ then
   GXX="no"
 fi
 
-if test "$ac_cv_prog_gcc" = "yes"
-then
-  AS="$CC -c"
-  AC_SUBST(AS)
-else
-  AC_PATH_PROG(AS, as, as)
-fi
-
 # Still need ranlib for readline; local static use only so no libtool.
 AC_PROG_RANLIB
 # We use libtool
@@ -284,8 +282,40 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL_PROGRAM}'
 
 # Not critical since the generated file is distributed
 AC_CHECK_PROGS(YACC, ['bison -y -p MYSQL'])
-AC_CHECK_PROG(PDFMANUAL, pdftex, manual.pdf)
-AC_CHECK_PROG(DVIS,      tex,    manual.dvi)
+
+#check the return type of sprintf
+AC_MSG_CHECKING("return type of sprintf")
+AC_TRY_RUN([
+  int main()
+    {
+      char* s = "hello";
+      char buf[6];
+      if((int)sprintf(buf, s) == strlen(s))
+	return 0;
+      
+      return -1;
+     }
+   ],
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+   AC_MSG_RESULT("int")],
+   [AC_TRY_RUN([
+ int main()
+   {
+     char* s = "hello";
+     char buf[6];
+     if((char*)sprintf(buf,s) == buf + strlen(s))
+       return 0;
+     return -1;
+   }           ],
+               [AC_DEFINE(SPRINTF_RETURNS_PTR, [1], [Broken sprintf])
+                AC_MSG_RESULT("ptr")],
+               [AC_DEFINE(SPRINTF_RETURNS_GARBAGE, [1], [Broken sprintf])
+                AC_MSG_RESULT("garbage")]
+   )],
+   # Cross compile, assume POSIX
+   [AC_DEFINE(SPRINTF_RETURNS_INT, [1], [POSIX sprintf])
+    AC_MSG_RESULT("int (we assume)")]
+)
 
 AC_PATH_PROG(uname_prog, uname, no)
 
@@ -379,7 +409,7 @@ export CC CXX CFLAGS LD LDFLAGS AR ARFLAGS
 if test "$GCC" = "yes"
 then
   # mysqld requires -fno-implicit-templates.
-  # Disable exceptions as they seams to create problems with gcc and threads.
+  # Disable exceptions as they seem to create problems with gcc and threads.
   # mysqld doesn't use run-time-type-checking, so we disable it.
   # We should use -Wno-invalid-offsetof flag to disable some warnings from gcc
   # regarding offset() usage in C++ which are done in a safe manner in the
@@ -612,7 +642,7 @@ AC_CHECK_TOOL([NM], [nm])
 
 if test "$TARGET_LINUX" = "true" -a "$static_nss" = ""
 then
-  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a | grep _nss_files_getaliasent_r1`
+  tmp=`$NM ${other_libc_lib:-/usr/lib*}/libc.a 2>&1 | grep _nss_files_getaliasent_r1`
   if test -n "$tmp"
   then
      STATIC_NSS_FLAGS="-lc -lnss_files -lnss_dns -lresolv"
@@ -671,8 +701,7 @@ AC_ARG_ENABLE(assembler,
 
 AC_MSG_CHECKING(if we should use assembler functions)
 # For now we only support assembler on i386 and sparc systems
-AM_CONDITIONAL(ASSEMBLER_x86, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "i386" && $AS strings/strings-x86.s -o checkassembler >/dev/null 2>&1 && test -f checkassembler && (rm -f checkassembler; exit 0;))
-AM_CONDITIONAL(ASSEMBLER_sparc64, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "sparcv9")
+AM_CONDITIONAL(ASSEMBLER_x86, test "$ENABLE_ASSEMBLER" = "yes" -a "$BASE_MACHINE_TYPE" = "i386" && $CCAS $CCASFLAGS -c strings/strings-x86.s -o checkassembler >/dev/null 2>&1 && test -f checkassembler && (rm -f checkassembler; exit 0;))
 AM_CONDITIONAL(ASSEMBLER, test "$ASSEMBLER_x86_TRUE" = "")
 
 if test "$ASSEMBLER_TRUE" = ""
@@ -798,13 +827,13 @@ AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h fenv.h float.h floatingpoint.h fpu_control.h \
- ieeefp.h limits.h memory.h pwd.h select.h poll.h \
- stdlib.h stddef.h \
+ ieeefp.h limits.h memory.h pwd.h select.h poll.h fnmatch.h \
+ stdlib.h stddef.h sys/stat.h \
  strings.h string.h synch.h sys/mman.h sys/socket.h netinet/in.h arpa/inet.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
+ sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h linux/unistd.h \
  execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
@@ -815,6 +844,7 @@ AC_CHECK_HEADERS([xfs/xfs.h])
 #--------------------------------------------------------------------
 
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
+AC_CHECK_FUNCS(log2)
 
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
@@ -1657,9 +1687,8 @@ case "$with_mysqld_ldflags " in
     ;;
 
   *)
-    # Check for dlopen, needed for user definable functions
+    # Check for dlopen, needed for user definable functions and plugins
     # This must be checked after threads on AIX
-    # We only need this for mysqld, not for the clients.
 
     my_save_LIBS="$LIBS"
     LIBS=""
@@ -1738,8 +1767,9 @@ AC_ARG_WITH(debug,
 if test "$with_debug" = "yes"
 then
   AC_DEFINE([DBUG_ON], [1], [Use libdbug])
-  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DSAFE_MUTEX $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
+  AC_DEFINE([SAFE_MUTEX], [1], [Use safe mutexes])
+  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX $CXXFLAGS"
 else
   # Optimized version. No debug
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
@@ -1791,23 +1821,6 @@ then
   fi
 fi
 
-AC_ARG_WITH([atomic-ops],
-            AS_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
-            [Implement atomic operations using pthread rwlocks or atomic CPU
-             instructions for multi-processor or uniprocessor
-             configuration. By default gcc built-in sync functions are used,
-             if available and 'smp' configuration otherwise.]))
-case "$with_atomic_ops" in
-  "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
-                  [Assume single-CPU mode, no concurrency]) ;;
-  "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
-                  [Use pthread rwlocks for atomic ops]) ;;
-  "smp") ;;
-  "")
-   ;;
-   *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
-esac
-
 AC_CACHE_CHECK([whether the compiler provides atomic builtins],
                [mysql_cv_gcc_atomic_builtins],
   [AC_RUN_IFELSE(
@@ -1842,7 +1855,7 @@ AC_CACHE_CHECK([whether the compiler provides atomic builtins],
 )])
 if test "x$mysql_cv_gcc_atomic_builtins" = xyes; then
   AC_DEFINE(HAVE_GCC_ATOMIC_BUILTINS, 1,
-            [Define to 1 if compiler provides atomic builtins.])
+	    [Define to 1 if compiler provides atomic builtins.])
 fi
 
 AC_CACHE_CHECK([whether the OS provides atomic_* functions like Solaris],
@@ -1883,6 +1896,26 @@ if test "x$mysql_cv_solaris_atomic" = xyes; then
   AC_DEFINE(HAVE_SOLARIS_ATOMIC, 1,
             [Define to 1 if OS provides atomic_* functions like Solaris.])
 fi
+AC_ARG_WITH([atomic-ops],
+	    AC_HELP_STRING([--with-atomic-ops=rwlocks|smp|up],
+	    [Implement atomic operations using pthread rwlocks or atomic CPU
+             instructions for multi-processor or uniprocessor
+             configuration. By default gcc built-in sync functions are used,
+             if available and 'smp' configuration otherwise.]))
+case "$with_atomic_ops" in
+  "up") AC_DEFINE([MY_ATOMIC_MODE_DUMMY], [1],
+                  [Assume single-CPU mode, no concurrency]) ;;
+  "rwlocks") AC_DEFINE([MY_ATOMIC_MODE_RWLOCKS], [1],
+                  [Use pthread rwlocks for atomic ops]) ;;
+  "smp") ;;
+  "")
+    if test "x$mysql_cv_gcc_atomic_builtins" = xyes_but_disabled; then
+      AC_DEFINE([MY_ATOMIC_MODE_GCC_BUILTINS], [1],
+                [Use GCC atomic builtins for atomic ops])
+    fi
+   ;;
+   *) AC_MSG_ERROR(["$with_atomic_ops" is not a valid value for --with-atomic-ops]) ;;
+esac
 
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
@@ -2159,7 +2192,7 @@ MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 
-AC_CHECK_FUNCS(alarm bfill bmove bsearch bzero \
+AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
   fdatasync fesetround finite fpresetsticky fpsetmask fsync ftruncate \
   getcwd gethostbyaddr_r gethostbyname_r getpass getpassphrase getpwnam \
@@ -2187,7 +2220,18 @@ case "$target" in
 	# We also disable for SCO for the time being, the headers for the
 	# thread library we use conflicts with other headers.
     ;;
- *) AC_CHECK_FUNCS(clock_gettime)
+*) 
+   # most systems require the program be linked with librt library to use
+   # the function clock_gettime 
+   my_save_LIBS="$LIBS"
+   LIBS=""
+   AC_CHECK_LIB(rt,clock_gettime)
+   LIBRT=$LIBS
+   LIBS="$my_save_LIBS"
+   AC_SUBST(LIBRT)
+
+   LIBS="$LIBS $LIBRT"
+   AC_CHECK_FUNCS(clock_gettime)
     ;;
 esac
 
@@ -2594,12 +2638,24 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
+MYSQL_CHECK_LIBEVENT
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
 # Has to be done late, as the plugin may need to check for existence of
 # functions tested above
 #--------------------------------------------------------------------
+
+# MyISAM is declared here,not in storage/myisam/plug.in
+# because we want it to be the first in the list of plugins,
+# Maria needs it. When it'll be fixed the declaration below can
+# be removed and restored (uncommented) in storage/myisam/plug.in
+MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
+        [Traditional non-transactional MySQL tables])
+MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(myisam, [ha_myisam.cc])
 
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
@@ -2808,8 +2864,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-
-
 # Include man pages, if desired, adapted to the configured parts.
 if test X"$with_man" = Xyes
 then
@@ -2871,7 +2925,7 @@ server_scripts=
 
 dnl This probably should be cleaned up more - for now the threaded
 dnl client is just using plain-old libs.
-sql_client_dirs="strings mysys dbug extra regex libmysql"
+sql_client_dirs="strings mysys dbug extra regex libmysql unittest"
 
 AM_CONDITIONAL(THREAD_SAFE_CLIENT, test "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2882,7 +2936,7 @@ then
 fi
 sql_client_dirs="$sql_client_dirs client"
 
-CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
+CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS $LIBRT"
 
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(CLIENT_THREAD_LIBS)
@@ -2895,7 +2949,7 @@ then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
   # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o"
+  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o mf_keycaches.o waiting_threads.o"
   AC_SUBST(THREAD_LOBJECTS)
 fi
 AM_CONDITIONAL(NEED_THREAD, test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no")
@@ -2907,6 +2961,7 @@ then
 
   sql_server="vio sql"
 fi
+AM_CONDITIONAL(THREAD, test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no")
 
 # "innochecksum" is not in the "innobase/" subdirectory, but should be switched
 AM_CONDITIONAL([BUILD_INNODB_TOOLS], [test X"$with_plugin_innobase" = Xyes])
@@ -3031,18 +3086,36 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  )
 
 AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+AC_CONFIG_COMMANDS([my_config.h], cp include/config.h include/my_config.h)
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
 
 AC_OUTPUT
 
+echo "---"
+echo "Configuration summary for $PACKAGE_NAME version $VERSION"
+echo "$plugin_report" | sort
+echo ""
+echo "  * Installation prefix:             $prefix"
+echo "  * System type:                     $SYSTEM_TYPE"
+echo "  * Host CPU:                        $host_cpu"
+echo "  * C Compiler:                      $CC_VERSION"
+echo "  * C++ Compiler:                    $CXX_VERSION"
+echo "  * Debug enabled:                   $with_debug"
+echo "  * Community Features:              $ENABLE_COMMUNITY_FEATURES"
+echo ""
+echo "---"
+echo ""
+echo "You can find information about MariaDB at"
+echo "http://kb.askmonty.org/"
+echo ""
+echo "Remember to check the platform specific part of the reference manual for"
+echo "hints about installing MariaDB on your platform. Also have a look at the"
+echo "files in the Docs directory."
+
 # The first line "Thank you ..." is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
-echo
-echo "Thank you for choosing MySQL!"
-echo
-echo "Remember to check the platform specific part of the reference manual"
-echo "for hints about installing MySQL on your platform."
-echo "Also have a look at the files in the Docs directory."
-echo
+echo ""
+echo "Thank you for choosing MariaDB!"
+echo ""

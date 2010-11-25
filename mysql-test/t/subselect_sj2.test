@@ -1,0 +1,904 @@
+#
+# DuplicateElimination strategy test
+#
+--source include/have_innodb.inc
+--disable_warnings
+drop table if exists t0, t1, t2, t3;
+drop view if exists v1;
+--enable_warnings
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+# First test simple cases: I20 order, no join buffering.
+
+create table t1 (
+  a int, 
+  b int
+);
+insert into t1 values (1,1),(1,1),(2,2);
+
+create table t2 (
+  a int,
+  b int,
+  key(b)
+);
+insert into t2 select a, a/2 from t0;
+
+select * from t1;
+select * from t2;
+explain select * from t2 where b in (select a from t1);
+select * from t2 where b in (select a from t1);
+
+# Try an InnoDB table with very long rowid
+create table t3 (
+   a int, 
+   b int,
+   key(b),
+   pk1 char(200), pk2 char(200), pk3 char(200),
+   primary key(pk1, pk2, pk3)
+) engine=innodb;
+insert into t3 select a,a, a,a,a from t0;
+
+explain select * from t3 where b in (select a from t1);
+select * from t3 where b in (select a from t1);
+
+# Test overflow to MyISAM:
+set @save_max_heap_table_size= @@max_heap_table_size;
+set max_heap_table_size=16384;
+set @save_join_buffer_size = @@join_buffer_size;
+set join_buffer_size= 8000;
+
+drop table t3;
+create table t3 (
+   a int, 
+   b int,
+   key(b),
+   pk1 char(200), pk2 char(200),
+   primary key(pk1, pk2)
+) engine=innodb;
+insert into t3 select 
+  A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
+from t0 A, t0 B where B.a <5;
+
+explain select * from t3 where b in (select a from t0);
+# Because of BUG#40154, run the next select w/o index condition pushdown:
+set @save_ecp= @@engine_condition_pushdown;
+set engine_condition_pushdown=0;
+select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
+set engine_condition_pushdown=@save_ecp;
+
+set join_buffer_size= @save_join_buffer_size;
+set max_heap_table_size= @save_max_heap_table_size;
+
+# O2I join orders, with shortcutting: 
+explain select * from t1 where a in (select b from t2);
+select * from t1;
+select * from t1 where a in (select b from t2);
+
+drop table t1, t2, t3;
+# (no need for anything in range/index_merge/DS-MRR) 
+
+#
+# Test join buffering
+#
+set @save_join_buffer_size = @@join_buffer_size;
+set join_buffer_size= 8000;
+
+create table t1 (a int, filler1 binary(200), filler2 binary(200));
+insert into t1 select a, 'filler123456', 'filler123456' from t0;
+insert into t1 select a+10, 'filler123456', 'filler123456' from t0;
+
+create table t2 as select * from t1;
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+
+insert into t1 values (2, 'duplicate ok', 'duplicate ok');
+insert into t1 values (18, 'duplicate ok', 'duplicate ok');
+
+insert into t2 values (3, 'duplicate ok', 'duplicate ok');
+insert into t2 values (19, 'duplicate ok', 'duplicate ok');
+
+explain select 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+select 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+
+explain select 
+  a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+select 
+  a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+
+# Now let the buffer overfill:
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+insert into t1 select a+20, 'filler123456', 'filler123456' from t0;
+
+explain select 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+select 
+ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
+from t1 ot where a in (select a from t2 it);
+
+explain select 
+  a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+select 
+  a, mid(filler1, 1,10), length(filler1)=length(filler2) 
+from t2 ot where a in (select a from t1 it);
+
+drop table t1, t2;
+
+# Check ref access to tables inside the OJ nest inside the SJ nest
+create table t1 (a int, b int, key(a));
+create table t2 (a int, b int, key(a));
+create table t3 (a int, b int, key(a));
+
+insert into t1 select a,a from t0;
+insert into t2 select a,a from t0;
+insert into t3 select a,a from t0;
+
+--echo t2 and t3 must be use 'ref', not 'ALL':
+explain select * 
+from t0 where a in
+  (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
+
+drop table t0, t1,t2,t3;
+
+#
+# Bug #27348: Assertion abort for a query with two subqueries to be flattened  
+# Bug #35674: Range optimizer ignores conditions on inner tables in semi-join IN subqueries 
+#
+CREATE TABLE t1 (
+  ID int(11) NOT NULL auto_increment,
+  Name char(35) NOT NULL default '',
+  Country char(3) NOT NULL default '',
+  Population int(11) NOT NULL default '0',
+  PRIMARY KEY  (ID),
+  INDEX (Population),
+  INDEX (Country) 
+);
+CREATE TABLE t2 (
+  Code char(3) NOT NULL default '',
+  Name char(52) NOT NULL default '',
+  SurfaceArea float(10,2) NOT NULL default '0.00',
+  Population int(11) NOT NULL default '0',
+  Capital int(11) default NULL,
+  PRIMARY KEY  (Code),
+  UNIQUE INDEX (Name),
+  INDEX (Population)
+);
+CREATE TABLE t3 (
+  Country char(3) NOT NULL default '',
+  Language char(30) NOT NULL default '',
+  Percentage float(3,1) NOT NULL default '0.0',
+  PRIMARY KEY  (Country, Language),
+  INDEX (Percentage)
+);
+
+--disable_query_log
+INSERT INTO t1 VALUES
+(1,'Kabul','AFG',1780000),(2,'Qandahar','AFG',237500),
+(3,'Herat','AFG',186800),(4,'Mazar-e-Sharif','AFG',127800),
+(5,'Amsterdam','NLD',731200),(6,'Rotterdam','NLD',593321),
+(7,'Haag','NLD',440900),(8,'Utrecht','NLD',234323),
+(9,'Eindhoven','NLD',201843),(10,'Tilburg','NLD',193238),
+(11,'Groningen','NLD',172701),(12,'Breda','NLD',160398),
+(13,'Apeldoorn','NLD',153491),(14,'Nijmegen','NLD',152463),
+(15,'Enschede','NLD',149544),(16,'Haarlem','NLD',148772),
+(17,'Almere','NLD',142465),(18,'Arnhem','NLD',138020),
+(19,'Zaanstad','NLD',135621),(20,'´s-Hertogenbosch','NLD',129170),
+(21,'Amersfoort','NLD',126270),(22,'Maastricht','NLD',122087),
+(23,'Dordrecht','NLD',119811),(24,'Leiden','NLD',117196),
+(25,'Haarlemmermeer','NLD',110722),(26,'Zoetermeer','NLD',110214),
+(27,'Emmen','NLD',105853),(28,'Zwolle','NLD',105819),
+(29,'Ede','NLD',101574),(30,'Delft','NLD',95268);
+
+INSERT INTO t2 VALUES 
+('AFG','Afghanistan',652090.00,22720000,1),
+('NLD','Netherlands',41526.00,15864000,5),
+('ANT','Netherlands Antilles',800.00,217000,33),
+('ALB','Albania',28748.00,3401200,34),
+('DZA','Algeria',2381741.00,31471000,35),
+('ASM','American Samoa',199.00,68000,54),
+('AND','Andorra',468.00,78000,55),
+('AGO','Angola',1246700.00,12878000,56),
+('AIA','Anguilla',96.00,8000,62),
+('ATG','Antigua and Barbuda',442.00,68000,63),
+('ARE','United Arab Emirates',83600.00,2441000,65),
+('ARG','Argentina',2780400.00,37032000,69),
+('ARM','Armenia',29800.00,3520000,126),
+('ABW','Aruba',193.00,103000,129),
+('AUS','Australia',7741220.00,18886000,135),
+('AZE','Azerbaijan',86600.00,7734000,144);
+
+INSERT INTO t3 VALUES 
+('AFG','Pashto',52.4),('NLD','Dutch',95.6),
+('ANT','Papiamento',86.2),('ALB','Albaniana',97.9),
+('DZA','Arabic',86.0),('ASM','Samoan',90.6),
+('AND','Spanish',44.6),('AGO','Ovimbundu',37.2),
+('AIA','English',0.0),('ATG','Creole English',95.7),
+('ARE','Arabic',42.0),('ARG','Spanish',96.8),
+('ARM','Armenian',93.4),('ABW','Papiamento',76.7),
+('AUS','English',81.2),('AZE','Azerbaijani',89.0),
+('BHS','Creole English',89.7),('BHR','Arabic',67.7),
+('BGD','Bengali',97.7),('BRB','Bajan',95.1),
+('BEL','Dutch',59.2),('BLZ','English',50.8);
+--enable_query_log
+
+EXPLAIN
+SELECT Name FROM t2 
+  WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
+        AND
+        t2.Code IN (SELECT Country FROM t3 
+                           WHERE Language='English' AND Percentage > 10 AND
+                                 t2.Population > 100000);
+
+DROP TABLE t1,t2,t3;
+  
+# BUG#30993:
+CREATE TABLE t1 (
+  Code char(3) NOT NULL DEFAULT '',
+  Name char(52) NOT NULL DEFAULT '',
+  Continent enum('Asia','Europe','North America','Africa','Oceania','Antarctica','South America') NOT NULL DEFAULT 'Asia',
+  Region char(26) NOT NULL DEFAULT '',
+  SurfaceArea float(10,2) NOT NULL DEFAULT '0.00',
+  IndepYear smallint(6) DEFAULT NULL,
+  Population int(11) NOT NULL DEFAULT '0',
+  LifeExpectancy float(3,1) DEFAULT NULL,
+  GNP float(10,2) DEFAULT NULL,
+  GNPOld float(10,2) DEFAULT NULL,
+  LocalName char(45) NOT NULL DEFAULT '',
+  GovernmentForm char(45) NOT NULL DEFAULT '',
+  HeadOfState char(60) DEFAULT NULL,
+  Capital int(11) DEFAULT NULL,
+  Code2 char(2) NOT NULL DEFAULT '',
+  PRIMARY KEY (Code)
+);
+
+CREATE TABLE t2 (
+  ID int(11) NOT NULL AUTO_INCREMENT,
+  Name char(35) NOT NULL DEFAULT '',
+  CountryCode char(3) NOT NULL DEFAULT '',
+  District char(20) NOT NULL DEFAULT '',
+  Population int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (ID),
+  KEY CountryCode (CountryCode)
+);
+
+--echo Fill the table with test data
+--disable_query_log
+insert into t2 (ID, Name, CountryCode, Population) values 
+(1,'Kabul','AFG',1780000), (2,'Qandahar','AFG',237500), (3,'Herat','AFG',186800),
+(4,'Mazar-e-Sharif','AFG',127800), (33,'Willemstad','ANT',2345), (34,'Tirana','ALB',270000),
+(55,'Andorra la Vella','AND',21189), (61,'South Hill','AIA',961), (62,'The Valley','AIA',595),
+(63,'Saint John�s','ATG',24000), (64,'Dubai','ARE',669181), (65,'Abu Dhabi','ARE',398695),
+(66,'Sharja','ARE',320095), (67,'al-Ayn','ARE',225970), (68,'Ajman','ARE',114395),
+(126,'Yerevan','ARM',1248700), (127,'Gjumri','ARM',211700), (128,'Vanadzor','ARM',172700),
+(129,'Oranjestad','ABW',29034), (144,'Baku','AZE',1787800), (145,'G�nc�','AZE',299300),
+(146,'Sumqayit','AZE',283000), (147,'Ming��evir','AZE',93900), (148,'Nassau','BHS',172000),
+(149,'al-Manama','BHR',148000), (150,'Dhaka','BGD',3612850), (151,'Chittagong','BGD',1392860),
+(152,'Khulna','BGD',663340), (153,'Rajshahi','BGD',294056), (154,'Narayanganj','BGD',202134),
+(155,'Rangpur','BGD',191398), (156,'Mymensingh','BGD',188713), (157,'Barisal','BGD',170232),
+(158,'Tungi','BGD',168702), (159,'Jessore','BGD',139710), (160,'Comilla','BGD',135313),
+(161,'Nawabganj','BGD',130577), (162,'Dinajpur','BGD',127815), (163,'Bogra','BGD',120170),
+(164,'Sylhet','BGD',117396), (165,'Brahmanbaria','BGD',109032), (166,'Tangail','BGD',106004),
+(167,'Jamalpur','BGD',103556), (168,'Pabna','BGD',103277), (169,'Naogaon','BGD',101266),
+(170,'Sirajganj','BGD',99669), (171,'Narsinghdi','BGD',98342), (172,'Saidpur','BGD',96777),
+(173,'Gazipur','BGD',96717), (174,'Bridgetown','BRB',6070), (175,'Antwerpen','BEL',446525),
+(176,'Gent','BEL',224180), (177,'Charleroi','BEL',200827), (178,'Li�ge','BEL',185639),
+(179,'Bruxelles [Brussel]','BEL',133859), (180,'Brugge','BEL',116246), (181,'Schaerbeek','BEL',105692),
+(182,'Namur','BEL',105419), (183,'Mons','BEL',90935), (184,'Belize City','BLZ',55810),
+(185,'Belmopan','BLZ',7105), (190,'Saint George','BMU',1800), (191,'Hamilton','BMU',1200),
+(192,'Thimphu','BTN',22000), (201,'Sarajevo','BIH',360000), (202,'Banja Luka','BIH',143079),
+(203,'Zenica','BIH',96027), (538,'Bandar Seri Begawan','BRN',21484), (539,'Sofija','BGR',1122302),
+(540,'Plovdiv','BGR',342584), (541,'Varna','BGR',299801), (542,'Burgas','BGR',195255),
+(543,'Ruse','BGR',166467), (544,'Stara Zagora','BGR',147939), (545,'Pleven','BGR',121952),
+(546,'Sliven','BGR',105530), (547,'Dobric','BGR',100399), (548,'�umen','BGR',94686),
+(553,'George Town','CYM',19600), (584,'San Jos�','CRI',339131), (1523,'Wien','AUT',1608144),
+(1524,'Graz','AUT',240967), (1525,'Linz','AUT',188022), (1526,'Salzburg','AUT',144247),
+(1527,'Innsbruck','AUT',111752), (1528,'Klagenfurt','AUT',91141), (1810,'Montr�al','CAN',1016376),
+(1811,'Calgary','CAN',768082), (1812,'Toronto','CAN',688275), (1813,'North York','CAN',622632),
+(1814,'Winnipeg','CAN',618477), (1815,'Edmonton','CAN',616306), (1816,'Mississauga','CAN',608072),
+(1817,'Scarborough','CAN',594501), (1818,'Vancouver','CAN',514008), (1819,'Etobicoke','CAN',348845),
+(1820,'London','CAN',339917), (1821,'Hamilton','CAN',335614), (1822,'Ottawa','CAN',335277),
+(1823,'Laval','CAN',330393), (1824,'Surrey','CAN',304477), (1825,'Brampton','CAN',296711),
+(1826,'Windsor','CAN',207588), (1827,'Saskatoon','CAN',193647), (1828,'Kitchener','CAN',189959),
+(1829,'Markham','CAN',189098), (1830,'Regina','CAN',180400), (1831,'Burnaby','CAN',179209),
+(1832,'Qu�bec','CAN',167264), (1833,'York','CAN',154980), (1834,'Richmond','CAN',148867),
+(1835,'Vaughan','CAN',147889), (1836,'Burlington','CAN',145150), (1837,'Oshawa','CAN',140173),
+(1838,'Oakville','CAN',139192), (1839,'Saint Catharines','CAN',136216), (1840,'Longueuil','CAN',127977),
+(1841,'Richmond Hill','CAN',116428), (1842,'Thunder Bay','CAN',115913), (1843,'Nepean','CAN',115100),
+(1844,'Cape Breton','CAN',114733), (1845,'East York','CAN',114034), (1846,'Halifax','CAN',113910),
+(1847,'Cambridge','CAN',109186), (1848,'Gloucester','CAN',107314), (1849,'Abbotsford','CAN',105403),
+(1850,'Guelph','CAN',103593), (1851,'Saint John�s','CAN',101936), (1852,'Coquitlam','CAN',101820),
+(1853,'Saanich','CAN',101388), (1854,'Gatineau','CAN',100702), (1855,'Delta','CAN',95411),
+(1856,'Sudbury','CAN',92686), (1857,'Kelowna','CAN',89442), (1858,'Barrie','CAN',89269),
+(1890,'Shanghai','CHN',9696300), (1891,'Peking','CHN',7472000), (1892,'Chongqing','CHN',6351600),
+(1893,'Tianjin','CHN',5286800), (1894,'Wuhan','CHN',4344600), (1895,'Harbin','CHN',4289800),
+(1896,'Shenyang','CHN',4265200), (1897,'Kanton [Guangzhou]','CHN',4256300), (1898,'Chengdu','CHN',3361500),
+(1899,'Nanking [Nanjing]','CHN',2870300), (1900,'Changchun','CHN',2812000), (1901,'Xi�an','CHN',2761400),
+(1902,'Dalian','CHN',2697000), (1903,'Qingdao','CHN',2596000), (1904,'Jinan','CHN',2278100),
+(1905,'Hangzhou','CHN',2190500), (1906,'Zhengzhou','CHN',2107200), (1907,'Shijiazhuang','CHN',2041500),
+(1908,'Taiyuan','CHN',1968400), (1909,'Kunming','CHN',1829500), (1910,'Changsha','CHN',1809800),
+(1911,'Nanchang','CHN',1691600), (1912,'Fuzhou','CHN',1593800), (1913,'Lanzhou','CHN',1565800),
+(1914,'Guiyang','CHN',1465200), (1915,'Ningbo','CHN',1371200), (1916,'Hefei','CHN',1369100),
+(1917,'Urumt�i [�r�mqi]','CHN',1310100), (1918,'Anshan','CHN',1200000), (1919,'Fushun','CHN',1200000),
+(1920,'Nanning','CHN',1161800), (1921,'Zibo','CHN',1140000), (1922,'Qiqihar','CHN',1070000),
+(1923,'Jilin','CHN',1040000), (1924,'Tangshan','CHN',1040000), (1925,'Baotou','CHN',980000),
+(1926,'Shenzhen','CHN',950500), (1927,'Hohhot','CHN',916700), (1928,'Handan','CHN',840000),
+(1929,'Wuxi','CHN',830000), (1930,'Xuzhou','CHN',810000), (1931,'Datong','CHN',800000),
+(1932,'Yichun','CHN',800000), (1933,'Benxi','CHN',770000), (1934,'Luoyang','CHN',760000),
+(1935,'Suzhou','CHN',710000), (1936,'Xining','CHN',700200), (1937,'Huainan','CHN',700000),
+(1938,'Jixi','CHN',683885), (1939,'Daqing','CHN',660000), (1940,'Fuxin','CHN',640000),
+(1941,'Amoy [Xiamen]','CHN',627500), (1942,'Liuzhou','CHN',610000), (1943,'Shantou','CHN',580000),
+(1944,'Jinzhou','CHN',570000), (1945,'Mudanjiang','CHN',570000), (1946,'Yinchuan','CHN',544500),
+(1947,'Changzhou','CHN',530000), (1948,'Zhangjiakou','CHN',530000), (1949,'Dandong','CHN',520000),
+(1950,'Hegang','CHN',520000), (1951,'Kaifeng','CHN',510000), (1952,'Jiamusi','CHN',493409),
+(1953,'Liaoyang','CHN',492559), (1954,'Hengyang','CHN',487148), (1955,'Baoding','CHN',483155),
+(1956,'Hunjiang','CHN',482043), (1957,'Xinxiang','CHN',473762), (1958,'Huangshi','CHN',457601),
+(1959,'Haikou','CHN',454300), (1960,'Yantai','CHN',452127), (1961,'Bengbu','CHN',449245),
+(1962,'Xiangtan','CHN',441968), (1963,'Weifang','CHN',428522), (1964,'Wuhu','CHN',425740),
+(1965,'Pingxiang','CHN',425579), (1966,'Yingkou','CHN',421589), (1967,'Anyang','CHN',420332),
+(1968,'Panzhihua','CHN',415466), (1969,'Pingdingshan','CHN',410775), (1970,'Xiangfan','CHN',410407),
+(1971,'Zhuzhou','CHN',409924), (1972,'Jiaozuo','CHN',409100), (1973,'Wenzhou','CHN',401871),
+(1974,'Zhangjiang','CHN',400997), (1975,'Zigong','CHN',393184), (1976,'Shuangyashan','CHN',386081),
+(1977,'Zaozhuang','CHN',380846), (1978,'Yakeshi','CHN',377869), (1979,'Yichang','CHN',371601),
+(1980,'Zhenjiang','CHN',368316), (1981,'Huaibei','CHN',366549), (1982,'Qinhuangdao','CHN',364972),
+(1983,'Guilin','CHN',364130), (1984,'Liupanshui','CHN',363954), (1985,'Panjin','CHN',362773),
+(1986,'Yangquan','CHN',362268), (1987,'Jinxi','CHN',357052), (1988,'Liaoyuan','CHN',354141),
+(1989,'Lianyungang','CHN',354139), (1990,'Xianyang','CHN',352125), (1991,'Tai�an','CHN',350696),
+(1992,'Chifeng','CHN',350077), (1993,'Shaoguan','CHN',350043), (1994,'Nantong','CHN',343341),
+(1995,'Leshan','CHN',341128), (1996,'Baoji','CHN',337765), (1997,'Linyi','CHN',324720),
+(1998,'Tonghua','CHN',324600), (1999,'Siping','CHN',317223), (2000,'Changzhi','CHN',317144),
+(2001,'Tengzhou','CHN',315083), (2002,'Chaozhou','CHN',313469), (2003,'Yangzhou','CHN',312892),
+(2004,'Dongwan','CHN',308669), (2005,'Ma�anshan','CHN',305421), (2006,'Foshan','CHN',303160),
+(2007,'Yueyang','CHN',302800), (2008,'Xingtai','CHN',302789), (2009,'Changde','CHN',301276),
+(2010,'Shihezi','CHN',299676), (2011,'Yancheng','CHN',296831), (2012,'Jiujiang','CHN',291187),
+(2013,'Dongying','CHN',281728), (2014,'Shashi','CHN',281352), (2015,'Xintai','CHN',281248),
+(2016,'Jingdezhen','CHN',281183), (2017,'Tongchuan','CHN',280657), (2018,'Zhongshan','CHN',278829),
+(2019,'Shiyan','CHN',273786), (2020,'Tieli','CHN',265683), (2021,'Jining','CHN',265248),
+(2022,'Wuhai','CHN',264081), (2023,'Mianyang','CHN',262947), (2024,'Luzhou','CHN',262892),
+(2025,'Zunyi','CHN',261862), (2026,'Shizuishan','CHN',257862), (2027,'Neijiang','CHN',256012),
+(2028,'Tongliao','CHN',255129), (2029,'Tieling','CHN',254842), (2030,'Wafangdian','CHN',251733),
+(2031,'Anqing','CHN',250718), (2032,'Shaoyang','CHN',247227), (2033,'Laiwu','CHN',246833),
+(2034,'Chengde','CHN',246799), (2035,'Tianshui','CHN',244974), (2036,'Nanyang','CHN',243303),
+(2037,'Cangzhou','CHN',242708), (2038,'Yibin','CHN',241019), (2039,'Huaiyin','CHN',239675),
+(2040,'Dunhua','CHN',235100), (2041,'Yanji','CHN',230892), (2042,'Jiangmen','CHN',230587),
+(2043,'Tongling','CHN',228017), (2044,'Suihua','CHN',227881), (2045,'Gongziling','CHN',226569),
+(2046,'Xiantao','CHN',222884), (2047,'Chaoyang','CHN',222394), (2048,'Ganzhou','CHN',220129),
+(2049,'Huzhou','CHN',218071), (2050,'Baicheng','CHN',217987), (2051,'Shangzi','CHN',215373),
+(2052,'Yangjiang','CHN',215196), (2053,'Qitaihe','CHN',214957), (2054,'Gejiu','CHN',214294),
+(2055,'Jiangyin','CHN',213659), (2056,'Hebi','CHN',212976), (2057,'Jiaxing','CHN',211526),
+(2058,'Wuzhou','CHN',210452), (2059,'Meihekou','CHN',209038), (2060,'Xuchang','CHN',208815),
+(2061,'Liaocheng','CHN',207844), (2062,'Haicheng','CHN',205560), (2063,'Qianjiang','CHN',205504),
+(2064,'Baiyin','CHN',204970), (2065,'Bei�an','CHN',204899), (2066,'Yixing','CHN',200824),
+(2067,'Laizhou','CHN',198664), (2068,'Qaramay','CHN',197602), (2069,'Acheng','CHN',197595),
+(2070,'Dezhou','CHN',195485), (2071,'Nanping','CHN',195064), (2072,'Zhaoqing','CHN',194784),
+(2073,'Beipiao','CHN',194301), (2074,'Fengcheng','CHN',193784), (2075,'Fuyu','CHN',192981),
+(2076,'Xinyang','CHN',192509), (2077,'Dongtai','CHN',192247), (2078,'Yuci','CHN',191356),
+(2079,'Honghu','CHN',190772), (2080,'Ezhou','CHN',190123), (2081,'Heze','CHN',189293),
+(2082,'Daxian','CHN',188101), (2083,'Linfen','CHN',187309), (2084,'Tianmen','CHN',186332),
+(2085,'Yiyang','CHN',185818), (2086,'Quanzhou','CHN',185154), (2087,'Rizhao','CHN',185048),
+(2088,'Deyang','CHN',182488), (2089,'Guangyuan','CHN',182241), (2090,'Changshu','CHN',181805),
+(2091,'Zhangzhou','CHN',181424), (2092,'Hailar','CHN',180650), (2093,'Nanchong','CHN',180273),
+(2094,'Jiutai','CHN',180130), (2095,'Zhaodong','CHN',179976), (2096,'Shaoxing','CHN',179818),
+(2097,'Fuyang','CHN',179572), (2098,'Maoming','CHN',178683), (2099,'Qujing','CHN',178669),
+(2100,'Ghulja','CHN',177193), (2101,'Jiaohe','CHN',176367), (2102,'Puyang','CHN',175988),
+(2103,'Huadian','CHN',175873), (2104,'Jiangyou','CHN',175753), (2105,'Qashqar','CHN',174570),
+(2106,'Anshun','CHN',174142), (2107,'Fuling','CHN',173878), (2108,'Xinyu','CHN',173524),
+(2109,'Hanzhong','CHN',169930), (2110,'Danyang','CHN',169603), (2111,'Chenzhou','CHN',169400),
+(2112,'Xiaogan','CHN',166280), (2113,'Shangqiu','CHN',164880), (2114,'Zhuhai','CHN',164747),
+(2115,'Qingyuan','CHN',164641), (2116,'Aqsu','CHN',164092), (2117,'Jining','CHN',163552),
+(2118,'Xiaoshan','CHN',162930), (2119,'Zaoyang','CHN',162198), (2120,'Xinghua','CHN',161910),
+(2121,'Hami','CHN',161315), (2122,'Huizhou','CHN',161023), (2123,'Jinmen','CHN',160794),
+(2124,'Sanming','CHN',160691), (2125,'Ulanhot','CHN',159538), (2126,'Korla','CHN',159344),
+(2127,'Wanxian','CHN',156823), (2128,'Rui�an','CHN',156468), (2129,'Zhoushan','CHN',156317),
+(2130,'Liangcheng','CHN',156307), (2131,'Jiaozhou','CHN',153364), (2132,'Taizhou','CHN',152442),
+(2133,'Suzhou','CHN',151862), (2134,'Yichun','CHN',151585), (2135,'Taonan','CHN',150168),
+(2136,'Pingdu','CHN',150123), (2137,'Ji�an','CHN',148583), (2138,'Longkou','CHN',148362),
+(2139,'Langfang','CHN',148105), (2140,'Zhoukou','CHN',146288), (2141,'Suining','CHN',146086),
+(2142,'Yulin','CHN',144467), (2143,'Jinhua','CHN',144280), (2144,'Liu�an','CHN',144248),
+(2145,'Shuangcheng','CHN',142659), (2146,'Suizhou','CHN',142302), (2147,'Ankang','CHN',142170),
+(2148,'Weinan','CHN',140169), (2149,'Longjing','CHN',139417), (2150,'Da�an','CHN',138963),
+(2151,'Lengshuijiang','CHN',137994), (2152,'Laiyang','CHN',137080), (2153,'Xianning','CHN',136811),
+(2154,'Dali','CHN',136554), (2155,'Anda','CHN',136446), (2156,'Jincheng','CHN',136396),
+(2157,'Longyan','CHN',134481), (2158,'Xichang','CHN',134419), (2159,'Wendeng','CHN',133910),
+(2160,'Hailun','CHN',133565), (2161,'Binzhou','CHN',133555), (2162,'Linhe','CHN',133183),
+(2163,'Wuwei','CHN',133101), (2164,'Duyun','CHN',132971), (2165,'Mishan','CHN',132744),
+(2166,'Shangrao','CHN',132455), (2167,'Changji','CHN',132260), (2168,'Meixian','CHN',132156),
+(2169,'Yushu','CHN',131861), (2170,'Tiefa','CHN',131807), (2171,'Huai�an','CHN',131149),
+(2172,'Leiyang','CHN',130115), (2173,'Zalantun','CHN',130031), (2174,'Weihai','CHN',128888),
+(2175,'Loudi','CHN',128418), (2176,'Qingzhou','CHN',128258), (2177,'Qidong','CHN',126872),
+(2178,'Huaihua','CHN',126785), (2179,'Luohe','CHN',126438), (2180,'Chuzhou','CHN',125341),
+(2181,'Kaiyuan','CHN',124219), (2182,'Linqing','CHN',123958), (2183,'Chaohu','CHN',123676),
+(2184,'Laohekou','CHN',123366), (2185,'Dujiangyan','CHN',123357), (2186,'Zhumadian','CHN',123232),
+(2187,'Linchuan','CHN',121949), (2188,'Jiaonan','CHN',121397), (2189,'Sanmenxia','CHN',120523),
+(2190,'Heyuan','CHN',120101), (2191,'Manzhouli','CHN',120023), (2192,'Lhasa','CHN',120000),
+(2193,'Lianyuan','CHN',118858), (2194,'Kuytun','CHN',118553), (2195,'Puqi','CHN',117264),
+(2196,'Hongjiang','CHN',116188), (2197,'Qinzhou','CHN',114586), (2198,'Renqiu','CHN',114256),
+(2199,'Yuyao','CHN',114065), (2200,'Guigang','CHN',114025), (2201,'Kaili','CHN',113958),
+(2202,'Yan�an','CHN',113277), (2203,'Beihai','CHN',112673), (2204,'Xuangzhou','CHN',112673),
+(2205,'Quzhou','CHN',112373), (2206,'Yong�an','CHN',111762), (2207,'Zixing','CHN',110048),
+(2208,'Liyang','CHN',109520), (2209,'Yizheng','CHN',109268), (2210,'Yumen','CHN',109234),
+(2211,'Liling','CHN',108504), (2212,'Yuncheng','CHN',108359), (2213,'Shanwei','CHN',107847),
+(2214,'Cixi','CHN',107329), (2215,'Yuanjiang','CHN',107004), (2216,'Bozhou','CHN',106346),
+(2217,'Jinchang','CHN',105287), (2218,'Fu�an','CHN',105265), (2219,'Suqian','CHN',105021),
+(2220,'Shishou','CHN',104571), (2221,'Hengshui','CHN',104269), (2222,'Danjiangkou','CHN',103211),
+(2223,'Fujin','CHN',103104), (2224,'Sanya','CHN',102820), (2225,'Guangshui','CHN',102770),
+(2226,'Huangshan','CHN',102628), (2227,'Xingcheng','CHN',102384), (2228,'Zhucheng','CHN',102134),
+(2229,'Kunshan','CHN',102052), (2230,'Haining','CHN',100478), (2231,'Pingliang','CHN',99265),
+(2232,'Fuqing','CHN',99193), (2233,'Xinzhou','CHN',98667), (2234,'Jieyang','CHN',98531),
+(2235,'Zhangjiagang','CHN',97994), (2236,'Tong Xian','CHN',97168), (2237,'Ya�an','CHN',95900),
+(2238,'Jinzhou','CHN',95761), (2239,'Emeishan','CHN',94000), (2240,'Enshi','CHN',93056),
+(2241,'Bose','CHN',93009), (2242,'Yuzhou','CHN',92889), (2243,'Kaiyuan','CHN',91999),
+(2244,'Tumen','CHN',91471), (2245,'Putian','CHN',91030), (2246,'Linhai','CHN',90870),
+(2247,'Xilin Hot','CHN',90646), (2248,'Shaowu','CHN',90286), (2249,'Junan','CHN',90222),
+(2250,'Huaying','CHN',89400), (2251,'Pingyi','CHN',89373), (2252,'Huangyan','CHN',89288),
+(2413,'La Habana','CUB',2256000), (2414,'Santiago de Cuba','CUB',433180), (2415,'Camag�ey','CUB',298726),
+(2416,'Holgu�n','CUB',249492), (2417,'Santa Clara','CUB',207350), (2418,'Guant�namo','CUB',205078),
+(2419,'Pinar del R�o','CUB',142100), (2420,'Bayamo','CUB',141000), (2421,'Cienfuegos','CUB',132770),
+(2422,'Victoria de las Tunas','CUB',132350), (2423,'Matanzas','CUB',123273), (2424,'Manzanillo','CUB',109350),
+(2425,'Sancti-Sp�ritus','CUB',100751), (2426,'Ciego de �vila','CUB',98505), (2430,'Nicosia','CYP',195000),
+(2431,'Limassol','CYP',154400), (3245,'Z�rich','CHE',336800), (3246,'Geneve','CHE',173500),
+(3247,'Basel','CHE',166700), (3248,'Bern','CHE',122700), (3249,'Lausanne','CHE',114500),
+(3339,'Praha','CZE',1181126), (3340,'Brno','CZE',381862), (3341,'Ostrava','CZE',320041),
+(3342,'Plzen','CZE',166759), (3343,'Olomouc','CZE',102702), (3344,'Liberec','CZE',99155),
+(3345,'Cesk� Budejovice','CZE',98186), (3346,'Hradec Kr�lov�','CZE',98080), (3347,'�st� nad Labem','CZE',95491),
+(3348,'Pardubice','CZE',91309), (3520,'Minsk','BLR',1674000), (3521,'Gomel','BLR',475000),
+(3522,'Mogiljov','BLR',356000), (3523,'Vitebsk','BLR',340000), (3524,'Grodno','BLR',302000),
+(3525,'Brest','BLR',286000), (3526,'Bobruisk','BLR',221000), (3527,'Baranovit�i','BLR',167000),
+(3528,'Borisov','BLR',151000), (3529,'Pinsk','BLR',130000), (3530,'Or�a','BLR',124000),
+(3531,'Mozyr','BLR',110000), (3532,'Novopolotsk','BLR',106000), (3533,'Lida','BLR',101000),
+(3534,'Soligorsk','BLR',101000), (3535,'Molodet�no','BLR',97000);
+
+insert into t1 (Code, Name, Continent) values 
+('AFG','Afghanistan','Asia'), ('ANT','Netherlands Antilles','North America'),
+('ALB','Albania','Europe'), ('AND','Andorra','Europe'),
+('AIA','Anguilla','North America'), ('ATG','Antigua and Barbuda','North America'),
+('ARE','United Arab Emirates','Asia'), ('ARM','Armenia','Asia'),
+('ABW','Aruba','North America'), ('AZE','Azerbaijan','Asia'),
+('BHS','Bahamas','North America'), ('BHR','Bahrain','Asia'),
+('BGD','Bangladesh','Asia'), ('BRB','Barbados','North America'),
+('BEL','Belgium','Europe'), ('BLZ','Belize','North America'),
+('BMU','Bermuda','North America'), ('BTN','Bhutan','Asia'),
+('BIH','Bosnia and Herzegovina','Europe'), ('BRN','Brunei','Asia'),
+('BGR','Bulgaria','Europe'), ('CYM','Cayman Islands','North America'),
+('CRI','Costa Rica','North America'), ('AUT','Austria','Europe'),
+('CAN','Canada','North America'), ('CHN','China','Asia'),
+('CUB','Cuba','North America'), ('CYP','Cyprus','Asia'),
+('CHE','Switzerland','Europe'), ('CZE','Czech Republic','Europe'),
+('BLR','Belarus','Europe');
+update t2 set population=6000000 where Name in ('Wien', 'Vancouver', 'Praha');
+--enable_query_log
+
+--echo This must not use LooseScan:
+EXPLAIN SELECT Name FROM t1 
+  WHERE t1.Code IN (
+    SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
+
+SELECT Name FROM t1 
+  WHERE t1.Code IN (
+    SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
+
+drop table t1, t2;
+
+#
+# Bug#33062: subquery in stored routine cause crash
+#
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(c INT);
+
+DELIMITER //;
+
+CREATE PROCEDURE p1(v1 int)
+BEGIN
+  SELECT 1 FROM t1 WHERE a = v1 AND a IN (SELECT c FROM t2);
+END
+//
+
+CREATE PROCEDURE p2(v1 int)
+BEGIN
+  SELECT 1 FROM t1 WHERE a IN (SELECT c FROM t2);
+END
+//
+
+CREATE PROCEDURE p3(v1 int)
+BEGIN
+  SELECT 1 
+  FROM 
+    t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+    t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+    t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+    t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+    t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+    t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+    t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+    t1 t57,t1 t58,t1 t59,t1 t60
+  WHERE t01.a IN (SELECT c FROM t2);
+END
+//
+
+CREATE PROCEDURE p4(v1 int)
+BEGIN
+  SELECT 1 
+  FROM 
+    t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+    t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+    t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+    t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+    t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+    t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+    t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+    t1 t57,t1 t58,t1 t59,t1 t60
+  WHERE t01.a = v1 AND t01.a IN (SELECT c FROM t2);
+END
+//
+
+DELIMITER ;//
+
+CALL p1(1);
+CALL p2(1);
+CALL p3(1);
+CALL p4(1);
+
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
+
+#
+# BUG#35160 "Subquery optimization: table pullout is not reflected in EXPLAIN EXTENDED"
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4);
+
+create table t1 (a int, b int, key(a));
+insert into t1 select a,a from t0;
+
+create table t2 (a int, b int, primary key(a));
+insert into t2 select * from t1;
+
+# Table t2 should be pulled out because t2.a=t0.a equality
+--echo Table t2, unlike table t1, should be displayed as pulled out
+explain extended select * from t0
+where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
+t1.b=t2.b);
+
+#
+# BUG#46556 "Returning incorrect, empty results for some IN subqueries 
+#            w/ semijoin=on"
+#
+
+# The above query did not have a valid plan before the fix of BUG#46556.
+# Add some data that would cause wrong result with the old plan.
+update t1 set a=3, b=11 where a=4;
+update t2 set b=11 where a=3;
+
+if (`select @@join_cache_level=6`)
+{
+  --echo # Not anymore:
+  --echo # The following query gives wrong result due to Bug#49129
+}
+select * from t0 where t0.a in 
+  (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
+
+drop table t0, t1, t2;
+
+#
+# BUG#35767: Processing of uncorrelated subquery with semi-join cause wrong result and crash
+#
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  PRIMARY KEY (id));
+
+CREATE TABLE t2 (
+  id int(11) NOT NULL,
+  fid int(11) NOT NULL,
+  PRIMARY KEY (id));
+
+insert into t1 values(1);
+insert into t2 values(1,7503),(2,1);
+
+--error 1054
+explain select count(*) 
+from t1 
+where fid IN (select fid from t2 where (id between 7502 and 8420) order by fid );
+
+drop table t1, t2;
+ 
+#
+# BUG#36137 "virtual longlong Item_in_subselect::val_int(): Assertion `0' failed."
+#
+create table t1 (a int, b int, key (a), key (b));
+insert into t1 values (2,4),(2,4),(2,4);
+select t1.a from t1 
+where 
+  t1.a in (select 1 from t1 where t1.a in (select 1 from t1) group by  t1.a);
+drop table t1;
+
+#
+# BUG#36128: not in subquery causes crash in cleanup..
+#
+create table t1(a int,b int,key(a),key(b)); 
+insert into t1 values (1,1),(2,2),(3,3);
+select 1 from t1 
+where t1.a not in (select 1 from t1 
+                  where t1.a in (select 1 from t1) 
+                  group by  t1.b);
+drop table t1;
+
+#
+# BUG#33743 "nested subqueries, unique index, wrong result"
+#
+CREATE TABLE t1
+ (EMPNUM   CHAR(3) NOT NULL,
+  EMPNAME  CHAR(20),
+  GRADE    DECIMAL(4),
+  CITY     CHAR(15));
+
+CREATE TABLE t2
+ (PNUM     CHAR(3) NOT NULL,
+  PNAME    CHAR(20),
+  PTYPE    CHAR(6),
+  BUDGET   DECIMAL(9),
+  CITY     CHAR(15));
+
+CREATE TABLE t3
+ (EMPNUM   CHAR(3) NOT NULL,
+  PNUM     CHAR(3) NOT NULL,
+  HOURS    DECIMAL(5));
+
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+
+
+SELECT * FROM t1;
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP INDEX t1_IDX ON t1;
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP TABLE t1, t2, t3;
+
+#
+# BUG#33245 "Crash on VIEW referencing FROM table in an IN clause"
+# 
+CREATE TABLE t1 (f1 INT NOT NULL);
+CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
+SELECT * FROM v1;
+drop view v1;
+drop table t1;
+
+
+#
+# BUG#35550 "Semi-join subquery in ON clause and no WHERE crashes the server"
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(a int, b int);
+insert into t1 values (0,0),(1,1),(2,2);
+create table t2 as select * from t1;
+
+create table t3 (pk int, a int, primary key(pk));
+insert into t3 select a,a from t0;
+
+explain 
+select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
+
+drop table t0, t1, t2, t3;
+
+#
+# BUG#34799: crash or/and memory overrun with dependant subquery and some joins
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a char(200), b char(200), c char(200), primary key (a,b,c)) engine=innodb;
+insert into t2 select concat(a, repeat('X',198)),repeat('B',200),repeat('B',200) from t1;
+insert into t2 select concat(a, repeat('Y',198)),repeat('B',200),repeat('B',200) from t1;
+alter table t2 add filler1 int;
+
+insert into t1 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+
+set @save_join_buffer_size=@@join_buffer_size; 
+--disable_warnings
+set join_buffer_size=1;
+--enable_warnings
+
+select * from t2 where filler1 in ( select a from t1);
+set join_buffer_size=default;
+
+drop table t1, t2; 
+#
+# BUG#33509: Server crashes with number of recursive subqueries=61
+#  (the query may or may not fail with an error so we're using it with SP 
+#  
+create table t1 (a int not null);
+
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
+  prepare s1 from '
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( 
+  select a from t1 where a in ( select a from t1) 
+  )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))';
+  execute s1;
+END;
+|
+delimiter ;|
+
+call p1();
+drop procedure p1;
+drop table t1;
+
+#
+# BUG#35468 "Slowdown and wrong result for uncorrelated subquery w/o where"
+#
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int) as select A.a + 10 *(B.a + 10*C.a) as a  from t0 A, t0 B, t0 C;
+create table t2 (id int, a int, primary key(id), key(a)) as select a as id, a as a  from t1;
+show create table t2;
+set @a=0;
+create table t3 as select * from t2 limit 0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+insert into t3 select @a:=@a+1, t2.a from t2, t0;
+
+alter table t3 add primary key(id), add key(a);
+--echo The following must use loose index scan over t3, key a:
+explain select count(a) from t2 where a in ( SELECT  a FROM t3);
+select count(a) from t2 where a in ( SELECT  a FROM t3);
+
+drop table t0,t1,t2,t3;
+
+--echo
+--echo BUG#42740: crash in optimize_semijoin_nests
+--echo
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+drop table t1, t2;
+
+--echo # 
+--echo # BUG#42742: crash in setup_sj_materialization, Copy_field::set
+--echo # 
+create table t3 ( c1 year) engine=innodb;
+insert into t3 values (2135),(2142);
+create table t2 (c1 tinytext,c2 text,c6 timestamp) engine=innodb;
+-- echo # The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
+explain select 1 from t2 where 
+  c2 in (select 1 from t3, t2) and
+  c1 in (select convert(c6,char(1)) from t2);
+drop table t2, t3;
+

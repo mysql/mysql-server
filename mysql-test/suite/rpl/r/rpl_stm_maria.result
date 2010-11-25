@@ -1,0 +1,52 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+create table t1 (a int auto_increment, primary key (a), b int,
+rand_value double not null) engine=maria;
+create table t2 (a int auto_increment, primary key (a), b int) engine=maria;
+create table t3 (a int auto_increment, primary key (a), name
+varchar(64) not null, old_a int, old_b int, rand_value double not
+null) engine=maria;
+create trigger t1 before insert on t1 for each row
+begin
+insert into t3 values (NULL, "t1", new.a, new.b, rand());
+end|
+create trigger t2 after insert on t2 for each row
+begin
+insert into t3 values (NULL, "t2", new.a, new.b, rand());
+end|
+insert into t3 values(100,"log",0,0,0);
+SET @@RAND_SEED1=658490765, @@RAND_SEED2=635893186;
+insert into t1 values(1,1,rand()),(NULL,2,rand());
+insert into t2 (b) values(last_insert_id());
+insert into t2 values(3,0),(NULL,0);
+insert into t2 values(NULL,0),(500,0);
+select a,b, truncate(rand_value,4) from t1;
+a	b	truncate(rand_value,4)
+1	1	0.4320
+2	2	0.3055
+select * from t2;
+a	b
+1	2
+3	0
+4	0
+5	0
+500	0
+select a,name, old_a, old_b, truncate(rand_value,4) from t3;
+a	name	old_a	old_b	truncate(rand_value,4)
+100	log	0	0	0.0000
+101	t1	1	1	0.3203
+102	t1	0	2	0.5666
+103	t2	1	2	0.9164
+104	t2	3	0	0.8826
+105	t2	4	0	0.6635
+106	t2	5	0	0.6699
+107	t2	500	0	0.3593
+drop table t1,t2,t3;

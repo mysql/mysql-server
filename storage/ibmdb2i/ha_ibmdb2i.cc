@@ -1158,9 +1158,7 @@ int ha_ibmdb2i::rnd_init(bool scan)
   
   rrnAssocHandle= 0;
 
-  DBUG_RETURN(0); // MySQL sometimes does not check the return code, causing 
-                  // an assert in ha_rnd_end later on if we return a non-zero
-                  // value here. 
+  DBUG_RETURN(0);
 }
 
 int ha_ibmdb2i::rnd_end()
@@ -3357,3 +3355,20 @@ mysql_declare_plugin(ibmdb2i)
   NULL                                          /* config options */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ibmdb2i)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ibmdb2i_storage_engine,
+  "IBMDB2I",
+  "The IBM development team in Rochester, Minnesota",
+  "IBM DB2 for i Storage Engine",
+  PLUGIN_LICENSE_GPL,
+  ibmdb2i_init_func,          /* Plugin Init */
+  ibmdb2i_done_func,          /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables */
+  ibmdb2i_system_variables,   /* system variables */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_UNKNOWN /* maturity */
+}
+maria_declare_plugin_end;

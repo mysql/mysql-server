@@ -1,0 +1,9 @@
+create table t2(id int,a varchar(255),b varchar(255),key(a))engine=aria row_format=dynamic transactional=0;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+check table t2 extended;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+drop table t2;

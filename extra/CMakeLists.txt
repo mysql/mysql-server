@@ -66,7 +66,6 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(resolveip ${SOLARIS_NSL})
 ENDIF()
 
-
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 IF(UNIX)
@@ -78,4 +77,6 @@ IF(UNIX)
   MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
   TARGET_LINK_LIBRARIES(mysql_waitpid mysys)
 ENDIF()
+
+MESSAGE("TODO: Support libevent")
 

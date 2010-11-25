@@ -14,6 +14,6 @@ start slave io_thread;
 stop slave io_thread;
 reset slave;
 start slave;
-select master_pos_wait('master-bin.001',200,6)=-1;
-master_pos_wait('master-bin.001',200,6)=-1
+select master_pos_wait('MASTER_LOG_FILE',200,30)=-1;
+master_pos_wait('MASTER_LOG_FILE',200,30)=-1
 0

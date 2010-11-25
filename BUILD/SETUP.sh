@@ -31,6 +31,14 @@ parse_options()
       prefix=`get_key_value "$1"`;;
     --warning-mode=*)
       warning_mode=`get_key_value "$1"`;;
+    --extra-flags=*)
+      EXTRA_FLAGS=`get_key_value "$1"`;;
+    --extra-cflags=*)
+      EXTRA_CFLAGS=`get_key_value "$1"`;;
+    --extra-cxxflags=*)
+      EXTRA_CXXFLAGS=`get_key_value "$1"`;;
+    --extra-configs=*)
+      EXTRA_CONFIGS=`get_key_value "$1"`;;
     -c | --just-configure)
       just_configure=1;;
     -n | --just-print | --print)
@@ -75,13 +83,13 @@ set -e
 # 
 path=`dirname $0`
 . "$path/check-cpu"
+. "$path/util.sh"
 
-export AM_MAKEFLAGS
-AM_MAKEFLAGS="-j 6"
+get_make_parallel_flag
 
 # SSL library to use.--with-ssl will select our bundled yaSSL
-# implementation of SSL. To use openSSl you will nee too point out
-# the location of openSSL headers and lbs on your system.
+# implementation of SSL. To use OpenSSL you will need to specify
+# the location of OpenSSL headers and libs on your system.
 # Ex --with-ssl=/usr
 SSL_LIBRARY=--with-ssl
 
@@ -139,6 +147,13 @@ fast_cflags="-O3 -fno-omit-frame-pointer"
 debug_configs="--with-debug"
 debug_cflags="$debug_cflags $debug_extra_cflags"
 
+static_link="--with-mysqld-ldflags=-all-static "
+static_link="$static_link --with-client-ldflags=-all-static"
+# we need local-infile in all binaries for rpl000001
+# if you need to disable local-infile in the client, write a build script
+# and unset local_infile_configs
+local_infile_configs="--enable-local-infile"
+
 #
 # Configuration options.
 #
@@ -146,6 +161,9 @@ base_configs="--prefix=$prefix --enable-assembler "
 base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client "
 base_configs="$base_configs --with-big-tables $maintainer_mode"
+base_configs="$base_configs --with-plugin-aria --with-aria-tmp-tables --without-plugin-innodb_plugin"
+# Compile our client programs with static libraries to allow them to be moved
+base_configs="$base_configs --with-mysqld-ldflags=-static --with-client-ldflags=-static"
 
 if test -d "$path/../cmd-line-utils/readline"
 then
@@ -155,17 +173,11 @@ then
     base_configs="$base_configs --with-libedit"
 fi
 
-static_link="--with-mysqld-ldflags=-all-static "
-static_link="$static_link --with-client-ldflags=-all-static"
-# we need local-infile in all binaries for rpl000001
-# if you need to disable local-infile in the client, write a build script
-# and unset local_infile_configs
-local_infile_configs="--enable-local-infile"
-
-
 max_no_embedded_configs="$SSL_LIBRARY --with-plugins=max"
-max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server"
-max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server"
+max_no_qc_configs="$SSL_LIBRARY --with-plugins=max --without-query-cache"
+max_no_ndb_configs="$SSL_LIBRARY --with-plugins=max-no-ndb --with-embedded-server --with-libevent"
+max_configs="$SSL_LIBRARY --with-plugins=max --with-embedded-server --with-libevent"
+all_configs="$SSL_LIBRARY --with-plugins=max --with-plugin-ndbcluster --with-embedded-server --with-innodb_plugin --with-libevent"
 
 #
 # CPU and platform specific compilation flags.
@@ -190,7 +202,7 @@ if test -z "$CC" ; then
 fi
 
 if test -z "$CXX" ; then
-  CXX=gcc
+  CXX=g++
 fi
 
 # If ccache (a compiler cache which reduces build time)

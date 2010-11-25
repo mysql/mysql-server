@@ -2044,7 +2044,7 @@ ER_BLOBS_AND_NO_TERMINATED 42000 S1009
         ukr "Не можна використовувати сталу довжину строки з BLOB. Зкористайтеся 'fields terminated by'"
 ER_TEXTFILE_NOT_READABLE  
         cze "Soubor '%-.128s' mus-Bí být v adresáři databáze nebo čitelný pro všechny"
-        dan "Filen '%-.128s' skal være i database-folderen og kunne læses af alle"
+        dan "Filen '%-.128s' skal være i database-folderen, eller kunne læses af alle"
         nla "Het bestand '%-.128s' dient in de database directory voor the komen of leesbaar voor iedereen te zijn."
         eng "The file '%-.128s' must be in the database directory or be readable by all"
         jps "ファイル '%-.128s' は databse の directory にあるか全てのユーザーが読めるように許可されていなければなりません.",
@@ -3173,22 +3173,22 @@ ER_CANT_CREATE_THREAD
         swe "Kan inte skapa en ny tråd (errno %d)"
         ukr "Не можу створити нову гілку (помилка %d). Якщо ви не використали усю пам'ять, то прочитайте документацію до вашої ОС - можливо це помилка ОС"
 ER_WRONG_VALUE_COUNT_ON_ROW 21S01 
-        cze "Po-Bčet sloupců neodpovídá počtu hodnot na řádku %ld"
-        dan "Kolonne antallet stemmer ikke overens med antallet af værdier i post %ld"
-        nla "Kolom aantal komt niet overeen met waarde aantal in rij %ld"
-        eng "Column count doesn't match value count at row %ld"
-        est "Tulpade hulk erineb väärtuste hulgast real %ld"
-        ger "Anzahl der Felder stimmt nicht mit der Anzahl der Werte in Zeile %ld überein"
-        hun "Az oszlopban talalhato ertek nem egyezik meg a %ld sorban szamitott ertekkel"
-        ita "Il numero delle colonne non corrisponde al conteggio alla riga %ld"
-        kor "Row %ld에서 칼럼 카운트와 value 카운터와 일치하지 않습니다."
-        por "Contagem de colunas não confere com a contagem de valores na linha %ld"
-        rum "Numarul de coloane nu corespunde cu numarul de valori la linia %ld"
-        rus "Количество столбцов не совпадает с количеством значений в записи %ld"
-        serbian "Broj kolona ne odgovara broju vrednosti u slogu %ld"
-        spa "El número de columnas no corresponde al número en la línea %ld"
-        swe "Antalet kolumner motsvarar inte antalet värden på rad: %ld"
-        ukr "Кількість стовбців не співпадає з кількістю значень у строці %ld"
+        cze "Po-Bčet sloupců neodpovídá počtu hodnot na řádku %lu"
+        dan "Kolonne antallet stemmer ikke overens med antallet af værdier i post %lu"
+        nla "Kolom aantal komt niet overeen met waarde aantal in rij %lu"
+        eng "Column count doesn't match value count at row %lu"
+        est "Tulpade hulk erineb väärtuste hulgast real %lu"
+        ger "Anzahl der Felder stimmt nicht mit der Anzahl der Werte in Zeile %lu überein"
+        hun "Az oszlopban talalhato ertek nem egyezik meg a %lu sorban szamitott ertekkel"
+        ita "Il numero delle colonne non corrisponde al conteggio alla riga %lu"
+        kor "Row %lu에서 칼럼 카운트와 value 카운터와 일치하지 않습니다."
+        por "Contagem de colunas não confere com a contagem de valores na linha %lu"
+        rum "Numarul de coloane nu corespunde cu numarul de valori la linia %lu"
+        rus "Количество столбцов не совпадает с количеством значений в записи %lu"
+        serbian "Broj kolona ne odgovara broju vrednosti u slogu %lu"
+        spa "El número de columnas no corresponde al número en la línea %lu"
+        swe "Antalet kolumner motsvarar inte antalet värden på rad: %lu"
+        ukr "Кількість стовбців не співпадає з кількістю значень у строці %lu"
 ER_CANT_REOPEN_TABLE  
         cze "Nemohu znovuotev-Břít tabulku: '%-.192s"
         dan "Kan ikke genåbne tabel '%-.192s"
@@ -4881,29 +4881,29 @@ ER_ZLIB_Z_DATA_ERROR
 ER_CUT_VALUE_GROUP_CONCAT  
         eng "Row %u was cut by GROUP_CONCAT()"
 ER_WARN_TOO_FEW_RECORDS 01000 
-        eng "Row %ld doesn't contain data for all columns"
-        ger "Zeile %ld enthält nicht für alle Felder Daten"
-        nla "Rij %ld bevat niet de data voor alle kolommen"
-        por "Conta de registro é menor que a conta de coluna na linha %ld"
-        spa "Línea %ld no contiene datos para todas las columnas"
+        eng "Row %lu doesn't contain data for all columns"
+        ger "Zeile %lu enthält nicht für alle Felder Daten"
+        nla "Rij %lu bevat niet de data voor alle kolommen"
+        por "Conta de registro é menor que a conta de coluna na linha %lu"
+        spa "Línea %lu no contiene datos para todas las columnas"
 ER_WARN_TOO_MANY_RECORDS 01000 
-        eng "Row %ld was truncated; it contained more data than there were input columns"
-        ger "Zeile %ld gekürzt, die Zeile enthielt mehr Daten, als es Eingabefelder gibt"
-        nla "Regel %ld ingekort, bevatte meer data dan invoer kolommen"
-        por "Conta de registro é maior que a conta de coluna na linha %ld"
-        spa "Línea %ld fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
+        eng "Row %lu was truncated; it contained more data than there were input columns"
+        ger "Zeile %lu gekürzt, die Zeile enthielt mehr Daten, als es Eingabefelder gibt"
+        nla "Regel %lu ingekort, bevatte meer data dan invoer kolommen"
+        por "Conta de registro é maior que a conta de coluna na linha %lu"
+        spa "Línea %lu fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
 ER_WARN_NULL_TO_NOTNULL 22004 
-        eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %ld"
-        ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %ld angegeben"
-        por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
-        spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
+        eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %lu"
+        ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %lu angegeben"
+        por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %lu"
+        spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %lu"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
-        eng "Out of range value for column '%s' at row %ld"
+        eng "Out of range value for column '%s' at row %lu"
 WARN_DATA_TRUNCATED 01000 
-        eng "Data truncated for column '%s' at row %ld"
-        ger "Daten abgeschnitten für Feld '%s' in Zeile %ld"
-        por "Dado truncado para coluna '%s' na linha %ld"
-        spa "Datos truncados para columna '%s' en la línea %ld"
+        eng "Data truncated for column '%s' at row %lu"
+        ger "Daten abgeschnitten für Feld '%s' in Zeile %lu"
+        por "Dado truncado para coluna '%s' na linha %lu"
+        spa "Datos truncados para columna '%s' en la línea %lu"
 ER_WARN_USING_OTHER_HANDLER  
         eng "Using storage engine %s for table '%s'"
         ger "Für Tabelle '%s' wird Speicher-Engine %s benutzt"
@@ -5082,8 +5082,8 @@ ER_UNKNOWN_TIME_ZONE
         eng "Unknown or incorrect time zone: '%-.64s'"
         ger "Unbekannte oder falsche Zeitzone: '%-.64s'"
 ER_WARN_INVALID_TIMESTAMP  
-        eng "Invalid TIMESTAMP value in column '%s' at row %ld"
-        ger "Ungültiger TIMESTAMP-Wert in Feld '%s', Zeile %ld"
+        eng "Invalid TIMESTAMP value in column '%s' at row %lu"
+        ger "Ungültiger TIMESTAMP-Wert in Feld '%s', Zeile %lu"
 ER_INVALID_CHARACTER_STRING  
         eng "Invalid %s character string: '%.64s'"
         ger "Ungültiger %s-Zeichen-String: '%.64s'"
@@ -5314,8 +5314,8 @@ ER_DIVISION_BY_ZERO 22012
         eng "Division by 0"
         ger "Division durch 0"
 ER_TRUNCATED_WRONG_VALUE_FOR_FIELD  
-        eng "Incorrect %-.32s value: '%-.128s' for column '%.192s' at row %ld"
-        ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.192s' in Zeile %ld"
+        eng "Incorrect %-.32s value: '%-.128s' for column '%.192s' at row %lu"
+        ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.192s' in Zeile %lu"
 ER_ILLEGAL_VALUE_FOR_TYPE 22007 
         eng "Illegal %s '%-.192s' value found during parsing"
         ger "Nicht zulässiger %s-Wert '%-.192s' beim Parsen gefunden"
@@ -5448,8 +5448,8 @@ ER_PROC_AUTO_REVOKE_FAIL
         eng "Failed to revoke all privileges to dropped routine"
         ger "Rücknahme aller Rechte für die gelöschte Routine fehlgeschlagen"
 ER_DATA_TOO_LONG 22001
-        eng "Data too long for column '%s' at row %ld"
-        ger "Daten zu lang für Feld '%s' in Zeile %ld"
+        eng "Data too long for column '%s' at row %lu"
+        ger "Daten zu lang für Feld '%s' in Zeile %lu"
 ER_SP_BAD_SQLSTATE 42000
         eng "Bad SQLSTATE: '%s'"
         ger "Ungültiger SQLSTATE: '%s'"
@@ -6346,3 +6346,30 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
 ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
+
+ER_VCOL_BASED_ON_VCOL
+  eng "A computed column cannot be based on a computed column"
+ER_VIRTUAL_COLUMN_FUNCTION_IS_NOT_ALLOWED
+  eng "Function or expression is not allowed for column '%s'"
+ER_DATA_CONVERSION_ERROR_FOR_VIRTUAL_COLUMN
+  eng "Generated value for computed column '%s' cannot be converted to type '%s'"
+ER_PRIMARY_KEY_BASED_ON_VIRTUAL_COLUMN
+  eng "Primary key cannot be defined upon a computed column"
+ER_KEY_BASED_ON_GENERATED_VIRTUAL_COLUMN
+  eng "Key/Index cannot be defined on a non-stored computed column"
+ER_WRONG_FK_OPTION_FOR_VIRTUAL_COLUMN
+  eng "Cannot define foreign key with %s clause on a computed column"
+ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
+  eng "The value specified for computed column '%s' in table '%s' ignored"
+ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
+  eng "'%s' is not yet supported for computed columns"
+ER_CONST_EXPR_IN_VCOL
+  eng "Constant expression in computed column function is not allowed"
+ER_ROW_EXPR_FOR_VCOL
+  eng "Expression for computed column cannot return a row"
+
+ER_UNKNOWN_OPTION
+  eng "Unknown option '%-.64s'"
+ER_BAD_OPTION_VALUE
+  eng "Incorrect value '%-.64s' for option '%-.64s'"
+

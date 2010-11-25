@@ -530,6 +530,14 @@ WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	b	b	5	const	4	Using where
 DROP TABLE t1;
+create table t1(a text,b date,fulltext index(a))engine=myisam;
+insert into t1 set a='water',b='2008-08-04';
+select 1 from t1 where match(a) against ('water' in boolean mode) and b>='2008-08-01';
+1
+1
+drop table t1;
+show warnings;
+Level	Code	Message
 CREATE TABLE t1(a CHAR(10));
 INSERT INTO t1 VALUES('aaa15');
 SELECT MATCH(a) AGAINST('aaa1* aaa14 aaa16' IN BOOLEAN MODE) FROM t1;

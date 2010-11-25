@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sphinx:docset>
+
+<sphinx:schema>
+<sphinx:field name="title"/> 
+<sphinx:field name="content"/>
+<sphinx:attr name="gid" type="int"/>
+</sphinx:schema>
+
+<sphinx:document id="1">
+<title>test one</title>
+<content>this is my test document number one. also checking search within phrases.</content>
+<gid>1</gid>
+</sphinx:document>
+
+<sphinx:document id="2">
+<title>test two</title>
+<content>this is my test document number two</content>
+<gid>1</gid>
+</sphinx:document>
+
+<sphinx:document id="3">
+<title>another doc</title>
+<content>this is another group</content>
+<gid>2</gid>
+</sphinx:document>
+
+<sphinx:document id="4">
+<title>doc number four</title>
+<content>this is to test groups</content>
+<gid>2</gid>
+</sphinx:document>
+
+</sphinx:docset>
+

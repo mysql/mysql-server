@@ -67,12 +67,12 @@ insert into t1 values (null,"a"),(null,"a"),(null,"a"),(null,"a"),(null,"a"),(nu
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	21	
-1	SIMPLE	t2	ref	b	b	21	test.t1.b	6	Using where
+1	SIMPLE	t2	ref	b	b	21	test.t1.b	6	
 set MAX_SEEKS_FOR_KEY=1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	21	
-1	SIMPLE	t2	ref	b	b	21	test.t1.b	6	Using where
+1	SIMPLE	t2	ref	b	b	21	test.t1.b	6	
 SET MAX_SEEKS_FOR_KEY=DEFAULT;
 drop table t1;
 create table t1 (a int);

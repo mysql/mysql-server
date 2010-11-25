@@ -1069,9 +1069,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   bool parse_status;
   bool result, view_is_mergeable;
   TABLE_LIST *UNINIT_VAR(view_main_select_tables);
-
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
+
+  LINT_INIT(parse_status);
+  LINT_INIT(view_select);
 
   if (table->view)
   {
@@ -1210,7 +1212,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
 
   {
-    char old_db_buf[NAME_LEN+1];
+    char old_db_buf[SAFE_NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
     Parser_state parser_state;
@@ -1236,7 +1238,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       + MODE_PIPES_AS_CONCAT          affect expression parsing
       + MODE_ANSI_QUOTES              affect expression parsing
       + MODE_IGNORE_SPACE             affect expression parsing
-      - MODE_NOT_USED                 not used :)
+      - MODE_IGNORE_BAD_TABLE_OPTIONS affect only CREATE/ALTER TABLE parsing
       * MODE_ONLY_FULL_GROUP_BY       affect execution
       * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
       - MODE_NO_DIR_IN_CREATE         affect table creation only

@@ -377,6 +377,10 @@ public:
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "encrypt"; }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 #include "sql_crypt.h"
@@ -425,6 +429,11 @@ public:
     call
   */
   virtual const char *fully_qualified_func_name() const = 0;
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(
+                                           fully_qualified_func_name());
+  }
 };
 
 
@@ -693,6 +702,10 @@ public:
     maybe_null=1;
     max_length=MAX_BLOB_WIDTH;
   }
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 
@@ -874,7 +887,7 @@ public:
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };
 
-#define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
+
 class Item_func_uuid: public Item_str_func
 {
 public:
@@ -883,10 +896,14 @@ public:
   {
     collation.set(system_charset_info,
                   DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-    fix_char_length(UUID_LENGTH);
+    fix_char_length(MY_UUID_STRING_LENGTH);
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
+  bool check_vcol_func_processor(uchar *int_arg) 
+  {
+    return trace_unsupported_by_check_vcol_func_processor(func_name());
+  }
 };
 
 extern String my_empty_string;

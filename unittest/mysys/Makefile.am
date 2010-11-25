@@ -13,8 +13,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include 
-AM_CPPFLAGS     += -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
+INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
+			-I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap 
+
+noinst_HEADERS = thr_template.c
 
 noinst_HEADERS = thr_template.c
 
@@ -29,7 +31,7 @@ if NEED_THREAD
 # my_atomic-t is used to check thread functions, so it is safe to 
 # ignore the file in non-threaded builds.
 # In fact, it will not compile without thread support.
-noinst_PROGRAMS += my_atomic-t
+noinst_PROGRAMS += my_atomic-t waiting_threads-t 
 endif
 
 EXTRA_DIST       = CMakeLists.txt

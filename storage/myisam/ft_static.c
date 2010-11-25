@@ -54,20 +54,6 @@ const struct _ft_vft _ft_vft_boolean= {
   ft_boolean_get_relevance,  ft_boolean_reinit_search
 };
 
-
-FT_INFO *ft_init_search(uint flags, void *info, uint keynr,
-                        uchar *query, uint query_len, CHARSET_INFO *cs,
-                        uchar *record)
-{
-  FT_INFO *res;
-  if (flags & FT_BOOL)
-    res= ft_init_boolean_search((MI_INFO *)info, keynr, query, query_len,cs);
-  else
-    res= ft_init_nlq_search((MI_INFO *)info, keynr, query, query_len, flags,
-			    record);
-  return res;
-}
-
 const char *ft_stopword_file= 0;
 const char *ft_precompiled_stopwords[]= {
 

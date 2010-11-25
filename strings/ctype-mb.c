@@ -23,7 +23,7 @@
 size_t my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register uchar *map= cs->to_upper;
+  register const uchar *map= cs->to_upper;
   char *str_orig= str;
   
   while (*str)
@@ -44,7 +44,7 @@ size_t my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 size_t my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register uchar *map= cs->to_lower;
+  register const uchar *map= cs->to_lower;
   char *str_orig= str;
   
   while (*str)
@@ -79,7 +79,7 @@ size_t my_caseup_mb(CHARSET_INFO * cs, char *src, size_t srclen,
 {
   register uint32 l;
   register char *srcend= src + srclen;
-  register uchar *map= cs->to_upper;
+  register const uchar *map= cs->to_upper;
 
   DBUG_ASSERT(cs->caseup_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);
@@ -114,7 +114,7 @@ size_t my_casedn_mb(CHARSET_INFO * cs, char *src, size_t srclen,
 {
   register uint32 l;
   register char *srcend= src + srclen;
-  register uchar *map=cs->to_lower;
+  register const uchar *map=cs->to_lower;
 
   DBUG_ASSERT(cs->casedn_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);  
@@ -219,7 +219,7 @@ my_caseup_mb_varlen(CHARSET_INFO * cs, char *src, size_t srclen,
 int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 {
   register uint32 l;
-  register uchar *map=cs->to_upper;
+  register const uchar *map=cs->to_upper;
   
   while (*s && *t)
   {
@@ -683,8 +683,7 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
   size_t maxcharlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ? 
-              ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+  my_bool have_contractions= my_uca_have_contractions(cs);
 
   for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
@@ -752,8 +751,8 @@ fill_max_and_min:
         'ab\min\min\min\min' and 'ab\max\max\max\max'.
 
       */
-      if (contraction_flags && ptr + 1 < end &&
-          contraction_flags[(uchar) *ptr])
+      if (have_contractions && ptr + 1 < end &&
+          my_uca_can_be_contraction_head(cs, (uchar) *ptr))
       {
         /* Ptr[0] is a contraction head. */
         
@@ -775,8 +774,8 @@ fill_max_and_min:
           is not a contraction, then we put only ptr[0],
           and continue with ptr[1] on the next loop.
         */
-        if (contraction_flags[(uchar) ptr[1]] &&
-            cs->contractions[(*ptr-0x40)*0x40 + ptr[1] - 0x40])
+        if (my_uca_can_be_contraction_tail(cs, (uchar) ptr[1]) &&
+            my_uca_contraction2_weight(cs, (uchar) ptr[0], (uchar) ptr[1]))
         {
           /* Contraction found */
           if (maxcharlen == 1 || min_str + 1 >= min_end)
@@ -912,7 +911,7 @@ my_wildcmp_mb_bin(CHARSET_INFO *cs,
   Data was produced from EastAsianWidth.txt 
   using utt11-dump utility.
 */
-static char pg11[256]=
+static const char pg11[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -924,7 +923,7 @@ static char pg11[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg23[256]=
+static const char pg23[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -936,7 +935,7 @@ static char pg23[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg2E[256]=
+static const char pg2E[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -948,7 +947,7 @@ static char pg2E[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg2F[256]=
+static const char pg2F[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -960,7 +959,7 @@ static char pg2F[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0
 };
 
-static char pg30[256]=
+static const char pg30[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
@@ -972,7 +971,7 @@ static char pg30[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 };
 
-static char pg31[256]=
+static const char pg31[256]=
 {
 0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -984,7 +983,7 @@ static char pg31[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 };
 
-static char pg32[256]=
+static const char pg32[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -996,7 +995,7 @@ static char pg32[256]=
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0
 };
 
-static char pg4D[256]=
+static const char pg4D[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1008,7 +1007,7 @@ static char pg4D[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pg9F[256]=
+static const char pg9F[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1020,7 +1019,7 @@ static char pg9F[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgA4[256]=
+static const char pgA4[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1032,7 +1031,7 @@ static char pgA4[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgD7[256]=
+static const char pgD7[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1044,7 +1043,7 @@ static char pgD7[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFA[256]=
+static const char pgFA[256]=
 {
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1056,7 +1055,7 @@ static char pgFA[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFE[256]=
+static const char pgFE[256]=
 {
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1068,7 +1067,7 @@ static char pgFE[256]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static char pgFF[256]=
+static const char pgFF[256]=
 {
 0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -1080,7 +1079,7 @@ static char pgFF[256]=
 1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 };
 
-static struct {int page; char *p;} utr11_data[256]=
+static const struct {int page; const char *p;} utr11_data[256]=
 {
 {0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},
 {0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},{0,NULL},

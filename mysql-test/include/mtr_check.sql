@@ -12,7 +12,9 @@ BEGIN
   -- Dump all global variables except those
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
-    WHERE variable_name != 'timestamp' ORDER BY VARIABLE_NAME;
+   WHERE variable_name != 'timestamp'
+     AND variable_name != 'INNODB_IBUF_MAX_SIZE'
+   ORDER BY variable_name;
 
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap

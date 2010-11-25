@@ -98,8 +98,8 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
     DBUG_PRINT("error",
                ("Error %d reading next-multi-part block (Got %d bytes)",
                 my_errno, (int) read_length));
-    if (!my_errno || my_errno == -1)
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+    if (!my_errno || my_errno == -1 || my_errno == HA_ERR_FILE_TOO_SHORT)
+      my_errno= HA_ERR_WRONG_IN_RECORD;
     DBUG_RETURN(1);
   }
   bzero(buff+read_length,MI_BLOCK_INFO_HEADER_LENGTH - in_buff_length -

@@ -25,6 +25,7 @@ class handler;
 struct TABLE;
 class THD;
 class SQL_SELECT;
+class Copy_field;
 
 /**
   A context for reading through a single table using a chosen access method:
@@ -63,11 +64,17 @@ struct READ_RECORD
   struct st_io_cache *io_cache;
   bool print_error, ignore_not_found_rows;
 
+  /* 
+    SJ-Materialization runtime may need to read fields from the materialized
+    table and unpack them into original table fields:
+  */
+  Copy_field *copy_field;
+  Copy_field *copy_field_end;
 public:
   READ_RECORD() {}
 };
 
-void init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
+bool init_read_record(READ_RECORD *info, THD *thd, TABLE *reg_form,
 		      SQL_SELECT *select, int use_record_cache,
                       bool print_errors, bool disable_rr_cache);
 void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,

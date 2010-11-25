@@ -1,0 +1,911 @@
+#
+# Test of unions
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6;
+--enable_warnings
+
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+
+select a,b from t1 union distinct select a,b from t2;
+select a,b from t1 union all select a,b from t2;
+select a,b from t1 union all select a,b from t2 order by b;
+select a,b from t1 union all select a,b from t2 union select 7,'g';
+select 0,'#' union select a,b from t1 union all select a,b from t2 union select 7,'gg';
+select a,b from t1 union select a,b from t1;
+select 't1',b,count(*) from t1 group by b UNION select 't2',b,count(*) from t2 group by b;
+
+# Test alternate syntax for unions 
+(select a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 4;
+(select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1);
+(select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+--error 1250
+(select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by t1.b;
+explain extended (select a,b from t1 limit 2)  union all (select a,b from t2 order by a limit 1) order by b desc;
+(select sql_calc_found_rows  a,b from t1 limit 2)  union all (select a,b from t2 order by a) limit 2;
+select found_rows();
+select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
+select found_rows();
+
+#
+# Test some error conditions with UNION
+#
+
+explain select a,b from t1 union all select a,b from t2;
+
+--error  1054
+explain select xx from t1 union select 1;
+--error 1222
+explain select a,b from t1 union select 1;
+--error 1222
+explain select 1 union select a,b from t1 union select 1;
+--error 1222
+explain select a,b from t1 union select 1 limit 0;
+
+--error 1221
+select a,b from t1 into outfile 'skr' union select a,b from t2;
+
+--error 1221
+select a,b from t1 order by a union select a,b from t2;
+
+--error 1221
+insert into t3 select a from t1 order by a union select a from t2;
+
+--error 1222
+create table t3 select a,b from t1 union select a from t2;
+
+--error 1222
+select a,b from t1 union select a from t2;
+
+--error 1222
+select * from t1 union select a from t2;
+
+--error 1222
+select a from t1 union select * from t2;
+
+--error 1234
+select * from t1 union select SQL_BUFFER_RESULT * from t2;
+
+# Test CREATE, INSERT and REPLACE
+create table t3 select a,b from t1 union all select a,b from t2;
+insert into t3 select a,b from t1 union all select a,b from t2;
+# PS can't handle REPLACE ... SELECT
+replace into t3 select a,b as c from t1 union all select a,b from t2;
+
+drop table t1,t2,t3;
+
+#
+# Test some unions without tables
+#
+--error 1096
+select * union select 1;
+select 1 as a,(select a union select a);
+--error 1054
+(select 1) union (select 2) order by 0;
+SELECT @a:=1 UNION SELECT @a:=@a+1;
+--error 1054
+(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT a);
+(SELECT 1,3) UNION (SELECT 2,1) ORDER BY (SELECT 2);
+
+#
+# Test bug reported by joc@presence-pc.com
+#
+
+CREATE TABLE t1 (
+  `pseudo` char(35) NOT NULL default '',
+  `pseudo1` char(35) NOT NULL default '',
+  `same` tinyint(1) unsigned NOT NULL default '1',
+  PRIMARY KEY  (`pseudo1`),
+  KEY `pseudo` (`pseudo`)
+) ENGINE=MyISAM;
+INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
+SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
+SELECT pseudo1 FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo1 FROM t1 WHERE pseudo='joce';
+SELECT * FROM t1 WHERE pseudo1='joce' UNION SELECT * FROM t1 WHERE pseudo='joce' order by pseudo desc,pseudo1 desc;
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pseudo1='joce';
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
+SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
+drop table t1;
+
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (1),(2),(3),(4),(5);
+insert into t2 values (11),(12),(13),(14),(15);
+(select * from t1 limit 2) union (select * from t2 limit 3) limit 4;
+(select * from t1 limit 2) union (select * from t2 limit 3);
+(select * from t1 limit 2) union (select * from t2 limit 20,3);
+set SQL_SELECT_LIMIT=2;
+(select * from t1 limit 1) union (select * from t2 limit 3);
+set SQL_SELECT_LIMIT=DEFAULT;
+drop table t1,t2;
+
+#
+# Test error with left join
+#
+
+CREATE TABLE t1 (
+  cid smallint(5) unsigned NOT NULL default '0',
+  cv varchar(250) NOT NULL default '',
+  PRIMARY KEY  (cid),
+  UNIQUE KEY cv (cv)
+) ;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+  cid bigint(20) unsigned NOT NULL auto_increment,
+  cap varchar(255) NOT NULL default '',
+  PRIMARY KEY  (cid),
+  KEY cap (cap)
+) ;
+CREATE TABLE t3 (
+  gid bigint(20) unsigned NOT NULL auto_increment,
+  gn varchar(255) NOT NULL default '',
+  must tinyint(4) default NULL,
+  PRIMARY KEY  (gid),
+  KEY gn (gn)
+) ;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+  uid bigint(20) unsigned NOT NULL default '0',
+  gid bigint(20) unsigned default NULL,
+  rid bigint(20) unsigned default NULL,
+  cid bigint(20) unsigned default NULL,
+  UNIQUE KEY m (uid,gid,rid,cid),
+  KEY uid (uid),
+  KEY rid (rid),
+  KEY cid (cid),
+  KEY container (gid,rid,cid)
+) ;
+INSERT INTO t4 VALUES (1,1,NULL,NULL);
+CREATE TABLE t5 (
+  rid bigint(20) unsigned NOT NULL auto_increment,
+  rl varchar(255) NOT NULL default '',
+  PRIMARY KEY  (rid),
+  KEY rl (rl)
+) ;
+CREATE TABLE t6 (
+  uid bigint(20) unsigned NOT NULL auto_increment,
+  un varchar(250) NOT NULL default '',
+  uc smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (uid),
+  UNIQUE KEY nc (un,uc),
+  KEY un (un)
+) ;
+INSERT INTO t6 VALUES (1,'test',8);
+
+SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test";
+SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t3.must IS NOT NULL AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test";
+(SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t3.must IS NOT NULL AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test") UNION (SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test");
+drop table t1,t2,t3,t4,t5,t6;
+
+#
+# Test insert ... SELECT with UNION
+#
+
+CREATE TABLE t1 (a int not null, b char (10) not null);
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c');
+CREATE TABLE t2 (a int not null, b char (10) not null);
+insert into t2 values (3,'c'),(4,'d'),(5,'f'),(6,'e');
+create table t3 select a,b from t1 union select a,b from t2;
+create table t4 (select a,b from t1) union (select a,b from t2) limit 2;
+insert into  t4 select a,b from t1 union select a,b from t2;
+insert into  t3 (select a,b from t1) union (select a,b from t2) limit 2;
+select * from t3;
+select * from t4;
+drop table t1,t2,t3,t4;
+
+#
+# Test of SQL_CALC_FOUND_ROW handling
+#
+create table t1 (a int);
+insert into t1 values (1),(2),(3);
+create table t2 (a int);
+insert into t2 values (3),(4),(5);
+
+# Test global limits
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
+select found_rows();
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2) LIMIT 2;
+select found_rows();
+
+# Test cases where found_rows() should return number of returned rows
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2);
+select found_rows();
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1);
+select found_rows();
+# This used to work in 4.0 but not anymore in 4.1
+--error 1064
+(SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
+#select found_rows();
+
+# In these case found_rows() should work
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
+select found_rows();
+
+# The following examples will not be exact
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 100;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
+select found_rows();
+SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
+select found_rows();
+
+# Test some limits with ORDER BY
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
+(SELECT * FROM t1 ORDER by a) UNION ALL (SELECT * FROM t2 ORDER BY a) ORDER BY A desc LIMIT 4;
+
+# Wrong usage
+--error 1234
+(SELECT * FROM t1) UNION all (SELECT SQL_CALC_FOUND_ROWS * FROM t2) LIMIT 1;
+
+create temporary table t1 engine=myisam select a from t1 union select a from t2; # PBXT cannot handle INSERT/SELECT on temp table
+drop temporary table t1;
+--error 1093
+create table t1 select a from t1 union select a from t2;
+--error 1054
+select a from t1 union select a from t2 order by t2.a;
+drop table t1,t2;
+
+#
+# Problem with alias '*' (BUG #1249)
+#
+
+select length(version()) > 1 as `*` UNION select 2;
+
+#
+# Bug #4980: problem with explain
+#
+
+create table t1 (a int);
+insert into t1 values (0), (3), (1), (2);
+explain (select * from t1) union (select * from t1) order by a;
+drop table t1;
+#
+# Test for another bug with UNION and LEFT JOIN
+#
+CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
+INSERT INTO t1 (id) VALUES("1");
+CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) ENGINE=MyISAM;
+INSERT INTO t2 (id, id_master, text1, text2) VALUES("1", "1",
+"foo1", "bar1");
+INSERT INTO t2 (id, id_master, text1, text2) VALUES("2", "1",
+"foo2", "bar2");
+INSERT INTO t2 (id, id_master, text1, text2) VALUES("3", "1", NULL,
+"bar3");
+INSERT INTO t2 (id, id_master, text1, text2) VALUES("4", "1",
+"foo4", "bar4");
+SELECT 1 AS id_master, 1 AS id, NULL AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
+SELECT 1 AS id_master, 1 AS id, 'ABCDE' AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
+drop table if exists t1,t2;
+
+#
+# Test of bug when using the same table multiple times
+#
+create table t1 (a int not null primary key auto_increment, b int, key(b));
+create table t2 (a int not null primary key auto_increment, b int);
+insert into t1 (b) values (1),(2),(2),(3);
+insert into t2 (b) values (10),(11),(12),(13);
+
+explain extended (select * from t1 where a=1) union (select * from t2 where a=1);
+(select * from t1 where a=5) union (select * from t2 where a=1);
+(select * from t1 where a=5 and a=6) union (select * from t2 where a=1);
+(select t1.a,t1.b from t1,t2 where t1.a=5) union (select * from t2 where a=1);
+(select * from t1 where a=1) union (select t1.a,t2.a from t1,t2 where t1.a=t2.a);
+explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t2.a from t1,t2 where t1.a=t2.a);
+explain (select * from t1 where a=1) union (select * from t1 where b=1);
+drop table t1,t2;
+create table t1 (   id int not null auto_increment, primary key (id)   ,user_name text );
+create table t2 (    id int not null auto_increment, primary key (id)   ,group_name text );
+create table t3 (    id int not null auto_increment, primary key (id)   ,user_id int   ,index user_idx (user_id)   ,foreign key (user_id) references t1(id)   ,group_id int   ,index group_idx (group_id)   ,foreign key (group_id) references t2(id) ); # PBXT: Correct table references!
+insert into t1 (user_name) values ('Tester');
+insert into t2 (group_name) values ('Group A');
+insert into t2 (group_name) values ('Group B');
+insert into t3 (user_id, group_id) values (1,1);
+select 1 'is_in_group', a.user_name, c.group_name, b.id from t1 a, t3 b, t2 c where a.id = b.user_id and b.group_id = c.id UNION  select 0 'is_in_group', a.user_name, c.group_name, null from t1 a, t2 c;
+drop table t3, t2, t1;
+
+#
+# fix_fields problem
+#
+create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, matintnum CHAR(6) NOT NULL, test MEDIUMINT UNSIGNED NULL);
+create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
+insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
+insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
+SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id union SELECT 0, 0;
+drop table t1, t2;
+
+#
+# types conversions
+#
+create table t1 SELECT "a" as a UNION select "aa" as a;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT 12 as a UNION select "aa" as a;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT 12 as a UNION select 12.2 as a;
+select * from t1;
+show create table t1;
+drop table t1;
+
+create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
+insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
+
+create table t1 SELECT it2 from t2 UNION select it1 from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT it2 from t2 UNION select i from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT i from t2 UNION select f from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select d from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT ib from t2 UNION select f from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT ib from t2 UNION select d from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select y from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT f from t2 UNION select da from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT y from t2 UNION select da from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT y from t2 UNION select dt from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT da from t2 UNION select dt from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
+select trim(dt) from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select sv from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sc from t2 UNION select sv from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT dt from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sv from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT sv from t2 UNION select tx from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT b from t2 UNION select tx from t2;
+select * from t1;
+show create table t1;
+drop table t1,t2;
+create table t1 select 1 union select -1;
+select * from t1;
+show create table t1;
+drop table t1;
+-- error 1267
+create table t1 select _latin1"test" union select _latin2"testt" ;
+create table t1 select _latin2"test" union select _latin2"testt" ;
+show create table t1;
+drop table t1;
+
+#
+# conversion memory->disk table
+#
+create table t1 (s char(200));
+insert into t1 values (repeat("1",200));
+create table t2 select * from t1;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+insert into t1 select * from t2;
+insert into t2 select * from t1;
+set local tmp_table_size=1024;
+select count(*) from (select * from t1 union all select * from t2 order by 1) b;
+select count(*) from t1;
+select count(*) from t2;
+drop table t1,t2;
+set local tmp_table_size=default;
+
+#
+# slow logging
+#
+create table t1 (a int, index (a), b int);
+insert t1 values (1,1),(2,2),(3,3),(4,4),(5,5);
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+insert t1 select a+1, a+b from t1;
+FLUSH STATUS;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
+show status like 'Slow_queries';
+select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
+show status like 'Slow_queries';
+# additional test for examined rows
+flush status;
+select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6); 
+show status like 'Slow_queries';
+drop table t1;
+
+#
+# Column 'name' cannot be null (error with union and left join) (bug #2508)
+#
+create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
+insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
+select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
+drop  table t1;
+
+#
+# Bug #2809 (UNION fails on MyIsam tables when index on second column from
+# same table)
+#
+create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
+insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
+select col1 n from t1 union select col2 n from t1 order by n;
+alter table t1 add index myindex (col2);
+select col1 n from t1 union select col2 n from t1 order by n;
+drop  table t1;
+
+#
+# Incorrect handling of UNION ALL (Bug #1428)
+#
+create table t1 (i int);
+insert into t1 values (1);
+select * from t1 UNION select * from t1;
+select * from t1 UNION ALL select * from t1;
+select * from t1 UNION select * from t1 UNION ALL select * from t1;
+drop table t1;
+select 1 as a union all select 1 union all select 2 union select 1 union all select 2;
+set sql_select_limit=1;
+select 1 union select 2;
+(select 1) union (select 2);
+(select 1) union (select 2) union (select 3) limit 2;
+set sql_select_limit=default;
+
+#
+# ORDER with LIMIT
+#
+create table t1 (a int);
+insert into t1 values (100), (1);
+create table t2 (a int);
+insert into t2 values (100);
+select a from t1 union select a from t2 order by a;
+SET SQL_SELECT_LIMIT=1;
+select a from t1 union select a from t2 order by a;
+drop table t1, t2;
+set sql_select_limit=default;
+
+#
+# nonexisting column in global ORDER BY
+#
+CREATE TABLE t1 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+--error 1054
+explain (select * from t1) union (select * from t2) order by not_existing_column;
+drop table t1, t2;
+
+#
+# length detecting
+#
+CREATE TABLE t1 (uid int(1));
+INSERT INTO t1 SELECT 150;
+SELECT 'a' UNION SELECT uid FROM t1;
+drop table t1;
+
+#
+# parser stack overflow
+#
+CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
+
+CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
+(SELECT * FROM t1 AS PARTITIONED, t2 AS
+PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1);
+drop table t1,t2;
+
+#
+# merging ENUM and SET fields in one UNION
+#
+create table t1 (a ENUM('Yes', 'No') NOT NULL);
+create table t2 (a ENUM('aaa', 'bbb') NOT NULL);
+insert into t1 values ('No');
+insert into t2 values ('bbb');
+create table t3 (a SET('Yes', 'No') NOT NULL);
+create table t4 (a SET('aaa', 'bbb') NOT NULL);
+insert into t3 values (1);
+insert into t4 values (3);
+select "1" as a union select a from t1;
+select a as a from t1 union select "1";
+select a as a from t2 union select a from t1;
+select "1" as a union select a from t3;
+select a as a from t3 union select "1";
+select a as a from t4 union select a from t3;
+select a as a from t1 union select a from t4;
+drop table t1,t2,t3,t4;
+
+#
+# Bug #6139 UNION doesn't understand collate in the column of second select
+#
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test' collate latin1_bin) union
+(select _latin1'TEST') union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST' collate latin1_bin) union
+(select _latin1'TeST');
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t1 as
+(select _latin1'test') union
+(select _latin1'TEST') union
+(select _latin1'TeST' collate latin1_bin);
+show create table t1;
+select count(*) from t1;
+drop table t1;
+
+create table t2 (
+a char character set latin1 collate latin1_swedish_ci,
+b char character set latin1 collate latin1_german1_ci);
+--error 1271
+create table t1 as
+(select a from t2) union
+(select b from t2);
+create table t1 as
+(select a collate latin1_german1_ci from t2) union
+(select b from t2);
+show create table t1;
+drop table t1;
+create table t1 as
+(select a from t2) union
+(select b collate latin1_german1_ci from t2);
+show create table t1;
+drop table t1;
+create table t1 as
+(select a from t2) union
+(select b from t2) union
+(select 'c' collate latin1_german1_ci from t2);
+show create table t1;
+drop table t1;
+drop table t2;
+
+#
+# Bug 6931: Date Type column problem when using UNION-Table.
+#
+create table t1(a1 int, f1 char(10));
+create table t2
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+union
+select f2,a1 from (select a1, CAST('2004-12-31' AS DATE) f2 from t1) a
+order by f2, a1;
+show columns from t2;
+drop table t1, t2;
+
+create table t1 (f1 int);
+create table t2 (f1 int, f2 int ,f3 date);
+create table t3 (f1 int, f2 char(10));
+create table t4
+(
+  select t2.f3 as sdate
+  from t1
+  left outer join t2 on (t1.f1 = t2.f1)
+  inner join t3 on (t2.f2 = t3.f1)
+  order by t1.f1, t3.f1, t2.f3
+)
+union
+(
+  select cast('2004-12-31' as date) as sdate
+  from t1
+  left outer join t2 on (t1.f1 = t2.f1)
+  inner join t3 on (t2.f2 = t3.f1)
+  group by t1.f1
+  order by t1.f1, t3.f1, t2.f3
+)
+order by sdate;
+show columns from t4;
+drop table t1, t2, t3, t4;
+
+#
+# Bug #2435 UNION with parentheses not supported
+#
+create table t1 (a int not null, b char (10) not null); 
+insert into t1 values(1,'a'),(2,'b'),(3,'c'),(3,'c'); 
+select * from ((select * from t1 limit 1)) a;
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
+select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
+select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
+select * from ((select * from t1) union (((select * from t1))) union (select * from t1)) a;
+drop table t1;
+
+#
+# Bugs#6519 UNION with collation binary and latin1_swedish_ci fails
+#
+set @val:=6;
+select concat('value is: ', @val) union select 'some text';
+
+#
+# Bug#15949 union + illegal mix of collations (IMPLICIT + COERCIBLE)
+#
+select concat(_latin1'a', _ascii'b' collate ascii_bin);
+create table t1 (foo varchar(100)) collate ascii_bin;
+insert into t1 (foo) values ("foo");
+select foo from t1 union select 'bar' as foo from dual;
+drop table t1;
+
+#
+# Enum merging test
+#
+CREATE TABLE t1 (
+  a ENUM('ä','ö','ü') character set utf8 not null default 'ü',
+  b ENUM("one", "two") character set utf8,
+  c ENUM("one", "two")
+);
+show create table t1;
+insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
+create table t2 select NULL union select a from t1;
+show columns from t2;
+drop table t2;
+create table t2 select a from t1 union select NULL;
+show columns from t2;
+drop table t2;
+create table t2 select a from t1 union select a from t1;
+show columns from t2;
+drop table t2;
+create table t2 select a from t1 union select c from t1;
+drop table t2;
+create table t2 select a from t1 union select b from t1;
+show columns from t2;
+drop table t2, t1;
+
+# 
+# Bug #14216: UNION + DECIMAL wrong values in result
+#
+create table t1 (f1 decimal(60,25), f2 decimal(60,25));
+insert into t1 values (0.0,0.0);
+select f1 from t1 union all select f2 from t1;
+select 'XXXXXXXXXXXXXXXXXXXX' as description, f1 from t1
+union all
+select 'YYYYYYYYYYYYYYYYYYYY' as description, f2 from t1;
+drop table t1;
+create table t1 (f1 decimal(60,24), f2 decimal(60,24));
+insert into t1 values (0.0,0.0);
+select f1 from t1 union all select f2 from t1;
+select 'XXXXXXXXXXXXXXXXXXXX' as description, f1 from t1
+union all
+select 'YYYYYYYYYYYYYYYYYYYY' as description, f2 from t1;
+drop table t1;
+
+#
+# Test that union with VARCHAR produces dynamic row tables
+#
+
+create table t1 (a varchar(5));
+create table t2 select * from t1 union select 'abcdefghijkl';
+show create table t2;
+select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
+alter table t2 ROW_FORMAT=fixed;
+show create table t2;
+drop table t1,t2;
+
+#
+# correct conversion long string to TEXT (BUG#10025)
+#
+
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+drop tables t1,t2,t3;
+
+#
+# Extended fix to Bug#10025 - the test above should result to mediumtext
+# and the one below to longtext. Earlier above test resulted to longtext
+# type also.
+#
+
+CREATE TABLE t1 (a longtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+drop tables t1,t2,t3;
+
+#
+# Testing here that mediumtext converts into longtext if the result
+# exceeds mediumtext maximum length
+#
+
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=25000000;
+# switching connection to allow the new max_allowed_packet take effect
+--connect (newconn, localhost, root,,)
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,20000000) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinytext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a mediumtext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinyblob);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLES t1,t2,t3;
+--connection default
+SET @@global.max_allowed_packet:= @tmp_max;
+--disconnect newconn
+
+#
+# Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM
+#
+
+create table t1 ( id int not null auto_increment, primary key (id), col1 int);
+insert into t1 (col1) values (2),(3),(4),(5),(6);
+select 99 union all select id from t1 order by 1;
+select id from t1 union all select 99 order by 1;
+drop table t1;
+
+# End of 4.1 tests
+
+#
+# Bug#12185: Data type aggregation may produce wrong result
+#
+create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp, f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
+show create table t2;
+drop table t1, t2;
+
+#
+# Bug#18175: Union select over 129 tables with a sum function fails.
+#
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1));
+
+#
+# Bug #16881: password() and union select
+# (The issue was poor handling of character set aggregation.)
+#
+select _utf8'12' union select _latin1'12345';
+
+
+--disable_query_log
+drop database pbxt;
+--enable_query_log
+--echo End of 5.0 tests

@@ -1,0 +1,11 @@
+# 
+# Run subselect_sj2.test with BKA enabled 
+#
+
+set join_cache_level=6;
+show variables like 'join_cache_level';
+
+--source t/subselect_sj2.test
+
+set join_cache_level=default;
+show variables like 'join_cache_level';

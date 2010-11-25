@@ -173,53 +173,6 @@ enum mysql_db_table_field
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 
-/* Classes */
-
-struct acl_host_and_ip
-{
-  char *hostname;
-  long ip,ip_mask;                      // Used with masked ip:s
-};
-
-
-class ACL_ACCESS {
-public:
-  ulong sort;
-  ulong access;
-};
-
-
-/* ACL_HOST is used if no host is specified */
-
-class ACL_HOST :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *db;
-};
-
-
-class ACL_USER :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  uint hostname_length;
-  USER_RESOURCES user_resource;
-  char *user;
-  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
-  uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 3.23, 20 - 4.1.1 
-  enum SSL_type ssl_type;
-  const char *ssl_cipher, *x509_issuer, *x509_subject;
-};
-
-
-class ACL_DB :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *user,*db;
-};
-
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
@@ -228,10 +181,9 @@ my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
-int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
-                uint passwd_len);
-bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
-                             char *ip, char *db);
+bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len);
+bool acl_getroot(Security_context *sctx, char *user, char *host,
+                 char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
 int check_change_password(THD *thd, const char *host, const char *user,
                            char *password, uint password_len);

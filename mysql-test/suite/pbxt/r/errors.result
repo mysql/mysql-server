@@ -1,0 +1,30 @@
+drop table if exists t1;
+insert into t1 values(1);
+ERROR 42S02: Table 'test.t1' doesn't exist
+delete from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+update t1 set a=1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 (a int);
+select count(test.t1.b) from t1;
+ERROR 42S22: Unknown column 'test.t1.b' in 'field list'
+select count(not_existing_database.t1) from t1;
+ERROR 42S22: Unknown column 'not_existing_database.t1' in 'field list'
+select count(not_existing_database.t1.a) from t1;
+ERROR 42S22: Unknown column 'not_existing_database.t1.a' in 'field list'
+select count(not_existing_database.t1.a) from not_existing_database.t1;
+Got one of the listed errors
+select 1 from t1 order by 2;
+ERROR 42S22: Unknown column '2' in 'order clause'
+select 1 from t1 group by 2;
+ERROR 42S22: Unknown column '2' in 'group statement'
+select 1 from t1 order by t1.b;
+ERROR 42S22: Unknown column 't1.b' in 'order clause'
+select count(*),b from t1;
+ERROR 42S22: Unknown column 'b' in 'field list'
+drop table t1;
+create table t1 (a int(256));
+ERROR 42000: Display width out of range for column 'a' (max = 255)
+set sql_mode='traditional';
+create table t1 (a varchar(66000));
+ERROR 42000: Column length too big for column 'a' (max = 65535); use BLOB or TEXT instead

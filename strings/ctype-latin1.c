@@ -17,7 +17,7 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-static uchar ctype_latin1[] = {
+static const uchar ctype_latin1[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -37,7 +37,7 @@ static uchar ctype_latin1[] = {
     2,  2,  2,  2,  2,  2,  2, 16,  2,  2,  2,  2,  2,  2,  2,  2
 };
 
-static uchar to_lower_latin1[] = {
+static const uchar to_lower_latin1[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -56,7 +56,7 @@ static uchar to_lower_latin1[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-static uchar to_upper_latin1[] = {
+static const uchar to_upper_latin1[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -75,7 +75,7 @@ static uchar to_upper_latin1[] = {
   208,209,210,211,212,213,214,247,216,217,218,219,220,221,222,255
 };
 
-static uchar sort_order_latin1[] = {
+static const uchar sort_order_latin1[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -116,7 +116,7 @@ static uchar sort_order_latin1[] = {
   output doesn't reproduce these undefined characters.
 */
 
-unsigned short cs_to_uni[256]={
+static unsigned const short cs_to_uni[256]={
 0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,
 0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F,
 0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,
@@ -150,7 +150,7 @@ unsigned short cs_to_uni[256]={
 0x00F0,0x00F1,0x00F2,0x00F3,0x00F4,0x00F5,0x00F6,0x00F7,
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
-uchar pl00[256]={
+static const uchar pl00[256]={
 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
 0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,
 0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,
@@ -184,7 +184,7 @@ uchar pl00[256]={
 0xF0,0xF1,0xF2,0xF3,0xF4,0xF5,0xF6,0xF7,
 0xF8,0xF9,0xFA,0xFB,0xFC,0xFD,0xFE,0xFF
 };
-uchar pl01[256]={
+static const uchar pl01[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -218,7 +218,7 @@ uchar pl01[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-uchar pl02[256]={
+static const uchar pl02[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -252,7 +252,7 @@ uchar pl02[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-uchar pl20[256]={
+static const uchar pl20[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x96,0x97,0x00,0x00,0x00,
@@ -286,7 +286,7 @@ uchar pl20[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-uchar pl21[256]={
+static const uchar pl21[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -320,7 +320,7 @@ uchar pl21[256]={
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-uchar *uni_to_cs[256]={
+static const uchar *const uni_to_cs[256]={
 pl00,pl01,pl02,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -374,7 +374,7 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 		    uchar *str,
 		    uchar *end __attribute__((unused)))
 {
-  uchar *pl;
+  const uchar *pl;
   
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -416,7 +416,7 @@ static MY_CHARSET_HANDLER my_charset_handler=
 };
 
 
-CHARSET_INFO my_charset_latin1=
+struct charset_info_st my_charset_latin1=
 {
     8,0,0,				/* number    */
     MY_CS_COMPILED | MY_CS_PRIMARY,	/* state     */
@@ -471,7 +471,7 @@ CHARSET_INFO my_charset_latin1=
  * Ü, ü, Ö, ö, Ä, ä
  */
 
-static uchar sort_order_latin1_de[] = {
+static const uchar sort_order_latin1_de[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -495,7 +495,7 @@ static uchar sort_order_latin1_de[] = {
   same as sort_order_latin_de, but maps ALL accented chars to unaccented ones
 */
 
-uchar combo1map[]={
+static const uchar combo1map[]={
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -514,7 +514,7 @@ uchar combo1map[]={
    68, 78, 79, 79, 79, 79, 79,247,216, 85, 85, 85, 85, 89,222, 89
 };
 
-uchar combo2map[]={
+static const uchar combo2map[]={
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -715,7 +715,7 @@ static MY_COLLATION_HANDLER my_collation_german2_ci_handler=
 };
 
 
-CHARSET_INFO my_charset_latin1_german2_ci=
+struct charset_info_st my_charset_latin1_german2_ci=
 {
   31,0,0,				/* number    */
   MY_CS_COMPILED|MY_CS_STRNXFRM,	/* state     */
@@ -748,7 +748,7 @@ CHARSET_INFO my_charset_latin1_german2_ci=
 };
 
 
-CHARSET_INFO my_charset_latin1_bin=
+struct charset_info_st my_charset_latin1_bin=
 {
   47,0,0,				/* number    */
   MY_CS_COMPILED|MY_CS_BINSORT,		/* state     */

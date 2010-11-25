@@ -2,9 +2,10 @@
 # to force the deadlock after one event.
 
 source include/master-slave.inc;
+let $master_log_file= query_get_value(SHOW MASTER STATUS, File, 1);
 connection slave;
 stop slave;
---source include/wait_for_slave_to_stop.inc
+source include/wait_for_slave_to_stop.inc
 connection master;
 # This will generate a master's binlog > 10 bytes
 create table t1 (a int);
@@ -21,6 +22,7 @@ source include/wait_for_slave_param.inc;
 
 # A bug caused the I/O thread to refuse stopping.
 stop slave io_thread;
+source include/wait_for_slave_io_to_stop.inc;
 reset slave;
 start slave;
 # The I/O thread stops filling the relay log when
@@ -30,9 +32,11 @@ start slave;
 # So we should have a deadlock.
 # if it is not resolved automatically we'll detect
 # it with master_pos_wait that waits for farther than 1Ob;
-# it will timeout after 10 seconds;
+# it will timeout;
 # also the slave will probably not cooperate to shutdown
 # (as 2 threads are locked)
-select master_pos_wait('master-bin.001',200,6)=-1;
+--replace_result $master_log_file MASTER_LOG_FILE
+eval select master_pos_wait('$master_log_file',200,30)=-1;
+
 
 # End of 4.1 tests

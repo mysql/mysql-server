@@ -1,0 +1,59 @@
+drop table if exists t1,t2;
+CREATE TABLE t1 (
+line BLOB,
+kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
+name VARCHAR(32)
+) transactional=0 row_format=page engine=aria;
+select count(*) from t1;
+count(*)
+810
+delete from t1 limit 1000;
+select count(*) from t1;
+count(*)
+0
+select name from t1;
+name
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (i int) engine=aria;
+create table t2 (j int) engine=aria;
+lock table t1 write, t2 read;
+alter table t1 modify i int default 1;
+insert into t1 values (2);
+alter table t1 modify i bigint default 1;
+select count(*) from t1;
+count(*)
+1
+select * from t1;
+i
+2
+drop table t1,t2;
+create table t1(id int, s char(1), unique(s)) engine=aria;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 values(1,"a") on duplicate key update t1.id=t1.id+1;
+insert into t1 select 1,"a" on duplicate key update t1.id=t1.id+1;
+select * from t1;
+id	s
+3	a
+replace into t1 select 1,"a";
+select * from t1;
+id	s
+1	a
+drop table t1;
+create table t1 (pk int primary key, apk int unique, data int) engine=aria;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data concurrent infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+load data infile '../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+drop table t1;

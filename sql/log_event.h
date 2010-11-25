@@ -404,7 +404,7 @@ struct sql_ex_info
 #define ELQ_DUP_HANDLING_OFFSET ELQ_FILE_ID_OFFSET + 12
 
 /* 4 bytes which all binlogs should begin with */
-#define BINLOG_MAGIC        "\xfe\x62\x69\x6e"
+#define BINLOG_MAGIC        (const uchar*) "\xfe\x62\x69\x6e"
 
 /*
   The 2 flags below were useless :
@@ -930,6 +930,13 @@ public:
      event's type, and its content is distributed in the event-specific fields.
   */
   char *temp_buf;
+  
+  /*
+    TRUE <=> this event 'owns' temp_buf and should call my_free() when done
+    with it
+  */
+  bool event_owns_temp_buf;
+
   /*
     Timestamp on the master(for debugging and replication of
     NOW()/TIMESTAMP).  It is important for queries and LOAD DATA
@@ -1086,12 +1093,17 @@ public:
   Log_event(const char* buf, const Format_description_log_event
             *description_event);
   virtual ~Log_event() { free_temp_buf();}
-  void register_temp_buf(char* buf) { temp_buf = buf; }
+  void register_temp_buf(char* buf, bool must_free) 
+  { 
+    temp_buf= buf; 
+    event_owns_temp_buf= must_free;
+  }
   void free_temp_buf()
   {
     if (temp_buf)
     {
-      my_free(temp_buf);
+      if (event_owns_temp_buf)
+        my_free(temp_buf);
       temp_buf = 0;
     }
   }
@@ -1426,7 +1438,7 @@ protected:
     MODE_PIPES_AS_CONCAT==0x2
     MODE_ANSI_QUOTES==0x4
     MODE_IGNORE_SPACE==0x8
-    MODE_NOT_USED==0x10
+    MODE_IGNORE_BAD_TABLE_OPTIONS==0x10
     MODE_ONLY_FULL_GROUP_BY==0x20
     MODE_NO_UNSIGNED_SUBTRACTION==0x40
     MODE_NO_DIR_IN_CREATE==0x80
@@ -3431,6 +3443,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  int rewrite_db(const char* new_name, size_t new_name_len,
+                 const Format_description_log_event*);
 #endif
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
@@ -4084,6 +4098,10 @@ private:
 
 int append_query_string(CHARSET_INFO *csinfo,
                         String const *from, String *to);
+
+bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
+                           const char **group_relay_log_name,
+                           ulonglong *relay_log_pos);
 
 /**
   @} (end of group Replication)

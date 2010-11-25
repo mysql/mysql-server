@@ -441,3 +441,20 @@ mysql_declare_plugin(blackhole)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(blackhole)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &blackhole_storage_engine,
+  "BLACKHOLE",
+  "MySQL AB",
+  "/dev/null storage engine (anything you write to it disappears)",
+  PLUGIN_LICENSE_GPL,
+  blackhole_init, /* Plugin Init */
+  blackhole_fini, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

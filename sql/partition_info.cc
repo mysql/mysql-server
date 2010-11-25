@@ -1358,7 +1358,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
       if (part_expr->null_value)
         buf_ptr= (char*)"NULL";
       else
-        longlong2str(err_value, buf,
+        longlong10_to_str(err_value, buf,
                      part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }

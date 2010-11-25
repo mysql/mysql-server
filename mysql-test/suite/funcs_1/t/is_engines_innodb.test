@@ -11,5 +11,6 @@
 let $engine_type= InnoDB;
 --source include/have_innodb.inc
 --vertical_results
+--replace_regex /XtraDB engine based on InnoDB plugin. //
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';

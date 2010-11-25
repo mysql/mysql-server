@@ -1,0 +1,97 @@
+select database();
+database()
+test
+select charset(database());
+charset(database())
+utf8
+select database() = "test";
+database() = "test"
+1
+select database() = _utf8"test";
+database() = _utf8"test"
+1
+select database() = _latin1"test";
+database() = _latin1"test"
+1
+select user() like "%@%";
+user() like "%@%"
+1
+select user() like _utf8"%@%";
+user() like _utf8"%@%"
+1
+select user() like _latin1"%@%";
+user() like _latin1"%@%"
+1
+select charset(user());
+charset(user())
+utf8
+select version()>="3.23.29";
+version()>="3.23.29"
+1
+select version()>=_utf8"3.23.29";
+version()>=_utf8"3.23.29"
+1
+select version()>=_latin1"3.23.29";
+version()>=_latin1"3.23.29"
+1
+select charset(version());
+charset(version())
+utf8
+explain extended select database(), user();
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select database() AS `database()`,user() AS `user()`
+create table t1 (version char(60)) select database(), user(), version() as 'version';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `database()` varchar(34) CHARACTER SET utf8 DEFAULT NULL,
+  `user()` varchar(77) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `version` char(60) DEFAULT NULL
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
+charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
+utf8	utf8
+select collation(charset(_utf8'a')), collation(collation(_utf8'a'));
+collation(charset(_utf8'a'))	collation(collation(_utf8'a'))
+utf8_general_ci	utf8_general_ci
+create table t1 select charset(_utf8'a'), collation(_utf8'a');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `charset(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `collation(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT ''
+) ENGINE=PBXT DEFAULT CHARSET=latin1
+drop table t1;
+select TRUE,FALSE,NULL;
+TRUE	FALSE	NULL
+1	0	NULL
+create table t1 (c1 char(5)) character set=latin1;
+insert into t1 values('row 1');
+insert into t1 values('row 2');
+insert into t1 values('row 3');
+select concat(user(), '--', c1) from t1;
+concat(user(), '--', c1)
+root@localhost--row 1
+root@localhost--row 2
+root@localhost--row 3
+select concat(database(), '--', c1) from t1;
+concat(database(), '--', c1)
+test--row 1
+test--row 2
+test--row 3
+drop table t1;
+create table t1 (a char(10)) character set latin1;
+select * from t1 where a=version();
+a
+select * from t1 where a=database();
+a
+select * from t1 where a=user();
+a
+insert into t1 values ('a');
+select left(concat(a,version()),1) from t1;
+left(concat(a,version()),1)
+a
+drop table t1;

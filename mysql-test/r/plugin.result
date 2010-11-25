@@ -62,4 +62,67 @@ select @@global.example_ulong_var;
 set session sql_mode=@old_sql_mode;
 set session old=bla;
 ERROR HY000: Variable 'old' is a read only variable
+#legal values
+CREATE TABLE t1 ( a int complex='c,f,f,f' ) ENGINE=example ULL=10000 STR='dskj' one_or_two='one' YESNO=0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL `complex`='c,f,f,f'
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=10000 `STR`='dskj' `one_or_two`='one' `YESNO`=0
+drop table t1;
+SET @OLD_SQL_MODE=@@SQL_MODE;
+SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
+#illegal value fixed
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+Warnings:
+Warning	1652	Incorrect value '10000000000000000000' for option 'ULL'
+Warning	1652	Incorrect value 'ttt' for option 'one_or_two'
+Warning	1652	Incorrect value 'SSS' for option 'YESNO'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=10000000000000000000 `one_or_two`='ttt' `YESNO`=SSS
+#alter table
+alter table t1 ULL=10000000;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `one_or_two`='ttt' `YESNO`=SSS `ULL`=10000000
+alter table t1 change a a int complex='c,c,c';
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL `complex`='c,c,c'
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `one_or_two`='ttt' `YESNO`=SSS `ULL`=10000000
+drop table t1;
+#illegal value error
+SET SQL_MODE='';
+CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+ERROR HY000: Incorrect value '10000000000000000000' for option 'ULL'
+CREATE TABLE t1 (a int) ENGINE=example ULL=10.00;
+ERROR 42000: Only integers allowed as number here near '10.00' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
+ERROR 42000: Only integers allowed as number here near '1e2' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=4660
+select create_options from information_schema.tables where table_schema='test' and table_name='t1';
+create_options
+`ULL`=4660
+ALTER TABLE t1 ULL=DEFAULT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+select 1;
+1
+1
 UNINSTALL PLUGIN example;

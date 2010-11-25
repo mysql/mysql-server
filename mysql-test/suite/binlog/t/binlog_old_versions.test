@@ -22,6 +22,7 @@
 
 # Related bugs: BUG#27779, BUG#31581, BUG#31582, BUG#31583, BUG#32407
 
+source include/have_log_bin.inc;
 source include/not_embedded.inc;
 
 --disable_warnings

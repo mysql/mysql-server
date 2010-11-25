@@ -1,4 +1,4 @@
---binlog_cache_size=32768 --innodb_lock_wait_timeout=1
+--binlog-cache-size=32768 --loose-innodb-lock-wait-timeout=1
 --default-storage-engine=MyISAM
 --innodb-strict-mode=0
 --innodb-file-per-table=0

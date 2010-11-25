@@ -401,7 +401,7 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -518,14 +518,14 @@ ALTER TABLE db MODIFY Event_priv enum('N','Y') character set utf8 DEFAULT 'N' NO
 ALTER TABLE event DROP PRIMARY KEY;
 ALTER TABLE event ADD PRIMARY KEY(db, name);
 # Add sql_mode column just in case.
-ALTER TABLE event ADD sql_mode set ('NOT_USED') AFTER on_completion;
+ALTER TABLE event ADD sql_mode set ('IGNORE_BAD_TABLE_OPTIONS') AFTER on_completion;
 # Update list of sql_mode values.
 ALTER TABLE event MODIFY sql_mode
                         set('REAL_AS_FLOAT',
                             'PIPES_AS_CONCAT',
                             'ANSI_QUOTES',
                             'IGNORE_SPACE',
-                            'NOT_USED',
+                            'IGNORE_BAD_TABLE_OPTIONS',
                             'ONLY_FULL_GROUP_BY',
                             'NO_UNSIGNED_SUBTRACTION',
                             'NO_DIR_IN_CREATE',
@@ -616,6 +616,9 @@ ALTER TABLE user ADD Create_tablespace_priv enum('N','Y') COLLATE utf8_general_c
 ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
+
+ALTER TABLE user ADD plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL,  ADD auth_string TEXT NOT NULL;
+ALTER TABLE user MODIFY plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL;
 
 --
 -- Unlike 'performance_schema', the 'mysql' database is reserved already,

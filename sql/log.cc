@@ -483,6 +483,7 @@ bool Log_to_csv_event_handler::
   Open_tables_backup open_tables_backup;
   ulonglong save_thd_options;
   bool save_time_zone_used;
+  DBUG_ENTER("log_general");
 
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
@@ -518,7 +519,7 @@ bool Log_to_csv_event_handler::
   need_close= TRUE;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init_with_error(0))
     goto err;
 
   need_rnd_end= TRUE;
@@ -596,7 +597,7 @@ err:
 
   thd->variables.option_bits= save_thd_options;
   thd->time_zone_used= save_time_zone_used;
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -664,7 +665,7 @@ bool Log_to_csv_event_handler::
   need_close= TRUE;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
-      table->file->ha_rnd_init(0))
+      table->file->ha_rnd_init_with_error(0))
     goto err;
 
   need_rnd_end= TRUE;
@@ -920,6 +921,13 @@ void Log_to_file_event_handler::flush()
     mysql_slow_log.reopen_file();
 }
 
+void Log_to_file_event_handler::flush_slow_log()
+{
+  /* reopen slow log file */
+  if (opt_slow_log)
+    mysql_slow_log.reopen_file();
+}
+
 /*
   Log error with all enabled log event handlers
 
@@ -1015,8 +1023,6 @@ void LOGGER::init_log_tables()
 
 bool LOGGER::flush_logs(THD *thd)
 {
-  int rc= 0;
-
   /*
     Now we lock logger, as nobody should be able to use logging routines while
     log tables are closed
@@ -1028,7 +1034,25 @@ bool LOGGER::flush_logs(THD *thd)
 
   /* end of log flush */
   logger.unlock();
-  return rc;
+  return 0;
+}
+
+
+#error remove percona's flush log implementation
+bool LOGGER::flush_slow_log(THD *thd)
+{
+  /*
+    Now we lock logger, as nobody should be able to use logging routines while
+    log tables are closed
+  */
+  logger.lock_exclusive();
+
+  /* reopen log files */
+  file_log_handler->flush_slow_log();
+
+  /* end of log flush */
+  logger.unlock();
+  return 0;
 }
 
 
@@ -1131,7 +1155,7 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                              sctx->priv_user ? sctx->priv_user : "", "[",
-                             sctx->user ? sctx->user : "", "] @ ",
+                             sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
                              sctx->host ? sctx->host : "", " [",
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
@@ -1152,6 +1176,17 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       is_command= TRUE;
       query= command_name[thd->command].str;
       query_length= command_name[thd->command].length;
+    }
+
+    if (!query_length) 
+    {
+      /*
+        Not a real query; Reset counts for slow query logging
+        (QQ: Wonder if this is really needed)
+      */
+      thd->sent_row_count= thd->examined_row_count= 0;
+      thd->query_plan_flags= QPLAN_INIT;
+      thd->query_plan_fsort_passes= 0;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -1351,6 +1386,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
   MYSQL_LOG *file_log;
+  LINT_INIT(file_log);
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1874,6 +1910,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   DBUG_RETURN(checked);
 }
 
+
 /**
   @note
   How do we handle this (unlikely but legal) case:
@@ -1947,17 +1984,17 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 
 int check_binlog_magic(IO_CACHE* log, const char** errmsg)
 {
-  char magic[4];
+  uchar magic[4];
   DBUG_ASSERT(my_b_tell(log) == 0);
 
-  if (my_b_read(log, (uchar*) magic, sizeof(magic)))
+  if (my_b_read(log, magic, sizeof(magic)))
   {
     *errmsg = "I/O error reading the header from the binary log";
     sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno,
 		    log->error);
     return 1;
   }
-  if (memcmp(magic, BINLOG_MAGIC, sizeof(magic)))
+  if (bcmp(magic, BINLOG_MAGIC, sizeof(magic)))
   {
     *errmsg = "Binlog has bad magic number;  It's not a binary log file that can be used by this version of MySQL";
     return 1;
@@ -2577,19 +2614,39 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       if (my_b_write(&log_file, (uchar*) "\n", 1))
         tmp_errno= errno;
     }
+    
     /* For slow query log */
     sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
     sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
     if (my_b_printf(&log_file,
-                    "# Query_time: %s  Lock_time: %s"
-                    " Rows_sent: %lu  Rows_examined: %lu\n",
+                    "# Thread_id: %lu  Schema: %s  QC_hit: %s\n" \
+                    "# Query_time: %s  Lock_time: %s  Rows_sent: %lu  Rows_examined: %lu\n",
+                    (ulong) thd->thread_id, (thd->db ? thd->db : ""),
+                    ((thd->query_plan_flags & QPLAN_QC) ? "Yes" : "No"),
                     query_time_buff, lock_time_buff,
                     (ulong) thd->sent_row_count,
-                    (ulong) thd->examined_row_count) == (uint) -1)
+                    (ulong) thd->examined_row_count) == (size_t) -1)
       tmp_errno= errno;
+     if ((thd->variables.log_slow_verbosity & LOG_SLOW_VERBOSITY_QUERY_PLAN) &&
+         (thd->query_plan_flags &
+          (QPLAN_FULL_SCAN | QPLAN_FULL_JOIN | QPLAN_TMP_TABLE |
+           QPLAN_TMP_DISK | QPLAN_FILESORT | QPLAN_FILESORT_DISK)) &&
+         my_b_printf(&log_file,
+                     "# Full_scan: %s  Full_join: %s  "
+                     "Tmp_table: %s  Tmp_table_on_disk: %s\n"
+                     "# Filesort: %s  Filesort_on_disk: %s  Merge_passes: %lu\n",
+                     ((thd->query_plan_flags & QPLAN_FULL_SCAN) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FULL_JOIN) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_TMP_TABLE) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_TMP_DISK) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FILESORT) ? "Yes" : "No"),
+                     ((thd->query_plan_flags & QPLAN_FILESORT_DISK) ?
+                      "Yes" : "No"),
+                     thd->query_plan_fsort_passes) == (size_t) -1)
+       tmp_errno= errno;
     if (thd->db && strcmp(thd->db, db))
     {						// Database changed
-      if (my_b_printf(&log_file,"use %s;\n",thd->db) == (uint) -1)
+      if (my_b_printf(&log_file,"use %s;\n",thd->db) == (size_t) -1)
         tmp_errno= errno;
       strmov(db,thd->db);
     }
@@ -2881,7 +2938,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
 	an extension for the binary log files.
 	In this case we write a standard header to it.
       */
-      if (my_b_safe_write(&log_file, (uchar*) BINLOG_MAGIC,
+      if (my_b_safe_write(&log_file, BINLOG_MAGIC,
 			  BIN_LOG_HEADER_SIZE))
         goto err;
       bytes_written+= BIN_LOG_HEADER_SIZE;
@@ -4675,6 +4732,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
   */
   if (likely(is_open()))
   {
+    my_off_t my_org_b_tell;
 #ifdef HAVE_REPLICATION
     /*
       In the future we need to add to the following if tests like
@@ -4682,7 +4740,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
+    if ((!(thd->variables.option_bits & OPTION_BIN_LOG)) ||
 	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
          thd->lex->sql_command != SQLCOM_SAVEPOINT &&
          !binlog_filter->db_ok(local_db)))
@@ -4690,6 +4748,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 #endif /* HAVE_REPLICATION */
 
     IO_CACHE *file= NULL;
+    my_org_b_tell= my_b_tell(file);
 
     if (event_info->use_direct_logging())
     {
@@ -4723,7 +4782,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
        of the SQL command. If row-based binlogging, Insert_id, Rand
        and other kind of "setting context" events are not needed.
     */
-    if (thd)
     {
       if (!thd->is_current_stmt_binlog_format_row())
       {
@@ -4783,6 +4841,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     if (event_info->write(file) ||
         DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
+
+    status_var_add(thd->status_var.binlog_bytes_written,
+                   my_b_tell(file) - my_org_b_tell);
 
     error= 0;
 
@@ -4937,6 +4998,7 @@ uint MYSQL_BIN_LOG::next_file_id()
 
   SYNOPSIS
     write_cache()
+    thd      Current_thread
     cache    Cache to write to the binary log
     lock_log True if the LOCK_log mutex should be aquired, false otherwise
     sync_log True if the log should be flushed and synced
@@ -4946,7 +5008,8 @@ uint MYSQL_BIN_LOG::next_file_id()
     be reset as a READ_CACHE to be able to read the contents from it.
  */
 
-int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
+int MYSQL_BIN_LOG::write_cache(THD *thd, IO_CACHE *cache, bool lock_log,
+                               bool sync_log)
 {
   Mutex_sentry sentry(lock_log ? &LOCK_log : NULL);
 
@@ -4993,6 +5056,7 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
       /* write the first half of the split header */
       if (my_b_write(&log_file, header, carry))
         return ER_ERROR_ON_WRITE;
+      status_var_add(thd->status_var.binlog_bytes_written, carry);
 
       /*
         copy fixed second half of header to cache so the correct
@@ -5061,6 +5125,8 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
     /* Write data to the binary log file */
     if (my_b_write(&log_file, cache->read_pos, length))
       return ER_ERROR_ON_WRITE;
+    status_var_add(thd->status_var.binlog_bytes_written, length);
+
     cache->read_pos=cache->read_end;		// Mark buffer used up
   } while ((length= my_b_fill(cache)));
 
@@ -5112,6 +5178,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   if (lock)
     mysql_mutex_lock(&LOCK_log);
   error= ev.write(&log_file);
+  status_var_add(thd->status_var.binlog_bytes_written, ev.data_written);
   if (lock)
   {
     if (!error && !(error= flush_and_sync(0)))
@@ -5171,20 +5238,29 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"), TRUE, FALSE, TRUE, 0);
       if (qinfo.write(&log_file))
         goto err;
+
+      status_var_add(thd->status_var.binlog_bytes_written, qinfo.data_written);
+
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= write_cache(cache, false, true)))
+                        if ((write_error= write_cache(thd, cache, FALSE,
+                                                      TRUE)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         DBUG_ABORT();
                       });
 
-      if ((write_error= write_cache(cache, false, false)))
+      if ((write_error= write_cache(thd, cache, FALSE, FALSE)))
         goto err;
 
-      if (commit_event && commit_event->write(&log_file))
-        goto err;
+      if (commit_event)
+      {
+        if (commit_event->write(&log_file))
+          goto err;
+        status_var_add(thd->status_var.binlog_bytes_written,
+                       commit_event->data_written);
+      }
 
       if (incident && write_incident(thd, FALSE))
         goto err;
@@ -5704,39 +5780,39 @@ void sql_print_information(const char *format, ...)
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
-  the log consists of a file, mmapped to a memory.
-  file is divided on pages of tc_log_page_size size.
-  (usable size of the first page is smaller because of log header)
-  there's PAGE control structure for each page
-  each page (or rather PAGE control structure) can be in one of three
-  states - active, syncing, pool.
-  there could be only one page in active or syncing states,
-  but many in pool - pool is fifo queue.
-  usual lifecycle of a page is pool->active->syncing->pool
-  "active" page - is a page where new xid's are logged.
-  the page stays active as long as syncing slot is taken.
-  "syncing" page is being synced to disk. no new xid can be added to it.
-  when the sync is done the page is moved to a pool and an active page
+  the log consists of a file, mapped to memory.
+  file is divided into pages of tc_log_page_size size.
+  (usable size of the first page is smaller because of the log header)
+  there is a PAGE control structure for each page
+  each page (or rather its PAGE control structure) can be in one of
+  the three states - active, syncing, pool.
+  there could be only one page in the active or syncing state,
+  but many in pool - pool is a fifo queue.
+  the usual lifecycle of a page is pool->active->syncing->pool.
+  the "active" page is a page where new xid's are logged.
+  the page stays active as long as the syncing slot is taken.
+  the "syncing" page is being synced to disk. no new xid can be added to it.
+  when the syncing is done the page is moved to a pool and an active page
   becomes "syncing".
 
   the result of such an architecture is a natural "commit grouping" -
   If commits are coming faster than the system can sync, they do not
-  stall. Instead, all commit that came since the last sync are
-  logged to the same page, and they all are synced with the next -
+  stall. Instead, all commits that came since the last sync are
+  logged to the same "active" page, and they all are synced with the next -
   one - sync. Thus, thought individual commits are delayed, throughput
   is not decreasing.
 
-  when a xid is added to an active page, the thread of this xid waits
+  when an xid is added to an active page, the thread of this xid waits
   for a page's condition until the page is synced. when syncing slot
   becomes vacant one of these waiters is awaken to take care of syncing.
   it syncs the page and signals all waiters that the page is synced.
   PAGE::waiters is used to count these waiters, and a page may never
   become active again until waiters==0 (that is all waiters from the
-  previous sync have noticed the sync was completed)
+  previous sync have noticed that the sync was completed)
 
   note, that the page becomes "dirty" and has to be synced only when a
   new xid is added into it. Removing a xid from a page does not make it
-  dirty - we don't sync removals to disk.
+  dirty - we don't sync xid removals to disk.
 */
 
 ulong tc_log_page_waits= 0;
@@ -5745,7 +5821,7 @@ ulong tc_log_page_waits= 0;
 
 #define TC_LOG_HEADER_SIZE (sizeof(tc_log_magic)+1)
 
-static const char tc_log_magic[]={(char) 254, 0x23, 0x05, 0x74};
+static const uchar tc_log_magic[]={(uchar) 254, 0x23, 0x05, 0x74};
 
 ulong opt_tc_log_size= TC_LOG_MIN_SIZE;
 ulong tc_log_max_pages_used=0, tc_log_page_size=0, tc_log_cur_pages_used=0;
@@ -5803,7 +5879,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=2;
 
   npages=(uint)file_length/tc_log_page_size;
-  DBUG_ASSERT(npages >= 3);             // to guarantee non-empty pool
+  if (npages < 3)             // to guarantee non-empty pool
+    goto err;
   if (!(pages=(PAGE *)my_malloc(npages*sizeof(PAGE), MYF(MY_WME|MY_ZEROFILL))))
     goto err;
   inited=3;
@@ -5814,9 +5891,9 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->state=POOL;
     mysql_mutex_init(key_PAGE_lock, &pg->lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
-    pg->start=(my_xid *)(data + i*tc_log_page_size);
-    pg->end=(my_xid *)(pg->start + tc_log_page_size);
+    pg->ptr= pg->start=(my_xid *)(data + i*tc_log_page_size);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
+    pg->end=pg->start + pg->size;
   }
   pages[0].size=pages[0].free=
                 (tc_log_page_size-TC_LOG_HEADER_SIZE)/sizeof(my_xid);
@@ -5860,7 +5937,7 @@ err:
     -# if there're waiters - take the one with the most free space.
 
   @todo
-    TODO page merging. try to allocate adjacent page first,
+    page merging. try to allocate adjacent page first,
     so that they can be flushed both in one sync
 */
 
@@ -5869,8 +5946,7 @@ void TC_LOG_MMAP::get_active_from_pool()
   PAGE **p, **best_p=0;
   int best_free;
 
-  if (syncing)
-    mysql_mutex_lock(&LOCK_pool);
+  mysql_mutex_lock(&LOCK_pool);
 
   do
   {
@@ -5890,20 +5966,21 @@ void TC_LOG_MMAP::get_active_from_pool()
   }
   while ((*best_p == 0 || best_free == 0) && overflow());
 
+  safe_mutex_assert_owner(&LOCK_active);
   active=*best_p;
-  if (active->free == active->size) // we've chosen an empty page
-  {
-    tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
-  }
 
   if ((*best_p)->next)              // unlink the page from the pool
     *best_p=(*best_p)->next;
   else
     pool_last=*best_p;
+  mysql_mutex_unlock(&LOCK_pool);
 
-  if (syncing)
-    mysql_mutex_unlock(&LOCK_pool);
+  mysql_mutex_lock(&active->lock);
+  if (active->free == active->size) // we've chosen an empty page
+  {
+    tc_log_cur_pages_used++;
+    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+  }
 }
 
 /**
@@ -5958,7 +6035,7 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   mysql_mutex_lock(&LOCK_active);
 
   /*
-    if active page is full - just wait...
+    if the active page is full - just wait...
     frankly speaking, active->free here accessed outside of mutex
     protection, but it's safe, because it only means we may miss an
     unlog() for the active page, and we're not waiting for it here -
@@ -5970,9 +6047,17 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   /* no active page ? take one from the pool */
   if (active == 0)
     get_active_from_pool();
+  else
+    mysql_mutex_lock(&active->lock);
 
   p=active;
-  mysql_mutex_lock(&p->lock);
+
+  /*
+    p->free is always > 0 here because to decrease it one needs
+    to take p->lock and before it one needs to take LOCK_active.
+    But checked that active->free > 0 under LOCK_active and
+    haven't release it ever since
+  */
 
   /* searching for an empty slot */
   while (*p->ptr)
@@ -5986,38 +6071,51 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
   *p->ptr++= xid;
   p->free--;
   p->state= DIRTY;
-
-  /* to sync or not to sync - this is the question */
-  mysql_mutex_unlock(&LOCK_active);
-  mysql_mutex_lock(&LOCK_sync);
   mysql_mutex_unlock(&p->lock);
 
+  mysql_mutex_lock(&LOCK_sync);
   if (syncing)
   {                                          // somebody's syncing. let's wait
+    mysql_mutex_unlock(&LOCK_active);
+    mysql_mutex_lock(&p->lock);
     p->waiters++;
-    /*
-      note - it must be while (), not do ... while () here
-      as p->state may be not DIRTY when we come here
-    */
-    while (p->state == DIRTY && syncing)
+    for (;;)
+    {
+      int not_dirty = p->state != DIRTY;
+      mysql_mutex_unlock(&p->lock);
+      if (not_dirty || !syncing)
+        break;
       mysql_cond_wait(&p->cond, &LOCK_sync);
+      mysql_mutex_lock(&p->lock);
+    }
     p->waiters--;
     err= p->state == ERROR;
     if (p->state != DIRTY)                   // page was synced
     {
-      if (p->waiters == 0)
-        mysql_cond_signal(&COND_pool);       // in case somebody's waiting
       mysql_mutex_unlock(&LOCK_sync);
+      if (p->waiters == 0)
+        mysql_cond_signal(&COND_pool);     // in case somebody's waiting
+      mysql_mutex_unlock(&p->lock);
       goto done;                             // we're done
     }
-  }                                          // page was not synced! do it now
-  DBUG_ASSERT(active == p && syncing == 0);
-  mysql_mutex_lock(&LOCK_active);
-  syncing=p;                                 // place is vacant - take it
-  active=0;                                  // page is not active anymore
-  mysql_cond_broadcast(&COND_active);        // in case somebody's waiting
-  mysql_mutex_unlock(&LOCK_active);
-  mysql_mutex_unlock(&LOCK_sync);
+    DBUG_ASSERT(!syncing);
+    mysql_mutex_unlock(&p->lock);
+    syncing = p;
+    mysql_mutex_unlock(&LOCK_sync);
+
+    mysql_mutex_lock(&LOCK_active);
+    active=0;                                  // page is not active anymore
+    mysql_cond_broadcast(&COND_active);
+    mysql_mutex_unlock(&LOCK_active);
+  }
+  else
+  {
+    syncing = p;                               // place is vacant - take it
+    mysql_mutex_unlock(&LOCK_sync);
+    active = 0;                                // page is not active anymore
+    mysql_cond_broadcast(&COND_active);
+    mysql_mutex_unlock(&LOCK_active);
+  }
   err= sync();
 
 done:
@@ -6034,7 +6132,7 @@ int TC_LOG_MMAP::sync()
     sit down and relax - this can take a while...
     note - no locks are held at this point
   */
-  err= my_msync(fd, syncing->start, 1, MS_SYNC);
+  err= my_msync(fd, syncing->start, syncing->size * sizeof(my_xid), MS_SYNC);
 
   /* page is synced. let's move it to the pool */
   mysql_mutex_lock(&LOCK_pool);
@@ -6042,14 +6140,23 @@ int TC_LOG_MMAP::sync()
   pool_last=syncing;
   syncing->next=0;
   syncing->state= err ? ERROR : POOL;
-  mysql_cond_broadcast(&syncing->cond);      // signal "sync done"
-  mysql_cond_signal(&COND_pool);             // in case somebody's waiting
+  mysql_cond_signal(&COND_pool);           // in case somebody's waiting
   mysql_mutex_unlock(&LOCK_pool);
 
   /* marking 'syncing' slot free */
   mysql_mutex_lock(&LOCK_sync);
+  mysql_cond_broadcast(&syncing->cond);    // signal "sync done"
   syncing=0;
-  mysql_cond_signal(&active->cond);        // wake up a new syncer
+  /*
+    we check the "active" pointer without LOCK_active. Still, it's safe -
+    "active" can change from NULL to not NULL any time, but it
+    will take LOCK_sync before waiting on active->cond. That is, it can never
+    miss a signal.
+    And "active" can change to NULL only by the syncing thread
+    (the thread that will send a signal below)
+  */
+  if (active)
+    mysql_cond_signal(&active->cond);      // wake up a new syncer
   mysql_mutex_unlock(&LOCK_sync);
   return err;
 }
@@ -6066,13 +6173,13 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 
   DBUG_ASSERT(*x == xid);
   DBUG_ASSERT(x >= p->start && x < p->end);
-  *x=0;
 
   mysql_mutex_lock(&p->lock);
+  *x=0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
-  if (p->free == p->size)               // the page is completely empty
+  if (p->free == p->size)              // the page is completely empty
     statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
@@ -6115,7 +6222,7 @@ int TC_LOG_MMAP::recover()
   HASH xids;
   PAGE *p=pages, *end_p=pages+npages;
 
-  if (memcmp(data, tc_log_magic, sizeof(tc_log_magic)))
+  if (bcmp(data, tc_log_magic, sizeof(tc_log_magic)))
   {
     sql_print_error("Bad magic header in tc log");
     goto err1;
@@ -6420,3 +6527,20 @@ mysql_declare_plugin(binlog)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_storage_engine,
+  "binlog",
+  "MySQL AB",
+  "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
+  binlog_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

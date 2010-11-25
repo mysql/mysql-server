@@ -381,9 +381,11 @@ TODO list:
 
 static void debug_wait_for_kill(const char *info)
 {
-  DBUG_ENTER("debug_wait_for_kill");
   const char *prev_info;
   THD *thd;
+  char buff[1024];
+  DBUG_ENTER("debug_wait_for_kill");
+
   thd= current_thd;
   prev_info= thd->proc_info;
   thd->proc_info= info;
@@ -391,8 +393,16 @@ static void debug_wait_for_kill(const char *info)
   while(!thd->killed)
     my_sleep(1000);
   thd->killed= THD::NOT_KILLED;
+  /*
+    Remove the set debug variable, to ensure we don't get stuck on it again
+    This is needed as for MyISAM, invalidate_table() may be called twice
+    (Once from mysql_delete() and once from mi_update_status())
+  */
+  sprintf(buff, "-d,%s", info);
+  DBUG_SET(buff);
   sql_print_information("Exit debug_wait_for_kill");
   thd->proc_info= prev_info;
+
   DBUG_VOID_RETURN;
 }
 
@@ -725,7 +735,7 @@ inline void Query_cache_query::lock_writing()
   remove it.
 */
 
-my_bool Query_cache_query::try_lock_writing()
+bool Query_cache_query::try_lock_writing()
 {
   DBUG_ENTER("Query_cache_block::try_lock_writing");
   if (mysql_rwlock_trywrlock(&lock) != 0)
@@ -926,8 +936,8 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
 void
 Query_cache::abort(Query_cache_tls *query_cache_tls)
 {
+  THD *thd;
   DBUG_ENTER("query_cache_abort");
-  THD *thd= current_thd;
 
   /* See the comment on double-check locking usage above. */
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
@@ -935,6 +945,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
 
   if (try_lock())
     DBUG_VOID_RETURN;
+  }
 
   /*
     While we were waiting another thread might have changed the status
@@ -943,6 +954,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
   Query_cache_block *query_block= query_cache_tls->first_query_block;
   if (query_block)
   {
+    thd= current_thd;
     thd_proc_info(thd, "storing result in query cache");
     DUMP(this);
     BLOCK_LOCK_WR(query_block);
@@ -985,6 +997,7 @@ void Query_cache::end_of_result(THD *thd)
 
   if (try_lock())
     DBUG_VOID_RETURN;
+  }
 
   query_block= query_cache_tls->first_query_block;
   if (query_block)
@@ -1724,6 +1737,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+  thd->query_plan_flags= (thd->query_plan_flags & ~QPLAN_QC_NO) | QPLAN_QC;
   if (!thd->stmt_da->is_set())
     thd->stmt_da->disable_status();
 
@@ -1735,6 +1749,10 @@ err_unlock:
   unlock();
 err:
   MYSQL_QUERY_CACHE_MISS(thd->query());
+  /*
+    query_plan_flags doesn't have to be changed here as it contains
+    QPLAN_QC_NO by default
+  */
   DBUG_RETURN(0);				// Query was not cached
 }
 

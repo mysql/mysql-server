@@ -21,10 +21,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a,b	a	9	NULL	3	Using where; Using index
 explain select * from t1 where (a is null or a = 7) and b=7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a,b	a	9	const,const	2	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a,b	a	9	const,const	2	Using index
 explain select * from t1 where (a is null or a = 7) and b=7 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a,b	a	9	const,const	2	Using where; Using index; Using filesort
+1	SIMPLE	t1	ref_or_null	a,b	a	9	const,const	2	Using index; Using filesort
 explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a,b	a	5	const	3	Using where; Using index
@@ -151,7 +151,7 @@ alter table t1 modify b int null;
 insert into t1 values (7,null), (8,null), (8,7);
 explain select * from t1 where a = 7 and (b=7 or b is null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a,b	a	10	const,const	2	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a,b	a	10	const,const	2	Using index
 select * from t1 where a = 7 and (b=7 or b is null);
 a	b
 7	7
@@ -166,7 +166,7 @@ a	b
 NULL	7
 explain select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a	a	5	const	5	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a	a	5	const	5	Using index
 select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 a	b
 7	NULL
@@ -192,7 +192,7 @@ a	a	b
 explain select * from t2,t1 where t1.a=t2.a and (b= 7 or b is null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref_or_null	a	a	10	test.t2.a,const	4	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a	a	10	test.t2.a,const	4	Using index
 select * from t2,t1 where t1.a=t2.a and (b= 7 or b is null);
 a	a	b
 7	7	7
@@ -202,7 +202,7 @@ a	a	b
 explain select * from t2,t1 where (t1.a=t2.a or t1.a is null) and b= 7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref_or_null	a	a	10	test.t2.a,const	4	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a	a	10	test.t2.a,const	4	Using index
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and b= 7;
 a	a	b
 7	7	7
@@ -226,7 +226,7 @@ delete from t1 where a=8;
 explain select * from t2,t1 where t1.a=t2.a or t1.a is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	
-1	SIMPLE	t1	ref_or_null	a	a	5	test.t2.a	4	Using where; Using index
+1	SIMPLE	t1	ref_or_null	a	a	5	test.t2.a	4	Using index
 explain select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	
@@ -258,7 +258,7 @@ INSERT INTO t1 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4
 INSERT INTO t2 VALUES (1,NULL),(2,NULL),(3,1),(4,2),(5,NULL),(6,NULL),(7,3),(8,4),(9,NULL),(10,NULL);
 explain select id from t1 where uniq_id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	idx1	idx1	5	const	5	Using where
+1	SIMPLE	t1	ref	idx1	idx1	5	const	5	Using index condition
 explain select id from t1 where uniq_id =1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	idx1	idx1	5	const	1	

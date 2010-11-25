@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# MariaDB SQL server.
+# Copyright (C) 2010 Kristian Nielsen and Monty Program AB
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+# This script's purpose is to build the binary tarball packages for MariaDB
+# (currently only on Linux systems).
+#
+# Thus BUILD/compile-bintar from the appropriate source tarball will reproduce
+# such a release, provided the build environment (gcc version etc.) matches
+# (use scripts/make_binary_distribution after running this script to actually
+# create the binary tarball package).
+#
+# Note that packages are built from source tarballs not bzr checkouts.
+# Therefore, this script assumes autotools have already been run.
+#
+# We link libc dynamically, otherwise we get lots of problems loading
+# .so files at runtime (either system stuff like NSS, or server
+# plugins).
+#
+# We link libgcc statically to avoid reduce nasty library version dependencies.
+
+test -f Makefile && make distclean
+
+path=`dirname $0`
+. $path/util.sh
+
+SYSTEM_TYPE="$(uname -o)"
+MACHINE_TYPE="$(uname -m)"
+
+# We cannot have a slash '/' in tarfile name.
+SYSTEM_TYPE="$(echo ${SYSTEM_TYPE} | sed -e 's/GNU\///')"
+
+# Get correct options for architecture into CPUOPT.
+get_cpuopt
+# Get correct -j option into AM_MAKEFLAGS
+get_make_parallel_flag
+
+# Use gcc rather than g++ to avoid linking libstdc++.so (which we don't need).
+FLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall $CPUOPT"
+
+# Don't press on in case of error.
+set -e
+
+CC="gcc -static-libgcc" CXX="g++ -static-libgcc" CFLAGS="$FLAGS" CXXFLAGS="$FLAGS" \
+	./configure \
+	--prefix=/usr/local/mysql \
+	--exec-prefix=/usr/local/mysql \
+	--libexecdir=/usr/local/mysql/bin \
+	--localstatedir=/usr/local/mysql/data \
+	\
+	--with-comment="(MariaDB - http://mariadb.com/)" \
+	--with-system-type="${SYSTEM_TYPE}" \
+	--with-machine-type="${MACHINE_TYPE}" \
+	\
+	--enable-shared --enable-static \
+	--with-client-ldflags=-static --with-mysqld-ldflags=-static \
+	--enable-thread-safe-client --enable-local-infile --with-big-tables \
+	--without-docs --with-extra-charsets=all \
+	--with-libwrap --with-ssl --with-readline --with-libevent --with-zlib-dir=bundled \
+	--with-partition --with-embedded-server \
+	--with-plugins=max-no-ndb \
+	--without-plugin-innodb_plugin
+
+make $AM_MAKEFLAGS

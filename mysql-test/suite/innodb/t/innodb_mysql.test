@@ -5,7 +5,11 @@
 #               main testing code t/innodb_mysql.test -> include/mix1.inc              
 #
 
+# Slow test, don't run during staging part
+-- source include/not_staging.inc
 -- source include/have_innodb.inc
+-- source include/have_query_cache.inc
+
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
 # InnoDB does support FOREIGN KEYFOREIGN KEYs
@@ -555,23 +559,6 @@ drop table t1,t2;
 
 
 --echo #
---echo # Bug #39653: find_shortest_key in sql_select.cc does not consider
---echo #             clustered primary keys
---echo #
-
-CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT,
-                 KEY (b,c)) ENGINE=INNODB;
-
-INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
-                      (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
-		      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
-		      (11,11,11,11,11,11);
-
---query_vertical EXPLAIN SELECT COUNT(*) FROM t1
-
-DROP TABLE t1;
-
---echo #
 --echo # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
 --echo #   corrupt definition at engine
 --echo #
@@ -585,6 +572,36 @@ ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #53334: wrong result for outer join with impossible ON condition
+--echo # (see the same test case for MyISAM in join.test)
+--echo #
+
+create table t1 (id int primary key);
+create table t2 (id int);
+
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+
+insert into t2 values (107),(75),(1000);
+
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+  where t2.id=75 and t1.id is null;
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+  where t2.id=75 and t1.id is null;
+
+drop table t1,t2;
 
 --echo #
 --echo # Bug #47453: InnoDB incorrectly changes TIMESTAMP columns when 
@@ -822,11 +839,44 @@ CREATE INDEX b ON t1(a,b,c,d);
 
 DROP TABLE t1;
 
---echo #
-
-
 --echo End of 5.1 tests
 
+--echo #
+--echo # Bug#668644: HAVING + ORDER BY
+--echo #
+
+CREATE TABLE t1 (
+  pk int  NOT NULL PRIMARY KEY, i int DEFAULT NULL,
+  INDEX idx (i)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES
+  (6,-1636630528),(2,-1097924608),(1,6),(3,6),(4,1148715008),(5,1541734400);
+
+CREATE TABLE t2 (
+  i int DEFAULT NULL,
+  pk int NOT NULL PRIMARY KEY,
+  INDEX idx (i)
+) ENGINE= INNODB;
+INSERT INTO t2 VALUES
+  (-1993998336,20),(-1036582912,1),(-733413376,5),(-538247168,16),
+  (-514260992,4),(-249561088,9),(1,2),(1,6),(2,10),(2,19),(4,17),
+  (5,14),(5,15),(6,8),(7,13),(8,18),(9,11),(9,12),(257425408,7),
+  (576061440,3);
+
+EXPLAIN
+SELECT t1 .i AS f FROM t1, t2
+  WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+  HAVING f > 7
+  ORDER BY f;
+SELECT t1 .i AS f FROM t1, t2
+  WHERE t2.i = t1.pk AND t1.pk BETWEEN 0 AND 224
+  HAVING f > 7
+  ORDER BY f;
+
+DROP TABLE t1, t2;
+
+
+--echo End of 5.3 tests
 
 --echo #
 --echo # Test for bug #39932 "create table fails if column for FK is in different

@@ -20,7 +20,7 @@ my @pre_rules=
 );
 
 
-my @share_locations= ("share/mysql", "sql/share", "share");
+my @share_locations= ("share/mariadb", "share/mysql", "sql/share", "share");
 
 
 sub get_basedir {
@@ -73,16 +73,12 @@ sub fix_pidfile {
 
 sub fix_port {
   my ($self, $config, $group_name, $group)= @_;
-  my $hostname= $group->value('#host');
-  return $self->{HOSTS}->{$hostname}++;
+  return $self->{PORT}++;
 }
 
 sub fix_host {
   my ($self)= @_;
-  # Get next host from HOSTS array
-  my @hosts= keys(%{$self->{HOSTS}});;
-  my $host_no= $self->{NEXT_HOST}++ % @hosts;
-  return $hosts[$host_no];
+  'localhost'
 }
 
 sub is_unique {
@@ -158,6 +154,7 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
+  #return "$::opt_vardir/std_data";
   my $testdir= $self->get_testdir($group);
   return "$testdir/std_data";
 }
@@ -219,12 +216,13 @@ my @mysqld_rules=
  { 'pid-file' => \&fix_pidfile },
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
+ { '#extra-port' => \&fix_port },
  { 'socket' => \&fix_socket },
  { '#log-error' => \&fix_log_error },
- { 'general_log' => 1 },
- { 'general_log_file' => \&fix_log },
- { 'slow_query_log' => 1 },
- { 'slow_query_log_file' => \&fix_log_slow_queries },
+ { 'general-log' => sub { return 1; } },
+ { 'general-log-file' => \&fix_log },
+ { 'slow-query-log' => sub { return 1; } },
+ { 'slow-query-log-file' => \&fix_log_slow_queries },
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
  { '#password' => sub { return shift->{ARGS}->{password} || ""; } },
  { 'server-id' => \&fix_server_id, },
@@ -245,7 +243,7 @@ if (IS_WINDOWS)
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group)= @_;
   my $hostname= $group->value('HostName');
-  return $self->{HOSTS}->{$hostname}++;
+  return $self->{PORT}++;
 }
 
 
@@ -389,7 +387,7 @@ sub post_check_client_group {
 sub post_check_client_groups {
  my ($self, $config)= @_;
 
- my $first_mysqld= $config->first_like('mysqld.');
+ my $first_mysqld= $config->first_like('mysqld\.');
 
  return unless $first_mysqld;
 
@@ -444,20 +442,24 @@ sub post_check_embedded_group {
 
 sub resolve_at_variable {
   my ($self, $config, $group, $option)= @_;
+  local $_ = $option->value();
+  my ($res, $after);
 
-  # Split the options value on last .
-  my @parts= split(/\./, $option->value());
-  my $option_name= pop(@parts);
-  my $group_name=  join('.', @parts);
+  while (m/(.*?)\@((?:\w+\.)+)(#?[-\w]+)/g) {
+    my ($before, $group_name, $option_name)= ($1, $2, $3);
+    $after = $';
+    chop($group_name);
 
-  $group_name =~ s/^\@//; # Remove at
+    my $from_group= $config->group($group_name)
+      or croak "There is no group named '$group_name' that ",
+        "can be used to resolve '$option_name'";
 
-  my $from_group= $config->group($group_name)
-    or croak "There is no group named '$group_name' that ",
-      "can be used to resolve '$option_name'";
+    my $value= $from_group->value($option_name);
+    $res .= $before.$value;
+  }
+  $res .= $after;
 
-  my $from= $from_group->value($option_name);
-  $config->insert($group->name(), $option->name(), $from)
+  $config->insert($group->name(), $option->name(), $res)
 }
 
 
@@ -469,7 +471,7 @@ sub post_fix_resolve_at_variables {
       next unless defined $option->value();
 
       $self->resolve_at_variable($config, $group, $option)
-	if ($option->value() =~ /^\@/);
+	if ($option->value() =~ /\@/);
     }
   }
 }
@@ -611,28 +613,18 @@ sub new_config {
     croak "you must pass '$required'" unless defined $args->{$required};
   }
 
-  # Fill in hosts/port hash
-  my $hosts= {};
-  my $baseport= $args->{baseport};
-  $args->{hosts}= [ 'localhost' ] unless exists($args->{hosts});
-  foreach my $host ( @{$args->{hosts}} ) {
-     $hosts->{$host}= $baseport;
-  }
-
   # Open the config template
   my $config= My::Config->new($args->{'template_path'});
-  my $extra_template_path= $args->{'extra_template_path'};
-  if ($extra_template_path){
-    $config->append(My::Config->new($extra_template_path));
-  }
   my $self= bless {
 		   CONFIG       => $config,
 		   ARGS         => $args,
-		   HOSTS        => $hosts,
-		   NEXT_HOST    => 0,
+		   PORT         => $args->{baseport},
 		   SERVER_ID    => 1,
 		  }, $class;
 
+  # add auto-options
+  $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
+  $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
 
   {
     # Run pre rules

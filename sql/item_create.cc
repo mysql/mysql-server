@@ -82,7 +82,7 @@ public:
     @param thd The current thread
     @return An item representing the function call
   */
-  virtual Item *create(THD *thd) = 0;
+  virtual Item *create_builder(THD *thd) = 0;
 
 protected:
   /** Constructor. */
@@ -107,7 +107,7 @@ public:
     @param arg1 The first argument of the function
     @return An item representing the function call
   */
-  virtual Item *create(THD *thd, Item *arg1) = 0;
+  virtual Item *create_1_arg(THD *thd, Item *arg1) = 0;
 
 protected:
   /** Constructor. */
@@ -133,7 +133,7 @@ public:
     @param arg2 The second argument of the function
     @return An item representing the function call
   */
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2) = 0;
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2) = 0;
 
 protected:
   /** Constructor. */
@@ -160,7 +160,7 @@ public:
     @param arg3 The third argument of the function
     @return An item representing the function call
   */
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3) = 0;
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3) = 0;
 
 protected:
   /** Constructor. */
@@ -177,8 +177,8 @@ protected:
 class Create_sp_func : public Create_qfunc
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, List<Item> *item_list);
+  virtual Item *create_with_db(THD *thd, LEX_STRING db, LEX_STRING name,
+                               bool use_explicit_name, List<Item> *item_list);
 
   static Create_sp_func s_singleton;
 
@@ -223,7 +223,7 @@ protected:
 class Create_func_abs : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_abs s_singleton;
 
@@ -236,7 +236,7 @@ protected:
 class Create_func_acos : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_acos s_singleton;
 
@@ -249,7 +249,7 @@ protected:
 class Create_func_addtime : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_addtime s_singleton;
 
@@ -262,7 +262,7 @@ protected:
 class Create_func_aes_encrypt : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_aes_encrypt s_singleton;
 
@@ -275,7 +275,7 @@ protected:
 class Create_func_aes_decrypt : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_aes_decrypt s_singleton;
 
@@ -289,7 +289,7 @@ protected:
 class Create_func_area : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_area s_singleton;
 
@@ -304,7 +304,7 @@ protected:
 class Create_func_as_wkb : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_as_wkb s_singleton;
 
@@ -319,7 +319,7 @@ protected:
 class Create_func_as_wkt : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_as_wkt s_singleton;
 
@@ -333,7 +333,7 @@ protected:
 class Create_func_asin : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_asin s_singleton;
 
@@ -359,7 +359,7 @@ protected:
 class Create_func_benchmark : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_benchmark s_singleton;
 
@@ -372,7 +372,7 @@ protected:
 class Create_func_bin : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_bin s_singleton;
 
@@ -385,7 +385,7 @@ protected:
 class Create_func_bit_count : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_bit_count s_singleton;
 
@@ -398,7 +398,7 @@ protected:
 class Create_func_bit_length : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_bit_length s_singleton;
 
@@ -411,7 +411,7 @@ protected:
 class Create_func_ceiling : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_ceiling s_singleton;
 
@@ -425,7 +425,7 @@ protected:
 class Create_func_centroid : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_centroid s_singleton;
 
@@ -439,7 +439,7 @@ protected:
 class Create_func_char_length : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_char_length s_singleton;
 
@@ -452,7 +452,7 @@ protected:
 class Create_func_coercibility : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_coercibility s_singleton;
 
@@ -465,7 +465,7 @@ protected:
 class Create_func_compress : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_compress s_singleton;
 
@@ -504,7 +504,7 @@ protected:
 class Create_func_connection_id : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_connection_id s_singleton;
 
@@ -518,7 +518,7 @@ protected:
 class Create_func_contains : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_contains s_singleton;
 
@@ -532,7 +532,7 @@ protected:
 class Create_func_conv : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_conv s_singleton;
 
@@ -545,7 +545,7 @@ protected:
 class Create_func_convert_tz : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_convert_tz s_singleton;
 
@@ -558,7 +558,7 @@ protected:
 class Create_func_cos : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_cos s_singleton;
 
@@ -571,7 +571,7 @@ protected:
 class Create_func_cot : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_cot s_singleton;
 
@@ -584,7 +584,7 @@ protected:
 class Create_func_crc32 : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_crc32 s_singleton;
 
@@ -598,7 +598,7 @@ protected:
 class Create_func_crosses : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_crosses s_singleton;
 
@@ -612,7 +612,7 @@ protected:
 class Create_func_date_format : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_date_format s_singleton;
 
@@ -625,7 +625,7 @@ protected:
 class Create_func_datediff : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_datediff s_singleton;
 
@@ -638,7 +638,7 @@ protected:
 class Create_func_dayname : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_dayname s_singleton;
 
@@ -651,7 +651,7 @@ protected:
 class Create_func_dayofmonth : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_dayofmonth s_singleton;
 
@@ -664,7 +664,7 @@ protected:
 class Create_func_dayofweek : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_dayofweek s_singleton;
 
@@ -677,7 +677,7 @@ protected:
 class Create_func_dayofyear : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_dayofyear s_singleton;
 
@@ -690,7 +690,7 @@ protected:
 class Create_func_decode : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_decode s_singleton;
 
@@ -703,7 +703,7 @@ protected:
 class Create_func_degrees : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_degrees s_singleton;
 
@@ -743,7 +743,7 @@ protected:
 class Create_func_dimension : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_dimension s_singleton;
 
@@ -758,7 +758,7 @@ protected:
 class Create_func_disjoint : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_disjoint s_singleton;
 
@@ -785,7 +785,7 @@ protected:
 class Create_func_encode : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_encode s_singleton;
 
@@ -812,7 +812,7 @@ protected:
 class Create_func_endpoint : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_endpoint s_singleton;
 
@@ -827,7 +827,7 @@ protected:
 class Create_func_envelope : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_envelope s_singleton;
 
@@ -842,7 +842,7 @@ protected:
 class Create_func_equals : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_equals s_singleton;
 
@@ -856,7 +856,7 @@ protected:
 class Create_func_exp : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_exp s_singleton;
 
@@ -883,7 +883,7 @@ protected:
 class Create_func_exteriorring : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_exteriorring s_singleton;
 
@@ -910,7 +910,7 @@ protected:
 class Create_func_find_in_set : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_find_in_set s_singleton;
 
@@ -923,7 +923,7 @@ protected:
 class Create_func_floor : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_floor s_singleton;
 
@@ -949,7 +949,7 @@ protected:
 class Create_func_found_rows : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_found_rows s_singleton;
 
@@ -962,7 +962,7 @@ protected:
 class Create_func_from_days : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_from_days s_singleton;
 
@@ -1019,7 +1019,7 @@ protected:
 class Create_func_geometry_type : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_geometry_type s_singleton;
 
@@ -1034,7 +1034,7 @@ protected:
 class Create_func_geometryn : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_geometryn s_singleton;
 
@@ -1048,7 +1048,7 @@ protected:
 class Create_func_get_lock : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_get_lock s_singleton;
 
@@ -1062,7 +1062,7 @@ protected:
 class Create_func_glength : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_glength s_singleton;
 
@@ -1089,7 +1089,7 @@ protected:
 class Create_func_hex : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_hex s_singleton;
 
@@ -1102,7 +1102,7 @@ protected:
 class Create_func_ifnull : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_ifnull s_singleton;
 
@@ -1115,7 +1115,7 @@ protected:
 class Create_func_inet_ntoa : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_inet_ntoa s_singleton;
 
@@ -1128,7 +1128,7 @@ protected:
 class Create_func_inet_aton : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_inet_aton s_singleton;
 
@@ -1141,7 +1141,7 @@ protected:
 class Create_func_instr : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_instr s_singleton;
 
@@ -1155,7 +1155,7 @@ protected:
 class Create_func_interiorringn : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_interiorringn s_singleton;
 
@@ -1170,7 +1170,7 @@ protected:
 class Create_func_intersects : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_intersects s_singleton;
 
@@ -1184,7 +1184,7 @@ protected:
 class Create_func_is_free_lock : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_is_free_lock s_singleton;
 
@@ -1197,7 +1197,7 @@ protected:
 class Create_func_is_used_lock : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_is_used_lock s_singleton;
 
@@ -1211,7 +1211,7 @@ protected:
 class Create_func_isclosed : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_isclosed s_singleton;
 
@@ -1226,7 +1226,7 @@ protected:
 class Create_func_isempty : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_isempty s_singleton;
 
@@ -1240,7 +1240,7 @@ protected:
 class Create_func_isnull : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_isnull s_singleton;
 
@@ -1254,7 +1254,7 @@ protected:
 class Create_func_issimple : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_issimple s_singleton;
 
@@ -1268,7 +1268,7 @@ protected:
 class Create_func_last_day : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_last_day s_singleton;
 
@@ -1294,7 +1294,7 @@ protected:
 class Create_func_lcase : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_lcase s_singleton;
 
@@ -1320,7 +1320,7 @@ protected:
 class Create_func_length : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_length s_singleton;
 
@@ -1333,7 +1333,7 @@ protected:
 class Create_func_ln : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_ln s_singleton;
 
@@ -1346,7 +1346,7 @@ protected:
 class Create_func_load_file : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_load_file s_singleton;
 
@@ -1385,7 +1385,7 @@ protected:
 class Create_func_log10 : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_log10 s_singleton;
 
@@ -1398,7 +1398,7 @@ protected:
 class Create_func_log2 : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_log2 s_singleton;
 
@@ -1411,7 +1411,7 @@ protected:
 class Create_func_lpad : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_lpad s_singleton;
 
@@ -1424,7 +1424,7 @@ protected:
 class Create_func_ltrim : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_ltrim s_singleton;
 
@@ -1437,7 +1437,7 @@ protected:
 class Create_func_makedate : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_makedate s_singleton;
 
@@ -1450,7 +1450,7 @@ protected:
 class Create_func_maketime : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_maketime s_singleton;
 
@@ -1489,7 +1489,7 @@ protected:
 class Create_func_md5 : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_md5 s_singleton;
 
@@ -1502,7 +1502,7 @@ protected:
 class Create_func_monthname : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_monthname s_singleton;
 
@@ -1515,7 +1515,7 @@ protected:
 class Create_func_name_const : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_name_const s_singleton;
 
@@ -1528,7 +1528,7 @@ protected:
 class Create_func_nullif : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_nullif s_singleton;
 
@@ -1542,7 +1542,7 @@ protected:
 class Create_func_numgeometries : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_numgeometries s_singleton;
 
@@ -1557,7 +1557,7 @@ protected:
 class Create_func_numinteriorring : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_numinteriorring s_singleton;
 
@@ -1572,7 +1572,7 @@ protected:
 class Create_func_numpoints : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_numpoints s_singleton;
 
@@ -1586,7 +1586,7 @@ protected:
 class Create_func_oct : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_oct s_singleton;
 
@@ -1599,7 +1599,7 @@ protected:
 class Create_func_ord : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_ord s_singleton;
 
@@ -1613,7 +1613,7 @@ protected:
 class Create_func_overlaps : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_overlaps s_singleton;
 
@@ -1627,7 +1627,7 @@ protected:
 class Create_func_period_add : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_period_add s_singleton;
 
@@ -1640,7 +1640,7 @@ protected:
 class Create_func_period_diff : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_period_diff s_singleton;
 
@@ -1653,7 +1653,7 @@ protected:
 class Create_func_pi : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_pi s_singleton;
 
@@ -1667,7 +1667,7 @@ protected:
 class Create_func_pointn : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_pointn s_singleton;
 
@@ -1681,7 +1681,7 @@ protected:
 class Create_func_pow : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_pow s_singleton;
 
@@ -1694,7 +1694,7 @@ protected:
 class Create_func_quote : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_quote s_singleton;
 
@@ -1707,7 +1707,7 @@ protected:
 class Create_func_radians : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_radians s_singleton;
 
@@ -1733,7 +1733,7 @@ protected:
 class Create_func_release_lock : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_release_lock s_singleton;
 
@@ -1746,7 +1746,7 @@ protected:
 class Create_func_reverse : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_reverse s_singleton;
 
@@ -1772,7 +1772,7 @@ protected:
 class Create_func_row_count : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_row_count s_singleton;
 
@@ -1785,7 +1785,7 @@ protected:
 class Create_func_rpad : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_rpad s_singleton;
 
@@ -1798,7 +1798,7 @@ protected:
 class Create_func_rtrim : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_rtrim s_singleton;
 
@@ -1811,7 +1811,7 @@ protected:
 class Create_func_sec_to_time : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sec_to_time s_singleton;
 
@@ -1824,7 +1824,7 @@ protected:
 class Create_func_sha : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sha s_singleton;
 
@@ -1850,7 +1850,7 @@ protected:
 class Create_func_sign : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sign s_singleton;
 
@@ -1863,7 +1863,7 @@ protected:
 class Create_func_sin : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sin s_singleton;
 
@@ -1876,7 +1876,7 @@ protected:
 class Create_func_sleep : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sleep s_singleton;
 
@@ -1889,7 +1889,7 @@ protected:
 class Create_func_soundex : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_soundex s_singleton;
 
@@ -1902,7 +1902,7 @@ protected:
 class Create_func_space : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_space s_singleton;
 
@@ -1915,7 +1915,7 @@ protected:
 class Create_func_sqrt : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_sqrt s_singleton;
 
@@ -1929,7 +1929,7 @@ protected:
 class Create_func_srid : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_srid s_singleton;
 
@@ -1944,7 +1944,7 @@ protected:
 class Create_func_startpoint : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_startpoint s_singleton;
 
@@ -1958,7 +1958,7 @@ protected:
 class Create_func_str_to_date : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_str_to_date s_singleton;
 
@@ -1971,7 +1971,7 @@ protected:
 class Create_func_strcmp : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_strcmp s_singleton;
 
@@ -1984,7 +1984,7 @@ protected:
 class Create_func_substr_index : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_substr_index s_singleton;
 
@@ -1997,7 +1997,7 @@ protected:
 class Create_func_subtime : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_subtime s_singleton;
 
@@ -2010,7 +2010,7 @@ protected:
 class Create_func_tan : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_tan s_singleton;
 
@@ -2023,7 +2023,7 @@ protected:
 class Create_func_time_format : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_time_format s_singleton;
 
@@ -2036,7 +2036,7 @@ protected:
 class Create_func_time_to_sec : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_time_to_sec s_singleton;
 
@@ -2049,7 +2049,7 @@ protected:
 class Create_func_timediff : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_timediff s_singleton;
 
@@ -2062,7 +2062,7 @@ protected:
 class Create_func_to_days : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_to_days s_singleton;
 
@@ -2088,7 +2088,7 @@ protected:
 class Create_func_touches : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_touches s_singleton;
 
@@ -2102,7 +2102,7 @@ protected:
 class Create_func_ucase : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_ucase s_singleton;
 
@@ -2115,7 +2115,7 @@ protected:
 class Create_func_uncompress : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_uncompress s_singleton;
 
@@ -2128,7 +2128,7 @@ protected:
 class Create_func_uncompressed_length : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_uncompressed_length s_singleton;
 
@@ -2141,7 +2141,7 @@ protected:
 class Create_func_unhex : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_unhex s_singleton;
 
@@ -2167,7 +2167,7 @@ protected:
 class Create_func_uuid : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_uuid s_singleton;
 
@@ -2180,7 +2180,7 @@ protected:
 class Create_func_uuid_short : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_uuid_short s_singleton;
 
@@ -2193,7 +2193,7 @@ protected:
 class Create_func_version : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_version s_singleton;
 
@@ -2206,7 +2206,7 @@ protected:
 class Create_func_weekday : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_weekday s_singleton;
 
@@ -2219,7 +2219,7 @@ protected:
 class Create_func_weekofyear : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_weekofyear s_singleton;
 
@@ -2233,7 +2233,7 @@ protected:
 class Create_func_within : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_within s_singleton;
 
@@ -2248,7 +2248,7 @@ protected:
 class Create_func_x : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_x s_singleton;
 
@@ -2262,7 +2262,7 @@ protected:
 class Create_func_xml_extractvalue : public Create_func_arg2
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+  virtual Item *create_2_arg(THD *thd, Item *arg1, Item *arg2);
 
   static Create_func_xml_extractvalue s_singleton;
 
@@ -2275,7 +2275,7 @@ protected:
 class Create_func_xml_update : public Create_func_arg3
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1, Item *arg2, Item *arg3);
+  virtual Item *create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3);
 
   static Create_func_xml_update s_singleton;
 
@@ -2289,7 +2289,7 @@ protected:
 class Create_func_y : public Create_func_arg1
 {
 public:
-  virtual Item *create(THD *thd, Item *arg1);
+  virtual Item *create_1_arg(THD *thd, Item *arg1);
 
   static Create_func_y s_singleton;
 
@@ -2384,7 +2384,7 @@ Create_qfunc::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
   if (thd->lex->copy_db_to(&db.str, &db.length))
     return NULL;
 
-  return create(thd, db, name, false, item_list);
+  return create_with_db(thd, db, name, false, item_list);
 }
 
 
@@ -2502,8 +2502,8 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
 Create_sp_func Create_sp_func::s_singleton;
 
 Item*
-Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, List<Item> *item_list)
+Create_sp_func::create_with_db(THD *thd, LEX_STRING db, LEX_STRING name,
+                               bool use_explicit_name, List<Item> *item_list)
 {
   int arg_count= 0;
   Item *func= NULL;
@@ -2570,7 +2570,7 @@ Create_func_arg0::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
     return NULL;
   }
 
-  return create(thd);
+  return create_builder(thd);
 }
 
 
@@ -2596,7 +2596,7 @@ Create_func_arg1::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
     return NULL;
   }
 
-  return create(thd, param_1);
+  return create_1_arg(thd, param_1);
 }
 
 
@@ -2624,7 +2624,7 @@ Create_func_arg2::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
     return NULL;
   }
 
-  return create(thd, param_1, param_2);
+  return create_2_arg(thd, param_1, param_2);
 }
 
 
@@ -2654,14 +2654,14 @@ Create_func_arg3::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
     return NULL;
   }
 
-  return create(thd, param_1, param_2, param_3);
+  return create_3_arg(thd, param_1, param_2, param_3);
 }
 
 
 Create_func_abs Create_func_abs::s_singleton;
 
 Item*
-Create_func_abs::create(THD *thd, Item *arg1)
+Create_func_abs::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_abs(arg1);
 }
@@ -2670,7 +2670,7 @@ Create_func_abs::create(THD *thd, Item *arg1)
 Create_func_acos Create_func_acos::s_singleton;
 
 Item*
-Create_func_acos::create(THD *thd, Item *arg1)
+Create_func_acos::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_acos(arg1);
 }
@@ -2679,7 +2679,7 @@ Create_func_acos::create(THD *thd, Item *arg1)
 Create_func_addtime Create_func_addtime::s_singleton;
 
 Item*
-Create_func_addtime::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_addtime::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_add_time(arg1, arg2, 0, 0);
 }
@@ -2688,7 +2688,7 @@ Create_func_addtime::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_aes_encrypt Create_func_aes_encrypt::s_singleton;
 
 Item*
-Create_func_aes_encrypt::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_aes_encrypt::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_aes_encrypt(arg1, arg2);
 }
@@ -2697,7 +2697,7 @@ Create_func_aes_encrypt::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_aes_decrypt Create_func_aes_decrypt::s_singleton;
 
 Item*
-Create_func_aes_decrypt::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_aes_decrypt::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_aes_decrypt(arg1, arg2);
 }
@@ -2707,7 +2707,7 @@ Create_func_aes_decrypt::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_area Create_func_area::s_singleton;
 
 Item*
-Create_func_area::create(THD *thd, Item *arg1)
+Create_func_area::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_area(arg1);
 }
@@ -2718,7 +2718,7 @@ Create_func_area::create(THD *thd, Item *arg1)
 Create_func_as_wkb Create_func_as_wkb::s_singleton;
 
 Item*
-Create_func_as_wkb::create(THD *thd, Item *arg1)
+Create_func_as_wkb::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_as_wkb(arg1);
 }
@@ -2729,7 +2729,7 @@ Create_func_as_wkb::create(THD *thd, Item *arg1)
 Create_func_as_wkt Create_func_as_wkt::s_singleton;
 
 Item*
-Create_func_as_wkt::create(THD *thd, Item *arg1)
+Create_func_as_wkt::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_as_wkt(arg1);
 }
@@ -2739,7 +2739,7 @@ Create_func_as_wkt::create(THD *thd, Item *arg1)
 Create_func_asin Create_func_asin::s_singleton;
 
 Item*
-Create_func_asin::create(THD *thd, Item *arg1)
+Create_func_asin::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_asin(arg1);
 }
@@ -2785,7 +2785,7 @@ Create_func_atan::create_native(THD *thd, LEX_STRING name,
 Create_func_benchmark Create_func_benchmark::s_singleton;
 
 Item*
-Create_func_benchmark::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_benchmark::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_benchmark(arg1, arg2);
@@ -2795,7 +2795,7 @@ Create_func_benchmark::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_bin Create_func_bin::s_singleton;
 
 Item*
-Create_func_bin::create(THD *thd, Item *arg1)
+Create_func_bin::create_1_arg(THD *thd, Item *arg1)
 {
   Item *i10= new (thd->mem_root) Item_int((int32) 10,2);
   Item *i2= new (thd->mem_root) Item_int((int32) 2,1);
@@ -2806,7 +2806,7 @@ Create_func_bin::create(THD *thd, Item *arg1)
 Create_func_bit_count Create_func_bit_count::s_singleton;
 
 Item*
-Create_func_bit_count::create(THD *thd, Item *arg1)
+Create_func_bit_count::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_bit_count(arg1);
 }
@@ -2815,7 +2815,7 @@ Create_func_bit_count::create(THD *thd, Item *arg1)
 Create_func_bit_length Create_func_bit_length::s_singleton;
 
 Item*
-Create_func_bit_length::create(THD *thd, Item *arg1)
+Create_func_bit_length::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_bit_length(arg1);
 }
@@ -2824,7 +2824,7 @@ Create_func_bit_length::create(THD *thd, Item *arg1)
 Create_func_ceiling Create_func_ceiling::s_singleton;
 
 Item*
-Create_func_ceiling::create(THD *thd, Item *arg1)
+Create_func_ceiling::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_ceiling(arg1);
 }
@@ -2834,7 +2834,7 @@ Create_func_ceiling::create(THD *thd, Item *arg1)
 Create_func_centroid Create_func_centroid::s_singleton;
 
 Item*
-Create_func_centroid::create(THD *thd, Item *arg1)
+Create_func_centroid::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_centroid(arg1);
 }
@@ -2844,7 +2844,7 @@ Create_func_centroid::create(THD *thd, Item *arg1)
 Create_func_char_length Create_func_char_length::s_singleton;
 
 Item*
-Create_func_char_length::create(THD *thd, Item *arg1)
+Create_func_char_length::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_char_length(arg1);
 }
@@ -2853,7 +2853,7 @@ Create_func_char_length::create(THD *thd, Item *arg1)
 Create_func_coercibility Create_func_coercibility::s_singleton;
 
 Item*
-Create_func_coercibility::create(THD *thd, Item *arg1)
+Create_func_coercibility::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_coercibility(arg1);
 }
@@ -2905,7 +2905,7 @@ Create_func_concat_ws::create_native(THD *thd, LEX_STRING name,
 Create_func_compress Create_func_compress::s_singleton;
 
 Item*
-Create_func_compress::create(THD *thd, Item *arg1)
+Create_func_compress::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_compress(arg1);
 }
@@ -2914,7 +2914,7 @@ Create_func_compress::create(THD *thd, Item *arg1)
 Create_func_connection_id Create_func_connection_id::s_singleton;
 
 Item*
-Create_func_connection_id::create(THD *thd)
+Create_func_connection_id::create_builder(THD *thd)
 {
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_connection_id();
@@ -2925,7 +2925,7 @@ Create_func_connection_id::create(THD *thd)
 Create_func_contains Create_func_contains::s_singleton;
 
 Item*
-Create_func_contains::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_contains::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_CONTAINS_FUNC);
@@ -2936,7 +2936,7 @@ Create_func_contains::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_conv Create_func_conv::s_singleton;
 
 Item*
-Create_func_conv::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_conv::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_conv(arg1, arg2, arg3);
 }
@@ -2945,7 +2945,7 @@ Create_func_conv::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_convert_tz Create_func_convert_tz::s_singleton;
 
 Item*
-Create_func_convert_tz::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_convert_tz::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_convert_tz(arg1, arg2, arg3);
 }
@@ -2954,7 +2954,7 @@ Create_func_convert_tz::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_cos Create_func_cos::s_singleton;
 
 Item*
-Create_func_cos::create(THD *thd, Item *arg1)
+Create_func_cos::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_cos(arg1);
 }
@@ -2963,7 +2963,7 @@ Create_func_cos::create(THD *thd, Item *arg1)
 Create_func_cot Create_func_cot::s_singleton;
 
 Item*
-Create_func_cot::create(THD *thd, Item *arg1)
+Create_func_cot::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_cot(arg1);
 }
@@ -2972,7 +2972,7 @@ Create_func_cot::create(THD *thd, Item *arg1)
 Create_func_crc32 Create_func_crc32::s_singleton;
 
 Item*
-Create_func_crc32::create(THD *thd, Item *arg1)
+Create_func_crc32::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_crc32(arg1);
 }
@@ -2982,7 +2982,7 @@ Create_func_crc32::create(THD *thd, Item *arg1)
 Create_func_crosses Create_func_crosses::s_singleton;
 
 Item*
-Create_func_crosses::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_crosses::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_CROSSES_FUNC);
@@ -2993,7 +2993,7 @@ Create_func_crosses::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_date_format Create_func_date_format::s_singleton;
 
 Item*
-Create_func_date_format::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_date_format::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_date_format(arg1, arg2, 0);
 }
@@ -3002,7 +3002,7 @@ Create_func_date_format::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_datediff Create_func_datediff::s_singleton;
 
 Item*
-Create_func_datediff::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_datediff::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   Item *i1= new (thd->mem_root) Item_func_to_days(arg1);
   Item *i2= new (thd->mem_root) Item_func_to_days(arg2);
@@ -3014,7 +3014,7 @@ Create_func_datediff::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_dayname Create_func_dayname::s_singleton;
 
 Item*
-Create_func_dayname::create(THD *thd, Item *arg1)
+Create_func_dayname::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_dayname(arg1);
 }
@@ -3023,7 +3023,7 @@ Create_func_dayname::create(THD *thd, Item *arg1)
 Create_func_dayofmonth Create_func_dayofmonth::s_singleton;
 
 Item*
-Create_func_dayofmonth::create(THD *thd, Item *arg1)
+Create_func_dayofmonth::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_dayofmonth(arg1);
 }
@@ -3032,7 +3032,7 @@ Create_func_dayofmonth::create(THD *thd, Item *arg1)
 Create_func_dayofweek Create_func_dayofweek::s_singleton;
 
 Item*
-Create_func_dayofweek::create(THD *thd, Item *arg1)
+Create_func_dayofweek::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_weekday(arg1, 1);
 }
@@ -3041,7 +3041,7 @@ Create_func_dayofweek::create(THD *thd, Item *arg1)
 Create_func_dayofyear Create_func_dayofyear::s_singleton;
 
 Item*
-Create_func_dayofyear::create(THD *thd, Item *arg1)
+Create_func_dayofyear::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_dayofyear(arg1);
 }
@@ -3050,7 +3050,7 @@ Create_func_dayofyear::create(THD *thd, Item *arg1)
 Create_func_decode Create_func_decode::s_singleton;
 
 Item*
-Create_func_decode::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_decode::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_decode(arg1, arg2);
 }
@@ -3059,7 +3059,7 @@ Create_func_decode::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_degrees Create_func_degrees::s_singleton;
 
 Item*
-Create_func_degrees::create(THD *thd, Item *arg1)
+Create_func_degrees::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_units((char*) "degrees", arg1,
                                              180/M_PI, 0.0);
@@ -3144,7 +3144,7 @@ Create_func_des_encrypt::create_native(THD *thd, LEX_STRING name,
 Create_func_dimension Create_func_dimension::s_singleton;
 
 Item*
-Create_func_dimension::create(THD *thd, Item *arg1)
+Create_func_dimension::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_dimension(arg1);
 }
@@ -3155,7 +3155,7 @@ Create_func_dimension::create(THD *thd, Item *arg1)
 Create_func_disjoint Create_func_disjoint::s_singleton;
 
 Item*
-Create_func_disjoint::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_disjoint::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_DISJOINT_FUNC);
@@ -3187,7 +3187,7 @@ Create_func_elt::create_native(THD *thd, LEX_STRING name,
 Create_func_encode Create_func_encode::s_singleton;
 
 Item*
-Create_func_encode::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_encode::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_encode(arg1, arg2);
 }
@@ -3235,7 +3235,7 @@ Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
 Create_func_endpoint Create_func_endpoint::s_singleton;
 
 Item*
-Create_func_endpoint::create(THD *thd, Item *arg1)
+Create_func_endpoint::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_ENDPOINT);
@@ -3247,7 +3247,7 @@ Create_func_endpoint::create(THD *thd, Item *arg1)
 Create_func_envelope Create_func_envelope::s_singleton;
 
 Item*
-Create_func_envelope::create(THD *thd, Item *arg1)
+Create_func_envelope::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_envelope(arg1);
 }
@@ -3258,7 +3258,7 @@ Create_func_envelope::create(THD *thd, Item *arg1)
 Create_func_equals Create_func_equals::s_singleton;
 
 Item*
-Create_func_equals::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_equals::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_EQUALS_FUNC);
@@ -3269,7 +3269,7 @@ Create_func_equals::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_exp Create_func_exp::s_singleton;
 
 Item*
-Create_func_exp::create(THD *thd, Item *arg1)
+Create_func_exp::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_exp(arg1);
 }
@@ -3332,7 +3332,7 @@ Create_func_export_set::create_native(THD *thd, LEX_STRING name,
 Create_func_exteriorring Create_func_exteriorring::s_singleton;
 
 Item*
-Create_func_exteriorring::create(THD *thd, Item *arg1)
+Create_func_exteriorring::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_EXTERIORRING);
@@ -3364,7 +3364,7 @@ Create_func_field::create_native(THD *thd, LEX_STRING name,
 Create_func_find_in_set Create_func_find_in_set::s_singleton;
 
 Item*
-Create_func_find_in_set::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_find_in_set::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_find_in_set(arg1, arg2);
 }
@@ -3373,7 +3373,7 @@ Create_func_find_in_set::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_floor Create_func_floor::s_singleton;
 
 Item*
-Create_func_floor::create(THD *thd, Item *arg1)
+Create_func_floor::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_floor(arg1);
 }
@@ -3416,7 +3416,7 @@ Create_func_format::create_native(THD *thd, LEX_STRING name,
 Create_func_found_rows Create_func_found_rows::s_singleton;
 
 Item*
-Create_func_found_rows::create(THD *thd)
+Create_func_found_rows::create_builder(THD *thd)
 {
   DBUG_ENTER("Create_func_found_rows::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -3428,7 +3428,7 @@ Create_func_found_rows::create(THD *thd)
 Create_func_from_days Create_func_from_days::s_singleton;
 
 Item*
-Create_func_from_days::create(THD *thd, Item *arg1)
+Create_func_from_days::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_from_days(arg1);
 }
@@ -3556,7 +3556,7 @@ Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
 Create_func_geometry_type Create_func_geometry_type::s_singleton;
 
 Item*
-Create_func_geometry_type::create(THD *thd, Item *arg1)
+Create_func_geometry_type::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_geometry_type(arg1);
 }
@@ -3567,7 +3567,7 @@ Create_func_geometry_type::create(THD *thd, Item *arg1)
 Create_func_geometryn Create_func_geometryn::s_singleton;
 
 Item*
-Create_func_geometryn::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_geometryn::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_GEOMETRYN);
@@ -3578,7 +3578,7 @@ Create_func_geometryn::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_get_lock Create_func_get_lock::s_singleton;
 
 Item*
-Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_get_lock::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -3590,7 +3590,7 @@ Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_glength Create_func_glength::s_singleton;
 
 Item*
-Create_func_glength::create(THD *thd, Item *arg1)
+Create_func_glength::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_glength(arg1);
 }
@@ -3621,7 +3621,7 @@ Create_func_greatest::create_native(THD *thd, LEX_STRING name,
 Create_func_hex Create_func_hex::s_singleton;
 
 Item*
-Create_func_hex::create(THD *thd, Item *arg1)
+Create_func_hex::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_hex(arg1);
 }
@@ -3630,7 +3630,7 @@ Create_func_hex::create(THD *thd, Item *arg1)
 Create_func_ifnull Create_func_ifnull::s_singleton;
 
 Item*
-Create_func_ifnull::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_ifnull::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_ifnull(arg1, arg2);
 }
@@ -3639,7 +3639,7 @@ Create_func_ifnull::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_inet_ntoa Create_func_inet_ntoa::s_singleton;
 
 Item*
-Create_func_inet_ntoa::create(THD *thd, Item *arg1)
+Create_func_inet_ntoa::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_inet_ntoa(arg1);
 }
@@ -3648,7 +3648,7 @@ Create_func_inet_ntoa::create(THD *thd, Item *arg1)
 Create_func_inet_aton Create_func_inet_aton::s_singleton;
 
 Item*
-Create_func_inet_aton::create(THD *thd, Item *arg1)
+Create_func_inet_aton::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_inet_aton(arg1);
 }
@@ -3657,7 +3657,7 @@ Create_func_inet_aton::create(THD *thd, Item *arg1)
 Create_func_instr Create_func_instr::s_singleton;
 
 Item*
-Create_func_instr::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_instr::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_locate(arg1, arg2);
 }
@@ -3667,7 +3667,7 @@ Create_func_instr::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_interiorringn Create_func_interiorringn::s_singleton;
 
 Item*
-Create_func_interiorringn::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_interiorringn::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_INTERIORRINGN);
@@ -3679,7 +3679,7 @@ Create_func_interiorringn::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_intersects Create_func_intersects::s_singleton;
 
 Item*
-Create_func_intersects::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_intersects::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_INTERSECTS_FUNC);
@@ -3690,7 +3690,7 @@ Create_func_intersects::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_is_free_lock Create_func_is_free_lock::s_singleton;
 
 Item*
-Create_func_is_free_lock::create(THD *thd, Item *arg1)
+Create_func_is_free_lock::create_1_arg(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -3701,7 +3701,7 @@ Create_func_is_free_lock::create(THD *thd, Item *arg1)
 Create_func_is_used_lock Create_func_is_used_lock::s_singleton;
 
 Item*
-Create_func_is_used_lock::create(THD *thd, Item *arg1)
+Create_func_is_used_lock::create_1_arg(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -3713,7 +3713,7 @@ Create_func_is_used_lock::create(THD *thd, Item *arg1)
 Create_func_isclosed Create_func_isclosed::s_singleton;
 
 Item*
-Create_func_isclosed::create(THD *thd, Item *arg1)
+Create_func_isclosed::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_isclosed(arg1);
 }
@@ -3724,7 +3724,7 @@ Create_func_isclosed::create(THD *thd, Item *arg1)
 Create_func_isempty Create_func_isempty::s_singleton;
 
 Item*
-Create_func_isempty::create(THD *thd, Item *arg1)
+Create_func_isempty::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_isempty(arg1);
 }
@@ -3734,7 +3734,7 @@ Create_func_isempty::create(THD *thd, Item *arg1)
 Create_func_isnull Create_func_isnull::s_singleton;
 
 Item*
-Create_func_isnull::create(THD *thd, Item *arg1)
+Create_func_isnull::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_isnull(arg1);
 }
@@ -3744,7 +3744,7 @@ Create_func_isnull::create(THD *thd, Item *arg1)
 Create_func_issimple Create_func_issimple::s_singleton;
 
 Item*
-Create_func_issimple::create(THD *thd, Item *arg1)
+Create_func_issimple::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_issimple(arg1);
 }
@@ -3754,7 +3754,7 @@ Create_func_issimple::create(THD *thd, Item *arg1)
 Create_func_last_day Create_func_last_day::s_singleton;
 
 Item*
-Create_func_last_day::create(THD *thd, Item *arg1)
+Create_func_last_day::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_last_day(arg1);
 }
@@ -3800,7 +3800,7 @@ Create_func_last_insert_id::create_native(THD *thd, LEX_STRING name,
 Create_func_lcase Create_func_lcase::s_singleton;
 
 Item*
-Create_func_lcase::create(THD *thd, Item *arg1)
+Create_func_lcase::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_lcase(arg1);
 }
@@ -3830,7 +3830,7 @@ Create_func_least::create_native(THD *thd, LEX_STRING name,
 Create_func_length Create_func_length::s_singleton;
 
 Item*
-Create_func_length::create(THD *thd, Item *arg1)
+Create_func_length::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_length(arg1);
 }
@@ -3839,7 +3839,7 @@ Create_func_length::create(THD *thd, Item *arg1)
 Create_func_ln Create_func_ln::s_singleton;
 
 Item*
-Create_func_ln::create(THD *thd, Item *arg1)
+Create_func_ln::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_ln(arg1);
 }
@@ -3848,7 +3848,7 @@ Create_func_ln::create(THD *thd, Item *arg1)
 Create_func_load_file Create_func_load_file::s_singleton;
 
 Item*
-Create_func_load_file::create(THD *thd, Item *arg1)
+Create_func_load_file::create_1_arg(THD *thd, Item *arg1)
 {
   DBUG_ENTER("Create_func_load_file::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -3938,7 +3938,7 @@ Create_func_log::create_native(THD *thd, LEX_STRING name,
 Create_func_log10 Create_func_log10::s_singleton;
 
 Item*
-Create_func_log10::create(THD *thd, Item *arg1)
+Create_func_log10::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_log10(arg1);
 }
@@ -3947,7 +3947,7 @@ Create_func_log10::create(THD *thd, Item *arg1)
 Create_func_log2 Create_func_log2::s_singleton;
 
 Item*
-Create_func_log2::create(THD *thd, Item *arg1)
+Create_func_log2::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_log2(arg1);
 }
@@ -3956,7 +3956,7 @@ Create_func_log2::create(THD *thd, Item *arg1)
 Create_func_lpad Create_func_lpad::s_singleton;
 
 Item*
-Create_func_lpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_lpad::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_lpad(arg1, arg2, arg3);
 }
@@ -3965,7 +3965,7 @@ Create_func_lpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_ltrim Create_func_ltrim::s_singleton;
 
 Item*
-Create_func_ltrim::create(THD *thd, Item *arg1)
+Create_func_ltrim::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_ltrim(arg1);
 }
@@ -3974,7 +3974,7 @@ Create_func_ltrim::create(THD *thd, Item *arg1)
 Create_func_makedate Create_func_makedate::s_singleton;
 
 Item*
-Create_func_makedate::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_makedate::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_makedate(arg1, arg2);
 }
@@ -3983,7 +3983,7 @@ Create_func_makedate::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_maketime Create_func_maketime::s_singleton;
 
 Item*
-Create_func_maketime::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_maketime::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_maketime(arg1, arg2, arg3);
 }
@@ -4058,7 +4058,7 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
 Create_func_md5 Create_func_md5::s_singleton;
 
 Item*
-Create_func_md5::create(THD *thd, Item *arg1)
+Create_func_md5::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_md5(arg1);
 }
@@ -4067,7 +4067,7 @@ Create_func_md5::create(THD *thd, Item *arg1)
 Create_func_monthname Create_func_monthname::s_singleton;
 
 Item*
-Create_func_monthname::create(THD *thd, Item *arg1)
+Create_func_monthname::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_monthname(arg1);
 }
@@ -4076,7 +4076,7 @@ Create_func_monthname::create(THD *thd, Item *arg1)
 Create_func_name_const Create_func_name_const::s_singleton;
 
 Item*
-Create_func_name_const::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_name_const::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_name_const(arg1, arg2);
 }
@@ -4085,7 +4085,7 @@ Create_func_name_const::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_nullif Create_func_nullif::s_singleton;
 
 Item*
-Create_func_nullif::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_nullif::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_nullif(arg1, arg2);
 }
@@ -4095,7 +4095,7 @@ Create_func_nullif::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_numgeometries Create_func_numgeometries::s_singleton;
 
 Item*
-Create_func_numgeometries::create(THD *thd, Item *arg1)
+Create_func_numgeometries::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numgeometries(arg1);
 }
@@ -4106,7 +4106,7 @@ Create_func_numgeometries::create(THD *thd, Item *arg1)
 Create_func_numinteriorring Create_func_numinteriorring::s_singleton;
 
 Item*
-Create_func_numinteriorring::create(THD *thd, Item *arg1)
+Create_func_numinteriorring::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numinteriorring(arg1);
 }
@@ -4117,7 +4117,7 @@ Create_func_numinteriorring::create(THD *thd, Item *arg1)
 Create_func_numpoints Create_func_numpoints::s_singleton;
 
 Item*
-Create_func_numpoints::create(THD *thd, Item *arg1)
+Create_func_numpoints::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numpoints(arg1);
 }
@@ -4127,7 +4127,7 @@ Create_func_numpoints::create(THD *thd, Item *arg1)
 Create_func_oct Create_func_oct::s_singleton;
 
 Item*
-Create_func_oct::create(THD *thd, Item *arg1)
+Create_func_oct::create_1_arg(THD *thd, Item *arg1)
 {
   Item *i10= new (thd->mem_root) Item_int((int32) 10,2);
   Item *i8= new (thd->mem_root) Item_int((int32) 8,1);
@@ -4138,7 +4138,7 @@ Create_func_oct::create(THD *thd, Item *arg1)
 Create_func_ord Create_func_ord::s_singleton;
 
 Item*
-Create_func_ord::create(THD *thd, Item *arg1)
+Create_func_ord::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_ord(arg1);
 }
@@ -4148,7 +4148,7 @@ Create_func_ord::create(THD *thd, Item *arg1)
 Create_func_overlaps Create_func_overlaps::s_singleton;
 
 Item*
-Create_func_overlaps::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_overlaps::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_OVERLAPS_FUNC);
@@ -4159,7 +4159,7 @@ Create_func_overlaps::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_period_add Create_func_period_add::s_singleton;
 
 Item*
-Create_func_period_add::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_period_add::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_period_add(arg1, arg2);
 }
@@ -4168,7 +4168,7 @@ Create_func_period_add::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_period_diff Create_func_period_diff::s_singleton;
 
 Item*
-Create_func_period_diff::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_period_diff::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_period_diff(arg1, arg2);
 }
@@ -4177,7 +4177,7 @@ Create_func_period_diff::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_pi Create_func_pi::s_singleton;
 
 Item*
-Create_func_pi::create(THD *thd)
+Create_func_pi::create_builder(THD *thd)
 {
   return new (thd->mem_root) Item_static_float_func("pi()", M_PI, 6, 8);
 }
@@ -4187,7 +4187,7 @@ Create_func_pi::create(THD *thd)
 Create_func_pointn Create_func_pointn::s_singleton;
 
 Item*
-Create_func_pointn::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_pointn::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_POINTN);
@@ -4198,7 +4198,7 @@ Create_func_pointn::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_pow Create_func_pow::s_singleton;
 
 Item*
-Create_func_pow::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_pow::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_pow(arg1, arg2);
 }
@@ -4207,7 +4207,7 @@ Create_func_pow::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_quote Create_func_quote::s_singleton;
 
 Item*
-Create_func_quote::create(THD *thd, Item *arg1)
+Create_func_quote::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_quote(arg1);
 }
@@ -4216,7 +4216,7 @@ Create_func_quote::create(THD *thd, Item *arg1)
 Create_func_radians Create_func_radians::s_singleton;
 
 Item*
-Create_func_radians::create(THD *thd, Item *arg1)
+Create_func_radians::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_units((char*) "radians", arg1,
                                              M_PI/180, 0.0);
@@ -4242,8 +4242,11 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
     into a table, the order in which the rows are modified may differ
     between master and slave, because the order is undefined.  Hence,
     the statement is unsafe to log in statement format.
+
+    For normal INSERT's this is howevever safe
   */
-  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  if (thd->lex->sql_command != SQLCOM_INSERT)
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
 
   switch (arg_count) {
   case 0:
@@ -4273,7 +4276,7 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
 Create_func_release_lock Create_func_release_lock::s_singleton;
 
 Item*
-Create_func_release_lock::create(THD *thd, Item *arg1)
+Create_func_release_lock::create_1_arg(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -4284,7 +4287,7 @@ Create_func_release_lock::create(THD *thd, Item *arg1)
 Create_func_reverse Create_func_reverse::s_singleton;
 
 Item*
-Create_func_reverse::create(THD *thd, Item *arg1)
+Create_func_reverse::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_reverse(arg1);
 }
@@ -4331,7 +4334,7 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
 Create_func_row_count Create_func_row_count::s_singleton;
 
 Item*
-Create_func_row_count::create(THD *thd)
+Create_func_row_count::create_builder(THD *thd)
 {
   DBUG_ENTER("Create_func_row_count::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -4343,7 +4346,7 @@ Create_func_row_count::create(THD *thd)
 Create_func_rpad Create_func_rpad::s_singleton;
 
 Item*
-Create_func_rpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_rpad::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_rpad(arg1, arg2, arg3);
 }
@@ -4352,7 +4355,7 @@ Create_func_rpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_rtrim Create_func_rtrim::s_singleton;
 
 Item*
-Create_func_rtrim::create(THD *thd, Item *arg1)
+Create_func_rtrim::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_rtrim(arg1);
 }
@@ -4361,7 +4364,7 @@ Create_func_rtrim::create(THD *thd, Item *arg1)
 Create_func_sec_to_time Create_func_sec_to_time::s_singleton;
 
 Item*
-Create_func_sec_to_time::create(THD *thd, Item *arg1)
+Create_func_sec_to_time::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_sec_to_time(arg1);
 }
@@ -4370,7 +4373,7 @@ Create_func_sec_to_time::create(THD *thd, Item *arg1)
 Create_func_sha Create_func_sha::s_singleton;
 
 Item*
-Create_func_sha::create(THD *thd, Item *arg1)
+Create_func_sha::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_sha(arg1);
 }
@@ -4388,7 +4391,7 @@ Create_func_sha2::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_sign Create_func_sign::s_singleton;
 
 Item*
-Create_func_sign::create(THD *thd, Item *arg1)
+Create_func_sign::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_sign(arg1);
 }
@@ -4397,7 +4400,7 @@ Create_func_sign::create(THD *thd, Item *arg1)
 Create_func_sin Create_func_sin::s_singleton;
 
 Item*
-Create_func_sin::create(THD *thd, Item *arg1)
+Create_func_sin::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_sin(arg1);
 }
@@ -4406,7 +4409,7 @@ Create_func_sin::create(THD *thd, Item *arg1)
 Create_func_sleep Create_func_sleep::s_singleton;
 
 Item*
-Create_func_sleep::create(THD *thd, Item *arg1)
+Create_func_sleep::create_1_arg(THD *thd, Item *arg1)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
@@ -4417,7 +4420,7 @@ Create_func_sleep::create(THD *thd, Item *arg1)
 Create_func_soundex Create_func_soundex::s_singleton;
 
 Item*
-Create_func_soundex::create(THD *thd, Item *arg1)
+Create_func_soundex::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_soundex(arg1);
 }
@@ -4426,7 +4429,7 @@ Create_func_soundex::create(THD *thd, Item *arg1)
 Create_func_space Create_func_space::s_singleton;
 
 Item*
-Create_func_space::create(THD *thd, Item *arg1)
+Create_func_space::create_1_arg(THD *thd, Item *arg1)
 {
   /**
     TODO: Fix Bug#23637
@@ -4454,7 +4457,7 @@ Create_func_space::create(THD *thd, Item *arg1)
 Create_func_sqrt Create_func_sqrt::s_singleton;
 
 Item*
-Create_func_sqrt::create(THD *thd, Item *arg1)
+Create_func_sqrt::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_sqrt(arg1);
 }
@@ -4464,7 +4467,7 @@ Create_func_sqrt::create(THD *thd, Item *arg1)
 Create_func_srid Create_func_srid::s_singleton;
 
 Item*
-Create_func_srid::create(THD *thd, Item *arg1)
+Create_func_srid::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_srid(arg1);
 }
@@ -4475,7 +4478,7 @@ Create_func_srid::create(THD *thd, Item *arg1)
 Create_func_startpoint Create_func_startpoint::s_singleton;
 
 Item*
-Create_func_startpoint::create(THD *thd, Item *arg1)
+Create_func_startpoint::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_STARTPOINT);
@@ -4486,7 +4489,7 @@ Create_func_startpoint::create(THD *thd, Item *arg1)
 Create_func_str_to_date Create_func_str_to_date::s_singleton;
 
 Item*
-Create_func_str_to_date::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_str_to_date::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_str_to_date(arg1, arg2);
 }
@@ -4495,7 +4498,7 @@ Create_func_str_to_date::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_strcmp Create_func_strcmp::s_singleton;
 
 Item*
-Create_func_strcmp::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_strcmp::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_strcmp(arg1, arg2);
 }
@@ -4504,7 +4507,7 @@ Create_func_strcmp::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_substr_index Create_func_substr_index::s_singleton;
 
 Item*
-Create_func_substr_index::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_substr_index::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_substr_index(arg1, arg2, arg3);
 }
@@ -4513,7 +4516,7 @@ Create_func_substr_index::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_subtime Create_func_subtime::s_singleton;
 
 Item*
-Create_func_subtime::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_subtime::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_add_time(arg1, arg2, 0, 1);
 }
@@ -4522,7 +4525,7 @@ Create_func_subtime::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_tan Create_func_tan::s_singleton;
 
 Item*
-Create_func_tan::create(THD *thd, Item *arg1)
+Create_func_tan::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_tan(arg1);
 }
@@ -4531,7 +4534,7 @@ Create_func_tan::create(THD *thd, Item *arg1)
 Create_func_time_format Create_func_time_format::s_singleton;
 
 Item*
-Create_func_time_format::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_time_format::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_date_format(arg1, arg2, 1);
 }
@@ -4540,7 +4543,7 @@ Create_func_time_format::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_time_to_sec Create_func_time_to_sec::s_singleton;
 
 Item*
-Create_func_time_to_sec::create(THD *thd, Item *arg1)
+Create_func_time_to_sec::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_time_to_sec(arg1);
 }
@@ -4549,7 +4552,7 @@ Create_func_time_to_sec::create(THD *thd, Item *arg1)
 Create_func_timediff Create_func_timediff::s_singleton;
 
 Item*
-Create_func_timediff::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_timediff::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_timediff(arg1, arg2);
 }
@@ -4558,7 +4561,7 @@ Create_func_timediff::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_to_days Create_func_to_days::s_singleton;
 
 Item*
-Create_func_to_days::create(THD *thd, Item *arg1)
+Create_func_to_days::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_to_days(arg1);
 }
@@ -4577,7 +4580,7 @@ Create_func_to_seconds::create(THD *thd, Item *arg1)
 Create_func_touches Create_func_touches::s_singleton;
 
 Item*
-Create_func_touches::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_touches::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_TOUCHES_FUNC);
@@ -4588,7 +4591,7 @@ Create_func_touches::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_ucase Create_func_ucase::s_singleton;
 
 Item*
-Create_func_ucase::create(THD *thd, Item *arg1)
+Create_func_ucase::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_ucase(arg1);
 }
@@ -4597,7 +4600,7 @@ Create_func_ucase::create(THD *thd, Item *arg1)
 Create_func_uncompress Create_func_uncompress::s_singleton;
 
 Item*
-Create_func_uncompress::create(THD *thd, Item *arg1)
+Create_func_uncompress::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_uncompress(arg1);
 }
@@ -4606,7 +4609,7 @@ Create_func_uncompress::create(THD *thd, Item *arg1)
 Create_func_uncompressed_length Create_func_uncompressed_length::s_singleton;
 
 Item*
-Create_func_uncompressed_length::create(THD *thd, Item *arg1)
+Create_func_uncompressed_length::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_uncompressed_length(arg1);
 }
@@ -4615,7 +4618,7 @@ Create_func_uncompressed_length::create(THD *thd, Item *arg1)
 Create_func_unhex Create_func_unhex::s_singleton;
 
 Item*
-Create_func_unhex::create(THD *thd, Item *arg1)
+Create_func_unhex::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_unhex(arg1);
 }
@@ -4660,7 +4663,7 @@ Create_func_unix_timestamp::create_native(THD *thd, LEX_STRING name,
 Create_func_uuid Create_func_uuid::s_singleton;
 
 Item*
-Create_func_uuid::create(THD *thd)
+Create_func_uuid::create_builder(THD *thd)
 {
   DBUG_ENTER("Create_func_uuid::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -4672,7 +4675,7 @@ Create_func_uuid::create(THD *thd)
 Create_func_uuid_short Create_func_uuid_short::s_singleton;
 
 Item*
-Create_func_uuid_short::create(THD *thd)
+Create_func_uuid_short::create_builder(THD *thd)
 {
   DBUG_ENTER("Create_func_uuid_short::create");
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -4684,7 +4687,7 @@ Create_func_uuid_short::create(THD *thd)
 Create_func_version Create_func_version::s_singleton;
 
 Item*
-Create_func_version::create(THD *thd)
+Create_func_version::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   return new (thd->mem_root) Item_static_string_func("version()",
@@ -4698,7 +4701,7 @@ Create_func_version::create(THD *thd)
 Create_func_weekday Create_func_weekday::s_singleton;
 
 Item*
-Create_func_weekday::create(THD *thd, Item *arg1)
+Create_func_weekday::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_weekday(arg1, 0);
 }
@@ -4707,7 +4710,7 @@ Create_func_weekday::create(THD *thd, Item *arg1)
 Create_func_weekofyear Create_func_weekofyear::s_singleton;
 
 Item*
-Create_func_weekofyear::create(THD *thd, Item *arg1)
+Create_func_weekofyear::create_1_arg(THD *thd, Item *arg1)
 {
   Item *i1= new (thd->mem_root) Item_int((char*) "0", 3, 1);
   return new (thd->mem_root) Item_func_week(arg1, i1);
@@ -4718,7 +4721,7 @@ Create_func_weekofyear::create(THD *thd, Item *arg1)
 Create_func_within Create_func_within::s_singleton;
 
 Item*
-Create_func_within::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_within::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_WITHIN_FUNC);
@@ -4730,7 +4733,7 @@ Create_func_within::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_x Create_func_x::s_singleton;
 
 Item*
-Create_func_x::create(THD *thd, Item *arg1)
+Create_func_x::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_x(arg1);
 }
@@ -4740,7 +4743,7 @@ Create_func_x::create(THD *thd, Item *arg1)
 Create_func_xml_extractvalue Create_func_xml_extractvalue::s_singleton;
 
 Item*
-Create_func_xml_extractvalue::create(THD *thd, Item *arg1, Item *arg2)
+Create_func_xml_extractvalue::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_xml_extractvalue(arg1, arg2);
 }
@@ -4749,7 +4752,7 @@ Create_func_xml_extractvalue::create(THD *thd, Item *arg1, Item *arg2)
 Create_func_xml_update Create_func_xml_update::s_singleton;
 
 Item*
-Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
+Create_func_xml_update::create_3_arg(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 {
   return new (thd->mem_root) Item_func_xml_update(arg1, arg2, arg3);
 }
@@ -4759,7 +4762,7 @@ Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 Create_func_y Create_func_y::s_singleton;
 
 Item*
-Create_func_y::create(THD *thd, Item *arg1)
+Create_func_y::create_1_arg(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_y(arg1);
 }

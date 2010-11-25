@@ -1,0 +1,21 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT,data CHAR(30)) ENGINE=InnoDB;
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff"),
+(2,"aaaaabbbbbcccccdddddeeeeefffff"),
+(3,"aaaaabbbbbcccccdddddeeeeefffff"),
+(4,"aaaaabbbbbcccccdddddeeeeefffff"),
+(5,"aaaaabbbbbcccccdddddeeeeefffff");
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+INSERT INTO t SELECT t2.id,t2.data from t as t1, t as t2;
+STOP SLAVE;
+START SLAVE;
+INSERT INTO t SELECT t.id,t.data from t;
+DROP TABLE IF EXISTS t;
+4

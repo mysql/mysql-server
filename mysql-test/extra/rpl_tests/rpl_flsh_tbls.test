@@ -8,9 +8,9 @@ source include/master-slave.inc;
 
 let $SERVER_VERSION=`select version()`;
 
-create table t1 (a int);
+create table t1 (a int) ENGINE=MyISAM;
 insert into t1 values (10);
-create table t2 (a int);
+create table t2 (a int) ENGINE=MyISAM;
 create table t3 (a int) engine=merge union(t1);
 create table t4 (a int);
 # We force the slave to open t3 (because we want to try confusing him) with this :

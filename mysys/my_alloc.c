@@ -21,7 +21,6 @@
 #undef EXTRA_DEBUG
 #define EXTRA_DEBUG
 
-
 /*
   Initialize memory root
 
@@ -56,7 +55,7 @@ void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
   mem_root->block_num= 4;			/* We shift this with >>2 */
   mem_root->first_block_usage= 0;
 
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if !(defined(HAVE_valgrind) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
   {
     if ((mem_root->free= mem_root->pre_alloc=
@@ -96,7 +95,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if !(defined(HAVE_valgrind) && defined(EXTRA_DEBUG))
   if (pre_alloc_size)
   {
     size_t size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
@@ -147,7 +146,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
 
 void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
-#if defined(HAVE_purify) && defined(EXTRA_DEBUG)
+#if defined(HAVE_valgrind) && defined(EXTRA_DEBUG)
   reg1 USED_MEM *next;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));

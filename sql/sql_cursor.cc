@@ -256,7 +256,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   thd->set_n_backup_active_arena(this, &backup_arena);
   /* Create a list of fields and start sequential scan */
   rc= result->prepare(item_list, &fake_unit);
-  if (!rc && !(rc= table->file->ha_rnd_init(TRUE)))
+  if (!rc && !(rc= table->file->ha_rnd_init_with_error(TRUE)))
     is_rnd_inited= 1;
 
   thd->restore_active_arena(this, &backup_arena);
@@ -303,7 +303,7 @@ void Materialized_cursor::fetch(ulong num_rows)
   result->begin_dataset();
   for (fetch_limit+= num_rows; fetch_count < fetch_limit; fetch_count++)
   {
-    if ((res= table->file->rnd_next(table->record[0])))
+    if ((res= table->file->ha_rnd_next(table->record[0])))
       break;
     /* Send data only if the read was successful. */
     /*
@@ -367,7 +367,9 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
-                          FALSE, thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, ""))
+                          FALSE,
+                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
+                          "", FALSE))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

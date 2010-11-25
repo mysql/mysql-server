@@ -15,7 +15,7 @@
 #
 
 MYSQL_STORAGE_ENGINE(innobase, innodb, [InnoDB Storage Engine],
-        [Transactional Tables using InnoDB], [default,max,max-no-ndb])
+        [Transactional Tables using InnoDB], [])
 MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
 MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
 MYSQL_PLUGIN_DYNAMIC(innobase,  [ha_innodb.la])

@@ -17,13 +17,176 @@
 
 config=".my.cnf.$$"
 command=".mysql.$$"
-mysql_client=""
 
 trap "interrupt" 2
 
 rootpass=""
 echo_n=
 echo_c=
+basedir=
+bindir=
+
+parse_arg()
+{
+  echo "$1" | sed -e 's/^[^=]*=//'
+}
+
+parse_arguments()
+{
+  # We only need to pass arguments through to the server if we don't
+  # handle them here.  So, we collect unrecognized options (passed on
+  # the command line) into the args variable.
+  pick_args=
+  if test "$1" = PICK-ARGS-FROM-ARGV
+  then
+    pick_args=1
+    shift
+  fi
+
+  for arg
+  do
+    case "$arg" in
+      --basedir=*) basedir=`parse_arg "$arg"` ;;
+      --no-defaults|--defaults-file=*|--defaults-extra-file=*)
+        defaults="$arg" ;;
+      *)
+        if test -n "$pick_args"
+        then
+          # This sed command makes sure that any special chars are quoted,
+          # so the arg gets passed exactly to the server.
+          # XXX: This is broken; true fix requires using eval and proper
+          # quoting of every single arg ($basedir, $ldata, etc.)
+          #args="$args "`echo "$arg" | sed -e 's,\([^a-zA-Z0-9_.-]\),\\\\\1,g'`
+          args="$args $arg"
+        fi
+        ;;
+    esac
+  done
+}
+
+# Try to find a specific file within --basedir which can either be a binary
+# release or installed source directory and return the path.
+find_in_basedir()
+{
+  return_dir=0
+  found=0
+  case "$1" in
+    --dir)
+      return_dir=1; shift
+      ;;
+  esac
+
+  file=$1; shift
+
+  for dir in "$@"
+  do
+    if test -f "$basedir/$dir/$file"
+    then
+      found=1
+      if test $return_dir -eq 1
+      then
+        echo "$basedir/$dir"
+      else
+        echo "$basedir/$dir/$file"
+      fi
+      break
+    fi
+  done
+
+  if test $found -eq 0
+  then
+      # Test if command is in PATH
+      $file --no-defaults --version > /dev/null 2>&1
+      status=$?
+      if test $status -eq 0
+      then
+        echo $file
+      fi
+  fi
+}
+
+cannot_find_file()
+{
+  echo
+  echo "FATAL ERROR: Could not find $1"
+
+  shift
+  if test $# -ne 0
+  then
+    echo
+    echo "The following directories were searched:"
+    echo
+    for dir in "$@"
+    do
+      echo "    $dir"
+    done
+  fi
+
+  echo
+  echo "If you compiled from source, you need to run 'make install' to"
+  echo "copy the software into the correct location ready for operation."
+  echo
+  echo "If you are using a binary release, you must either be at the top"
+  echo "level of the extracted archive, or pass the --basedir option"
+  echo "pointing to that location."
+  echo
+}
+
+# Ok, let's go.  We first need to parse arguments which are required by
+# my_print_defaults so that we can execute it first, then later re-parse
+# the command line to add any extra bits that we need.
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+#
+# We can now find my_print_defaults.  This script supports:
+#
+#   --srcdir=path pointing to compiled source tree
+#   --basedir=path pointing to installed binary location
+#
+# or default to compiled-in locations.
+#
+
+if test -n "$basedir"
+then
+  print_defaults=`find_in_basedir my_print_defaults bin extra`
+  echo "print: $print_defaults"
+  if test -z "$print_defaults"
+  then
+    cannot_find_file my_print_defaults $basedir/bin $basedir/extra
+    exit 1
+  fi
+else
+  print_defaults="@bindir@/my_print_defaults"
+fi
+
+if test ! -x "$print_defaults"
+then
+  cannot_find_file "$print_defaults"
+  exit 1
+fi
+
+# Now we can get arguments from the group [client]
+# in the my.cfg file, then re-run to merge with command line arguments.
+parse_arguments `$print_defaults $defaults client`
+parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+# Configure paths to support files
+if test -n "$basedir"
+then
+  bindir="$basedir/bin"
+elif test -f "./bin/mysql"
+  then
+  bindir="./bin"
+else
+  bindir="@bindir@"
+fi
+
+mysql_command=`find_in_basedir mysql $bindir`
+if test -z "$print_defaults"
+then
+  cannot_find_file mysql $bindir
+  exit 1
+fi
 
 set_echo_compat() {
     case `echo "testing\c"`,`echo -n testing` in
@@ -38,26 +201,10 @@ prepare() {
     chmod 600 $config $command
 }
 
-find_mysql_client()
-{
-  for n in ./bin/mysql mysql
-  do  
-    $n --no-defaults --help > /dev/null 2>&1
-    status=$?
-    if test $status -eq 0
-    then
-      mysql_client=$n
-      return
-    fi  
-  done
-  echo "Can't find a 'mysql' client in PATH or ./bin"
-  exit 1
-}
-
 do_query() {
     echo "$1" >$command
     #sed 's,^,> ,' < $command  # Debugging
-    $mysql_client --defaults-file=$config <$command
+    $bindir/mysql --defaults-file=$config <$command
     return $?
 }
 
@@ -225,16 +372,11 @@ find_mysql_client
 set_echo_compat
 
 echo
-echo
-echo
-echo
-echo "NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MySQL"
+echo "NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB"
 echo "      SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!"
 echo
-echo
-
-echo "In order to log into MySQL to secure it, we'll need the current"
-echo "password for the root user.  If you've just installed MySQL, and"
+echo "In order to log into MariaDB to secure it, we'll need the current"
+echo "password for the root user.  If you've just installed MariaDB, and"
 echo "you haven't set the root password yet, the password will be blank,"
 echo "so you should just press enter here."
 echo
@@ -246,7 +388,7 @@ get_root_password
 # Set the root password
 #
 
-echo "Setting the root password ensures that nobody can log into the MySQL"
+echo "Setting the root password ensures that nobody can log into the MariaDB"
 echo "root user without the proper authorisation."
 echo
 
@@ -275,8 +417,8 @@ echo
 # Remove anonymous users
 #
 
-echo "By default, a MySQL installation has an anonymous user, allowing anyone"
-echo "to log into MySQL without having to have a user account created for"
+echo "By default, a MariaDB installation has an anonymous user, allowing anyone"
+echo "to log into MariaDB without having to have a user account created for"
 echo "them.  This is intended only for testing, and to make the installation"
 echo "go a bit smoother.  You should remove them before moving into a"
 echo "production environment."
@@ -315,7 +457,7 @@ echo
 # Remove test database
 #
 
-echo "By default, MySQL comes with a database named 'test' that anyone can"
+echo "By default, MariaDB comes with a database named 'test' that anyone can"
 echo "access.  This is also intended only for testing, and should be removed"
 echo "before moving into a production environment."
 echo
@@ -350,13 +492,7 @@ echo
 cleanup
 
 echo
-echo
-echo
-echo "All done!  If you've completed all of the above steps, your MySQL"
+echo "All done!  If you've completed all of the above steps, your MariaDB"
 echo "installation should now be secure."
 echo
-echo "Thanks for using MySQL!"
-echo
-echo
-
-
+echo "Thanks for using MariaDB!"

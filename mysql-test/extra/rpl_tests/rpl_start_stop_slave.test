@@ -1,3 +1,6 @@
+# Slow test, don't run during staging part
+source include/not_staging.inc
+
 #
 # Bug#6148 ()
 #

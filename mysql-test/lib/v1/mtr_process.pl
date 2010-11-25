@@ -475,12 +475,6 @@ sub mtr_kill_leftovers () {
 	  }
 	}
       }
-      else
-      {
-	mtr_warning("Found non pid file $elem in $rundir")
-	  if -f "$rundir/$elem";
-	next;
-      }
     }
     closedir(RUNDIR);
 
@@ -887,15 +881,33 @@ sub check_expected_crash_and_restart($)
       mtr_verbose("$mysqld->{'type'} $mysqld->{'idx'} exited, pid: $ret_pid");
       $mysqld->{'pid'}= 0;
 
-      # Check if crash expected and restart if it was
+      # Check if crash expected, and restart if it was
       my $expect_file= "$::opt_vardir/tmp/" . "$mysqld->{'type'}" .
 	"$mysqld->{'idx'}" . ".expect";
-      if ( -f $expect_file )
+      while ( 1 )
       {
-	mtr_verbose("Crash was expected, file $expect_file exists");
-	mysqld_start($mysqld, $mysqld->{'start_opts'},
-		     $mysqld->{'start_slave_master_info'});
-	unlink($expect_file);
+        if ( -f $expect_file )
+        {
+          mtr_verbose("Crash was expected, file $expect_file exists");
+          my $expect_file_handler;
+          open($expect_file_handler, "<$expect_file") or die;
+          my @expect_lines= <$expect_file_handler>;
+          close $expect_file_handler;
+          # look at most recent order by the test
+          my $expect_content= pop @expect_lines;
+          chomp $expect_content;
+          if ( $expect_content =~ /^wait/ )
+          {
+            mtr_verbose("Test asks that we wait before restart");
+            # Millisceond sleep emulated with select
+            select(undef, undef, undef, (0.1));
+            next;
+          }
+          unlink($expect_file);
+          mysqld_start($mysqld, $mysqld->{'start_opts'},
+                       $mysqld->{'start_slave_master_info'});
+        }
+        last;
       }
 
       return;
@@ -915,8 +927,8 @@ sub check_expected_crash_and_restart($)
       if ( -f $expect_file )
       {
 	mtr_verbose("Crash was expected, file $expect_file exists");
-	ndbmgmd_start($cluster);
 	unlink($expect_file);
+	ndbmgmd_start($cluster);
       }
       return;
     }
@@ -934,9 +946,9 @@ sub check_expected_crash_and_restart($)
 	if ( -f $expect_file )
 	{
 	  mtr_verbose("Crash was expected, file $expect_file exists");
+	  unlink($expect_file);
 	  ndbd_start($cluster, $ndbd->{'idx'},
 		     $ndbd->{'start_extra_args'});
-	  unlink($expect_file);
 	}
 	return;
       }

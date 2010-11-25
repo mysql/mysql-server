@@ -416,10 +416,10 @@ n	m	o	n	m	o
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1 order by t1.o;
 n	m	o	n	m	o
+1	2	11	1	2	3
 1	2	7	1	2	3
 1	2	9	1	2	3
 1	3	9	NULL	NULL	NULL
-1	2	11	1	2	3
 drop table t1,t2;
 CREATE TABLE t1 (id1 INT NOT NULL PRIMARY KEY, dat1 CHAR(1), id2 INT);
 INSERT INTO t1 VALUES (1,'a',1);
@@ -630,7 +630,7 @@ insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	PRIMARY	4	NULL	3	Using index
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	2	const	1	Using index
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	2	const	1	Using where; Using index
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
 10	1	NULL
@@ -688,8 +688,8 @@ a1	a2	b1	b2	c1	c2
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -859,14 +859,14 @@ a1	a2
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON a1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
 a1	a2	a3
 1	NULL	NULL
 EXPLAIN SELECT * FROM t1 LEFT JOIN (t2,t3) ON a1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
 a0	a1	a2	a3
@@ -875,7 +875,7 @@ EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=0 WHERE a0=a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 INSERT INTO t0 VALUES (0);
 INSERT INTO t1 VALUES (0);
@@ -886,7 +886,7 @@ EXPLAIN SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	const	PRIMARY	PRIMARY	4	const	1	Using index
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1,t2;
 create table t1 (a int, b int);
@@ -1273,7 +1273,7 @@ FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
 SELECT t1.a, COUNT( t2.b ), SUM( t2.b ), MAX( t2.b )
 FROM t1 LEFT JOIN t2 USING( a )
 GROUP BY t1.a WITH ROLLUP;
@@ -1333,13 +1333,13 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tt1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
@@ -1360,7 +1360,7 @@ RIGHT JOIN t2 TA2 JOIN t2 TA3 ON TA2.f1 ON TA3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TA2	ALL	NULL	NULL	NULL	NULL	20	Using where
 1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer
-1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where
 DROP TABLE t1, t2;
 #
 # Bug#48971 Segfault in add_found_match_trig_cond () at sql_select.cc:5990
@@ -1377,11 +1377,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
 EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
@@ -1394,12 +1394,64 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
+#
+# Bug#49600: outer join of two single-row tables with joining attributes
+#            evaluated to nulls
+create table t1 (a int, b int);
+create table t2 (a int, b int);
+insert into t1 values (1, NULL);
+insert into t2 values (2, NULL);
+select * from t1 left join t2 on t1.b=t2.b;
+a	b	a	b
+1	NULL	NULL	NULL
+select * from t1 left join t2 on t1.b=t2.b where 1=1;
+a	b	a	b
+1	NULL	NULL	NULL
+drop table t1,t2;
+#
+# Bug#53161: outer join in the derived table is erroneously converted
+#            into an inner join for a query with a group by clause
+# 
+create table t1 (pk int not null primary key, a int not null);
+create table t2 like t1;
+create table t3 like t1;
+create table t4 (pk int not null primary key);
+insert into t1 values (1000, 1), (1001, 1);
+insert into t2 values (2000, 2), (2001, 2);
+insert into t3 values (3000, 3), (3001, 2);
+insert into t4 values (4000), (4001);
+explain extended
+select t2.pk, 
+(select t3.pk+if(isnull(t4.pk),0,t4.pk) 
+from t3 left join t4 on t4.pk=t3.pk 
+where t3.pk=t2.pk+1000 limit 1 ) as t
+from t1,t2 
+where t2.pk=t1.pk+1000 and t1.pk>1000
+group by t2.pk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using temporary; Using filesort
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.pk	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`pk` AS `pk`,<expr_cache><`test`.`t2`.`pk`>((select (`test`.`t3`.`pk` + if(isnull(`test`.`t4`.`pk`),0,`test`.`t4`.`pk`)) from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`pk` = `test`.`t3`.`pk`)) where (`test`.`t3`.`pk` = (`test`.`t2`.`pk` + 1000)) limit 1)) AS `t` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`pk` = (`test`.`t1`.`pk` + 1000)) and (`test`.`t1`.`pk` > 1000)) group by `test`.`t2`.`pk`
+select t2.pk, 
+(select t3.pk+if(isnull(t4.pk),0,t4.pk)
+from t3 left join t4 on t4.pk=t3.pk 
+where t3.pk=t2.pk+1000 limit 1 ) as t
+from t1,t2 
+where t2.pk=t1.pk+1000 and t1.pk>1000
+group by t2.pk;
+pk	t
+2001	3001
+drop table t1,t2,t3,t4;
 End of 5.1 tests

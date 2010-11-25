@@ -841,6 +841,8 @@ sp_head::create_result_field(uint field_max_length, const char *field_name,
                       m_return_field_def.interval,
                       field_name ? field_name : (const char *) m_name.str);
 
+  field->vcol_info= m_return_field_def.vcol_info;
+  field->stored_in_db= m_return_field_def.stored_in_db;
   if (field)
     field->init(table);
 
@@ -1190,7 +1192,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char saved_cur_db_name_buf[NAME_LEN+1];
+  char saved_cur_db_name_buf[SAFE_NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
   bool cur_db_changed= FALSE;
@@ -1990,7 +1992,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
   ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
-  bool save_enable_slow_log= false;
+  bool save_enable_slow_log;
   bool save_log_general= false;
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
@@ -2068,9 +2070,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_out)
       {
         Item_null *null_item= new Item_null();
+        Item *tmp_item= null_item;
 
         if (!null_item ||
-            nctx->set_variable(thd, i, (Item **)&null_item))
+            nctx->set_variable(thd, i, &tmp_item))
         {
           err_status= TRUE;
           break;
@@ -2112,10 +2115,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                        m_name.str));
   }
-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
+  save_enable_slow_log= thd->enable_slow_log;
+  if (!(m_flags & LOG_SLOW_STATEMENTS) && save_enable_slow_log)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
-    save_enable_slow_log= true;
     thd->enable_slow_log= FALSE;
   }
   if (!(m_flags & LOG_GENERAL_LOG) && !(thd->variables.option_bits & OPTION_LOG_OFF))
@@ -2138,8 +2141,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   if (save_log_general)
     thd->variables.option_bits &= ~OPTION_LOG_OFF;
-  if (save_enable_slow_log)
-    thd->enable_slow_log= true;
+  thd->enable_slow_log= save_enable_slow_log;
   /*
     In the case when we weren't able to employ reuse mechanism for
     OUT/INOUT paranmeters, we should reallocate memory. This
@@ -2260,6 +2262,8 @@ sp_head::reset_lex(THD *thd)
   sublex->dec= NULL;
   sublex->interval_list.empty();
   sublex->type= 0;
+  sublex->uint_geom_type= 0;
+  sublex->vcol_info= 0;
 
   /* Reset part of parser state which needs this. */
   thd->m_parser_state->m_yacc.reset_before_substatement();
@@ -2387,7 +2391,8 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      lex->uint_geom_type))
+                      lex->uint_geom_type,
+		      lex->vcol_info, NULL))
     return TRUE;
 
   if (field_def->interval_list.elements)
@@ -3991,7 +3996,7 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
+      char tname[(SAFE_NAME_LEN + 1) * 3];           // db\0table\0alias\0
       uint tlen, alen;
 
       tlen= table->db_length;

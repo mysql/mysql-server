@@ -15,6 +15,7 @@
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
+				ft_myisam.c 
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c
 				mi_checksum.c mi_close.c mi_create.c mi_dbug.c mi_delete.c 
 				mi_delete_all.c mi_delete_table.c mi_dynrec.c mi_extra.c mi_info.c
@@ -65,3 +66,4 @@ ENDIF()
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
+
