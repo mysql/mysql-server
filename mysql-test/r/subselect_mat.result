@@ -1297,3 +1297,50 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT SUM(c1) c1_sum FROM t1 WHERE c1 IN (SELECT c2 FROM t2) HAVING c1_sum;
 c1_sum
 drop table t1, t2;
+#
+# BUG#52344 - Subquery materialization: 
+#  	     Assertion if subquery in on-clause of outer join
+#
+set @@optimizer_switch='semijoin=off';
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2 (j INTEGER);
+INSERT INTO t2 VALUES (5);
+CREATE TABLE t3 (k INTEGER);
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
+i
+10
+EXPLAIN
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT i FROM t1 LEFT JOIN t2 ON (j) IN (SELECT max(k) FROM t3);
+i
+10
+DROP TABLE t1, t2, t3;
+#
+# LPBUG#609121: RQG: wrong result on aggregate + NOT IN + HAVING and
+# partial_match_table_scan=on
+#
+CREATE TABLE t1 (c1 int);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (c2 int);
+INSERT INTO t2 VALUES (10);
+PREPARE st1 FROM "
+SELECT *
+FROM t2 LEFT JOIN (SELECT * FROM t2) t3 ON (8, 4) IN (SELECT c1, c1 FROM t1)";
+EXECUTE st1;
+c2	c2
+10	10
+EXECUTE st1;
+c2	c2
+10	10
+DROP TABLE t1, t2;

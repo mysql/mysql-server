@@ -10599,16 +10599,6 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
     }
   }
   else if (cond->const_item() && !cond->is_expensive())
-  /*
-    DontEvaluateMaterializedSubqueryTooEarly:
-    TODO: 
-    Excluding all expensive functions is too restritive we should exclude only
-    materialized IN subquery predicates because they can't yet be evaluated
-    here (they need additional initialization that is done later on).
-
-    The proper way to exclude the subqueries would be to walk the cond tree and
-    check for materialized subqueries there.
-  */
   {
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
     return (COND*) 0;
@@ -13527,7 +13517,14 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	DBUG_RETURN(error);
     }
   }
-  if (*tab->on_expr_ref && !table->null_row)
+  /* 
+     Evaluate an on-expression only if it is not considered expensive.
+     This mainly prevents executing subqueries in optimization phase.
+     This is necessary since proper setup for such execution has not been
+     done at this stage.
+  */
+  if (*tab->on_expr_ref && !table->null_row && 
+      !(*tab->on_expr_ref)->is_expensive())
   {
 #if !defined(DBUG_OFF) && defined(NOT_USING_ITEM_EQUAL)
     /*
