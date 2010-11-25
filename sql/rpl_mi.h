@@ -116,6 +116,9 @@ class Master_info : public Slave_reporting_capability
 #ifndef MCP_WL4080
   uint64 master_epoch;
 #endif
+#ifndef MCP_WL3127
+  char bind_addr[HOSTNAME_LENGTH+1];
+#endif
 };
 void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
