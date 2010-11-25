@@ -89,7 +89,7 @@ Master_info::Master_info(PSI_mutex_key *param_key_info_run_lock,
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), master_id(0), retry_count(master_retry_count)
 {
-  host[0] = 0; user[0] = 0; password[0] = 0;
+  host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
   master_uuid[0]= 0;
@@ -371,13 +371,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_BIND)
   {
-    /*
-      This is a placeholder for the bind option.
-      Please, update this after WL#3126 and
-      WL#3127.
-    */
-    char fake_bind[2];
-    if (from->get_info(fake_bind, sizeof(fake_bind), ""))
+    if (from->get_info(bind_addr, sizeof(bind_addr), ""))
       DBUG_RETURN(TRUE);
   }
 
@@ -447,12 +441,7 @@ bool Master_info::write_info(Rpl_info_handler *to, bool force)
       to->set_info(ssl_key) ||
       to->set_info(ssl_verify_server_cert) ||
       to->set_info(heartbeat_period) ||
-      /*
-        This is a placeholder for the bind option.
-        Please, update this after WL#3126 and
-        WL#3127.
-      */
-      to->set_info("") || 
+      to->set_info(bind_addr) ||
       to->set_info(ignore_server_ids) ||
       to->set_info(master_uuid) ||
       to->set_info(retry_count))
