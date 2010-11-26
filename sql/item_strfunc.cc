@@ -3170,6 +3170,41 @@ String *Item_func_unhex::val_str(String *str)
 }
 
 
+#ifndef DBUG_OFF
+String *Item_func_like_range::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong nbytes= args[1]->val_int();
+  String *res= args[0]->val_str(str);
+  size_t min_len, max_len;
+  CHARSET_INFO *cs= collation.collation;
+
+  if (!res || args[0]->null_value || args[1]->null_value ||
+      nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
+      min_str.alloc(nbytes) || max_str.alloc(nbytes))
+    goto err;
+  null_value=0;
+
+  if (cs->coll->like_range(cs, res->ptr(), res->length(),
+                           '\\', '_', '%', nbytes,
+                           (char*) min_str.ptr(), (char*) max_str.ptr(),
+                           &min_len, &max_len))
+    goto err;
+
+  min_str.set_charset(collation.collation);
+  max_str.set_charset(collation.collation);
+  min_str.length(min_len);
+  max_str.length(max_len);
+
+  return is_min ? &min_str : &max_str;
+
+err:
+  null_value= 1;
+  return 0;
+}
+#endif
+
+
 void Item_func_binary::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
