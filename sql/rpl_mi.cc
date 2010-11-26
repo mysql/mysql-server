@@ -274,7 +274,7 @@ file '%s')", fname);
 #ifndef MCP_WL3127
 #else
     char dummy_buf[HOSTNAME_LENGTH+1];
-#endif§
+#endif
 
     /*
        Starting from 4.1.x master.info has new format. Now its
