@@ -479,4 +479,12 @@ SELECT DISTINCT GREATEST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
 
 DROP TABLE t1;
 
+
+#
+# Bug #57283: inet_ntoa() crashes
+#
+SELECT INET_NTOA(0);
+SELECT '1' IN ('1', INET_NTOA(0));
+
+
 --echo End of tests
