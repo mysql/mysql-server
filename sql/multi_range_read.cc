@@ -760,6 +760,8 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   h= h_arg;
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
 
+  strategy_exhausted= FALSE;
+
   if (mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))
   {
     DBUG_ASSERT(h->inited == handler::INDEX);
@@ -834,7 +836,6 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
     }
   }
-  strategy_exhausted= FALSE;
 
   res= strategy->refill_buffer(TRUE);
   if (res)
