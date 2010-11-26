@@ -1822,8 +1822,8 @@ xtPublic void xt_tab_check_free_lists(XTThreadPtr self, XTOpenTablePtr ot, bool 
 		}
 		if (free_count != tab->tab_rec_fnum) {
 			if (correct_count) {
-				tab->tab_rec_fnum = free_count;
-				tab->tab_head_rec_fnum = free_count;
+                          tab->tab_rec_fnum = (uint) free_count;
+                          tab->tab_head_rec_fnum = (uint) free_count;
 				tab->tab_flush_pending = TRUE;
 				xt_logf(XT_NT_INFO, "Table %s: free record count (%llu) has been set to the number of records on the list: %llu\n", table_name, (u_llong) tab->tab_rec_fnum, (u_llong) free_count);
 			}
@@ -1875,8 +1875,8 @@ xtPublic void xt_tab_check_free_lists(XTThreadPtr self, XTOpenTablePtr ot, bool 
 			 * The correct way to do this at run time would be to add the change to the
 			 * transaction log, so that it is applied by the writer.
 			 */
-			tab->tab_row_fnum = free_count;
-			tab->tab_head_row_fnum = free_count;
+                  tab->tab_row_fnum = (uint) free_count;
+                  tab->tab_head_row_fnum = (uint) free_count;
 			tab->tab_flush_pending = TRUE;
 			xt_logf(XT_NT_INFO, "Table %s: free row count (%llu) has been set to the number of rows on the list: %llu\n", table_name, (u_llong) tab->tab_row_fnum, (u_llong) free_count);
 		}

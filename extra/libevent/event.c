@@ -405,7 +405,7 @@ event_loopexit_cb(int fd __attribute__((unused)),
 int
 event_loopexit(struct timeval *tv)
 {
-	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
+	return (event_once(-1, EV_TIMEOUT, &event_loopexit_cb,
 		    current_base, tv));
 }
 

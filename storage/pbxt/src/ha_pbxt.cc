@@ -1615,7 +1615,7 @@ static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
 static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, const char *thread_name, int *err)
 {
 	THD			*thd;
-	XTThreadPtr	self = NULL;
+	XTThreadPtr	volatile self = NULL;
 
 	*temp_thread = 0;
 	if ((thd = current_thd))

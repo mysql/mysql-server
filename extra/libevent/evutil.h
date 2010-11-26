@@ -171,4 +171,21 @@ ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 }
 #endif
 
+/* Define __attribute__ for platforms that doesn't suppor it */
+
+#ifndef __attribute__
+# if !defined(__GNUC__)
+#  define __attribute__(A)
+# else
+#  ifndef GCC_VERSION
+#   define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+#  endif
+#  if GCC_VERSION < 2008
+#   define __attribute__(A)
+#  elif defined(__cplusplus) && GCC_VERSION < 3004
+#   define __attribute__(A)
+#  endif
+# endif
+#endif
+
 #endif /* _EVUTIL_H_ */
