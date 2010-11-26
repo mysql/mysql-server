@@ -4450,10 +4450,10 @@ xtPublic int xt_tab_maybe_committed(XTOpenTablePtr ot, xtRecordID rec_id, xtXact
 	xtXactID				rec_xn_id = 0;
 	xtBool					wait = FALSE;
 	xtXactID				wait_xn_id = 0;
-	xtRowID					row_id;
+	xtRowID					row_id= 0;
 	xtRecordID				var_rec_id;
 	xtXactID				xn_id;
-	register XTTableHPtr	tab;
+	register XTTableHPtr	tab = 0;
 #ifdef TRACE_VARIATIONS_IN_DUP_CHECK
 	char					t_buf[500];
 	int						len;
@@ -4628,7 +4628,8 @@ xtPublic int xt_tab_maybe_committed(XTOpenTablePtr ot, xtRecordID rec_id, xtXact
 	return FALSE;
 
 	failed:
-	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
+        if (tab)
+          XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
 	return XT_ERR;
 }
 
