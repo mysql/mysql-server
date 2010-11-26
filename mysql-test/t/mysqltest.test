@@ -1276,11 +1276,23 @@ if ($ifvar != goodbye)
 {
   echo hello != goodbye;
 }
-
+let $ifvar= 'quoted';
+if ($ifvar == ''quoted'')
+{
+  echo 'quoted' == ''quoted'';
+}
 let $ifvar= two words;
 if ($ifvar == two words)
 {
   echo two words;
+}
+if ($ifvar == 'two words')
+{
+  echo 'two words';
+}
+if ($ifvar == "two words")
+{
+  echo "two words";
 }
 if ($ifvar == `SELECT 'two words'`)
 {
