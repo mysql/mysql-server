@@ -281,6 +281,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   char *first_non_digit= NULL;
   ulong temp_master_log_pos= 0;
   int temp_ssl= 0;
+  int temp_ssl_verify_server_cert= 0;
 
   DBUG_ENTER("Master_info::read_info");
 
@@ -337,7 +338,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
   {
-    if (from->get_info((int *) &temp_ssl, 0) ||
+    if (from->get_info(&temp_ssl, 0) ||
         from->get_info(ssl_ca, sizeof(ssl_ca), 0) ||
         from->get_info(ssl_capath, sizeof(ssl_capath), 0) ||
         from->get_info(ssl_cert, sizeof(ssl_cert), 0) ||
@@ -352,7 +353,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
-    if (from->get_info((int *) &ssl_verify_server_cert, 0))
+    if (from->get_info(&temp_ssl_verify_server_cert, 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -400,7 +401,8 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
-  ssl= (my_bool) temp_ssl;
+  ssl= (my_bool) test(temp_ssl);
+  ssl_verify_server_cert= (my_bool) test(temp_ssl_verify_server_cert);
   master_log_pos= (my_off_t) temp_master_log_pos;
 #ifndef HAVE_OPENSSL
   if (ssl)
