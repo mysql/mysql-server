@@ -2483,6 +2483,68 @@ int runTestDumpEvents(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  mgmd.set_timeout(50); // Short timeout, should be upgraded
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  ndb_mgm_node_type
+    node_types[2] = { NDB_MGM_NODE_TYPE_NDB,
+                      NDB_MGM_NODE_TYPE_UNKNOWN };
+
+  // Test: get status, stop node, get status again
+  printf("Getting status\n");
+  ndb_mgm_cluster_state *cs = ndb_mgm_get_status2(mgmd.handle(), node_types);
+  if (cs == NULL)
+  {
+    printf("%s (%d)\n", ndb_mgm_get_latest_error_msg(mgmd.handle()),
+           ndb_mgm_get_latest_error(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+
+  for(int i=0; i < cs->no_of_nodes; i++ )
+  {
+    ndb_mgm_node_state *ns = cs->node_states + i;
+    printf("Node ID: %d  status:%d\n", ns->node_id, ns->node_status);
+  }
+  free(cs);
+  cs = NULL;
+
+  printf("Stopping data node\n");
+  // We only stop 1 data node, in this case NodeId=2
+  int nodes[1] =  { 2 };
+  int stopped = ndb_mgm_stop2(mgmd.handle(), NDB_ARRAY_SIZE(nodes), nodes, 0);
+  if (stopped < 0)
+  {
+    printf("ndb_mgm_stop failed, '%s' (%d)\n",
+           ndb_mgm_get_latest_error_msg(mgmd.handle()),
+           ndb_mgm_get_latest_error(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+
+  printf("Stopped %d data node(s)\n", stopped);
+
+  printf("Getting status\n");
+  cs = ndb_mgm_get_status2(mgmd.handle(), node_types);
+  if (cs == NULL)
+  {
+    printf("%s (%d)\n", ndb_mgm_get_latest_error_msg(mgmd.handle()),
+           ndb_mgm_get_latest_error(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+  for(int i=0; i < cs->no_of_nodes; i++ )
+  {
+    ndb_mgm_node_state *ns = cs->node_states + i;
+    printf("Node ID: %d  status:%d\n", ns->node_id, ns->node_status);
+  }
+  free(cs);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2613,6 +2675,10 @@ TESTCASE("TestGetVersion",
 TESTCASE("TestDumpEvents",
  	 "Test 'dump events'"){
   STEPS(runTestDumpEvents, 1);
+}
+TESTCASE("TestStatusAfterStop",
+ 	 "Test get status after stop "){
+  STEPS(runTestStatusAfterStop, 1);
 }
 NDBT_TESTSUITE_END(testMgm);
 
