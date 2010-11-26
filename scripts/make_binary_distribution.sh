@@ -303,9 +303,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
 
   # Copy readme and license files
   cp README Docs/INSTALL-BINARY  $DEST/
-  if [ -f COPYING -a -f EXCEPTIONS-CLIENT ] ; then
-    cp COPYING EXCEPTIONS-CLIENT $DEST/
-  elif [ -f LICENSE.mysql ] ; then
+  if [ -f LICENSE.mysql ] ; then
     cp LICENSE.mysql $DEST/
   else
     echo "ERROR: no license files found"
@@ -382,7 +380,7 @@ copyfileto()
 copyfileto $BASE/docs ChangeLog Docs/mysql.info
 
 copyfileto $BASE COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         EXCEPTIONS-CLIENT LICENSE.mysql
+           LICENSE.mysql
 
 # Non platform-specific bin dir files:
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
