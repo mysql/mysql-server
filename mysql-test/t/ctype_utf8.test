@@ -1459,6 +1459,25 @@ DROP TABLE t1;
 --echo End of 5.0 tests
 
 
+#
+# Bug #57272: crash in rpad() when using utf8
+#
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'));
+SELECT HEX(RPAD(0x20, 2, _utf8 0xD18F));
+SELECT HEX(RPAD(0x20, 4, _utf8 0xD18F));
+SELECT HEX(LPAD(0x20, 2, _utf8 0xD18F));
+SELECT HEX(LPAD(0x20, 4, _utf8 0xD18F));
+
+SELECT HEX(RPAD(_utf8 0xD18F, 3, 0x20));
+SELECT HEX(LPAD(_utf8 0xD18F, 3, 0x20));
+
+SELECT HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20));
+SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
+
+
+--echo End of 5.1 tests
+
 --echo Start of 5.4 tests
 
 #
