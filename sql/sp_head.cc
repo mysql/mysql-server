@@ -2705,7 +2705,7 @@ int sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  return insert_dynamic(&m_instr, (uchar*)&instr);
+  return insert_dynamic(&m_instr, &instr);
 }
 
 

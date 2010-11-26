@@ -377,7 +377,7 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_dl_array, (uchar*)&plugin_dl))
+  if (insert_dynamic(&plugin_dl_array, &plugin_dl))
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                         struct st_plugin_dl **)=
@@ -694,7 +694,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
                        (long) current_thd, pi->name.str, pi->ref_count));
 
     if (lex)
-      insert_dynamic(&lex->plugins, (uchar*)&plugin);
+      insert_dynamic(&lex->plugins, &plugin);
     DBUG_RETURN(plugin);
   }
   DBUG_RETURN(NULL);
@@ -741,7 +741,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_array, (uchar*)&plugin))
+  if (insert_dynamic(&plugin_array, &plugin))
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_array, plugin_array.elements - 1,
                         struct st_plugin_int **)=
@@ -1367,7 +1367,7 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
   tmp->ref_count= 0;
   tmp->plugin_dl= 0;
 
-  if (insert_dynamic(&plugin_array, (uchar*)&tmp))
+  if (insert_dynamic(&plugin_array, &tmp))
     DBUG_RETURN(1);
 
   *ptr= *dynamic_element(&plugin_array, plugin_array.elements - 1,
@@ -3477,7 +3477,7 @@ void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
     /* Only options with a non-NULL comment are displayed in help text */
     for (;opt->name; opt++)
       if (opt->comment)
-        insert_dynamic(options, (uchar*) opt);
+        insert_dynamic(options, opt);
   }
 }
 
