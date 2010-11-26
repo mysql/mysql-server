@@ -72,7 +72,6 @@ class Master_info : public Rpl_info
 
   /* the variables below are needed because we can change masters on the fly */
   char host[HOSTNAME_LENGTH+1];
-  char bind_addr[HOSTNAME_LENGTH+1];
   char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
   my_bool ssl; // enables use of SSL connection if true
@@ -101,6 +100,7 @@ class Master_info : public Rpl_info
   ulong master_id;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
+  char bind_addr[HOSTNAME_LENGTH+1];
 
   int init_info();
   void end_info();
