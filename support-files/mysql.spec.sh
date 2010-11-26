@@ -1063,7 +1063,6 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
-%doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
@@ -1133,6 +1132,9 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
 
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
