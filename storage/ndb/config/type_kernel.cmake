@@ -13,23 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_BINARY_DIR}/include
-                    ${CMAKE_BINARY_DIR}/storage/ndb/include
-                    ${CMAKE_SOURCE_DIR}/include
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/transporter
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/portlib
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger
-                    ${CMAKE_SOURCE_DIR}/zlib)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/vm
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/error
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel
+)
 
