@@ -55,6 +55,7 @@
   and include a file with the prototype instead.
 */
 extern void close_thread_tables(THD *thd);
+#warning remove that
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -606,6 +607,9 @@ export bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type)
     ha_open_options|= HA_OPEN_DELAY_KEY_WRITE;
     break;
   }
+#ifdef WITH_ARIA_STORAGE_ENGINE
+  maria_delay_key_write= myisam_delay_key_write;
+#endif
   return false;
 }
 static const char *delay_key_write_names[]= { "OFF", "ON", "ALL", NullS };
@@ -843,7 +847,7 @@ static Sys_var_keycache Sys_key_cache_block_size(
        CMD_LINE(REQUIRED_ARG, OPT_KEY_CACHE_BLOCK_SIZE),
        VALID_RANGE(512, 1024*16), DEFAULT(KEY_CACHE_BLOCK_SIZE),
        BLOCK_SIZE(512), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(update_keycache_param));
+       ON_UPDATE(resize_keycache));
 
 static Sys_var_keycache Sys_key_cache_division_limit(
        "key_cache_division_limit",
@@ -852,7 +856,7 @@ static Sys_var_keycache Sys_key_cache_division_limit(
        CMD_LINE(REQUIRED_ARG, OPT_KEY_CACHE_DIVISION_LIMIT),
        VALID_RANGE(1, 100), DEFAULT(100),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(update_keycache_param));
+       ON_UPDATE(change_keycache_param));
 
 static Sys_var_keycache Sys_key_cache_age_threshold(
        "key_cache_age_threshold", "This characterizes the number of "
@@ -864,7 +868,7 @@ static Sys_var_keycache Sys_key_cache_age_threshold(
        CMD_LINE(REQUIRED_ARG, OPT_KEY_CACHE_AGE_THRESHOLD),
        VALID_RANGE(100, ULONG_MAX), DEFAULT(300),
        BLOCK_SIZE(100), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(update_keycache_param));
+       ON_UPDATE(change_keycache_param));
 
 static Sys_var_mybool Sys_large_files_support(
        "large_files_support",
@@ -1060,7 +1064,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections +
+  resize_thr_alarm(max_connections + extra_max_connections +
                    global_system_variables.max_insert_delayed_threads + 10);
 #endif
   return false;
@@ -1680,13 +1684,19 @@ static Sys_var_ulong Sys_trans_prealloc_size(
 
 static const char *thread_handling_names[]=
 {
-  "one-thread-per-connection", "no-threads", "loaded-dynamically",
+  "one-thread-per-connection", "no-threads",
+#if HAVE_POOL_OF_THREADS == 1
+  "pool-of-threads",
+#endif
   0
 };
 static Sys_var_enum Sys_thread_handling(
        "thread_handling",
        "Define threads usage for handling queries, one of "
-       "one-thread-per-connection, no-threads, loaded-dynamically"
+       "one-thread-per-connection, no-threads, "
+#if HAVE_POOL_OF_THREADS == 1
+       "pool-of-threads"
+#endif
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
 
@@ -3124,137 +3134,127 @@ static Sys_var_enum Sys_plugin_maturity(
        READ_ONLY GLOBAL_VAR(server_maturity), CMD_LINE(REQUIRED_ARG),
        plugin_maturity_names, DEFAULT(MariaDB_PLUGIN_MATURITY_UNKNOWN));
 
-#error *may be* turn the below into sysvars
+static Sys_var_ulong Sys_deadlock_search_depth_short(
+       "deadlock_search_depth_short",
+       "Short search depth for the two-step deadlock detection",
+       SESSION_VAR(wt_deadlock_search_depth_short), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 32), DEFAULT(4), BLOCK_SIZE(1));
 
-  {"deadlock-search-depth-short", OPT_DEADLOCK_SEARCH_DEPTH_SHORT,
-   "Short search depth for the two-step deadlock detection",
-   &global_system_variables.wt_deadlock_search_depth_short,
-   &max_system_variables.wt_deadlock_search_depth_short,
-   0, GET_ULONG, REQUIRED_ARG, 4, 0, 32, 0, 0, 0},
-  {"deadlock-search-depth-long", OPT_DEADLOCK_SEARCH_DEPTH_LONG,
-   "Long search depth for the two-step deadlock detection",
-   &global_system_variables.wt_deadlock_search_depth_long,
-   &max_system_variables.wt_deadlock_search_depth_long,
-   0, GET_ULONG, REQUIRED_ARG, 15, 0, 33, 0, 0, 0},
-  {"deadlock-timeout-short", OPT_DEADLOCK_TIMEOUT_SHORT,
-   "Short timeout for the two-step deadlock detection (in microseconds)",
-   &global_system_variables.wt_timeout_short,
-   &max_system_variables.wt_timeout_short,
-   0, GET_ULONG, REQUIRED_ARG, 10000, 0, ULONG_MAX, 0, 0, 0},
-  {"deadlock-timeout-long", OPT_DEADLOCK_TIMEOUT_LONG,
-   "Long timeout for the two-step deadlock detection (in microseconds)",
-   &global_system_variables.wt_timeout_long,
-   &max_system_variables.wt_timeout_long,
-   0, GET_ULONG, REQUIRED_ARG, 50000000, 0, ULONG_MAX, 0, 0, 0},
+static Sys_var_ulong Sys_deadlock_search_depth_long(
+       "deadlock_search_depth_long",
+       "Long search depth for the two-step deadlock detection",
+       SESSION_VAR(wt_deadlock_search_depth_long), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 33), DEFAULT(15), BLOCK_SIZE(1));
 
-  {"debug-crc-break", OPT_DEBUG_CRC,
-   "Call my_debug_put_break_here() if crc matches this number (for debug).",
-   &my_crc_dbug_check, &my_crc_dbug_check,
-   0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
+static Sys_var_ulong Sys_deadlock_timeout_depth_short(
+       "deadlock_timeout_short",
+       "Short timeout for the two-step deadlock detection (in microseconds)",
+       SESSION_VAR(wt_timeout_short), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
-  {"extra-port", OPT_EXTRA_PORT,
-   "Extra port number to use for tcp-connections in a one-thread-per-connection manner. 0 means don't use another port",
-   &mysqld_extra_port,
-   &mysqld_extra_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"extra-max-connections", OPT_MAX_CONNECTIONS,
-   "The number of connections on 'extra-port.",
-   &extra_max_connections,
-   &extra_max_connections, 0, GET_ULONG, REQUIRED_ARG, 1, 1, 100000,
-   0, 1, 0},
-
-#ifdef SAFE_MUTEX
-  {"mutex-deadlock-detector", OPT_MUTEX_DEADLOCK_DETECTOR,
-   "Enable checking of wrong mutex usage.",
-   &safe_mutex_deadlock_detector,
-   &safe_mutex_deadlock_detector,
-   0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif
-
-  {"safemalloc-mem-limit", OPT_SAFEMALLOC_MEM_LIMIT,
-   "Simulate memory shortage when compiled with the --with-debug=full option.",
-   0, 0, 0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+static Sys_var_ulong Sys_deadlock_timeout_depth_long(
+       "deadlock_timeout_long",
+       "Long timeout for the two-step deadlock detection (in microseconds)",
+       SESSION_VAR(wt_timeout_long), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(50000000), BLOCK_SIZE(1));
 
 #ifndef DBUG_OFF
-#ifdef SAFEMALLOC
-  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
-   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-   0, 0, 0, 0, 0, 0}, sf_malloc_quick=1;
-#endif
+static Sys_var_ulong Sys_debug_crc_break(
+       "debug_crc_break",
+       "Call my_debug_put_break_here() if crc matches this number (for debug)",
+       GLOBAL_VAR(my_crc_dbug_check), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
-  {"log-slow-time", OPT_LONG_QUERY_TIME,
-   "Log all queries that have taken more than long_query_time seconds to execute to file. "
-   "The argument will be treated as a decimal value with microsecond precission.",
-   &long_query_time, &long_query_time, 0, GET_DOUBLE,
-   REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
-  {"key_cache_segments", OPT_KEY_CACHE_PARTITIONS,
-   "The number of segments in a key cache",
-   &dflt_key_cache_var.param_partitions, 0,
-   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, DEFAULT_KEY_CACHE_PARTITIONS,
-   0, MAX_KEY_CACHE_PARTITIONS, 0, 1, 0},  
-  {"log-slow-filter", OPT_LOG_SLOW_FILTER,
-   "Log only the queries that followed certain execution plan. Multiple flags "
-   "allowed in a comma-separated string. [admin, filesort, filesort_on_disk, "
-   "full_join, full_scan, query_cache, query_cache_miss, tmp_table, "
-   "tmp_table_on_disk]. Sets log-slow-admin-command to ON",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, QPLAN_ALWAYS_SET, 0, 0},
-  {"log-slow-rate_limit", OPT_LOG_SLOW_RATE_LIMIT,
-   "If set, only write to slow log every 'log_slow_rate_limit' query (use "
-   "this to reduce output on slow query log)",
-   &global_system_variables.log_slow_rate_limit,
-   &max_system_variables.log_slow_rate_limit, 0, GET_ULONG,
-   REQUIRED_ARG, 1, 1, ~0L, 0, 1L, 0},
-  {"log-slow-verbosity", OPT_LOG_SLOW_VERBOSITY,
-   "Choose how verbose the messages to your slow log will be. Multiple flags "
-   "allowed in a comma-separated string. [query_plan, innodb]",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  global_system_variables.log_slow_verbosity= LOG_SLOW_VERBOSITY_INIT;
-  global_system_variables.log_slow_filter=    QPLAN_ALWAYS_SET;
-  {"log-slow-file", OPT_SLOW_QUERY_LOG_FILE,
-    "Log slow queries to given log file. Defaults logging to hostname-slow.log",
-   &opt_slow_logname, &opt_slow_logname, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-   {"join_cache_level", OPT_JOIN_CACHE_LEVEL,
-   "Controls what join operations can be executed with join buffers. Odd numbers are used for plain join buffers while even numbers are used for linked buffers",
-   &global_system_variables.join_cache_level,
-   &max_system_variables.join_cache_level,
-   0, GET_ULONG, REQUIRED_ARG, 1, 0, 8, 0, 1, 0},
-  {"mrr_buffer_size", OPT_MRR_BUFFER_SIZE,
-   "Size of buffer to use when using MRR with range access",
-   (uchar**) &global_system_variables.mrr_buff_size,
-   (uchar**) &max_system_variables.mrr_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   INT_MAX32, MALLOC_OVERHEAD, 1 /* Small to be able to do tests */ , 0},
+static Sys_var_uint Sys_extra_port(
+       "extra_port",
+       "Extra port number to use for tcp connections in a "
+       "one-thread-per-connection manner. 0 means don't use another port",
+       READ_ONLY GLOBAL_VAR(mysqld_extra_port), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+#warning generalize that
 
-  {"sync-sys", OPT_SYNC,
+static Sys_var_ulong Sys_extra_max_connections(
+       "extra_max_connections", "The number of connections on extra-port",
+       GLOBAL_VAR(extra_max_connections), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 100000), DEFAULT(1), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_max_connections));
+
+#ifdef SAFE_MUTEX
+static Sys_var_mybool Sys_mutex_deadlock_detector(
+       "mutex_deadlock_detector", "Enable checking of wrong mutex usage",
+       READ_ONLY GLOBAL_VAR(safe_mutex_deadlock_detector),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+#endif
+
+static Sys_var_keycache Sys_key_cache_segments(
+       "key_cache_segments", "The number of segments in a key cache",
+       KEYCACHE_VAR(param_partitions),
+       CMD_LINE(REQUIRED_ARG, OPT_KEY_CACHE_PARTITIONS),
+       VALID_RANGE(0, MAX_KEY_CACHE_PARTITIONS),
+       DEFAULT(DEFAULT_KEY_CACHE_PARTITIONS),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(repartition_keycache));
+
+static const char *log_slow_filter_names[]= 
+{ "admin", "filesort", "filesort_on_disk", "full_join", "full_scan",
+  "query_cache", "query_cache_miss", "tmp_table", "tmp_table_on_disk", 0
+};
+static Sys_var_set Sys_log_slow_filter(
+       "log_slow_filter",
+       "Log only certain types of queries. Multiple "
+       "flags can be specified, separated by commas. Valid values are admin, "
+       "slave, filesort, filesort_on_disk, full_join, full_scan, query_cache, "
+       "query_cache_miss, tmp_table, tmp_table_on_disk",
+       SESSION_VAR(log_slow_filter), CMD_LINE(REQUIRED_ARG),
+       log_slow_filter_names, DEFAULT(QPLAN_ALWAYS_SET));
+#warning fix log-slow-slave-statements and log-slow-admin-statements
+
+static Sys_var_ulong Sys_log_slow_rate_limit(
+       "log_slow_rate_limit",
+       "Write to slow log every #th slow query. Set to 1 to log everything. "
+       "Increase it to reduce the size of the slow or the performance impact "
+       "of slow logging",
+       SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+
+static const char *log_slow_verbosity_names[]= { "innodb", "query_plan", 0 };
+static Sys_var_set Sys_log_slow_verbosity(
+       "log_slow_verbosity",
+       "log-slow-verbosity=[value[,value ...]] where value is one of "
+       "'innodb', 'query_plan'"
+       SESSION_VAR(log_slow_verbosity), CMD_LINE(REQUIRED_ARG),
+       log_slow_verbosity_names, DEFAULT(LOG_SLOW_VERBOSITY_INIT));
+
+static Sys_var_ulong Sys_join_cache_level(
+       "join_cache_level",
+       "Controls what join operations can be executed with join buffers. Odd "
+       "numbers are used for plain join buffers while even numbers are used "
+       "for linked buffers",
+       SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+
+static Sys_var_ulong Sys_mrr_buffer_size(
+       "mrr_buffer_size",
+       "Size of buffer to use when using MRR with range access",
+       SESSION_VAR(mrr_buff_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(256*1024), BLOCK_SIZE(1));
+
+/*  {"sync_sys", OPT_SYNC,
    "Enable/disable system sync calls. Should only be turned off when running "
    "tests or debugging!!",
-   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  {"rowid_merge_buff_size", OPT_ROWID_MERGE_BUFF_SIZE,
-   "The size of the buffers used [NOT] IN evaluation via partial matching.",
-   (uchar**) &global_system_variables.rowid_merge_buff_size,
-   (uchar**) &max_system_variables.rowid_merge_buff_size, 0, GET_ULONG,
-   REQUIRED_ARG, 8*1024*1024L, 0, MAX_MEM_TABLE_SIZE/2, 0, 1, 0},
-  {"userstat", OPT_USERSTAT,
-   "Control USER_STATISTICS, CLIENT_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS running",
-   (uchar**) &opt_userstat_running, (uchar**) &opt_userstat_running,
-   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
-  case OPT_LOG_SLOW_FILTER:
-    global_system_variables.log_slow_filter=
-      find_bit_type_or_exit(argument, &log_slow_filter_typelib,
-                            opt->name, &error);
-    /*
-      If we are using filters, we set opt_slow_admin_statements to be always
-      true so we can maintain everything with filters
-    */
-    opt_log_slow_admin_statements= 1;
-    if (error)
-      return 1;
-    break;
-  case OPT_LOG_SLOW_VERBOSITY:
-    global_system_variables.log_slow_verbosity=
-      find_bit_type_or_exit(argument, &log_slow_verbosity_typelib,
-                            opt->name, &error);
-    if (error)
-      return 1;
-    break;
+   &opt_sync, &opt_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},*/
+
+static Sys_var_ulong Sys_rowid_merge_buff_size(
+       "rowid_merge_buff_size",
+       "The size of the buffers used [NOT] IN evaluation via partial matching",
+       SESSION_VAR(rowid_merge_buff_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, MAX_MEM_TABLE_SIZE/2), DEFAULT(8*1024*1024),
+       BLOCK_SIZE(1));
+
+static Sys_var_mybool Sys_userstat(
+       "userstat",
+       "Enables statistics gathering for USER_STATISTICS, CLIENT_STATISTICS, "
+       "INDEX_STATISTICS and TABLE_STATISTICS tables in the INFORMATION_SCHEMA",
+       GLOBAL_VAR(opt_userstat_running),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));

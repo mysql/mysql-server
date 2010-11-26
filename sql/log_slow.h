@@ -19,31 +19,6 @@
 #define LOG_SLOW_VERBOSITY_INNODB         1 << 0
 #define LOG_SLOW_VERBOSITY_QUERY_PLAN     1 << 1
 
-#ifdef DEFINE_VARIABLES_LOG_SLOW
-
-/* Names here must be in same order as the bit's above */
-static const char *log_slow_verbosity_names[]=
-{
-  "innodb","query_plan",
-  NullS
-};
-
-static const unsigned int log_slow_verbosity_names_len[]=
-{
-  sizeof("innodb") -1,
-  sizeof("query_plan")-1
-};
-
-TYPELIB log_slow_verbosity_typelib=
-{  array_elements(log_slow_verbosity_names)-1,"", log_slow_verbosity_names,
-   (unsigned int *) log_slow_verbosity_names_len };
-
-#else
-extern TYPELIB log_slow_verbosity_typelib;
-#endif /* DEFINE_VARIABLES_LOG_SLOW */
-
-/* Defines for what kind of query plan was used and what to log */
-
 /*
   We init the used query plan with a bit that is alwyas set and all 'no' bits
   to enable easy testing of what to log in sql_log.cc
@@ -63,45 +38,5 @@ extern TYPELIB log_slow_verbosity_typelib;
 #define QPLAN_MAX             ((ulong) 1) << 31 /* reserved as placeholder */
 #define QPLAN_ALWAYS_SET      QPLAN_MAX
 #define QPLAN_VISIBLE_MASK    (~(QPLAN_ALWAYS_SET))
+#warning simplify
 
-#ifdef DEFINE_VARIABLES_LOG_SLOW
-/* Names here must be in same order as the bit's above */
-static const char *log_slow_filter_names[]= 
-{
-  "admin",
-  "filesort",
-  "filesort_on_disk",
-  "full_join",
-  "full_scan",
-  "query_cache",
-  "query_cache_miss",
-  "tmp_table",
-  "tmp_table_on_disk",
-  NullS
-};
-
-static const unsigned int log_slow_filter_names_len[]=
-{
-  sizeof("admin")-1,
-  sizeof("filesort")-1,
-  sizeof("filesort_on_disk")-1,
-  sizeof("full_join")-1,
-  sizeof("full_scan")-1,
-  sizeof("query_cache")-1,
-  sizeof("query_cache_miss")-1,
-  sizeof("tmp_table")-1,
-  sizeof("tmp_table_on_disk")-1
-};
-
-TYPELIB log_slow_filter_typelib=
-{  array_elements(log_slow_filter_names)-1,"", log_slow_filter_names,
-   (unsigned int *) log_slow_filter_names_len };
-
-#else
-extern TYPELIB log_slow_filter_typelib;
-#endif /* DEFINE_VARIABLES_LOG_SLOW */
-
-static inline ulong fix_log_slow_filter(ulong org_filter)
-{
-  return org_filter ? org_filter : QPLAN_ALWAYS_SET;
-}

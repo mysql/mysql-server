@@ -703,8 +703,9 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
   return error;
 }
 
-static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
-                                  ptrdiff_t offset, ulonglong new_value)
+static bool update_keycache(THD *thd, KEY_CACHE *key_cache,
+                            ptrdiff_t offset, ulonglong new_value,
+                            (int)(*)(KEY_CACHE *) func)
 {
   bool error= false;
   DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
@@ -713,13 +714,34 @@ static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
 
   key_cache->in_init= 1;
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  error= ha_resize_key_cache(key_cache);
-
+  error= func(key_cache);
   mysql_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;
 
   return error;
 }
+
+static bool resize_keycache(THD *thd, KEY_CACHE *key_cache,
+                            ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_resize_key_cache);
+}
+
+static bool change_keycache_param(THD *thd, KEY_CACHE *key_cache,
+                                  ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_change_key_cache_param);
+}
+
+static bool repartition_keycache(THD *thd, KEY_CACHE *key_cache,
+                                 ptrdiff_t offset, ulonglong new_value)
+{
+  return update_keycache(thd, key_cache, offset, new_value,
+                         ha_repartition_key_cache);
+}
+
 
 /**
   The class for floating point variables

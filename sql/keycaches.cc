@@ -118,6 +118,7 @@ KEY_CACHE *create_key_cache(const char *name, uint length)
       key_cache->param_block_size=     dflt_key_cache_var.param_block_size;
       key_cache->param_division_limit= dflt_key_cache_var.param_division_limit;
       key_cache->param_age_threshold=  dflt_key_cache_var.param_age_threshold;
+      key_cache->param_partitions=     dflt_key_cache_var.param_partitions;
     }
   }
   DBUG_RETURN(key_cache);

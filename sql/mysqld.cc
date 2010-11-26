@@ -52,8 +52,6 @@
 #include "des_key_file.h" // load_des_key_file
 #include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 
-#define DEFINE_VARIABLES_LOG_SLOW          // Declare variables in log_slow.h
-
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
