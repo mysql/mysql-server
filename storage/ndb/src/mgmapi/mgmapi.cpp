@@ -550,6 +550,41 @@ ndb_mgm_call(NdbMgmHandle handle,
   DBUG_RETURN(p);
 }
 
+/*
+  ndb_mgm_call_slow
+
+  Some commands are synchronous and known to take longer time
+  to complete(for example restart and stop). Increase the timeout
+  value before sending command if the timeout value is set lower
+  than what is normal.
+
+  Unfortunately the restart or stop may take longer than the
+  defalt min timeout value selected, mgmapi users can workaround
+  this problem by setting an even larger timeout for all commands
+  or only around restart and stop.
+
+*/
+
+static inline
+const Properties *
+ndb_mgm_call_slow(NdbMgmHandle handle,
+                  const ParserRow<ParserDummy> *command_reply,
+                  const char *cmd, const Properties *cmd_args,
+                  unsigned int min_timeout = 5*60*1000, // ms
+                  const char* cmd_bulk= NULL)
+{
+  const unsigned int save_timeout = handle->timeout;
+  if (min_timeout > save_timeout)
+    handle->timeout = min_timeout;
+  const Properties* reply = ndb_mgm_call(handle, command_reply,
+                                         cmd, cmd_args, cmd_bulk);
+
+  // Restore saved timeout value
+  handle->timeout = save_timeout;
+
+  return reply;
+}
+
 /**
  * Returns true if connected
  */
@@ -1290,7 +1325,6 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     DBUG_RETURN(-1);
   }
 
-  Uint32 stoppedNoOfNodes = 0;
   if(no_of_nodes <= 0){
     /**
      * All nodes should be stopped (all or just db)
@@ -1302,12 +1336,14 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     // force has no effect, continue anyway for consistency
     const Properties *reply;
     if(use_v2)
-      reply = ndb_mgm_call(handle, stop_reply_v2, "stop all", &args);
+      reply = ndb_mgm_call_slow(handle, stop_reply_v2, "stop all", &args);
     else
-      reply = ndb_mgm_call(handle, stop_reply_v1, "stop all", &args);
+      reply = ndb_mgm_call_slow(handle, stop_reply_v1, "stop all", &args);
     CHECK_REPLY(handle, reply, -1);
 
-    if(!reply->get("stopped", &stoppedNoOfNodes)){
+    Uint32 stopped = 0;
+    if(!reply->get("stopped", &stopped))
+    {
       SET_ERROR(handle, NDB_MGM_STOP_FAILED, 
 		"Could not get number of stopped nodes from mgm server");
       delete reply;
@@ -1325,7 +1361,7 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
       DBUG_RETURN(-1);
     }
     delete reply;
-    DBUG_RETURN(stoppedNoOfNodes);
+    DBUG_RETURN(stopped);
   }
 
   /**
@@ -1351,12 +1387,14 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
   const Properties *reply;
   if(use_v2)
-    reply = ndb_mgm_call(handle, stop_reply_v2, "stop v2", &args);
+    reply = ndb_mgm_call_slow(handle, stop_reply_v2, "stop v2", &args);
   else
-    reply = ndb_mgm_call(handle, stop_reply_v1, "stop", &args);
+    reply = ndb_mgm_call_slow(handle, stop_reply_v1, "stop", &args);
+  CHECK_REPLY(handle, reply, -1);
 
-  CHECK_REPLY(handle, reply, stoppedNoOfNodes);
-  if(!reply->get("stopped", &stoppedNoOfNodes)){
+  Uint32 stopped;
+  if(!reply->get("stopped", &stopped))
+  {
     SET_ERROR(handle, NDB_MGM_STOP_FAILED, 
 	      "Could not get number of stopped nodes from mgm server");
     delete reply;
@@ -1374,7 +1412,7 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     DBUG_RETURN(-1);
   }
   delete reply;
-  DBUG_RETURN(stoppedNoOfNodes);
+  DBUG_RETURN(stopped);
 }
 
 extern "C"
@@ -1413,7 +1451,7 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   DBUG_ENTER("ndb_mgm_restart");
   CHECK_HANDLE(handle, -1);
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart4");
-  Uint32 restarted = 0;
+
   const ParserRow<ParserDummy> restart_reply_v1[] = {
     MGM_CMD("restart reply", NULL, ""),
     MGM_ARG("result", String, Mandatory, "Error message"),
@@ -1454,11 +1492,8 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     args.put("initialstart", initial);
     args.put("nostart", nostart);
     // force has no effect, continue anyway for consistency
-    const Properties *reply;
-    const int timeout = handle->timeout;
-    handle->timeout= 5*60*1000; // 5 minutes
-    reply = ndb_mgm_call(handle, restart_reply_v1, "restart all", &args);
-    handle->timeout= timeout;
+    const Properties *reply =
+      ndb_mgm_call_slow(handle, restart_reply_v1, "restart all", &args);
     CHECK_REPLY(handle, reply, -1);
 
     BaseString result;
@@ -1468,6 +1503,8 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
       delete reply;
       DBUG_RETURN(-1);
     }
+
+    Uint32 restarted;
     if(!reply->get("restarted", &restarted)){
       SET_ERROR(handle, NDB_MGM_RESTART_FAILED, 
 		"Could not get restarted number of nodes from mgm server");
@@ -1500,29 +1537,28 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 	      "The connected mgm server does not support 'restart --force'");
 
   const Properties *reply;
-  const int timeout = handle->timeout;
-  handle->timeout= 5*60*1000; // 5 minutes
   if(use_v2)
-    reply = ndb_mgm_call(handle, restart_reply_v2, "restart node v2", &args);
+    reply = ndb_mgm_call_slow(handle, restart_reply_v2,
+                              "restart node v2", &args);
   else
-    reply = ndb_mgm_call(handle, restart_reply_v1, "restart node", &args);
-  handle->timeout= timeout;
-  if(reply != NULL) {
-    BaseString result;
-    reply->get("result", result);
-    if(strcmp(result.c_str(), "Ok") != 0) {
-      SET_ERROR(handle, NDB_MGM_RESTART_FAILED, result.c_str());
-      delete reply;
-      DBUG_RETURN(-1);
-    }
-    reply->get("restarted", &restarted);
-    if(use_v2)
-      reply->get("disconnect", (Uint32*)disconnect);
-    else
-      *disconnect= 0;
+    reply = ndb_mgm_call_slow(handle, restart_reply_v1,
+                              "restart node", &args);
+  CHECK_REPLY(handle, reply, -1);
+
+  BaseString result;
+  reply->get("result", result);
+  if(strcmp(result.c_str(), "Ok") != 0) {
+    SET_ERROR(handle, NDB_MGM_RESTART_FAILED, result.c_str());
     delete reply;
-  } 
-  
+    DBUG_RETURN(-1);
+  }
+  Uint32 restarted;
+  reply->get("restarted", &restarted);
+  if(use_v2)
+    reply->get("disconnect", (Uint32*)disconnect);
+  else
+    *disconnect= 0;
+  delete reply;
   DBUG_RETURN(restarted);
 }
 
