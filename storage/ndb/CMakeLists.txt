@@ -40,6 +40,7 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmapi
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mgmcommon
     ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
     ${CMAKE_CURRENT_BINARY_DIR}/include
 
     # Util library includes
@@ -64,14 +65,6 @@ IF(WITH_NDB_TEST)
   MESSAGE(STATUS "Building NDB test programs")
 ENDIF()
 
-SET(WITH_NDB_PORT "" CACHE INTEGER
-  "Default port used by NDB Cluster management server")
-IF(WITH_NDB_PORT GREATER 0)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNDB_PORT=\"${WITH_NDB_PORT}\"")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNDB_PORT=\"${WITH_NDB_PORT}\"")
-  MESSAGE ( STATUS "Setting management server port to ${WITH_NDB_PORT}" )
-ENDIF()
-
 OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
 
@@ -94,13 +87,6 @@ ELSE()
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DERROR_INSERT")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DERROR_INSERT")
   ENDIF()
-ENDIF()
-
-IF(MSVC)
-  # Disable some warnings for NDB build on Windows
-  # 4355: 'this': used in base member initializer list
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4355")
-  SET(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /wd4355")
 ENDIF()
 
 IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)

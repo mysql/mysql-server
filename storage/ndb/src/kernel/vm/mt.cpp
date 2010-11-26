@@ -34,6 +34,16 @@
 
 #include "mt-asm.h"
 
+inline
+SimulatedBlock*
+GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
+{
+  SimulatedBlock* b = getBlock(blockNo);
+  if (b != 0 && instanceNo != 0)
+    b = b->getInstance(instanceNo);
+  return b;
+}
+
 #ifdef __GNUC__
 /* Provides a small (but noticeable) speedup in benchmarks. */
 #define memcpy __builtin_memcpy
@@ -2395,7 +2405,7 @@ execute_signals(thr_data *selfptr, thr_job_queue *q, thr_jb_read_state *r,
     }
     Uint32 bno = blockToMain(s->theReceiversBlockNumber);
     Uint32 ino = map_instance(s);
-    SimulatedBlock* block = globalData.getBlock(bno, ino);
+    SimulatedBlock* block = globalData.mt_getBlock(bno, ino);
     assert(block != 0);
 
     Uint32 gsn = s->theVerId_signalNumber;
