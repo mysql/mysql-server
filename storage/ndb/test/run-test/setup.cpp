@@ -1,9 +1,8 @@
 #include "atrt.hpp"
 #include <ndb_global.h>
-#include <my_sys.h>
-#include <my_getopt.h>
-#include <NdbOut.hpp>
-#include <BaseString.hpp>
+#include <util/ndb_opts.h>
+#include <util/NdbOut.hpp>
+#include <util/BaseString.hpp>
 
 extern int g_mt;
 extern int g_mt_rr;
@@ -116,6 +115,8 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
      */
     for (j = 0; j<(size_t)argc; j++)
     {
+      if (ndb_is_load_default_arg_separator(tmp[j]))
+        continue;
       for (k = 0; proc_args[k].name; k++)
       {
 	if (!strncmp(tmp[j], proc_args[k].name, strlen(proc_args[k].name)))
@@ -418,6 +419,8 @@ load_options(int argc, char** argv, int type, atrt_options& opts)
 {
   for (size_t i = 0; i<(size_t)argc; i++)
   {
+    if (ndb_is_load_default_arg_separator(argv[i]))
+      continue;
     for (size_t j = 0; f_options[j].name; j++)
     {
       const char * name = f_options[j].name;
