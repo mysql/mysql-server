@@ -113,12 +113,14 @@ sync_slave_with_master;
 --disable_abort_on_error
 connect (checkcon123456789,::1,root,,test);
 let $check_ipv6_supported=1;
+let $_need_disconnect=1;
 if($mysql_errno)
 {
   let $check_ipv6_supported=0;
+  let $_need_disconnect=0;
 }
 connection default;
-if (!$mysql_errno)
+if ($_need_disconnect)
 {
   disconnect checkcon123456789;
 }
