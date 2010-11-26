@@ -515,3 +515,54 @@ SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
 EXPLAIN SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#56529 - "Crash due to long semaphore wait in InnoDB 
+--echo #              with ICP and subqueries"
+--echo #
+
+CREATE TABLE t1 (
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+  col_varchar_key VARCHAR(1),
+
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 VALUES (NULL,2,'w');
+INSERT INTO t1 VALUES (7,9,'m');
+INSERT INTO t1 VALUES (9,3,'m');
+INSERT INTO t1 VALUES (7,9,'k');
+INSERT INTO t1 VALUES (4,NULL,'r');
+INSERT INTO t1 VALUES (2,9,'t');
+INSERT INTO t1 VALUES (6,3,'j');
+INSERT INTO t1 VALUES (8,8,'u');
+INSERT INTO t1 VALUES (NULL,8,'h');
+INSERT INTO t1 VALUES (5,53,'o');
+INSERT INTO t1 VALUES (NULL,0,NULL);
+INSERT INTO t1 VALUES (6,5,'k');
+INSERT INTO t1 VALUES (188,166,'e');
+INSERT INTO t1 VALUES (2,3,'n');
+INSERT INTO t1 VALUES (1,0,'t');
+INSERT INTO t1 VALUES (1,1,'c');
+INSERT INTO t1 VALUES (0,9,'m');
+INSERT INTO t1 VALUES (9,5,'y');
+INSERT INTO t1 VALUES (NULL,6,'f');
+
+CREATE TABLE t2 (
+  c1 INTEGER NOT NULL
+);
+
+let query=
+SELECT table1.col_int_nokey
+FROM t1 AS table1 STRAIGHT_JOIN (
+                  t1 AS table2 INNER JOIN t1 AS table3
+                  ON table3.col_varchar_key = table2.col_varchar_key)
+     ON table3.col_int_nokey = table1.col_int_key
+WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;

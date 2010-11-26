@@ -9826,6 +9826,8 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item->const_item())
     return TRUE;
 
+  const Item::Type item_type= item->type();
+
   /* 
     Don't push down the triggered conditions. Nested outer joins execution 
     code may need to evaluate a condition several times (both triggered and
@@ -9835,14 +9837,29 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
          possible
       2. Put the second copy into tab->select_cond. 
   */
-  if (item->type() == Item::FUNC_ITEM && 
+  if (item_type == Item::FUNC_ITEM && 
       ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
     return FALSE;
 
+  /*
+    Do not push down subselects for execution by the handler. This
+    case would also be handled by the default label of the second
+    switch statement in this function. But since a subselect might
+    only refer to other tables the check below (if this item only
+    contains "other" tables) can return true and thus we need to do
+    this check here.
+  */
+  if (item_type == Item::SUBSELECT_ITEM)
+    return false;
+
+  /*
+    If this item will be evaluated using only "other tables" we let
+    the value of the other_tbls_ok determine if this item can be
+    pushed down or not.
+   */
   if (!(item->used_tables() & tbl->map))
     return other_tbls_ok;
 
-  Item::Type item_type= item->type();
   switch (item_type) {
   case Item::FUNC_ITEM:
     {
