@@ -8279,13 +8279,15 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
         (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
         join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
-    else if (!(order_tables & not_const_tables))
+    else if (!(order_tables & not_const_tables) &&
+             !order->item[0]->with_subselect)
     {
-      if (order->item[0]->with_subselect && 
-          !(join->select_lex->options & SELECT_DESCRIBE))
-        order->item[0]->val_str(&order->item[0]->str_value);
+      /*
+        Skip constant expressions in the ORDER/GROUP clause, except when there
+        is a subquery in the expression.
+      */
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
-      continue;					// skip const item
+      continue;
     }
     else
     {

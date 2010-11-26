@@ -491,3 +491,69 @@ SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#680846: Crash in clear_tables() with subqueries
+--echo #
+
+CREATE TABLE t1 (f3 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (f1 int,f3 int,f4 varchar(32)) ;
+INSERT IGNORE INTO t2 VALUES (1,0,'f');
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+# these queries are like the ones above, but without the ON clause,
+# resulting in a different crash (failed assert)
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+
+EXPLAIN
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+SELECT COUNT(t2.f3),
+       (SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+
+drop table t1,t2;
