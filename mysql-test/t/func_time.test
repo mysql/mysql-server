@@ -873,3 +873,13 @@ INSERT INTO t1 VALUES ('2008-01-03 00:00:00'), ('2008-01-03 00:00:00');
 SELECT * FROM t1 WHERE date_date >= subtime(now(), "00:30:00");
 SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#57512 str_to_date crash...
+--echo #
+
+SELECT WEEK(STR_TO_DATE(NULL,0));
+SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
+
+--echo #
+
