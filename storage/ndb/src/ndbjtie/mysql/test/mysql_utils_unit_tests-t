@@ -12,27 +12,26 @@
 # test range
 echo "1..1"
 
-# this script gets invoked from $(top_srcdir)/unittest
-cd ../storage/ndb/src/ndbjtie/mysql/test
+script_dir=`dirname $0`
 
 # log file for output from this script
-log="`pwd`/mysql_utils_unit_tests-t.log"
+log="mysql_utils_unit_tests-t.log"
 rm -f "$log"
 touch "$log"
 
 # run test
 echo "running test from directory:" >> "$log" 2>&1
-echo "  `pwd`" >> "$log" 2>&1
+echo "  $script_dir" >> "$log" 2>&1
 
 test_name="test_mysql_utils"
-script_name="./$test_mysql_utils.sh"
+script_name="$script_dir/$test_mysql_utils.sh"
 
 if [ ! -x "$script_name" ];
 then
   status="ok 1 # skip $test_name test file missing"
 else
   s=""
-  ./test_mysql_utils.sh >> "$log" 2>&1
+  $script_name >> "$log" 2>&1
   if [ "$?" -ne "0" ]; then
     s="not "
   fi
