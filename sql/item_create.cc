@@ -1330,6 +1330,34 @@ protected:
 };
 
 
+#ifndef DBUG_OFF
+class Create_func_like_range_min : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_min s_singleton;
+
+protected:
+  Create_func_like_range_min() {}
+  virtual ~Create_func_like_range_min() {}
+};
+
+
+class Create_func_like_range_max : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_max s_singleton;
+
+protected:
+  Create_func_like_range_max() {}
+  virtual ~Create_func_like_range_max() {}
+};
+#endif
+
+
 class Create_func_ln : public Create_func_arg1
 {
 public:
@@ -3836,6 +3864,26 @@ Create_func_length::create(THD *thd, Item *arg1)
 }
 
 
+#ifndef DBUG_OFF
+Create_func_like_range_min Create_func_like_range_min::s_singleton;
+
+Item*
+Create_func_like_range_min::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_min(arg1, arg2);
+}
+
+
+Create_func_like_range_max Create_func_like_range_max::s_singleton;
+
+Item*
+Create_func_like_range_max::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_max(arg1, arg2);
+}
+#endif
+
+
 Create_func_ln Create_func_ln::s_singleton;
 
 Item*
@@ -4924,6 +4972,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
+#ifndef DBUG_OFF
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, BUILDER(Create_func_like_range_min)},
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, BUILDER(Create_func_like_range_max)},
+#endif
   { { C_STRING_WITH_LEN("LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
