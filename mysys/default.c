@@ -368,7 +368,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, (uchar*) &tmp))
+    if (insert_dynamic(ctx->args, &tmp))
       return 1;
     strmov(tmp, option);
   }
