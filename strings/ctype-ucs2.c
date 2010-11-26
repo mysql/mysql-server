@@ -900,11 +900,34 @@ my_scan_mb2(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static void
-my_fill_mb2(CHARSET_INFO *cs __attribute__((unused)),
-            char *s, size_t l, int fill)
+my_fill_mb2(CHARSET_INFO *cs, char *s, size_t slen, int fill)
 {
-  DBUG_ASSERT(fill <= 0xFFFF);
-  for ( ; l >= 2; s[0]= (fill >> 8), s[1]= (fill & 0xFF), s+= 2, l-= 2);
+  char buf[10];
+  int buflen;
+
+  DBUG_ASSERT((slen % 2) == 0);
+
+  buflen= cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,
+                          (uchar*) buf + sizeof(buf));
+
+  DBUG_ASSERT(buflen > 0);
+
+  while (slen >= (size_t) buflen)
+  {
+    /* Enough space for the characer */
+    memcpy(s, buf, (size_t) buflen);
+    s+= buflen;
+    slen-= buflen;
+  }
+
+  /* 
+    If there are some more space which is not enough
+    for the whole multibyte character, then add trailing zeros.
+  */
+  for ( ; slen; slen--)
+  {
+    *s++= 0x00;
+  }  
 }
 
 
@@ -2799,6 +2822,15 @@ static size_t my_casedn_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 
+static void
+my_fill_ucs2(CHARSET_INFO *cs __attribute__((unused)), 
+             char *s, size_t l, int fill)
+{
+  DBUG_ASSERT(fill <= 0xFFFF);
+  for ( ; l >= 2; s[0]= (fill >> 8), s[1]= (fill & 0xFF), s+= 2, l-= 2);
+}
+
+
 static int my_strnncoll_ucs2(CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
                              const uchar *t, size_t tlen,
@@ -3134,7 +3166,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_snprintf_mb2,
     my_l10tostr_mb2_or_mb4,
     my_ll10tostr_mb2_or_mb4,
-    my_fill_mb2,
+    my_fill_ucs2,
     my_strntol_mb2_or_mb4,
     my_strntoul_mb2_or_mb4,
     my_strntoll_mb2_or_mb4,
