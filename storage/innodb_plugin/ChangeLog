@@ -86,10 +86,17 @@
 	Fix Bug #57345 btr_pcur_store_position abort for load with
 	concurrent lock/unlock tables
 
+2010-10-11	The InnoDB Team
+
+	* row/row0mysql.c, innodb_bug56947.result, innodb_bug56947.test:
+	Fix Bug #56947 InnoDB leaks memory when failing to create a table
+
 2010-10-06	The InnoDB Team
+
 	* row/row0mysql.c, innodb_bug57255.result, innodb_bug57255.test
-	Fix Bug #Cascade Delete results in "Got error -1 from storage engine"
- 
+	Fix Bug #57255 Cascade Delete results in "Got error -1 from
+	storage engine"
+
 2010-09-27	The InnoDB Team
 
 	* row/row0sel.c, innodb_bug56716.result, innodb_bug56716.test:
