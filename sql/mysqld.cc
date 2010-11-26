@@ -6741,7 +6741,7 @@ SHOW_VAR status_vars[]= {
 bool add_terminator(DYNAMIC_ARRAY *options)
 {
   my_option empty_element= {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
-  return insert_dynamic(options, (uchar *)&empty_element);
+  return insert_dynamic(options, &empty_element);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7402,7 +7402,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
-    insert_dynamic(&all_options, (uchar*) opt);
+    insert_dynamic(&all_options, opt);
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 

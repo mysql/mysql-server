@@ -5661,7 +5661,7 @@ bool change_master(THD* thd, Master_info* mi)
                   mi->ignore_server_ids->server_ids.elements, sizeof(ulong),
                   (int (*) (const void*, const void*))
                   change_master_server_id_cmp) == NULL)
-        insert_dynamic(&mi->ignore_server_ids->server_ids, (uchar*) &s_id);
+        insert_dynamic(&mi->ignore_server_ids->server_ids, &s_id);
     }
   }
   sort_dynamic(&mi->ignore_server_ids->server_ids, (qsort_cmp) change_master_server_id_cmp);
@@ -5868,7 +5868,7 @@ bool Server_ids::unpack_server_ids(char *param_server_ids)
     else
     {
       ulong val= atol(token);
-      insert_dynamic(&server_ids, (uchar *) &val);
+      insert_dynamic(&server_ids, &val);
     }
   }
   DBUG_RETURN(FALSE);
