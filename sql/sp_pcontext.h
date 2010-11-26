@@ -279,7 +279,7 @@ public:
   inline bool
   push_case_expr_id(int case_expr_id)
   {
-    return insert_dynamic(&m_case_expr_id_lst, (uchar*) &case_expr_id);
+    return insert_dynamic(&m_case_expr_id_lst, &case_expr_id);
   }
 
   inline void
@@ -342,7 +342,7 @@ public:
   inline void
   push_handler(sp_cond_type_t *cond)
   {
-    insert_dynamic(&m_handlers, (uchar*)&cond);
+    insert_dynamic(&m_handlers, &cond);
   }
 
   bool
