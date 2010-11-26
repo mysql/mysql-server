@@ -222,6 +222,8 @@ int ndb_daemon_init(int argc, char** argv,
 
 #ifdef _WIN32
 
+#include <sys/locking.h>
+
 #define F_TLOCK _LK_NBLCK
 #define F_ULOCK _LK_UNLCK
 #define F_LOCK  _LK_LOCK

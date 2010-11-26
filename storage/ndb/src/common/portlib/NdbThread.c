@@ -472,7 +472,7 @@ NdbThread_LockCPU(struct NdbThread* pThread, Uint32 cpu_id)
   return error_no;
 }
 
-static pthread_key_t tls_keys[NDB_THREAD_TLS_MAX];
+static pthread_key(void*, tls_keys[NDB_THREAD_TLS_MAX]);
 
 void *NdbThread_GetTlsKey(NDB_THREAD_TLS key)
 {
