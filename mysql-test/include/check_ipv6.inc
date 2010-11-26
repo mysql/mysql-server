@@ -5,6 +5,7 @@
 #                           just set the variable $check_ipv6_supported
 #
 --disable_query_log
+--disable_result_log
 --disable_abort_on_error
 let $check_ipv6_supported=1;
 connect (checkcon123456789,::1,root,,test);
@@ -17,8 +18,12 @@ if($mysql_errno)
   }
 }
 connection default;
-disconnect checkcon123456789;
+if(!$mysql_errno)
+{
+  disconnect checkcon123456789;
+}
 --enable_abort_on_error
+--enable_result_log
 --enable_query_log
 # end check
 
