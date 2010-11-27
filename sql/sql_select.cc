@@ -2953,7 +2953,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	{
 	  start_keyuse=keyuse;
 	  key=keyuse->key;
-	  s->keys.set_bit(key);               // QQ: remove this ?
+	  s->keys.set_bit(key);               // TODO: remove this ?
 
 	  refs=0;
           const_ref.clear_all();
@@ -3900,6 +3900,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.keypart_map= (key_part_map) 1 << part;
 	  keyuse.used_tables=key_field->val->used_tables();
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.ref_table_rows= 0;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
           keyuse.sj_pred_no= key_field->sj_pred_no;
@@ -6343,8 +6344,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->table=temp_table;
   join_tab->cache_select= 0;
   join_tab->select=0;
+  join_tab->select_cond= 0;                     // Avoid valgrind warning
   join_tab->set_select_cond(NULL, __LINE__);
-  join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys.init();
@@ -19193,7 +19194,8 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
 
 void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 {
-  /* QQ: thd may not be set for sub queries, but this should be fixed */
+  /* TODO: thd may not be set for sub queries, but this should be fixed */
+  DBUG_ASSERT(thd);
   if (!thd)
     thd= current_thd;
 

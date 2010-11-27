@@ -622,8 +622,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
     this will lead to a deadlock, since the delayed thread will
-    never be able to get a lock on the table. QQQ: why not
-    upgrade the lock here instead?
+    never be able to get a lock on the table.
   */
   if (table_list->lock_type == TL_WRITE_DELAYED && thd->locked_tables &&
       find_locked_table(thd, table_list->db, table_list->table_name))
@@ -808,7 +807,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
           be overwritten by fill_record() anyway (and fill_record() does not
           use default values in this case).
         */
-        table->record[0][0]= share->default_values[0];
+#ifdef HAVE_valgrind
+        if (table->file->ha_table_flags() && HA_RECORD_MUST_BE_CLEAN_ON_WRITE)
+          restore_record(table,s->default_values);	// Get empty record
+        else
+#endif
+          table->record[0][0]= share->default_values[0];
 
         /* Fix undefined null_bits. */
         if (share->null_bytes > 1 && share->last_null_bit_pos)

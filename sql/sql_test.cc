@@ -241,11 +241,11 @@ void print_keyuse(KEYUSE *keyuse)
     fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
   longlong2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
-          "ref_table_rows= %lu keypart_map= %0lx\n",
-          keyuse->table->alias, fieldname, str.ptr(),
-          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
-          keyuse->keypart_map);
+  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize: %u  used_tables: %s "
+          "ref_table_rows: %lu  keypart_map: %0lx\n",
+          keyuse->table->alias.c_ptr(), fieldname, str.ptr(),
+          (uint) keyuse->optimize, buf2, (ulong) keyuse->ref_table_rows, 
+          (ulong) keyuse->keypart_map);
   DBUG_UNLOCK_FILE;
   //key_part_map keypart_map; --?? there can be several? 
 }
@@ -371,7 +371,7 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
   for (uint i= 0;i < sjm->tables; i++)
   {
     fprintf(DBUG_FILE, "    %s%s\n", 
-            sjm->positions[i].table->table->alias,
+            sjm->positions[i].table->table->alias.c_ptr(),
             (i == sjm->tables -1)? "": ",");
   }
   fprintf(DBUG_FILE, "  }\n");

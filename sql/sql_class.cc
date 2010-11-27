@@ -2363,7 +2363,6 @@ bool select_export::send_data(List<Item> &items)
     {						// Fill with space
       if (item->max_length > used_length)
       {
-	/* QQ:  Fix by adding a my_b_fill() function */
 	if (!space_inited)
 	{
 	  space_inited=1;

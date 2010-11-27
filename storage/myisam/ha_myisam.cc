@@ -745,6 +745,16 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
       int_table_flags|= HA_HAS_OLD_CHECKSUM;
   }
 
+  /*
+    For static size rows, tell MariaDB that we will access all bytes
+    in the record when writing it.  This signals MariaDB to initalize
+    the full row to ensure we don't get any errors from valgrind and
+    that all bytes in the row is properly reset.
+  */
+  if ((file->s->options & HA_OPTION_PACK_RECORD) &&
+      (file->s->has_varchar_fields | file->s->has_null_fields))
+    int_table_flags|= HA_RECORD_MUST_BE_CLEAN_ON_WRITE;
+
   for (i= 0; i < table->s->keys; i++)
   {
     plugin_ref parser= table->key_info[i].parser;

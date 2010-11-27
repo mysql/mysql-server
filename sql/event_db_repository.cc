@@ -896,7 +896,11 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
     same fields.
   */
   if (db.length > table->field[ET_FIELD_DB]->field_length ||
-      name.length > table->field[ET_FIELD_NAME]->field_length)
+      name.length > table->field[ET_FIELD_NAME]->field_length ||
+      table->s->keys == 0 ||
+      table->key_info[0].key_parts != 2 ||
+      table->key_info[0].key_part[0].fieldnr != ET_FIELD_DB+1 ||
+      table->key_info[0].key_part[1].fieldnr != ET_FIELD_NAME+1)
     DBUG_RETURN(TRUE);
 
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);

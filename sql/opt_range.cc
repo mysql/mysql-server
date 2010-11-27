@@ -11131,7 +11131,7 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
     tmp.append(STRING_WITH_LEN("(empty)"));
 
   DBUG_PRINT("info", ("SEL_TREE: 0x%lx (%s)  scans: %s", (long) tree, msg,
-                      tmp.c_ptr()));
+                      tmp.c_ptr_safe()));
 
   DBUG_VOID_RETURN;
 }

@@ -3026,13 +3026,19 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->pos_in_table_list= table_list;
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table->clear_column_bitmaps();
-#if !defined(DBUG_OFF) && !defined(HAVE_valgrind)
   /*
     Fill record with random values to find bugs where we access fields
     without first reading them.
   */
-  bfill(table->record[0], table->s->reclength, 254);
-#endif
+  TRASH(table->record[0], table->s->reclength);
+  /*
+    Initialize the null marker bits, to ensure that if we are doing a read
+    of only selected columns (like in keyread), all null markers are
+    initialized.
+  */
+  bfill(table->record[0], table->s->null_bytes, 255); 
+  bfill(table->record[1], table->s->null_bytes, 255); 
+
   DBUG_ASSERT(table->key_read == 0);
   DBUG_RETURN(table);
 }

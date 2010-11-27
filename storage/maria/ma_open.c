@@ -763,6 +763,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	share->blobs[j].offset= share->columndef[i].offset;
 	j++;
       }
+      if (share->columndef[i].type == FIELD_VARCHAR)
+        share->has_varchar_fields= 1;
+      if (share->columndef[i].null_bit)
+        share->has_null_fields= 1;
     }
     share->columndef[i].type= FIELD_LAST;	/* End marker */
     disk_pos= _ma_column_nr_read(disk_pos, share->column_nr,

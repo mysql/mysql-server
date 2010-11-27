@@ -121,14 +121,20 @@ bool Cached_item_int::cmp(void)
 
 bool Cached_item_field::cmp(void)
 {
-  bool tmp= field->cmp(buff) != 0;		// This is not a blob!
-  if (tmp)
-    field->get_image(buff,length,field->charset());
+  bool tmp= FALSE;                              // Value is identical
+  /* Note that field can't be a blob here ! */
   if (null_value != field->is_null())
   {
     null_value= !null_value;
-    tmp=TRUE;
+    tmp= TRUE;                                  // Value has changed
   }
+
+  /*
+    If value is not null and value changed (from null to not null or
+    becasue of value change), then copy the new value to buffer.
+    */
+  if (! null_value && (tmp || (tmp= (field->cmp(buff) != 0))))
+    field->get_image(buff,length,field->charset());
   return tmp;
 }
 

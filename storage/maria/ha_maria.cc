@@ -1036,6 +1036,16 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   if (file->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     int_table_flags |= HA_HAS_NEW_CHECKSUM;
 
+  /*
+    For static size rows, tell MariaDB that we will access all bytes
+    in the record when writing it.  This signals MariaDB to initalize
+    the full row to ensure we don't get any errors from valgrind and
+    that all bytes in the row is properly reset.
+  */
+  if (file->s->data_file_type == STATIC_RECORD &&
+      (file->s->has_varchar_fields | file->s->has_null_fields))
+    int_table_flags|= HA_RECORD_MUST_BE_CLEAN_ON_WRITE;
+
   for (i= 0; i < table->s->keys; i++)
   {
     plugin_ref parser= table->key_info[i].parser;

@@ -975,7 +975,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (!field->maybe_null() && field->type() == FIELD_TYPE_TIMESTAMP)
               ((Field_timestamp*) field)->set_time();
           /*
-            QQ: We probably should not throw warning for each field.
+            TODO: We probably should not throw warning for each field.
             But how about intention to always have the same number
             of warnings in THD::cuted_fields (and get rid of cuted_fields
             in the end ?)
