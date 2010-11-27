@@ -19,7 +19,6 @@ main.lowercase_table2 @darwin            # Bug#55509 2010-07-26 alik main.lowerc
 main.mysqlslap @windows                  # Bug#54024 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.server_uuid                         # Bug#57482 2010-11-02 alik server_uuid fails on PB2
-main.server_uuid_embedded                # Bug#58171 2010-11-15 alik server_uuid_embedded fails sporadically
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
