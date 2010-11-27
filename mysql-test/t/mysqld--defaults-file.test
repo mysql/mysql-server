@@ -1,0 +1,46 @@
+# BUG#58455
+# Starting mysqld with defaults file without extension cause
+# segmentation fault
+
+source include/not_embedded.inc;
+
+# We need to use a plain "mysqld" without any other options to trigger
+# the bug. In particular, it seems that passing --bootstrap does not
+# trigger the bug. To do that, we extract the "command name" from the
+# MYSQLD_BOOTSTRAP_CMD variable and store that in a file, which we
+# then load into the test case.
+
+perl;
+  my ($mysqld)= split " ", $ENV{MYSQLD_BOOTSTRAP_CMD};
+  open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/mysqld.inc") or die;
+  print FILE "let \$MYSQLD= $mysqld;\n";
+  close FILE;
+EOF
+
+source $MYSQL_TMP_DIR/mysqld.inc;
+
+# All these tests refer to configuration files that do not exist
+
+--error 1
+exec $MYSQLD --defaults-file=/path/with/no/extension --print-defaults 2>&1;
+
+--error 1
+exec $MYSQLD --defaults-file=/path/with.ext --print-defaults 2>&1;
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1
+exec $MYSQLD --defaults-file=relative/path/with.ext --print-defaults 2>&1;
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1
+exec $MYSQLD --defaults-file=relative/path/without/extension --print-defaults 2>&1;
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1
+exec $MYSQLD --defaults-file=with.ext --print-defaults 2>&1;
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--error 1
+exec $MYSQLD --defaults-file=no_extension --print-defaults 2>&1;
+
+remove_file $MYSQL_TMP_DIR/mysqld.inc;

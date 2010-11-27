@@ -31,6 +31,8 @@ char * fn_format(char * to, const char *name, const char *dir,
   reg1 size_t length;
   size_t dev_length;
   DBUG_ENTER("fn_format");
+  DBUG_ASSERT(name != NULL);
+  DBUG_ASSERT(extension != NULL);
   DBUG_PRINT("enter",("name: %s  dir: %s  extension: %s  flag: %d",
 		       name,dir,extension,flag));
 
