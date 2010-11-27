@@ -423,7 +423,10 @@ while with string, only once
 hello == hello
 hello   ==   hello
 hello != goodbye
+'quoted' == ''quoted''
 two words
+'two words'
+"two words"
 two words are two words
 right answer
 anything goes
