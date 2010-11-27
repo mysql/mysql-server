@@ -5684,6 +5684,17 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     while (my_isspace(charset_info, *curr_ptr))
       curr_ptr++;
 
+    /* Strip off trailing white space */
+    while (my_isspace(charset_info, expr_end[-1]))
+      expr_end--;
+    /* strip off ' or " around the string */
+    if (*curr_ptr == '\'' || *curr_ptr == '"')
+    {
+      if (expr_end[-1] != *curr_ptr)
+        die("Unterminated string value");
+      curr_ptr++;
+      expr_end--;
+    }
     VAR v2;
     var_init(&v2,0,0,0,0);
     eval_expr(&v2, curr_ptr, &expr_end);
