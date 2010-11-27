@@ -654,7 +654,8 @@ int ha_heap::create(const char *name, TABLE *table_arg,
             seg->type != HA_KEYTYPE_VARTEXT1 &&
             seg->type != HA_KEYTYPE_VARTEXT2 &&
             seg->type != HA_KEYTYPE_VARBINARY1 &&
-            seg->type != HA_KEYTYPE_VARBINARY2)
+            seg->type != HA_KEYTYPE_VARBINARY2 &&
+            seg->type != HA_KEYTYPE_BIT)
           seg->type= HA_KEYTYPE_BINARY;
       }
       seg->start=   (uint) key_part->offset;
@@ -686,6 +687,15 @@ int ha_heap::create(const char *name, TABLE *table_arg,
         auto_key= key+ 1;
 	auto_key_type= field->key_type();
       }
+      if (seg->type == HA_KEYTYPE_BIT)
+      {
+        seg->bit_length= ((Field_bit *) field)->bit_len;
+        seg->bit_start= ((Field_bit *) field)->bit_ofs;
+        seg->bit_pos= (uint) (((Field_bit *) field)->bit_ptr -
+                                          (uchar*) table_arg->record[0]);
+      }
+      else
+        seg->bit_length= seg->bit_start= seg->bit_pos= 0;
     }
   }
   mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
