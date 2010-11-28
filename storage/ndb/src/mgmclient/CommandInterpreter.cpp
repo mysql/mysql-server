@@ -3181,6 +3181,3 @@ err:
   ndbout << "Invalid arguments: expected <NG>" << endl;
   return -1;
 }
-
-template class Vector<char const*>;
-template class Vector<int>;
