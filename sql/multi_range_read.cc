@@ -1054,14 +1054,15 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
   */
   uint parts= my_count_bits(key_tuple_map);
   ulong rpc;
+  ulonglong rowids_size;
   if ((rpc= key_info->rec_per_key[parts - 1]))
   {
-    rowid_buf_elem_size *= rpc;
+    rowids_size= rowid_buf_elem_size * rpc;
   }
 
   double fraction_for_rowids=
-    (ulonglong2double(rowid_buf_elem_size) / 
-     (ulonglong2double(rowid_buf_elem_size) + key_buff_elem_size));
+    (ulonglong2double(rowids_size) / 
+     (ulonglong2double(rowids_size) + key_buff_elem_size));
 
   size_t bytes_for_rowids= 
     round(fraction_for_rowids * (full_buf_end - full_buf));
