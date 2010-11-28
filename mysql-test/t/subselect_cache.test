@@ -1598,6 +1598,8 @@ CREATE TABLE `t3` (
 ) DEFAULT CHARSET=latin1;
 INSERT INTO `t3` VALUES (1,'w');
 
+# We may get warnings about 'h' not beeing a double here
+--disable_warnings
 SELECT  SUM( DISTINCT table2 . `pk` ) AS field2 ,
 (SELECT SUM( SUBQUERY1_t2 . `pk` ) AS SUBQUERY1_field1
  FROM t2 AS SUBQUERY1_t2 STRAIGHT_JOIN
@@ -1610,4 +1612,5 @@ FROM ( t1 AS table1 LEFT JOIN
 WHERE ( table1 . `pk` < 5 ) OR ( table1 . `col_varchar_key` IS NOT NULL)
 GROUP BY field3
 HAVING (field3 <= 'h' AND field2 != 4) ;
+--enable_warnings
 drop tables t1, t2, t3;
