@@ -28,7 +28,7 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp SparseBitmask.cpp parse_mask.hpp \
-	    ndb_rand.c require.c
+	    ndb_rand.c require.c Vector.cpp
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 

@@ -1076,4 +1076,3 @@ main(int argc, char** argv)
 template class Vector<Chunk>;
 
 #endif
-template class Vector<Uint32>;
