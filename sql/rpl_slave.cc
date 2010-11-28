@@ -3492,8 +3492,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     Seconds_Behind_Master grows. No big deal.
   */
   rli->abort_slave = 0;
-  mysql_mutex_unlock(&rli->run_lock);
-  mysql_cond_broadcast(&rli->start_cond);
 
   /*
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
@@ -3506,6 +3504,11 @@ pthread_handler_t handle_slave_sql(void *arg)
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   rli->clear_error();
+
+  mysql_mutex_unlock(&rli->run_lock);
+  mysql_cond_broadcast(&rli->start_cond);
+
+  DEBUG_SYNC(thd, "after_start_slave");
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   mysql_mutex_lock(&rli->log_space_lock);
