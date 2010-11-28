@@ -8005,13 +8005,6 @@ NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
   m_impl->theWaiter.signal(NO_WAIT);
 }
 
-
-
-template class Vector<int>;
-template class Vector<Uint8>;
-template class Vector<Uint16>;
-template class Vector<Uint32>;
-template class Vector<Vector<Uint32> >;
 template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
 
