@@ -376,6 +376,8 @@ typedef struct st_maria_share
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
+  my_bool has_null_fields;
+  my_bool has_varchar_fields;           /* If table has varchar fields */
 
   my_bool changed,			/* If changed since lock */
     global_changed,			/* If changed since open */

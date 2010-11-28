@@ -816,7 +816,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       protocol->store(table_list->schema_table->table_name,
                       system_charset_info);
     else
-      protocol->store(table_list->table->alias, system_charset_info);
+      protocol->store(table_list->table->alias.c_ptr(), system_charset_info);
   }
 
   if (table_list->view)
@@ -1305,7 +1305,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   else
   {
     if (lower_case_table_names == 2)
-      alias= table->alias;
+      alias= table->alias.c_ptr();
     else
     {
       alias= share->table_name.str;
@@ -4330,7 +4330,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       base_type [(dimension)] [unsigned] [zerofill].
       For DATA_TYPE column we extract only base type.
     */
-    tmp_buff= strchr(type.ptr(), '(');
+    tmp_buff= strchr(type.c_ptr_safe(), '(');
     if (!tmp_buff)
       /*
         if there is no dimention part then check the presence of
@@ -5662,7 +5662,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias.c_ptr());
     DBUG_RETURN(1);
   }
 

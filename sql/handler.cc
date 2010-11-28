@@ -2009,7 +2009,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     dummy_share.db.length= strlen(db);
     dummy_share.table_name.str= (char*) alias;
     dummy_share.table_name.length= strlen(alias);
-    dummy_table.alias= alias;
+    dummy_table.alias.set(alias, dummy_share.table_name.length,
+                          table_alias_charset);
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
@@ -2852,11 +2853,12 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.c_ptr(),
+                   engine);
 	else
         {
           SET_FATAL_ERROR;
-	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_ERRMSG, MYF(0), error, str.c_ptr(), engine);
         }
       }
       else

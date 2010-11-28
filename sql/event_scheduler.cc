@@ -100,7 +100,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     err_msg.append(err->msg, strlen(err->msg), system_charset_info);
     DBUG_ASSERT(err->level < 3);
     (sql_print_message_handlers[err->level])("%*s", err_msg.length(),
-                                              err_msg.c_ptr());
+                                              err_msg.c_ptr_safe());
   }
   DBUG_VOID_RETURN;
 }

@@ -1,7 +1,7 @@
 select * from information_schema.plugins where plugin_name like '%aria';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_TYPE_VERSION	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION	PLUGIN_LICENSE	PLUGIN_MATURITY	PLUGIN_AUTH_VERSION
-Maria	1.5	ACTIVE	DAEMON	50300.0	NULL	NULL	Monty Program Ab	Compatibility aliases for the Aria engine	GPL	Gamma	1.5
-Aria	1.5	ACTIVE	STORAGE ENGINE	50300.0	NULL	NULL	Monty Program Ab	Crash-safe tables with MyISAM heritage	GPL	Gamma	1.5
+Maria	1.5	ACTIVE	DAEMON	#	NULL	NULL	Monty Program Ab	Compatibility aliases for the Aria engine	GPL	Gamma	1.5
+Aria	1.5	ACTIVE	STORAGE ENGINE	#	NULL	NULL	Monty Program Ab	Crash-safe tables with MyISAM heritage	GPL	Gamma	1.5
 select maria_vars.variable_name, aria_vars.variable_name from
 information_schema.session_variables as maria_vars left join
 information_schema.session_variables as aria_vars

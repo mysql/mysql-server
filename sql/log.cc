@@ -1751,7 +1751,7 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
       log_query.append(thd->lex->ident.str, thd->lex->ident.length))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+  Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                         TRUE, TRUE, errcode);
   DBUG_RETURN(mysql_bin_log.write(&qinfo));
 }
@@ -1773,7 +1773,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
         log_query.append(thd->lex->ident.str, thd->lex->ident.length))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+    Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                           TRUE, TRUE, errcode);
     DBUG_RETURN(mysql_bin_log.write(&qinfo));
   }

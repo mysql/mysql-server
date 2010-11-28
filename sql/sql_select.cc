@@ -2953,7 +2953,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	{
 	  start_keyuse=keyuse;
 	  key=keyuse->key;
-	  s->keys.set_bit(key);               // QQ: remove this ?
+	  s->keys.set_bit(key);               // TODO: remove this ?
 
 	  refs=0;
           const_ref.clear_all();
@@ -3900,6 +3900,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
 	  keyuse.keypart_map= (key_part_map) 1 << part;
 	  keyuse.used_tables=key_field->val->used_tables();
 	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+          keyuse.ref_table_rows= 0;
           keyuse.null_rejecting= key_field->null_rejecting;
           keyuse.cond_guard= key_field->cond_guard;
           keyuse.sj_pred_no= key_field->sj_pred_no;
@@ -6343,8 +6344,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   join_tab->table=temp_table;
   join_tab->cache_select= 0;
   join_tab->select=0;
+  join_tab->select_cond= 0;                     // Avoid valgrind warning
   join_tab->set_select_cond(NULL, __LINE__);
-  join_tab->select_cond=0;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys.init();
@@ -6477,7 +6478,7 @@ static void add_not_null_conds(JOIN *join)
           if (notnull->fix_fields(join->thd, &notnull))
             DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
-                                           referred_tab->table->alias,
+                                           referred_tab->table->alias.c_ptr(),
                                            QT_ORDINARY););
           COND *new_cond= referred_tab->select_cond;
           add_cond_and_fix(&new_cond, notnull);
@@ -6786,7 +6787,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       if (tmp || !cond || tab->type == JT_REF || tab->type == JT_REF_OR_NULL ||
           tab->type == JT_EQ_REF || first_inner_tab)
       {
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
                                        thd->memdup((uchar*) select,
                                                    sizeof(*select)));
@@ -6830,7 +6833,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
 	sel->head=tab->table;
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
@@ -11289,7 +11294,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   thd->mem_root= &table->mem_root;
 
   table->field=reg_field;
-  table->alias= table_alias;
+  table->alias.set(table_alias, strlen(table_alias), table_alias_charset);
+
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->map=1;
@@ -11665,7 +11671,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count=(null_count+7) & ~7;		// move to next byte
 
     // fix table name in field entry
-    field->table_name= &table->alias;
+    field->set_table_name(&table->alias);
   }
 
   param->copy_field_end=copy;
@@ -12482,7 +12488,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
-  DBUG_PRINT("enter",("table: %s",entry->alias));
+  DBUG_PRINT("enter",("table: %s",entry->alias.c_ptr()));
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");
@@ -17497,6 +17503,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
+          str.extra_allocation(1024);
 	  item->print(&str, QT_ORDINARY);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}
@@ -19187,7 +19194,8 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
 
 void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 {
-  /* QQ: thd may not be set for sub queries, but this should be fixed */
+  /* TODO: thd may not be set for sub queries, but this should be fixed */
+  DBUG_ASSERT(thd);
   if (!thd)
     thd= current_thd;
 

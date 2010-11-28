@@ -848,7 +848,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
     thd->variables.sql_mode|= sql_mode;
   }
-  DBUG_PRINT("info", ("View: %s", view_query.ptr()));
+  DBUG_PRINT("info", ("View: %s", view_query.c_ptr_safe()));
 
   /* fill structure */
   view->source= thd->lex->create_view_select;
@@ -1675,7 +1675,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   }
   if (non_existant_views.length())
   {
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr_safe());
   }
 
   something_wrong= error || wrong_object_name || non_existant_views.length();

@@ -1602,7 +1602,8 @@ loop_end:
     do
     {
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
+                                            tbl->alias.c_ptr(),
+                                            &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);

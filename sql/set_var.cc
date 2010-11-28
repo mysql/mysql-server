@@ -990,7 +990,7 @@ bool sys_var_str::check(THD *thd, set_var *var)
 
   if ((res=(*check_func)(thd, var)) < 0)
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-             name, var->value->str_value.ptr());
+             name, var->value->str_value.c_ptr());
   return res;
 }
 
@@ -2281,11 +2281,15 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
       }
       tmp= NULL;
     }
-    else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
-             !(tmp=get_old_charset_by_name(res->c_ptr())))
+    else
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-      return 1;
+      const char *name= res->c_ptr_safe();
+      if (!(tmp=get_charset_by_csname(name,MY_CS_PRIMARY,MYF(0))) &&
+             !(tmp=get_old_charset_by_name(name)))
+      {
+        my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
+        return 1;
+      }
     }
   }
   else // INT_RESULT
@@ -2622,7 +2626,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   if (!(res= var->value->val_str(&str)))
     goto err;
 
-  log_file_str= res->c_ptr();
+  log_file_str= res->c_ptr_safe();
   bzero(&f_stat, sizeof(MY_STAT));
 
   path_length= unpack_filename(path, log_file_str);
@@ -3085,7 +3089,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
       return 1;
     }
-    const char *locale_str= res->c_ptr();
+    const char *locale_str= res->c_ptr_safe();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
       my_printf_error(ER_UNKNOWN_ERROR,
@@ -4117,7 +4121,7 @@ bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
                                optimizer_switch_typelib.count, 
                                thd->variables.optimizer_switch,
                                global_system_variables.optimizer_switch,
-                               res->c_ptr_safe(), res->length(), NULL,
+                               res->ptr(), res->length(), NULL,
                                &error, &error_len, &not_used);
   if (error_len)
   {

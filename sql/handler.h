@@ -139,6 +139,7 @@
 #define HA_HAS_NEW_CHECKSUM    (LL(1) << 36)
 
 #define HA_MRR_CANT_SORT       (LL(1) << 37)
+#define HA_RECORD_MUST_BE_CLEAN_ON_WRITE (LL(1) << 38)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities

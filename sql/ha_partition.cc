@@ -1097,7 +1097,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                 error != HA_ADMIN_ALREADY_DONE &&
                 error != HA_ADMIN_TRY_ALTER)
             {
-              print_admin_msg(thd, "error", table_share->db.str, table->alias,
+              print_admin_msg(thd, "error", table_share->db.str,
+                              table->alias.c_ptr(),
                               opt_op_name[flag],
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
@@ -1124,7 +1125,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
               error != HA_ADMIN_ALREADY_DONE &&
               error != HA_ADMIN_TRY_ALTER)
           {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
+            print_admin_msg(thd, "error", table_share->db.str,
+                            table->alias.c_ptr(),
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
@@ -3884,6 +3886,7 @@ int ha_partition::index_init(uint inx, bool sorted)
   m_part_spec.start_part= NO_CURRENT_PART_ID;
   m_start_key.length= 0;
   m_ordered= sorted;
+  m_ordered_scan_ongoing= FALSE;
   m_curr_key_info[0]= table->key_info+inx;
   if (m_pkey_is_clustered && table->s->primary_key != MAX_KEY)
   {
@@ -4706,6 +4709,12 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     uchar *rec_buf_ptr= rec_buf(i);
     int error;
     handler *file= m_file[i];
+
+    /*
+      Reset null bits (to avoid valgrind warnings) and to give a default
+      value for not read null fields.
+    */
+    bfill(rec_buf_ptr, table->s->null_bytes, 255);
 
     switch (m_index_scan_type) {
     case partition_index_read:

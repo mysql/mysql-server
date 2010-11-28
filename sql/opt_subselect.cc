@@ -1030,7 +1030,7 @@ int pull_out_semijoin_tables(JOIN *join)
             pulled_a_table= TRUE;
             pulled_tables |= tbl->table->map;
             DBUG_PRINT("info", ("Table %s pulled out (reason: func dep)",
-                                tbl->table->alias));
+                                tbl->table->alias.c_ptr()));
             /*
               Pulling a table out of uncorrelated subquery in general makes
               makes it correlated. See the NOTE to this funtion. 
@@ -2605,7 +2605,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   thd->mem_root= &table->mem_root;
 
   table->field=reg_field;
-  table->alias= "weedout-tmp";
+  table->alias.set("weedout-tmp", sizeof("weedout-tmp")-1,
+                   table_alias_charset);
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->map=1;
@@ -2737,7 +2738,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     else
       recinfo->type=FIELD_NORMAL;
 
-    field->table_name= &table->alias;
+    field->set_table_name(&table->alias);
   }
 
   //param->recinfo=recinfo;

@@ -745,6 +745,16 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
       int_table_flags|= HA_HAS_OLD_CHECKSUM;
   }
 
+  /*
+    For static size rows, tell MariaDB that we will access all bytes
+    in the record when writing it.  This signals MariaDB to initalize
+    the full row to ensure we don't get any errors from valgrind and
+    that all bytes in the row is properly reset.
+  */
+  if ((file->s->options & HA_OPTION_PACK_RECORD) &&
+      (file->s->has_varchar_fields | file->s->has_null_fields))
+    int_table_flags|= HA_RECORD_MUST_BE_CLEAN_ON_WRITE;
+
   for (i= 0; i < table->s->keys; i++)
   {
     plugin_ref parser= table->key_info[i].parser;
@@ -811,7 +821,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name =   "check";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
 
@@ -904,7 +914,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name=    "analyze";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
@@ -1129,7 +1139,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   DBUG_ENTER("ha_myisam::repair");
 
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;

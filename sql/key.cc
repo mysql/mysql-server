@@ -113,13 +113,24 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
 
   if (key_length == 0)
     key_length= key_info->key_length;
-  for (key_part= key_info->key_part; (int) key_length > 0; key_part++)
+  for (key_part= key_info->key_part;
+       (int) key_length > 0;
+       key_part++, to_key+= length, key_length-= length)
   {
     if (key_part->null_bit)
     {
       *to_key++= test(from_record[key_part->null_offset] &
 		   key_part->null_bit);
       key_length--;
+      if (to_key[-1])
+      {
+        /*
+          Don't copy data for null values
+          The -1 below is to subtract the null byte which is already handled
+        */
+        length= min(key_length, (uint) key_part->store_length-1);
+        continue;
+      }
     }
     if (key_part->key_part_flag & HA_BLOB_PART ||
         key_part->key_part_flag & HA_VAR_LENGTH_PART)
@@ -138,8 +149,6 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
       if (bytes < length)
         cs->cset->fill(cs, (char*) to_key + bytes, length - bytes, ' ');
     }
-    to_key+= length;
-    key_length-= length;
   }
 }
 
@@ -166,16 +175,28 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
   {
     key_length= key_info->key_length;
   }
-  for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
+  for (key_part= key_info->key_part ;
+       (int) key_length > 0 ;
+       key_part++, from_key+= length, key_length-= length)
   {
     uchar used_uneven_bits= 0;
     if (key_part->null_bit)
     {
-      if (*from_key++)
+      bool null_value; 
+      if ((null_value= *from_key++))
 	to_record[key_part->null_offset]|= key_part->null_bit;
       else
 	to_record[key_part->null_offset]&= ~key_part->null_bit;
       key_length--;
+      if (null_value)
+      {
+        /*
+          Don't copy data for null bytes
+          The -1 below is to subtract the null byte which is already handled
+        */
+        length= min(key_length, (uint) key_part->store_length-1);
+        continue;
+      }
     }
     if (key_part->type == HA_KEYTYPE_BIT)
     {
@@ -229,8 +250,6 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
       memcpy(to_record + key_part->offset, from_key + used_uneven_bits
              , (size_t) length - used_uneven_bits);
     }
-    from_key+= length;
-    key_length-= length;
   }
 }
 

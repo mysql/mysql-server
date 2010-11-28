@@ -118,7 +118,7 @@ sp_rcontext::init_var_table(THD *thd)
     return TRUE;
 
   m_var_table->copy_blobs= TRUE;
-  m_var_table->alias= "";
+  m_var_table->alias.set("", 0, table_alias_charset);
 
   return FALSE;
 }

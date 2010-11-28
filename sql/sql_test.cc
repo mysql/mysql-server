@@ -57,14 +57,15 @@ print_where(COND *cond,const char *info, enum_query_type query_type)
 {
   if (cond)
   {
-    char buff[256];
+    char buff[1024];
     String str(buff,(uint32) sizeof(buff), system_charset_info);
     str.length(0);
+    str.extra_allocation(1024);
     cond->print(&str, query_type);
     str.append('\0');
     DBUG_LOCK_FILE;
     (void) fprintf(DBUG_FILE,"\nWHERE:(%s) ",info);
-    (void) fputs(str.ptr(),DBUG_FILE);
+    (void) fputs(str.c_ptr_safe(),DBUG_FILE);
     (void) fputc('\n',DBUG_FILE);
     DBUG_UNLOCK_FILE;
   }
@@ -156,7 +157,7 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
   out.append('\0');				// Purify doesn't like c_ptr()
   DBUG_LOCK_FILE;
   VOID(fputs("\nInfo about FILESORT\n",DBUG_FILE));
-  fprintf(DBUG_FILE,"Sortorder: %s\n",out.ptr());
+  fprintf(DBUG_FILE,"Sortorder: %s\n",out.c_ptr_safe());
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
 }
@@ -191,7 +192,7 @@ TEST_join(JOIN *join)
     TABLE *form=tab->table;
     char key_map_buff[128];
     fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
-	    form->alias,
+	    form->alias.c_ptr(),
 	    join_type_str[tab->type],
 	    tab->keys.print(key_map_buff),
 	    tab->ref.key_parts,
@@ -215,7 +216,7 @@ TEST_join(JOIN *join)
     if (tab->ref.key_parts)
     {
       fprintf(DBUG_FILE,
-              "                  refs:  %s\n", ref_key_parts[i].ptr());
+              "                  refs:  %s\n", ref_key_parts[i].c_ptr_safe());
     }
   }
   DBUG_UNLOCK_FILE;
@@ -240,11 +241,11 @@ void print_keyuse(KEYUSE *keyuse)
     fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
   longlong2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
-  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize= %d used_tables=%s "
-          "ref_table_rows= %lu keypart_map= %0lx\n",
-          keyuse->table->alias, fieldname, str.ptr(),
-          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
-          keyuse->keypart_map);
+  fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize: %u  used_tables: %s "
+          "ref_table_rows: %lu  keypart_map: %0lx\n",
+          keyuse->table->alias.c_ptr(), fieldname, str.ptr(),
+          (uint) keyuse->optimize, buf2, (ulong) keyuse->ref_table_rows, 
+          (ulong) keyuse->keypart_map);
   DBUG_UNLOCK_FILE;
   //key_part_map keypart_map; --?? there can be several? 
 }
@@ -370,7 +371,7 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
   for (uint i= 0;i < sjm->tables; i++)
   {
     fprintf(DBUG_FILE, "    %s%s\n", 
-            sjm->positions[i].table->table->alias,
+            sjm->positions[i].table->table->alias.c_ptr(),
             (i == sjm->tables -1)? "": ",");
   }
   fprintf(DBUG_FILE, "  }\n");

@@ -1453,7 +1453,8 @@ static void fill_server(MEM_ROOT *mem_root, FEDERATEDX_SERVER *server,
   key.q_append('\0');
   server->password= (const char *) (intptr) key.length();
   key.append(password);
-  
+  key.c_ptr_safe();                             // Ensure we have end \0
+
   server->key_length= key.length();
   server->key= (uchar *)  memdup_root(mem_root, key.ptr(), key.length()+1);
 
@@ -1583,7 +1584,7 @@ static FEDERATEDX_SHARE *get_share(const char *table_name, TABLE *table)
                  tmp_share.table_name_length, ident_quote_char);
 
     if (!(share= (FEDERATEDX_SHARE *) memdup_root(&mem_root, (char*)&tmp_share, sizeof(*share))) ||
-        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length() + 1)))
+        !(share->select_query= (char*) strmake_root(&mem_root, query.ptr(), query.length())))
       goto error;
 
     share->mem_root= mem_root;
@@ -3435,11 +3436,13 @@ bool ha_federatedx::get_error_message(int error, String* buf)
     buf->qs_append(remote_error_number);
     buf->append(STRING_WITH_LEN(": "));
     buf->append(remote_error_buf);
+    /* Ensure string ends with \0 */
+    (void) buf->c_ptr_safe();
 
     remote_error_number= 0;
     remote_error_buf[0]= '\0';
   }
-  DBUG_PRINT("exit", ("message: %s", buf->ptr()));
+  DBUG_PRINT("exit", ("message: %s", buf->c_ptr_safe()));
   DBUG_RETURN(FALSE);
 }
 

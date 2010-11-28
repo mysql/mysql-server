@@ -2961,7 +2961,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->c_ptr();
+          f_args.args[i]= (char*) res->c_ptr_safe();
           f_args.lengths[i]= res->length();
           break;
         }
@@ -5812,7 +5812,7 @@ Item_func_sp::func_name() const
     qname.append('.');
   }
   append_identifier(thd, &qname, m_name->m_name.str, m_name->m_name.length);
-  return qname.ptr();
+  return qname.c_ptr_safe();
 }
 
 
@@ -5868,7 +5868,7 @@ Item_func_sp::init_result_field(THD *thd)
    */
   
   share= dummy_table->s;
-  dummy_table->alias = "";
+  dummy_table->alias.set("", 0, table_alias_charset);
   dummy_table->maybe_null = maybe_null;
   dummy_table->in_use= thd;
   dummy_table->copy_blobs= TRUE;

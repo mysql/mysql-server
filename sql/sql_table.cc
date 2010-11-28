@@ -2113,7 +2113,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     if (!foreign_key_error)
       my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                      wrong_tables.c_ptr());
+                      wrong_tables.c_ptr_safe());
     else
       my_message(ER_ROW_IS_REFERENCED, ER(ER_ROW_IS_REFERENCED), MYF(0));
     error= 1;
@@ -6955,7 +6955,7 @@ view_err:
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+			  table->alias.c_ptr());
     }
 
     VOID(pthread_mutex_lock(&LOCK_open));
@@ -7023,7 +7023,7 @@ view_err:
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+			  table->alias.c_ptr());
     }
 
     if (!error)

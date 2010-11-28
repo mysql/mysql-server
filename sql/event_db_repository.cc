@@ -212,7 +212,7 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias.c_ptr(),
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }
@@ -896,7 +896,11 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
     same fields.
   */
   if (db.length > table->field[ET_FIELD_DB]->field_length ||
-      name.length > table->field[ET_FIELD_NAME]->field_length)
+      name.length > table->field[ET_FIELD_NAME]->field_length ||
+      table->s->keys == 0 ||
+      table->key_info[0].key_parts != 2 ||
+      table->key_info[0].key_part[0].fieldnr != ET_FIELD_DB+1 ||
+      table->key_info[0].key_part[1].fieldnr != ET_FIELD_NAME+1)
     DBUG_RETURN(TRUE);
 
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);
