@@ -3103,8 +3103,8 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
                           (long) m_thd_ndb->m_unsent_bytes));
       if (m_thd_ndb->m_unsent_bytes)
       {
-        if (flush_bulk_insert() != 0)
-          DBUG_RETURN(-1);
+        if ((error = flush_bulk_insert()) != 0)
+          DBUG_RETURN(error);
       }
       contact_ndb= (local_check == 2);
     }
@@ -3309,8 +3309,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   if (m_active_cursor && (error= close_scan()))
     DBUG_RETURN(error);
 
-  if (m_active_cursor && (error= close_scan()))
-    DBUG_RETURN(error);
+  if (m_thd_ndb->m_unsent_bytes)
+  {
+    if ((error = flush_bulk_insert()) != 0)
+      DBUG_RETURN(error);
+  }
 
   const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
 
@@ -3429,6 +3432,12 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   DBUG_ENTER("full_table_scan");  
   DBUG_PRINT("enter", ("Starting new scan on %s", m_tabname));
+
+  if (m_thd_ndb->m_unsent_bytes)
+  {
+    if ((error = flush_bulk_insert()) != 0)
+      DBUG_RETURN(error);
+  }
 
   if (m_use_partition_pruning && m_user_defined_partitioning)
   {
@@ -11749,6 +11758,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
+
+  if (m_thd_ndb->m_unsent_bytes)
+  {
+    if ((error = flush_bulk_insert()) != 0)
+      DBUG_RETURN(error);
+  }
 
   /**
    * blobs and unique hash index with NULL can't be batched currently
