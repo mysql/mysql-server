@@ -2806,6 +2806,7 @@ storage/ndb/test/ndbapi/testLimits
 storage/ndb/test/ndbapi/testMgm
 storage/ndb/test/ndbapi/testMgmd
 storage/ndb/test/ndbapi/testNDBT
+storage/ndb/test/ndbapi/testNativeDefault
 storage/ndb/test/ndbapi/testNdbApi
 storage/ndb/test/ndbapi/testNdbinfo
 storage/ndb/test/ndbapi/testNodeRestart
@@ -2817,8 +2818,9 @@ storage/ndb/test/ndbapi/testReconnect
 storage/ndb/test/ndbapi/testRestartGci
 storage/ndb/test/ndbapi/testSRBank
 storage/ndb/test/ndbapi/testScan
-storage/ndb/test/ndbapi/testScanFilter
 storage/ndb/test/ndbapi/testScan.dsp
+storage/ndb/test/ndbapi/testScanFilter
+storage/ndb/test/ndbapi/testScanFilter
 storage/ndb/test/ndbapi/testScanInterpreter
 storage/ndb/test/ndbapi/testScanPerf
 storage/ndb/test/ndbapi/testSingleUserMode
