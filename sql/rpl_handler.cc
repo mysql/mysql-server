@@ -202,7 +202,7 @@ void delegates_destroy()
       r= 0;                                                             \
       break;                                                            \
     }                                                                   \
-    insert_dynamic(plugins, (uchar *)&plugin);                          \
+    insert_dynamic(plugins, &plugin);                                   \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \

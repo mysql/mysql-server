@@ -316,6 +316,7 @@ static SYMBOL symbols[] = {
   { "LOOP",             SYM(LOOP_SYM)},
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY)},
   { "MASTER",           SYM(MASTER_SYM)},
+  { "MASTER_BIND",      SYM(MASTER_BIND_SYM)},
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM)},
   { "MASTER_DELAY",     SYM(MASTER_DELAY_SYM)},
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM)},

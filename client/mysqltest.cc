@@ -5689,6 +5689,17 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     while (my_isspace(charset_info, *curr_ptr))
       curr_ptr++;
 
+    /* Strip off trailing white space */
+    while (my_isspace(charset_info, expr_end[-1]))
+      expr_end--;
+    /* strip off ' or " around the string */
+    if (*curr_ptr == '\'' || *curr_ptr == '"')
+    {
+      if (expr_end[-1] != *curr_ptr)
+        die("Unterminated string value");
+      curr_ptr++;
+      expr_end--;
+    }
     VAR v2;
     var_init(&v2,0,0,0,0);
     eval_expr(&v2, curr_ptr, &expr_end);
@@ -6214,7 +6225,7 @@ int read_command(struct st_command** command_ptr)
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
-      insert_dynamic(&q_lines, (uchar*) &command))
+      insert_dynamic(&q_lines, &command))
     die("Out of memory");
   command->type= Q_UNKNOWN;
 
@@ -6713,7 +6724,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, (uchar*) &p))
+    if (insert_dynamic(&patterns, &p))
       die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -9225,7 +9236,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr,(uchar*) &reg))
+    if (insert_dynamic(&res->regex_arr, &reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -10241,7 +10252,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, (uchar*) &start))
+    if (insert_dynamic(&lines, &start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;

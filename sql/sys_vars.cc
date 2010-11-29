@@ -408,7 +408,7 @@ static Sys_var_mybool Sys_binlog_direct(
 
 static const char *repository_names[]=
 {
-  "FILE", 0
+  "FILE", "TABLE", 0
 };
 
 ulong opt_mi_repository_id;
@@ -1412,9 +1412,10 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
+  "index_condition_pushdown",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
-  "mrr", "mrr_cost_based", "index_condition_pushdown",
+  "mrr", "mrr_cost_based",
 #endif
   "default", NullS
 };
@@ -1431,11 +1432,11 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection, engine_condition_pushdown"
+       "index_merge_intersection, engine_condition_pushdown, "
+       "index_condition_pushdown"
 #ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, "
-       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
-       "index_condition_pushdown"
+       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based"
 #endif
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),

@@ -6439,3 +6439,10 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
 ER_PARTITION_EXCHANGE_FOREIGN_KEY
   eng "Table to exchange with partition has foreign key references: '%-.64s'"
   swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
+
+ER_NO_SUCH_KEY_VALUE
+  eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
+ER_RPL_INFO_DATA_TOO_LONG
+  eng "Data for column '%s' too long"
+ER_CANT_LOCK_RPL_INFO_TABLE
+        eng "You can't use locks with rpl info tables."

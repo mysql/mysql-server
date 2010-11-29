@@ -3694,6 +3694,11 @@ public:
 */
 #define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
 
+/**
+  Identifies statements that can directly update a rpl info table.
+*/
+#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
+
 /* Bits in server_command_flags */
 
 /**
