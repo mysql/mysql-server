@@ -16,7 +16,7 @@
 INCLUDE_DIRECTORIES(${WIX_DIR}/../SDK/inc)
 LINK_DIRECTORIES(${WIX_DIR}/../SDK/lib)
 
-SET(WIXCA_SOURCES CustomAction.cpp CustomAction.rc CustomAction.def)
+SET(WIXCA_SOURCES CustomAction.cpp CustomAction.def)
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 	LINK_LIBRARIES(wcautil_x64 dutil_x64 msi version)

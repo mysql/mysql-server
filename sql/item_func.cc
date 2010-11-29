@@ -4331,7 +4331,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       length--;					// Fix length change above
       entry->value[length]= 0;			// Store end \0
     }
-    memcpy(entry->value,ptr,length);
+    memmove(entry->value, ptr, length);
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
@@ -5734,7 +5734,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
