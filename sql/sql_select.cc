@@ -7442,7 +7442,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     Non-linked join buffers can't guarantee one match
   */
    if (force_unlinked_cache && 
-       (!tab->type == JT_ALL || cache_level <= 4) && 
+       (!(tab->type == JT_ALL) || cache_level <= 4) &&
        ((tab->is_inner_table_of_semi_join_with_first_match() &&
          !tab->is_single_inner_of_semi_join_with_first_match()) ||
         (tab->is_inner_table_of_outer_join() &&
