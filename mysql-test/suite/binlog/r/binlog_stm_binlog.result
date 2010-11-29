@@ -717,8 +717,8 @@ master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhos
 master-bin.000001	#	Query	#	#	COMMIT
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
-insert delayed into t1 values (207);
-insert delayed into t1 values (null);
+insert /* before delayed */ delayed /* after delayed */ into t1 values (207);
+insert /*! delayed */ into t1 values (null);
 insert delayed into t1 values (300);
 FLUSH TABLES;
 show binlog events from <binlog_start>;
