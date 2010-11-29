@@ -3290,7 +3290,7 @@ MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
   DBUG_ENTER("ha_federated::store_result");
   if (result)
   {
-    (void) insert_dynamic(&results, (uchar*) &result);
+    (void) insert_dynamic(&results, &result);
   }
   position_called= FALSE;
   DBUG_RETURN(result);

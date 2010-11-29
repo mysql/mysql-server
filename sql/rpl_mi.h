@@ -100,6 +100,7 @@ class Master_info : public Rpl_info
   ulong master_id;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
+  char bind_addr[HOSTNAME_LENGTH+1];
 
   int init_info();
   void end_info();

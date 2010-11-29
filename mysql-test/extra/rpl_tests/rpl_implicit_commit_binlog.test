@@ -36,8 +36,8 @@ let $ddl_cases= 41;
 while ($ddl_cases >= 1)
 {
   --echo -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
-  let $in_temporary= "no";
-  let $ok= "yes";
+  let $in_temporary= no;
+  let $ok= yes;
   #
   # In SBR and MIXED modes, the commit event is usually the third event in the
   # binary log:
@@ -91,7 +91,7 @@ while ($ddl_cases >= 1)
     {
       # This seems to be related to epochs.
       # We need to check this against an updated version or avoid it.
-      let $ok= "no";
+      let $ok= no;
       let $commit_event_row_number= 6;
     }
   }
@@ -356,7 +356,7 @@ while ($ddl_cases >= 1)
   if ($ddl_cases == 11)
   {
     let $cmd= CREATE TEMPORARY TABLE tt_xx (a int);
-    let $in_temporary= "yes";
+    let $in_temporary= yes;
     # In SBR and MIXED modes, the DDL statement is written to the binary log but
     # does not commit the current transaction.
     #
@@ -478,7 +478,7 @@ while ($ddl_cases >= 1)
   if ($ddl_cases == 8)
   {
     let $cmd= DROP TEMPORARY TABLE IF EXISTS new_tt_xx;
-    let $in_temporary= "yes";
+    let $in_temporary= yes;
     #
     # In SBR and MIXED modes, the DDL statement is written to the binary log
     # but does not commit the current transaction:
@@ -618,14 +618,14 @@ while ($ddl_cases >= 1)
   # commit. The flag in_temporary is used to avoid aborting the test in such
   # cases. Thus we force the commit.
   #
-  if ($in_temporary == "yes")
+  if ($in_temporary == yes)
   {
     --eval COMMIT
   }
   let $event_commit= query_get_value("SHOW BINLOG EVENTS FROM $first_binlog_position", Info, $commit_event_row_number);
   if (`SELECT SUBSTRING("$event_commit",1,6) != "COMMIT"`)
   {
-    if ($ok == "yes")
+    if ($ok == yes)
     {
       --echo it *does not* commit the current transaction.
       --echo $cmd

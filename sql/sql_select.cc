@@ -73,9 +73,9 @@ static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
                                 COND_EQUAL *cond_equal,
                                 table_map table_map, SELECT_LEX *select_lex,
                                 st_sargable_param **sargables);
-static int sort_keyuse(KEYUSE *a,KEYUSE *b);
-static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
-static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
+static int sort_keyuse(Key_use *a, Key_use *b);
+static void set_position(JOIN *join, uint index, JOIN_TAB *table, Key_use *key);
+static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 			       table_map used_tables);
 static bool choose_plan(JOIN *join, table_map join_tables);
 static void best_access_path(JOIN  *join, JOIN_TAB *s, 
@@ -100,7 +100,7 @@ static uint cache_record_length(JOIN *join,uint index);
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
-				KEYUSE *keyuse, table_map used_tables,
+				Key_use *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
 static void make_outerjoin_info(JOIN *join);
@@ -2679,6 +2679,9 @@ JOIN::reinit()
       func->clear();
   }
 
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   DBUG_RETURN(0);
 }
 
@@ -3451,6 +3454,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -4147,7 +4157,7 @@ bool JOIN::setup_subquery_materialization()
 
 
 /*
-  Check if table's KEYUSE elements have an eq_ref(outer_tables) candidate
+  Check if table's Key_use elements have an eq_ref(outer_tables) candidate
 
   SYNOPSIS
     find_eq_ref_candidate()
@@ -4156,7 +4166,7 @@ bool JOIN::setup_subquery_materialization()
                         count.
 
   DESCRIPTION
-    Check if table's KEYUSE elements have an eq_ref(outer_tables) candidate
+    Check if table's Key_use elements have an eq_ref(outer_tables) candidate
 
   TODO
     Check again if it is feasible to factor common parts with constant table
@@ -4169,7 +4179,7 @@ bool JOIN::setup_subquery_materialization()
 
 bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
 {
-  KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
+  Key_use *keyuse= table->reginfo.join_tab->keyuse;
   uint key;
 
   if (keyuse)
@@ -4501,7 +4511,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   table_map found_const_table_map, all_table_map, found_ref, refs;
   TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
-  KEYUSE *keyuse,*start_keyuse;
+  Key_use *keyuse, *start_keyuse;
   table_map outer_join=0;
   SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
@@ -4565,7 +4575,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
-	set_position(join,const_count++,s,(KEYUSE*) 0);
+	set_position(join, const_count++, s, NULL);
 	continue;
       }
       outer_join|= table->map;
@@ -4602,7 +4612,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables)
     {
-      set_position(join,const_count++,s,(KEYUSE*) 0);
+      set_position(join, const_count++, s, NULL);
     }
   }
   stat_vector[i]=0;
@@ -4736,7 +4746,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
             mark_as_null_row(table);
             found_const_table_map|= table->map;
 	    join->const_table_map|= table->map;
-	    set_position(join,const_count++,s,(KEYUSE*) 0);
+	    set_position(join, const_count++, s, NULL);
             goto more_const_tables_found;
            }
 	  keyuse++;
@@ -4755,7 +4765,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
 	  join->const_table_map|=table->map;
-	  set_position(join,const_count++,s,(KEYUSE*) 0);
+	  set_position(join, const_count++, s, NULL);
 	  if ((tmp= join_read_const_table(s, join->positions+const_count-1)))
 	  {
 	    if (tmp > 0)
@@ -4916,7 +4926,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 	  caller to abort with a zero row result.
 	*/
 	join->const_table_map|= s->table->map;
-	set_position(join,const_count++,s,(KEYUSE*) 0);
+	set_position(join, const_count++, s, NULL);
 	s->type= JT_CONST;
 	if (*s->on_expr_ref)
 	{
@@ -5170,10 +5180,11 @@ typedef struct key_field_t {
   /**
     If true, the condition this struct represents will not be satisfied
     when val IS NULL.
+    @sa Key_use::null_rejecting .
   */
-  bool          null_rejecting; 
-  bool          *cond_guard; /* See KEYUSE::cond_guard */
-  uint          sj_pred_no; /* See KEYUSE::sj_pred_no */
+  bool          null_rejecting;
+  bool          *cond_guard;                    ///< @sa Key_use::cond_guard
+  uint          sj_pred_no;                     ///< @sa Key_use::sj_pred_no
 } KEY_FIELD;
 
 /* Values in optimize */
@@ -5687,7 +5698,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   /* 
     Subquery optimization: Conditions that are pushed down into subqueries
     are wrapped into Item_func_trig_cond. We process the wrapped condition
-    but need to set cond_guard for KEYUSE elements generated from it.
+    but need to set cond_guard for Key_use elements generated from it.
   */
   {
     if (cond->type() == Item::FUNC_ITEM &&
@@ -5875,20 +5886,18 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-          KEYUSE keyuse;
-          keyuse.table=          field->table;
-          keyuse.val=            key_field->val;
-          keyuse.used_tables=    key_field->val->used_tables();
-          keyuse.key=            key;
-          keyuse.keypart=        part;
-          keyuse.optimize=       key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.keypart_map=    (key_part_map) 1 << part;
-          /* This will be set accordingly in optimize_keyuse */
-          keyuse.ref_table_rows= ~(ha_rows) 0;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard=     key_field->cond_guard;
-          keyuse.sj_pred_no=     key_field->sj_pred_no;
-          if (insert_dynamic(keyuse_array, (uchar*) &keyuse))
+          const Key_use keyuse(field->table,
+                               key_field->val,
+                               key_field->val->used_tables(),
+                               key,
+                               part,
+                               key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL,
+                               (key_part_map) 1 << part,
+                               ~(ha_rows) 0, // will be set in optimize_keyuse
+                               key_field->null_rejecting,
+                               key_field->cond_guard,
+                               key_field->sj_pred_no);
+          if (insert_dynamic(keyuse_array, &keyuse))
             return TRUE;
 	}
       }
@@ -5952,21 +5961,22 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       !(usable_tables & cond_func->table->map))
     return FALSE;
 
-  KEYUSE keyuse;
-  keyuse.table= cond_func->table;
-  keyuse.val =  cond_func;
-  keyuse.key =  cond_func->key;
-  keyuse.keypart= FT_KEYPART;
-  keyuse.used_tables=cond_func->key_item()->used_tables();
-  keyuse.optimize= 0;
-  keyuse.keypart_map= 0;
-  keyuse.sj_pred_no= UINT_MAX;
-  return insert_dynamic(keyuse_array,(uchar*) &keyuse);
+  const Key_use keyuse(cond_func->table,
+                       cond_func,
+                       cond_func->key_item()->used_tables(),
+                       cond_func->key,
+                       FT_KEYPART,
+                       0,             // optimize
+                       0,             // keypart_map
+                       ~(ha_rows)0,   // ref_table_rows
+                       false,         // null_rejecting
+                       NULL,          // cond_guard
+                       UINT_MAX);     // sj_pred_no
+  return insert_dynamic(keyuse_array, &keyuse);
 }
 
 
-static int
-sort_keyuse(KEYUSE *a,KEYUSE *b)
+static int sort_keyuse(Key_use *a, Key_use *b)
 {
   int res;
   if (a->table->tablenr != b->table->tablenr)
@@ -6060,7 +6070,7 @@ static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
   Update keyuse array with all possible keys we can use to fetch rows.
   
   @param       thd 
-  @param[out]  keyuse         Put here ordered array of KEYUSE structures
+  @param[out]  keyuse         Put here ordered array of Key_use structures
   @param       join_tab       Array in tablenr_order
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
@@ -6121,7 +6131,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* set a barrier for the array of SARGABLE_PARAM */
   (*sargables)[0].field= 0; 
 
-  if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
+  if (my_init_dynamic_array(keyuse, sizeof(Key_use), 20, 64))
     return TRUE;
   if (cond)
   {
@@ -6198,17 +6208,17 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   */
   if (keyuse->elements)
   {
-    KEYUSE key_end,*prev,*save_pos,*use;
+    Key_use *save_pos, *use;
 
-    my_qsort(keyuse->buffer,keyuse->elements,sizeof(KEYUSE),
-	  (qsort_cmp) sort_keyuse);
+    my_qsort(keyuse->buffer, keyuse->elements, sizeof(Key_use),
+             reinterpret_cast<qsort_cmp>(sort_keyuse));
 
-    bzero((char*) &key_end,sizeof(key_end));    /* Add for easy testing */
-    if (insert_dynamic(keyuse,(uchar*) &key_end))
+    const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
+    if (insert_dynamic(keyuse, &key_end)) // added for easy testing
       return TRUE;
 
-    use=save_pos=dynamic_element(keyuse,0,KEYUSE*);
-    prev= &key_end;
+    use= save_pos= dynamic_element(keyuse, 0, Key_use *);
+    const Key_use *prev= &key_end;
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
@@ -6243,8 +6253,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
       use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       save_pos++;
     }
-    i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
-    (void) set_dynamic(keyuse,(uchar*) &key_end,i);
+    i= (uint) (save_pos - (Key_use *)keyuse->buffer);
+    (void) set_dynamic(keyuse, &key_end, i);
     keyuse->elements=i;
   }
   DBUG_EXECUTE("opt", print_keyuse_array(keyuse););
@@ -6257,7 +6267,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 {
-  KEYUSE *end,*keyuse= dynamic_element(keyuse_array, 0, KEYUSE*);
+  Key_use *end, *keyuse= dynamic_element(keyuse_array, 0, Key_use *);
 
   for (end= keyuse+ keyuse_array->elements ; keyuse < end ; keyuse++)
   {
@@ -6442,7 +6452,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 /** Save const tables first as used tables. */
 
 static void
-set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
+set_position(JOIN *join, uint idx, JOIN_TAB *table, Key_use *key)
 {
   join->positions[idx].table= table;
   join->positions[idx].key=key;
@@ -6559,7 +6569,7 @@ private:
   uint   best_loose_scan_key;
   double best_loose_scan_cost;
   double best_loose_scan_records;
-  KEYUSE *best_loose_scan_start_key;
+  Key_use *best_loose_scan_start_key;
 
   uint best_max_loose_keypart;
 
@@ -6625,7 +6635,7 @@ public:
     part1_conds_met= FALSE;
   }
   
-  void add_keyuse(table_map remaining_tables, KEYUSE *keyuse)
+  void add_keyuse(table_map remaining_tables, Key_use *keyuse)
   {
     if (try_loosescan && keyuse->sj_pred_no != UINT_MAX)
     {
@@ -6648,7 +6658,7 @@ public:
 
   bool have_a_case() { return test(handled_sj_equalities); }
 
-  void check_ref_access_part1(JOIN_TAB *s, uint key, KEYUSE *start_key, 
+  void check_ref_access_part1(JOIN_TAB *s, uint key, Key_use *start_key,
                               table_map found_part)
   {
     /*
@@ -6726,7 +6736,7 @@ public:
     }
   }
   
-  void check_ref_access_part2(uint key, KEYUSE *start_key, double records, 
+  void check_ref_access_part2(uint key, Key_use *start_key, double records,
                               double read_time)
   {
     if (part1_conds_met && read_time < best_loose_scan_cost)
@@ -6815,7 +6825,7 @@ best_access_path(JOIN      *join,
                  POSITION *loose_scan_pos)
 {
   THD *thd= join->thd;
-  KEYUSE *best_key=         0;
+  Key_use *best_key=        NULL;
   uint best_max_key_part=   0;
   my_bool found_constraint= 0;
   double best=              DBL_MAX;
@@ -6844,7 +6854,7 @@ best_access_path(JOIN      *join,
   if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
     TABLE *table= s->table;
-    KEYUSE *keyuse;
+    Key_use *keyuse;
     double best_records= DBL_MAX;
     uint max_key_part=0;
 
@@ -6864,7 +6874,7 @@ best_access_path(JOIN      *join,
       key_part_map ref_or_null_part= 0;
 
       /* Calculate how many key segments of the current key we can use */
-      KEYUSE *start_key= keyuse;
+      Key_use *start_key= keyuse;
 
       loose_scan_opt.next_ref_key();
       DBUG_PRINT("info", ("Considering ref access on key %s",
@@ -8667,7 +8677,7 @@ static bool fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 static bool get_best_combination(JOIN *join)
 {
   table_map used_tables;
-  KEYUSE *keyuse;
+  Key_use *keyuse;
   const uint table_count= join->tables;
   THD *thd=join->thd;
   DBUG_ENTER("get_best_combination");
@@ -8767,10 +8777,10 @@ static bool get_best_combination(JOIN *join)
 }
 
 
-static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
+static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 			       table_map used_tables)
 {
-  KEYUSE *keyuse=org_keyuse;
+  Key_use *keyuse= org_keyuse;
   bool ftkey=(keyuse->keypart == FT_KEYPART);
   THD  *thd= join->thd;
   uint keyparts,length,key;
@@ -8931,7 +8941,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 
 
 static store_key *
-get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
+get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
 	      KEY_PART_INFO *key_part, uchar *key_buff, uint maybe_null)
 {
   if (!((~used_tables) & keyuse->used_tables))		// if const item
@@ -9116,7 +9126,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     Implementation overview
       1. update_ref_and_keys() accumulates info about null-rejecting
          predicates in in KEY_FIELD::null_rejecting
-      1.1 add_key_part saves these to KEYUSE.
+      1.1 add_key_part saves these to Key_use.
       2. create_ref_for_key copies them to TABLE_REF.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->select_cond of
          appropiate JOIN_TAB members.
@@ -9820,11 +9830,20 @@ static bool make_join_select(JOIN *join, Item *cond)
     FALSE  No
 */
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
-                            bool other_tbls_ok)
+static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+                                   bool other_tbls_ok)
 {
   if (item->const_item())
-    return TRUE;
+  {
+    /*
+      const_item() might not return correct value if the item tree
+      contains a subquery. If this is the case we do not include this
+      part of the condition.
+    */
+    return !item->with_subselect;
+  }
+
+  const Item::Type item_type= item->type();
 
   /* 
     Don't push down the triggered conditions. Nested outer joins execution 
@@ -9835,14 +9854,10 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
          possible
       2. Put the second copy into tab->select_cond. 
   */
-  if (item->type() == Item::FUNC_ITEM && 
+  if (item_type == Item::FUNC_ITEM && 
       ((Item_func*)item)->functype() == Item_func::TRIG_COND_FUNC)
     return FALSE;
 
-  if (!(item->used_tables() & tbl->map))
-    return other_tbls_ok;
-
-  Item::Type item_type= item->type();
   switch (item_type) {
   case Item::FUNC_ITEM:
     {
@@ -9878,7 +9893,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       Item_field *item_field= (Item_field*)item;
       if (item_field->field->table != tbl) 
-        return TRUE;
+        return other_tbls_ok;
       /*
         The below is probably a repetition - the first part checks the
         other two, but let's play it safe:
@@ -12874,7 +12889,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         if (!possible_keys.is_clear_all())
         {
           TABLE *tab= field->table;
-          KEYUSE *use;
+          Key_use *use;
           for (use= stat->keyuse; use && use->table == tab; use++)
             if (possible_keys.is_set(use->key) && 
                 tab->key_info[use->key].key_part[use->keypart].field ==
@@ -19568,6 +19583,8 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
+  if (table->pos_in_table_list->outer_join)
+    return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
     if (keynr == table->s->primary_key ||
@@ -19581,7 +19598,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->real_maybe_null() || 
             !find_func(key_part->field, data))
           break;
       }
@@ -19795,7 +19812,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             "part1 = const1 AND part2=const2". 
             So we build tab->ref from scratch here.
           */
-          KEYUSE *keyuse= tab->keyuse;
+          Key_use *keyuse= tab->keyuse;
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
 
