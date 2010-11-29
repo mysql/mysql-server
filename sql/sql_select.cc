@@ -6010,9 +6010,9 @@ bool JOIN_TAB::hash_join_is_possible()
 int JOIN_TAB::make_scan_filter()
 {
   COND *tmp;
-  DBUG_ENTER("make_join_select");
+  DBUG_ENTER("make_scan_filter");
 
-  Item *cond= is_last_inner_table() ?
+  Item *cond= is_inner_table_of_outer_join() ?
                 *get_first_inner_table()->on_expr_ref : join->conds;
 
   if (cond &&
@@ -7149,7 +7149,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
                                               current_map, FALSE, FALSE);
-          add_cond_and_fix(&tmp_cond, tab->on_precond);
+          if (tab == first_inner_tab && tab->on_precond)
+            add_cond_and_fix(&tmp_cond, tab->on_precond);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
@@ -7634,8 +7635,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (cache_level == 0 || i == join->const_tables || !prev_tab)
     return 0;
 
-  if (force_unlinked_cache && 
-      (cache_level & JOIN_CACHE_INCREMENTAL_BIT))
+  if (force_unlinked_cache && (cache_level%2 == 0))
     cache_level--;
 
   if (options & SELECT_NO_JOIN_CACHE)
@@ -7657,13 +7657,14 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   /*
     Non-linked join buffers can't guarantee one match
   */
-  if (force_unlinked_cache &&  
-      ((tab->is_inner_table_of_semi_join_with_first_match() &&
-        !tab->is_single_inner_of_semi_join_with_first_match()) ||
-       (tab->is_inner_table_of_outer_join() &&
-        !tab->is_single_inner_of_outer_join())))
-   goto no_join_cache;
-
+  if (tab->is_nested_inner())
+  {
+    if (force_unlinked_cache || cache_level == 1)
+      goto no_join_cache;
+    if (cache_level & 1)
+      cache_level--;
+  }
+    
   /*
     Don't use join buffering if we're dictated not to by no_jbuf_after (this
     ...)
@@ -7756,9 +7757,6 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 	(cache_level <= 6 || no_hashed_cache))
       goto no_join_cache;
 
-    if (prev_tab->cache and cache_level==7)
-      cache_level= 6;
-    
     if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL))
     {
       if (cache_level <= 6 || no_hashed_cache)

@@ -2522,5 +2522,183 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #675095: nested outer join using join buffer 
+--echo #
+
+CREATE TABLE t1 (pk int, a1 int) ;
+INSERT IGNORE INTO t1 VALUES (2,NULL), (8,0);
+
+CREATE TABLE t2 (pk int, a2 int, c2 int, d2 int) ;
+INSERT IGNORE INTO t2 VALUES  (9,0,0,2), (1,0,0,7);
+
+CREATE TABLE t3 (pk int, a3 int, c3 int, d3 int) ;
+INSERT IGNORE INTO t3 VALUES  (9,0,0,2), (1,0,0,7);
+
+CREATE TABLE t4 (pk int, a4 int, INDEX idx(a4)) ;
+INSERT IGNORE INTO t4 VALUES (2,NULL), (8,0);
+
+CREATE TABLE t5 (pk int, a5 int) ;
+INSERT IGNORE INTO t5 VALUES (2,0), (8,0);
+
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION join_cache_level = 2;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION join_cache_level = 1;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # Bug #675516: nested outer join with 3 tables in the nest
+--echo #             using BNL + BNLH 
+--echo #
+
+CREATE TABLE t1 (a1 int, b1 int, c1 int) ;
+INSERT INTO t1 VALUES (7,8,0), (6,4,0);
+
+CREATE TABLE t2 (a2 int) ;
+INSERT INTO t2 VALUES (5);
+
+CREATE TABLE t3 (a3 int, b3 int, c3 int, PRIMARY KEY (b3)) ;
+INSERT INTO t3 VALUES (2,5,0);
+
+CREATE TABLE t4 (a4 int, b4 int, c4 int) ;
+INSERT INTO t4 VALUES (7,8,0);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #660963: nested outer join with join_cache_level set to 5
+--echo #
+
+CREATE TABLE t1 (a1 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (a2 int, b2 int, PRIMARY KEY (a2)) ;
+INSERT INTO t2 VALUES (2,1);
+
+CREATE TABLE t3 (a3 int, b3 int, PRIMARY KEY (a3)) ;
+INSERT INTO t3 VALUES (2,1);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION join_cache_level = 5;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #675922: incremental buffer for BKA with access from previous
+--echo #      buffers from non-nullable columns whose values may be null
+--echo #
+
+CREATE TABLE t1 (a1 varchar(32)) ;
+INSERT INTO t1 VALUES ('s'),('k');
+
+CREATE TABLE t2 (a2 int PRIMARY KEY, b2 varchar(32)) ;
+INSERT INTO t2 VALUES (7,'s');
+
+CREATE TABLE t3 (a3 int PRIMARY KEY, b3 varchar(32)) ;
+INSERT INTO t3 VALUES (7,'s');
+
+CREATE TABLE t4 (a4 int) ;
+INSERT INTO t4 VALUES (9);
+
+CREATE TABLE t5(a5 int PRIMARY KEY, b5 int) ;
+INSERT INTO t5 VALUES (7,0);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

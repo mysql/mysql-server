@@ -1776,7 +1776,13 @@ uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff)
     If the value of *len is 0 then the function sets it to the total
     length of the record fields including possible trailing offset
     values. Otherwise *len is supposed to provide this value that
-    has been obtained earlier.  
+    has been obtained earlier. 
+
+  NOTE
+    If the value of the referenced field is null then the offset
+    for the value is set to 0. If the value of a field can be null
+    then the value of flag_fields is always positive. So the offset
+    for any non-null value cannot be 0 in this case. 
 
   RETURN VALUE
     TRUE   'copy' points to a data descriptor of this join cache
@@ -1805,14 +1811,21 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
                          size_of_fld_ofs*
                          (referenced_fields+1-copy->referenced_field_no));  
   bool is_null= FALSE;
+  Field *field= copy->field;
   if (offset == 0 && flag_fields)
     is_null= TRUE;
   if (is_null)
-    copy->field->set_null();
+  {
+    field->set_null();
+    if (!field->real_maybe_null())
+      field->table->null_row= 1;
+  }
   else
   {
     uchar *save_pos= pos;
-    copy->field->set_notnull(); 
+    field->set_notnull(); 
+    if (!field->real_maybe_null())
+      field->table->null_row= 0;
     pos= rec_ptr+offset;
     read_record_field(copy, blob_data_is_in_rec_buff(rec_ptr));
     pos= save_pos;
