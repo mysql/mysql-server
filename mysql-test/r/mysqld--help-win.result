@@ -855,7 +855,7 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
-optimizer-join-cache-level 1
+optimizer-join-cache-level 4
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on
