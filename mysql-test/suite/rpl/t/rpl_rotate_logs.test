@@ -156,7 +156,10 @@ select * from t2;
 connection master;
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
-let $1=100;
+
+# the nummber of produced logs is sensitive to whether checksum is NONE or CRC32
+# the value of 90 makes it even
+let $1=90;
 
 create table t3 (n int);
 disable_query_log;
