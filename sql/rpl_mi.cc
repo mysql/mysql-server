@@ -87,7 +87,9 @@ Master_info::Master_info(PSI_mutex_key *param_key_info_run_lock,
    ssl(0), ssl_verify_server_cert(0),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    clock_diff_with_master(0), heartbeat_period(0),
-   received_heartbeats(0), master_id(0), retry_count(master_retry_count)
+   received_heartbeats(0), master_id(0),
+   checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
+   retry_count(master_retry_count)
 {
   host[0] = 0; user[0] = 0; password[0] = 0; bind_addr[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;

@@ -1,0 +1,18 @@
+--source include/not_embedded.inc
+
+# suite/rpl/t/rpl_checksum.test contains similar testing of 
+# all checksum related system variables.
+
+set @save_slave_sql_verify_checksum = @@global.slave_sql_verify_checksum;
+
+select @@global.slave_sql_verify_checksum  as 'must be one because of default';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.slave_sql_verify_checksum  as 'no session var';
+
+set @@global.slave_sql_verify_checksum = 0;
+set @@global.slave_sql_verify_checksum = default;
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.slave_sql_verify_checksum = 2; # the var is of bool type
+
+# cleanup
+set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
