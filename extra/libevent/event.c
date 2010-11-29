@@ -394,7 +394,8 @@ event_base_get_method(struct event_base *base)
 }
 
 static void
-event_loopexit_cb(int fd, short what, void *arg)
+event_loopexit_cb(int fd __attribute__((unused)),
+                  short what __attribute__((unused)), void *arg)
 {
 	struct event_base *base = arg;
 	base->event_gotterm = 1;
@@ -404,7 +405,7 @@ event_loopexit_cb(int fd, short what, void *arg)
 int
 event_loopexit(struct timeval *tv)
 {
-	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
+	return (event_once(-1, EV_TIMEOUT, &event_loopexit_cb,
 		    current_base, tv));
 }
 

@@ -22,6 +22,3 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/strings/libmystrings.a
 
 noinst_PROGRAMS  = strings-t
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

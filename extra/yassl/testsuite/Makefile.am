@@ -8,7 +8,3 @@ testsuite_CXXFLAGS = -DYASSL_PURE_C -DYASSL_PREFIX -DNO_MAIN_DRIVER @yassl_threa
 testsuite_LDADD    = $(top_builddir)/extra/yassl/src/libyassl.la \
                      $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 EXTRA_DIST = testsuite.dsp test.hpp input quit make.bat
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-

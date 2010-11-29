@@ -763,7 +763,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
   
       if (fil_page_get_type(frame) == FIL_PAGE_INDEX) {
         index_id = btr_page_get_index_id(frame);
-        table->field[0]->store(ut_conv_dulint_to_longlong(index_id));
+        table->field[0]->store(ut_conv_dulint_to_longlong(index_id), 0);
         table->field[1]->store(block->page.space);
         table->field[2]->store(block->page.offset);
         table->field[3]->store(page_get_n_recs(frame));
@@ -1876,6 +1876,7 @@ trx_i_s_common_fill_table(
 	deadlock occurs between the mysqld server and mysql client,
 	see http://bugs.mysql.com/29900 ; when that bug is resolved
 	we can enable the DBUG_RETURN(ret) above */
+	ret++;  // silence a gcc46 warning
 	DBUG_RETURN(0);
 #endif
 }

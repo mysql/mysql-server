@@ -12,7 +12,3 @@ libtaocrypt_la_CXXFLAGS = @yassl_taocrypt_extra_cxxflags@ -DYASSL_PURE_C \
 			  @yassl_thread_cxxflags@
 
 EXTRA_DIST = $(wildcard ../include/*.hpp)
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-

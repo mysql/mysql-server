@@ -109,6 +109,7 @@ class ha_innobase: public handler
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
+	int info_low(uint flag, bool called_from_analyze);
 
 	/* Init values for the class: */
  public:

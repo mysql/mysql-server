@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB & 2009 Monty Program Ab
+/* Copyright (C) 2000 MySQL AB & Oracle & 2009 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _dbug_h
-#define _dbug_h
+#ifndef _my_dbug_h
+#define _my_dbug_h
+
+#ifndef __WIN__
+#include <signal.h>
+#endif  /* not __WIN__ */
 
 #if defined(__cplusplus) && !defined(DBUG_OFF)
 class Dbug_violation_helper
@@ -128,8 +132,35 @@ extern  void _db_flush_();
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
+#ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
-#else                                           /* No debugger */
+#else
+/*
+  Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
+  call abort() instead of _exit(3) (now it would cause a "test signal" popup).
+*/
+#include <crtdbg.h>
+#define DBUG_ABORT() (_db_flush_(),\
+                     (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
+                     (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
+                     _exit(3))
+#endif
+
+/*
+  Make the program fail, without creating a core file.
+  abort() will send SIGABRT which (most likely) generates core.
+  Use SIGKILL instead, which cannot be caught.
+  We also pause the current thread, until the signal is actually delivered.
+  An alternative would be to use _exit(EXIT_FAILURE),
+  but then valgrind would report lots of memory leaks.
+ */
+#ifdef __WIN__
+#define DBUG_SUICIDE() DBUG_ABORT()
+#else
+#define DBUG_SUICIDE() (_db_flush_(), kill(getpid(), SIGKILL), pause())
+#endif
+
+#else						/* No debugger */
 
 #define DBUG_ENTER(a1)
 #define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
@@ -159,9 +190,12 @@ extern  void _db_flush_();
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A)
-#define DBUG_ABORT()                    abort()
+#define DBUG_ABORT()                    do { } while(0)
+#define DBUG_SUICIDE()                  do { } while(0)
+
 #endif
 #ifdef  __cplusplus
 }
 #endif
-#endif
+
+#endif /* _my_dbug_h */

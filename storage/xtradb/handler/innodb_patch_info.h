@@ -47,6 +47,5 @@ struct innodb_enhancement {
 {"innodb_fast_checksum","Using the checksum on 32bit-unit calculation","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_files_extend","allow >4GB transaction log files, and can vary universal page size of datafiles","incompatible for unpatched ver.","http://www.percona.com/docs/wiki/percona-xtradb"},
 {"innodb_sys_tables_sys_indexes","Expose InnoDB SYS_TABLES and SYS_INDEXES schema tables","","http://www.percona.com/docs/wiki/percona-xtradb"},
-{"innodb_buffer_pool_shm","Put buffer pool contents to shared memory segment and reuse it at clean restart [experimental]","","http://www.percona.com/docs/wiki/percona-xtradb"},
 {NULL, NULL, NULL, NULL}
 };

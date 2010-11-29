@@ -380,6 +380,7 @@ Item::Item():
 {
   marker= 0;
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
+  in_rollup= 0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
   cmp_context= IMPOSSIBLE_RESULT;
@@ -420,6 +421,7 @@ Item::Item(THD *thd, Item *item):
   marker(item->marker),
   decimals(item->decimals),
   maybe_null(item->maybe_null),
+  in_rollup(item->in_rollup),
   null_value(item->null_value),
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
@@ -7004,14 +7006,14 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
     enum_field_types field_type= field->type();
 
-    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME ||
+        field_type == MYSQL_TYPE_TIMESTAMP)
     {
       enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
 
       if (field_type == MYSQL_TYPE_DATE)
         type= MYSQL_TIMESTAMP_DATE;
-
-      if (field_type == MYSQL_TYPE_DATETIME)
+      else
         type= MYSQL_TIMESTAMP_DATETIME;
         
       const char *field_name= field->field_name;
@@ -7438,9 +7440,12 @@ bool Item_cache_row::null_inside()
 
 void Item_cache_row::bring_value()
 {
+  if (!example)
+    return;
+  example->bring_value();
+  null_value= example->null_value;
   for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
-  return;
 }
 
 

@@ -69,7 +69,8 @@ static void evsignal_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
-evsignal_cb(int fd, short what, void *arg)
+evsignal_cb(int fd, short what __attribute__((unused)),
+            void *arg __attribute__((unused)))
 {
 	static char signals[100];
 #ifdef WIN32
@@ -113,7 +114,7 @@ evsignal_init(struct event_base *base)
         evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 
 	event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1],
-		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
+		EV_READ | EV_PERSIST, &evsignal_cb, &base->sig.ev_signal);
 	base->sig.ev_signal.ev_base = base;
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 }

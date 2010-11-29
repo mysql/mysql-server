@@ -1,0 +1,10 @@
+#
+# Bug #56716 InnoDB locks a record gap without locking the table
+#
+-- source include/have_innodb_plugin.inc
+
+CREATE TABLE bug56716 (a INT PRIMARY KEY,b INT,c INT,INDEX(b)) ENGINE=InnoDB;
+
+SELECT * FROM bug56716 WHERE b<=42 ORDER BY b DESC FOR UPDATE;
+
+DROP TABLE bug56716;

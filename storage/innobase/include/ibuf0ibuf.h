@@ -18,6 +18,11 @@ Created 7/19/1997 Heikki Tuuri
 #include "ibuf0types.h"
 #include "fsp0fsp.h"
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/* Flag to control insert buffer debugging. */
+extern uint		ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 extern ibuf_t*	ibuf;
 
 /**********************************************************************

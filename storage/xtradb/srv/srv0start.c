@@ -463,7 +463,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -471,15 +470,13 @@ io_handler_thread(
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
 
 		mutex_enter(&ios_mutex);
 		ios++;
 		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
@@ -1719,8 +1716,6 @@ innobase_start_or_create_for_mysql(void)
 		Note that this is not as heavy weight as it seems. At
 		this point there will be only ONE page in the buf_LRU
 		and there must be no page in the buf_flush list. */
-		/* buffer_pool_shm should not be reused when recovery was needed. */
-		if (!srv_buffer_pool_shm_is_reused)
 		buf_pool_invalidate();
 
 		/* We always try to do a recovery, even if the database had
@@ -2093,7 +2088,7 @@ innobase_shutdown_for_mysql(void)
 #ifdef __NETWARE__
 	if (!panic_shutdown)
 #endif
-		logs_empty_and_mark_files_at_shutdown();
+	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_n_threads != 0) {
 		fprintf(stderr,

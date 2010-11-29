@@ -25,9 +25,26 @@
 #include "sql_trigger.h"
 #include "debug_sync.h"
 
-/* Return 0 if row hasn't changed */
 
-bool compare_record(TABLE *table)
+/**
+   True if the table's input and output record buffers are comparable using
+   compare_record(TABLE*).
+ */
+bool records_are_comparable(const TABLE *table) {
+  return ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) == 0) ||
+    bitmap_is_subset(table->write_set, table->read_set);
+}
+
+
+/**
+   Compares the input and outbut record buffers of the table to see if a row
+   has changed.
+
+   @return true if row has changed.
+   @return false otherwise.
+*/
+
+bool compare_record(const TABLE *table)
 {
   if (table->s->can_cmp_whole_record)
     return cmp_record(table,record[1]);
@@ -578,9 +595,7 @@ int mysql_update(THD *thd,
     the table handler is returning all columns OR if
     if all updated columns are read
   */
-  can_compare_record= (!(table->file->ha_table_flags() &
-                         HA_PARTIAL_COLUMN_READ) ||
-                       bitmap_is_subset(table->write_set, table->read_set));
+  can_compare_record= records_are_comparable(table);
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
@@ -1691,18 +1706,16 @@ bool multi_update::send_data(List<Item> &not_used_values)
     if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
       continue;
 
-    /*
-      We can use compare_record() to optimize away updates if
-      the table handler is returning all columns OR if
-      if all updated columns are read
-    */
     if (table == table_to_update)
     {
+      /*
+        We can use compare_record() to optimize away updates if
+        the table handler is returning all columns OR if
+        if all updated columns are read
+      */
       bool can_compare_record;
-      can_compare_record= (!(table->file->ha_table_flags() &
-                             HA_PARTIAL_COLUMN_READ) ||
-                           bitmap_is_subset(table->write_set,
-                                            table->read_set));
+      can_compare_record= records_are_comparable(table);
+
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
@@ -1943,10 +1956,7 @@ int multi_update::do_updates()
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
       goto err;
 
-    can_compare_record= (!(table->file->ha_table_flags() &
-                           HA_PARTIAL_COLUMN_READ) ||
-                         bitmap_is_subset(table->write_set,
-                                          table->read_set));
+    can_compare_record= records_are_comparable(table);
 
     for (;;)
     {

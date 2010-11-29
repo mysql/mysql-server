@@ -1147,7 +1147,7 @@ READ_INFO::~READ_INFO()
     if (need_end_io_cache)
       ::end_io_cache(&cache);
   }
-  my_free((uchar*) buffer,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buffer, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 

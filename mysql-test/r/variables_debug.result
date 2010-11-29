@@ -24,4 +24,17 @@ SELECT @@global.debug;
 @@global.debug
 
 SET GLOBAL debug=@old_debug;
+#
+# Bug #56709: Memory leaks at running the 5.1 test suite
+# 
+SET @old_local_debug = @@debug;
+SET @@debug='d,foo';
+SELECT @@debug;
+@@debug
+d,foo
+SET @@debug='';
+SELECT @@debug;
+@@debug
+
+SET @@debug = @old_local_debug;
 End of 5.1 tests

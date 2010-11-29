@@ -46,9 +46,6 @@ testBitmask.o:	$(testBitmask_SOURCES)
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libgeneral.dsp
 
 libgeneral.dsp: Makefile \

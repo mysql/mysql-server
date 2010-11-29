@@ -1,0 +1,17 @@
+source include/have_innodb.inc;
+
+SELECT sleep(2);
+
+set global slow_query_log_microseconds_timestamp=ON;
+
+SELECT sleep(2);
+
+set global slow_query_log_microseconds_timestamp=OFF;
+
+let $cmd = cat var/mysqld.1/data/percona_slow_query_log-microseconds_in_slow_query_log.log | grep -E '# Time: [0-9]+[ ]+[0-9]+:[0-\9]+:[0-9]+.[0-9]+' | wc -l;
+echo $cmd;
+exec $cmd;
+
+let $cmd = cat var/mysqld.1/data/percona_slow_query_log-microseconds_in_slow_query_log.log | grep -E '# Time: [0-9]+[ ]+[0-9]+:[0-\9]+:[0-9]+' | wc -l;
+echo $cmd;
+exec $cmd;

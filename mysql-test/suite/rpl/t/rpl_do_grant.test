@@ -362,4 +362,25 @@ revoke all privileges, grant option from "foo";
 DROP USER foo@"1.2.3.4";
 -- sync_slave_with_master
 
+--echo 
+--echo # Bug#27606 GRANT statement should be replicated with DEFINER information
+--connection master
+--source include/master-slave-reset.inc
+--connection master
+GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
+
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+sync_slave_with_master;
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+
+--connection master
+REVOKE SELECT ON mysql.user FROM user_bug27606@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+sync_slave_with_master;
+SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
+
+--connection master
+DROP USER user_bug27606@localhost;
+
+--source include/master-slave-end.inc
 --echo "End of test"

@@ -1252,5 +1252,16 @@ SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (16777214),(0);
+
+SELECT COUNT(*) FROM t1 LEFT JOIN t1 t2
+ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
+
+DROP TABLE t1;
 
 --echo # End of 5.1 tests

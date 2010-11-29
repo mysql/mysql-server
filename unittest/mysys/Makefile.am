@@ -25,6 +25,3 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 
 EXTRA_DIST       = CMakeLists.txt 
 noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t lf-t waiting_threads-t
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -1222,10 +1222,12 @@ UNIV_INTERN
 void
 os_file_set_nocache(
 /*================*/
-	int		fd,		/*!< in: file descriptor to alter */
-	const char*	file_name,	/*!< in: file name, used in the
-					diagnostic message */
-	const char*	operation_name)	/*!< in: "open" or "create"; used in the
+	int		fd		/*!< in: file descriptor to alter */
+	__attribute__((unused)),
+	const char*	file_name	/*!< in: used in the diagnostic message */
+	__attribute__((unused)),
+	const char*	operation_name __attribute__((unused)))
+					/*!< in: "open" or "create"; used in the
 					diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
@@ -1407,8 +1409,6 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
-	const char*	type_str	= NULL;
-	const char*	purpose_str	= NULL;
 
 try_again:
 	ut_a(name);
@@ -1428,26 +1428,9 @@ try_again:
 		ut_error;
 	}
 
-	if (type == OS_LOG_FILE) {
-		type_str = "LOG";
-	} else if (type == OS_DATA_FILE) {
-		type_str = "DATA";
-	} else {
-		ut_error;
-	}
+	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
+	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
-	if (purpose == OS_FILE_AIO) {
-		purpose_str = "AIO";
-	} else if (purpose == OS_FILE_NORMAL) {
-		purpose_str = "NORMAL";
-	} else {
-		ut_error;
-	}
-
-#if 0
-	fprintf(stderr, "Opening file %s, mode %s, type %s, purpose %s\n",
-		name, mode_str, type_str, purpose_str);
-#endif
 #ifdef O_SYNC
 	/* We let O_SYNC only affect log files; note that we map O_DSYNC to
 	O_SYNC because the datasync options seemed to corrupt files in 2001
@@ -2374,7 +2357,10 @@ _os_file_read(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2498,7 +2484,10 @@ os_file_read_no_error_handling(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2628,7 +2617,10 @@ os_file_write(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_writes++;
 
@@ -3398,16 +3390,17 @@ os_aio_array_reserve_slot(
 				offset */
 	ulint		offset_high, /*!< in: most significant 32 bits of
 				offset */
-	ulint		len,	/*!< in: length of the block to read or write */
-	trx_t*		trx)
+	ulint		len)	/*!< in: length of the block to read or write */
 {
 	os_aio_slot_t*	slot;
-#ifdef WIN_ASYNC_IO
-	OVERLAPPED*	control;
-#endif
 	ulint		i;
 	ulint		slots_per_seg;
 	ulint		local_seg;
+#ifdef WIN_ASYNC_IO
+	OVERLAPPED*	control;
+
+	ut_a((len & 0xFFFFFFFFUL) == len);
+#endif
 
 	/* No need of a mutex. Only reading constant fields */
 	slots_per_seg = array->n_slots / array->n_segments;
@@ -3709,6 +3702,9 @@ os_aio(
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
+#ifdef WIN_ASYNC_IO
+	ut_ad((n & 0xFFFFFFFFUL) == n);
+#endif
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
@@ -3766,7 +3762,7 @@ try_again:
 		trx->io_read += n;
 	}
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
-					 name, buf, offset, offset_high, n, trx);
+					 name, buf, offset, offset_high, n);
 	if (type == OS_FILE_READ) {
 		if (os_aio_use_native_aio) {
 #ifdef WIN_ASYNC_IO
@@ -3954,16 +3950,18 @@ os_aio_windows_handle(
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
 
+		ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
-					slot->len, &len,
+					(DWORD) slot->len, &len,
 					&(slot->control));
 
 			break;
 		case OS_FILE_READ:
 			ret = ReadFile(slot->file, slot->buf,
-				       slot->len, &len,
+				       (DWORD) slot->len, &len,
 				       &(slot->control));
 
 			break;

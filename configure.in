@@ -12,7 +12,7 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MariaDB Server], [5.1.51-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.1.53-MariaDB], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -103,6 +103,24 @@ AC_DEFINE_UNQUOTED([DOT_FRM_VERSION], [$DOT_FRM_VERSION],
 AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
+
+# Check whether a debug mode should be enabled.
+AC_ARG_WITH([debug],
+    AS_HELP_STRING([--with-debug@<:@=full@:>@],
+      [Enable various amounts of debugging support (full adds a slow memory checker).]),
+    [with_debug=$withval],
+    [with_debug=no])
+
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
+fi
 
 # Whether the maintainer mode should be enabled.
 MY_MAINTAINER_MODE
@@ -1699,11 +1717,6 @@ then
   DEBUG_OPTIMIZE_CXX=""
 fi
 
-AC_ARG_WITH(debug,
-    [  --with-debug            Add debug code
-  --with-debug=full       Add debug code (adds memory checker, very slow)],
-    [with_debug=$withval],
-    [with_debug=no])
 if test "$with_debug" = "yes"
 then
   # Medium debug.
@@ -1724,17 +1737,6 @@ else
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
-fi
-
-AC_ARG_WITH([valgrind],
-  [AS_HELP_STRING([--with-valgrind],
-    [Valgrind instrumentation @<:@default=no@:>@])],
-    [], [with_valgrind=no])
-
-if test "$with_valgrind" != "no"
-then
-  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
-    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
@@ -2105,6 +2107,13 @@ AC_TYPE_SIGNAL
 MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
+
+AC_CHECK_DECLS([fdatasync],,,
+[
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+])
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \

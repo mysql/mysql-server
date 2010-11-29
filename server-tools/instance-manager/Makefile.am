@@ -98,6 +98,3 @@ EXTRA_DIST =		WindowsService.cpp WindowsService.h IMService.cpp \
 
 tags:
 	ctags -R *.h *.cc
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
