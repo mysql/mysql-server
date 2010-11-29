@@ -24,6 +24,8 @@ perl;
   @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
 
+  push(@plugins, 'server-id-bits'); # MCP_BUG53205, variable may not be there
+
   # And substitute the content some environment variables with their
   # names:
   @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;

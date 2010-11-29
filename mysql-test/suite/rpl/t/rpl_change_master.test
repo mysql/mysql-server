@@ -100,3 +100,53 @@ eval set global relay_log_purge=$relay_log_purge;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+#
+# WL#3127 slave side TCP address binding
+# - CHANGE MASTER ... MASTER_BIND='interface'
+# - SHOW SLAVE STATUS has new column Master_Bind
+#
+
+# Check if ipv6 is available.
+--disable_query_log
+--disable_result_log
+--disable_abort_on_error
+connect (checkcon123456789,::1,root,,test);
+let $check_ipv6_supported=1;
+let $_need_disconnect=1;
+if($mysql_errno)
+{
+  let $check_ipv6_supported=0;
+  let $_need_disconnect=0;
+}
+connection default;
+if ($_need_disconnect)
+{
+  disconnect checkcon123456789;
+}
+--enable_abort_on_error
+--enable_result_log
+--enable_query_log
+
+# Test valid IPv4 address
+let $master_bind='127.0.0.1';
+--source rpl_change_master_bind.inc
+
+# Test invalid IPv4 address
+let $master_bind='1.1.1.1';
+let $master_bind_error_expected=2003;
+--source rpl_change_master_bind.inc
+let $master_bind_error_expected=0;
+
+# Test valid IPv6 address
+let $master_bind='::1';
+if (!$check_ipv6_supported)
+{
+  # No IPv6 support, fallback to IPv4
+  let $master_bind='127.0.0.1';
+}
+--source rpl_change_master_bind.inc
+
+# Test with no bind address(check that reset works)
+let $master_bind='';
+--source rpl_change_master_bind.inc

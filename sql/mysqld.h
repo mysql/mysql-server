@@ -179,9 +179,6 @@ extern ulong rpl_recovery_rank, thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
 extern ulong server_id, concurrency;
-#ifndef MCP_BUG53205
-extern uint opt_server_id_bits;
-#endif
 extern time_t server_start_time, flush_status_time;
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[];
 extern int mysql_unpacked_real_data_home_len;

@@ -293,6 +293,9 @@ typedef struct st_lex_master_info
   char *relay_log_name;
   ulong relay_log_pos;
   DYNAMIC_ARRAY repl_ignore_server_ids;
+#ifndef MCP_WL3127
+  char *bind_addr;
+#endif
 } LEX_MASTER_INFO;
 
 

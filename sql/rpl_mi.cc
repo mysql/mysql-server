@@ -54,6 +54,9 @@ Master_info::Master_info(bool is_slave_recovery)
 #ifndef MCP_WL4080
   master_epoch= 0;
 #endif
+#ifndef MCP_WL3127
+  bind_addr[0] = 0;
+#endif
 }
 
 Master_info::~Master_info()
@@ -268,7 +271,10 @@ file '%s')", fname);
     int ssl= 0, ssl_verify_server_cert= 0;
     float master_heartbeat_period= 0.0;
     char *first_non_digit;
+#ifndef MCP_WL3127
+#else
     char dummy_buf[HOSTNAME_LENGTH+1];
+#endif
 
     /*
        Starting from 4.1.x master.info has new format. Now its
@@ -362,7 +368,12 @@ file '%s')", fname);
 	(this is just a reservation to avoid future upgrade problems) 
        */
       if (lines >= LINE_FOR_MASTER_BIND &&
+#ifndef MCP_WL3127
+          init_strvar_from_file(mi->bind_addr, sizeof(mi->bind_addr),
+                                &mi->file, ""))
+#else
 	  init_strvar_from_file(dummy_buf, sizeof(dummy_buf), &mi->file, ""))
+#endif
 	  goto errwithmsg;
       /*
         Starting from 6.0 list of server_id of ignorable servers might be
@@ -520,7 +531,11 @@ int flush_master_info(Master_info* mi,
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
+#ifndef MCP_WL3127
+              heartbeat_buf, mi->bind_addr, ignore_server_ids_buf);
+#else
               heartbeat_buf, "", ignore_server_ids_buf);
+#endif
   my_free(ignore_server_ids_buf);
   err= flush_io_cache(file);
   if (sync_masterinfo_period && !err && 
