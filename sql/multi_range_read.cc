@@ -820,7 +820,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     cost->mem_cost= (double)rows_in_last_step * elem_size;
   
   /* Total cost of all index accesses */
-  index_read_cost= h->keyread_time(keynr, 1, (double)rows);
+  index_read_cost= h->keyread_time(keynr, 1, rows);
   cost->add_io(index_read_cost, 1 /* Random seeks */);
   return FALSE;
 }

@@ -754,19 +754,19 @@ int ha_oqgraph::fill_record(byte *record, const open_query::row &row)
   if (row.orig_indicator)
   {
     field[1]->set_notnull();
-    field[1]->store((longlong) row.orig);
+    field[1]->store((longlong) row.orig, 0);
   }
 
   if (row.dest_indicator)
   {
     field[2]->set_notnull();
-    field[2]->store((longlong) row.dest);
+    field[2]->store((longlong) row.dest, 0);
   }
 
   if (row.weight_indicator)
   {
     field[3]->set_notnull();
-    field[3]->store((double) row.weight);
+    field[3]->store((double) row.weight, 0);
   }
 
   if (row.seq_indicator)
@@ -778,7 +778,7 @@ int ha_oqgraph::fill_record(byte *record, const open_query::row &row)
   if (row.link_indicator)
   {
     field[5]->set_notnull();
-    field[5]->store((longlong) row.link);
+    field[5]->store((longlong) row.link, 0);
   }
 
   if (ptrdiff)

@@ -5786,7 +5786,7 @@ Item_func_sp::cleanup()
     sp_result_field= NULL;
   }
   m_sp= NULL;
-  dummy_table->alias= NULL;
+  dummy_table->alias.free();
   Item_func::cleanup();
 }
 

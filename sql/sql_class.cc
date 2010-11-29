@@ -1189,6 +1189,8 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
   /* Handle the not ulong variables. See end of system_status_var */
   to_var->bytes_received=       from_var->bytes_received;
   to_var->bytes_sent+=          from_var->bytes_sent;
+  to_var->rows_read+=           from_var->rows_read;
+  to_var->rows_sent+=           from_var->rows_sent;
   to_var->binlog_bytes_written= from_var->binlog_bytes_written;
   to_var->cpu_time+=            from_var->cpu_time;
   to_var->busy_time+=           from_var->busy_time;

@@ -695,7 +695,10 @@ int ha_heap::create(const char *name, TABLE *table_arg,
                                           (uchar*) table_arg->record[0]);
       }
       else
-        seg->bit_length= seg->bit_start= seg->bit_pos= 0;
+      {
+        seg->bit_length= seg->bit_start= 0;
+        seg->bit_pos= 0;
+      }
     }
   }
   mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));

@@ -3651,7 +3651,7 @@ subselect_hash_sj_engine::choose_partial_match_strategy(
   bool has_non_null_key, bool has_covering_null_row,
   MY_BITMAP *partial_match_key_parts)
 {
-  size_t pm_buff_size;
+  ulonglong pm_buff_size;
 
   DBUG_ASSERT(strategy == PARTIAL_MATCH);
   /*
@@ -3716,11 +3716,12 @@ subselect_hash_sj_engine::choose_partial_match_strategy(
   matching via merging is not applicable.
 */
 
-size_t subselect_hash_sj_engine::rowid_merge_buff_size(
+ulonglong subselect_hash_sj_engine::rowid_merge_buff_size(
   bool has_non_null_key, bool has_covering_null_row,
   MY_BITMAP *partial_match_key_parts)
 {
-  size_t buff_size; /* Total size of all buffers used by partial matching. */
+  /* Total size of all buffers used by partial matching. */
+  ulonglong buff_size;
   ha_rows row_count= tmp_table->file->stats.records;
   uint rowid_length= tmp_table->file->ref_length;
   select_materialize_with_stats *result_sink=

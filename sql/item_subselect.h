@@ -800,9 +800,9 @@ protected:
 protected:
   exec_strategy get_strategy_using_schema();
   exec_strategy get_strategy_using_data();
-  size_t rowid_merge_buff_size(bool has_non_null_key,
-                               bool has_covering_null_row,
-                               MY_BITMAP *partial_match_key_parts);
+  ulonglong rowid_merge_buff_size(bool has_non_null_key,
+                                  bool has_covering_null_row,
+                                  MY_BITMAP *partial_match_key_parts);
   void choose_partial_match_strategy(bool has_non_null_key,
                                      bool has_covering_null_row,
                                      MY_BITMAP *partial_match_key_parts);

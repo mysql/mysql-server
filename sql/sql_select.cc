@@ -4616,9 +4616,10 @@ best_access_path(JOIN      *join,
             tmp= records;
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->covering_keys.is_set(key))
-              tmp= table->file->keyread_time(key, 1, tmp);
+              tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
-              tmp= table->file->read_time(key, 1, min(tmp,s->worst_seeks)-1);
+              tmp= table->file->read_time(key, 1,
+                                          (ha_rows) min(tmp,s->worst_seeks)-1);
             tmp*= record_count;
           }
         }
@@ -4779,9 +4780,10 @@ best_access_path(JOIN      *join,
             /* Limit the number of matched rows */
             set_if_smaller(tmp, (double) thd->variables.max_seeks_for_key);
             if (table->covering_keys.is_set(key))
-              tmp= table->file->keyread_time(key, 1, tmp);
+              tmp= table->file->keyread_time(key, 1, (ha_rows) tmp);
             else
-              tmp= table->file->read_time(key, 1, min(tmp,s->worst_seeks)-1);
+              tmp= table->file->read_time(key, 1,
+                                          (ha_rows) min(tmp,s->worst_seeks)-1);
             tmp*= record_count;
           }
           else
@@ -18426,8 +18428,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           item_list.push_back(new Item_string("func", strlen("func"), cs));
         }
         /* rows */
-        ha_rows rows= (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)?
-                       tab->emb_sj_nest->sj_mat_info->rows : 1;
+        ha_rows rows= (ha_rows) ((sj_strategy == SJ_OPT_MATERIALIZE_SCAN)?
+                                 tab->emb_sj_nest->sj_mat_info->rows : 1.0);
         item_list.push_back(new Item_int((longlong)rows, 
                                          MY_INT64_NUM_DECIMAL_DIGITS));
         /* filtered */
