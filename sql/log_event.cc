@@ -93,11 +93,8 @@ TYPELIB binlog_checksum_typelib=
    replication event checksum is introduced in the following "checksum-home" version.
    The checksum-aware servers extract FD's version to decide whether the FD event
    carries checksum info.
-
-   TODO: correct the constant when it has been determined 
-   (which main tree to push and when) 
 */
-const uchar checksum_version_split[3]= {5, 1, 46};
+const uchar checksum_version_split[3]= {5, 6, 1};
 const ulong checksum_version_product=
   (checksum_version_split[0] * 256 + checksum_version_split[1]) * 256 +
   checksum_version_split[2];
