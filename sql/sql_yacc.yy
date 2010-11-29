@@ -1071,6 +1071,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
+%token  MASTER_BIND_SYM /* MCP_WL3127 */
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_HOST_SYM
 %token  MASTER_LOG_FILE_SYM
@@ -1883,6 +1884,14 @@ master_def:
           {
             Lex->mi.host = $3.str;
           }
+/* MCP_WL3127 -> */
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+          {
+#ifndef MCP_WL3127
+            Lex->mi.bind_addr = $3.str;
+#endif
+          }
+/* MCP_WL3127 <- */
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.user = $3.str;

@@ -315,6 +315,9 @@ static SYMBOL symbols[] = {
   { "LOOP",             SYM(LOOP_SYM)},
   { "LOW_PRIORITY",	SYM(LOW_PRIORITY)},
   { "MASTER",           SYM(MASTER_SYM)},
+#ifndef MCP_WL3127
+  { "MASTER_BIND",      SYM(MASTER_BIND_SYM)},
+#endif
   { "MASTER_CONNECT_RETRY",           SYM(MASTER_CONNECT_RETRY_SYM)},
   { "MASTER_HOST",           SYM(MASTER_HOST_SYM)},
   { "MASTER_LOG_FILE",           SYM(MASTER_LOG_FILE_SYM)},

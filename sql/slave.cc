@@ -1786,6 +1786,10 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Last_IO_Error", 20));
   field_list.push_back(new Item_return_int("Last_SQL_Errno", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Last_SQL_Error", 20));
+#ifndef MCP_WL3127
+  field_list.push_back(new Item_empty_string("Master_Bind",
+                                             sizeof(mi->bind_addr)));
+#endif
   field_list.push_back(new Item_empty_string("Replicate_Ignore_Server_Ids",
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
@@ -1912,6 +1916,9 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
     protocol->store(mi->rli.last_error().message, &my_charset_bin);
+#ifndef MCP_WL3127
+    protocol->store(mi->bind_addr, &my_charset_bin);
+#endif
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -4181,6 +4188,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+#ifndef MCP_WL3127
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("BIND ADDR: %s",mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+#endif
+
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
@@ -4308,6 +4323,14 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   */
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+#ifndef MCP_WL3127
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("BIND ADDR: %s",mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+#endif
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
