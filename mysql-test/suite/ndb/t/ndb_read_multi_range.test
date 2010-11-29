@@ -428,3 +428,53 @@ select * from t1
     or (a = 'v')
     order by a asc, b asc;
 drop table t1, t2;
+
+########################
+# Check propper reinit of a mrr executed multiple time as part of a join.
+# The mrr access is driven by a scan and executed as for every tuple 
+# in the scaned table.
+#
+# In certain queries the optimizer don't read the entire mrr result set
+# before it fetch the next tuple from the scanned table. 
+# The next mrr operation would then still have an open scan which wasn't
+# cleaned up as expected. This may cause all available NdbOperation,
+# NdbTransaction or lock objects to be consumed before the operation 
+# could finish.
+#####################
+
+create table t1 (pk int primary key, a int) engine=ndb;
+create table t2 (pk int primary key, a int) engine=ndb;
+
+insert into t2 values
+   (0,0), (1,1), (2,2), (3,3), (4,4),
+   (5,5), (6,6), (7,7), (8,8), (9,9);
+
+##
+# 10^4 cross product on t2 creates 10.000 rows:
+# Insert volume has been tunes to insert only 3.000
+# of these as this is sufficient to produce an 'out of connection objects'
+##
+insert into t1
+ select
+   t1.a + t2.a*10 + t3.a*100 + t4.a*1000, 
+   (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) / 1000
+from
+  t2 as t1, t2 as t2, t2 as t3, t2 as t4
+where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 3000;
+
+
+# Execute a 'scan(t1) join mrr(t2)'
+#  - 'DISTINCT t1.pk' will cause optimizer to stop fetching mrr(t2) 
+#     when the first matching 't2.a = t1.a' is found.
+#  - 'LEFT JOIN' is to ensure that 'Using join buffer' is *not* used
+#
+explain
+SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
+   t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
+
+--disable_result_log
+SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
+   t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
+--enable_result_log
+
+drop table t1, t2;
