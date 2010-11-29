@@ -248,7 +248,8 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
