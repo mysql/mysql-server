@@ -51,6 +51,13 @@ void mysql_client_binlog_statement(THD* thd)
   size_t decoded_len= base64_needed_decoded_length(coded_len);
 
   /*
+    thd->options will be changed when applying the event. But we don't expect
+    it be changed permanently after BINLOG statement, so backup it first.
+    It will be restored at the end of this function.
+  */
+  ulonglong thd_options= thd->options;
+
+  /*
     Allocation
   */
 
@@ -236,6 +243,7 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
+  thd->options= thd_options;
   rli->clear_tables_to_lock();
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;

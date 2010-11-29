@@ -6774,7 +6774,7 @@ thread is in the relay logs.",
    "as much as you can afford; 1GB on a 4GB machine that mainly runs MySQL is "
    "quite common.",
    &dflt_key_cache_var.param_buff_size, NULL, NULL, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, 0, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched "

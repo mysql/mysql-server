@@ -215,6 +215,17 @@ SET GLOBAL event_scheduler = OFF;
 
 # -- End of Bug#35074.
 
+#
+# -- Bug#49752: 2469.126.2 unintentionally breaks authentication
+#               against MySQL 5.1 server
+#
+GRANT ALL ON test.* TO 'Azundris12345678'@'localhost' IDENTIFIED BY 'test123';
+FLUSH PRIVILEGES;
+DROP USER 'Azundris12345678'@'localhost';
+FLUSH PRIVILEGES;
+#
+# -- End of Bug#49752
+#
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
