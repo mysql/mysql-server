@@ -1,4 +1,6 @@
 set storage_engine=innodb;
+set @save_time_zone= @@time_zone;
+set time_zone='+03:00';
 set session debug="+d,optimizer_innodb_icp";
 CREATE TABLE t1(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
 INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
@@ -95,3 +97,4 @@ SELECT * FROM t1 WHERE c2 IN ('1971-01-01 00:00:01','2038-01-09 03:14:07') ORDER
 c1	c2	c3	c4
 2038-01-09 03:14:07	2038-01-09 03:14:07	2009-01-05	2009-01-06 00:00:00
 DROP TABLE t1;
+set time_zone= @save_time_zone;
