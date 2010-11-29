@@ -123,6 +123,7 @@ then
 fi
 
 # Whether the maintainer mode should be enabled.
+# Note that this uses $with_debug and $with_valgrind
 MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
