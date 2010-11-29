@@ -1038,6 +1038,14 @@ GROUP_CONCAT(t1.a ORDER BY t1.a)
 1,1,2,2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+#
+# Bug#57194 group_concat cause crash and/or invalid memory reads with type errors
+#
+CREATE TABLE t1(f1 int);
+INSERT INTO t1 values (0),(0);
+SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t GROUP BY t.f1 ) d));
+ERROR 22007: Illegal non geometric '(select 1 from (select (1 = group_concat(`test`.`t1`.`f1` separator ',')) AS `1 IN (GROUP_CONCAT(t1.f1))` from `test`.`t1` join `test`.`t1` `t` group by `t`.`f1`) `d`)' value found during parsing
+DROP TABLE t1;
 End of 5.1 tests
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (a VARCHAR(6), b INT);

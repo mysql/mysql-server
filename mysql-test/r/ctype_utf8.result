@@ -1898,6 +1898,37 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 70000	1092
 DROP TABLE t1;
 End of 5.0 tests
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'))
+122587
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'))
+122587
+SELECT HEX(RPAD(0x20, 2, _utf8 0xD18F));
+HEX(RPAD(0x20, 2, _utf8 0xD18F))
+20D1
+SELECT HEX(RPAD(0x20, 4, _utf8 0xD18F));
+HEX(RPAD(0x20, 4, _utf8 0xD18F))
+20D18FD1
+SELECT HEX(LPAD(0x20, 2, _utf8 0xD18F));
+HEX(LPAD(0x20, 2, _utf8 0xD18F))
+D120
+SELECT HEX(LPAD(0x20, 4, _utf8 0xD18F));
+HEX(LPAD(0x20, 4, _utf8 0xD18F))
+D18FD120
+SELECT HEX(RPAD(_utf8 0xD18F, 3, 0x20));
+HEX(RPAD(_utf8 0xD18F, 3, 0x20))
+D18F20
+SELECT HEX(LPAD(_utf8 0xD18F, 3, 0x20));
+HEX(LPAD(_utf8 0xD18F, 3, 0x20))
+20D18F
+SELECT HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20))
+D120
+SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
+D120D18E
+End of 5.1 tests
 Start of 5.4 tests
 SET NAMES utf8mb3;
 SHOW VARIABLES LIKE 'character_set_results%';
@@ -4847,6 +4878,25 @@ DROP TABLE t1;
 #
 # End of Bug#54916
 #
+#
+# Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+CREATE TABLE t1 (
+id INT(11) DEFAULT NULL,
+date_column DATE DEFAULT NULL,
+KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using where
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using where
+DROP TABLE t1;
 #
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #

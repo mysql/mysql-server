@@ -1723,6 +1723,21 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+--echo #
+SELECT @@collation_connection;
+CREATE TABLE t1 (
+  id INT(11) DEFAULT NULL,
+  date_column DATE DEFAULT NULL,
+  KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+DROP TABLE t1;
+
+
+--echo #
 --echo # Bug#52159 returning time type from function and empty left join causes debug assertion
 --echo #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
