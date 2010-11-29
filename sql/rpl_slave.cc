@@ -4558,6 +4558,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       goto err;
     }
     mi->received_heartbeats++;
+    mi->last_heartbeat= my_time(0);
     /* 
        compare local and event's versions of log_file, log_pos.
        
