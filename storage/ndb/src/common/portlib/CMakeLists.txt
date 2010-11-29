@@ -28,7 +28,7 @@ ADD_LIBRARY(ndbportlib STATIC
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
             ndb_daemon.cc ${EXTRA_SRC}
             NdbNuma.cpp)
-TARGET_LINK_LIBRARIES(ndbportlib mysys)
+TARGET_LINK_LIBRARIES(ndbportlib mysys ${LIBSOCKET})
 
 ADD_EXECUTABLE(NdbDir-t
   NdbDir.cpp
