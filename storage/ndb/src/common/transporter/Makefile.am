@@ -32,9 +32,6 @@ INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/mgmapi -I$(top_srcdir)/storag
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_util.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libtransporter.dsp
 
 libtransporter.dsp: Makefile \

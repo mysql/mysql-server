@@ -24,6 +24,3 @@ ndb_print_sys_file_LDFLAGS = @ndb_bin_am_ldflags@ \
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

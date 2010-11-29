@@ -65,5 +65,3 @@ archive_reader_LDFLAGS = @NOINST_LDFLAGS@
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-# Don't update the files from bitkeeper
-%::SCCS/s.%

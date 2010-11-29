@@ -111,6 +111,17 @@ AC_ARG_WITH([debug],
     [with_debug=$withval],
     [with_debug=no])
 
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
+fi
+
 # Whether the maintainer mode should be enabled.
 MY_MAINTAINER_MODE
 
@@ -1726,17 +1737,6 @@ else
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
-fi
-
-AC_ARG_WITH([valgrind],
-  [AS_HELP_STRING([--with-valgrind],
-    [Valgrind instrumentation @<:@default=no@:>@])],
-    [], [with_valgrind=no])
-
-if test "$with_valgrind" != "no"
-then
-  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
-    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.

@@ -68,6 +68,3 @@ ha_federatedx_la_LIBADD =
 #	$(DTRACE) $(DTRACEFLAGS) -G -s federatedx_probes.d $(DTRACEFILES)
 
 # End
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

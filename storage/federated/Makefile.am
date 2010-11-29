@@ -48,5 +48,3 @@ libfederated_embedded_la_SOURCES=	ha_federated.cc
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -54,6 +54,3 @@ libportlib.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(WIN_src)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -40,5 +40,3 @@ libcsv_la_CXXFLAGS =	$(AM_CXXFLAGS)
 libcsv_la_SOURCES =	transparent_file.cc ha_tina.cc
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-# Don't update the files from bitkeeper
-%::SCCS/s.%
