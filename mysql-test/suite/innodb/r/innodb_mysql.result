@@ -187,7 +187,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -203,7 +203,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (BNL, incremental buffers)
 select max(7) from t2i join t1i;
 max(7)
 NULL

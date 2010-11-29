@@ -14,7 +14,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
-1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	4	75.00	Using where; Using index; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	index	PRIMARY	PRIMARY	4	NULL	4	75.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -24,7 +24,7 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
-1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` <> 30))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -34,7 +34,7 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
-1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (BNL, incremental buffers)
 1	PRIMARY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
@@ -77,7 +77,7 @@ a
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index; Start temporary
-1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
 1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.00	Using index; End temporary
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1` join `test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` = `test`.`t3`.`a`))
@@ -170,8 +170,8 @@ explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (BNL, incrementAl Buffers)
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (BNL, incrementAl Buffers)
 2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`B`.`A`) in t10 on PRIMARY))))) where 1
@@ -180,7 +180,7 @@ explAin extended
 select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (BNL, incrementAl Buffers)
 2	DEPENDENT SUBQUERY	t10	unique_suBquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t2`.`A`,<exists>(<primAry_index_lookup>(<cAche>(`test`.`t2`.`A`) in t10 on PRIMARY))))) where 1
@@ -199,75 +199,75 @@ t1 m10, t1 m11,  t1 m12, t1 m13, t1 m14,t1 m15,t1 m16,t1 m17,t1 m18,t1 m19
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	s00	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	s01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s19	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s20	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s21	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s22	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s23	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s24	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s25	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s26	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s27	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s28	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s29	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s30	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s31	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s32	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s33	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s34	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s35	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s36	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s37	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s38	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s39	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s40	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s41	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s42	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s43	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s44	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s45	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s46	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
+1	PRIMARY	s01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s19	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s20	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s21	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s22	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s23	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s24	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s25	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s26	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s27	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s28	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s29	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s30	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s31	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s32	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s33	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s34	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s35	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s36	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s37	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s38	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s39	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s40	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s41	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s42	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s43	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s44	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s45	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s46	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
 2	DEPENDENT SUBQUERY	m00	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, regular buffers)
-2	DEPENDENT SUBQUERY	m19	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (BNL, incremental buffers)
+2	DEPENDENT SUBQUERY	m19	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 select * from
 t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10)) 
 where t1.a < 5;
@@ -293,7 +293,7 @@ insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
 explain extended select * from t1 where a in (select pk from t10 where pk<3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t10`.`pk`) and (`test`.`t10`.`pk` < 3))
 drop table t0, t1, t2;
@@ -1284,7 +1284,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1354,7 +1354,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1543,7 +1543,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1698,7 +1698,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1720,7 +1720,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1729,7 +1729,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1738,7 +1738,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start materialize
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1747,7 +1747,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1780,7 +1780,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1810,7 +1810,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1825,7 +1825,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1845,7 +1845,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1855,7 +1855,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1863,8 +1863,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1880,7 +1880,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1936,8 +1936,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -2110,8 +2110,8 @@ t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a a
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start materialize; Scan
 1	PRIMARY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; End materialize
-1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (BNL, incremental buffers)
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -2138,7 +2138,7 @@ insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	Using where; Materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, incremental buffers)
 select * from t1 where 2 in (select a from t0);
 a
 0
@@ -2273,8 +2273,8 @@ select count(*) from t0 A, t0 B, t0 C
 where C.a in (select a from t1 D);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
-1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 1	PRIMARY	D	ALL	NULL	NULL	NULL	NULL	12	Materialize
 flush status;
 select count(*) from t0 A, t0 B, t0 C
@@ -2319,7 +2319,7 @@ insert into t3 values (1),(2);
 explain select * from t2 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 explain select * from t2 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
@@ -2327,11 +2327,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t2 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 explain select * from t1 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Start temporary
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	6	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 drop table t1, t2, t3;
 create table t1 (a decimal);
 insert into t1 values (1),(2);
@@ -2353,25 +2353,25 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
-1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
-2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
-2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 explain select straight_join * from t2 X, t2 Y 
 where X.a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	10	Using where
-1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
-2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, regular buffers)
+2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (BNL, incremental buffers)
 create table t0 (a int, b int);
 insert into t0 values(1,1);
 explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
@@ -2465,7 +2465,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	22	Materialize; Scan
-1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer (BNL, incremental buffers)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -2531,7 +2531,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	it	ALL	NULL	NULL	NULL	NULL	22	Materialize; Scan
-1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where; Using join buffer (BNL, incremental buffers)
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
 from t1 ot where a in (select a from t2 it);
@@ -2735,10 +2735,10 @@ where t2.b2 = substring(t2_16.b2,1,6) and
 t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t2`.`b1` = `test`.`t3`.`c1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
 drop table t1_16, t2_16, t3_16, t1, t2, t3;
@@ -2893,7 +2893,7 @@ from t1_513
 where a1 in (select substring(b1,1,513) from t2_513 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	PRIMARY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` semi join (`test`.`t2_513`) where ((`test`.`t2_513`.`b1` > '0') and (`test`.`t1_513`.`a1` = substr(`test`.`t2_513`.`b1`,1,513)))
 select left(a1,7), left(a2,7)
@@ -2973,7 +2973,7 @@ from t1_1024
 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	PRIMARY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` semi join (`test`.`t2_1024`) where ((`test`.`t2_1024`.`b1` > '0') and (`test`.`t1_1024`.`a1` = substr(`test`.`t2_1024`.`b1`,1,1024)))
 select left(a1,7), left(a2,7)
@@ -3066,7 +3066,7 @@ from t1_1025
 where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	PRIMARY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` semi join (`test`.`t2_1025`) where ((`test`.`t2_1025`.`b1` > '0') and (`test`.`t1_1025`.`a1` = substr(`test`.`t2_1025`.`b1`,1,1025)))
 select left(a1,7), left(a2,7)
@@ -3262,7 +3262,7 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	Start temporary
 1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	
-1	PRIMARY	t2	index	vkey	vkey	4	NULL	5	80.00	Using where; Using index; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	index	vkey	vkey	4	NULL	5	80.00	Using where; Using index; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
 SELECT vkey FROM t0 WHERE pk IN 
@@ -3506,7 +3506,7 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_1	index	varchar_key	varchar_key	9	NULL	2	Using where; Using index; Start materialize; Scan
 1	PRIMARY	t1_2	index	NULL	int_key	5	NULL	2	Using index; End materialize
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (BNL, incremental buffers)
 SELECT t0.int_key  
 FROM t0, t2
 WHERE t0.varchar_nokey  IN (  
@@ -3527,7 +3527,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1_1	index	varchar_key	varchar_key	9	NULL	2	Using where; Using index; Start materialize; Scan
 1	PRIMARY	t1_2	index	NULL	int_key	5	NULL	2	Using index; End materialize
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (BNL, incremental buffers)
 DROP TABLE t0, t1, t2;
 # End of bug#46550
 
@@ -3807,8 +3807,8 @@ WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	it1	index	NULL	int_key	4	NULL	2	Using index; Start temporary
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, regular buffers)
-1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
 # 
@@ -3982,7 +3982,7 @@ WHERE cona.postalStripped='T2H3B2'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start materialize; Scan
 1	PRIMARY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	End materialize
-1	PRIMARY	a	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, regular buffers)
+1	PRIMARY	a	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
@@ -4452,8 +4452,8 @@ and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t4	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t3	ref	uid	uid	5	const	1	Using where; Materialize; Scan
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 select t2.uid from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -4492,7 +4492,7 @@ INSERT INTO t2 VALUES (13, 1.454);
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Materialize; Scan
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 COUNT(*)
 2
@@ -4746,7 +4746,7 @@ explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 2	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
 drop table t0, t1, t2, t3;
 create table t1 (a int not null);
@@ -4962,7 +4962,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`e` = `test`.`t1`.`e`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
@@ -5002,7 +5002,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
-1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`i` = `test`.`t1`.`i`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
@@ -5077,7 +5077,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ref	uid	uid	5	const	4	Using where; Start temporary
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
 1	PRIMARY	t1	ref	uid	uid	5	test.t4.uid	2	Using where; End temporary
-1	PRIMARY	t2	ALL	PRIMARY	NULL	NULL	NULL	9	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t2	ALL	PRIMARY	NULL	NULL	NULL	9	Using where; Using join buffer (BNL, incremental buffers)
 select name from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -5108,7 +5108,7 @@ explain extended SELECT * FROM t1 WHERE (t1.i) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Start materialize; Scan
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End materialize
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t1`.`i` = `test`.`t3`.`i`)
 SELECT * FROM t1 WHERE (t1.i) IN 
@@ -5327,7 +5327,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
 1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	4	Start materialize; Scan
 1	PRIMARY	it3	ALL	NULL	NULL	NULL	NULL	6	End materialize
-1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (BNL, incremental buffers)
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 # End of the test for bug#52068.
 set optimizer_switch=default;
