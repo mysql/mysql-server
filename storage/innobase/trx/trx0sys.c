@@ -1192,7 +1192,7 @@ trx_sys_file_format_max_check(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: highest supported file format is %s.\n",
+		" InnoDB: highest supported file format is %s.\n",
 		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
 
 	if (format_id > DICT_TF_FORMAT_MAX) {
@@ -1201,7 +1201,7 @@ trx_sys_file_format_max_check(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %s: the system tablespace is in a file "
+			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
 			((max_format_id <= DICT_TF_FORMAT_MAX)
 				? "Error" : "Warning"),
