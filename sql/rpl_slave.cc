@@ -441,10 +441,10 @@ void end_info(Master_info* mi)
   DBUG_VOID_RETURN;
 }
 
-int reset_info(Master_info* mi)
+int remove_info(Master_info* mi)
 {
   int error= 0;
-  DBUG_ENTER("reset_info");
+  DBUG_ENTER("remove_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
 
   /*
@@ -463,7 +463,7 @@ int reset_info(Master_info* mi)
   mi->end_info();
   mi->rli->end_info();
 
-  if (mi->reset_info() || mi->rli->reset_info())
+  if (mi->remove_info() || mi->rli->remove_info())
     error= 1;
 
   DBUG_RETURN(error);
@@ -845,7 +845,7 @@ int start_slave_thread(
   if (start_cond && cond_lock) // caller has cond_lock
   {
     THD* thd = current_thd;
-    while (start_id == *slave_run_id)
+    while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
       const char *old_msg= thd->enter_cond(start_cond, cond_lock,
@@ -1912,6 +1912,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_Bind",
+                                             sizeof(mi->bind_addr)));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2100,6 +2102,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(slave_sql_running_state, &my_charset_bin);
     // Master_Retry_Count
     protocol->store((ulonglong) mi->retry_count);
+    // Master_Bind
+    protocol->store(mi->bind_addr, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -2540,6 +2544,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
+  bool skip_event= FALSE;
 
   DBUG_ENTER("apply_event_and_update_pos");
 
@@ -2584,7 +2589,10 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 
   int reason= ev->shall_skip(rli);
   if (reason == Log_event::EVENT_SKIP_COUNT)
+  {
     sql_slave_skip_counter= --rli->slave_skip_counter;
+    skip_event= TRUE;
+  }
   if (reason == Log_event::EVENT_SKIP_NOT)
   {
     // Sleeps if needed, and unlocks rli->data_lock.
@@ -2620,12 +2628,20 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (exec_res == 0)
   {
     /*
-      Positions are not updated when an XID is processed, i.e. not skipped.
-      To make the slave crash-safe positions are updated while processing
-      the XID event and as such do not need to be updated again.
+      Positions are not updated here when an XID is processed and the relay
+      log info is stored in a transactional engine such as Innodb. To make
+      a slave crash-safe, positions must be updated while processing a XID
+      event and as such do not need to be updated here again.
+
+      However, if the event needs to be skipped, this means that it will not
+      be processed and then positions need to be updated here.
+
       See sql/rpl_rli.h for further details.
     */
-    int error= ev->update_pos(rli);
+    int error= 0;
+    if (!(ev->get_type_code() == XID_EVENT && rli->is_transactional()) ||
+        skip_event)
+      error= ev->update_pos(rli);
 #ifndef DBUG_OFF
     DBUG_PRINT("info", ("update_pos error = %d", error));
     if (!rli->belongs_to_client())
@@ -3476,8 +3492,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     Seconds_Behind_Master grows. No big deal.
   */
   rli->abort_slave = 0;
-  mysql_mutex_unlock(&rli->run_lock);
-  mysql_cond_broadcast(&rli->start_cond);
 
   /*
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
@@ -3490,6 +3504,11 @@ pthread_handler_t handle_slave_sql(void *arg)
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   rli->clear_error();
+
+  mysql_mutex_unlock(&rli->run_lock);
+  mysql_cond_broadcast(&rli->start_cond);
+
+  DEBUG_SYNC(thd, "after_start_slave");
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   mysql_mutex_lock(&rli->log_space_lock);
@@ -4450,6 +4469,12 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
@@ -4575,6 +4600,12 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   */
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
@@ -5476,7 +5507,7 @@ int reset_slave(THD *thd, Master_info* mi)
   /* Clear master's log coordinates */
   mi->init_master_log_pos();
 
-  if (reset_info(mi))
+  if (remove_info(mi))
   {
     error= 1;
     goto err;
@@ -5509,7 +5540,7 @@ bool change_master(THD* thd, Master_info* mi)
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
-  char saved_host[HOSTNAME_LENGTH + 1];
+  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
@@ -5558,6 +5589,7 @@ bool change_master(THD* thd, Master_info* mi)
     Before processing the command, save the previous state.
   */
   strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
   saved_port= mi->port;
   strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
   saved_log_pos= mi->get_master_log_pos();
@@ -5591,6 +5623,8 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->bind_addr)
+    strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
   if (lex_mi->user)
     strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
@@ -5630,7 +5664,7 @@ bool change_master(THD* thd, Master_info* mi)
                   mi->ignore_server_ids->server_ids.elements, sizeof(ulong),
                   (int (*) (const void*, const void*))
                   change_master_server_id_cmp) == NULL)
-        insert_dynamic(&mi->ignore_server_ids->server_ids, (uchar*) &s_id);
+        insert_dynamic(&mi->ignore_server_ids->server_ids, &s_id);
     }
   }
   sort_dynamic(&mi->ignore_server_ids->server_ids, (qsort_cmp) change_master_server_id_cmp);
@@ -5773,11 +5807,12 @@ bool change_master(THD* thd, Master_info* mi)
 
   sql_print_information("'CHANGE MASTER TO executed'. "
     "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'. "
+    "master_log_pos='%ld', master_bind='%s'. "
     "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
-    (ulong) saved_log_pos, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos());
+    "master_log_pos='%ld', master_bind='%s'.", 
+    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   /*
     If we don't write new coordinates to disk now, then old will remain in
@@ -5814,11 +5849,11 @@ Server_ids::~Server_ids()
   delete_dynamic(&server_ids);
 }
 
-bool Server_ids::unpack_server_ids(const char *param_server_ids)
+bool Server_ids::unpack_server_ids(char *param_server_ids)
 {
-  char *token, *last;
-  uint num_items;
-
+  char *token= NULL, *last= NULL;
+  uint num_items= 0;
+ 
   DBUG_ENTER("Server_ids::unpack_server_ids");
 
   token= strtok_r((char *)const_cast<const char*>(param_server_ids),
@@ -5836,28 +5871,27 @@ bool Server_ids::unpack_server_ids(const char *param_server_ids)
     else
     {
       ulong val= atol(token);
-      insert_dynamic(&server_ids, (uchar *) &val);
+      insert_dynamic(&server_ids, &val);
     }
   }
   DBUG_RETURN(FALSE);
 }
 
-bool Server_ids::pack_server_ids(char *buffer)
+bool Server_ids::pack_server_ids(String *buffer)
 {
   DBUG_ENTER("Server_ids::pack_server_ids");
 
-  if (!buffer)
+  if (buffer->set_int(server_ids.elements, FALSE, &my_charset_bin))
     DBUG_RETURN(TRUE);
 
-  for (ulong i= 0, cur_len= sprintf(buffer,
-                                    "%u",
-                                    server_ids.elements);
+  for (ulong i= 0;
        i < server_ids.elements; i++)
   {
     ulong s_id;
     get_dynamic(&server_ids, (uchar*) &s_id, i);
-    cur_len +=sprintf(buffer + cur_len,
-                      " %lu", s_id);
+    if (buffer->append(" ") ||
+        buffer->append_ulonglong(s_id))
+      DBUG_RETURN(TRUE);
   }
 
   DBUG_RETURN(FALSE);

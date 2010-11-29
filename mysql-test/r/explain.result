@@ -13,7 +13,7 @@ id	str
 3	foo
 explain select * from t1 where str is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	str	str	11	const	1	Using where
+1	SIMPLE	t1	ref	str	str	11	const	1	Using index condition
 explain select * from t1 where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	str	str	11	const	1	
@@ -271,6 +271,52 @@ INSERT INTO t1 VALUES(1, 1, 1, 1);
 EXPLAIN SELECT c1 FROM t1 WHERE c2 = 1 AND c4 = 1 AND c5 = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c2,c2_2	c2	10	const,const	3	Using where
+DROP TABLE t1;
+#
+# Bug#56814 Explain + subselect + fulltext crashes server
+#
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,
+FULLTEXT KEY(f1),UNIQUE(f1));
+INSERT INTO t1 VALUES ('test');
+EXPLAIN SELECT 1 FROM t1
+WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE t1.f1 GROUP BY t1.f1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+EXECUTE stmt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
+DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
 #

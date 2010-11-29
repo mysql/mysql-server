@@ -753,9 +753,9 @@ MDL_context::MDL_context()
 
 void MDL_context::destroy()
 {
-  DBUG_ASSERT(m_tickets[MDL_STATEMENT].is_empty() &&
-              m_tickets[MDL_TRANSACTION].is_empty() &&
-              m_tickets[MDL_EXPLICIT].is_empty());
+  DBUG_ASSERT(m_tickets[MDL_STATEMENT].is_empty());
+  DBUG_ASSERT(m_tickets[MDL_TRANSACTION].is_empty());
+  DBUG_ASSERT(m_tickets[MDL_EXPLICIT].is_empty());
 
   mysql_prlock_destroy(&m_LOCK_waiting_for);
 }

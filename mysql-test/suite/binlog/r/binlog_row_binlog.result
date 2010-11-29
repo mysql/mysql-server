@@ -1240,8 +1240,8 @@ master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 drop table t1,t2,t3,tt1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
-insert delayed into t1 values (207);
-insert delayed into t1 values (null);
+insert /* before delayed */ delayed /* after delayed */ into t1 values (207);
+insert /*! delayed */ into t1 values (null);
 insert delayed into t1 values (300);
 FLUSH TABLES;
 show binlog events from <binlog_start>;
@@ -1351,4 +1351,63 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Table_map	1	#	table_id: # (test.t1)
 #	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 #	#	Query	1	#	COMMIT
+DROP TABLE t1;
+
+# BUG#54903 BINLOG statement toggles session variables
+# ----------------------------------------------------------------------
+# This test verify that BINLOG statement doesn't change current session's
+# variables foreign_key_checks and unique_checks.
+
+CREATE TABLE t1 (c1 INT KEY);
+SET @@SESSION.foreign_key_checks= ON;
+SET @@SESSION.unique_checks= ON;
+# INSERT INTO t1 VALUES (1)
+# foreign_key_checks=0 and unique_checks=0
+BINLOG '
+dfLtTBMBAAAAKQAAANcAAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAPkAAAAAABcAAAAAAAcAAf/+AQAAAA==
+';
+SELECT * FROM t1;
+c1
+1
+# Their values should be ON
+SHOW SESSION VARIABLES LIKE "%_checks";
+Variable_name	Value
+foreign_key_checks	ON
+unique_checks	ON
+
+SET @@SESSION.foreign_key_checks= OFF;
+SET @@SESSION.unique_checks= OFF;
+# INSERT INTO t1 VALUES(2)
+# foreign_key_checks=1 and unique_checks=1
+BINLOG '
+dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==
+';
+SELECT * FROM t1;
+c1
+1
+2
+# Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+Variable_name	Value
+foreign_key_checks	OFF
+unique_checks	OFF
+# INSERT INTO t1 VALUES(2)
+# foreign_key_checks=1 and unique_checks=1
+# It should not change current session's variables, even error happens
+BINLOG '
+dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==
+';
+ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
+SELECT * FROM t1;
+c1
+1
+2
+# Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+Variable_name	Value
+foreign_key_checks	OFF
+unique_checks	OFF
 DROP TABLE t1;

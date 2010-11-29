@@ -134,7 +134,7 @@ public:
   bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
   {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
-           insert_dynamic(array, (uchar*)&option);
+           insert_dynamic(array, &option);
   }
 
 private:

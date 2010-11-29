@@ -95,7 +95,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
-		   sql_binlog.cc rpl_injector.cc)
+		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
@@ -105,8 +105,9 @@ ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
-		  rpl_info_handler.cc rpl_info_file.cc rpl_info.cc
-                  rpl_info_factory.cc server_ids.h)
+		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
+		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
+		  rpl_info_table_access.cc server_ids.h)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
@@ -307,4 +308,8 @@ ELSE()
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
 ENDIF()
 ENDIF()
+
+ADD_CUSTOM_TARGET(show-dist-name
+  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
+)
 

@@ -339,7 +339,7 @@ public:
         (hostname_requires_resolving(host.hostname) ||
          hostname_requires_resolving(proxied_host.hostname)))
     {
-      sql_print_warning("'proxes_priv' entry '%s@%s %s@%s' "
+      sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         proxied_user ? proxied_user : "",
                         proxied_host.hostname ? proxied_host.hostname : "",
@@ -1029,24 +1029,35 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
 
-  init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
-                   0, FALSE);
-  table->use_all_columns();
   (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
                                50, 100);
-  while (!(read_record_info.read_record(&read_record_info)))
+  if (tables[3].table)
   {
-    ACL_PROXY_USER proxy;
-    proxy.init(table, &mem);
-    if (proxy.check_validity(check_no_resolve))
-      continue;
-    if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
-      return TRUE;
+    init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
+                     0, FALSE);
+    table->use_all_columns();
+    while (!(read_record_info.read_record(&read_record_info)))
+    {
+      ACL_PROXY_USER proxy;
+      proxy.init(table, &mem);
+      if (proxy.check_validity(check_no_resolve))
+        continue;
+      if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
+      {
+        end_read_record(&read_record_info);
+        goto end;
+      }
+    }
+    my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
+             acl_proxy_users.elements,
+             sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+    end_read_record(&read_record_info);
   }
-  my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
-           acl_proxy_users.elements,
-           sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
-  end_read_record(&read_record_info);
+  else
+  {
+    sql_print_error("Missing system table mysql.proxies_priv; "
+                    "please run mysql_upgrade to create it");
+  }
   freeze_size(&acl_proxy_users);
 
   init_check_host();
@@ -1127,6 +1138,7 @@ my_bool acl_reload(THD *thd)
   tables[2].next_local= tables[2].next_global= tables + 3;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= 
   tables[3].open_type= OT_BASE_ONLY;
+  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -5724,6 +5736,8 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   (tables+5)->init_one_table(C_STRING_WITH_LEN("mysql"),
                              C_STRING_WITH_LEN("proxies_priv"),
                              "proxies_priv", TL_WRITE);
+  tables[5].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+
   tables->next_local= tables->next_global= tables + 1;
   (tables+1)->next_local= (tables+1)->next_global= tables + 2;
   (tables+2)->next_local= (tables+2)->next_global= tables + 3;
@@ -6316,17 +6330,20 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle proxies_priv table. */
-  if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+  if (tables[5].table)
   {
-    /* Handle of table failed, don't touch the in-memory array. */
-    result= -1;
-  }
-  else
-  {
-    /* Handle proxies_priv array. */
-    if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
-        found)
-      result= 1; /* At least one record/element found. */
+    if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+    {
+      /* Handle of table failed, don't touch the in-memory array. */
+      result= -1;
+    }
+    else
+    {
+      /* Handle proxies_priv array. */
+      if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
+          found)
+        result= 1; /* At least one record/element found. */
+    }
   }
  end:
   DBUG_RETURN(result);
