@@ -5460,7 +5460,12 @@ int ha_ndbcluster::reset()
   m_rows_to_insert= (ha_rows) 1;
   m_delete_cannot_batch= FALSE;
   m_update_cannot_batch= FALSE;
-
+  /* 
+    Setting pushed_code=NULL here is a temporary fix for bug #58553. This
+    should not be needed any longer if http://lists.mysql.com/commits/125336 
+    is merged into this branch.
+  */
+  pushed_cond= NULL;
   DBUG_RETURN(0);
 }
 
