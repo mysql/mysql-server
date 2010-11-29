@@ -188,7 +188,7 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, sql_mode_t sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head);
 

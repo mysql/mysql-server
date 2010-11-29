@@ -7075,7 +7075,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
-  ulong save_sql_mode;
+  sql_mode_t save_sql_mode;
   ulonglong prev_insert_id;
   DBUG_ENTER("copy_data_between_tables");
 
