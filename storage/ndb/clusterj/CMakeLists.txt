@@ -15,11 +15,7 @@
 
 SET(BASE_NAMES api core tie)
 
-ADD_SUBDIRECTORY(clusterj-api)
-ADD_SUBDIRECTORY(clusterj-core)
-ADD_SUBDIRECTORY(clusterj-tie)
 IF(HAVE_OPENJPA)
-  ADD_SUBDIRECTORY(clusterj-openjpa)
   LIST(APPEND BASE_NAMES openjpa)
 ENDIF(HAVE_OPENJPA)
 IF(HAVE_JUNIT)
@@ -30,6 +26,8 @@ IF(HAVE_JUNIT)
 ENDIF(HAVE_JUNIT)
 
 FOREACH(BASE_NAME ${BASE_NAMES})
+
+  ADD_SUBDIRECTORY(clusterj-${BASE_NAME})
 
   SET(BASE_DIR ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-${BASE_NAME})
   SET(BUNDLE ${BASE_DIR}/src/main/resources/com/mysql/clusterj/${BASE_NAME}/Bundle.properties)
@@ -42,7 +40,17 @@ FOREACH(BASE_NAME ${BASE_NAMES})
   IF(EXISTS ${BUNDLE})
     LIST(APPEND JAVA_CLASS_DIRS "${BASE_DIR}/src/main/resources" "com/mysql/clusterj/${BASE_NAME}/Bundle.properties")
   ENDIF() 
- 
+
+  # Generate clusterj.jar dependencies from the BASE_NAME
+  IF(BASE_NAME STREQUAL openjpa)
+    # Exception to confirm rule:
+    # "jar built in clusterj-openjpa is called clusterjpa"
+    SET(CLUSTERJ_JAR_DEPENDS ${CLUSTERJ_JAR_DEPENDS} clusterjpa.jar)
+  ELSE()
+    SET(CLUSTERJ_JAR_DEPENDS ${CLUSTERJ_JAR_DEPENDS} clusterj-${BASE_NAME}.jar)
+  ENDIF()
+
+
 ENDFOREACH(BASE_NAME ${BASE_NAMES})
 
 LIST(APPEND JAVA_CLASS_DIRS "${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/target/classes" "com/mysql/ndbjtie")
@@ -52,6 +60,6 @@ SET(CLUSTERJ_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clust
 CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
 CREATE_JAR_FROM_CLASSES(clusterj ${JAVA_CLASS_DIRS}
   MANIFEST clusterj_manifest.mf
-  DEPENDENCIES clusterj-api.jar ndbjtie.jar jtie.jar)
+  DEPENDENCIES ndbjtie.jar jtie.jar ${CLUSTERJ_JAR_DEPENDS})
 
 
