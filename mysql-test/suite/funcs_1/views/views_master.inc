@@ -2546,6 +2546,7 @@ Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 right outer join t1 on t2.f59=t1.f59;
 Select * from v1 order by t1_f59;
+--sorted_result
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,
        t1.f61 t1_f61, t2.f61 t2_f61
 FROM t2 right outer join t1 on t2.f59=t1.f59;
@@ -2555,6 +2556,7 @@ Create or replace view test.v1 as
 Select f59, f60, a, b
 FROM t2 natural right outer join t1;
 Select * from v1 order by f59 desc;
+--sorted_result
 Select f59, f60, a, b
 FROM t2 natural right outer join t1;
 

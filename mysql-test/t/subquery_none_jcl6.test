@@ -10,4 +10,3 @@ show variables like 'optimizer_join_cache_level';
 --source t/subquery_none.test
 
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';

@@ -223,10 +223,10 @@ max(t2.a1)	max(t1.a1)
 NULL	NULL
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 a1	a2	a1	a2
-10	aaa	AAA	10
-10	aaa	BBB	20
 10	NULL	AAA	10
 10	NULL	BBB	20
+10	aaa	AAA	10
+10	aaa	BBB	20
 10	bbb	AAA	10
 10	bbb	BBB	20
 20	zzz	NULL	NULL

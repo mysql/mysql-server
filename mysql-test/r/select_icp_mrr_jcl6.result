@@ -4950,6 +4950,3 @@ DROP TABLE t1;
 # End of test BUG#57203
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

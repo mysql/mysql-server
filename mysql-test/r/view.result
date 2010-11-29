@@ -1680,6 +1680,7 @@ WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1687,13 +1688,13 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v1 a LEFT JOIN t2 b ON a.col1=b.col1
 WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1701,7 +1702,6 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 CREATE VIEW v2 AS SELECT * FROM t2;
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
@@ -1709,6 +1709,7 @@ WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM v2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1716,7 +1717,6 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
 WHERE a.col1 IN (1,5,9) AND
