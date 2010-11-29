@@ -31,6 +31,7 @@
 --source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/not_master_info_table.inc
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
@@ -151,3 +152,4 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 --remove_file $MYSQLD_SLAVE_DATADIR/master.backup
+--sync_slave_with_master

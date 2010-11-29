@@ -20,6 +20,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support analyze
 mysql.tables_priv                                  OK
@@ -48,6 +50,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  OK
@@ -74,6 +78,8 @@ mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support analyze
 mysql.tables_priv                                  OK
@@ -100,6 +106,8 @@ mysql.proc                                         Table is already up to date
 mysql.procs_priv                                   Table is already up to date
 mysql.proxies_priv                                 Table is already up to date
 mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  Table is already up to date

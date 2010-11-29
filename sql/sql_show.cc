@@ -596,11 +596,11 @@ public:
     return m_view_access_denied_message_ptr;
   }
 
-  bool handle_condition(THD *thd, uint sql_errno, const char */* sqlstate */,
+  bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
                         MYSQL_ERROR::enum_warning_level level,
-                        const char *message, MYSQL_ERROR **/* cond_hdl */)
+                        const char *message, MYSQL_ERROR ** /* cond_hdl */)
   {
-    /* 
+    /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
     */
@@ -610,7 +610,7 @@ public:
     m_handling= TRUE;
 
     bool is_handled;
-    
+
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
@@ -2039,8 +2039,8 @@ int add_status_vars(SHOW_VAR *list)
     goto err;
   }
   while (list->name)
-    res|= insert_dynamic(&all_status_vars, (uchar*)list++);
-  res|= insert_dynamic(&all_status_vars, (uchar*)list); // appending NULL-element
+    res|= insert_dynamic(&all_status_vars, list++);
+  res|= insert_dynamic(&all_status_vars, list); // appending NULL-element
   all_status_vars.elements--; // but next insert_dynamic should overwite it
   if (status_vars_inited)
     sort_dynamic(&all_status_vars, show_var_cmp);

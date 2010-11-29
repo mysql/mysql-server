@@ -248,7 +248,6 @@ protected:
   void die_when_m_tickets_nonempty();
   void die_when_holding_global_shared_lock();
   void construct_and_destruct();
-  void factory_function();
   void one_shared();
   void one_shared_high_prio();
   void one_shared_read();
@@ -394,7 +393,7 @@ void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_2));
   EXPECT_EQ(m_request.ticket, request_2.ticket);
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
+  m_mdl_context.release_transactional_locks();
   EXPECT_FALSE(m_mdl_context.has_locks());
 }
 
@@ -459,8 +458,7 @@ TEST_F(MDL_test, one_exclusive)
               is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
   EXPECT_TRUE(m_request.ticket->is_upgradable_or_exclusive());
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
-  m_mdl_context.release_lock(m_global_request.ticket);
+  m_mdl_context.release_transactional_locks();
   EXPECT_FALSE(m_mdl_context.has_locks());
 }
 
@@ -472,10 +470,8 @@ TEST_F(MDL_test, one_exclusive)
 TEST_F(MDL_test, two_shared)
 {
   MDL_request request_2;
-  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
-                 MDL_TRANSACTION);
-  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED,
-                 MDL_TRANSACTION);
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED, MDL_EXPLICIT);
+  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED, MDL_EXPLICIT);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_2));
@@ -525,8 +521,8 @@ TEST_F(MDL_test, shared_locks_between_contexts)
   EXPECT_TRUE(mdl_context2.
               is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
-  mdl_context2.release_all_locks_for_name(request_2.ticket);
+  m_mdl_context.release_transactional_locks();
+  mdl_context2.release_transactional_locks();
 }
 
 
@@ -551,8 +547,7 @@ TEST_F(MDL_test, upgrade_shared_upgradable)
                upgrade_shared_lock_to_exclusive(m_request.ticket, long_timeout));
   EXPECT_EQ(MDL_EXCLUSIVE, m_request.ticket->get_type());
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
-  m_mdl_context.release_lock(m_global_request.ticket);
+  m_mdl_context.release_transactional_locks();
 }
 
 
@@ -657,7 +652,7 @@ TEST_F(MDL_test, concurrent_shared)
   release_locks.notify();
   mdl_thread.join();
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
+  m_mdl_context.release_transactional_locks();
 }
 
 
@@ -695,8 +690,7 @@ TEST_F(MDL_test, concurrent_shared_exclusive)
   EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, zero_timeout));
   EXPECT_NE(m_null_ticket, m_request.ticket);
 
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
-  m_mdl_context.release_lock(m_global_request.ticket);
+  m_mdl_context.release_transactional_locks();
 }
 
 
@@ -727,7 +721,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   EXPECT_NE(m_null_ticket, m_request.ticket);
 
   mdl_thread.join();
-  m_mdl_context.release_all_locks_for_name(m_request.ticket);
+  m_mdl_context.release_transactional_locks();
 }
 
 
