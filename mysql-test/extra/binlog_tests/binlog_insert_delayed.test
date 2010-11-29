@@ -34,11 +34,11 @@ create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 let $table=t1;
 let $count=0;
 
-insert delayed into t1 values (207);
+insert /* before delayed */ delayed /* after delayed */ into t1 values (207);
 inc $count;
 --source include/wait_until_rows_count.inc
 
-insert delayed into t1 values (null);
+insert /*! delayed */ into t1 values (null);
 inc $count;
 --source include/wait_until_rows_count.inc
 
