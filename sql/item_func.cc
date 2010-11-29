@@ -1363,9 +1363,13 @@ longlong Item_func_int_div::val_int()
     signal_divide_by_null();
     return 0;
   }
-  return (unsigned_flag ?
-	  (ulonglong) value / (ulonglong) val2 :
-	  value / val2);
+
+  if (unsigned_flag)
+    return  ((ulonglong) value / (ulonglong) val2);
+  else if (value == LONGLONG_MIN && val2 == -1)
+    return LONGLONG_MIN;
+  else
+    return value / val2;
 }
 
 
@@ -1399,9 +1403,9 @@ longlong Item_func_mod::int_op()
   if (args[0]->unsigned_flag)
     result= args[1]->unsigned_flag ? 
       ((ulonglong) value) % ((ulonglong) val2) : ((ulonglong) value) % val2;
-  else
-    result= args[1]->unsigned_flag ?
-      value % ((ulonglong) val2) : value % val2;
+  else result= args[1]->unsigned_flag ?
+         value % ((ulonglong) val2) :
+         (val2 == -1) ? 0 : value % val2;
 
   return result;
 }
@@ -3920,7 +3924,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       length--;					// Fix length change above
       entry->value[length]= 0;			// Store end \0
     }
-    memcpy(entry->value,ptr,length);
+    memmove(entry->value, ptr, length);
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
@@ -4872,7 +4876,7 @@ void Item_func_get_system_var::fix_length_and_dec()
       decimals=0;
       break;
     case SHOW_LONGLONG:
-      unsigned_flag= FALSE;
+      unsigned_flag= TRUE;
       max_length= MY_INT64_NUM_DECIMAL_DIGITS;
       decimals=0;
       break;
@@ -5013,7 +5017,7 @@ longlong Item_func_get_system_var::val_int()
   {
     case SHOW_INT:      get_sys_var_safe (uint);
     case SHOW_LONG:     get_sys_var_safe (ulong);
-    case SHOW_LONGLONG: get_sys_var_safe (longlong);
+    case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -5304,7 +5308,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
