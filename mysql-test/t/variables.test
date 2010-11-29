@@ -1464,3 +1464,23 @@ drop function t1_max;
 
 
 ###########################################################################
+
+
+--echo #
+--echo # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
+--echo #           compiler warning
+--echo #
+
+# Several tests currently use "@@sql_mode= cast(pow(2,32)-1"
+# to activate all SQL modes. This will stop working once
+# someone adds a new flag. The test below is designed to break
+# once this happens to indicate that other tests will have to
+# be updated.
+#
+# The test does this by trying to set sql_mode to the next 
+# currently unused flag value and check that this currently fails.
+# Once a new flag is added, this value will become valid and
+# the statement below will succeed.
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_mode= 4294967296;

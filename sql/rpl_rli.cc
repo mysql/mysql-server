@@ -286,8 +286,9 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         Because of we have data_lock and log_lock, we can safely read an
         event
       */
-      if (!(ev=Log_event::read_log_event(cur_log,0,
-                                         relay_log.description_event_for_exec)))
+      if (!(ev= Log_event::read_log_event(cur_log, 0,
+                                          relay_log.description_event_for_exec,
+                                          opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, cur_log->error=%d",
                            cur_log->error));
@@ -1152,6 +1153,9 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         "use '--relay-log=%s' to avoid this problem.", ln);
       name_warning_sent= 1;
     }
+
+    relay_log.is_relay_log= TRUE;
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -1164,7 +1168,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info()");
       DBUG_RETURN(1);
     }
-    relay_log.is_relay_log= TRUE;
   }
 
   /*
