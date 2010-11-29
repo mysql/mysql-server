@@ -340,8 +340,8 @@ i
 2
 select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
 i	i	i
-NULL	NULL	1
 2	2	2
+NULL	NULL	1
 select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
 i	i
 1	2

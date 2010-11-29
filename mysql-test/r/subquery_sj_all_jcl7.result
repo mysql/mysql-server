@@ -5336,6 +5336,3 @@ DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 # End of the test for bug#52068.
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

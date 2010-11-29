@@ -5419,6 +5419,3 @@ SET @@optimizer_join_cache_level=default;
 # End of bug#51457
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

@@ -147,6 +147,3 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t2, t3;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1
