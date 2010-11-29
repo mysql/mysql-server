@@ -6309,6 +6309,24 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
+static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
+{
+  MYSQL_TIME received_heartbeat_time;
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_CHAR;
+    var->value= buff;
+    thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
+      active_mi->last_heartbeat);
+    my_datetime_to_str(&received_heartbeat_time, buff);
+  }
+  else
+    var->type= SHOW_UNDEF;
+  mysql_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   mysql_mutex_lock(&LOCK_active_mi);
@@ -6690,6 +6708,7 @@ SHOW_VAR status_vars[]= {
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
   {"Slave_heartbeat_period",   (char*) &show_heartbeat_period, SHOW_FUNC},
   {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats, SHOW_FUNC},
+  {"Slave_last_heartbeat",     (char*) &show_slave_last_heartbeat, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},

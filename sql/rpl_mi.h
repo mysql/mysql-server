@@ -96,6 +96,7 @@ class Master_info : public Rpl_info
   long clock_diff_with_master;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+  time_t last_heartbeat;
   Server_ids *ignore_server_ids;
   ulong master_id;
   /*
