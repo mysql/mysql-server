@@ -215,9 +215,7 @@ toku_indexer_set_error_callback(DB_INDEXER *indexer,
     return 0;
 }
 
-// returns TRUE  if right of le_cursor
-// returns FALSE if left or equal to le_cursor
-int
+BOOL
 toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, DB *db, const DBT *key) {
     return is_key_right_of_le_cursor(indexer->i->lec, key, db);
 }
