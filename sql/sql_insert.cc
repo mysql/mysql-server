@@ -1825,7 +1825,7 @@ public:
   char *record;
   enum_duplicates dup;
   time_t start_time;
-  ulong sql_mode;
+  sql_mode_t sql_mode;
   bool auto_increment_field_not_null;
   bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;

@@ -2498,7 +2498,7 @@ bool Query_log_event::write(IO_CACHE* file)
   if (sql_mode_inited)
   {
     *start++= Q_SQL_MODE_CODE;
-    int8store(start, (ulonglong)sql_mode);
+    int8store(start, sql_mode);
     start+= 8;
   }
   if (catalog_len) // i.e. this var is inited (false for 4.0 events)
@@ -2827,7 +2827,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
   DBUG_ASSERT(cache_type != Log_event::EVENT_INVALID_CACHE);
-  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %lu",
+  DBUG_PRINT("info",("Query_log_event has flags2: %lu  sql_mode: %llu",
                      (ulong) flags2, sql_mode));
 }
 #endif /* MYSQL_CLIENT */
@@ -3042,7 +3042,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 #endif
       CHECK_SPACE(pos, end, 8);
       sql_mode_inited= 1;
-      sql_mode= (ulong) uint8korr(pos); // QQ: Fix when sql_mode is ulonglong
+      sql_mode= uint8korr(pos);
       DBUG_PRINT("info",("In Query_log_event, read sql_mode: %s",
 			 llstr(sql_mode, buff)));
       pos+= 8;
@@ -3515,8 +3515,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       */
       if (sql_mode_inited)
         thd->variables.sql_mode=
-          (ulong) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
-                   (sql_mode & ~(ulong) MODE_NO_DIR_IN_CREATE));
+          (sql_mode_t) ((thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE) |
+                       (sql_mode & ~(ulonglong) MODE_NO_DIR_IN_CREATE));
       if (charset_inited)
       {
         if (rli->cached_charset_compare(charset))

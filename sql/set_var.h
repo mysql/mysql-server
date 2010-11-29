@@ -309,8 +309,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
-ulong expand_sql_mode(ulonglong sql_mode);
-bool sql_mode_string_representation(THD *thd, ulong sql_mode, LEX_STRING *ls);
+ulong expand_sql_mode(sql_mode_t sql_mode);
+bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
 

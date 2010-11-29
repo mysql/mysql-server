@@ -399,6 +399,8 @@ class Time_zone;
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
+typedef ulonglong sql_mode_t;
+
 typedef struct system_variables
 {
   /*
@@ -420,7 +422,7 @@ typedef struct system_variables
   ulonglong long_query_time;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
-  ulonglong sql_mode; ///< which non-standard SQL behaviour should be enabled
+  sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
   ha_rows max_join_size;
