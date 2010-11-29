@@ -96,6 +96,7 @@ struct GlobalData {
   SimulatedBlock * getBlockInstance(BlockNumber fullBlockNo) {
     return getBlock(blockToMain(fullBlockNo), blockToInstance(fullBlockNo));
   }
+  SimulatedBlock * mt_getBlock(BlockNumber blockNo, Uint32 instanceNo);
   
   void           incrementWatchDogCounter(Uint32 place);
   Uint32 * getWatchDogPtr();

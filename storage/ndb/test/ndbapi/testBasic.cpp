@@ -1491,8 +1491,6 @@ runBug28073(NDBT_Context *ctx, NDBT_Step* step)
   return result;
 }
 
-template class Vector<Uint64>;
-
 int
 runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 {

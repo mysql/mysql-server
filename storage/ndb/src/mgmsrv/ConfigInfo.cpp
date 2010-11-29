@@ -1038,7 +1038,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "4000",
     "0",
-    "32000" },
+    "256000" },
 
   {
     CFG_DB_MAX_BUFFERED_EPOCHS,
