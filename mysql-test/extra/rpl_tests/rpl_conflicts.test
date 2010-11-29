@@ -146,7 +146,10 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRIC
   source include/wait_for_slave_sql_error.inc;
   let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
   let $err= `SELECT SUBSTRING("$err" FROM 17)`;
-  --echo Last_SQL_Error = $err (expected "can't find record" error)
+  --replace_regex /end_log_pos [0-9]+/end_log_pos END_LOG_POS/
+  --disable_query_log
+  --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
+  --enable_query_log
   SELECT * FROM t1;
 
   --echo ---- Resolve the conflict on the slave and restart SQL thread ----
