@@ -2153,5 +2153,41 @@ explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
 
+# Bug#58553 Queries with pushed conditions causes 'explain extended' to crash mysqld
+create table tx (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  primary key (`a`,`b`)
+) engine = ndb;
+
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+
+explain extended
+select straight_join *
+from tx
+ join tx as t2 on t2.a = tx.a and t2.b = tx.b
+ join tx as t3 on t3.a = tx.c and t3.b = tx.d
+ join tx as t4 on t4.a = t3.b and t4.b = t2.c;
+
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+
+drop table tx;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
