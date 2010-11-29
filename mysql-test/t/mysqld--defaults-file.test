@@ -3,6 +3,7 @@
 # segmentation fault
 
 source include/not_embedded.inc;
+source include/not_windows.inc;
 
 # We need to use a plain "mysqld" without any other options to trigger
 # the bug. In particular, it seems that passing --bootstrap does not
