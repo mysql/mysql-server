@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# generate hotindexing undo provisional tests
+# generate hotindexing undo provisional tests with 2 nested transactions
 
 import sys
 
@@ -23,9 +23,13 @@ def print_test(fp, live, commit, prov0, prov1):
     print_tr(fp, prov1, "provisional")
 
 def main():
+    # live transactions
     for live in ["", "200", "200,201"]:
+        # committed transaction records
         for commit in ["i0", "d0"]:
+            # provisional level 0 transaction records
             for prov0 in ["i200", "d200", "p200"]:
+                # provisional level 1 transaction records
                 for prov1 in ["i201", "d201"]:
                     if live == "":
                         fname = "prov.%s.%s.%s.test" % (commit, prov0, prov1)
