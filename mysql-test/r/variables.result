@@ -1722,3 +1722,9 @@ set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
 drop table t1;
 drop function t1_min;
 drop function t1_max;
+#
+# Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
+#           compiler warning
+#
+SET @@sql_mode= 4294967296;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
