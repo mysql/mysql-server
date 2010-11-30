@@ -2,6 +2,7 @@ set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
 optimizer_join_cache_level	6
+set optimizer_switch='mrr_cost_based=off';
 drop table if exists t0,t1,t2,t3,t4,t5;
 CREATE TABLE t1 (
 grp int(11) default NULL,
@@ -1476,3 +1477,4 @@ WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
 DROP TABLE t1,t2,t3,t4;
 set optimizer_join_cache_level=default;
+set optimizer_switch=default;
