@@ -193,7 +193,6 @@ extern const char * g_clusters;
 
 #ifdef _WIN32
 #include <direct.h>
-#include <sys/stat.h>
 
 inline int lstat(const char *name, struct stat *buf) {
   return stat(name, buf);

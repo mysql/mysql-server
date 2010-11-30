@@ -90,6 +90,8 @@
 #include <fcntl.h>
 #endif
 
+#include <sys/stat.h>
+
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
