@@ -1,0 +1,42 @@
+-- source include/have_innodb_plugin.inc
+
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
+##
+# Bug #56228: dropping tables from within an active statement crashes server
+#
+DROP TABLE IF EXISTS t1_56228;
+DROP TABLE IF EXISTS t2_56228;
+DROP FUNCTION IF EXISTS bug56228;
+
+CREATE TEMPORARY TABLE t1_56228(
+	c1 iNT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t2_56228(
+	c1 iNT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+
+DELIMITER //;
+
+CREATE FUNCTION bug56228() RETURNS INT DETERMINISTIC
+BEGIN
+ INSERT INTO t1_56228 VALUES(NULL);
+ INSERT INTO t2_56228 VALUES(NULL);
+ INSERT INTO t1_56228 VALUES(NULL);
+ INSERT INTO t2_56228 VALUES(NULL);
+ DROP TEMPORARY TABLE t1_56228;
+ RETURN 42;
+END //
+
+DELIMITER ;//
+
+SELECT bug56228();
+
+DROP FUNCTION bug56228;
+DROP TEMPORARY TABLE t2_56228;
+DROP TEMPORARY TABLE IF EXISTS t1_56228;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval set global innodb_file_format_check=$innodb_file_format_check_orig;
