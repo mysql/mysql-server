@@ -1303,14 +1303,16 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
  */
 
 int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
-                        int *stopCount, bool abort, int* stopSelf)
+                        int *stopCount, bool abort, bool force,
+                        int* stopSelf)
 {
-  /*
-    verify that no nodes are starting before stopping as this would cause
-    the starting node to shutdown
-  */
-  if (!abort && check_nodes_starting())
+  if (force || abort)
+    ; // Skip node state checks
+  else if (is_any_node_starting())
+  {
+    /* Refuse to stop since some node(s) are starting */
     return OPERATION_NOT_ALLOWED_START_STOP;
+  }
 
   NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
@@ -1403,7 +1405,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
  * Perform node restart
  */
 
-int MgmtSrvr::check_nodes_stopping()
+bool MgmtSrvr::is_any_node_stopping()
 {
   NodeId nodeId = 0;
   trp_node node;
@@ -1414,12 +1416,12 @@ int MgmtSrvr::check_nodes_stopping()
        (node.m_state.startLevel == NodeState::SL_STOPPING_2) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_3) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_4))
-      return 1;
+      return true; // At least one node was stopping
   }
-  return 0;
+  return false; // No node was stopping
 }
 
-int MgmtSrvr::check_nodes_starting()
+bool MgmtSrvr::is_any_node_starting()
 {
   NodeId nodeId = 0;
   trp_node node;
@@ -1427,12 +1429,12 @@ int MgmtSrvr::check_nodes_starting()
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_STARTING))
-      return 1;
+      return true; // At least one node was starting
   }
-  return 0;
+  return false; // No node was starting
 }
 
-int MgmtSrvr::check_nodes_single_user()
+bool MgmtSrvr::is_cluster_single_user()
 {
   NodeId nodeId = 0;
   trp_node node;
@@ -1440,23 +1442,34 @@ int MgmtSrvr::check_nodes_single_user()
   {
     node = theFacade->theClusterMgr->getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
-      return 1;
+      return true; // Cluster is in single user modes
   }
-  return 0;
+  return false; // Cluster is not in single user mode
 }
 
 int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
+                           bool force,
                            int *stopSelf)
 {
-  /*
-    verify that no nodes are starting before stopping as this would cause
-    the starting node to shutdown
-    check single user mode
-  */
-  if ((!abort && check_nodes_starting()) || check_nodes_single_user())
+  if (is_cluster_single_user())
+  {
+    /*
+      Refuse to restart since cluster is in single user mode
+      and when the node is restarting it would not be allowed to
+      join cluster, see BUG#31056
+    */
     return OPERATION_NOT_ALLOWED_START_STOP;
+  }
+
+  if (force || abort)
+    ; // Skip node state checks
+  else if (is_any_node_starting())
+  {
+    /* Refuse to restart since some node(s) are starting */
+    return OPERATION_NOT_ALLOWED_START_STOP;
+  }
 
   NdbNodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
@@ -1508,7 +1521,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     the starting node to shutdown
   */
   int retry= 600*10;
-  for (;check_nodes_stopping();)
+  for (;is_any_node_stopping();)
   {
     if (--retry)
       break;
