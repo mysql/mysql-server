@@ -43,10 +43,10 @@ SELECT * FROM t1;
 
 # Test 'INSERT IGNORE' with the same rows that reported constraint violation above 
 # Ignore pk constraint
-INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesn't throw error */;
+INSERT IGNORE INTO t1(c1,c2) VALUES('20070525','20070527') /* doesnt throw error */;
 
 # Ignore unique constraint
-INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesn't throw error */;
+INSERT IGNORE INTO t1(c1,c2) VALUES(19840905,830907) /* doesnt throw error */;
 
 # Test 'INSERT ON DUPLICATE KEY UPDATE' with single column PK
 SELECT * FROM t1 WHERE c1='20070527' /* Returns no rows */;
