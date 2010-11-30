@@ -6591,8 +6591,11 @@ public:
       search. So we initialize only if warnings would stop the build.
     */
 #ifdef COMPILE_FLAG_WERROR
-    bound_sj_equalities= quick_max_loose_keypart= best_loose_scan_key=
-      best_loose_scan_records= best_max_loose_keypart= 0;
+    bound_sj_equalities=       0;
+    quick_max_loose_keypart=   0;
+    best_loose_scan_key=       0;
+    best_loose_scan_records=   0;
+    best_max_loose_keypart=    0;
     best_loose_scan_start_key= NULL;
 #endif
   }
