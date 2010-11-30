@@ -737,7 +737,6 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  String value;
   bool date_value;
  public:
   const interval_type int_type; // keep it public

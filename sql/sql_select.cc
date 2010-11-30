@@ -1472,6 +1472,15 @@ JOIN::optimize()
     if (order)
     {
       /*
+        Do we need a temporary table due to the ORDER BY not being equal to
+        the GROUP BY? The call to test_if_skip_sort_order above tests for the
+        GROUP BY clause only and hence is not valid in this case. So the
+        estimated number of rows to be read from the first table is not valid.
+        We clear it here so that it doesn't show up in EXPLAIN.
+       */
+      if (need_tmp && (select_options & SELECT_DESCRIBE) != 0)
+        join_tab[const_tables].limit= 0;
+      /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
       */
@@ -1694,11 +1703,14 @@ JOIN::reinit()
     /* Reset effect of possible no_rows_in_result() */
     List_iterator_fast<Item> it(fields_list);
     Item *item;
-
     no_rows_in_result_called= 0;
     while ((item= it++))
       item->restore_to_before_no_rows_in_result();
-  }  
+  }
+
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   DBUG_RETURN(0);
 }
 
@@ -2485,6 +2497,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -8896,6 +8915,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
         For some of the inner tables there are conjunctive predicates
         that reject nulls => the outer join can be replaced by an inner join.
       */
+      if (table->outer_join && !table->embedding && table->table)
+        table->table->maybe_null= FALSE;
       table->outer_join= 0;
       if (table->on_expr)
       {
@@ -8982,6 +9003,8 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
       while ((tbl= it++))
       {
         tbl->embedding= table->embedding;
+        if (!tbl->embedding && !tbl->on_expr && tbl->table)
+          tbl->table->maybe_null= FALSE;
         tbl->join_list= table->join_list;
       }
       li.replace(nested_join->join_list);
@@ -9861,7 +9884,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       If item have to be able to store NULLs but underlaid field can't do it,
       create_tmp_field_from_field() can't be used for tmp field creation.
     */
-    if (field->maybe_null && !field->field->maybe_null())
+    if (field->maybe_null && field->in_rollup && !field->field->maybe_null())
     {
       result= create_tmp_field_from_item(thd, item, table, NULL,
                                          modify_item, convert_blob_length);
@@ -11437,22 +11460,22 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   if (error == NESTED_LOOP_NO_MORE_ROWS)
     error= NESTED_LOOP_OK;
 
+  if (table == NULL)                      	// If sending data to client
+  {
+    /*
+      The following will unlock all cursors if the command wasn't an
+      update command
+    */
+    join->join_free();                          // Unlock all cursors
+  }
   if (error == NESTED_LOOP_OK)
   {
     /*
       Sic: this branch works even if rc != 0, e.g. when
       send_data above returns an error.
     */
-    if (!table)					// If sending data to client
-    {
-      /*
-	The following will unlock all cursors if the command wasn't an
-	update command
-      */
-      join->join_free();			// Unlock all cursors
-      if (join->result->send_eof())
-	rc= 1;                                  // Don't send error
-    }
+    if (table == NULL && join->result->send_eof()) // If sending data to client
+      rc= 1;                                  // Don't send error 
     DBUG_PRINT("info",("%ld records output", (long) join->send_records));
   }
   else
@@ -13516,7 +13539,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->maybe_null() ||
             !find_func(key_part->field, data))
           break;
       }
@@ -16334,6 +16357,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
     if (arg_changed)
     {
       expr->maybe_null= 1;
+      expr->in_rollup= 1;
       *changed= TRUE;
     }
   }
@@ -16397,6 +16421,7 @@ bool JOIN::rollup_init()
       if (*group_tmp->item == item)
       {
         item->maybe_null= 1;
+        item->in_rollup= 1;
         found_in_group= 1;
         break;
       }
@@ -17026,7 +17051,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
         else if (tab->type == JT_NEXT || tab->type == JT_ALL)
-          examined_rows= tab->limit ? tab->limit : tab->table->file->records();
+        {
+          if (tab->limit)
+            examined_rows= tab->limit;
+          else
+          {
+            tab->table->file->info(HA_STATUS_VARIABLE);
+            examined_rows= tab->table->file->stats.records;
+          }
+        }
         else
           examined_rows=(ha_rows)join->best_positions[i].records_read; 
  

@@ -45,7 +45,7 @@ if (!$_status_timeout_counter)
 }
 
 let $_status_var_comparsion= $status_var_comparsion;
-if (`SELECT '$_status_var_comparsion' = ''`)
+if (!$_status_var_comparsion)
 {
   let $_status_var_comparsion= =;
 }

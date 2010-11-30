@@ -36,7 +36,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0rbt.h"
 #ifndef UNIV_HOTBACKUP
 #include "os0proc.h"
-#include "srv0srv.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
@@ -1302,10 +1301,7 @@ struct buf_block_struct{
 /**********************************************************************//**
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @{ */
-/* the fold should be relative when srv_buffer_pool_shm_key is enabled */
-#define BUF_POOL_ZIP_FOLD_PTR(ptr) (!srv_buffer_pool_shm_key\
-					?((ulint) (ptr) / UNIV_PAGE_SIZE)\
-					:((ulint) ((byte*)ptr - (byte*)(buf_pool->chunks->blocks->frame)) / UNIV_PAGE_SIZE))
+#define BUF_POOL_ZIP_FOLD_PTR(ptr) ((ulint) (ptr) / UNIV_PAGE_SIZE)
 #define BUF_POOL_ZIP_FOLD(b) BUF_POOL_ZIP_FOLD_PTR((b)->frame)
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */

@@ -2671,7 +2671,7 @@ int ha_sphinx::get_rec ( byte * buf, const byte *, uint )
 						if ( pCur < sBuf+sizeof(sBuf)-16 ) // 10 chars per 32bit value plus some safety bytes
 						{
 							sprintf ( pCur, "%u", uEntry );
-							while ( *pCur ) *pCur++;
+							while ( *pCur ) pCur++;
 							if ( uValue>1 )
 								*pCur++ = ','; // non-trailing commas
 						}

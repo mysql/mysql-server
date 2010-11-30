@@ -23,6 +23,3 @@ test_varpage_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/mysys/libmysys.a \
   $(top_builddir)/dbug/libdbug.a \
   $(top_builddir)/strings/libmystrings.a
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

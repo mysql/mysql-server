@@ -1282,6 +1282,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
 
+%token IMPOSSIBLE_ACTION		/* To avoid warning for yyerrlab1 */
+
 %left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
 /* A dummy token to force the priority of table_ref production in a join. */
 %left   TABLE_REF_PRIORITY
@@ -1480,6 +1482,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         init_key_options normal_key_options normal_key_opts all_key_opt 
         spatial_key_options fulltext_key_options normal_key_opt 
         fulltext_key_opt spatial_key_opt fulltext_key_opts spatial_key_opts
+	keep_gcc_happy
         key_using_alg
         server_def server_options_list server_option
         definer_opt no_definer definer
@@ -1611,11 +1614,12 @@ statement:
         | help
         | insert
         | install
+	| keep_gcc_happy
+        | keycache
         | kill
         | load
         | lock
         | optimize
-        | keycache
         | parse_vcol_expr
         | partition_entry
         | preload
@@ -11819,6 +11823,12 @@ user:
                                          system_charset_info, 0) ||
                 check_host_name(&$$->host))
               MYSQL_YYABORT;
+            /*
+              Convert hostname part of username to lowercase.
+              It's OK to use in-place lowercase as long as
+              the character set is utf8.
+            */
+            my_casedn_str(system_charset_info, $$->host.str);
           }
         | CURRENT_USER optional_braces
           {
@@ -14019,6 +14029,13 @@ uninstall:
             lex->comment= $3;
           }
         ;
+
+/* Avoid compiler warning from sql_yacc.cc where yyerrlab1 is not used */
+keep_gcc_happy:
+	IMPOSSIBLE_ACTION
+	{
+	  YYERROR;
+	}
 
 /**
   @} (end of group Parser)

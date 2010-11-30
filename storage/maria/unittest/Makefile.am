@@ -110,6 +110,3 @@ ma_pagecache_rwconsist2_1k_t_CPPFLAGS = -DTEST_PAGE_SIZE=1024
 # so we don't build lockman-t and lockman1-t and lockman2-t 
 CLEANFILES =		aria_log_control page_cache_test_file_1 \
 			aria_log.????????
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

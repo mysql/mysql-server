@@ -159,10 +159,6 @@ extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
-extern uint	srv_buffer_pool_shm_key;
-extern ibool	srv_buffer_pool_shm_is_reused;
-extern ibool	srv_buffer_pool_shm_checksum;
-
 extern ibool	srv_thread_concurrency_timer_based;
 
 extern ulint	srv_n_file_io_threads;

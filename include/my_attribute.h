@@ -30,10 +30,15 @@
 #ifndef __attribute__
 # if !defined(__GNUC__)
 #  define __attribute__(A)
-# elif GCC_VERSION < 2008
-#  define __attribute__(A)
-# elif defined(__cplusplus) && GCC_VERSION < 3004
-#  define __attribute__(A)
+# else
+#  ifndef GCC_VERSION
+#   define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+#  endif
+#  if GCC_VERSION < 2008
+#   define __attribute__(A)
+#  elif defined(__cplusplus) && GCC_VERSION < 3004
+#   define __attribute__(A)
+#  endif
 # endif
 #endif
 

@@ -117,6 +117,3 @@ conf_to_src_LDADD=
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
 conf_to_src_LDFLAGS=@NOINST_LDFLAGS@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

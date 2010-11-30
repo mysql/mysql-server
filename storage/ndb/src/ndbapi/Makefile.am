@@ -71,9 +71,6 @@ ndberror_check_LDFLAGS = \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libndbapi.dsp
 
 libndbapi.dsp: Makefile \

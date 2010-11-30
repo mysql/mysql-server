@@ -45,5 +45,4 @@ libexample_la_SOURCES=	ha_example.cc
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+

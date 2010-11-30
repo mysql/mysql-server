@@ -23,7 +23,3 @@ my_safe_process_SOURCES = safe_process.cc
 EXTRA_DIST = 	safe_kill_win.cc \
 		safe_process_win.cc \
 		CMakeLists.txt
-
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

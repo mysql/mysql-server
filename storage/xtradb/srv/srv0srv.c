@@ -211,11 +211,6 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
-/* key value for shm */
-UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
-UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
-UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
-
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
@@ -1130,7 +1125,7 @@ retry:
 			enter_innodb_with_tickets(trx);
 			return;
 		}
-		os_atomic_increment_lint(&srv_conc_n_threads, -1);
+		(void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	}
 	if (!has_yielded)
 	{
@@ -1160,7 +1155,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-	os_atomic_increment_lint(&srv_conc_n_threads, -1);
+        (void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1367,7 +1362,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
-		os_atomic_increment_lint(&srv_conc_n_threads, 1);
+                (void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;

@@ -15,3 +15,5 @@ partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
 main.mysqlhotcopy_myisam : bug#54129 2010-06-04 Horst
 main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst
 main.events_time_zone    : Test is not predictable as it depends on precise timing.
+main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
+main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails

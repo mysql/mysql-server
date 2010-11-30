@@ -57,6 +57,3 @@ distclean-local:
 
 # Do nothing
 link_sources:
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

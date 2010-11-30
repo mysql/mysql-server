@@ -445,7 +445,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -1444,7 +1444,12 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	row_update_statistics_if_needed(prebuilt->table);
+	/* We update table statistics only if it is a DELETE or UPDATE
+	that changes indexed columns, UPDATEs that change only non-indexed
+	columns would not affect statistics. */
+	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+		row_update_statistics_if_needed(prebuilt->table);
+	}
 
 	trx->op_info = "";
 
@@ -1599,6 +1604,9 @@ row_update_cascade_for_mysql(
 
 	trx = thr_get_trx(thr);
 
+	/* Increment fk_cascade_depth to record the recursive call depth on
+	a single update/delete that affects multiple tables chained
+	together with foreign key relations. */
 	thr->fk_cascade_depth++;
 
 	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
@@ -1609,6 +1617,12 @@ run_again:
 	thr->prev_node = node;
 
 	row_upd_step(thr);
+
+	/* The recursive call for cascading update/delete happens
+	in above row_upd_step(), reset the counter once we come
+	out of the recursive call, so it does not accumulate for
+	different row deletes */
+	thr->fk_cascade_depth = 0;
 
 	err = trx->error_state;
 
@@ -1876,15 +1890,13 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+	switch (err) {
+	case DB_SUCCESS:
+		break;
+	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
 		trx_general_rollback_for_mysql(trx, NULL);
-		/* TO DO: free table?  The code below will dereference
-		table->name, though. */
-	}
 
-	switch (err) {
-	case DB_OUT_OF_FILE_SPACE:
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
 		      stderr);
@@ -1899,9 +1911,13 @@ err_exit:
 		break;
 
 	case DB_DUPLICATE_KEY:
+	default:
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
 
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, NULL);
+		dict_mem_table_free(table);
 		break;
 	}
 
@@ -2816,15 +2832,6 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
-	/* Lock all index trees for this table, as we will
-	truncate the table/index and possibly change their metadata.
-	All DML/DDL are blocked by table level lock, with
-	a few exceptions such as queries into information schema
-	about the table, MySQL could try to access index stats
-	for this kind of query, we need to use index locks to
-	sync up */
-	dict_table_x_lock_indexes(table);
-
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -2836,6 +2843,11 @@ row_truncate_table_for_mysql(
 			dict_index_t*	index;
 
 			dict_hdr_get_new_id(NULL, NULL, &space);
+
+			/* Lock all index trees for this table. We must
+			do so after dict_hdr_get_new_id() to preserve
+			the latch order */
+			dict_table_x_lock_indexes(table);
 
 			if (space == ULINT_UNDEFINED
 			    || fil_create_new_single_table_tablespace(
@@ -2870,6 +2882,15 @@ row_truncate_table_for_mysql(
 					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 			mtr_commit(&mtr);
 		}
+	} else {
+		/* Lock all index trees for this table, as we will
+		truncate the table/index and possibly change their metadata.
+		All DML/DDL are blocked by table level lock, with
+		a few exceptions such as queries into information schema
+		about the table, MySQL could try to access index stats
+		for this kind of query, we need to use index locks to
+		sync up */
+		dict_table_x_lock_indexes(table);
 	}
 
 	/* scan SYS_INDEXES for all indexes of the table */

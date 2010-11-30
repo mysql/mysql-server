@@ -48,13 +48,13 @@ let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
 eval SHOW BINLOG EVENTS IN '$binlog_name';
 
 let $_master_con= $master_connection;
-if (`SELECT '$_master_con' = ''`)
+if (!$_master_con)
 {
   if (`SELECT '$_con' = 'slave'`)
   {
     let $_master_con= master;
   }
-  if (`SELECT '$_master_con' = ''`)
+  if (!$_master_con)
   {
     --echo Unable to determine master connection. No debug info printed for master.
     --echo Please fix the test case by setting $master_connection before sourcing
@@ -62,7 +62,7 @@ if (`SELECT '$_master_con' = ''`)
   }
 }
 
-if (`SELECT '$_master_con' != ''`)
+if ($_master_con)
 {
 
   let $master_binlog_name_io= query_get_value("SHOW SLAVE STATUS", Master_Log_File, 1);

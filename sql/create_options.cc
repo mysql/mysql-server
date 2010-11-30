@@ -187,7 +187,8 @@ static bool set_one_value(ha_create_table_option *opt,
           *val= num;
           DBUG_RETURN(0);
         }
-        if (*end) *end++;
+        if (*end)
+          end++;
         start= end;
         num++;
       }

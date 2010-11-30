@@ -2672,7 +2672,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     file_log= logger.get_log_file_handler();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!old_value)

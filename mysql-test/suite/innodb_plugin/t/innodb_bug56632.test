@@ -1,0 +1,216 @@
+#
+# Bug#56632: ALTER TABLE implicitly changes ROW_FORMAT to COMPRESSED
+# http://bugs.mysql.com/56632
+#
+# Innodb automatically uses compressed mode when the KEY_BLOCK_SIZE
+# parameter is used, except if the ROW_FORMAT is also specified, in
+# which case the KEY_BLOCK_SIZE is ignored and a warning is shown.
+# But Innodb was getting confused when neither of those parameters
+# was used on the ALTER statement after they were both used on the
+# CREATE.
+#
+# This will test the results of all 4 combinations of these two
+# parameters of the CREATE and ALTER.
+#
+#    Tests 1-5 use INNODB_STRICT_MODE=1 which returns an error
+#    if there is anything wrong with the statement.
+#
+# 1) CREATE with ROW_FORMAT=COMPACT & KEY_BLOCK_SIZE=1, ALTER with neither.
+#    Result; CREATE; fails with error ER_CANT_CREATE_TABLE
+# 2) CREATE with ROW_FORMAT=COMPACT, ALTER with KEY_BLOCK_SIZE=1
+#    Result; CREATE succeeds,
+#            ALTER quietly converts ROW_FORMAT to compressed.
+# 3) CREATE with KEY_BLOCK_SIZE=1, ALTER with ROW_FORMAT=COMPACT
+#    Result; CREATE quietly converts ROW_FORMAT to compressed,
+#            ALTER fails with error ER_CANT_CREATE_TABLE.
+# 4) CREATE with neither, ALTER with ROW_FORMAT=COMPACT & KEY_BLOCK_SIZE=1
+#    Result; CREATE succeeds,
+#            ALTER; fails with error ER_CANT_CREATE_TABLE
+# 5) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with neither.
+#    Result; CREATE; fails with error ER_CANT_CREATE_TABLE
+#
+#    Tests 6-11 use INNODB_STRICT_MODE=0 which automatically makes
+#    adjustments if the prameters are incompatible.
+#
+# 6) CREATE with ROW_FORMAT=COMPACT & KEY_BLOCK_SIZE=1, ALTER with neither.
+#    Result; CREATE succeeds, warns that KEY_BLOCK_SIZE is ignored.
+#            ALTER succeeds, no warnings.
+# 7) CREATE with ROW_FORMAT=COMPACT, ALTER with KEY_BLOCK_SIZE=1
+#    Result; CREATE succeeds,
+#            ALTER quietly converts ROW_FORMAT to compressed.
+# 8) CREATE with KEY_BLOCK_SIZE=1, ALTER with ROW_FORMAT=COMPACT
+#    Result; CREATE quietly converts ROW_FORMAT to compressed,
+#            ALTER succeeds, warns that KEY_BLOCK_SIZE is ignored.
+# 9) CREATE with neither, ALTER with ROW_FORMAT=COMPACT & KEY_BLOCK_SIZE=1
+#    Result; CREATE succeeds,
+#            ALTER succeeds, warns that KEY_BLOCK_SIZE is ignored.
+# 10) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with neither.
+#    Result; CREATE succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
+#            ALTER succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
+# 11) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with ROW_FORMAT=COMPACT.
+#    Result; CREATE succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
+#            ALTER succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
+# 12) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with KEY_BLOCK_SIZE=1.
+#    Result; CREATE succeeds, warns that KEY_BLOCK_SIZE=3 is ignored.
+#            ALTER succeeds, quietly converts ROW_FORMAT to compressed.
+
+-- source include/have_innodb_plugin.inc
+
+SET storage_engine=InnoDB;
+
+--disable_query_log
+# These values can change during the test
+LET $innodb_file_format_orig=`select @@innodb_file_format`;
+LET $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+--enable_query_log
+
+SET GLOBAL innodb_file_format=`Barracuda`;
+SET GLOBAL innodb_file_per_table=ON;
+
+# Innodb strict mode will cause an error on the CREATE or ALTER when;
+# 1. both ROW_FORMAT=COMPACT and KEY_BLOCK_SIZE=1,
+# 2. KEY_BLOCK_SIZE is not a valid number (0,1,2,4,8,16).
+# With innodb_strict_mode = OFF, These errors are corrected
+# and just a warning is returned.
+SET SESSION innodb_strict_mode = ON;
+
+--echo # Test 1) CREATE with ROW_FORMAT & KEY_BLOCK_SIZE, ALTER with neither
+DROP TABLE IF EXISTS bug56632;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+
+--echo # Test 2) CREATE with ROW_FORMAT, ALTER with KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 3) CREATE with KEY_BLOCK_SIZE, ALTER with ROW_FORMAT
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+--disable_result_log
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE bug56632 ROW_FORMAT=COMPACT;
+--enable_result_log
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 4) CREATE with neither, ALTER with ROW_FORMAT & KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT );
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+--disable_result_log
+--error ER_CANT_CREATE_TABLE
+ALTER TABLE bug56632 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+--enable_result_log
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 5) CREATE with KEY_BLOCK_SIZE=3 (invalid).
+DROP TABLE IF EXISTS bug56632;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=3;
+SHOW WARNINGS;
+
+SET SESSION innodb_strict_mode = OFF;
+
+--echo # Test 6) CREATE with ROW_FORMAT & KEY_BLOCK_SIZE, ALTER with neither
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 7) CREATE with ROW_FORMAT, ALTER with KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 8) CREATE with KEY_BLOCK_SIZE, ALTER with ROW_FORMAT
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 9) CREATE with neither, ALTER with ROW_FORMAT & KEY_BLOCK_SIZE
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT );
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 10) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with neither.
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=3;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 ADD COLUMN f1 INT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 11) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with ROW_FORMAT=COMPACT.
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=3;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 ROW_FORMAT=COMPACT;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Test 12) CREATE with KEY_BLOCK_SIZE=3 (invalid), ALTER with KEY_BLOCK_SIZE=1.
+DROP TABLE IF EXISTS bug56632;
+CREATE TABLE bug56632 ( i INT ) KEY_BLOCK_SIZE=3;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+ALTER TABLE bug56632 KEY_BLOCK_SIZE=1;
+SHOW WARNINGS;
+SHOW CREATE TABLE bug56632;
+SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 'bug56632';
+
+--echo # Cleanup
+DROP TABLE IF EXISTS bug56632;
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+EVAL SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
+

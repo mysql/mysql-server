@@ -2892,7 +2892,7 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
   {
     if (tbl->on_expr)
     {
-      tbl->prep_on_expr= tbl->on_expr;
+      thd->check_and_register_item_tree(&tbl->prep_on_expr, &tbl->on_expr);
       tbl->on_expr= tbl->on_expr->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, tbl->merge_underlying_list);
@@ -2926,12 +2926,12 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     first_execution= 0;
     if (*conds)
     {
-      prep_where= *conds;
+      thd->check_and_register_item_tree(&prep_where, conds);
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= *having_conds;
+      thd->check_and_register_item_tree(&prep_having, having_conds);
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);

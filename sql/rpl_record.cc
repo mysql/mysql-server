@@ -77,7 +77,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   unsigned int null_mask= 1U;
   for ( ; (field= *p_field) ; p_field++)
   {
-    DBUG_PRINT("debug", ("null_mask=%d; null_ptr=%p; row_data=%p; null_byte_count=%d",
+    DBUG_PRINT("debug", ("null_mask: %d  null_ptr: %p  row_data: %p  null_byte_count: %d",
                          null_mask, null_ptr, row_data, null_byte_count));
     if (bitmap_is_set(cols, p_field - table->field))
     {

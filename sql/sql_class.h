@@ -1584,7 +1584,7 @@ public:
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
-    register_item_tree_change() in memory root of THD, and freed in
+    nocheck_register_item_tree_change() in memory root of THD, and freed in
     rollback_item_tree_changes(). For conventional execution it's always
     empty.
   */
@@ -2208,8 +2208,26 @@ public:
       nocheck_register_item_tree_change(place, *place, mem_root);
     *place= new_value;
   }
+  /**
+    Make change in item tree after checking whether it needs registering
+
+
+    @param place         place where we should assign new value
+    @param new_value     place of the new value
+
+    @details
+    see check_and_register_item_tree_change details
+  */
+  void check_and_register_item_tree(Item **place, Item **new_value)
+  {
+    if (!stmt_arena->is_conventional())
+      check_and_register_item_tree_change(place, new_value, mem_root);
+    *place= *new_value;
+  }
   void nocheck_register_item_tree_change(Item **place, Item *old_value,
                                          MEM_ROOT *runtime_memroot);
+  void check_and_register_item_tree_change(Item **place, Item **new_value,
+                                           MEM_ROOT *runtime_memroot);
   void rollback_item_tree_changes();
 
   /*
@@ -2404,9 +2422,8 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg);
-  void set_current_user_used() { current_user_used= TRUE; }
-  bool is_current_user_used() { return current_user_used; }
-  void clean_current_user_used() { current_user_used= FALSE; }
+  void binlog_invoker() { m_binlog_invoker= TRUE; }
+  bool need_binlog_invoker() { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
@@ -2462,10 +2479,10 @@ private:
     statements or default definer is set in CREATE/ALTER SP, SF, Event,
     TRIGGER or VIEW statements.
 
-    Current user will be binlogged into Query_log_event if current_user_used
+    Current user will be binlogged into Query_log_event if m_binlog_invoker
     is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
    */
-  bool current_user_used;
+  bool m_binlog_invoker;
 
   /**
     It points to the invoker in the Query_log_event.

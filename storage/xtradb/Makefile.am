@@ -339,6 +339,3 @@ ha_xtradb_la_SOURCES=	$(libxtradb_la_SOURCES)
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
 			pars/pars0grm.y pars/pars0lex.l
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

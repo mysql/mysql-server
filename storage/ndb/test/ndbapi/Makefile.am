@@ -125,10 +125,6 @@ testBackup_LDADD = $(LDADD) bank/libbank.a
 testSRBank_LDADD = bank/libbank.a $(LDADD) 
 NdbRepStress_LDADD = $(LDADD) $(top_builddir)/libmysql_r/libmysqlclient_r.la
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
-
 
 windoze-dsp: flexBench.dsp testBasic.dsp testBlobs.dsp \
              testScan.dsp

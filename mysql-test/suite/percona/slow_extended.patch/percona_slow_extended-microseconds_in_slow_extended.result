@@ -1,0 +1,12 @@
+SELECT sleep(2);
+sleep(2)
+0
+set global slow_query_log_microseconds_timestamp=ON;
+SELECT sleep(2);
+sleep(2)
+0
+set global slow_query_log_microseconds_timestamp=OFF;
+cat var/mysqld.1/data/percona_slow_query_log-microseconds_in_slow_query_log.log | grep -E '# Time: [0-9]+[ ]+[0-9]+:[0-\9]+:[0-9]+.[0-9]+' | wc -l
+1
+cat var/mysqld.1/data/percona_slow_query_log-microseconds_in_slow_query_log.log | grep -E '# Time: [0-9]+[ ]+[0-9]+:[0-\9]+:[0-9]+' | wc -l
+2
