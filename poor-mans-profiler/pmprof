@@ -1,7 +1,12 @@
 #!/bin/bash
+
 nsamples=30
 sleeptime=1
+
+# change the process name
 pid=$(pidof loader-stress-test.tdb)
+
+# may need the cilk gdb
 
 for x in $(seq 1 $nsamples)
   do
@@ -10,7 +15,7 @@ for x in $(seq 1 $nsamples)
   done | \
 awk '
   BEGIN { s = ""; } 
-  /Thread/ { print s; s = ""; } 
+  /^Thread/ { if (s != "") print s; s = ""; } 
   /^\#/ { if (s != "" ) { s = s "," $4} else { s = $4 } } 
   END { print s }' | \
 sort | uniq -c | sort -r -n -k 1,1
