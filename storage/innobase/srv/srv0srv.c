@@ -69,9 +69,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/* This is set to TRUE if the MySQL user has set it in MySQL; currently
-affects only FOREIGN KEY definition parsing */
-UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
+/* This is set to the MySQL server value for this variable.  It is only
+needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
+stored in the server metadata. The server stores and enforces it for
+regular database and table names.*/
+UNIV_INTERN uint	srv_lower_case_table_names	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;

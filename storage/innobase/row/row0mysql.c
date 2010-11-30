@@ -3192,7 +3192,7 @@ check_next_foreign:
 
 	if (foreign && trx->check_foreigns
 	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name))) {
+			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow dropping a referenced table if
