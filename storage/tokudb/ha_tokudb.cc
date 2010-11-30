@@ -6208,6 +6208,8 @@ double ha_tokudb::read_time(
 {
     double total_scan;
     double ret_val; 
+    bool is_primary = (index == primary_key);
+    bool is_clustering = (table->key_info[index].flags & HA_CLUSTERING);
 
     //
     // in case for hidden primary key, this is called
@@ -6221,7 +6223,7 @@ double ha_tokudb::read_time(
     //
     // if it is not the primary key, and it is not a clustering key, then return handler::read_time
     //
-    if (index != primary_key && !(table->key_info[index].flags & HA_CLUSTERING)) {
+    if (!(is_primary || is_clustering)) {
         ret_val = handler::read_time(index, ranges, rows);
         goto cleanup;
     }
@@ -6232,7 +6234,7 @@ double ha_tokudb::read_time(
     total_scan = scan_time();
 
     if (stats.records < rows) {
-        ret_val = total_scan;
+        ret_val = is_clustering ? total_scan + 1.0 : total_scan;
         goto cleanup;
     }
 
@@ -6240,6 +6242,8 @@ double ha_tokudb::read_time(
     // one disk seek per range plus the proportional scan time of the rows
     //
     ret_val = (ranges + (double) rows / (double) stats.records * total_scan);
+    ret_val = is_clustering ? ret_val + 1.0 : ret_val;
+    
 cleanup:
     return ret_val;
 }
