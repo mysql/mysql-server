@@ -65,10 +65,14 @@ select table_name, table_type, table_comment from information_schema.tables
 where table_schema='inf%' and func2();
 table_name	table_type	table_comment
 v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or define
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 select table_name, table_type, table_comment from information_schema.tables
 where table_schema='inf%' and func2();
 table_name	table_type	table_comment
 v1	VIEW	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or define
+Warnings:
+Warning	1356	View 'inf%.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 drop function func1;
 drop function func2;
