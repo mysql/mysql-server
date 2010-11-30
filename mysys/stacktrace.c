@@ -87,8 +87,11 @@ static int safe_print_str(const char *addr, int max_len)
   if ((fd= open(buf, O_RDONLY)) < 0)
     return -1;
 
+  /* Ensure that off_t can hold a pointer. */
+  compile_time_assert(sizeof(off_t) >= sizeof(intptr));
+
   total= max_len;
-  offset= (off_t) addr;
+  offset= (intptr) addr;
 
   /* Read up to the maximum number of bytes. */
   while (total)
