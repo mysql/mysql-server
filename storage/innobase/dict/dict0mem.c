@@ -33,6 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
+#include "srv0srv.h" /* srv_lower_case_table_names */
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -285,6 +286,60 @@ dict_mem_foreign_create(void)
 	foreign->heap = heap;
 
 	return(foreign);
+}
+
+/**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+srv_lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
+will point to foreign_table_name.  If 2, then another string is allocated
+of the heap and set to lower case. */
+UNIV_INLINE
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc)	/*!< in: is an alloc needed */
+{
+	if (srv_lower_case_table_names == 2) {
+		if (do_alloc) {
+			foreign->foreign_table_name_lookup = mem_heap_alloc(
+				foreign->heap,
+				strlen(foreign->foreign_table_name) + 1);
+		}
+		strcpy(foreign->foreign_table_name_lookup,
+		       foreign->foreign_table_name);
+		innobase_casedn_str(foreign->foreign_table_name_lookup);
+	} else {
+		foreign->foreign_table_name_lookup
+			= foreign->foreign_table_name;
+	}
+}
+
+/**********************************************************************//**
+Sets the referenced_table_name_lookup pointer based on the value of
+srv_lower_case_table_names.  If that is 0 or 1,
+referenced_table_name_lookup will point to referenced_table_name.  If 2,
+then another string is allocated of the heap and set to lower case. */
+UNIV_INLINE
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc)	/*!< in: is an alloc needed */
+{
+	if (srv_lower_case_table_names == 2) {
+		if (do_alloc) {
+			foreign->referenced_table_name_lookup = mem_heap_alloc(
+				foreign->heap,
+				strlen(foreign->referenced_table_name) + 1);
+		}
+		strcpy(foreign->referenced_table_name_lookup,
+		       foreign->referenced_table_name);
+		innobase_casedn_str(foreign->referenced_table_name_lookup);
+	} else {
+		foreign->referenced_table_name_lookup
+			= foreign->referenced_table_name;
+	}
 }
 
 /**********************************************************************//**
