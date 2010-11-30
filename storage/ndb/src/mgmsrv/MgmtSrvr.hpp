@@ -175,13 +175,10 @@ public:
 	     const char **address);
 
   /**
-   *   Stop a node
-   * 
-   *   @param   processId: Id of the DB process to stop
-   *   @return  0 if succeeded, otherwise: as stated above, plus:
+   *   Stop a list of nodes
    */
   int stopNodes(const Vector<NodeId> &node_ids, int *stopCount, bool abort,
-                int *stopSelf);
+                bool force, int *stopSelf);
 
   int shutdownMGM(int *stopCount, bool abort, int *stopSelf);
 
@@ -209,13 +206,13 @@ public:
  int start(int processId);
 
   /**
-   *   Restart nodes
-   *   @param processId: Id of the DB process to start
+   *   Restart a list of nodes
    */
   int restartNodes(const Vector<NodeId> &node_ids,
                    int *stopCount, bool nostart,
-                   bool initialStart, bool abort, int *stopSelf);
-  
+                   bool initialStart, bool abort, bool force,
+                   int *stopSelf);
+
   /**
    *   Restart all DB nodes
    */
@@ -410,9 +407,9 @@ private:
                         enum ndb_mgm_node_type type,
                         Uint32 timeout_ms);
 
-  int check_nodes_starting();
-  int check_nodes_stopping();
-  int check_nodes_single_user();
+  bool is_any_node_starting(void);
+  bool is_any_node_stopping(void);
+  bool is_cluster_single_user(void);
 
   //**************************************************************************
 

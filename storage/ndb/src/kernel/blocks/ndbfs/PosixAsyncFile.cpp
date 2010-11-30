@@ -42,8 +42,6 @@
 #include <sys/uio.h>
 #include <dirent.h>
 
-#include <sys/stat.h>
-
 PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
   AsyncFile(fs),
   theFd(-1),
