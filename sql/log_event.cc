@@ -3307,6 +3307,19 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() || thd->main_da.sql_errno() != ER_SLAVE_IGNORED_TABLE)
       general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    else
+    {
+      /*
+        Bug#54201: If we skip an INSERT query that uses auto_increment, then we
+        should reset any @@INSERT_ID set by an Intvar_log_event associated with
+        the query; otherwise the @@INSERT_ID will linger until the next INSERT
+        that uses auto_increment and may affect extra triggers on the slave etc.
+
+        We reset INSERT_ID unconditionally; it is probably cheaper than
+        checking if it is necessary.
+      */
+      thd->auto_inc_intervals_forced.empty();
+    }
 
 compare_errors:
 
