@@ -211,7 +211,7 @@ copyfileto()
 copyfileto $BASE/docs ChangeLog Docs/mysql.info
 
 copyfileto $BASE COPYING COPYING.LIB README Docs/INSTALL-BINARY \
-         EXCEPTIONS-CLIENT LICENSE.mysql
+           LICENSE.mysql
 
 # Non platform-specific bin dir files:
 BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
