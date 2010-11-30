@@ -28,7 +28,6 @@
 #include "common.hpp"
 #ifdef _WIN32
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <direct.h>
 #endif
 

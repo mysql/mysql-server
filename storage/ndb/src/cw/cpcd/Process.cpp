@@ -20,7 +20,6 @@
 
 #ifdef _WIN32
 #include <process.h>
-#include <sys/stat.h>
 #include <io.h>
 #endif
 #include <BaseString.hpp>
