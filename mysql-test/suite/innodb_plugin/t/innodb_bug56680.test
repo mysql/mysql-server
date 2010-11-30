@@ -2,6 +2,7 @@
 # Bug #56680 InnoDB may return wrong results from a case-insensitive index
 #
 -- source include/have_innodb_plugin.inc
+-- source include/not_valgrind.inc
 
 -- disable_query_log
 SET @tx_isolation_orig = @@tx_isolation;
