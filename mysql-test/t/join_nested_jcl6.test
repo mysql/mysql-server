@@ -4,6 +4,8 @@
 let $requires_join_cache_level = 6;
 --source include/have_join_cache_level.inc
 
+set optimizer_switch='mrr_cost_based=off';
+
 set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 
@@ -94,3 +96,4 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 DROP TABLE t5,t6,t7,t8;
 
 set optimizer_join_cache_level=default;
+set optimizer_switch=default;

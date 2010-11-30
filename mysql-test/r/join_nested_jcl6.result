@@ -1,3 +1,4 @@
+set optimizer_switch='mrr_cost_based=off';
 set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
@@ -1851,3 +1852,4 @@ a	b	a	b	a	b	a	b
 3	2	NULL	NULL	NULL	NULL	NULL	NULL
 DROP TABLE t5,t6,t7,t8;
 set optimizer_join_cache_level=default;
+set optimizer_switch=default;

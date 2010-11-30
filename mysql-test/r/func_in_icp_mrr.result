@@ -1,4 +1,4 @@
-set optimizer_switch='index_condition_pushdown=on,mrr=on';
+set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1, t2;
 select 1 in (1,2,3);
 1 in (1,2,3)
