@@ -53,10 +53,8 @@ indexer_commit_keys_add(struct indexer_commit_keys *keys, size_t length, void *p
         int new_max_keys = keys->max_keys == 0 ? 256 : keys->max_keys * 2;
         keys->keys = (DBT *) toku_realloc(keys->keys, new_max_keys * sizeof (DBT));
         resource_assert(keys->keys);
-        for (int i = keys->current_keys; i < new_max_keys; i++) {
-            toku_init_dbt(&keys->keys[i]);
-            keys->keys[i].flags = DB_DBT_REALLOC;
-        }
+        for (int i = keys->current_keys; i < new_max_keys; i++)
+            toku_init_dbt_flags(&keys->keys[i], DB_DBT_REALLOC);
         keys->max_keys = new_max_keys;
     }
     DBT *key = &keys->keys[keys->current_keys];
@@ -89,8 +87,8 @@ static int indexer_is_xid_live(DB_INDEXER *indexer, TXNID xid);
 void
 indexer_undo_do_init(DB_INDEXER *indexer) {
     indexer_commit_keys_init(&indexer->i->commit_keys);
-    toku_init_dbt(&indexer->i->hotkey); indexer->i->hotkey.flags = DB_DBT_REALLOC;
-    toku_init_dbt(&indexer->i->hotval); indexer->i->hotval.flags = DB_DBT_REALLOC;
+    toku_init_dbt_flags(&indexer->i->hotkey, DB_DBT_REALLOC);
+    toku_init_dbt_flags(&indexer->i->hotval, DB_DBT_REALLOC);
 }
 
 // destroy the undo globals

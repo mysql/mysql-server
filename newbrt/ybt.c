@@ -4,9 +4,16 @@
 
 #include "includes.h"
 
-DBT*
-toku_init_dbt (DBT *ybt) {
+DBT *
+toku_init_dbt(DBT *ybt) {
     memset(ybt, 0, sizeof(*ybt));
+    return ybt;
+}
+
+DBT *
+toku_init_dbt_flags(DBT *ybt, uint32_t flags) {
+    toku_init_dbt(ybt);
+    ybt->flags = flags;
     return ybt;
 }
 
@@ -21,7 +28,7 @@ toku_destroy_dbt(DBT *dbt) {
     }
 }
 
-DBT*
+DBT *
 toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
     toku_init_dbt(dbt);
     dbt->size=len;
