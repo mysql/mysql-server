@@ -20,7 +20,6 @@
 
 #include <File.hpp>
 #include <NdbOut.hpp>
-#include <sys/stat.h>
 
 //
 // PUBLIC
