@@ -831,6 +831,7 @@ srv_table_reserve_slot(
 
 	ut_a(type > 0);
 	ut_a(type <= SRV_MASTER);
+	ut_ad(mutex_own(&kernel_mutex));
 
 	i = 0;
 	slot = srv_table_get_nth_slot(i);
@@ -2627,9 +2628,9 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
-	srv_table_reserve_slot(SRV_MASTER);
-
 	mutex_enter(&kernel_mutex);
+
+	srv_table_reserve_slot(SRV_MASTER);
 
 	srv_n_threads_active[SRV_MASTER]++;
 
