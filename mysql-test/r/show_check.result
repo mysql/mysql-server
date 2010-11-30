@@ -660,6 +660,8 @@ flush tables;
 SHOW TABLE STATUS like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect information in file: './test/t1.frm'
+Warnings:
+Warning	1033	Incorrect information in file: './test/t1.frm'
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
@@ -1196,7 +1198,7 @@ set names koi8r;
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 use mysqltest1;
-CREATE TABLE t1(колонка1 INT);
+CREATE TABLE t1(О©╫О©╫О©╫О©╫О©╫О©╫О©╫1 INT);
 
 ---> Dumping mysqltest1 to outfile1
 
@@ -1208,7 +1210,7 @@ DROP DATABASE mysqltest1;
 SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `колонка1` int(11) DEFAULT NULL
+  `О©╫О©╫О©╫О©╫О©╫О©╫О©╫1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP DATABASE mysqltest1;
 use test;
@@ -1415,14 +1417,14 @@ DROP PROCEDURE IF EXISTS p1;
 DROP FUNCTION IF EXISTS f1;
 DROP TABLE IF EXISTS t1;
 DROP EVENT IF EXISTS ev1;
-CREATE VIEW v1 AS SELECT 'тест' AS test;
-CREATE PROCEDURE p1() SELECT 'тест' AS test;
-CREATE FUNCTION f1() RETURNS CHAR(10) RETURN 'тест';
+CREATE VIEW v1 AS SELECT 'О©╫О©╫О©╫О©╫' AS test;
+CREATE PROCEDURE p1() SELECT 'О©╫О©╫О©╫О©╫' AS test;
+CREATE FUNCTION f1() RETURNS CHAR(10) RETURN 'О©╫О©╫О©╫О©╫';
 CREATE TABLE t1(c1 CHAR(10));
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
-SET NEW.c1 = 'тест';
-CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 'тест' AS test;
+SET NEW.c1 = 'О©╫О©╫О©╫О©╫';
+CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 'О©╫О©╫О©╫О©╫' AS test;
 set names utf8;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
