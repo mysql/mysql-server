@@ -71,40 +71,4 @@ source include/stop_slave.inc;
 CHANGE MASTER TO master_user='root', master_password='';
 source include/start_slave.inc;
 connection master;
-sync_slave_with_master;
-
---echo 
---echo # Bug#47699 rpl.rpl_backup_block fails sporadically
---echo #
---echo # START SLAVE released the lock and returned before it cleared the error,
---echo # so there is a possibility that Slave_SQL_Error is not 0.
-
---echo [on slave]
-CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
---echo # The statement makes SQL thread to fail.
-CREATE TABLE t1(c1 INT);
-
---echo [on master]
-connection master;
-CREATE TABLE t1(c1 INT);
-
---echo [on slave]
-connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
-
-DROP TABLE t1;
-
---echo # Block SQL thread immediately after it starts.
-SET DEBUG_SYNC='after_start_slave WAIT_FOR signal.continue';
-START SLAVE SQL_THREAD;
-source include/wait_for_slave_sql_to_start.inc;
---echo # Check Slave_SQL_Error, there should not be an error.
-source include/check_slave_no_error.inc;
-
---echo # Resume SQL thread
-SET DEBUG_SYNC="now SIGNAL signal.continue";
-
---echo [on master]
-connection master;
-DROP TABLE t1;
 source include/master-slave-end.inc;
