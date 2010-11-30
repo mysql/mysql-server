@@ -13144,9 +13144,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations());
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
-  NDBCOL new_col;
-  int pk= 0;
-  int ai= 0;
   HA_ALTER_FLAGS add_column;
   HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
@@ -13307,21 +13304,73 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
 
+    NDBCOL new_col;
     create_ndb_column(0, new_col, field, create_info);
+
+    bool index_on_column = false;
+    /**
+     * Check all indexes to determine if column has index instead of checking
+     *   field->flags (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG
+     *   since field->flags appears to only be set on first column in
+     *   multi-part index
+     */
+    for (uint j= 0; j<table->s->keys; j++)
+    {
+      KEY* key_info= table->key_info + j;
+      KEY_PART_INFO* key_part= key_info->key_part;
+      KEY_PART_INFO* end= key_part+key_info->key_parts;
+      for (; key_part != end; key_part++)
+      {
+        if (key_part->field->field_index == i)
+        {
+          index_on_column= true;
+          j= table->s->keys; // break outer loop
+          break;
+        }
+      }
+    }
+
+    if (index_on_column == false && (*alter_flags & adding).is_set())
+    {
+      for (uint j= table->s->keys; j<altered_table->s->keys; j++)
+      {
+        KEY* key_info= altered_table->key_info + j;
+        KEY_PART_INFO* key_part= key_info->key_part;
+        KEY_PART_INFO* end= key_part+key_info->key_parts;
+        for (; key_part != end; key_part++)
+        {
+          if (key_part->field->field_index == i)
+          {
+            index_on_column= true;
+            j= altered_table->s->keys; // break outer loop
+            break;
+          }
+        }
+      }
+    }
 
     /**
      * This is a "copy" of code in ::create()
      *   that "auto-converts" columns with keys into memory
      *   (unless storage disk is explicitly added)
-     * This is needed to check if getStorageType() == getStorageType() further down
+     * This is needed to check if getStorageType() == getStorageType() 
+     * further down
      */
-    if (field->flags & (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))
+    if (index_on_column)
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+    }
+    else if (field->field_storage_type() == HA_SM_DEFAULT)
+    {
+      /**
+       * If user didn't specify any column format, keep old
+       *   to make as many alter's as possible online
+       */
+      new_col.setStorageType(col->getStorageType());
     }
 
     if (col->getStorageType() != new_col.getStorageType())
@@ -13342,11 +13391,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
-
-    if (field->flags & PRI_KEY_FLAG)
-      pk=1;
-    if (field->flags & FIELD_IN_ADD_INDEX)
-      ai=1;
   }
 
   if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())
