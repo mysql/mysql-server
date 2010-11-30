@@ -490,7 +490,7 @@ t1	CREATE TABLE `t1` (
   KEY `a3_i` (`a3`)
 ) /*!50100 TABLESPACE ts STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 a1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-a2 Float NULL AT=FIXED ST=DISK
+a2 Float NULL AT=FIXED ST=MEMORY
 a3 Double NULL AT=FIXED ST=MEMORY
 a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
@@ -565,6 +565,12 @@ a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 DROP TABLE test.t1;
+create table t1 (a int primary key, b int, c int, index bc (b,c))
+storage disk tablespace ts engine = ndb;
+alter online table t1 drop index bc;
+alter online table t1 add index b (b);
+alter online table t1 drop index b;
+drop table t1;
 ALTER TABLESPACE ts
 DROP DATAFILE './table_space/datafile.dat'
  ENGINE NDB;
