@@ -69,7 +69,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   PgmanProxy.cpp \
   dbtup/DbtupClient.cpp
 
-EXTRA_PROGRAMS = ndb_print_file
+ndbtools_PROGRAMS = ndb_print_file
 ndb_print_file_SOURCES = print_file.cpp diskpage.cpp dbtup/tuppage.cpp
 ndb_print_file_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \

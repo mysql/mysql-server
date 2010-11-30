@@ -23,7 +23,6 @@
 #include "diskpage.hpp"
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
-#include <my_dir.h>
 
 static void print_usage(const char*);
 static int print_zero_page(int, void *, Uint32 sz);
@@ -69,8 +68,9 @@ int main(int argc, char ** argv)
     
     const char * filename = argv[i];
     
-    MY_STAT sbuf;
-    if(!my_stat(filename, &sbuf, MYF(0))){
+    struct stat sbuf;
+    if(stat(filename, &sbuf) != 0)
+    {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
@@ -415,5 +415,6 @@ print_undo_page(int count, void* ptr, Uint32 sz){
   return 0;
 }
 
-// hp3750
+// Dummy implementations
 Signal::Signal(){}
+SimulatedBlock::Callback SimulatedBlock::TheEmptyCallback = {0, 0};
