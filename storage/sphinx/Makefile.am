@@ -35,17 +35,17 @@ pkgplugin_LTLIBRARIES = @plugin_sphinx_shared_target@ sphinx.la
 
 ha_sphinx_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir) \
 			-L$(top_builddir)/libservices -lmysqlservices
-ha_sphinx_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_sphinx_la_CXXFLAGS=	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_sphinx_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_sphinx_la_SOURCES =	ha_sphinx.cc
 
 sphinx_la_LDFLAGS = -module
-sphinx_la_CXXFLAGS = $(AM_CFLAGS)
+sphinx_la_CXXFLAGS = $(AM_CXXFLAGS)
 sphinx_la_CFLAGS = $(AM_CFLAGS)
 sphinx_la_SOURCES = snippets_udf.cc
 
 noinst_LTLIBRARIES =	@plugin_sphinx_static_target@
-libsphinx_la_CXXFLAGS =	$(AM_CFLAGS)
+libsphinx_la_CXXFLAGS =	$(AM_CXXFLAGS)
 libsphinx_la_CFLAGS =	$(AM_CFLAGS)
 libsphinx_la_SOURCES=	ha_sphinx.cc
 
