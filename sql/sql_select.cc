@@ -5874,22 +5874,36 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       if (keyuse->null_rejecting) 
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
-      if (!keyuse->used_tables &&
-	  !(join->select_options & SELECT_DESCRIBE))
-      {					// Compare against constant
-	store_key_item tmp(thd, keyinfo->key_part[i].field,
-                           key_buff + maybe_null,
-                           maybe_null ?  key_buff : 0,
-                           keyinfo->key_part[i].length, keyuse->val);
-	if (thd->is_fatal_error)
-	  DBUG_RETURN(TRUE);
-	tmp.copy();
+
+      store_key* key= get_store_key(thd,
+				    keyuse,join->const_table_map,
+				    &keyinfo->key_part[i],
+				    key_buff, maybe_null);
+      if (unlikely(!key || thd->is_fatal_error))
+        DBUG_RETURN(TRUE);
+
+      if (keyuse->used_tables || join->select_options & SELECT_DESCRIBE)
+      {
+	*ref_key++= key; // Always evaluate/explain in JOIN::exec()
       }
       else
-	*ref_key++= get_store_key(thd,
-				  keyuse,join->const_table_map,
-				  &keyinfo->key_part[i],
-				  key_buff, maybe_null);
+      {
+        /* key is constant, copy value now and possibly skip it while ::exec() */
+        enum store_key::store_key_result result= key->copy();
+
+        /* Depending on 'result' it should be reevaluated in ::exec(), if either:
+         *  1) '::copy()' failed, in case we reevaluate - and refail in 
+         *       JOIN::exec() where the error can be handled.
+         *  2)  Constant evaluated to NULL value which we might need to 
+         *      handle as a special case during JOIN::exec()
+         *      (As in : 'Full scan on NULL key')
+         */
+        if (result!=store_key::STORE_KEY_OK  ||    // 1)
+            key->null_key)                         // 2)
+        {
+	  *ref_key++= key;  // Reevaluate in JOIN::exec() 
+        }
+      }
       /*
 	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
