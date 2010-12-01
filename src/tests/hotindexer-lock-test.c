@@ -18,8 +18,6 @@ struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
 
-int no_lock_contention=0;
-
 static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
     src_db = src_db;
@@ -112,9 +110,6 @@ static void run_test(void)
         dbt_init(&val, &kv_pairs[i].val, sizeof(kv_pairs[i].val));
         r = src_db->put(src_db, txn, &key, &val, 0);                             CKERR(r);
     }
-    if ( no_lock_contention ) {
-        r = txn->commit(txn, DB_TXN_SYNC);                                       CKERR(r);
-    }
 
     DB *dbs[NUM_DBS];
     for (int i = 0; i < NUM_DBS; i++) {
@@ -127,7 +122,7 @@ static void run_test(void)
 
     run_indexer(src_db, dbs);
 
-    // at this point, no_lock_contention==0 (default), the hot dictionary should have locks on the rows
+    // at this point the hot dictionary should have locks on the rows
 
     // try overwriting a value in hot dictionary[0]
     {
@@ -139,23 +134,33 @@ static void run_test(void)
         dbt_init(&key, &kv_pairs[0].val, sizeof(kv_pairs[0].val));
         r = dbs[0]->put(dbs[0], owrt_txn, &key, &val, 0);
 
-        if ( no_lock_contention ) {
-            assert(r == 0 );
-            if ( verbose ) printf("no lock contention detected, as expected ( put returns 0 )\n");
-        } 
-        else {
-            assert(r == DB_LOCK_NOTGRANTED );
-            if ( verbose ) printf("lock contention detected, as expected ( put returns DB_LOCK_NOTGRANTED )\n");
-        }
+        assert(r == DB_LOCK_NOTGRANTED );
+        if ( verbose ) printf("lock contention detected, as expected ( put returns DB_LOCK_NOTGRANTED )\n");
+
         r = owrt_txn->commit(owrt_txn, DB_TXN_SYNC); 
         CKERR(r);
     }
-    if ( verbose ) printf("PASS\n");
 
-    if ( !no_lock_contention) { 
-        r = txn->commit(txn, DB_TXN_SYNC);                                       CKERR(r);
+    // close the transaction (releasing locks), and try writing again 
+    r = txn->commit(txn, DB_TXN_SYNC);                                       CKERR(r);
+    {
+        DB_TXN *owrt_txn;
+        r = env->txn_begin(env, NULL, &owrt_txn, 0); 
+        CKERR(r);
+        
+        dbt_init(&key, &kv_pairs[0].key, sizeof(kv_pairs[0].key));
+        dbt_init(&key, &kv_pairs[0].val, sizeof(kv_pairs[0].val));
+        r = dbs[0]->put(dbs[0], owrt_txn, &key, &val, 0);
+
+        assert(r == 0 );
+        if ( verbose ) printf("no lock contention detected, as expected ( put returns 0 )\n");
+
+        r = owrt_txn->commit(owrt_txn, DB_TXN_SYNC); 
+        CKERR(r);
     }
 
+
+    if ( verbose ) printf("PASS\n");
 
     for(int i=0;i<NUM_DBS;i++) {
         r = dbs[i]->close(dbs[i], 0);                                            CKERR(r);
@@ -185,8 +190,6 @@ static void do_args(int argc, char * const argv[]) {
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
-	} else if (strcmp(argv[0],"-l")==0) {
-            no_lock_contention=1;
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
