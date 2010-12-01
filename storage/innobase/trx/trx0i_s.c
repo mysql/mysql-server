@@ -443,7 +443,7 @@ i_s_locks_row_validate(
 		/* record lock */
 		ut_ad(!strcmp("RECORD", row->lock_type));
 		ut_ad(row->lock_index != NULL);
-		ut_ad(row->lock_data != NULL);
+		/* row->lock_data == NULL if buf_page_try_get() == NULL */
 		ut_ad(row->lock_page != ULINT_UNDEFINED);
 		ut_ad(row->lock_rec != ULINT_UNDEFINED);
 	}
