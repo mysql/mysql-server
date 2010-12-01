@@ -13128,10 +13128,23 @@ part_of_refkey(TABLE *table,Field *field)
     KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
 
-    for (uint part=0 ; part < ref_parts ; part++,key_part++)
+    uint part;
+
+    /* If execution plan may use 'Full scan on NULL key', There might
+     * not by any 'REF' access and entire predicate should be preserved.
+     */
+    for (part=0 ; part < ref_parts ; part++)
+    {
+      if (table->reginfo.join_tab->ref.cond_guards[part])
+        return (Item*) 0;
+    }
+
+    for (part=0 ; part < ref_parts ; part++,key_part++)
+    {
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
 	return table->reginfo.join_tab->ref.items[part];
+    }
   }
   return (Item*) 0;
 }
