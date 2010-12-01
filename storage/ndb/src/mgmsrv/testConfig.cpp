@@ -151,7 +151,7 @@ unsigned
 ndb_procid()
 {
 #ifdef _WIN32
-  return (unsigned)_getpid();
+  return (unsigned)GetCurrentProcessId();
 #else
   return (unsigned)getpid();
 #endif
