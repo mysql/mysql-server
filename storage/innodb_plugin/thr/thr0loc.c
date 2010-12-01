@@ -71,6 +71,24 @@ struct thr_local_struct{
 /** The value of thr_local_struct::magic_n */
 #define THR_LOCAL_MAGIC_N	1231234
 
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Validates thread local data.
+@return	TRUE if valid */
+static
+ibool
+thr_local_validate(
+/*===============*/
+	const thr_local_t*	local)	/*!< in: data to validate */
+{
+	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
+	ut_ad(local->slot_no == ULINT_UNDEFINED
+	      || local->slot_no < OS_THREAD_MAX_N);
+	ut_ad(local->in_ibuf == FALSE || local->in_ibuf == TRUE);
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Returns the local storage struct for a thread.
 @return	local storage */
@@ -91,7 +109,8 @@ try_again:
 	local = NULL;
 
 	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
-		    thr_local_t*, local,, os_thread_eq(local->id, id));
+		    thr_local_t*, local, ut_ad(thr_local_validate(local)),
+		    os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 
@@ -102,7 +121,7 @@ try_again:
 		goto try_again;
 	}
 
-	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
+	ut_ad(thr_local_validate(local));
 
 	return(local);
 }
@@ -188,7 +207,7 @@ thr_local_create(void)
 	local->id = os_thread_get_curr_id();
 	local->handle = os_thread_get_curr();
 	local->magic_n = THR_LOCAL_MAGIC_N;
-
+	local->slot_no = ULINT_UNDEFINED;
 	local->in_ibuf = FALSE;
 
 	mutex_enter(&thr_local_mutex);
@@ -215,7 +234,8 @@ thr_local_free(
 	/* Look for the local struct in the hash table */
 
 	HASH_SEARCH(hash, thr_local_hash, os_thread_pf(id),
-		    thr_local_t*, local,, os_thread_eq(local->id, id));
+		    thr_local_t*, local, ut_ad(thr_local_validate(local)),
+		    os_thread_eq(local->id, id));
 	if (local == NULL) {
 		mutex_exit(&thr_local_mutex);
 
@@ -228,6 +248,7 @@ thr_local_free(
 	mutex_exit(&thr_local_mutex);
 
 	ut_a(local->magic_n == THR_LOCAL_MAGIC_N);
+	ut_ad(thr_local_validate(local));
 
 	mem_free(local);
 }
@@ -270,6 +291,7 @@ thr_local_close(void)
 
 			local = HASH_GET_NEXT(hash, prev_local);
 			ut_a(prev_local->magic_n == THR_LOCAL_MAGIC_N);
+			ut_ad(thr_local_validate(prev_local));
 			mem_free(prev_local);
 		}
 	}
