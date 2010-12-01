@@ -106,6 +106,18 @@ row_sel_sec_rec_is_for_blob(
 	ulint	len;
 	byte	buf[DICT_MAX_INDEX_COL_LEN];
 
+	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(FALSE);
+	}
+
 	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
 						      zip_size,
 						      clust_field, clust_len);
