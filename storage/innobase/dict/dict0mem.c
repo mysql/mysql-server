@@ -294,7 +294,7 @@ Sets the foreign_table_name_lookup pointer based on the value of
 srv_lower_case_table_names.  If that is 0 or 1, foreign_table_name_lookup
 will point to foreign_table_name.  If 2, then another string is allocated
 of the heap and set to lower case. */
-UNIV_INLINE
+UNIV_INTERN
 void
 dict_mem_foreign_table_name_lookup_set(
 /*===================================*/
@@ -321,7 +321,7 @@ Sets the referenced_table_name_lookup pointer based on the value of
 srv_lower_case_table_names.  If that is 0 or 1,
 referenced_table_name_lookup will point to referenced_table_name.  If 2,
 then another string is allocated of the heap and set to lower case. */
-UNIV_INLINE
+UNIV_INTERN
 void
 dict_mem_referenced_table_name_lookup_set(
 /*======================================*/
