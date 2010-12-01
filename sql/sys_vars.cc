@@ -408,7 +408,7 @@ static Sys_var_mybool Sys_binlog_direct(
 
 static const char *repository_names[]=
 {
-  "FILE", 0
+  "FILE", "TABLE", 0
 };
 
 ulong opt_mi_repository_id;
@@ -1877,8 +1877,52 @@ static Sys_var_set Slave_type_conversions(
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
        slave_type_conversions_name,
        DEFAULT(0));
+
+static Sys_var_mybool Sys_slave_sql_verify_checksum(
+       "slave_sql_verify_checksum",
+       "Force checksum verification of replication events after reading them "
+       "from relay log. Note: Events are always checksum-verified by slave on "
+       "receiving them from the network before writing them to the relay "
+       "log. Enabled by default.",
+       GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 #endif
 
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  if(mysql_bin_log.is_open())
+  {
+    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
+       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
+    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+      mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
+    mysql_bin_log.rotate_and_purge(flags);
+  }
+  else
+  {
+    binlog_checksum_options= var->save_result.ulonglong_value;
+  }
+  DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  return 0;
+}
+
+static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
+       "binlog_checksum", "Type of BINLOG_CHECKSUM_ALG. Include checksum for "
+       "log events in the binary log. Possible values are NONE and CRC32; "
+       "default is NONE.",
+       GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
+       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_mybool Sys_master_verify_checksum(
+       "master_verify_checksum",
+       "Force checksum verification of logged events in binary log before "
+       "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_master_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_slow_launch_time(
        "slow_launch_time",

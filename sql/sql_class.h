@@ -127,7 +127,7 @@ typedef struct st_user_var_events
 
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
 #define RP_FORCE_ROTATE               2
-
+#define RP_BINLOG_CHECKSUM_ALG_CHANGE 4
 /*
   The COPY_INFO structure is used by INSERT/REPLACE code.
   The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
@@ -3608,6 +3608,11 @@ public:
   and that may end up in the binary log.
 */
 #define CF_CAN_GENERATE_ROW_EVENTS (1U << 11)
+
+/**
+  Identifies statements that can directly update a rpl info table.
+*/
+#define CF_WRITE_RPL_INFO_COMMAND (1U << 12)
 
 /* Bits in server_command_flags */
 

@@ -151,8 +151,7 @@ void mysql_client_binlog_statement(THD* thd)
   Relay_log_info *rli= thd->rli_fake;
   if (!rli)
   {
-    Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE, &rli);
-    if (rli)
+    if ((rli= Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE)))
     {
       thd->rli_fake= rli;
       rli->info_thd= thd;
@@ -242,7 +241,8 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
