@@ -949,30 +949,20 @@ le_clean_xids(LEAFENTRY le,
 #endif
 }
 
-uint32_t
-le_num_xids(LEAFENTRY le) {
+BOOL
+le_is_clean(LEAFENTRY le) {
     uint8_t  type = le->type;
     uint32_t rval;
     switch (type) {
         case LE_CLEAN:
-            rval = 0;
+            rval = TRUE;
             break;
         case LE_MVCC:;
-            uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
-            invariant(num_cuxrs);
-            uint32_t num_puxrs = le->u.mvcc.num_pxrs;
-            rval = num_cuxrs + num_puxrs - 1;
+            rval = FALSE;
             break;
         default:
             invariant(FALSE);
     }
-#if ULE_DEBUG
-    ULE_S ule;
-    le_unpack(&ule, le);
-    uint32_t slow_rval = ule.num_cuxrs + ule.num_puxrs - 1;
-    invariant(slow_rval == rval);
-    ule_cleanup(&ule);
-#endif
     return rval;
 }
 
