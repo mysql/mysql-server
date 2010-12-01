@@ -770,4 +770,40 @@ CASE a WHEN a THEN a END
 NULL
 DROP TABLE t1;
 #
+# Bug#58628: Incorrect result for 'WHERE NULL NOT IN (<subquery>)
+#
+CREATE TABLE t1 (pk INT NOT NULL, i INT);
+INSERT INTO t1 VALUES (0,NULL), (1,NULL), (2,NULL), (3,NULL);
+CREATE TABLE subq (pk INT NOT NULL, i INT NOT NULL, PRIMARY KEY(i,pk));
+INSERT INTO subq VALUES (0,0), (1,1), (2,2), (3,3);
+SELECT * FROM t1
+WHERE t1.i NOT IN
+(SELECT i FROM subq WHERE subq.pk = t1.pk);
+pk	i
+SELECT * FROM t1
+WHERE t1.i IN
+(SELECT i FROM subq WHERE subq.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+SELECT * FROM t1
+WHERE NULL NOT IN
+(SELECT i FROM subq WHERE subq.pk = t1.pk);
+pk	i
+SELECT * FROM t1
+WHERE NULL IN
+(SELECT i FROM subq WHERE subq.pk = t1.pk) IS UNKNOWN;
+pk	i
+0	NULL
+1	NULL
+2	NULL
+3	NULL
+SELECT * FROM t1
+WHERE 1+NULL NOT IN
+(SELECT i FROM subq WHERE subq.pk = t1.pk);
+pk	i
+DROP TABLE t1,subq;
+#
 End of 5.1 tests
