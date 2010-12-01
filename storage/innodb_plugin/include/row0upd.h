@@ -126,8 +126,8 @@ UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	const dtuple_t*	entry,	/*!< in: index entry, where the memory buffers
-				for sys fields are already allocated:
+	dtuple_t*	entry,	/*!< in/out: index entry, where the memory
+				buffers for sys fields are already allocated:
 				the function just copies the new values to
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
