@@ -354,7 +354,6 @@ int table_threads::update_row_values(TABLE *table,
       case 10: /* PROCESSLIST_INFO */
       case 11: /* PARENT_THREAD_ID */
       case 12: /* ROLE */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);
