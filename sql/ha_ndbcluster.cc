@@ -379,10 +379,18 @@ static int write_conflict_row(NDB_SHARE *share,
 inline int
 check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                       const NdbOperation *first,
+                                      const NdbOperation *last,
                                       uint *ignore_count)
 {
   uint ignores= 0;
   DBUG_ENTER("check_completed_operations_pre_commit");
+
+  if (unlikely(first == 0))
+  {
+    assert(last == 0);
+    DBUG_RETURN(0);
+  }
+
   /*
     Check that all errors are "accepted" errors
     or exceptions to report
@@ -390,7 +398,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 #ifdef HAVE_NDB_BINLOG
   uint conflict_rows_written= 0;
 #endif
-  while (first)
+  while (true)
   {
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError
@@ -486,6 +494,10 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     }
     if (err.classification != NdbError::NoError)
       ignores++;
+
+    if (first == last)
+      break;
+
     first= trans->getNextCompletedOperation(first);
   }
   if (ignore_count)
@@ -512,14 +524,22 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 inline int
 check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
                            const NdbOperation *first,
+                           const NdbOperation *last,
                            uint *ignore_count)
 {
   uint ignores= 0;
   DBUG_ENTER("check_completed_operations");
+
+  if (unlikely(first == 0))
+  {
+    assert(last == 0);
+    DBUG_RETURN(0);
+  }
+
   /*
     Check that all errors are "accepted" errors
   */
-  while (first)
+  while (true)
   {
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError &&
@@ -533,6 +553,10 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
     }
     if (err.classification != NdbError::NoError)
       ignores++;
+
+    if (first == last)
+      break;
+
     first= trans->getNextCompletedOperation(first);
   }
   if (ignore_count)
@@ -565,20 +589,21 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_ENTER("execute_no_commit");
   ha_ndbcluster::release_completed_operations(trans);
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::NoCommit,
                      NdbOperation::AO_IgnoreError,
                      thd_ndb->m_force_send))
   {
-    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
-  thd_ndb->m_unsent_bytes= 0;
   if (!ignore_no_key || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
 
-  DBUG_RETURN(check_completed_operations_pre_commit(thd_ndb, trans, first,
+  DBUG_RETURN(check_completed_operations_pre_commit(thd_ndb, trans,
+                                                    first, last,
                                                     ignore_count));
 }
 
@@ -600,25 +625,25 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     ao= NdbOperation::AbortOnError;
   }
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
+  thd_ndb->m_conflict_fn_usage_count= 0;
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Commit, ao, force_send))
   {
     thd_ndb->m_max_violation_count= 0;
     thd_ndb->m_old_violation_count= 0;
-    thd_ndb->m_conflict_fn_usage_count= 0;
-    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
   g_ndb_status_conflict_fn_max+= thd_ndb->m_max_violation_count;
   g_ndb_status_conflict_fn_old+= thd_ndb->m_old_violation_count;
   thd_ndb->m_max_violation_count= 0;
   thd_ndb->m_old_violation_count= 0;
-  thd_ndb->m_conflict_fn_usage_count= 0;
-  thd_ndb->m_unsent_bytes= 0;
   if (!ignore_error || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
-  DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, ignore_count));
+  DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, last,
+                                         ignore_count));
 }
 
 inline
@@ -3962,6 +3987,8 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
     m_rows_changed-= ignore_count;
     m_rows_updated-= ignore_count;
   }
@@ -4263,9 +4290,14 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   }
   else if (blob_count > 0)
     m_blobs_pending= TRUE;
-  
-  m_rows_changed+= 1 - ignore_count;
-  m_rows_updated+= 1 - ignore_count;
+
+  m_rows_changed++;
+  m_rows_updated++;
+
+  assert(m_rows_changed >= ignore_count);
+  assert(m_rows_updated >= ignore_count);
+  m_rows_changed-= ignore_count;
+  m_rows_updated-= ignore_count;
 
   DBUG_RETURN(0);
 }
@@ -4307,6 +4339,7 @@ int ha_ndbcluster::end_bulk_delete()
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
+    assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
   }
   DBUG_RETURN(0);
@@ -4400,11 +4433,11 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     thd_ndb->m_unsent_bytes+= 12;
 
     no_uncommitted_rows_update(-1);
+    m_rows_deleted++;
 
     if (!(primary_key_update || m_delete_cannot_batch))
     {
       // If deleting from cursor, NoCommit will be handled in next_result
-      m_rows_deleted++;
       DBUG_RETURN(0);
     }
   }
@@ -4473,6 +4506,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       ERR_RETURN(trans->getNdbError());
 
     no_uncommitted_rows_update(-1);
+    m_rows_deleted++;
 
     /*
       Check if we can batch the delete.
@@ -4500,7 +4534,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 	 !primary_key_update &&
 	 !need_flush)
     {
-      m_rows_deleted++;
       DBUG_RETURN(0);
     }
   }
@@ -4515,7 +4548,10 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     DBUG_RETURN(ndb_err(trans));
   }
   if (!primary_key_update)
-    m_rows_deleted+= 1 - ignore_count;
+  {
+    assert(m_rows_deleted >= ignore_count);
+    m_rows_deleted-= ignore_count;
+  }
   DBUG_RETURN(0);
 }
   
@@ -6247,11 +6283,15 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         char buff[ STRING_BUFFER_USUAL_SIZE ];
         const char* msg= NULL;
         if (thd->lex->sql_command == SQLCOM_DELETE)
+        {
+          assert(thd_ndb->m_handler->m_rows_deleted >= ignore_count);
           affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
+        }
         else
         {
           DBUG_PRINT("info", ("Update : message was %s", 
                               thd->main_da.message()));
+          assert(thd_ndb->m_handler->m_rows_updated >= ignore_count);
           affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
           /* For update in this scenario, we set found and changed to be 
            * the same as affected
