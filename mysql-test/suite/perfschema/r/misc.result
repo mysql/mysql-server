@@ -6,9 +6,9 @@ AND EVENT_NAME IN
 WHERE NAME LIKE "wait/synch/%")
 LIMIT 1;
 create table test.t1(a int) engine=performance_schema;
-ERROR HY000: Invalid performance_schema usage.
+ERROR HY000: Can't create table 'test.t1' (errno: 131)
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Invalid performance_schema usage.
+ERROR HY000: Can't create table 'test.t1' (errno: 131)
 create table performance_schema.t1(a int);
 ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'
 drop table if exists test.ghost;
