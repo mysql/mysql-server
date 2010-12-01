@@ -73,6 +73,7 @@ UNLOCK TABLES;
 
 -- connection con2
 -- reap
+-- error 0, 1205
 UNLOCK TABLES;
 
 -- connection con3
