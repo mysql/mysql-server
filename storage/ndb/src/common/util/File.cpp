@@ -19,9 +19,7 @@
 #include <ndb_global.h>
 
 #include <File.hpp>
-
 #include <NdbOut.hpp>
-#include <my_dir.h>
 
 //
 // PUBLIC
@@ -29,33 +27,27 @@
 time_t 
 File_class::mtime(const char* aFileName)
 {
-  MY_STAT stmp;
-  time_t rc = 0;
-
-  if (my_stat(aFileName, &stmp, MYF(0)) != NULL) {
-    rc = stmp.st_mtime;
-  }
-
-  return rc;
+  struct stat s;
+  if (stat(aFileName, &s) != 0)
+    return 0;
+  return s.st_mtime;
 }
 
 bool 
 File_class::exists(const char* aFileName)
 {
-  MY_STAT stmp;
-
-  return (my_stat(aFileName, &stmp, MYF(0))!=NULL);
+  struct stat s;
+  if (stat(aFileName, &s) != 0)
+    return false;
+  return true;
 }
 
 off_t
 File_class::size(FILE* f)
 {
-  MY_STAT s;
-
-  // Note that my_fstat behaves *differently* than my_stat. ARGGGHH!
-  if (my_fstat(fileno(f), &s, MYF(0)))
+  struct stat s;
+  if (fstat(fileno(f), &s) != 0)
     return 0;
-
   return s.st_size;
 }
 

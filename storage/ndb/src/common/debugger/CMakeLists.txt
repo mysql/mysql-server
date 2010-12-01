@@ -22,6 +22,8 @@ ADD_LIBRARY(ndbtrace STATIC
             SignalLoggerManager.cpp
             DebuggerNames.cpp
             BlockNames.cpp
-            EventLogger.cpp)
+            EventLogger.cpp
+            ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
+)
 
-TARGET_LINK_LIBRARIES(ndbtrace ndblogger ndberror ndbgeneral)
+TARGET_LINK_LIBRARIES(ndbtrace ndblogger ndbgeneral)

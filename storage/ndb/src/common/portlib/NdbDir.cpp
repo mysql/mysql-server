@@ -21,7 +21,6 @@
 #ifndef __WIN__
 
 #include <dirent.h>
-#include <sys/stat.h>
 
 class DirIteratorImpl {
   DIR* m_dirp;

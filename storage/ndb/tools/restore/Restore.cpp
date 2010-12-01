@@ -30,8 +30,6 @@
 #include <NdbAutoPtr.hpp>
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
-#include <sys/stat.h>
-
 #include "../../../../sql/ha_ndbcluster_tables.h"
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;

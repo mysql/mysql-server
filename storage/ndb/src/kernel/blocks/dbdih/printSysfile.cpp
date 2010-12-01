@@ -18,11 +18,10 @@
 
 
 #include <ndb_global.h>
-#include <my_dir.h>
 
 #include <NdbMain.h>
 #include <NdbOut.hpp>
-#include <Sysfile.hpp>
+#include "Sysfile.hpp"
 
 static int g_all = 0;
 
@@ -139,9 +138,9 @@ NDB_COMMAND(printSysfile,
       continue;
     }
     
-    MY_STAT sbuf,*st;
+    struct stat sbuf;
 
-    if(!(st=my_stat(filename, &sbuf,0)))
+    if(stat(filename, &sbuf) != 0)
     {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;

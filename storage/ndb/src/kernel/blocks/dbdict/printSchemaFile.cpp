@@ -25,7 +25,7 @@
 
 #include <NdbMain.h>
 #include <NdbOut.hpp>
-#include <SchemaFile.hpp>
+#include "SchemaFile.hpp"
 #include <kernel_types.h>
 
 static const char* progname = 0;

@@ -146,6 +146,17 @@ create_config(const char* first, ...)
 // Global variable for my_getopt
 extern "C" const char* my_defaults_file;
 
+static
+unsigned
+ndb_procid()
+{
+#ifdef _WIN32
+  return (unsigned)GetCurrentProcessId();
+#else
+  return (unsigned)getpid();
+#endif
+}
+
 Config*
 create_mycnf(const char* first, ...)
 {
@@ -153,8 +164,8 @@ create_mycnf(const char* first, ...)
 
   NdbDir::Temp tempdir;
   BaseString mycnf_file;
-  mycnf_file.assfmt("%s%s%s",
-                    tempdir.path(), DIR_SEPARATOR, "test_my.cnf");
+  mycnf_file.assfmt("%s%stest_my.%u.cnf",
+                    tempdir.path(), DIR_SEPARATOR, ndb_procid());
 
   FILE* config_file= fopen(mycnf_file.c_str(), "w+");
   CHECK(config_file);
@@ -174,6 +185,7 @@ create_mycnf(const char* first, ...)
     printf("%s", buf);
 #endif
 
+  fflush(config_file);
   rewind(config_file);
 
   // Trick handle_options to read from the temp file
@@ -471,6 +483,3 @@ TAPTEST(MgmConfig)
   ndb_end(0);
   return 1; // OK
 }
-
-template class Vector<const char*>;
-

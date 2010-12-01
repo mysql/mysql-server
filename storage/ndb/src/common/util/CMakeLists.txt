@@ -53,6 +53,7 @@ ADD_LIBRARY(ndbgeneral STATIC
             Bitmask.cpp
 	    SparseBitmask.cpp
             require.c
+            Vector.cpp
 )
 TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
 
