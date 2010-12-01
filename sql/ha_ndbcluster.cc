@@ -2403,10 +2403,18 @@ static int write_conflict_row(NDB_SHARE *share,
 inline int
 check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                       const NdbOperation *first,
+                                      const NdbOperation *last,
                                       uint *ignore_count)
 {
   uint ignores= 0;
   DBUG_ENTER("check_completed_operations_pre_commit");
+
+  if (unlikely(first == 0))
+  {
+    assert(last == 0);
+    DBUG_RETURN(0);
+  }
+
   /*
     Check that all errors are "accepted" errors
     or exceptions to report
@@ -2414,7 +2422,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 #ifdef HAVE_NDB_BINLOG
   uint conflict_rows_written= 0;
 #endif
-  while (first)
+  while (true)
   {
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError
@@ -2510,6 +2518,10 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     }
     if (err.classification != NdbError::NoError)
       ignores++;
+
+    if (first == last)
+      break;
+
     first= trans->getNextCompletedOperation(first);
   }
   if (ignore_count)
@@ -2536,14 +2548,22 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 inline int
 check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
                            const NdbOperation *first,
+                           const NdbOperation *last,
                            uint *ignore_count)
 {
   uint ignores= 0;
   DBUG_ENTER("check_completed_operations");
+
+  if (unlikely(first == 0))
+  {
+    assert(last == 0);
+    DBUG_RETURN(0);
+  }
+
   /*
     Check that all errors are "accepted" errors
   */
-  while (first)
+  while (true)
   {
     const NdbError &err= first->getNdbError();
     if (err.classification != NdbError::NoError &&
@@ -2557,6 +2577,10 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
     }
     if (err.classification != NdbError::NoError)
       ignores++;
+
+    if (first == last)
+      break;
+
     first= trans->getNextCompletedOperation(first);
   }
   if (ignore_count)
@@ -2592,20 +2616,21 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_ENTER("execute_no_commit");
   ha_ndbcluster::release_completed_operations(trans);
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::NoCommit,
                      NdbOperation::AO_IgnoreError,
                      thd_ndb->m_force_send))
   {
-    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
-  thd_ndb->m_unsent_bytes= 0;
   if (!ignore_no_key || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
 
-  DBUG_RETURN(check_completed_operations_pre_commit(thd_ndb, trans, first,
+  DBUG_RETURN(check_completed_operations_pre_commit(thd_ndb, trans,
+                                                    first, last,
                                                     ignore_count));
 }
 
@@ -2627,25 +2652,25 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     ao= NdbOperation::AbortOnError;
   }
   const NdbOperation *first= trans->getFirstDefinedOperation();
+  const NdbOperation *last= trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
+  thd_ndb->m_conflict_fn_usage_count= 0;
+  thd_ndb->m_unsent_bytes= 0;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Commit, ao, force_send))
   {
     thd_ndb->m_max_violation_count= 0;
     thd_ndb->m_old_violation_count= 0;
-    thd_ndb->m_conflict_fn_usage_count= 0;
-    thd_ndb->m_unsent_bytes= 0;
     DBUG_RETURN(-1);
   }
   g_ndb_status_conflict_fn_max+= thd_ndb->m_max_violation_count;
   g_ndb_status_conflict_fn_old+= thd_ndb->m_old_violation_count;
   thd_ndb->m_max_violation_count= 0;
   thd_ndb->m_old_violation_count= 0;
-  thd_ndb->m_conflict_fn_usage_count= 0;
-  thd_ndb->m_unsent_bytes= 0;
   if (!ignore_error || trans->getNdbError().code == 0)
     DBUG_RETURN(trans->getNdbError().code);
-  DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, ignore_count));
+  DBUG_RETURN(check_completed_operations(thd_ndb, trans, first, last,
+                                         ignore_count));
 }
 
 inline
@@ -5060,8 +5085,8 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
                           (long) m_thd_ndb->m_unsent_bytes));
       if (m_thd_ndb->m_unsent_bytes)
       {
-        if (flush_bulk_insert() != 0)
-          DBUG_RETURN(-1);
+        if ((error = flush_bulk_insert()) != 0)
+          DBUG_RETURN(error);
       }
       contact_ndb= (local_check == 2);
     }
@@ -6629,6 +6654,8 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
+    assert(m_rows_changed >= ignore_count);
+    assert(m_rows_updated >= ignore_count);
     m_rows_changed-= ignore_count;
     m_rows_updated-= ignore_count;
   }
@@ -6701,7 +6728,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
                    have_pk &&
                    bitmap_is_overlapping(table->write_set, m_pk_bitmap_p) &&
                    primary_key_cmp(old_data, new_data));
-  bool batch_allowed= is_bulk_update || thd_allow_batch(thd);
+  bool batch_allowed= !m_update_cannot_batch && 
+    (is_bulk_update || thd_allow_batch(thd));
   NdbOperation::SetValueSpec sets[1];
 
   DBUG_ENTER("ndb_update_row");
@@ -6929,9 +6957,14 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   }
   else if (blob_count > 0)
     m_blobs_pending= TRUE;
-  
-  m_rows_changed+= 1 - ignore_count;
-  m_rows_updated+= 1 - ignore_count;
+
+  m_rows_changed++;
+  m_rows_updated++;
+
+  assert(m_rows_changed >= ignore_count);
+  assert(m_rows_updated >= ignore_count);
+  m_rows_changed-= ignore_count;
+  m_rows_updated-= ignore_count;
 
   DBUG_RETURN(0);
 }
@@ -6969,6 +7002,7 @@ int ha_ndbcluster::end_bulk_delete()
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
+    assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
   }
   m_is_bulk_delete = false;
@@ -6990,7 +7024,9 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   const NdbOperation *op;
   uint32 part_id= ~uint32(0);
   int error;
-  bool allow_batch= m_is_bulk_delete || thd_allow_batch(thd);
+  bool allow_batch= !m_delete_cannot_batch &&
+    (m_is_bulk_delete || thd_allow_batch(thd));
+
   DBUG_ENTER("ndb_delete_row");
   DBUG_ASSERT(trans);
 
@@ -7060,11 +7096,11 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     thd_ndb->m_unsent_bytes+= 12;
 
     no_uncommitted_rows_update(-1);
+    m_rows_deleted++;
 
     if (!(primary_key_update || m_delete_cannot_batch))
     {
       // If deleting from cursor, NoCommit will be handled in next_result
-      m_rows_deleted++;
       DBUG_RETURN(0);
     }
   }
@@ -7133,6 +7169,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       ERR_RETURN(trans->getNdbError());
 
     no_uncommitted_rows_update(-1);
+    m_rows_deleted++;
 
     /*
       Check if we can batch the delete.
@@ -7160,7 +7197,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 	 !primary_key_update &&
 	 !need_flush)
     {
-      m_rows_deleted++;
       DBUG_RETURN(0);
     }
   }
@@ -7175,7 +7211,10 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     DBUG_RETURN(ndb_err(trans));
   }
   if (!primary_key_update)
-    m_rows_deleted+= 1 - ignore_count;
+  {
+    assert(m_rows_deleted >= ignore_count);
+    m_rows_deleted-= ignore_count;
+  }
   DBUG_RETURN(0);
 }
   
@@ -8275,6 +8314,13 @@ int ha_ndbcluster::reset()
   assert(m_is_bulk_delete == false);
   m_is_bulk_delete = false;
 
+  /* 
+    Setting pushed_code=NULL here is a temporary fix for bug #58553. This
+    should not be needed any longer if http://lists.mysql.com/commits/125336 
+    is merged into this branch.
+  */
+  pushed_cond= NULL;
+
   DBUG_RETURN(0);
 }
 
@@ -9099,11 +9145,15 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         char buff[ STRING_BUFFER_USUAL_SIZE ];
         const char* msg= NULL;
         if (thd->lex->sql_command == SQLCOM_DELETE)
+        {
+          assert(thd_ndb->m_handler->m_rows_deleted >= ignore_count);
           affected= (thd_ndb->m_handler->m_rows_deleted-= ignore_count);
+        }
         else
         {
           DBUG_PRINT("info", ("Update : message was %s", 
                               thd->main_da.message()));
+          assert(thd_ndb->m_handler->m_rows_updated >= ignore_count);
           affected= (thd_ndb->m_handler->m_rows_updated-= ignore_count);
           /* For update in this scenario, we set found and changed to be 
            * the same as affected
@@ -15560,9 +15610,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
   HA_ALTER_FLAGS not_supported= ~(supported_alter_operations());
   uint i;
   const NDBTAB *tab= (const NDBTAB *) m_table;
-  NDBCOL new_col;
-  int pk= 0;
-  int ai= 0;
   HA_ALTER_FLAGS add_column;
   HA_ALTER_FLAGS adding;
   HA_ALTER_FLAGS dropping;
@@ -15723,21 +15770,73 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
 
+    NDBCOL new_col;
     create_ndb_column(0, new_col, field, create_info);
+
+    bool index_on_column = false;
+    /**
+     * Check all indexes to determine if column has index instead of checking
+     *   field->flags (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG
+     *   since field->flags appears to only be set on first column in
+     *   multi-part index
+     */
+    for (uint j= 0; j<table->s->keys; j++)
+    {
+      KEY* key_info= table->key_info + j;
+      KEY_PART_INFO* key_part= key_info->key_part;
+      KEY_PART_INFO* end= key_part+key_info->key_parts;
+      for (; key_part != end; key_part++)
+      {
+        if (key_part->field->field_index == i)
+        {
+          index_on_column= true;
+          j= table->s->keys; // break outer loop
+          break;
+        }
+      }
+    }
+
+    if (index_on_column == false && (*alter_flags & adding).is_set())
+    {
+      for (uint j= table->s->keys; j<altered_table->s->keys; j++)
+      {
+        KEY* key_info= altered_table->key_info + j;
+        KEY_PART_INFO* key_part= key_info->key_part;
+        KEY_PART_INFO* end= key_part+key_info->key_parts;
+        for (; key_part != end; key_part++)
+        {
+          if (key_part->field->field_index == i)
+          {
+            index_on_column= true;
+            j= altered_table->s->keys; // break outer loop
+            break;
+          }
+        }
+      }
+    }
 
     /**
      * This is a "copy" of code in ::create()
      *   that "auto-converts" columns with keys into memory
      *   (unless storage disk is explicitly added)
-     * This is needed to check if getStorageType() == getStorageType() further down
+     * This is needed to check if getStorageType() == getStorageType() 
+     * further down
      */
-    if (field->flags & (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG))
+    if (index_on_column)
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+    }
+    else if (field->field_storage_type() == HA_SM_DEFAULT)
+    {
+      /**
+       * If user didn't specify any column format, keep old
+       *   to make as many alter's as possible online
+       */
+      new_col.setStorageType(col->getStorageType());
     }
 
     if (col->getStorageType() != new_col.getStorageType())
@@ -15758,11 +15857,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
       DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
     }
-
-    if (field->flags & PRI_KEY_FLAG)
-      pk=1;
-    if (field->flags & FIELD_IN_ADD_INDEX)
-      ai=1;
   }
 
   if ((*alter_flags & HA_CHANGE_AUTOINCREMENT_VALUE).is_set())

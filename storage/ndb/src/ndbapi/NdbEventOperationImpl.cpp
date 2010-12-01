@@ -3644,6 +3644,5 @@ EventBufData_hash::search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr
   DBUG_VOID_RETURN_EVENT;
 }
 
-template class Vector<Uint64>;
 template class Vector<Gci_container_pod>;
 template class Vector<NdbEventBuffer::EventBufData_chunk*>;

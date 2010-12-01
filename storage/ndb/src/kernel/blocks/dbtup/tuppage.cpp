@@ -18,7 +18,6 @@
 
 #include <ndb_global.h>
 #include "tuppage.hpp"
-#include "Dbtup.hpp"
 
 /**
  * Fix pages maintain a double linked list of free entries

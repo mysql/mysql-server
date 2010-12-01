@@ -951,6 +951,7 @@ MgmApiSession::restart(Properties const &args, int version) {
                                     nostart != 0,
                                     initialstart != 0,
                                     abort != 0,
+                                    force != 0,
                                     &m_stopSelf);
 
   if (force &&
@@ -1141,7 +1142,8 @@ MgmApiSession::stop(Properties const &args, int version) {
   int result= 0;
   if (nodes.size())
   {
-    result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, &m_stopSelf);
+    result= m_mgmsrv.stopNodes(nodes, &stopped, abort != 0, force != 0,
+                               &m_stopSelf);
 
     if (force &&
         (result == NODE_SHUTDOWN_WOULD_CAUSE_SYSTEM_CRASH ||

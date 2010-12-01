@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,28 +15,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef FILEUNITTEST_H
-#define FILEUNITTEST_H
+#include "Vector.hpp"
 
-/**
- * Unit test of File.
- *
- * @version #@ $Id: FileUnitTest.hpp,v 1.1 2002/03/13 18:09:03 eyualex Exp $
- */
-class FileUnitTest
-{
-public:
-  static bool testWrite(const char* aFileName);
-  static bool testRead(const char* aFileName);
-  static bool testExists(const char* aFileName);
-  static bool testSize(const char* aFileName);
-  static bool testRename(const char* aFileName);
-  static bool testRemove(const char* aFileName);
-  
-  static void error(const char* msg);
-private:
-  FileUnitTest();
-  ~FileUnitTest();
-  
-};
-#endif
+template class Vector<int>;
+template class Vector<Uint8>;
+template class Vector<Uint16>;
+template class Vector<Uint32>;
+template class Vector<Uint64>;
+template class Vector<char*>;
+template class Vector<const char*>;
+template class Vector<Vector<Uint32> >;

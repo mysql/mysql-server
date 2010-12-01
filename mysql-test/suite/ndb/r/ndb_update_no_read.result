@@ -400,3 +400,81 @@ affected rows: 1
 affected rows: 1
 drop table t1;
 affected rows: 0
+create table t1
+(a int not null primary key auto_increment, b int, c varchar(256))
+engine = ndb;
+affected rows: 0
+insert into t1(b,c) values (1,'this is a test'),
+(2,'this is a test'),(3,'this is a test'),
+(4,'this is a test'),(5,'this is a test'),(6,'this is a test'),
+(7,'this is a test'),(8,'this is a test'),(9,'this is a test');
+affected rows: 9
+info: Records: 9  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 9
+info: Records: 9  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 18
+info: Records: 18  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 36
+info: Records: 36  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 72
+info: Records: 72  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 144
+info: Records: 144  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 288
+info: Records: 288  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 576
+info: Records: 576  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 1152
+info: Records: 1152  Duplicates: 0  Warnings: 0
+insert into t1(b,c) select b,c from t1;
+affected rows: 2304
+info: Records: 2304  Duplicates: 0  Warnings: 0
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+affected rows: 1
+select count(*) from t1 where a in (...)
+count(*)
+1000
+affected rows: 1
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+5
+affected rows: 1
+update t1 set c = 'kalle' where a in (...)
+affected rows: 1000
+info: Rows matched: 1000  Changed: 1000  Warnings: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+9
+affected rows: 1
+delete from t1 where a in (...)
+affected rows: 1000
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+3
+affected rows: 1
+delete from t1 where a in (...)
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+3
+affected rows: 1
+update t1 set c = 'kalle' where a in (...)
+affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+9
+affected rows: 1
+update t1 set c = 'kalle' where a in (...)
+affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+9
+affected rows: 1
+drop table t1;
+affected rows: 0

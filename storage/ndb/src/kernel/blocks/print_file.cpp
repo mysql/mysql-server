@@ -23,7 +23,6 @@
 #include "diskpage.hpp"
 #include <ndb_limits.h>
 #include <dbtup/tuppage.hpp>
-#include <my_dir.h>
 
 static void print_usage(const char*);
 static int print_zero_page(int, void *, Uint32 sz);
@@ -36,7 +35,7 @@ static bool print_page(int page_no)
 }
 
 int g_verbosity = 1;
-int g_page_size = File_formats::NDB_PAGE_SIZE;
+unsigned g_page_size = File_formats::NDB_PAGE_SIZE;
 int (* g_print_page)(int count, void*, Uint32 sz) = print_zero_page;
 
 File_formats::Undofile::Zero_page g_uf_zero;
@@ -69,12 +68,13 @@ int main(int argc, char ** argv)
     
     const char * filename = argv[i];
     
-    MY_STAT sbuf;
-    if(!my_stat(filename, &sbuf, MYF(0))){
+    struct stat sbuf;
+    if(stat(filename, &sbuf) != 0)
+    {
       ndbout << "Could not find file: \"" << filename << "\"" << endl;
       continue;
     }
-    const Uint32 bytes = sbuf.st_size;
+    //const Uint32 bytes = sbuf.st_size;
     
     UtilBuffer buffer;
     
@@ -185,7 +185,7 @@ operator<<(NdbOut& out, const File_formats::Datafile::Extent_header& obj)
 
 int
 print_extent_page(int count, void* ptr, Uint32 sz){
-  if(count == g_df_zero.m_extent_pages)
+  if((unsigned)count == g_df_zero.m_extent_pages)
   {
     g_print_page = print_data_page;
   }
@@ -395,7 +395,7 @@ print_undo_page(int count, void* ptr, Uint32 sz){
 	    {
 	      printf("%.8x ", page->m_data[pos]);
 	      if((pos + 1) % 7 == 0)
-		ndbout_c("");
+		ndbout_c("%s", "");
 	      pos++;
 	    }
 	  }
@@ -408,12 +408,13 @@ print_undo_page(int count, void* ptr, Uint32 sz){
     }
   }
   
-  if(count == g_uf_zero.m_undo_pages + 1)
+  if((unsigned)count == g_uf_zero.m_undo_pages + 1)
   {
   }
   
   return 0;
 }
 
-// hp3750
+// Dummy implementations
 Signal::Signal(){}
+SimulatedBlock::Callback SimulatedBlock::TheEmptyCallback = {0, 0};

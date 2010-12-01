@@ -14,10 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
-
 ADD_EXECUTABLE(ndb_redo_log_reader
     redoLogReader/records.cpp
     redoLogReader/reader.cpp)
 TARGET_LINK_LIBRARIES(ndb_redo_log_reader
-    ndbtrace ndblogger ndbgeneral ndberror ndbportlib)
+    ndbtrace ndblogger ndbgeneral ndbportlib)

@@ -91,6 +91,3 @@ TAPTEST(SparseBitmask)
 }
 
 #endif
-
-template class Vector<unsigned>;
-

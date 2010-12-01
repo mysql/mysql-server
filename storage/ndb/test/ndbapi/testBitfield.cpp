@@ -665,4 +665,3 @@ testBitmask()
 }
 
 template class Vector<Alloc>;
-template class Vector<Uint32>;
