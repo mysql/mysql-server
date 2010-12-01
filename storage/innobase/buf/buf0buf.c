@@ -2745,7 +2745,8 @@ buf_page_get_gen(
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, NULL));
+	ut_ad(!ibuf_inside() || ibuf_page_low(space, zip_size, offset,
+					      FALSE, file, line, NULL));
 #endif
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
