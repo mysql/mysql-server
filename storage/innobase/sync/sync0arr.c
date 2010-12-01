@@ -590,9 +590,6 @@ sync_array_deadlock_step(
 	ulint		depth)	/*!< in: recursion depth */
 {
 	sync_cell_t*	new;
-	ibool		ret;
-
-	depth++;
 
 	if (pass != 0) {
 		/* If pass != 0, then we do not know which threads are
@@ -604,7 +601,7 @@ sync_array_deadlock_step(
 
 	new = sync_array_find_thread(arr, thread);
 
-	if (new == start) {
+	if (UNIV_UNLIKELY(new == start)) {
 		/* Stop running of other threads */
 
 		ut_dbg_stop_threads = TRUE;
@@ -616,11 +613,7 @@ sync_array_deadlock_step(
 		return(TRUE);
 
 	} else if (new) {
-		ret = sync_array_detect_deadlock(arr, start, new, depth);
-
-		if (ret) {
-			return(TRUE);
-		}
+		return(sync_array_detect_deadlock(arr, start, new, depth + 1));
 	}
 	return(FALSE);
 }
