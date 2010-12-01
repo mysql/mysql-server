@@ -21,8 +21,8 @@ explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
-explain select a from t1 where a > 5;
-select a from t1 where a > 5;
+explain select a from t1 where a > 8;
+select a from t1 where a > 8;
 
 explain select a,b from t1 where b > 30;
 select a,b from t1 where b > 30;
@@ -66,8 +66,8 @@ explain select * from t1 where c > 750;
 select * from t1 where c > 750;
 
 #covering indexes
-explain select a from t1 where a > 5;
-select a from t1 where a > 5;
+explain select a from t1 where a > 8;
+select a from t1 where a > 8;
 
 explain select a,b from t1 where b > 30;
 select a,b from t1 where b > 30;
