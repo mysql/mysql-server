@@ -146,9 +146,30 @@ struct PFS_table_share_key
 /** Instrumentation metadata for a table share. */
 struct PFS_table_share
 {
+public:
   enum_object_type get_object_type()
   {
     return (enum_object_type) m_key.m_hash_key[0];
+  }
+
+  inline void init_refcount(void)
+  {
+    PFS_atomic::store_32(& m_refcount, 1);
+  }
+
+  inline int get_refcount(void)
+  {
+    return PFS_atomic::load_32(& m_refcount);
+  }
+
+  inline void inc_refcount(void)
+  {
+    PFS_atomic::add_32(& m_refcount, 1);
+  }
+
+  inline void dec_refcount(void)
+  {
+    PFS_atomic::add_32(& m_refcount, -1);
   }
 
   /** Internal lock. */
@@ -170,8 +191,10 @@ struct PFS_table_share
   /** True if this table instrument is timed. */
   bool m_timed;
   bool m_purge;
+
+private:
   /** Number of opened table handles. */
-  uint m_refcount;
+  int m_refcount;
 };
 
 /**
