@@ -45,6 +45,10 @@ connection default;
 insert into foo values (5,5);
 select * from foo;
 
+
+connection conn1;
+commit;
+
 connection default;
 disconnect conn1;
 
