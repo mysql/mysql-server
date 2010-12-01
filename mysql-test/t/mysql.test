@@ -523,35 +523,34 @@ SHOW TABLES IN test;
 --echo # specified with USE command
 --echo #
 
-# CASE 1 : When 'test' database exists and passed at commandline.
+# CASE 1 : When 'connected_db' database exists and passed at commandline.
 --write_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
-CREATE TABLE `table_in_test`(i INT);
+CREATE TABLE `table_in_connected_db`(i INT);
 USE non_existent_db;
 # Following statement should be filtered out.
 CREATE TABLE `table_in_non_existent_db`(i INT);
 EOF
 
-# CASE 2 : When 'test' database exists but dropped and recreated in load file.
+# CASE 2 : When 'connected_db' database exists but dropped and recreated in
+# load file.
 --write_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
-DROP DATABASE test;
-CREATE DATABASE test;
+DROP DATABASE connected_db;
+CREATE DATABASE connected_db;
 USE non_existent_db;
 # Following statements should be filtered out.
 CREATE TABLE `table_in_non_existent_db`(i INT);
-USE test;
+USE connected_db;
 # Following statements should not be filtered out.
-CREATE TABLE `table_in_test`(i INT);
+CREATE TABLE `table_in_connected_db`(i INT);
 EOF
 
---exec $MYSQL --one-database test < $MYSQLTEST_VARDIR/tmp/one_db_1.sql
-SHOW TABLES IN test;
-DROP DATABASE test;
+CREATE DATABASE connected_db;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db_1.sql
+SHOW TABLES IN connected_db;
 --echo
-CREATE DATABASE test;
---exec $MYSQL --one-database test < $MYSQLTEST_VARDIR/tmp/one_db_2.sql
-SHOW TABLES IN test;
-DROP DATABASE test;
-CREATE DATABASE test;
+--exec $MYSQL --one-database connected_db < $MYSQLTEST_VARDIR/tmp/one_db_2.sql
+SHOW TABLES IN connected_db;
+DROP DATABASE connected_db;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
