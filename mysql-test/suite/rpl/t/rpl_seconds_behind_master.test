@@ -62,6 +62,7 @@ let $lower_bound= 3;
 if (`SELECT $sbm < $lower_bound or $sbm > $upper_bound`)
 {
   -- echo #### Seconds behind master is not in acceptable time window
+   --echo Seconds_Behind_Master $sbm Upper Bound $upper_bound Lower bound $lower_bound
   -- source include/show_rpl_debug_info.inc
   -- die
 }

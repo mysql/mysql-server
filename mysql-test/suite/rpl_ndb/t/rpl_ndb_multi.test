@@ -32,8 +32,10 @@ stop slave;
 # get the master binlog pos from the epoch, from the _other_ "master", server2
 connection server2;
 --replace_result $the_epoch <the_epoch>
+--disable_result_log
 eval SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
    FROM mysql.ndb_binlog_index WHERE epoch = $the_epoch ;
+--enable_result_log
 let $the_pos= `SELECT @the_pos` ;
 let $the_file= `SELECT @the_file` ;
 
