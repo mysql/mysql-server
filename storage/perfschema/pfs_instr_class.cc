@@ -788,7 +788,7 @@ search:
   {
     PFS_table_share *pfs;
     pfs= *entry;
-    pfs->m_refcount++ ;
+    pfs->inc_refcount() ;
     lf_hash_search_unpin(pins);
     return pfs;
   }
@@ -835,7 +835,7 @@ search:
           reset_single_stat_link(&pfs->m_wait_stat);
           pfs->m_enabled= enabled;
           pfs->m_timed= timed;
-          pfs->m_refcount= 1;
+          pfs->init_refcount();
 
           int res;
           res= lf_hash_insert(&table_share_hash, pins, &pfs);
@@ -879,7 +879,7 @@ search:
 */
 void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
 {
-  if (pfs->m_refcount == 1)
+  if (pfs->get_refcount() == 1)
   {
     LF_PINS* pins= get_table_share_hash_pins(thread);
     if (likely(pins != NULL))
