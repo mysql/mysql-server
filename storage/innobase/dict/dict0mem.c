@@ -34,6 +34,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "srv0srv.h" /* srv_lower_case_table_names */
+#include "ha_prototypes.h" /* innobase_casedn_str()*/
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
