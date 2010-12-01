@@ -146,15 +146,9 @@ create_config(const char* first, ...)
 // Global variable for my_getopt
 extern "C" const char* my_defaults_file;
 
-#ifdef _WIN32
-#include <process.h>
-#else
-#include <unistd.h>
-#endif
-
 static
 unsigned
-pid()
+ndb_procid()
 {
 #ifdef _WIN32
   return (unsigned)_getpid();
@@ -171,7 +165,7 @@ create_mycnf(const char* first, ...)
   NdbDir::Temp tempdir;
   BaseString mycnf_file;
   mycnf_file.assfmt("%s%stest_my.%u.cnf",
-                    tempdir.path(), DIR_SEPARATOR, pid());
+                    tempdir.path(), DIR_SEPARATOR, ndb_procid());
 
   FILE* config_file= fopen(mycnf_file.c_str(), "w+");
   CHECK(config_file);
