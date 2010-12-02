@@ -230,6 +230,10 @@ if ($retry_count5 != $retry_count_expected)
   -- die
 }
 
+# action: change the value back to the original one
+-- source include/stop_slave.inc
+-- eval CHANGE MASTER TO master_retry_count=$retry_count0
+
 ## assert that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count='a';
@@ -237,6 +241,16 @@ CHANGE MASTER TO master_retry_count='a';
 ## assert that there is a parse error if using a negative number
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count=-1;
+
+-- source include/start_slave.inc
+
+## assert that the test has cleaned itself up
+-- let $retry_count6= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+if (`SELECT $retry_count6 <> $retry_count0`)
+{
+  -- echo Unexpected retry count value! Got: $retry_count6, expected: $retry_count0
+  -- die
+}
 
 ## Checks if Replicate_Ignore_Server_Ids is correctly written to a repository.
 
@@ -277,6 +291,39 @@ if (`SELECT "$ignore_new_value" <> "$ignore_crash_value" || $connect_new_value <
   -- echo Unexpected values: "$ignore_new_value" <> "$ignore_crash_value" or $connect_new_value <> $connect_crash_value
   -- die
 }
+
+#
+# WL#3127 slave side TCP address binding
+# - CHANGE MASTER ... MASTER_BIND='interface'
+# - SHOW SLAVE STATUS has new column Master_Bind
+#
+
+let $check_ipv6_just_check=1;
+source include/check_ipv6.inc;
+let $check_ipv6_just_check=0;
+
+# Test valid IPv4 address
+let $master_bind='127.0.0.1';
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test invalid IPv4 address
+let $master_bind='1.1.1.1';
+let $master_bind_error_expected=2003;
+--source extra/rpl_tests/rpl_change_master_bind.inc
+let $master_bind_error_expected=0;
+
+# Test valid IPv6 address
+let $master_bind='::1';
+if (!$check_ipv6_supported)
+{
+  # No IPv6 support, fallback to IPv4
+  let $master_bind='127.0.0.1';
+}
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test with no bind address(check that reset works)
+let $master_bind='';
+--source extra/rpl_tests/rpl_change_master_bind.inc
 
 -- source include/master-slave-reset.inc
 -- source include/master-slave-end.inc
