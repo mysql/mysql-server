@@ -132,7 +132,7 @@ public:
   ulonglong created;
   ulonglong modified;
 
-  ulong sql_mode;
+  sql_mode_t sql_mode;
 
   class Stored_program_creation_ctx *creation_ctx;
   LEX_STRING body_utf8;
@@ -158,7 +158,7 @@ public:
   LEX_STRING definer_user;
   LEX_STRING definer_host;
 
-  ulong sql_mode;
+  sql_mode_t sql_mode;
 
   class Stored_program_creation_ctx *creation_ctx;
 

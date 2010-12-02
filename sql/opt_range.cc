@@ -5721,7 +5721,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulonglong orig_sql_mode;
+  sql_mode_t orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 

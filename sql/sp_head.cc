@@ -1204,7 +1204,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   sp_rcontext *ctx= thd->spcont;
   bool err_status= FALSE;
   uint ip= 0;
-  ulong save_sql_mode;
+  sql_mode_t save_sql_mode;
   bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
@@ -2479,7 +2479,7 @@ sp_head::do_cont_backpatch()
 
 void
 sp_head::set_info(longlong created, longlong modified,
-                  st_sp_chistics *chistics, ulong sql_mode)
+                  st_sp_chistics *chistics, sql_mode_t sql_mode)
 {
   m_created= created;
   m_modified= modified;

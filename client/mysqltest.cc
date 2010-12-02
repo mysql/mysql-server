@@ -5689,6 +5689,17 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     while (my_isspace(charset_info, *curr_ptr))
       curr_ptr++;
 
+    /* Strip off trailing white space */
+    while (my_isspace(charset_info, expr_end[-1]))
+      expr_end--;
+    /* strip off ' or " around the string */
+    if (*curr_ptr == '\'' || *curr_ptr == '"')
+    {
+      if (expr_end[-1] != *curr_ptr)
+        die("Unterminated string value");
+      curr_ptr++;
+      expr_end--;
+    }
     VAR v2;
     var_init(&v2,0,0,0,0);
     eval_expr(&v2, curr_ptr, &expr_end);
@@ -8099,13 +8110,16 @@ static void dump_backtrace(void)
 {
   struct st_connection *conn= cur_con;
 
-  my_safe_print_str("read_command_buf", read_command_buf,
-                    sizeof(read_command_buf));
+  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
+  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+
   if (conn)
   {
-    my_safe_print_str("conn->name", conn->name, conn->name_len);
+    fprintf(stderr, "conn->name (%p): ", conn->name);
+    my_safe_print_str(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
-    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+    fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
+    my_safe_print_str(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);

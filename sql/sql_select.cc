@@ -6586,11 +6586,18 @@ public:
       best_loose_scan_records - same
       best_max_loose_keypart - same
       best_loose_scan_start_key - same
-      Not initializing them causes compiler warnings, but using UNINIT_VAR()
-      would cause a 2% CPU time loss in a 20-table plan search.
-      So, until UNINIT_VAR(x) doesn't do x=0 for any C++ code, it's not used
-      here.
+      Not initializing them causes compiler warnings with g++ at -O1 or higher,
+      but initializing them would cause a 2% CPU time loss in a 20-table plan
+      search. So we initialize only if warnings would stop the build.
     */
+#ifdef COMPILE_FLAG_WERROR
+    bound_sj_equalities=       0;
+    quick_max_loose_keypart=   0;
+    best_loose_scan_key=       0;
+    best_loose_scan_records=   0;
+    best_max_loose_keypart=    0;
+    best_loose_scan_start_key= NULL;
+#endif
   }
 
   void init(JOIN *join, JOIN_TAB *s, table_map remaining_tables)
