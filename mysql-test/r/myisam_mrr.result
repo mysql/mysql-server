@@ -1,4 +1,4 @@
-drop table if exists t1, t2, t3;
+drop table if exists t0, t1, t2, t3;
 set @mrr_buffer_size_save= @@mrr_buffer_size;
 set mrr_buffer_size=79;
 Warnings:
@@ -170,6 +170,7 @@ c-1020=w	filler
 c-1021=w	filler
 c-1022=w	filler
 c-1023=w	filler
+drop table if exists t4;
 create table t4 (a varchar(10), b int, c char(10), filler char(200),
 key idx1 (a, b, c));
 insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
@@ -432,8 +433,8 @@ a	a	b
 1	1	1
 2	2	2
 NULL	NULL	1234
-NULL	NULL	1234
 NULL	NULL	5678
+NULL	NULL	1234
 NULL	NULL	5678
 set @@join_cache_level=@save_join_cache_level;
 drop table t0, t1;

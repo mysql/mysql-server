@@ -1155,6 +1155,23 @@ typedef void *range_seq_t;
 typedef struct st_range_seq_if
 {
   /*
+    Get key information
+ 
+    SYNOPSIS
+      get_key_info()
+        init_params  The seq_init_param parameter 
+        length       OUT length of the keys in this range sequence
+        map          OUT key_part_map of the keys in this range sequence
+
+    DESCRIPTION
+      This function is set only when using HA_MRR_FIXED_KEY mode. In that mode, 
+      all ranges are single-point equality ranges that use the same set of key
+      parts. This function allows the MRR implementation to get the length of
+      a key, and which keyparts it uses.
+  */
+  void (*get_key_info)(void *init_params, uint *length, key_part_map *map);
+
+  /*
     Initialize the traversal of range sequence
     
     SYNOPSIS
