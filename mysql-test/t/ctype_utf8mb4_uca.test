@@ -39,6 +39,16 @@ SELECT GROUP_CONCAT(c1 ORDER BY c1 SEPARATOR '') FROM t1 GROUP BY c1 COLLATE utf
 
 DROP TABLE t1;
 
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+# Test my_like_range and contractions
+#
+SET collation_connection=utf8mb4_czech_ci;
+--source include/ctype_czech.inc
+--source include/ctype_like_ignorable.inc
 
 --echo #
 --echo # End of 5.5 tests
