@@ -59,6 +59,8 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "NrCopy ");
   if(LqhKeyReq::getGCIFlag(reqInfo))
     fprintf(output, "GCI ");
+  if(LqhKeyReq::getQueueOnRedoProblemFlag(reqInfo))
+    fprintf(output, "Queue ");
   
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   

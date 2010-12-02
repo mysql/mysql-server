@@ -170,8 +170,10 @@ NdbScanOperation::addInterpretedCode()
   const NdbInterpretedCode* code= m_interpreted_code;
 
   /* Any disk access? */
-  m_no_disk_flag &= 
-    !(code->m_flags & NdbInterpretedCode::UsesDisk);
+  if (code->m_flags & NdbInterpretedCode::UsesDisk)
+  {
+    m_flags &= ~Uint8(OF_NO_DISK);
+  }
 
 
   /* Main program size depends on whether there's subroutines */
@@ -385,7 +387,7 @@ NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
     }
 
     if (col->flags & NdbRecord::IsDisk)
-      m_no_disk_flag= false;
+      m_flags &= ~Uint8(OF_NO_DISK);
 
     if (attrId > maxAttrId)
       maxAttrId= attrId;
@@ -1370,7 +1372,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   if (scan_flags & SF_DiskScan)
   {
     tupScan = true;
-    m_no_disk_flag = false;
+    m_flags &= ~Uint8(OF_NO_DISK);
   }
   
   bool rangeScan= false;
@@ -2287,7 +2289,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    */
   Uint32 reqInfo = req->requestInfo;
   ScanTabReq::setKeyinfoFlag(reqInfo, keyInfo);
-  ScanTabReq::setNoDiskFlag(reqInfo, m_no_disk_flag);
+  ScanTabReq::setNoDiskFlag(reqInfo, (m_flags & OF_NO_DISK) != 0);
 
   /* Set distribution key info if required */
   ScanTabReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
@@ -2901,8 +2903,10 @@ NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
   NdbRecAttr *ra;
   DBUG_PRINT("info", ("Column: %u", attrInfo->m_attrId));
 
-  m_no_disk_flag &= 
-    (attrInfo->m_storageType == NDB_STORAGETYPE_MEMORY);
+  if (attrInfo->m_storageType == NDB_STORAGETYPE_DISK)
+  {
+    m_flags &= ~Uint8(OF_NO_DISK);
+  }
 
   res= insertATTRINFOHdr_NdbRecord(attrInfo->m_attrId, 0);
   if (res==-1)
@@ -2936,9 +2940,12 @@ NdbScanOperation::getValue_NdbRecAttr_scan(const NdbColumnImpl* attrInfo,
   /* Get a RecAttr object, which is linked in to the Receiver's
    * RecAttr linked list, and return to caller
    */
-  if (attrInfo != NULL) {
-    m_no_disk_flag &= 
-      (attrInfo->m_storageType == NDB_STORAGETYPE_MEMORY);
+  if (attrInfo != NULL)
+  {
+    if (attrInfo->m_storageType == NDB_STORAGETYPE_DISK)
+    {
+      m_flags &= ~Uint8(OF_NO_DISK);
+    }
   
     recAttr = theReceiver.getValue(attrInfo, aValue);
     

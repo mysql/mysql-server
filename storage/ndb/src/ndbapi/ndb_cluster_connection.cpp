@@ -669,6 +669,12 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         timeout = tmp1;
     }
     m_config.m_waitfor_timeout = timeout;
+
+    Uint32 queue = 0;
+    if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
+    {
+      m_config.m_default_queue_option = queue;
+    }
   }
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }
