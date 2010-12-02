@@ -2513,14 +2513,12 @@ sub fix_vs_config_dir () {
   my $modified = 1e30;
   $opt_vs_config="";
 
-  for my $dir (qw(client/*.dir libmysql/libmysql.dir sql/mysqld.dir
-                  sql/udf_example.dir storage/*/*.dir plugin/*/*.dir)) {
-    for (<$basedir/$dir/*/BuildLog.htm>) {
-      if (-M $_ < $modified)
-      {
-        $modified = -M _;
-        $opt_vs_config = basename(dirname($_));
-      }
+
+  for (<$basedir/sql/*/mysqld.exe>) {
+    if (-M $_ < $modified)
+    {
+      $modified = -M _;
+      $opt_vs_config = basename(dirname($_));
     }
   }
 
