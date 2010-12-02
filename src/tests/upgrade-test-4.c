@@ -13,6 +13,10 @@
 
 /****************************************************************************************
  *
+ * Test sequence is run four times, two in outer loop, two in inner loop
+ * Outer loop is for default or small node and cachetable sizes,
+ * inner loop is for insert and delete.
+ *
  * open dbs
  * read and verify first n rows of primary, a few interspersed rows of secondaries  (n is very small so only a few nodes of secondaries are upgraded, even with prefetch)
  * close dbs  (dictionaries now partially upgraded)
@@ -20,7 +24,10 @@
  * read and verify a few more rows of primary, a few more interspersed rows of secondaries
  * close dbs  (some more nodes now upgraded)
  * open dbs
- * insert more rows (at end of primary and interspersed in secondary dictionaries)
+ * if (insert test)
+ *   insert at end of primary and interspersed in secondary dictionaries
+ * else (delete test)
+ *   delete from beginning of primary and interspersed in secondary dictionaries
  * close dbs
  * open dbs
  * verify all rows (including newly inserted ones)
@@ -47,6 +54,8 @@ char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.1.1.node4k.cleanshutdown";
 enum {ROWS_PER_TRANSACTION=10000};
 
 static int idx[MAX_DBS];
+
+typedef enum {insert, delete} test_type;
 
 static void
 open_dbs(DB **dbs) {
@@ -75,9 +84,16 @@ close_dbs(DB **dbs) {
 }
 
 
-static void upgrade_test_4(DB **dbs) {
+static void upgrade_test_4(DB **dbs, test_type test_to_do) {
     int r;
     int n = 4;  // number of rows to check to partially upgrade dictionary
+    char * msg;
+    if (test_to_do == insert)
+	msg = "insert";
+    else if (test_to_do == delete)
+	msg = "delete";
+    else assert(0);
+    
 
     // open the DBS
     open_dbs(dbs);
@@ -86,7 +102,7 @@ static void upgrade_test_4(DB **dbs) {
     {
 	check_results(env, dbs, NUM_DBS, n);
 	if (verbose)
-	    printf("First %d rows checked, now insert some more\n", n);
+	    printf("First %d rows checked, now close and reopen\n", n);
     }
 
     // close and reopen
@@ -98,14 +114,14 @@ static void upgrade_test_4(DB **dbs) {
 	n *= 2;
 	check_results(env, dbs, NUM_DBS, n);
 	if (verbose)
-	    printf("First %d rows checked, now insert some more\n", n);
+	    printf("\nFirst %d rows checked, now %s some rows\n", n, msg);
     }
 
     // close and reopen
     close_dbs(dbs);
     open_dbs(dbs);
 
-    // append some rows
+    // insert or delete some rows
     DB_TXN    *txn;
     DBT skey, sval;
     DBT key, val;
@@ -113,12 +129,25 @@ static void upgrade_test_4(DB **dbs) {
     dbt_init_realloc(&val);
 
     unsigned int k, v;
-    if ( verbose ) { printf("appending");fflush(stdout); }
-    int outer_loop_num = ( NUM_ROWS <= ROWS_PER_TRANSACTION ) ? 1 : (NUM_ROWS / ROWS_PER_TRANSACTION);
+    if ( verbose ) { 
+	printf("%s some rows\n", msg);
+	fflush(stdout); 
+    }
+    int num_rows_to_modify, base;
+    if (test_to_do == insert) {
+	num_rows_to_modify = NUM_ROWS;
+	base = NUM_ROWS;  // insert after existing rows in primary
+    }
+    else if (test_to_do == delete) {
+	num_rows_to_modify = 2*n;
+	base = 0;  // delete some rows from primary
+    }
+    else assert(0);
+    int outer_loop_num = ( num_rows_to_modify <= ROWS_PER_TRANSACTION ) ? 1 : (num_rows_to_modify / ROWS_PER_TRANSACTION);
     for(int x=0;x<outer_loop_num;x++) {
         r = env->txn_begin(env, NULL, &txn, 0);                                                              CKERR(r);
-        for(int i=1;i<=ROWS_PER_TRANSACTION;i++) {
-            k = i + (x*ROWS_PER_TRANSACTION) + NUM_ROWS;
+        for(int i=1; (i<=ROWS_PER_TRANSACTION && i<=num_rows_to_modify); i++) {
+            k = i + (x*ROWS_PER_TRANSACTION) + base;
             v = generate_val(k, 0);
             dbt_init(&skey, &k, sizeof(unsigned int));
             dbt_init(&sval, &v, sizeof(unsigned int));
@@ -129,8 +158,16 @@ static void upgrade_test_4(DB **dbs) {
                                       &key, &val, // 
                                       &skey, &sval, // src_key, src_val
                                       NULL); // extra, ignored
+		if (test_to_do == insert) {
+		    r = dbs[db]->put(dbs[db], txn, &key, &val, 0);
+		    CKERR(r);
+		}
+		else if (test_to_do == delete) {
+		    r = dbs[db]->del(dbs[db], txn, &key, 0);
+		    CKERR(r);
+		}
+		else assert(0);
 
-                r = dbs[db]->put(dbs[db], txn, &key, &val, 0);                                               CKERR(r);
                 if (key.flags == 0) { dbt_init_realloc(&key); }
                 if (val.flags == 0) { dbt_init_realloc(&val); }
             }
@@ -150,7 +187,11 @@ static void upgrade_test_4(DB **dbs) {
     // read and verify all rows
     {
         if ( verbose ) {printf("\nchecking");fflush(stdout);}
-        check_results(env, dbs, NUM_DBS, NUM_ROWS * 2);
+	if (test_to_do == insert)
+	    check_results(env, dbs, NUM_DBS, NUM_ROWS * 2);
+	else if (test_to_do == delete)
+	    check_results_after_row_n(env, dbs, NUM_DBS, NUM_ROWS, num_rows_to_modify);
+	else assert(0);
         if ( verbose) {printf("\ndone\n");fflush(stdout);}
     }
     // close
@@ -195,7 +236,7 @@ static void setup(void) {
 
 }
 
-static void run_test(void) 
+static void run_test(test_type test_to_do) 
 {
     int r;
 
@@ -207,13 +248,13 @@ static void run_test(void)
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
-    r = env->checkpointing_set_period(env, 60);                                                                CKERR(r);
+    r = env->checkpointing_set_period(env, 5);                                                                CKERR(r);
 
     DB **dbs = (DB**)toku_malloc(sizeof(DB*) * NUM_DBS);
     assert(dbs != NULL);
 
     // --------------------------
-    upgrade_test_4(dbs);
+    upgrade_test_4(dbs, test_to_do);
     // --------------------------
 
     if (verbose >= 2)
@@ -230,13 +271,17 @@ int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     littlenode = 0;
     setup();
-    run_test();
+    run_test(insert);
+    setup();
+    run_test(delete);
     if (SRC_VERSION == 4) {
 	if (verbose)
 	    printf("Now repeat test with small nodes and small cache.\n");
 	littlenode = 1;  // 4k nodes, small cache
 	setup();
-	run_test();
+	run_test(insert);
+	setup();
+	run_test(delete);
     }
     return 0;
 }

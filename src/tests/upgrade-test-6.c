@@ -159,13 +159,17 @@ static void check_results(DB **dbs)
             assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
         }
-        {printf("."); fflush(stdout);}
+        if (verbose) {
+	    printf("."); 
+	    fflush(stdout);
+	}
         r = cursor->c_close(cursor);
         CKERR(r);
         r = txn->commit(txn, 0);
         CKERR(r);
     }
-    printf("\nCheck OK\n");
+    if (verbose)
+	printf("\nCheck OK\n");
 }
 
 static void *expect_poll_void = &expect_poll_void;
