@@ -433,8 +433,8 @@ a	a	b
 1	1	1
 2	2	2
 NULL	NULL	1234
-NULL	NULL	5678
 NULL	NULL	1234
+NULL	NULL	5678
 NULL	NULL	5678
 set @@join_cache_level=@save_join_cache_level;
 drop table t0, t1;
