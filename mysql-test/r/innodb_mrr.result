@@ -527,3 +527,52 @@ NULL
 NULL
 set join_cache_level= @my_save_join_cache_level;
 drop table t1, t2;
+#
+# BUG#623315: Query returns less rows when run with join_cache_level=6 on maria-5.3-dsmrr-cpk
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_nokey int(11) DEFAULT NULL,
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (10,7,8,'v');
+INSERT INTO t1 VALUES (11,1,9,'r');
+INSERT INTO t1 VALUES (12,5,9,'a');
+INSERT INTO t1 VALUES (13,3,186,'m');
+INSERT INTO t1 VALUES (14,6,NULL,'y');
+INSERT INTO t1 VALUES (15,92,2,'j');
+INSERT INTO t1 VALUES (16,7,3,'d');
+INSERT INTO t1 VALUES (17,NULL,0,'z');
+INSERT INTO t1 VALUES (18,3,133,'e');
+INSERT INTO t1 VALUES (19,5,1,'h');
+INSERT INTO t1 VALUES (20,1,8,'b');
+INSERT INTO t1 VALUES (21,2,5,'s');
+INSERT INTO t1 VALUES (22,NULL,5,'e');
+INSERT INTO t1 VALUES (23,1,8,'j');
+INSERT INTO t1 VALUES (24,0,6,'e');
+INSERT INTO t1 VALUES (25,210,51,'f');
+INSERT INTO t1 VALUES (26,8,4,'v');
+INSERT INTO t1 VALUES (27,7,7,'x');
+INSERT INTO t1 VALUES (28,5,6,'m');
+INSERT INTO t1 VALUES (29,NULL,4,'c');
+set @my_save_join_cache_level= @@join_cache_level;
+SET join_cache_level=6;
+select count(*) from 
+(SELECT table2.pk FROM
+t1 LEFT JOIN t1 table2 JOIN t1 table3 ON table3.col_varchar_key = table2.col_varchar_key 
+ON table3.col_int_nokey) foo;
+count(*)
+480
+SET join_cache_level=0;
+select count(*) from 
+(SELECT table2.pk FROM
+t1 LEFT JOIN t1 table2 JOIN t1 table3 ON table3.col_varchar_key = table2.col_varchar_key 
+ON table3.col_int_nokey) foo;
+count(*)
+480
+set join_cache_level= @my_save_join_cache_level;
+drop table t1;
