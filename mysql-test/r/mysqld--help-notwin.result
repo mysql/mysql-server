@@ -451,6 +451,8 @@ The following options may be given as the first argument:
  Maximum number of instrumented threads.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
+ --performance-schema-setup-objects-size=# 
+ Maximum number of rows in SETUP_OBJECTS.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -888,6 +890,7 @@ performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
 performance-schema-setup-actors-size 100
+performance-schema-setup-objects-size 100
 plugin-load (No default value)
 port 3306
 port-open-timeout 0

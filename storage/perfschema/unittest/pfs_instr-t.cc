@@ -18,6 +18,7 @@
 #include <pfs_instr.h>
 #include <pfs_stat.h>
 #include <pfs_global.h>
+#include <pfs_instr_class.h>
 #include <tap.h>
 
 #include <memory.h>
@@ -46,7 +47,9 @@ void test_no_instruments()
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 0, "zero init");
 
@@ -87,7 +90,9 @@ void test_no_instances()
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 0, "no instances init");
 
@@ -201,9 +206,16 @@ void test_with_instances()
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
   param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 0, "instances init");
+
+  dummy_mutex_class.m_event_name_index= 0;
+  dummy_rwlock_class.m_event_name_index= 1;
+  dummy_cond_class.m_event_name_index= 2;
+  dummy_file_class.m_event_name_index= 3;
 
   mutex_1= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_1 != NULL, "mutex");
@@ -319,100 +331,16 @@ void test_with_instances()
   cleanup_instruments();
 }
 
-void test_per_thread_wait()
-{
-  int rc;
-  PFS_mutex_class dummy_mutex_class;
-  PFS_rwlock_class dummy_rwlock_class;
-  PFS_cond_class dummy_cond_class;
-  PFS_thread_class dummy_thread_class;
-  PFS_file_class dummy_file_class;
-  PFS_thread *thread;
-  PFS_single_stat_chain *base;
-  PFS_single_stat_chain *stat;
-  PFS_global_param param;
-
-
-  /* Per mutex info waits should be at [0..9] */
-  mutex_class_max= 10;
-  /* Per rwlock info waits should be at [10..29] */
-  rwlock_class_max= 20;
-  /* Per cond info waits should be at [30..69] */
-  cond_class_max= 40;
-  /* Per file info waits should be at [70..149] */
-  file_class_max= 80;
-  /* Per table info waits should be at [150..309] */
-  table_share_max= 160;
-
-  param.m_enabled= true;
-  param.m_mutex_class_sizing= mutex_class_max;
-  param.m_rwlock_class_sizing= rwlock_class_max;
-  param.m_cond_class_sizing= cond_class_max;
-  param.m_thread_class_sizing= 2;
-  param.m_table_share_sizing= table_share_max;
-  param.m_file_class_sizing= file_class_max;
-  param.m_mutex_sizing= 0;
-  param.m_rwlock_sizing= 0;
-  param.m_cond_sizing= 0;
-  param.m_thread_sizing= 2;
-  param.m_table_sizing= 0;
-  param.m_file_sizing= 0;
-  param.m_file_handle_sizing= 0;
-  param.m_events_waits_history_sizing= 10;
-  param.m_events_waits_history_long_sizing= 10000;
-  param.m_setup_actor_sizing= 0;
-
-  rc= init_instruments(& param);
-  ok(rc == 0, "instances init");
-
-  thread= create_thread(& dummy_thread_class, NULL, 0);
-  ok(thread != NULL, "thread");
-  ok(thread_lost == 0, "not lost");
-
-  base= & thread->m_instr_class_wait_stats[0];
-
-  dummy_mutex_class.m_index= 0;
-  stat= find_per_thread_mutex_class_wait_stat(thread, & dummy_mutex_class);
-  ok(base + 0 == stat, "fist mutex info slot at 0");
-  dummy_mutex_class.m_index= mutex_class_max - 1;
-  stat= find_per_thread_mutex_class_wait_stat(thread, & dummy_mutex_class);
-  ok(base + 9 == stat, "last mutex info slot at 9");
-
-  dummy_rwlock_class.m_index= 0;
-  stat= find_per_thread_rwlock_class_wait_stat(thread, & dummy_rwlock_class);
-  ok(base + 10 == stat, "fist rwlock info slot at 10");
-  dummy_rwlock_class.m_index= rwlock_class_max - 1;
-  stat= find_per_thread_rwlock_class_wait_stat(thread, & dummy_rwlock_class);
-  ok(base + 29 == stat, "last rwlock info slot at 29");
-
-  dummy_cond_class.m_index= 0;
-  stat= find_per_thread_cond_class_wait_stat(thread, & dummy_cond_class);
-  ok(base + 30 == stat, "fist cond info slot at 30");
-  dummy_cond_class.m_index= cond_class_max - 1;
-  stat= find_per_thread_cond_class_wait_stat(thread, & dummy_cond_class);
-  ok(base + 69 == stat, "last cond info slot at 69");
-
-  dummy_file_class.m_index= 0;
-  stat= find_per_thread_file_class_wait_stat(thread, & dummy_file_class);
-  ok(base + 70 == stat, "fist file info slot at 70");
-  dummy_file_class.m_index= file_class_max - 1;
-  stat= find_per_thread_file_class_wait_stat(thread, & dummy_file_class);
-  ok(base + 149 == stat, "last file info slot at 149");
-
-  cleanup_instruments();
-}
-
 void do_all_tests()
 {
   test_no_instruments();
   test_no_instances();
   test_with_instances();
-  test_per_thread_wait();
 }
 
 int main(int, char **)
 {
-  plan(102);
+  plan(91);
   MY_INIT("pfs_instr-t");
   do_all_tests();
   return 0;
