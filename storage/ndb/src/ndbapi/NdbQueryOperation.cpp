@@ -47,20 +47,20 @@
 //#define TEST_SCANREQ
 
 /* Various error codes that are not specific to NdbQuery. */
-STATIC_CONST(Err_TupleNotFound = 626);
-STATIC_CONST(Err_MemoryAlloc = 4000);
-STATIC_CONST(Err_SendFailed = 4002);
-STATIC_CONST(Err_FunctionNotImplemented = 4003);
-STATIC_CONST(Err_UnknownColumn = 4004);
-STATIC_CONST(Err_ReceiveTimedOut = 4008);
-STATIC_CONST(Err_NodeFailCausedAbort = 4028);
-STATIC_CONST(Err_WrongFieldLength = 4209);
-STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
-STATIC_CONST(Err_InvalidRangeNo = 4286);
-STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
-STATIC_CONST(Err_KeyIsNULL = 4316);
-STATIC_CONST(Err_FinaliseNotCalled = 4519);
-STATIC_CONST(Err_InterpretedCodeWrongTab = 4524);
+static const int Err_TupleNotFound = 626;
+static const int Err_MemoryAlloc = 4000;
+static const int Err_SendFailed = 4002;
+static const int Err_FunctionNotImplemented = 4003;
+static const int Err_UnknownColumn = 4004;
+static const int Err_ReceiveTimedOut = 4008;
+static const int Err_NodeFailCausedAbort = 4028;
+static const int Err_WrongFieldLength = 4209;
+static const int Err_MixRecAttrAndRecord = 4284;
+static const int Err_InvalidRangeNo = 4286;
+static const int Err_DifferentTabForKeyRecAndAttrRec = 4287;
+static const int Err_KeyIsNULL = 4316;
+static const int Err_FinaliseNotCalled = 4519;
+static const int Err_InterpretedCodeWrongTab = 4524;
 
 /* A 'void' index for a tuple in internal parent / child correlation structs .*/
 static const Uint16 tupleNotFound = 0xffff;
@@ -1330,8 +1330,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
 ///////////////////////////////////////////
 
 NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans, 
-                           const NdbQueryDefImpl& queryDef,
-                           int& errorCode):
+                           const NdbQueryDefImpl& queryDef):
   m_interface(*this),
   m_state(Initial),
   m_tcState(Inactive),
@@ -1358,7 +1357,6 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_prunability(Prune_No),
   m_pruneHashVal(0)
 {
-  errorCode = 0;
   // Allocate memory for all m_operations[] in a single chunk
   m_countOperations = queryDef.getNoOfOperations();
   Uint32  size = m_countOperations * 
@@ -1366,7 +1364,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_operations = static_cast<NdbQueryOperationImpl*> (::operator new(size));
   if (unlikely(m_operations == NULL))
   {
-    errorCode = Err_MemoryAlloc;
+    setErrorCodeAbort(Err_MemoryAlloc);
     return;
   }
 
@@ -1376,6 +1374,18 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   {
     const NdbQueryOperationDefImpl& def = queryDef.getQueryOperation(i);
     new(&m_operations[i]) NdbQueryOperationImpl(*this, def);
+    // Failed to create NdbQueryOperationImpl object.
+    if (m_error.code != 0) 
+    {
+      // Destroy those objects that we have already constructed.
+      for (Uint32 j=0; j<=i; j++)
+      { 
+        m_operations[j].~NdbQueryOperationImpl();
+      }
+      ::operator delete(m_operations);
+      m_operations = NULL;
+      return;
+    }
   }
 
   // Serialized QueryTree definition is first part of ATTRINFO.
@@ -1424,15 +1434,14 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
     return NULL;
   }
 
-  int errorCode = 0;
-  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef, errorCode);
+  NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
     return NULL;
   }
-  if (unlikely(errorCode != 0))
+  if (unlikely(query->m_error.code != 0))
   {
-    trans.setOperationErrorCodeAbort(errorCode);
+    // Transaction error code set already.
     delete query;
     return NULL;
   }
@@ -3235,6 +3244,12 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_diskInUserProjection(false),
   m_parallelism(0)
 { 
+  if (errno == ENOMEM)
+  {
+    // Memory allocation in Vector() (for m_children) assumed to have failed.
+    queryImpl.setErrorCodeAbort(Err_MemoryAlloc);
+    return;
+  }
   // Fill in operations parent refs, and append it as child of its parent
   const NdbQueryOperationDefImpl* parent = def.getParentOperation();
   if (parent != NULL)
@@ -3242,7 +3257,13 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
     const Uint32 ix = parent->getQueryOperationIx();
     assert (ix < m_queryImpl.getNoOfOperations());
     m_parent = &m_queryImpl.getQueryOperation(ix);
-    m_parent->m_children.push_back(this);
+    const int res = m_parent->m_children.push_back(this);
+    UNUSED(res);
+    /** 
+      Enough memory should have been allocated when creating 
+      m_parent->m_children, so res!=0 should never happen.
+    */
+    assert(res == 0);
   }
   if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
@@ -4467,7 +4488,8 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
   }
 
   // Suppress 'TupleNotFound' status for child operations.
-  if (&getRoot() == this || ref->errorCode != Err_TupleNotFound)
+  if (&getRoot() == this || 
+      ref->errorCode != static_cast<Uint32>(Err_TupleNotFound))
   {
     getQuery().setErrorCode(ref->errorCode);
     if (aSignal->getLength() == TcKeyRef::SignalLength)

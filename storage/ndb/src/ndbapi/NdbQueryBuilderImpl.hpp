@@ -340,16 +340,23 @@ public:
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
 
-  // Register a linked reference to a column from operation
-  // Return position in list of refered columns available from
-  // this (parent) operation. Child ops later refer linked 
-  // columns by its position in this list
-  Uint32 addColumnRef(const NdbColumnImpl*);
+  /** 
+   * Register a linked reference to a column from operation
+   * @param[in] column Column to refer.
+   * @param[out] error Possible error code.
+   * @return position in list of refered columns available from
+   * this (parent) operation. Child ops later refer linked 
+   * columns by its position in this list.
+   */
+  Uint32 addColumnRef(const NdbColumnImpl* column, int& error);
 
-  // Register a param operand which is refered by this operation.
-  // Param values are supplied pr. operation when code is serialized.
-  void addParamRef(const NdbParamOperandImpl* param)
-  { m_params.push_back(param); }
+  /** 
+   * Register a param operand which is refered by this operation.
+   * Param values are supplied pr. operation when code is serialized.
+   * @param[in] param Parameter to add.
+   * @return Possible error code.
+   */
+  int addParamRef(const NdbParamOperandImpl* param);
 
   Uint32 getNoOfParameters() const
   { return m_params.size(); }
@@ -376,7 +383,7 @@ public:
   /** Mark lookup ancestors of this operation as having a scan decendant.
    * @return Possible error code.
    */
-  Uint32 markScanAncestors();
+  int markScanAncestors();
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 
 
@@ -407,7 +414,8 @@ protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
-                                     Uint32 ix);
+                                     Uint32 ix,
+                                     int& error);
 public:
   // Get the ordinal position of this operation within the query def.
   Uint32 getQueryOperationIx() const
@@ -452,8 +460,12 @@ protected:
 private:
   bool isChildOf(const NdbQueryOperationDefImpl* parentOp) const;
 
-  // Register a linked child refering specified operation
-  void addChild(NdbQueryOperationDefImpl*);
+  /**
+   * Register a linked child refering specified operation
+   * @param[in] child Child operation to add.
+   * @return Possible error code.
+   */
+  int addChild(NdbQueryOperationDefImpl* child);
 
   // Remove a linked child refering specified operation
   void removeChild(const NdbQueryOperationDefImpl*);
@@ -492,7 +504,8 @@ public:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix);
+                           Uint32      ix,
+                           int& error);
 
   virtual bool isScanOperation() const
   { return true; }
@@ -549,7 +562,8 @@ private:
                            const NdbQueryIndexBound* bound,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix);
+                           Uint32      ix,
+                           int& error);
 
   // Append pattern for creating a single bound value to serialized code 
   Uint32 appendBoundValue( Uint32Buffer& serializedDef,
@@ -632,6 +646,14 @@ private:
   bool hasError() const
   { return (m_error.code!=0); }
 
+  /**
+   * Add an operand to m_operands. Set an error code if operand
+   * is null or if adding it to m_operands fails.
+   * @param[in] operand to add (may be NULL).
+   * @return Operand interface (or NULL if there was an error.)
+   */
+  NdbQueryOperand* addOperand(NdbQueryOperandImpl* operand);
+
   bool contains(const NdbQueryOperationDefImpl*);
 
   NdbQueryBuilder m_interface;
@@ -651,6 +673,7 @@ private:
 // Baseclass for the QueryOperand implementation
 class NdbQueryOperandImpl
 {
+  friend class NdbQueryBuilderImpl;
 public:
 
   /** The type of an operand. This corresponds to the set of subclasses
@@ -676,6 +699,8 @@ public:
 
   Kind getKind() const
   { return m_kind; }
+
+  virtual NdbQueryOperand& getInterface() = 0;
 
 protected:
   friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
@@ -714,7 +739,7 @@ public:
   const NdbColumnImpl& getParentColumn() const
   { return *m_parentOperation.getSPJProjection()[m_parentColumnIx]; }
 
-  virtual const NdbLinkedOperand& getInterface() const
+  virtual NdbQueryOperand& getInterface()
   { return m_interface; }
 
   virtual int bindOperand(const NdbColumnImpl& column,
@@ -748,7 +773,7 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  virtual const NdbParamOperand& getInterface() const
+  virtual NdbQueryOperand& getInterface()
   { return m_interface; }
 
   virtual int bindOperand(const NdbColumnImpl& column,
@@ -778,7 +803,7 @@ public:
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
 
-  virtual const NdbConstOperand& getInterface() const
+  virtual NdbQueryOperand& getInterface()
   { return m_interface; }
 
   virtual int bindOperand(const NdbColumnImpl& column,
