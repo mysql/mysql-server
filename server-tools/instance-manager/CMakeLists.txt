@@ -21,7 +21,6 @@ ADD_DEFINITIONS(-DMYSQL_SERVER -DMYSQL_INSTANCE_MANAGER)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/sql
                     ${PROJECT_SOURCE_DIR}/extra/yassl/include)
 
-SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
  
 ADD_EXECUTABLE(mysqlmanager buffer.cc command.cc commands.cc guardian.cc instance.cc instance_map.cc
                             instance_options.cc listener.cc log.cc manager.cc messages.cc mysql_connection.cc
