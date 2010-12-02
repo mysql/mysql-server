@@ -379,7 +379,10 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   NdbRecAttr* tRecAttr;
   if ((tAttrInfo != NULL) &&
       (theStatus != Init)){
-    m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+    if (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK)
+    {
+      m_flags &= ~Uint8(OF_NO_DISK);
+    }
     if (theStatus != GetValue) {
       if (theStatus == UseNdbRecord)
         /* This path for extra GetValues for NdbRecord */
@@ -438,7 +441,10 @@ NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
 {
   NdbRecAttr* tRecAttr;
 
-  m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+  if (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK)
+  {
+    m_flags &= ~Uint8(OF_NO_DISK);
+  }
 
   /*
     For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
@@ -551,7 +557,10 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   
   // Insert Attribute Id into ATTRINFO part. 
   tAttrId = tAttrInfo->m_attrId;
-  m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+  if (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK)
+  {
+    m_flags &= ~Uint8(OF_NO_DISK);
+  }
   const char *aValue = aValuePassed; 
   if (aValue == NULL) {
     if (tAttrInfo->m_nullable) {
@@ -1347,7 +1356,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
   {
     /* Any operation can have an ANYVALUE set */
     op->m_any_value = opts->anyValue;
-    op->m_use_any_value = 1;
+    op->m_flags |= OF_USE_ANY_VALUE;
   }
 
   if (opts->optionsPresent & OperationOptions::OO_CUSTOMDATA)
@@ -1384,6 +1393,16 @@ NdbOperation::handleOperationOptions (const OperationType type,
     {
       return prepareRc;
     }    
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_QUEUABLE)
+  {
+    op->m_flags |= OF_QUEUEABLE;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_NOT_QUEUABLE)
+  {
+    op->m_flags &= ~Uint8(OF_QUEUEABLE);
   }
 
   return 0;

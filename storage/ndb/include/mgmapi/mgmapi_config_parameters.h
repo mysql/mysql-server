@@ -173,7 +173,8 @@
 #define CFG_DB_MAX_START_FAIL         609 /* For StopOnError=0 */
 #define CFG_DB_START_FAIL_DELAY_SECS  610 /* For StopOnError=0 */
 
-/* 611 & 612 reserved */
+#define CFG_DB_REDO_OVERCOMMIT_LIMIT  611
+#define CFG_DB_REDO_OVERCOMMIT_COUNTER 612
 
 #define CFG_DB_EVENTLOG_BUFFER_SIZE   613
 #define CFG_DB_NUMA                   614
@@ -248,6 +249,7 @@
 #define CFG_BATCH_SIZE                802
 #define CFG_AUTO_RECONNECT            803
 #define CFG_HB_THREAD_PRIO            804
+#define CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION 805
 
 /**
  * Internal
@@ -271,5 +273,8 @@
 #define ARBIT_METHOD_DISABLED         0
 #define ARBIT_METHOD_DEFAULT          1
 #define ARBIT_METHOD_WAITEXTERNAL     2
+
+#define OPERATION_REDO_PROBLEM_ACTION_ABORT 0
+#define OPERATION_REDO_PROBLEM_ACTION_QUEUE 1
 
 #endif

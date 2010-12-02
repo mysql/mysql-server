@@ -2785,6 +2785,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
+  Uint8 Tqueue              = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
 
   if (Treorg)
   {
@@ -2803,6 +2804,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->opExec   = TInterpretedFlag;
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
+  regCachePtr->m_op_queue = Tqueue;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -3546,6 +3548,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setSimpleFlag(Tdata10, sig0);
   LqhKeyReq::setOperation(Tdata10, sig1);
   LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
+  LqhKeyReq::setQueueOnRedoProblemFlag(Tdata10, regCachePtr->m_op_queue);
 
   /* ----------------------------------------------------------------------- 
    * If we are sending a short LQHKEYREQ, then there will be some AttrInfo
