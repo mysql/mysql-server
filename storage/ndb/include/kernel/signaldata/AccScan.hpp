@@ -207,6 +207,24 @@ private:
   Uint32 flag;
 };
 
+class AccScanRef {
+  friend class Dbtux;
+  friend class Dblqh;
+
+  enum ErrorCode {
+    TuxNoFreeScanOp = 909,
+    TuxIndexNotOnline = 910
+  };
+
+public:
+  STATIC_CONST( SignalLength = 3 );
+
+private:
+  Uint32 scanPtr;
+  Uint32 accPtr;
+  Uint32 errorCode;
+};
+
 class AccCheckScan {
   friend class Dbacc;
   friend class Dbtux;
