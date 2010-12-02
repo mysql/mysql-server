@@ -2868,28 +2868,30 @@ subselect_single_select_engine::save_join_if_explain()
      3) Call does not come from select_describe()). If it does,
         JOIN::exec() will not call make_simple_join() and the JOIN we
         plan to save will not be replaced anyway.
-     4) A temp table is needed. This is what triggers JOIN::exec() to
-        make a replacement JOIN by calling make_simple_join(). 
-     5) The Item_subselect is cacheable
+     4) The Item_subselect is cacheable
   */
   if (thd->lex->describe &&                              // 1
       !select_lex->uncacheable &&                        // 2
-      !(join->select_options & SELECT_DESCRIBE) &&       // 3
-      join->need_tmp)                                    // 4
+      !(join->select_options & SELECT_DESCRIBE))         // 3
   {
     item->update_used_tables();
-    if (item->const_item())                              // 5
+    if (item->const_item())                              // 4
     {
       /*
-        Save this JOIN to join->tmp_join since the original layout will
-        be replaced when JOIN::exec() calls make_simple_join() due to
-        need_tmp==TRUE. The original layout is needed so we can describe
-        the query. No need to do this if uncacheable != 0 since in this
-        case the JOIN has already been saved during JOIN::optimize()
+        It's necessary to keep original JOIN table because
+        create_sort_index() function may overwrite original
+        JOIN_TAB::type and wrong optimization method can be
+        selected on re-execution.
       */
       select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
       select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-      if (join->init_save_join_tab())
+      /*
+        Force join->join_tmp creation, because this subquery will be replaced
+        by a simple select from the materialization temp table by optimize()
+        called by EXPLAIN and we need to preserve the initial query structure
+        so we can display it.
+      */
+      if (join->need_tmp && join->init_save_join_tab())
         return TRUE;
     }
   }
