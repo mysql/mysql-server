@@ -257,6 +257,13 @@ enum monitor_id_value {
 
 typedef enum monitor_id_value		monitor_id_t;
 
+/** This informs the monitor control system to turn
+on/off and reset monitor counters through wild card match */
+#define	MONITOR_WILDCARD_MATCH		(NUM_MONITOR + 1)
+
+/** Cannot find monitor counter with a specified name */
+#define	MONITOR_NO_MATCH		(NUM_MONITOR + 2)
+
 /** struct monitor_info describes the basic/static information
 about each monitor counter. */
 struct monitor_info_struct {
@@ -544,7 +551,7 @@ is NUM_MONITOR then turn on all monitor counters.
 @return	0 if successful, or the first monitor that cannot be
 turned on because it is already turned on. */
 UNIV_INTERN
-ulint
+void
 srv_mon_set_module_control(
 /*=======================*/
 	monitor_id_t	module_id,	/*!< in: Module ID as in

@@ -40,6 +40,68 @@ set global innodb_reset_all_monitor_counter = all;
 # count should all change to 0
 select name, count, status from information_schema.innodb_metrics;
 
+# Test wildcard match, turn on all counters contain string "lock"
+set  global innodb_enable_monitor_counter = "%lock%";
+
+# All lock related counter should be enabled
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
+
+# Disable them
+set  global innodb_disable_monitor_counter = "%lock%";
+
+# All lock related counter should be disabled
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
+
+# No match for "%lock*"
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_enable_monitor_counter = "%lock*";
+
+# All counters will be turned on with wildcard match string with all "%"
+set global innodb_enable_monitor_counter="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+
+select name, status from information_schema.innodb_metrics;
+
+# Turn off all counters
+set global innodb_disable_monitor_counter="%%%%%";
+
+select name, status from information_schema.innodb_metrics;
+
+# One more round testing. All counters will be turned on with
+# single wildcard character "%"
+set global innodb_enable_monitor_counter="%";
+
+select name, status from information_schema.innodb_metrics;
+
+# Turn off all the counters with "%_%"
+set global innodb_disable_monitor_counter="%_%";
+
+select name, status from information_schema.innodb_metrics;
+
+# Turn on all counters start with "log"
+set global innodb_enable_monitor_counter="log%%%%";
+
+select name, status from information_schema.innodb_metrics;
+
+# Turn on counters "os_num_fsync" with wildcard match "os_%m_fs_nc", "_"
+# is single character wildcard match word
+set global innodb_enable_monitor_counter="os_%m_fs_nc";
+
+# Turn on counters whose name contains "os" and "pending" with
+# wildcard match "os%pending%"
+set global innodb_enable_monitor_counter="os%pending%";
+
+select name, status from information_schema.innodb_metrics
+where name like "os%";
+
+# Empty string is an invalid option
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_enable_monitor_counter="";
+
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_enable_monitor_counter="_";
+
 # Only turn on "table_open" counter
 set global innodb_enable_monitor_counter = metadata_table_opened;
 

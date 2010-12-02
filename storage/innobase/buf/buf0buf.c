@@ -379,6 +379,11 @@ buf_get_total_list_len(
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
+
+		if (!buf_pool) {
+			continue;
+		}
+
 		*LRU_len += UT_LIST_GET_LEN(buf_pool->LRU);
 		*free_len += UT_LIST_GET_LEN(buf_pool->free);
 		*flush_list_len += UT_LIST_GET_LEN(buf_pool->flush_list);
@@ -402,6 +407,10 @@ buf_get_total_stat(
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
+
+		if (!buf_pool) {
+			continue;
+		}
 
 		buf_stat = &buf_pool->stat;
 		tot_stat->n_page_gets += buf_stat->n_page_gets;

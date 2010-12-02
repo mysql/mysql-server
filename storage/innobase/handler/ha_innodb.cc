@@ -1275,6 +1275,20 @@ innobase_strcasecmp(
 }
 
 /******************************************************************//**
+Compares NUL-terminated UTF-8 strings case insensitively. The
+second string contains wildcards.
+@return 0 if a match is found, 1 if not */
+extern "C" UNIV_INTERN
+int
+innobase_wildcasecmp(
+/*=================*/
+	const char*	a,	/*!< in: string to compare */
+	const char*	b)	/*!< in: wildcard string to compare */
+{
+	return(wild_case_compare(system_charset_info, a, b));
+}
+
+/******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 extern "C" UNIV_INTERN
 void
@@ -2609,11 +2623,6 @@ innobase_change_buffering_inited_ok:
 
 	innobase_commit_concurrency_init_default();
 
-	if (innobase_enable_monitor_counter) {
-		innodb_enable_monitor_at_startup(
-			innobase_enable_monitor_counter);
-	}
-
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
 	if (PSI_server) {
@@ -2695,6 +2704,14 @@ innobase_change_buffering_inited_ok:
 	memset(monitor_set_tbl, 0, sizeof monitor_set_tbl);
 
 	memset(innodb_counter_value, 0, sizeof innodb_counter_value);
+
+	/* Do this as late as possible so server is fully starts up,
+	since  we might get some initial stats if user choose to turn
+	on some counters from start up */
+	if (innobase_enable_monitor_counter) {
+		innodb_enable_monitor_at_startup(
+			innobase_enable_monitor_counter);
+	}
 
 	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
@@ -11321,9 +11338,180 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+/****************************************************************//**
+Update the monitor counter according to the "set_option",  turn
+on/off or reset specified monitor counter. */
+static
+void
+innodb_monitor_set_option(
+/*======================*/
+	const monitor_info_t* monitor_info,/*!< in: monitor info for the monitor
+					to set */
+	mon_option_t	set_option)	/*!< in: Turn on/off reset the
+					counter */
+{
+	monitor_id_t	monitor_id = monitor_info->monitor_id;
+
+	/* If module type is MONITOR_GROUP_MODULE, it cannot be
+	turned on/off individually. It should never use this
+	function to set options */
+	ut_a(!(monitor_info->monitor_type & MONITOR_GROUP_MODULE));
+
+	switch (set_option) {
+	case MONITOR_TURN_ON:
+		MONITOR_ON(monitor_id);
+		MONITOR_INIT(monitor_id);
+		MONITOR_SET_START(monitor_id);
+
+		/* If the monitor to be turned on uses
+		exisitng monitor counter (status variable),
+		make special processing to remember existing
+		counter value. */
+		if (monitor_info->monitor_type
+		    & MONITOR_EXISTING) {
+			srv_mon_process_existing_counter(
+				monitor_id, MONITOR_TURN_ON);
+		}
+		break;
+
+	case MONITOR_TURN_OFF:
+		if (monitor_info->monitor_type & MONITOR_EXISTING) {
+			srv_mon_process_existing_counter(
+				monitor_id, MONITOR_TURN_OFF);
+		}
+
+		MONITOR_OFF(monitor_id);
+		MONITOR_SET_OFF(monitor_id);
+		break;
+
+	case MONITOR_RESET_VALUE:
+		srv_mon_reset(monitor_id);
+		break;
+
+	case MONITOR_RESET_ALL_VALUE:
+		srv_mon_reset_all(monitor_id);
+		break;
+
+	default:
+		ut_error;
+	}
+}
+
+/****************************************************************//**
+Find matching InnoDB monitor counters and update their status
+according to the "set_option",  turn on/off or reset specified
+monitor counter. */
+static
+void
+innodb_monitor_update_wildcard(
+/*===========================*/
+	const char*	name,		/*!< in: monitor name to match */
+	mon_option_t	set_option)	/*!< in: the set option, whether
+					to turn on/off or reset the counter */
+{
+	ut_a(name);
+
+	for (ulint use = 0; use < NUM_MONITOR; use++) {
+		monitor_type_t	type;
+		monitor_id_t	monitor_id = static_cast<monitor_id_t>(use);
+		monitor_info_t*	monitor_info;
+
+		if (!innobase_wildcasecmp(
+			srv_mon_get_name(monitor_id), name)) {
+			monitor_info = srv_mon_get_info(monitor_id);
+
+			type = monitor_info->monitor_type;
+
+			/* If the monitor counter is of MONITOR_MODULE
+			type, skip it. Except for those also marked with
+			MONITOR_GROUP_MODULE flag, which can be turned
+			on only as a module. */
+			if (!(type & MONITOR_MODULE)
+			     && !(type & MONITOR_GROUP_MODULE)) {
+				innodb_monitor_set_option(monitor_info,
+							  set_option);
+			}
+
+			/* Need to special handle counters marked with
+			MONITOR_GROUP_MODULE, turn on the whole module if
+			any one of it comes here. Currently, only
+			"module_buf_page" is marked with MONITOR_GROUP_MODULE */
+			if (type & MONITOR_GROUP_MODULE) {
+				if ((monitor_id >= MONITOR_MODULE_BUF_PAGE)
+				     && (monitor_id < MONITOR_MODULE_OS)) {
+					if (set_option == MONITOR_TURN_ON
+					    && MONITOR_IS_ON(
+						MONITOR_MODULE_BUF_PAGE)) {
+						continue;
+					}
+
+					srv_mon_set_module_control(
+						MONITOR_MODULE_BUF_PAGE,
+						set_option);
+				} else {
+					/* If new monitor is added with
+					MONITOR_GROUP_MODULE, it needs
+					to be added here. */
+					ut_ad(0);
+				}
+			}
+		}
+	}
+}
+
+/*************************************************************//**
+Given a configuration variable name, find corresponding monitor counter
+and return its monitor ID if found.
+@return	monitor ID if found, MONITOR_NO_MATCH if there is no match */
+static
+ulint
+innodb_monitor_id_by_name_get(
+/*==========================*/
+	const char*	name)	/*!< in: monitor counter namer */
+{
+	ut_a(name);
+
+	/* Search for wild character '%' in the name, if
+	found, we treat it as a wildcard match. We do not search for
+	single character wildcard '_' since our monitor names already contain
+	such character. To avoid confusion, we request user must include
+	at least one '%' character to activate the wildcard search. */
+	if (strchr(name, '%')) {
+		return(MONITOR_WILDCARD_MATCH);
+	}
+
+	/* Not wildcard match, check for an exact match */
+	for (ulint i = 0; i < NUM_MONITOR; i++) {
+		if (!innobase_strcasecmp(
+			name, srv_mon_get_name(static_cast<monitor_id_t>(i)))) {
+			return(i);
+		}
+	}
+
+	return(MONITOR_NO_MATCH);
+}
+/*************************************************************//**
+Validate that the passed in monitor name matches at least one
+monitor counter name with wildcard compare.
+@return	TRUE if at least one monitor name matches */
+static
+ibool
+innodb_monitor_validate_wildcard_name(
+/*==================================*/
+	const char*	name)	/*!< in: monitor counter namer */
+{
+	for (ulint i = 0; i < NUM_MONITOR; i++) {
+		if (!innobase_wildcasecmp(
+			srv_mon_get_name(static_cast<monitor_id_t>(i)), name)) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
 /*************************************************************//**
 Validate the passed in monitor name, find and save the
-corresponding monitor id in the function parameter "save".
+corresponding monitor name in the function parameter "save".
 @return	0 if monitor name is valid */
 static
 int
@@ -11333,43 +11521,56 @@ innodb_monitor_valid_byname(
 					for update function */
 	const char*		name)	/*!< in: incoming monitor name */
 {
-	if (name) {
-		ulint		use;
-		monitor_info_t*	monitor_info;
+	ulint		use;
+	monitor_info_t*	monitor_info;
 
-		for (use = 0; use < NUM_MONITOR; use++) {
-			if (!innobase_strcasecmp(
-				name, srv_mon_get_name((monitor_id_t)use))) {
-				monitor_info = srv_mon_get_info(
-					(monitor_id_t)use);
+	if (!name) {
+		return(1);
+	}
 
-				/* If the monitor counter is marked with
-				MONITOR_GROUP_MODULE flag, then this counter
-				cannot be turned on/off individually, instead
-				it shall be turned on/off as a group using
-				its module name */
-				if ((monitor_info->monitor_type
-				     & MONITOR_GROUP_MODULE)
-				    && (!(monitor_info->monitor_type
-					  & MONITOR_MODULE))) {
-					sql_print_warning(
-						"Monitor counter '%s' cannot"
-						" be turned on/off individually"
-						" . Please use its module name"
-						" to turn on/off the counters"
-						" in the module as a group.\n",
-						name);
+	use = innodb_monitor_id_by_name_get(name);
 
-					return(1);
-				}
+	/* No monitor name matches, nor it is wildcard match */
+	if (use == MONITOR_NO_MATCH) {
+		return(1);
+	}
 
-				*(ulint*) save = use;
-				return(0);
-			}
+	if (use < NUM_MONITOR) {
+		monitor_info = srv_mon_get_info((monitor_id_t)use);
+
+		/* If the monitor counter is marked with
+		MONITOR_GROUP_MODULE flag, then this counter
+		cannot be turned on/off individually, instead
+		it shall be turned on/off as a group using
+		its module name */
+		if ((monitor_info->monitor_type & MONITOR_GROUP_MODULE)
+		    && (!(monitor_info->monitor_type & MONITOR_MODULE))) {
+			sql_print_warning(
+				"Monitor counter '%s' cannot"
+				" be turned on/off individually."
+				" Please use its module name"
+				" to turn on/off the counters"
+				" in the module as a group.\n",
+				name);
+
+			return(1);
+		}
+
+	} else {
+		ut_a(use == MONITOR_WILDCARD_MATCH);
+
+		/* For wildcard match, if there is not a single monitor
+		counter name that matches, treat it as an invalid
+		value for the system configuration variables */
+		if (!innodb_monitor_validate_wildcard_name(name)) {
+			return(1);
 		}
 	}
 
-	return(1);
+	/* Save the configure name for innodb_monitor_update() */
+	*static_cast<const char**>(save) = name;
+
+	return(0);
 }
 /*************************************************************//**
 Validate passed-in "value" is a valid monitor counter name.
@@ -11415,16 +11616,24 @@ innodb_monitor_update(
 						reset the counter */
 {
 	monitor_info_t*	monitor_info;
-	monitor_id_t	monitor_id;
-	ulint		temp_id;
+	ulint		monitor_id;
 	ulint		err_monitor = 0;
+	const char*	name;
 
 	ut_a(save != NULL);
 
-	temp_id = *(ulint *) save;
-	ut_a(temp_id <= NUM_MONITOR);
+	name = *static_cast<const char*const*>(save);
 
-	monitor_id = (monitor_id_t) temp_id;
+	if (!name) {
+		monitor_id = MONITOR_DEFAULT_START;
+	} else {
+		monitor_id = innodb_monitor_id_by_name_get(name);
+
+		/* Double check we have a valid monitor ID */
+		if (monitor_id == MONITOR_NO_MATCH) {
+			return;
+		}
+	}
 
 	if (monitor_id == MONITOR_DEFAULT_START) {
 		/* If user set the variable to "default", we will
@@ -11448,8 +11657,11 @@ innodb_monitor_update(
 		if (var_ptr) {
 			*(const char**) var_ptr = NULL;
 		}
+	} else if (monitor_id == MONITOR_WILDCARD_MATCH) {
+		innodb_monitor_update_wildcard(name, set_option);
 	} else {
-		monitor_info = srv_mon_get_info(monitor_id);
+		monitor_info = srv_mon_get_info(
+			static_cast<monitor_id_t>(monitor_id));
 
 		ut_a(monitor_info);
 
@@ -11470,52 +11682,11 @@ innodb_monitor_update(
 		a counter, process counters in the whole module or
 		individual counter. */
 		if (monitor_info->monitor_type & MONITOR_MODULE) {
-			err_monitor = srv_mon_set_module_control(monitor_id,
-								 set_option);
+			srv_mon_set_module_control(
+				static_cast<monitor_id_t>(monitor_id),
+				set_option);
 		} else {
-			/* If module is marked with MONITOR_GROUP_MODULE
-			status, it cannot be turned on/off individually */
-			ut_a(!(monitor_info->monitor_type &
-			       MONITOR_GROUP_MODULE));
-
-			switch (set_option) {
-			case MONITOR_TURN_ON:
-				MONITOR_ON(monitor_id);
-				MONITOR_INIT(monitor_id);
-				MONITOR_SET_START(monitor_id);
-
-				/* If the monitor to be turned on uses
-				exisitng monitor counter (status variable),
-				make special processing to remember existing
-				counter value. */
-				if (monitor_info->monitor_type
-				    & MONITOR_EXISTING) {
-					srv_mon_process_existing_counter(
-						monitor_id, MONITOR_TURN_ON);
-				}
-			break;
-
-			case MONITOR_TURN_OFF:
-				if (monitor_info->monitor_type
-				    & MONITOR_EXISTING) {
-					srv_mon_process_existing_counter(
-						monitor_id, MONITOR_TURN_OFF);
-				}
-				MONITOR_OFF(monitor_id);
-				MONITOR_SET_OFF(monitor_id);
-				break;
-
-			case MONITOR_RESET_VALUE:
-				srv_mon_reset(monitor_id);
-				break;
-
-			case MONITOR_RESET_ALL_VALUE:
-				srv_mon_reset_all(monitor_id);
-				break;
-
-			default:
-				ut_error;
-			}
+			innodb_monitor_set_option(monitor_info, set_option);
 		}
 	}
 exit:
@@ -11630,13 +11801,13 @@ innodb_enable_monitor_at_startup(
 	     option;
 	     option = strtok_r(NULL, sep, &last)) {
 		ulint	ret;
-		ulint	mon_idx;
+		char*	option_name;
 
-		ret = innodb_monitor_valid_byname(&mon_idx, option);
+		ret = innodb_monitor_valid_byname(&option_name, option);
 
 		/* The name is validated if ret == 0 */
 		if (!ret) {
-                        innodb_monitor_update(NULL, NULL, &mon_idx,
+                        innodb_monitor_update(NULL, NULL, &option,
                                               MONITOR_TURN_ON);
                 } else {
 			sql_print_warning("Invalid monitor counter"
