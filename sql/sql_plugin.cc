@@ -374,7 +374,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
-  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d", dl->str, dl->length));
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
   plugin_dir_len= strlen(opt_plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
