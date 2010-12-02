@@ -600,7 +600,22 @@ UNIV_INTERN
 void
 srv_export_innodb_status(void);
 /*==========================*/
-
+/*******************************************************************//**
+Get current server activity count. We don't hold srv_sys::mutex while
+reading this value as it is only used in heuristics.
+@return activity count. */
+UNIV_INTERN
+ulint
+srv_get_activity_count(void);
+/*========================*/
+/*******************************************************************//**
+Check if there has been any activity.
+@return FALSE if no change in activity counter. */
+UNIV_INTERN
+ibool
+srv_check_activity(
+/*===============*/
+	ulint		old_activity_count);	/*!< old activity count */
 /******************************************************************//**
 Increment the server activity counter. */
 UNIV_INTERN

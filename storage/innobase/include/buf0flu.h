@@ -33,6 +33,11 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0types.h"
 #include "log0log.h"
 
+/** Flag indicating if the page_cleaner is in active state. */
+extern ibool buf_page_cleaner_is_active;
+
+extern mysql_pfs_key_t buf_page_cleaner_thread_key;
+
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN
@@ -197,18 +202,17 @@ UNIV_INTERN
 void
 buf_flush_stat_update(void);
 /*=======================*/
-/*********************************************************************
-Determines the fraction of dirty pages that need to be flushed based
-on the speed at which we generate redo log. Note that if redo log
-is generated at significant rate without a corresponding increase
-in the number of dirty pages (for example, an in-memory workload)
-it can cause IO bursts of flushing. This function implements heuristics
-to avoid this burstiness.
-@return	number of dirty pages to be flushed / second */
+/******************************************************************//**
+page_cleaner thread tasked with flushing dirty pages from the buffer
+pools. As of now we'll have only one instance of this thread.
+@return a dummy parameter */
 UNIV_INTERN
-ulint
-buf_flush_get_desired_flush_rate(void);
-/*==================================*/
+os_thread_ret_t
+buf_flush_page_cleaner_thread(
+/*==========================*/
+	void*	arg __attribute__((unused)));
+			/*!< in: a dummy parameter required by
+			os_thread_create */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**

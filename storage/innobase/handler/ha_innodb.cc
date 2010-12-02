@@ -51,6 +51,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 extern "C" {
 #include "univ.i"
 #include "buf0lru.h"
+#include "buf0flu.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -310,7 +311,8 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
 	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
 	{&srv_master_thread_key, "srv_master_thread", 0},
-	{&srv_purge_thread_key, "srv_purge_thread", 0}
+	{&srv_purge_thread_key, "srv_purge_thread", 0},
+	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0}
 };
 # endif /* UNIV_PFS_THREAD */
 
