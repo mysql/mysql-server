@@ -1750,3 +1750,4 @@ void change_double_for_sort(double nr,uchar *to)
     }
   }
 }
+

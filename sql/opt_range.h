@@ -306,6 +306,10 @@ public:
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
   */
   virtual void save_last_pos(){};
+  
+  void add_key_and_length(String *key_names,
+                          String *used_lengths,
+                          bool *first);
 
   /*
     Append comma-separated list of keys this quick select uses to key_names;
@@ -315,13 +319,15 @@ public:
   virtual void add_keys_and_lengths(String *key_names,
                                     String *used_lengths)=0;
 
+  void add_key_name(String *str, bool *first);
+
   /*
     Append text representation of quick select structure (what and how is
     merged) to str. The result is added to "Extra" field in EXPLAIN output.
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str) {};
+  virtual void add_info_string(String *str) {}
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.

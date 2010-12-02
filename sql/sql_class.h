@@ -2966,6 +2966,7 @@ class Unique :public Sql_alloc
   IO_CACHE file;
   TREE tree;
   uchar *record_pointers;
+  ulong filtered_out_elems;
   bool flush();
   uint size;
   uint full_size;
@@ -2991,8 +2992,15 @@ public:
   void close_for_expansion() { tree.flag= TREE_ONLY_DUPS; }
 
   bool get(TABLE *table);
+  
+  inline static double get_search_cost(uint tree_elems, uint compare_factor)
+  {
+    return log((double) tree_elems) / (compare_factor * M_LN2);
+  }  
+
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
-                             ulonglong max_in_memory_size);
+                             ulonglong max_in_memory_size, uint compare_factor,
+                             bool intersect_fl, bool *in_memory);
   inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
                                             ulonglong max_in_memory_size)
   {

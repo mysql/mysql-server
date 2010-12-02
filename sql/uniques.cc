@@ -64,6 +64,8 @@ int unique_intersect_write_to_ptrs(uchar* key, element_count count, Unique *uniq
     memcpy(unique->record_pointers, key, unique->size);
     unique->record_pointers+=unique->size;
   }
+  else
+    unique->filtered_out_elems++;
   return 0;
 }
 
@@ -144,7 +146,8 @@ inline double log2_n_fact(double x)
 */
 
 static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
-                                     uint *first, uint *last)
+                                     uint *first, uint *last,
+                                     uint compare_factor)
 {
   uint total_buf_elems= 0;
   for (uint *pbuf= first; pbuf <= last; pbuf++)
@@ -155,7 +158,7 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
 
   /* Using log2(n)=log(n)/log(2) formula */
   return 2*((double)total_buf_elems*elem_size) / IO_SIZE +
-     total_buf_elems*log((double) n_buffers) / (TIME_FOR_COMPARE_ROWID * M_LN2);
+     total_buf_elems*log((double) n_buffers) / (compare_factor * M_LN2);
 }
 
 
@@ -188,7 +191,8 @@ static double get_merge_buffers_cost(uint *buff_elems, uint elem_size,
 
 static double get_merge_many_buffs_cost(uint *buffer,
                                         uint maxbuffer, uint max_n_elems,
-                                        uint last_n_elems, int elem_size)
+                                        uint last_n_elems, int elem_size,
+                                        uint compare_factor)
 {
   register int i;
   double total_cost= 0.0;
@@ -215,19 +219,22 @@ static double get_merge_many_buffs_cost(uint *buffer,
       {
         total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
                                            buff_elems + i,
-                                           buff_elems + i + MERGEBUFF-1);
+                                           buff_elems + i + MERGEBUFF-1,
+                                           compare_factor);
 	lastbuff++;
       }
       total_cost+=get_merge_buffers_cost(buff_elems, elem_size,
                                          buff_elems + i,
-                                         buff_elems + maxbuffer);
+                                         buff_elems + maxbuffer,
+                                         compare_factor);
       maxbuffer= lastbuff;
     }
   }
 
   /* Simulate final merge_buff call. */
   total_cost += get_merge_buffers_cost(buff_elems, elem_size,
-                                       buff_elems, buff_elems + maxbuffer);
+                                       buff_elems, buff_elems + maxbuffer,
+                                       compare_factor);
   return total_cost;
 }
 
@@ -242,7 +249,11 @@ static double get_merge_many_buffs_cost(uint *buffer,
                 to get # bytes needed.
       nkeys     #of elements in Unique
       key_size  size of each elements in bytes
-      max_in_memory_size amount of memory Unique will be allowed to use
+      max_in_memory_size   amount of memory Unique will be allowed to use
+      compare_factor   used to calculate cost of one comparison
+      write_fl  if the result must be saved written to disk
+      in_memory_elems  OUT estimate of the number of elements in memory
+                           if disk is not used  
 
   RETURN
     Cost in disk seeks.
@@ -280,7 +291,9 @@ static double get_merge_many_buffs_cost(uint *buffer,
 */
 
 double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
-                            ulonglong max_in_memory_size)
+                            ulonglong max_in_memory_size,
+                            uint compare_factor,
+                            bool intersect_fl, bool *in_memory)
 {
   ulong max_elements_in_tree;
   ulong last_tree_elems;
@@ -297,15 +310,14 @@ double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
   result= 2*log2_n_fact(last_tree_elems + 1.0);
   if (n_full_trees)
     result+= n_full_trees * log2_n_fact(max_elements_in_tree + 1.0);
-#if 1
-  result /= TIME_FOR_COMPARE_ROWID;
-#else
-  result /= TIME_FOR_COMPARE_ROWID * 10;
-#endif
+  result /= compare_factor;
 
   DBUG_PRINT("info",("unique trees sizes: %u=%u*%lu + %lu", nkeys,
                      n_full_trees, n_full_trees?max_elements_in_tree:0,
                      last_tree_elems));
+
+  if (in_memory)
+    *in_memory= !n_full_trees;
 
   if (!n_full_trees)
     return result;
@@ -320,12 +332,12 @@ double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
   result += DISK_SEEK_BASE_COST * ceil(((double) key_size)*last_tree_elems / IO_SIZE);
 
   /* Cost of merge */
+  if (intersect_fl)
+    key_size+= sizeof(element_count);
   double merge_cost= get_merge_many_buffs_cost(buffer, n_full_trees,
                                                max_elements_in_tree,
-                                               last_tree_elems, key_size);
-  if (merge_cost < 0.0)
-    return merge_cost;
-
+                                               last_tree_elems, key_size,
+                                               compare_factor);
   result += merge_cost;
   /*
     Add cost of reading the resulting sequence, assuming there were no
@@ -614,8 +626,10 @@ bool Unique::get(TABLE *table)
       tree_walk_action action= min_dupl_count ?
 		         (tree_walk_action) unique_intersect_write_to_ptrs :
 		         (tree_walk_action) unique_write_to_ptrs;
+      filtered_out_elems= 0;
       (void) tree_walk(&tree, action,
 		       this, left_root_right);
+      table->sort.found_records-= filtered_out_elems;
       return 0;
     }
   }
@@ -686,3 +700,5 @@ err:
   outfile->end_of_file=save_pos;
   return error;
 }
+
+
