@@ -618,6 +618,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_ROOTDIR	"/"
 #endif
 
