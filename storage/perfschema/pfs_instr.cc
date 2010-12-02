@@ -686,26 +686,17 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe)
 {
-  if ((&mutex_array[0] <= unsafe) &&
-      (unsafe < &mutex_array[mutex_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_mutex, mutex_array, mutex_max, unsafe);
 }
 
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe)
 {
-  if ((&rwlock_array[0] <= unsafe) &&
-      (unsafe < &rwlock_array[rwlock_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_rwlock, rwlock_array, rwlock_max, unsafe);
 }
 
 PFS_cond *sanitize_cond(PFS_cond *unsafe)
 {
-  if ((&cond_array[0] <= unsafe) &&
-      (unsafe < &cond_array[cond_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_cond, cond_array, cond_max, unsafe);
 }
 
 /**
@@ -744,10 +735,7 @@ const char *sanitize_file_name(const char *unsafe)
 
 PFS_file *sanitize_file(PFS_file *unsafe)
 {
-  if ((&file_array[0] <= unsafe) &&
-      (unsafe < &file_array[file_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_file, file_array, file_max, unsafe);
 }
 
 /**
