@@ -1912,6 +1912,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_Bind",
+                                             sizeof(mi->bind_addr)));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2100,6 +2102,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(slave_sql_running_state, &my_charset_bin);
     // Master_Retry_Count
     protocol->store((ulonglong) mi->retry_count);
+    // Master_Bind
+    protocol->store(mi->bind_addr, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -4462,6 +4466,12 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
@@ -4587,6 +4597,12 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   */
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
@@ -5521,7 +5537,7 @@ bool change_master(THD* thd, Master_info* mi)
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
-  char saved_host[HOSTNAME_LENGTH + 1];
+  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
@@ -5570,6 +5586,7 @@ bool change_master(THD* thd, Master_info* mi)
     Before processing the command, save the previous state.
   */
   strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
   saved_port= mi->port;
   strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
   saved_log_pos= mi->get_master_log_pos();
@@ -5603,6 +5620,8 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->bind_addr)
+    strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
   if (lex_mi->user)
     strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
@@ -5785,11 +5804,12 @@ bool change_master(THD* thd, Master_info* mi)
 
   sql_print_information("'CHANGE MASTER TO executed'. "
     "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'. "
+    "master_log_pos='%ld', master_bind='%s'. "
     "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
-    (ulong) saved_log_pos, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos());
+    "master_log_pos='%ld', master_bind='%s'.", 
+    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   /*
     If we don't write new coordinates to disk now, then old will remain in
