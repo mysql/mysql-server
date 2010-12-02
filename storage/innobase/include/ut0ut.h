@@ -61,6 +61,8 @@ typedef time_t	ib_time_t;
    Also asm volatile may trigger a memory barrier (spilling all registers
    to memory). */
 #  define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("rep; nop")
 #elif defined(HAVE_ATOMIC_BUILTINS)
 #  define UT_RELAX_CPU() do { \
      volatile lint	volatile_var; \
