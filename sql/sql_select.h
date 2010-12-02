@@ -1599,6 +1599,13 @@ public:
     evaluated at optimization time.
   */
   Item *exec_const_cond;
+  /*
+    Constant ORDER and/or GROUP expressions that contain subqueries. Such
+    expressions need to evaluated to verify that the subquery indeed
+    returns a single row. The evaluation of such expressions is delayed
+    until query execution.
+  */
+  List<Item> exec_const_order_group_cond;
   SQL_SELECT *select;                ///<created in optimisation phase
   JOIN_TAB *return_tab;              ///<used only for outer joins
   Item **ref_pointer_array; ///<used pointer reference for this select
@@ -1762,7 +1769,8 @@ public:
   bool send_row_on_empty_set()
   {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && having_value != Item::COND_FALSE);
+	    !(group_list || group_optimized_away) &&
+            having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const
