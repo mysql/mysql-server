@@ -389,6 +389,26 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+--
+
+SET @cmd="CREATE TABLE performance_schema.objects_summary_global_by_type("
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE PERFORMANCE_TIMERS
 --
 
@@ -457,6 +477,22 @@ SET @cmd="CREATE TABLE performance_schema.setup_instruments("
   "NAME VARCHAR(128) not null,"
   "ENABLED ENUM ('YES', 'NO') not null,"
   "TIMED ENUM ('YES', 'NO') not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SETUP_OBJECTS
+--
+
+SET @cmd="CREATE TABLE performance_schema.setup_objects("
+  "OBJECT_TYPE ENUM ('TABLE') not null default 'TABLE',"
+  "OBJECT_SCHEMA VARCHAR(64) default '%',"
+  "OBJECT_NAME VARCHAR(64) not null default '%',"
+  "TIMED ENUM ('YES', 'NO') not null default 'YES'"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

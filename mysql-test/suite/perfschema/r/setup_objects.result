@@ -1,0 +1,102 @@
+drop table if exists test.setup_objects;
+create table test.setup_objects as select * from performance_schema.setup_objects;
+truncate table performance_schema.setup_objects;
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', 't1', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', 't2', 'NO');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db1', '%', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db2', 't1', 'YES');
+insert into performance_schema.setup_objects
+values ('TABLE', 'db2', 't2', 'NO');
+select * from performance_schema.setup_objects
+order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	TIMED
+TABLE	db1	%	YES
+TABLE	db1	t1	YES
+TABLE	db1	t2	NO
+TABLE	db2	t1	YES
+TABLE	db2	t2	NO
+drop database if exists db1;
+drop database if exists db2;
+drop database if exists db3;
+create database db1;
+create database db2;
+create database db3;
+create table db1.t1(a int);
+create table db1.t2(a int);
+create table db1.t3(a int);
+create table db1.t4(a int);
+create table db1.t5(a int);
+create table db2.t1(a int);
+create table db2.t2(a int);
+create table db2.t3(a int);
+create table db2.t4(a int);
+create table db2.t5(a int);
+create table db3.t1(a int);
+select * from db1.t1;
+a
+select * from db1.t2;
+a
+select * from db1.t3;
+a
+select * from db1.t4;
+a
+select * from db1.t5;
+a
+select * from db2.t1;
+a
+select * from db2.t2;
+a
+select * from db2.t3;
+a
+select * from db2.t4;
+a
+select * from db2.t5;
+a
+select * from db3.t1;
+a
+create table db3.t2(a int);
+select * from db3.t2;
+a
+select distinct OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA 
+from performance_schema.events_waits_history_long
+where OBJECT_SCHEMA like "db%"
+  group by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+order by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA;
+OBJECT_TYPE	OBJECT_NAME	OBJECT_SCHEMA
+TABLE	t1	db1
+TABLE	t1	db2
+TABLE	t2	db1
+TABLE	t2	db2
+TABLE	t3	db1
+TABLE	t4	db1
+TABLE	t5	db1
+select distinct OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA 
+from performance_schema.events_waits_history_long
+where OBJECT_SCHEMA like "db%" and TIMER_END is not NULL
+group by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA
+order by OBJECT_TYPE, OBJECT_NAME, OBJECT_SCHEMA;
+OBJECT_TYPE	OBJECT_NAME	OBJECT_SCHEMA
+TABLE	t1	db1
+TABLE	t1	db2
+TABLE	t3	db1
+TABLE	t4	db1
+TABLE	t5	db1
+update performance_schema.setup_objects
+set timed='YES' where OBJECT_SCHEMA = '%';
+create table db3.t3(a int);
+select * from db3.t3;
+a
+truncate table performance_schema.setup_objects;
+select count(*) from performance_schema.setup_objects;
+count(*)
+0
+drop database db1;
+drop database db2;
+drop database db3;
+truncate table performance_schema.setup_objects;
+insert into performance_schema.setup_objects select * from test.setup_objects;
+drop table test.setup_objects;
