@@ -297,7 +297,6 @@ int table_setup_objects::update_row_values(TABLE *table,
       case 0: /* OBJECT_TYPE */
       case 1: /* OBJECT_SCHEMA */
       case 2: /* OBJECT_NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
 #if 0
       case 3: /* ENABLED */
