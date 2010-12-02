@@ -59,4 +59,16 @@ private:
   Uint32 gci;
 };
 
+class NextScanRef {
+  friend class Dbtux;
+  friend class Dblqh;
+public:
+  STATIC_CONST( SignalLength = 4 );
+private:
+  Uint32 scanPtr;
+  Uint32 accOperationPtr;
+  Uint32 fragId;
+  Uint32 errorCode;
+};
+
 #endif
