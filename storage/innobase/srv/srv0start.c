@@ -1864,6 +1864,9 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
+	/* Create the page_cleaner thread */
+	os_thread_create(&buf_flush_page_cleaner_thread, NULL, NULL);
+
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
