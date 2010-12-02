@@ -29,6 +29,7 @@
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/CreateTrig.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/AlterIndx.hpp>
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -198,6 +199,23 @@ Dbtup::execDROP_TRIG_REQ(Signal* signal)
     conf->setTriggerId(req->getTriggerId());
     sendSignal(senderRef, GSN_DROP_TRIG_CONF, 
 	       signal, DropTrigConf::SignalLength, JBB);
+
+    // Set ordered index to Dropping in same timeslice
+    TriggerType::Value ttype = req->getTriggerType();
+    if (ttype == TriggerType::ORDERED_INDEX)
+    {
+      jam();
+      AlterIndxReq* areq = (AlterIndxReq*)signal->getDataPtrSend();
+      areq->setUserRef(0); // no CONF
+      areq->setConnectionPtr(0);
+      areq->setRequestType(AlterIndxReq::RT_UNDEFINED);
+      areq->setTableId(req->getTableId());
+      areq->setIndexId(req->getIndexId()); // index id
+      areq->setIndexVersion(0);
+      areq->setOnline(0); // set to Dropping
+      EXECUTE_DIRECT(DBTUX, GSN_ALTER_INDX_REQ,
+                     signal, AlterIndxReq::SignalLength);
+    }
   } else {
     // Send ref
     DropTrigRef* const ref = (DropTrigRef*)signal->getDataPtrSend();
