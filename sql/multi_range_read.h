@@ -129,7 +129,7 @@ class Key_value_records_iterator
 
   /*
     FALSE <=> we're right after the init() call, the record has been already
-    read with owner->h->index_read_map() call
+    read with owner->file->index_read_map() call
   */
   bool get_next_row;
   
@@ -200,7 +200,7 @@ public:
 class Mrr_index_reader : public Mrr_reader
 {
 protected:
-  handler *h; /* Handler object to use */
+  handler *file; /* Handler object to use */
 public:
   virtual int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
                    void *seq_init_param, uint n_ranges,
@@ -232,11 +232,11 @@ public:
            Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
   int refill_buffer(bool initial) { return initial? 0: HA_ERR_END_OF_FILE; }
-  uchar *get_rowid_ptr() { return h->ref; }
+  uchar *get_rowid_ptr() { return file->ref; }
   bool skip_record(char *range_id, uchar *rowid)
   {
-    return (h->mrr_funcs.skip_record &&
-            h->mrr_funcs.skip_record(h->mrr_iter, range_id, rowid));
+    return (file->mrr_funcs.skip_record &&
+            file->mrr_funcs.skip_record(file->mrr_iter, range_id, rowid));
   }
 };
 
@@ -255,7 +255,7 @@ public:
            Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
   int refill_buffer(bool initial);
-  uchar *get_rowid_ptr() { return h->ref; }
+  uchar *get_rowid_ptr() { return file->ref; }
   
   bool skip_record(char *range_info, uchar *rowid)
   {
@@ -318,12 +318,12 @@ private:
 class Mrr_ordered_rndpos_reader : public Mrr_reader 
 {
 public:
-  int init(handler *h, Mrr_index_reader *index_reader, uint mode,
+  int init(handler *file, Mrr_index_reader *index_reader, uint mode,
            Lifo_buffer *buf);
   int get_next(char **range_info);
   int refill_buffer(bool initial);
 private:
-  handler *h; /* Handler to use */
+  handler *file; /* Handler to use */
   
   /* This what we get (rowid, range_info) pairs from */
   Mrr_index_reader *index_reader;
@@ -503,15 +503,16 @@ public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
   DsMrr_impl()
-    : h2(NULL) {};
+    : secondary_file(NULL) {};
   
   void init(handler *h_arg, TABLE *table_arg)
   {
-    h= h_arg; 
+    primary_file= h_arg; 
     table= table_arg;
   }
-  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
-                 uint n_ranges, uint mode, HANDLER_BUFFER *buf);
+  int dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
+                 void *seq_init_param, uint n_ranges, uint mode, 
+                 HANDLER_BUFFER *buf);
   void dsmrr_close();
   int dsmrr_next(char **range_info);
 
@@ -529,14 +530,14 @@ private:
     The "owner" handler object (the one that is expected to "own" this object
     and call its functions).
   */
-  handler *h;
-  TABLE *table; /* Always equal to h->table */
+  handler *primary_file;
+  TABLE *table; /* Always equal to primary_file->table */
 
   /*
     Secondary handler object. (created when needed, we need it when we need 
     to run both index scan and rnd_pos() scan at the same time)
   */
-  handler *h2;
+  handler *secondary_file;
   
   uint keyno; /* index we're running the scan on */
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */

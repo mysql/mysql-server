@@ -293,20 +293,20 @@ int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                                   Buffer_manager *buf_manager_arg)
 {
   HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
-  h= h_arg;
-  return h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                           mode, &no_buffer);
+  file= h_arg;
+  return file->handler::multi_range_read_init(seq_funcs, seq_init_param,
+                                              n_ranges, mode, &no_buffer);
 }
 
 
 int Mrr_simple_index_reader::get_next(char **range_info)
 {
   int res;
-  while (!(res= h->handler::multi_range_read_next(range_info)))
+  while (!(res= file->handler::multi_range_read_next(range_info)))
   {
-    KEY_MULTI_RANGE *curr_range= &h->handler::mrr_cur_range;
-    if (!h->mrr_funcs.skip_index_tuple ||
-        !h->mrr_funcs.skip_index_tuple(h->mrr_iter, curr_range->ptr))
+    KEY_MULTI_RANGE *curr_range= &file->handler::mrr_cur_range;
+    if (!file->mrr_funcs.skip_index_tuple ||
+        !file->mrr_funcs.skip_index_tuple(file->mrr_iter, curr_range->ptr))
       break;
   }
   return res;
@@ -430,12 +430,12 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                                    Lifo_buffer *key_buffer_arg,
                                    Buffer_manager *buf_manager_arg)
 {
-  h= h_arg;
+  file= h_arg;
   key_buffer= key_buffer_arg;
   buf_manager= buf_manager_arg;
   keypar= *key_par_arg;
 
-  KEY *key_info= &h->get_table()->key_info[h->active_index];
+  KEY *key_info= &file->get_table()->key_info[file->active_index];
   keypar.index_ranges_unique= test(key_info->flags & HA_NOSAME && 
                                    key_info->key_parts == 
                                    my_count_bits(keypar.key_tuple_map));
@@ -456,8 +456,8 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     case it will make an index lookup only for the first such element, 
     for subsequent elements it will only return the new range_id.
 
-    The problem here is that h->table->record[0] is shared with the part that
-    does full record retrieval with rnd_pos() calls, and if we have the
+    The problem here is that file->table->record[0] is shared with the part
+    that does full record retrieval with rnd_pos() calls, and if we have the
     following scenario:
 
      1. We scan ranges {(key_value, range_id1), (key_value, range_id2)}
@@ -484,9 +484,9 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 }
 
 
-static int rowid_cmp_reverse(void *h, uchar *a, uchar *b)
+static int rowid_cmp_reverse(void *file, uchar *a, uchar *b)
 {
-  return - ((handler*)h)->cmp_ref(a, b);
+  return - ((handler*)file)->cmp_ref(a, b);
 }
 
 
@@ -495,7 +495,7 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
                                     uint mode,
                                     Lifo_buffer *buf)
 {
-  h= h_arg;
+  file= h_arg;
   index_reader= index_reader_arg;
   rowid_buffer= buf;
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
@@ -546,7 +546,7 @@ int Mrr_ordered_rndpos_reader::refill_buffer(bool initial)
 
 void Mrr_index_reader::position()
 {
-  h->position(h->get_table()->record[0]);
+  file->position(file->get_table()->record[0]);
 }
 
 
@@ -565,7 +565,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   DBUG_ASSERT(rowid_buffer->is_empty());
   index_rowid= index_reader->get_rowid_ptr();
   rowid_buffer->reset();
-  rowid_buffer->setup_writing(&index_rowid, h->ref_length,
+  rowid_buffer->setup_writing(&index_rowid, file->ref_length,
                               is_mrr_assoc? (uchar**)&range_info_ptr: NULL,
                               sizeof(void*));
 
@@ -590,9 +590,9 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   }
    
   /* Sort the buffer contents by rowid */
-  rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)h);
+  rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)file);
 
-  rowid_buffer->setup_reading(&rowid, h->ref_length,
+  rowid_buffer->setup_reading(&rowid, file->ref_length,
                               is_mrr_assoc? (uchar**)&rowids_range_id: NULL,
                               sizeof(void*));
   DBUG_RETURN(rowid_buffer->is_empty()? HA_ERR_END_OF_FILE : 0);
@@ -653,7 +653,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
         continue;
     }
 
-    res= h->ha_rnd_pos(h->get_table()->record[0], rowid);
+    res= file->ha_rnd_pos(file->get_table()->record[0], rowid);
 
     if (res == HA_ERR_RECORD_DELETED)
     {
@@ -681,7 +681,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
   it.init(rowid_buffer);
   while (!it.read()) // reads to (rowid, ...)
   {
-    if (h->cmp_ref(rowid, cur_rowid))
+    if (file->cmp_ref(rowid, cur_rowid))
       break;
     last_identical_rowid= rowid;
   }
@@ -699,7 +699,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
   Initialize and start the MRR scan. Depending on the mode parameter, this
   may use default or DS-MRR implementation.
 
-  @param h               Table handler to be used
+  @param h_arg           Table handler to be used
   @param key             Index to be used
   @param seq_funcs       Interval sequence enumeration functions
   @param seq_init_param  Interval sequence enumeration parameter
@@ -728,7 +728,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
   */
-  h= h_arg;
+  primary_file= h_arg;
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
 
   strategy_exhausted= FALSE;
@@ -760,11 +760,12 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
      - We're doing a scan on clustered primary key
      - [In the future] We're doing an index_only read
   */
-  DBUG_ASSERT(h->inited == handler::INDEX || 
-              (h->inited == handler::RND && h2 && 
-               h2->inited == handler::INDEX));
+  DBUG_ASSERT(primary_file->inited == handler::INDEX || 
+              (primary_file->inited == handler::RND && 
+               secondary_file && 
+               secondary_file->inited == handler::INDEX));
 
-  h_idx= (h->inited == handler::INDEX)? h: h2;
+  h_idx= (primary_file->inited == handler::INDEX)? primary_file: secondary_file;
   keyno= h_idx->active_index;
 
   if (!(keyno == table->s->primary_key && h_idx->primary_key_is_clustered()))
@@ -805,7 +806,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     if (do_sort_keys && !key_buffer->have_space_for(key_buff_elem_size))
       goto use_default_impl;
 
-    if ((res= index_strategy->init(h, seq_funcs, seq_init_param, n_ranges,
+    if ((res= index_strategy->init(primary_file, seq_funcs, seq_init_param, n_ranges,
                                    mode, &keypar, key_buffer, &buf_manager)))
       goto error;
   }
@@ -825,7 +826,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     {
       /* index strategy doesn't need buffer, give all space to rowids*/
       rowid_buffer.set_buffer_space(full_buf, full_buf_end);
-      if (!rowid_buffer.have_space_for(h->ref_length + 
+      if (!rowid_buffer.have_space_for(primary_file->ref_length + 
                                        (int)is_mrr_assoc * sizeof(char*)))
         goto use_default_impl;
     }
@@ -833,9 +834,11 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     if ((res= setup_two_handlers()))
       goto error;
 
-    if ((res= index_strategy->init(h2, seq_funcs, seq_init_param, n_ranges, 
-                                   mode, &keypar, key_buffer, &buf_manager)) || 
-        (res= disk_strategy->init(h, index_strategy, mode, &rowid_buffer)))
+    if ((res= index_strategy->init(secondary_file, seq_funcs, seq_init_param,
+                                   n_ranges, mode, &keypar, key_buffer, 
+                                   &buf_manager)) || 
+        (res= disk_strategy->init(primary_file, index_strategy, mode, 
+                                  &rowid_buffer)))
     {
       goto error;
     }
@@ -865,10 +868,11 @@ error:
   DBUG_RETURN(1);
 
 use_default_impl:
-  DBUG_ASSERT(h->inited == handler::INDEX);
+  DBUG_ASSERT(primary_file->inited == handler::INDEX);
   /* Call correct init function and assign to top level object */
   Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
-  res= s->init(h, seq_funcs, seq_init_param, n_ranges, mode, NULL, NULL, NULL);
+  res= s->init(primary_file, seq_funcs, seq_init_param, n_ranges, mode, NULL, 
+               NULL, NULL);
   strategy= s;
   DBUG_RETURN(res);
 }
@@ -876,8 +880,8 @@ use_default_impl:
 
 /*
   Whatever the current state is, make it so that we have two handler objects:
-  - h (the primary)    -  initialized for rnd_pos() scan
-  - h2 (the secondary) -  initialized for scanning the index specified in
+  - primary_file       -  initialized for rnd_pos() scan
+  - secondary_file     -  initialized for scanning the index specified in
                           this->keyno
   RETURN 
     0        OK
@@ -887,13 +891,13 @@ use_default_impl:
 int DsMrr_impl::setup_two_handlers()
 {
   int res;
-  THD *thd= h->get_table()->in_use;
+  THD *thd= primary_file->get_table()->in_use;
   DBUG_ENTER("DsMrr_impl::setup_two_handlers");
-  if (!h2)
+  if (!secondary_file)
   {
     handler *new_h2;
     Item *pushed_cond= NULL;
-    DBUG_ASSERT(h->inited == handler::INDEX);
+    DBUG_ASSERT(primary_file->inited == handler::INDEX);
     /* Create a separate handler object to do rnd_pos() calls. */
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
@@ -903,65 +907,65 @@ int DsMrr_impl::setup_two_handlers()
       DBUG_RETURN(1);
 
     /* Create a separate handler object to do rnd_pos() calls. */
-    if (!(new_h2= h->clone(thd->mem_root)) || 
+    if (!(new_h2= primary_file->clone(thd->mem_root)) || 
         new_h2->ha_external_lock(thd, F_RDLCK))
     {
       delete new_h2;
       DBUG_RETURN(1);
     }
 
-    if (keyno == h->pushed_idx_cond_keyno)
-      pushed_cond= h->pushed_idx_cond;
+    if (keyno == primary_file->pushed_idx_cond_keyno)
+      pushed_cond= primary_file->pushed_idx_cond;
     
     Mrr_reader *save_strategy= strategy;
     strategy= NULL;
     /*
       Caution: this call will invoke this->dsmrr_close(). Do not put the
-      created secondary table handler new_h2 into this->h2 or it will delete 
-      it. Also, save the picked strategy
+      created secondary table handler new_h2 into this->secondary_file or it 
+      will delete it. Also, save the picked strategy
     */
-    res= h->ha_index_end();
+    res= primary_file->ha_index_end();
 
     strategy= save_strategy;
-    h2= new_h2; /* Ok, now can put it into h2 */
+    secondary_file= new_h2;
 
-    if (res || (res= (h->ha_rnd_init(FALSE))))
+    if (res || (res= (primary_file->ha_rnd_init(FALSE))))
       goto error;
 
     table->prepare_for_position();
-    h2->extra(HA_EXTRA_KEYREAD);
-    h2->mrr_iter= h->mrr_iter;
+    secondary_file->extra(HA_EXTRA_KEYREAD);
+    secondary_file->mrr_iter= primary_file->mrr_iter;
 
-    if ((res= h2->ha_index_init(keyno, FALSE)))
+    if ((res= secondary_file->ha_index_init(keyno, FALSE)))
       goto error;
 
     if (pushed_cond)
-      h2->idx_cond_push(keyno, pushed_cond);
+      secondary_file->idx_cond_push(keyno, pushed_cond);
   }
   else
   {
-    DBUG_ASSERT(h2 && h2->inited==handler::INDEX);
+    DBUG_ASSERT(secondary_file && secondary_file->inited==handler::INDEX);
     /* 
       We get here when the access alternates betwen MRR scan(s) and non-MRR
       scans.
 
-      Calling h->index_end() will invoke dsmrr_close() for this object,
-      which will delete h2. We need to keep it, so put it away and dont
+      Calling primary_file->index_end() will invoke dsmrr_close() for this object,
+      which will delete secondary_file. We need to keep it, so put it away and dont
       let it be deleted:
     */
-    if (h->inited == handler::INDEX)
+    if (primary_file->inited == handler::INDEX)
     {
-      handler *save_h2= h2;
+      handler *save_h2= secondary_file;
       Mrr_reader *save_strategy= strategy;
-      h2= NULL;
+      secondary_file= NULL;
       strategy= NULL;
-      res= h->ha_index_end();
-      h2= save_h2;
+      res= primary_file->ha_index_end();
+      secondary_file= save_h2;
       strategy= save_strategy;
       if (res)
         goto error;
     }
-    if ((h->inited != handler::RND) && h->ha_rnd_init(FALSE))
+    if ((primary_file->inited != handler::RND) && primary_file->ha_rnd_init(FALSE))
       goto error;
   }
   DBUG_RETURN(0);
@@ -973,13 +977,13 @@ error:
 
 void DsMrr_impl::close_second_handler()
 {
-  if (h2)
+  if (secondary_file)
   {
-    h2->ha_index_or_rnd_end();
-    h2->ha_external_lock(current_thd, F_UNLCK);
-    h2->close();
-    delete h2;
-    h2= NULL;
+    secondary_file->ha_index_or_rnd_end();
+    secondary_file->ha_external_lock(current_thd, F_UNLCK);
+    secondary_file->close();
+    delete secondary_file;
+    secondary_file= NULL;
   }
 }
 
@@ -1000,8 +1004,8 @@ void DsMrr_impl::dsmrr_close()
 int Mrr_ordered_index_reader::compare_keys(void* arg, uchar* key1, uchar* key2)
 {
   Mrr_ordered_index_reader *reader= (Mrr_ordered_index_reader*)arg;
-  TABLE *table= reader->h->get_table();
-  KEY_PART_INFO *part= table->key_info[reader->h->active_index].key_part;
+  TABLE *table= reader->file->get_table();
+  KEY_PART_INFO *part= table->key_info[reader->file->active_index].key_part;
   
   if (reader->keypar.use_key_pointers)
   {
@@ -1038,12 +1042,12 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
   uint key_buff_elem_size= key_size_in_keybuf + 
                            (int)is_mrr_assoc * sizeof(void*);
   
-  KEY *key_info= &h->get_table()->key_info[keyno];
+  KEY *key_info= &primary_file->get_table()->key_info[keyno];
   /* 
     Ok if we got here we need to allocate one part of the buffer 
     for keys and another part for rowids.
   */
-  ulonglong rowid_buf_elem_size= h->ref_length + 
+  ulonglong rowid_buf_elem_size= primary_file->ref_length + 
                                  (int)is_mrr_assoc * sizeof(char*);
   
   /*
@@ -1171,7 +1175,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   }
   identical_key_it.init(owner->key_buffer);
   cur_index_tuple= save_cur_index_tuple;
-  res= owner->h->ha_index_read_map(owner->h->get_table()->record[0], 
+  res= owner->file->ha_index_read_map(owner->file->get_table()->record[0], 
                                    cur_index_tuple, 
                                    owner->keypar.key_tuple_map, 
                                    HA_READ_KEY_EXACT);
@@ -1199,7 +1203,7 @@ int Key_value_records_iterator::get_next()
       return HA_ERR_END_OF_FILE;
     }
     
-    handler *h= owner->h;
+    handler *h= owner->file;
     if ((res= h->ha_index_next_same(h->get_table()->record[0], 
                                     cur_index_tuple, 
                                     owner->keypar.key_tuple_length)))
@@ -1265,8 +1269,9 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   uint def_bufsz= *bufsz;
 
   /* Get cost/flags/mem_usage of default MRR implementation */
-  res= h->handler::multi_range_read_info(keyno, n_ranges, rows, key_parts, 
-                                         &def_bufsz, &def_flags, cost);
+  res= primary_file->handler::multi_range_read_info(keyno, n_ranges, rows,
+                                                    key_parts, &def_bufsz, 
+                                                    &def_flags, cost);
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
@@ -1298,9 +1303,11 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
   /* Get cost/flags/mem_usage of default MRR implementation */
-  rows= h->handler::multi_range_read_info_const(keyno, seq, seq_init_param,
-                                                n_ranges, &def_bufsz, 
-                                                &def_flags, cost);
+  rows= primary_file->handler::multi_range_read_info_const(keyno, seq, 
+                                                           seq_init_param,
+                                                           n_ranges, 
+                                                           &def_bufsz, 
+                                                           &def_flags, cost);
   if (rows == HA_POS_ERROR)
   {
     /* Default implementation can't perform MRR scan => we can't either */
@@ -1372,11 +1379,10 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
 
 bool DsMrr_impl::check_cpk_scan(THD *thd, uint keyno, uint mrr_flags)
 {
-  return test((mrr_flags & HA_MRR_SINGLE_POINT) &&  // check
-        //      !(mrr_flags & HA_MRR_SORTED) && 
+  return test((mrr_flags & HA_MRR_SINGLE_POINT) &&
               keyno == table->s->primary_key && 
-              h->primary_key_is_clustered() && 
-              optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS)); //check
+              primary_file->primary_key_is_clustered() && 
+              optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS));
 }
 
 
@@ -1413,7 +1419,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 
   bool doing_cpk_scan= check_cpk_scan(thd, keyno, *flags); 
   bool using_cpk= test(keyno == table->s->primary_key &&
-                       h->primary_key_is_clustered());
+                       primary_file->primary_key_is_clustered());
   if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
       (using_cpk && !doing_cpk_scan) || key_uses_partial_cols(table, keyno))
   {
@@ -1422,7 +1428,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     return TRUE;
   }
 
-  uint add_len= table->key_info[keyno].key_length + h->ref_length; 
+  uint add_len= table->key_info[keyno].key_length + primary_file->ref_length; 
   *bufsz -= add_len;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
@@ -1484,7 +1490,8 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   uint n_full_steps;
   double index_read_cost;
 
-  elem_size= h->ref_length + sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
+  elem_size= primary_file->ref_length + 
+             sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
   max_buff_entries = *buffer_size / elem_size;
 
   if (!max_buff_entries)
@@ -1512,7 +1519,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     cost->zero();
     *buffer_size= max(*buffer_size, 
                       (size_t)(1.2*rows_in_last_step) * elem_size + 
-                      h->ref_length + table->key_info[keynr].key_length);
+                      primary_file->ref_length + table->key_info[keynr].key_length);
   }
   
   COST_VECT last_step_cost;
@@ -1525,7 +1532,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     cost->mem_cost= (double)rows_in_last_step * elem_size;
   
   /* Total cost of all index accesses */
-  index_read_cost= h->keyread_time(keynr, 1, (double)rows);
+  index_read_cost= primary_file->keyread_time(keynr, 1, (double)rows);
   cost->add_io(index_read_cost, 1 /* Random seeks */);
   return FALSE;
 }
