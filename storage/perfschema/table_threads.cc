@@ -289,7 +289,11 @@ int table_threads::read_row_values(TABLE *table,
         break;
       case 8: /* PROCESSLIST_TIME */
         if (m_row.m_start_time)
-          set_field_ulonglong(f, my_time(0) - m_row.m_start_time);
+        {
+          time_t now= my_time(0);
+          ulonglong elapsed= (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
+          set_field_ulonglong(f, elapsed);
+        }
         else
           f->set_null();
         break;
