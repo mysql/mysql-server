@@ -527,7 +527,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t2;
 DROP TABLE t1;
 #
-# BUG#680846: Crash in clear_tables() with subqueries
+# LP BUG#680846: Crash in clear_tables() with subqueries
 #
 CREATE TABLE t1 (f3 int) ;
 INSERT IGNORE INTO t1 VALUES (0),(0);
@@ -603,4 +603,20 @@ WHERE ('v') IN (SELECT f4 FROM t2)
 ORDER BY f9;
 COUNT(t2.f3)	f9
 0	NULL
+drop table t1,t2;
+#
+# LP BUG#680943 Assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failed with subquery
+#
+CREATE TABLE t1 (f1 int,f3 int) ;
+INSERT IGNORE INTO t1 VALUES ('6','0'),('4','0');
+CREATE TABLE t2 (f1 int,f2 int,f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('6','0','0'),('2','0','0');
+SELECT f2
+FROM (SELECT * FROM t2) AS alias1
+WHERE (SELECT SQ2_t2.f1
+FROM t1 JOIN t1 AS SQ2_t2 ON SQ2_t2.f3
+WHERE SQ2_t2.f3 AND alias1.f1)
+ORDER BY f3 ;
+f2
 drop table t1,t2;
