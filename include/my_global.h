@@ -611,6 +611,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifdef _WIN32
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
