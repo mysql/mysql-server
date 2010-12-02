@@ -22,6 +22,7 @@ select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE
 select t1.*,t2.* from t1 left join t2 using (a);
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 select t1.*,t2.* from t1 left join t2 using (a,c);
+--sorted_result
 select t1.*,t2.* from t1 left join t2 using (c);
 select t1.*,t2.* from t1 natural left outer join t2;
 
@@ -31,6 +32,7 @@ select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) where t2.id is null;
 explain select t1.*,t2.* from t1,t2 where t1.a=t2.a and isnull(t2.a)=1;
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 
+--sorted_result
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 
 # The next query should rearange the left joins to get this to work
@@ -233,18 +235,21 @@ INSERT INTO t2 VALUES (1,1,'El Gato');
 INSERT INTO t2 VALUES (2,1,'Perrito');
 INSERT INTO t2 VALUES (3,3,'Happy');
 
+--sorted_result
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner);
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 
+--sorted_result
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner);
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 
+--sorted_result
 select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner) left join t1 as t3 on t3.id=t2.owner;
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
@@ -420,6 +425,7 @@ insert into t1 (fooID) values (10),(20),(30);
 insert into t2 values (10,1),(20,2),(30,3);
 explain select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
 select * from t2 left join t1 on t1.fooID = t2.fooID and t1.fooID = 30;
+--sorted_result
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 drop table t1,t2;
 
@@ -429,10 +435,13 @@ create table t3 (i int);
 insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values(2),(4);
+--sorted_result
 select * from t1 natural left join t2 natural left join t3;
 select * from t1 natural left join t2 where (t2.i is not null)=0;
+--sorted_result
 select * from t1 natural left join t2 where (t2.i is not null) is not null;
 select * from t1 natural left join t2 where (i is not null)=0;
+--sorted_result
 select * from t1 natural left join t2 where (i is not null) is not null;
 drop table t1,t2,t3;
 
@@ -800,11 +809,16 @@ CREATE TABLE t2 (b int);
 INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t2 VALUES (2), (3);
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 
 DROP TABLE t1,t2;

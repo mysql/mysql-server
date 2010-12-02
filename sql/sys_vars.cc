@@ -897,9 +897,9 @@ static Sys_var_ulong Sys_optimizer_join_cache_level(
 #ifdef OPTIMIZER_SWITCH_ALL
        VALID_RANGE(0, 8),
 #else
-       VALID_RANGE(0, 1),
+       VALID_RANGE(0, 4),
 #endif
-       DEFAULT(1), BLOCK_SIZE(1));
+       DEFAULT(4), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
