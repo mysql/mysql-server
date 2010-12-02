@@ -241,6 +241,13 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             r = toku_omt_delete_at(txn->logger->live_root_txns, idx);
             assert(r==0);
         }
+        //
+        // if this txn created a snapshot, make necessary modifications to list of snapshot txnids and live_list_reverse
+        // the order of operations is important. We first remove the txnid from the list of snapshot txnids. This is
+        // necessary because root snapshot transactions are in their own live lists. If we do not remove 
+        // the txnid from the snapshot txnid list first, then when we go to make the modifications to 
+        // live_list_reverse, we have trouble. We end up never removing (id, id) from live_list_reverse
+        //
         if (txn->snapshot_type != TXN_SNAPSHOT_NONE && (txn->parent==NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD)) {
             {
                 u_int32_t idx;

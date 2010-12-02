@@ -196,6 +196,21 @@ int toku_txn_begin_with_xid (
         r = toku_omt_insert_at(logger->live_txns, result, toku_omt_size(logger->live_txns));
         if (r!=0) goto died;
 
+        //
+        // maintain the data structures necessary for MVCC:
+        //  1. add txn to list of live_root_txns if this is a root transaction
+        //  2. if the transaction is creating a snapshot:
+        //    - create a live list for the transaction
+        //    - add the id to the list of snapshot ids
+        //    - make the necessary modifications to the live_list_reverse
+        //
+        // The order of operations is important here, and must be taken
+        // into account when the transaction is closed. The txn is added
+        // to the live_root_txns first (if it is a root txn). This has the implication
+        // that a root level snapshot transaction is in its own live list. This fact
+        // is taken into account when the transaction is closed.
+        //
+
         // add ancestor information, and maintain global live root txn list
         if (parent_tokutxn==NULL) {
             //Add txn to list (omt) of live root txns
