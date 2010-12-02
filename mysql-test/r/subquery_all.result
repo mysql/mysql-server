@@ -1,4 +1,4 @@
-set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
+set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -905,7 +905,7 @@ explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) F
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
@@ -4454,7 +4454,7 @@ from t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	2	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))) AS `Z` from `test`.`t2`
@@ -5126,7 +5126,7 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	DEPENDENT SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using index
-2	DEPENDENT SUBQUERY	t2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	t2	index	b	b	5	NULL	2	Using where; Using index; Using join buffer (BNL, incremental buffers)
 # should return 0 rows
 SELECT
 (SELECT 1 FROM t1,t2 WHERE t2.b > t3.b)

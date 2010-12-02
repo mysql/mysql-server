@@ -449,7 +449,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -633,8 +633,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
+1	PRIMARY	City	ALL	Population	NULL	NULL	NULL	4079	Using where
+2	DEPENDENT SUBQUERY	Country	unique_subquery	PRIMARY,Name	PRIMARY	3	func	1	Using where
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -756,7 +756,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -940,8 +940,8 @@ SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
+1	PRIMARY	City	ALL	Population	NULL	NULL	NULL	4079	Using where
+2	DEPENDENT SUBQUERY	Country	unique_subquery	PRIMARY,Name	PRIMARY	3	func	1	Using where
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1019,7 +1019,7 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Using MRR
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
@@ -2250,3 +2250,4 @@ col_int_key	col_datetime
 2	2003-02-11 21:19:41
 drop table t1,t2;
 set optimizer_join_cache_level = default;
+set optimizer_switch = default;
