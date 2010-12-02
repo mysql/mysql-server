@@ -288,7 +288,9 @@ scan_it_again:
 
 int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
                                   void *seq_init_param, uint n_ranges,
-                                  uint mode, Buffer_manager *buf_manager_arg)
+                                  uint mode,  Key_parameters *key_par_arg,
+                                  Lifo_buffer *key_buffer_arg,
+                                  Buffer_manager *buf_manager_arg)
 {
   HANDLER_BUFFER no_buffer = {NULL, NULL, NULL};
   h= h_arg;
@@ -332,42 +334,29 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
   int res;
   DBUG_ENTER("Mrr_ordered_index_reader::get_next");
   
-  if (!know_key_tuple_params)
-  {
-    //psergey-todo: this will be removed
-    /* 
-      We're at the very start, haven't filled the buffer or even know what
-      will be there. Force the caller to call refill_buffer():
-    */
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
-
   for(;;)
   {
-    if (scanning_key_val_iter)
-    {
-      if ((res= kv_it.get_next()))
-      {
-        scanning_key_val_iter= FALSE;
-        if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
-          DBUG_RETURN(res);
-        kv_it.move_to_next_key_value();
-        continue;
-      }
-    }
-    else
+    if (!scanning_key_val_iter)
     {
       while ((res= kv_it.init(this)))
       {
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res); /* Some fatal error */
         
-        if (key_buffer->is_empty()) //psergey-todo: the problem is here?
+        if (key_buffer->is_empty())
         {
           DBUG_RETURN(HA_ERR_END_OF_FILE);
         }
       }
       scanning_key_val_iter= TRUE;
+    }
+
+    if ((res= kv_it.get_next()))
+    {
+      scanning_key_val_iter= FALSE;
+      if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
+        DBUG_RETURN(res);
+      kv_it.move_to_next_key_value();
       continue;
     }
 
@@ -386,14 +375,6 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
 
 /**
   Fill the buffer with (lookup_tuple, range_id) pairs and sort
- 
-  @note
-    We don't know lookup_tuple before we get the first key from
-    mrr_funcs.get_next(). Not knowing tuple length means we can't setup the
-    key buffer (in particular, which part of the buffer space it should occupy
-    when we have both key and rowid buffers).  This problem is solved by having 
-    know_key_tuple_params variabe, and buf_manager, which we ask to set/reset
-    buffers for us.
 */
 
 int Mrr_ordered_index_reader::refill_buffer(bool initial)
@@ -403,45 +384,25 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   uchar *key_ptr;
   DBUG_ENTER("Mrr_ordered_index_reader::refill_buffer");
 
-  DBUG_ASSERT(!know_key_tuple_params || key_buffer->is_empty());
+  DBUG_ASSERT(key_buffer->is_empty());
 
   if (source_exhausted)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  if (know_key_tuple_params)
+  //if (know_key_tuple_params)
   {
-    buf_manager->reset_buffer_sizes();
+    buf_manager->reset_buffer_sizes(buf_manager->arg);
     key_buffer->reset();
     key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
                               is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
                               sizeof(uchar*));
   }
 
-  while ((!know_key_tuple_params || key_buffer->can_write()) && 
+  while (key_buffer->can_write() && 
          !(source_exhausted= (bool)mrr_funcs.next(mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
 
-    if (!know_key_tuple_params)
-    {
-      /* This only happens when we've just started filling the buffer */
-      key_range *sample_key= &cur_range.start_key;
-      know_key_tuple_params= TRUE;
-      keypar.key_tuple_length= sample_key->length;
-      keypar.key_tuple_map= sample_key->keypart_map;
-      keypar.key_size_in_keybuf= keypar.use_key_pointers ? sizeof(char*) : keypar.key_tuple_length;
-      KEY *key_info= &h->get_table()->key_info[h->active_index];
-      keypar.index_ranges_unique= test(key_info->flags & HA_NOSAME && 
-                                       key_info->key_parts == 
-                                       my_count_bits(sample_key->keypart_map));
-      buf_manager->setup_buffer_sizes(keypar.key_size_in_keybuf, keypar.key_tuple_map);
-      key_buffer= buf_manager->get_key_buffer();
-      key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
-                               is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
-                               sizeof(uchar*));
-      DBUG_ASSERT(key_buffer->can_write());
-    }
-    
     /* Put key, or {key, range_id} pair into the buffer */
     key_ptr= (keypar.use_key_pointers)? (uchar*)&cur_range.start_key.key : 
                                         (uchar*)cur_range.start_key.key;
@@ -452,7 +413,7 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   /* Force get_next() to start with kv_it.init() call: */
   scanning_key_val_iter= FALSE;
 
-  if (source_exhausted && (!know_key_tuple_params || key_buffer->is_empty()))
+  if (source_exhausted && key_buffer->is_empty())
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
   key_buffer->sort((key_buffer->type() == Lifo_buffer::FORWARD)? 
@@ -465,16 +426,24 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
 
 int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                                    void *seq_init_param, uint n_ranges,
-                                   uint mode, Buffer_manager *buf_manager_arg)
+                                   uint mode, Key_parameters *key_par_arg,
+                                   Lifo_buffer *key_buffer_arg,
+                                   Buffer_manager *buf_manager_arg)
 {
   h= h_arg;
+  key_buffer= key_buffer_arg;
+  buf_manager= buf_manager_arg;
+  keypar= *key_par_arg;
+
+  KEY *key_info= &h->get_table()->key_info[h->active_index];
+  keypar.index_ranges_unique= test(key_info->flags & HA_NOSAME && 
+                                   key_info->key_parts == 
+                                   my_count_bits(keypar.key_tuple_map));
+
   mrr_iter= seq_funcs->init(seq_init_param, n_ranges, mode);
-  keypar.use_key_pointers= test(mode & HA_MRR_MATERIALIZED_KEYS);
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
   mrr_funcs= *seq_funcs;
-  know_key_tuple_params= FALSE;
   source_exhausted= FALSE;
-  buf_manager= buf_manager_arg;
   /*
     Short: don't do identical key handling when we have a pushed index
     condition.
@@ -546,9 +515,6 @@ int Mrr_ordered_rndpos_reader::init(handler *h_arg,
   When this function returns, either rowid buffer is not empty, or the source
   of lookup keys (i.e. ranges) is exhaused.
   
-  dsmrr_eof is set to indicate whether we've exhausted the list of ranges we're
-  scanning. This function never returns HA_ERR_END_OF_FILE.
-
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
   @retval other  Error
@@ -751,6 +717,11 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 {
   THD *thd= current_thd;
   int res;
+  Key_parameters keypar;
+  uint key_buff_elem_size;
+  handler *h_idx;
+  Mrr_ordered_rndpos_reader *disk_strategy= NULL;
+  bool do_sort_keys= FALSE;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
 
   /*
@@ -761,16 +732,14 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
 
   strategy_exhausted= FALSE;
+  
+  /* By default, have do-nothing buffer manager */
+  buf_manager.arg= this;
+  buf_manager.reset_buffer_sizes= do_nothing;
+  buf_manager.redistribute_buffer_space= do_nothing;
 
   if (mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))
-  {
-    DBUG_ASSERT(h->inited == handler::INDEX);
-    /* Call correct init function and assign to top level object */
-    Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
-    res= s->init(h, seq_funcs, seq_init_param, n_ranges, mode, this);
-    strategy= s;
-    DBUG_RETURN(res);
-  }
+    goto use_default_impl;
   
   /*
     Determine whether we'll need to do key sorting and/or rnd_pos() scan
@@ -779,6 +748,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if ((mode & HA_MRR_SINGLE_POINT) &&
       optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS))
   {
+    do_sort_keys= TRUE;
     index_strategy= &reader_factory.ordered_index_reader;
   }
   else
@@ -794,10 +764,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
               (h->inited == handler::RND && h2 && 
                h2->inited == handler::INDEX));
 
-  handler *h_idx= (h->inited == handler::INDEX)? h: h2;
+  h_idx= (h->inited == handler::INDEX)? h: h2;
   keyno= h_idx->active_index;
 
-  Mrr_ordered_rndpos_reader *disk_strategy= NULL;
   if (!(keyno == table->s->primary_key && h_idx->primary_key_is_clustered()))
   {
     strategy= disk_strategy= &reader_factory.ordered_rndpos_reader;
@@ -808,29 +777,64 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 
   full_buf= buf->buffer;
   full_buf_end= buf->buffer_end;
-  
+
+  if (do_sort_keys)
+  {
+    /* Pre-calculate some parameters of key sorting */
+    keypar.use_key_pointers= test(mode & HA_MRR_MATERIALIZED_KEYS);
+    seq_funcs->get_key_info(seq_init_param, &keypar.key_tuple_length, 
+                            &keypar.key_tuple_map);
+    keypar.key_size_in_keybuf= keypar.use_key_pointers? 
+                                 sizeof(char*) : keypar.key_tuple_length;
+    key_buff_elem_size= keypar.key_size_in_keybuf + (int)is_mrr_assoc * sizeof(void*);
+  }
+
   if (strategy == index_strategy)
   {
-    /* Index strategy serves it all. We don't need two handlers, etc */
-    /* Give the buffer to index strategy */
+    /* 
+      Index strategy alone handles the record retrieval. Give all buffer space
+      to it. Key buffer should have forward orientation so we can return the
+      end of it.
+    */
+    key_buffer= &forward_key_buf;
+    key_buffer->set_buffer_space(full_buf, full_buf_end);
+    
+    /* Safety: specify that rowid buffer has zero size: */
+    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end);
+
+    if (do_sort_keys && !key_buffer->have_space_for(key_buff_elem_size))
+      goto use_default_impl;
+
     if ((res= index_strategy->init(h, seq_funcs, seq_init_param, n_ranges,
-                                   mode, this)))
+                                   mode, &keypar, key_buffer, &buf_manager)))
       goto error;
   }
   else
   {
-    /*
-      If we got here the request is served by both index and rndpos strategies
-      working together.
+    /* We'll have both index and rndpos strategies working together */
+    if (do_sort_keys)
+    {
+      /* Both strategies will need buffer space, share the buffer */
+      if (setup_buffer_sharing(keypar.key_size_in_keybuf, keypar.key_tuple_map))
+        goto use_default_impl;
 
-    */
-    rowid_buffer.set_buffer_space(buf->buffer, buf->buffer_end);
+      buf_manager.reset_buffer_sizes= reset_buffer_sizes;
+      buf_manager.redistribute_buffer_space= redistribute_buffer_space;
+    }
+    else
+    {
+      /* index strategy doesn't need buffer, give all space to rowids*/
+      rowid_buffer.set_buffer_space(full_buf, full_buf_end);
+      if (!rowid_buffer.have_space_for(h->ref_length + 
+                                       (int)is_mrr_assoc * sizeof(char*)))
+        goto use_default_impl;
+    }
 
     if ((res= setup_two_handlers()))
       goto error;
 
     if ((res= index_strategy->init(h2, seq_funcs, seq_init_param, n_ranges, 
-                                   mode, this)) || 
+                                   mode, &keypar, key_buffer, &buf_manager)) || 
         (res= disk_strategy->init(h, index_strategy, mode, &rowid_buffer)))
     {
       goto error;
@@ -859,6 +863,14 @@ error:
    /* Safety, not really needed but: */
   strategy= NULL;
   DBUG_RETURN(1);
+
+use_default_impl:
+  DBUG_ASSERT(h->inited == handler::INDEX);
+  /* Call correct init function and assign to top level object */
+  Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
+  res= s->init(h, seq_funcs, seq_init_param, n_ranges, mode, NULL, NULL, NULL);
+  strategy= s;
+  DBUG_RETURN(res);
 }
 
 
@@ -1010,34 +1022,23 @@ int Mrr_ordered_index_reader::compare_keys_reverse(void* arg, uchar* key1,
 
 
 /**
-  Setup key/rowid buffer sizes based on sample_key and its length.
-  
-  @param
-    sample_key  A lookup key to use as a sample. It is assumed that
-                all other keys will have the same length/etc.
-  @note
-    This function must be called when all buffers are empty
+  Set the buffer space to be shared between rowid and key buffer
+
+  @return FALSE  ok 
+  @return TRUE   There is so little buffer space that we won't be able to use
+                 the strategy. 
+                 This happens when we don't have enough space for one rowid 
+                 element and one key element so this is mainly targeted at
+                 testing.
 */
 
-void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf, 
-                                    key_part_map key_tuple_map)
+bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf, 
+                                      key_part_map key_tuple_map)
 {
   uint key_buff_elem_size= key_size_in_keybuf + 
                            (int)is_mrr_assoc * sizeof(void*);
   
   KEY *key_info= &h->get_table()->key_info[keyno];
-  if (strategy == index_strategy)
-  {
-    /* Give all space to the key buffer, key buffer must be forward */
-    key_buffer= &forward_key_buf;
-    key_buffer->set_buffer_space(full_buf, full_buf_end);
-    DBUG_ASSERT(key_buffer->have_space_for(key_buff_elem_size));
-
-    /* Just in case, tell rowid buffer that it has zero size: */
-    rowid_buffer.set_buffer_space(full_buf_end, full_buf_end);
-    return;
-  }
-  
   /* 
     Ok if we got here we need to allocate one part of the buffer 
     for keys and another part for rowids.
@@ -1048,7 +1049,6 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
   /*
     Use rec_per_key statistics as a basis to find out how many rowids 
     we'll get for each key value.
-     TODO: are we guaranteed to get r_p_c==1 for unique keys?
      TODO: what should be the default value to use when there is no 
            statistics?
   */
@@ -1065,45 +1065,48 @@ void DsMrr_impl::setup_buffer_sizes(uint key_size_in_keybuf,
   size_t bytes_for_rowids= 
     round(fraction_for_rowids * (full_buf_end - full_buf));
   
-  uint bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
+  long bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
 
   if (bytes_for_keys < key_buff_elem_size + 1)
   {
-    ulong add= key_buff_elem_size + 1 - bytes_for_keys;
+    long add= key_buff_elem_size + 1 - bytes_for_keys;
     bytes_for_keys= key_buff_elem_size + 1;
     bytes_for_rowids -= add;
-    DBUG_ASSERT(bytes_for_rowids >=  rowid_buf_elem_size + 1);
   }
 
   if (bytes_for_rowids < rowid_buf_elem_size + 1)
   {
-    ulong add= rowid_buf_elem_size + 1 - bytes_for_rowids;
+    long add= rowid_buf_elem_size + 1 - bytes_for_rowids;
     bytes_for_rowids= rowid_buf_elem_size + 1;
     bytes_for_keys -= add;
-    DBUG_ASSERT(bytes_for_keys >=  key_buff_elem_size + 1);
   }
 
   rowid_buffer_end= full_buf + bytes_for_rowids;
   rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
   key_buffer= &backward_key_buf;
   key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
-  DBUG_ASSERT(key_buffer->have_space_for(key_buff_elem_size));
-  DBUG_ASSERT(rowid_buffer.have_space_for(rowid_buf_elem_size));
+
+  if (!key_buffer->have_space_for(key_buff_elem_size) ||
+      !rowid_buffer.have_space_for(rowid_buf_elem_size))
+    return TRUE; /* Failed to provide minimum space for one of the buffers */
+
+  return FALSE;
 }
 
 
-void DsMrr_impl::reset_buffer_sizes()
+void DsMrr_impl::do_nothing(void *dsmrr_arg)
 {
-  if (strategy != index_strategy)
-  {
-    /*
-      Ok we have both ordered index reader and there is a disk rearder. 
-      Redistribute the buffer space.
-    */
-    rowid_buffer.set_buffer_space(full_buf, rowid_buffer_end);
-    key_buffer= &backward_key_buf;
-    key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end);
-  }
+  /* Do nothing */
+}
+
+
+void DsMrr_impl::reset_buffer_sizes(void *dsmrr_arg)
+{
+  DsMrr_impl *dsmrr= (DsMrr_impl*)dsmrr_arg;
+  dsmrr->rowid_buffer.set_buffer_space(dsmrr->full_buf, 
+                                       dsmrr->rowid_buffer_end);
+  dsmrr->key_buffer->set_buffer_space(dsmrr->rowid_buffer_end, 
+                                      dsmrr->full_buf_end);
 }
 
 
@@ -1111,11 +1114,12 @@ void DsMrr_impl::reset_buffer_sizes()
   Take unused space from the key buffer and give it to the rowid buffer
 */
 
-void DsMrr_impl::redistribute_buffer_space()
+void DsMrr_impl::redistribute_buffer_space(void *dsmrr_arg)
 {
+  DsMrr_impl *dsmrr= (DsMrr_impl*)dsmrr_arg;
   uchar *unused_start, *unused_end;
-  key_buffer->remove_unused_space(&unused_start, &unused_end);
-  rowid_buffer.grow(unused_start, unused_end);
+  dsmrr->key_buffer->remove_unused_space(&unused_start, &unused_end);
+  dsmrr->rowid_buffer.grow(unused_start, unused_end);
 }
 
 

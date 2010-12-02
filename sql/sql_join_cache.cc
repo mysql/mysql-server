@@ -3597,6 +3597,16 @@ int JOIN_TAB_SCAN_MRR::next()
 }
 
 
+static 
+void bka_range_seq_key_info(void *init_params, uint *length, 
+                            key_part_map *map)
+{
+  TABLE_REF *ref= &(((JOIN_CACHE*)init_params)->join_tab->ref);
+  *length= ref->key_length;
+  *map= (key_part_map(1) << ref->key_parts) - 1;
+}
+
+
 /*
   Initialize retrieval of range sequence for BKA join algorithm
     
@@ -3876,7 +3886,8 @@ int JOIN_CACHE_BKA::init()
   int res;
   bool check_only_first_match= join_tab->check_only_first_match();
 
-  RANGE_SEQ_IF rs_funcs= { bka_range_seq_init, 
+  RANGE_SEQ_IF rs_funcs= { bka_range_seq_key_info,
+                           bka_range_seq_init, 
                            bka_range_seq_next,
                            check_only_first_match ?
                              bka_range_seq_skip_record : 0,
@@ -4265,7 +4276,8 @@ int JOIN_CACHE_BKAH::init()
 
   no_association= test(mrr_mode & HA_MRR_NO_ASSOCIATION);
 
-  RANGE_SEQ_IF rs_funcs= { bkah_range_seq_init,
+  RANGE_SEQ_IF rs_funcs= { bka_range_seq_key_info,
+                           bkah_range_seq_init,
                            bkah_range_seq_next,
                            check_only_first_match && !no_association ?
                              bkah_range_seq_skip_record : 0,

@@ -56,9 +56,6 @@ class Mrr_ordered_index_reader;
 class Key_parameters
 {
 public:
-  /* TRUE <=> We can get at most one index tuple for a lookup key */
-  bool index_ranges_unique;
-
   uint         key_tuple_length; /* Length of index lookup tuple, in bytes */
   key_part_map key_tuple_map;    /* keyparts used in index lookup tuples */
 
@@ -71,6 +68,9 @@ public:
 
   /* TRUE <=> don't copy key values, use pointers to them instead.  */
   bool use_key_pointers;
+
+  /* TRUE <=> We can get at most one index tuple for a lookup key */
+  bool index_ranges_unique;
 };
 
 
@@ -145,28 +145,27 @@ public:
   Buffer manager interface. Mrr_reader objects use it to inqure DsMrr_impl
   to manage buffer space for them.
 */
-class Buffer_manager
+typedef struct st_buffer_manager
 {
 public:
-  /* 
-    Index-based reader calls this when it gets the first key, so we get to know
-    key length and 
+  /* Opaque value to be passed as the first argument to all member functions */
+  void *arg;
+  
+  /*
+    This is called when we've freed more space from the rowid buffer. The
+    callee will get the unused space from the rowid buffer and give it to the
+    key buffer.
   */
-  virtual void setup_buffer_sizes(uint key_size_in_keybuf, 
-                                  key_part_map key_tuple_map) = 0;
+  void (*redistribute_buffer_space)(void *arg);
 
-  virtual void redistribute_buffer_space() = 0;
   /* 
     This is called when both key and rowid buffers are empty, and so it's time 
     to reset them to their original size (They've lost their original size,
     because we were dynamically growing rowid buffer and shrinking key buffer).
   */
-  virtual void reset_buffer_sizes() = 0;
+  void (*reset_buffer_sizes)(void *arg);
 
-  virtual Lifo_buffer* get_key_buffer() = 0;
-
-  virtual ~Buffer_manager(){} /* Shut up the compiler */
-};
+} Buffer_manager;
 
 
 /* 
@@ -205,7 +204,9 @@ protected:
 public:
   virtual int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
                    void *seq_init_param, uint n_ranges,
-                   uint mode, Buffer_manager *buf_manager_arg) = 0;
+                   uint mode, Key_parameters *key_par, 
+                   Lifo_buffer *key_buffer, 
+                   Buffer_manager *buf_manager_arg) = 0;
 
   /* Get pointer to place where every get_next() call will put rowid */
   virtual uchar *get_rowid_ptr() = 0;
@@ -224,9 +225,11 @@ public:
 class Mrr_simple_index_reader : public Mrr_index_reader
 {
 public:
-  int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
+  int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
            void *seq_init_param, uint n_ranges,
-           uint mode, Buffer_manager *buf_manager_arg);
+           uint mode, Key_parameters *key_par,
+           Lifo_buffer *key_buffer,
+           Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
   int refill_buffer(bool initial) { return initial? 0: HA_ERR_END_OF_FILE; }
   uchar *get_rowid_ptr() { return h->ref; }
@@ -247,7 +250,9 @@ class Mrr_ordered_index_reader : public Mrr_index_reader
 public:
   int init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
            void *seq_init_param, uint n_ranges,
-           uint mode, Buffer_manager *buf_manager_arg);
+           uint mode, Key_parameters *key_par,
+           Lifo_buffer *key_buffer,
+           Buffer_manager *buf_manager_arg);
   int get_next(char **range_info);
   int refill_buffer(bool initial);
   uchar *get_rowid_ptr() { return h->ref; }
@@ -278,12 +283,6 @@ private:
   /* This manages key buffer allocation and sizing for us */
   Buffer_manager *buf_manager;
 
-  /* 
-    Initially FALSE, becomes TRUE when we saw the first lookup key and set 
-    keypar's member.
-  */
-  bool know_key_tuple_params;
- 
   Key_parameters  keypar; /* index scan and lookup tuple parameters */
 
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
@@ -498,7 +497,7 @@ public:
 
 */
 
-class DsMrr_impl : public Buffer_manager
+class DsMrr_impl
 {
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
@@ -582,10 +581,14 @@ private:
                                uint *buffer_size, COST_VECT *cost);
   bool check_cpk_scan(THD *thd, uint keyno, uint mrr_flags);
 
-  /* Buffer_manager implementation */
-  void setup_buffer_sizes(uint key_size_in_keybuf, key_part_map key_tuple_map);
-  void redistribute_buffer_space();
-  void reset_buffer_sizes();
+  bool setup_buffer_sharing(uint key_size_in_keybuf, key_part_map key_tuple_map);
+
+  /* Buffer_manager and its member functions */
+  Buffer_manager buf_manager;
+  static void redistribute_buffer_space(void *dsmrr_arg);
+  static void reset_buffer_sizes(void *dsmrr_arg);
+  static void do_nothing(void *dsmrr_arg);
+
   Lifo_buffer* get_key_buffer() { return key_buffer; }
 
   friend class Key_value_records_iterator;

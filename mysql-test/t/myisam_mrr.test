@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1, t2, t3;
+drop table if exists t0, t1, t2, t3;
 --enable_warnings
 
 set @mrr_buffer_size_save= @@mrr_buffer_size;
