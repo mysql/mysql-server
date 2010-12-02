@@ -24,11 +24,13 @@
 #include "table_setup_actors.h"
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
+#include "table_setup_objects.h"
 #include "table_setup_timers.h"
 #include "table_performance_timers.h"
-#include "table_threads.h"
 #include "table_events_waits_summary.h"
+#include "table_ews_by_thread_by_event_name.h"
 #include "table_ews_global_by_event_name.h"
+#include "table_os_global_by_type.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
 #include "table_file_summary.h"
@@ -38,6 +40,7 @@
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
 #include "pfs_global.h"
 
 #include "sql_base.h"                           // close_thread_tables
@@ -55,17 +58,19 @@ static PFS_engine_table_share *all_shares[]=
   &table_events_waits_history_long::m_share,
   &table_events_waits_history::m_share,
   &table_events_waits_summary_by_instance::m_share,
-  &table_events_waits_summary_by_thread_by_event_name::m_share,
+  &table_ews_by_thread_by_event_name::m_share,
   &table_ews_global_by_event_name::m_share,
   &table_file_instances::m_share,
   &table_file_summary_by_event_name::m_share,
   &table_file_summary_by_instance::m_share,
   &table_mutex_instances::m_share,
+  &table_os_global_by_type::m_share,
   &table_performance_timers::m_share,
   &table_rwlock_instances::m_share,
   &table_setup_actors::m_share,
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
+  &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_threads::m_share,
   NULL
@@ -82,7 +87,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
   DBUG_EXECUTE_IF("tampered_perfschema_table1",
                   {
                     /* Hack SETUP_INSTRUMENT, incompatible change. */
-                    all_shares[15]->m_field_def->count++;
+                    all_shares[16]->m_field_def->count++;
                   });
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
@@ -648,11 +653,11 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     switch (i){
     case 0:
       name= "EVENTS_WAITS_CURRENT.ROW_SIZE";
-      size= sizeof(PFS_wait_locker);
+      size= sizeof(PFS_events_waits);
       break;
     case 1:
       name= "EVENTS_WAITS_CURRENT.ROW_COUNT";
-      size= LOCKER_STACK_SIZE * thread_max;
+      size= WAIT_STACK_SIZE * thread_max;
       break;
     case 2:
       name= "EVENTS_WAITS_HISTORY.ROW_SIZE";
@@ -826,15 +831,15 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     case 41:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
-      size= sizeof(PFS_single_stat_chain);
+      size= sizeof(PFS_single_stat);
       break;
     case 42:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_COUNT";
-      size= thread_max * instr_class_per_thread;
+      size= thread_max * max_instrument_class;
       break;
     case 43:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.MEMORY";
-      size= thread_max * instr_class_per_thread * sizeof(PFS_single_stat_chain);
+      size= thread_max * max_instrument_class * sizeof(PFS_single_stat);
       total_memory+= size;
       break;
     case 44:
@@ -876,11 +881,37 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= setup_actor_max * sizeof(PFS_setup_actor);
       total_memory+= size;
       break;
+    case 53:
+      name= "SETUP_OBJECTS.ROW_SIZE";
+      size= sizeof(PFS_setup_object);
+      break;
+    case 54:
+      name= "SETUP_OBJECTS.ROW_COUNT";
+      size= setup_object_max;
+      break;
+    case 55:
+      name= "SETUP_OBJECTS.MEMORY";
+      size= setup_object_max * sizeof(PFS_setup_object);
+      total_memory+= size;
+      break;
+   case 56:
+      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.ROW_SIZE";
+      size= sizeof(PFS_single_stat);
+      break;
+    case 57:
+      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.ROW_COUNT";
+      size= max_instrument_class;
+      break;
+    case 58:
+      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.MEMORY";
+      size= max_instrument_class * sizeof(PFS_single_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 53:
+    case 59:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
       /* This will fail if something is not advertised here */
