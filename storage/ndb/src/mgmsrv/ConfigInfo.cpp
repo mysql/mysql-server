@@ -249,6 +249,12 @@ const ConfigInfo::Typelib arbit_method_typelib[] = {
   { 0, 0 }
 };
 
+static
+const ConfigInfo::Typelib default_operation_redo_problem_action_typelib [] = {
+  { "abort", OPERATION_REDO_PROBLEM_ACTION_ABORT },
+  { "queue", OPERATION_REDO_PROBLEM_ACTION_QUEUE },
+  { 0, 0 }
+};
 
 /**
  * The default constructors create objects with suitable values for the
@@ -1865,6 +1871,34 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1"                      /* Max */
   },
 
+  {
+    CFG_DB_REDO_OVERCOMMIT_LIMIT,
+    "RedoOverCommitLimit",
+    DB_TOKEN,
+    "Limit for how long it will take to flush current "
+    "RedoBuffer before action is taken (in seconds)",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "20",                    /* Default */
+    "0",                     /* Min */
+    STR_VALUE(MAX_INT_RNIL)  /* Max */
+  },
+
+  {
+    CFG_DB_REDO_OVERCOMMIT_COUNTER,
+    "RedoOverCommitCounter",
+    DB_TOKEN,
+    "If RedoOverCommitLimit has been reached RedoOverCommitCounter"
+    " in a row times, transactions will be aborted",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "3",                     /* Default */
+    "0",                     /* Min */
+    STR_VALUE(MAX_INT_RNIL)  /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2058,6 +2092,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     ConfigInfo::CI_STRING,
     0, 0, 0 },
+
+  {
+    CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION,
+    "DefaultOperationRedoProblemAction",
+    API_TOKEN,
+    "If Redo-log is having problem, should operation default (unless overridden on transaction/operation level) abort or be put on queue"
+    " in a row times, transactions will be aborted",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_ENUM,
+    0, /* default for ENUM doesnt seem to work... */
+    (const char*)default_operation_redo_problem_action_typelib,
+    0
+  },
 
   /****************************************************************************
    * MGM
