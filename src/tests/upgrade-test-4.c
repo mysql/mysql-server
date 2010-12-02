@@ -11,7 +11,21 @@
 
 #include "test_kv_gen.h"
 
-/*
+/****************************************************************************************
+ *
+ * open dbs
+ * read and verify first n rows of primary, a few interspersed rows of secondaries  (n is very small so only a few nodes of secondaries are upgraded, even with prefetch)
+ * close dbs  (dictionaries now partially upgraded)
+ * open dbs
+ * read and verify a few more rows of primary, a few more interspersed rows of secondaries
+ * close dbs  (some more nodes now upgraded)
+ * open dbs
+ * insert more rows (at end of primary and interspersed in secondary dictionaries)
+ * close dbs
+ * open dbs
+ * verify all rows (including newly inserted ones)
+ * close dbs
+ *
  */
 
 DB_ENV *env;
@@ -32,25 +46,65 @@ char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.1.1.node4k.cleanshutdown";
 
 enum {ROWS_PER_TRANSACTION=10000};
 
+static int idx[MAX_DBS];
+
+static void
+open_dbs(DB **dbs) {
+    int r;
+    DBT desc;
+    dbt_init(&desc, "foo", sizeof("foo"));
+    char name[MAX_NAME*2];
+    
+    for(int i=0;i<NUM_DBS;i++) {
+	idx[i] = i;
+	r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
+	r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                                         CKERR(r);
+	dbs[i]->app_private = &idx[i];
+	snprintf(name, sizeof(name), "db_%04x", i);
+	r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
+    }
+}
+
+
+static void
+close_dbs(DB **dbs) {
+    for(int i=0;i<NUM_DBS;i++) {
+	int r = dbs[i]->close(dbs[i], 0);                                                                          CKERR(r);
+	dbs[i] = NULL;
+    }
+}
+
 
 static void upgrade_test_4(DB **dbs) {
     int r;
-    // open the DBS
-    {
-        DBT desc;
-        dbt_init(&desc, "foo", sizeof("foo"));
-        char name[MAX_NAME*2];
+    int n = 4;  // number of rows to check to partially upgrade dictionary
 
-        int idx[MAX_DBS];
-        for(int i=0;i<NUM_DBS;i++) {
-            idx[i] = i;
-            r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
-            r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                                         CKERR(r);
-            dbs[i]->app_private = &idx[i];
-            snprintf(name, sizeof(name), "db_%04x", i);
-            r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
-        }
+    // open the DBS
+    open_dbs(dbs);
+
+    // check first few rows of primary, some (pseudo)random rows of secondaries
+    {
+	check_results(env, dbs, NUM_DBS, n);
+	if (verbose)
+	    printf("First %d rows checked, now insert some more\n", n);
     }
+
+    // close and reopen
+    close_dbs(dbs);
+    open_dbs(dbs);
+
+    // check first few rows of primary, some (pseudo)random rows of secondaries
+    {
+	n *= 2;
+	check_results(env, dbs, NUM_DBS, n);
+	if (verbose)
+	    printf("First %d rows checked, now insert some more\n", n);
+    }
+
+    // close and reopen
+    close_dbs(dbs);
+    open_dbs(dbs);
+
     // append some rows
     DB_TXN    *txn;
     DBT skey, sval;
@@ -88,28 +142,10 @@ static void upgrade_test_4(DB **dbs) {
     if ( val.flags ) { toku_free(val.data); key.data = NULL; }
 
     // close
-    {
-        for(int i=0;i<NUM_DBS;i++) {
-            r = dbs[i]->close(dbs[i], 0);                                                                          CKERR(r);
-            dbs[i] = NULL;
-        }
-    }
+    close_dbs(dbs);
+    
     // open
-    {
-        DBT desc;
-        dbt_init(&desc, "foo", sizeof("foo"));
-        char name[MAX_NAME*2];
-
-        int idx[MAX_DBS];
-        for(int i=0;i<NUM_DBS;i++) {
-            idx[i] = i;
-            r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
-            r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                                         CKERR(r);
-            dbs[i]->app_private = &idx[i];
-            snprintf(name, sizeof(name), "db_%04x", i);
-            r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
-        }
-    }
+    open_dbs(dbs);
 
     // read and verify all rows
     {
@@ -191,7 +227,6 @@ static void run_test(void)
 static void do_args(int argc, char * const argv[]);
 
 int test_main(int argc, char * const *argv) {
-    do_args(argc, argv);
     do_args(argc, argv);
     littlenode = 0;
     setup();
