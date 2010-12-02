@@ -2,7 +2,7 @@ set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
 optimizer_join_cache_level	6
-set optimizer_switch='index_condition_pushdown=on,mrr=on';
+set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -6306,6 +6306,3 @@ pk
 drop table t1;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

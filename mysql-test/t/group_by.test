@@ -339,6 +339,7 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+--sorted_result
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
 drop table t1;
