@@ -1041,7 +1041,7 @@ class Item_func_str_to_date :public Item_str_func
   date_time_format_types cached_format_type;
   timestamp_type cached_timestamp_type;
   bool const_item;
-  ulonglong sql_mode;
+  sql_mode_t sql_mode;
 public:
   Item_func_str_to_date(Item *a, Item *b)
     :Item_str_func(a, b), const_item(false)

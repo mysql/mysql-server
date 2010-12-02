@@ -430,7 +430,7 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   definer_host.str= strmake_root(&mem_root, ptr + 1, len);
   definer_host.length= len;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }
@@ -636,7 +636,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   else
     comment.length= 0;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }

@@ -2679,6 +2679,9 @@ JOIN::reinit()
       func->clear();
   }
 
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   DBUG_RETURN(0);
 }
 
@@ -3451,6 +3454,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -6576,11 +6586,18 @@ public:
       best_loose_scan_records - same
       best_max_loose_keypart - same
       best_loose_scan_start_key - same
-      Not initializing them causes compiler warnings, but using UNINIT_VAR()
-      would cause a 2% CPU time loss in a 20-table plan search.
-      So, until UNINIT_VAR(x) doesn't do x=0 for any C++ code, it's not used
-      here.
+      Not initializing them causes compiler warnings with g++ at -O1 or higher,
+      but initializing them would cause a 2% CPU time loss in a 20-table plan
+      search. So we initialize only if warnings would stop the build.
     */
+#ifdef COMPILE_FLAG_WERROR
+    bound_sj_equalities=       0;
+    quick_max_loose_keypart=   0;
+    best_loose_scan_key=       0;
+    best_loose_scan_records=   0;
+    best_max_loose_keypart=    0;
+    best_loose_scan_start_key= NULL;
+#endif
   }
 
   void init(JOIN *join, JOIN_TAB *s, table_map remaining_tables)
@@ -19577,6 +19594,8 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
+  if (table->pos_in_table_list->outer_join)
+    return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
     if (keynr == table->s->primary_key ||
@@ -19590,7 +19609,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->real_maybe_null() || 
             !find_func(key_part->field, data))
           break;
       }

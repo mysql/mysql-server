@@ -193,14 +193,11 @@ int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,
   */
   if (! m_checked)
   {
-    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_name);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 
   if (m_write_row == NULL)
   {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -275,8 +272,6 @@ int PFS_engine_table::read_row(TABLE *table,
   */
   if (! m_share_ptr->m_checked)
   {
-    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 
@@ -322,8 +317,6 @@ int PFS_engine_table::update_row(TABLE *table,
   */
   if (! m_share_ptr->m_checked)
   {
-    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 
@@ -347,8 +340,6 @@ int PFS_engine_table::delete_row(TABLE *table,
   */
   if (! m_share_ptr->m_checked)
   {
-    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
-             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
     return HA_ERR_TABLE_NEEDS_UPGRADE;
   }
 
@@ -364,7 +355,6 @@ int PFS_engine_table::delete_row_values(TABLE *,
                                         const unsigned char *,
                                         Field **)
 {
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -461,7 +451,6 @@ int PFS_engine_table::update_row_values(TABLE *,
                                         unsigned char *,
                                         Field **)
 {
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;
 }
 
