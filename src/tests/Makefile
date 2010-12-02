@@ -105,6 +105,7 @@ BDB_DONTRUN_TESTS = \
 	hotindexer-insert-committed-optimized \
 	hotindexer-insert-committed \
 	hotindexer-insert-provisional \
+	hotindexer-lock-test \
 	hotindexer-multiclient \
 	hotindexer-nested-insert-committed \
 	hotindexer-put-multiple \
