@@ -464,10 +464,9 @@ srv_mon_get_name(
 /****************************************************************//**
 Turn on/off, reset monitor counters in a module. If module_id
 is MONITOR_ALL_COUNTER then turn on all monitor counters.
-@return	0 if successful, or the first monitor that cannot be
 turned on because it has already been turned on. */
 UNIV_INTERN
-ulint
+void
 srv_mon_set_module_control(
 /*=======================*/
 	monitor_id_t	module_id,	/*!< in: Module ID as in
@@ -505,13 +504,6 @@ srv_mon_set_module_control(
 	}
 
 	for (ix = start_id; ix < NUM_MONITOR; ix++) {
-		/* Cannot turn on a monitor already been turned on. User
-		should be aware some counters are already on before
-		turn them on again (which could reset counter value) */
-		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			return(ix);
-		}
-
 		/* if we hit the next module counter, we will
 		continue if we want to turn on all monitor counters,
 		and break if just turn on the counters in the
@@ -528,6 +520,15 @@ srv_mon_set_module_control(
 				/* Hitting the next module, stop */
 				break;
 			}
+		}
+
+		/* Cannot turn on a monitor already been turned on. User
+		should be aware some counters are already on before
+		turn them on again (which could reset counter value) */
+		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
+			fprintf(stderr, "Monitor '%s' is already enabled.\n",
+				srv_mon_get_name((monitor_id_t)ix));
+			continue;
 		}
 
 		/* For some existing counters (server status variables),
@@ -563,8 +564,6 @@ srv_mon_set_module_control(
 			ut_error;
 		}
 	}
-
-	return(0);
 }
 
 /****************************************************************//**
