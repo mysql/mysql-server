@@ -2237,25 +2237,6 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
   signal->theData[3] = cneighbourh;
   signal->theData[4] = fnOwnNodePtr.p->ndynamicId;
   UintR Tlen = 5;
-  for (fnNodePtr.i = 1; fnNodePtr.i < MAX_NDB_NODES; fnNodePtr.i++) {
-    jam();
-    ptrAss(fnNodePtr, nodeRec);
-    if (fnNodePtr.i != fnOwnNodePtr.i) {
-      if (fnNodePtr.p->phase == ZRUNNING) {
-        jam();
-        signal->theData[Tlen] = fnNodePtr.i;
-        signal->theData[Tlen + 1] = fnNodePtr.p->ndynamicId;
-        if (Tlen < 25) {
-	  /*----------------------------------------------------------------*/
-	  // This code can only report 11 nodes. 
-	  // We need to update this when increasing the number of nodes
-	  // supported.
-	  /*-----------------------------------------------------------------*/
-          Tlen += 2;
-        }
-      }//if
-    }//if
-  }//for
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, Tlen, JBB);
   g_eventLogger->info("findNeighbours from: %u old (left: %u right: %u) new (%u %u)", 
                       from,
