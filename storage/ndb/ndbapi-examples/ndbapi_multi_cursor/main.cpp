@@ -1039,6 +1039,7 @@ int testQueryBuilder(Ndb &myNdb)
 }
 #endif
 
+  myBuilder->destroy();
   return 0;
 }
 

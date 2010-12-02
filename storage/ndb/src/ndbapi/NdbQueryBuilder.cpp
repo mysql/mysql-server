@@ -53,7 +53,7 @@
 static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
-STATIC_CONST(Err_MemoryAlloc = 4000);
+static const int Err_MemoryAlloc = 4000;
 
 static void
 setErrorCode(NdbQueryBuilderImpl* qb, int aErrorCode)
@@ -181,7 +181,8 @@ protected:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix);
+                           Uint32      ix,
+                           int& error);
 
   virtual const NdbQueryLookupOperationDef& getInterface() const
   { return m_interface; }
@@ -213,8 +214,9 @@ private:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix)
+                           Uint32      ix,
+                           int& error)
+    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,error)
   {}
 
   virtual NdbQueryOperationDef::Type getType() const
@@ -241,8 +243,9 @@ private:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-  : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix),
+                           Uint32      ix,
+                           int& error)
+    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,error),
     m_index(index)
   {}
 
@@ -274,8 +277,9 @@ private:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-    : NdbQueryScanOperationDefImpl(table,options,ident,ix),
+                           Uint32      ix,
+                           int& error)
+    : NdbQueryScanOperationDefImpl(table,options,ident,ix,error),
       m_interface(*this) 
   {}
 
@@ -604,7 +608,17 @@ NdbQueryBuilder* NdbQueryBuilder::create(Ndb& ndb)
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl(ndb);
   if (likely (impl != NULL))
   {
-    return &impl->m_interface;
+    if (likely(impl->getNdbError().code == 0))
+    {
+      return &impl->m_interface;
+    }
+    else
+    {
+      // Probably failed to create Vector instances.
+      assert(impl->getNdbError().code == Err_MemoryAlloc);
+      delete impl;
+      return NULL;
+    }
   }
   else
   {
@@ -643,75 +657,58 @@ NdbConstOperand*
 NdbQueryBuilder::constValue(const char* value)
 {
   returnErrIf(value==0,QRY_REQ_ARG_IS_NULL);
-  NdbConstOperandImpl* constOp = new NdbCharConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbCharConstOperandImpl(value)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(const void* value, Uint32 len)
 {
   returnErrIf(value == 0, QRY_REQ_ARG_IS_NULL);
-  NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,len);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbGenericConstOperandImpl(value,len)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Int32 value)
 {
-  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbInt64ConstOperandImpl(value)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint32 value)
 {
-  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbInt64ConstOperandImpl(value)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Int64 value)
 {
-  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbInt64ConstOperandImpl(value)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(Uint64 value)
 {
-  NdbConstOperandImpl* constOp = new NdbInt64ConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbInt64ConstOperandImpl(value)));
 }
+
 NdbConstOperand* 
 NdbQueryBuilder::constValue(double value)
 {
-  NdbConstOperandImpl* constOp = new NdbDoubleConstOperandImpl(value);
-  returnErrIf(constOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(constOp);
-  return &constOp->m_interface;
+  return static_cast<NdbConstOperand*>
+    (m_impl.addOperand(new NdbDoubleConstOperandImpl(value)));
 }
+
 NdbParamOperand* 
 NdbQueryBuilder::paramValue(const char* name)
 {
-  NdbParamOperandImpl* paramOp = new NdbParamOperandImpl(name,getImpl().m_paramCnt++);
-  returnErrIf(paramOp==0,Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(paramOp);
-  return &paramOp->m_interface;
+  return static_cast<NdbParamOperand*>
+    (m_impl.addOperand(new NdbParamOperandImpl(name,getImpl().m_paramCnt++)));
 }
 
 NdbLinkedOperand* 
@@ -730,13 +727,16 @@ NdbQueryBuilder::linkedValue(const NdbQueryOperationDef* parent, const char* att
 
   // Locate refered parrent column in parent operations SPJ projection list;
   // Add if not already present
-  Uint32 colIx = parentImpl.addColumnRef(column);
+  int error = 0;
+  Uint32 colIx = parentImpl.addColumnRef(column, error);
+  if (unlikely(error != 0))
+  {
+    m_impl.setErrorCode(error);
+    return NULL;
+  }
 
-  NdbLinkedOperandImpl* linkedOp = new NdbLinkedOperandImpl(parentImpl,colIx);
-  returnErrIf(linkedOp==0, Err_MemoryAlloc);
-
-  m_impl.m_operands.push_back(linkedOp);
-  return &linkedOp->m_interface;
+  return static_cast<NdbLinkedOperand*>
+    (m_impl.addOperand(new NdbLinkedOperandImpl(parentImpl,colIx)));
 }
 
 const NdbQueryLookupOperationDef*
@@ -766,13 +766,21 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
   // Check for propper NULL termination of keys[] spec
   returnErrIf(keys[keyfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
+  int error = 0;
   NdbQueryPKLookupOperationDefImpl* op =
     new NdbQueryPKLookupOperationDefImpl(tableImpl,
                                        keys, 
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
-                                       m_impl.m_operations.size());
+                                       m_impl.m_operations.size(),
+                                       error);
   returnErrIf(op==0, Err_MemoryAlloc);
+  if (unlikely(error != 0))
+  {
+    m_impl.setErrorCode(error);
+    delete op;
+    return NULL;
+  }
 
   Uint32 keyindex = 0;
   for (i=0; i<colcount; ++i)
@@ -794,8 +802,17 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
     }
   }
   
-  m_impl.m_operations.push_back(op);
-  return &op->m_interface;
+  if (likely(m_impl.m_operations.push_back(op) == 0))
+  {
+    return &op->m_interface;
+  }
+  else
+  {
+    assert(errno == ENOMEM);
+    delete op;
+    m_impl.setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
 }
 
 
@@ -836,13 +853,21 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
   // Check for propper NULL termination of keys[] spec
   returnErrIf(keys[inxfields]!=NULL, QRY_TOO_MANY_KEY_VALUES);
 
+  int error = 0;
   NdbQueryIndexOperationDefImpl* op = 
     new NdbQueryIndexOperationDefImpl(indexImpl, tableImpl,
                                        keys,
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
-                                       m_impl.m_operations.size());
+                                       m_impl.m_operations.size(),
+                                       error);
   returnErrIf(op==0, Err_MemoryAlloc);
+  if (unlikely(error != 0))
+  {
+    m_impl.setErrorCode(error);
+    delete op;
+    return NULL;
+  }
 
   // Bind to Column and check type compatibility
   for (i=0; i<inxfields; ++i)
@@ -850,7 +875,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
     assert (col.getColumnNo() == i);
 
-    int error = keys[i]->getImpl().bindOperand(col,*op);
+    error = keys[i]->getImpl().bindOperand(col,*op);
     if (unlikely(error))
     { m_impl.setErrorCode(error);
       delete op;
@@ -858,8 +883,17 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
     }
   }
 
-  m_impl.m_operations.push_back(op);
-  return &op->m_interface;
+  if (likely(m_impl.m_operations.push_back(op) == 0))
+  {
+    return &op->m_interface;
+  }
+  else
+  {
+    assert(errno == ENOMEM);
+    delete op;
+    m_impl.setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
 }
 
 
@@ -872,16 +906,30 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
     return NULL;
   returnErrIf(table==0, QRY_REQ_ARG_IS_NULL);  // Required non-NULL arguments
 
+  int error = 0;
   NdbQueryTableScanOperationDefImpl* op =
     new NdbQueryTableScanOperationDefImpl(NdbTableImpl::getImpl(*table),
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
-                                          m_impl.m_operations.size());
+                                          m_impl.m_operations.size(),
+                                          error);
   returnErrIf(op==0, Err_MemoryAlloc);
+  if (unlikely(error != 0))
+  {
+    m_impl.setErrorCode(error);
+    delete op;
+    return NULL;
+  }
 
-  m_impl.m_operations.push_back(op);
+  if (unlikely(m_impl.m_operations.push_back(op) != 0))
+  {
+    assert(errno == ENOMEM);
+    delete op;
+    m_impl.setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
 
-  const Uint32 error = op->markScanAncestors();
+  error = op->markScanAncestors();
   returnErrIf(error!=0, error);
 
   return &op->m_interface;
@@ -914,13 +962,21 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   returnErrIf(index->getType()!=NdbDictionary::Index::OrderedIndex,
               QRY_WRONG_INDEX_TYPE);
 
+  int error = 0;
   NdbQueryIndexScanOperationDefImpl* op =
     new NdbQueryIndexScanOperationDefImpl(indexImpl, tableImpl,
                                           bound,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
-                                          m_impl.m_operations.size());
+                                          m_impl.m_operations.size(),
+                                          error);
   returnErrIf(op==0, Err_MemoryAlloc);
+  if (unlikely(error != 0))
+  {
+    m_impl.setErrorCode(error);
+    delete op;
+    return NULL;
+  }
 
   if (unlikely(op->m_bound.lowKeys  > indexImpl.getNoOfColumns() ||
                op->m_bound.highKeys > indexImpl.getNoOfColumns()))
@@ -950,7 +1006,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
   for (; i<op->m_bound.highKeys; ++i)
   {
     const NdbColumnImpl& col = NdbColumnImpl::getImpl(*indexImpl.getColumn(i));
-    const int error = op->m_bound.high[i]->bindOperand(col,*op);
+    error = op->m_bound.high[i]->bindOperand(col,*op);
     if (unlikely(error))
     { m_impl.setErrorCode(error);
       delete op;
@@ -958,16 +1014,24 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     }
   }
 
-  const int error = op->markScanAncestors();
+  error = op->markScanAncestors();
   if (unlikely(error))
   { m_impl.setErrorCode(error);
     delete op;
     return NULL;
   }
 
-  m_impl.m_operations.push_back(op);
-
-  return &op->m_interface;
+  if (likely(m_impl.m_operations.push_back(op) == 0))
+  {
+    return &op->m_interface;
+  }
+  else
+  {
+    assert(errno == ENOMEM);
+    delete op;
+    m_impl.setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
 }
 
 const NdbQueryDef*
@@ -987,7 +1051,13 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
   m_operations(),
   m_operands(),
   m_paramCnt(0)
-{}
+{
+  if (errno == ENOMEM)
+  {
+    // ENOMEM probably comes from Vector().
+    setErrorCode(Err_MemoryAlloc);
+  }
+}
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
@@ -1058,6 +1128,29 @@ NdbQueryBuilderImpl::prepare()
   return def;
 }
 
+
+NdbQueryOperand* 
+NdbQueryBuilderImpl::addOperand(NdbQueryOperandImpl* operand)
+{
+  if (unlikely(operand == NULL))
+  {
+    setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
+
+  if (likely(m_operands.push_back(operand) == 0))
+  {
+    return &operand->getInterface();
+  }
+  else
+  {
+    assert(errno == ENOMEM);
+    delete operand;
+    setErrorCode(Err_MemoryAlloc);
+    return NULL;
+  }
+}
+
 ///////////////////////////////////
 // The (hidden) Impl of NdbQueryDef
 ///////////////////////////////////
@@ -1069,6 +1162,13 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
    m_operations(operations),
    m_operands(operands)
 {
+  if (errno == ENOMEM)
+  {
+    // Failed to allocate memory for m_operations or m_operands.
+    error = Err_MemoryAlloc;
+    return;
+  }
+
   Uint32 nodeId = 0;
 
   /* Grab first word, such that serialization of operation 0 will start from 
@@ -1419,7 +1519,11 @@ NdbParamOperandImpl::bindOperand(
                column.m_type == NdbDictionary::Column::Text))
     return QRY_OPERAND_HAS_WRONG_TYPE;  // BLOB/CLOB datatypes intentionally not supported
 
-  operation.addParamRef(this);
+  const int res = operation.addParamRef(this);
+  if (unlikely(res != 0))
+  {
+    return res;
+  }
   return NdbQueryOperandImpl::bindOperand(column,operation);
 }
 
@@ -1433,8 +1537,9 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
- : NdbQueryOperationDefImpl(table,options,ident,ix),
+                           Uint32      ix,
+                           int& error)
+  : NdbQueryOperationDefImpl(table,options,ident,ix,error),
    m_interface(*this)
 {
   int i;
@@ -1454,12 +1559,13 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbQueryIndexBound* bound,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-: NdbQueryScanOperationDefImpl(table,options,ident,ix),
+                           Uint32      ix,
+                           int& error)
+  : NdbQueryScanOperationDefImpl(table,options,ident,ix,error),
   m_interface(*this), 
-  m_index(index), 
-  m_bound()
+  m_index(index)
 {
+  memset(&m_bound, 0, sizeof m_bound);
   if (bound!=NULL) {
 
     if (bound->m_low!=NULL) {
@@ -1695,7 +1801,8 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbTableImpl& table,
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
-                                     Uint32      ix)
+                                     Uint32      ix,
+                                     int& error)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
    m_hasScanDescendant(false),
@@ -1708,22 +1815,40 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
    m_params(),
    m_spjProjection() 
 {
+  if (unlikely(errno == ENOMEM))
+  {
+    // Heap allocation in Vector() must have failed.
+    error = Err_MemoryAlloc;
+    return;
+  }
   if (m_options.m_parent!=NULL)
   {
      m_parent = m_options.m_parent;
-     m_parent->addChild(this);
+     const int res = m_parent->addChild(this);
+     if (unlikely(res != 0))
+     {
+       error = res;
+     }
   }
 }
 
   
-void
+int
 NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
 {
   for (Uint32 i=0; i<m_children.size(); ++i)
   { if (m_children[i] == childOp)
-      return;
+      return 0;
   }
-  m_children.push_back(childOp);
+  if (likely(m_children.push_back(childOp) == 0))
+  {
+    return 0;
+  }
+  else
+  {
+    assert(errno == ENOMEM);
+    return Err_MemoryAlloc;
+  }
 }
 
 void
@@ -1799,7 +1924,8 @@ NdbQueryOperationDefImpl::linkWithParent(NdbQueryOperationDefImpl* parentOp)
 
 // Register a linked reference to a column available from this operation
 Uint32
-NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
+NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column,
+                                       int& error)
 {
   Uint32 spjRef;
   for (spjRef=0; spjRef<m_spjProjection.size(); ++spjRef)
@@ -1808,7 +1934,12 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
   }
 
   // Add column if not already available
-  m_spjProjection.push_back(column);
+  if (unlikely(m_spjProjection.push_back(column) != 0))
+  {
+    assert(errno == ENOMEM);
+    error = Err_MemoryAlloc;
+    return ~0;
+  }
   if (column->getStorageType() == NDB_STORAGETYPE_DISK)
   {
     m_diskInChildProjection = true;
@@ -1816,7 +1947,18 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
   return spjRef;
 }
 
-Uint32 NdbQueryOperationDefImpl::markScanAncestors()
+int NdbQueryOperationDefImpl::addParamRef(const NdbParamOperandImpl* param)
+{ 
+  if (unlikely(m_params.push_back(param) != 0))
+  {
+    assert(errno == ENOMEM);
+    return Err_MemoryAlloc;
+  }
+  return 0;
+}
+
+
+int NdbQueryOperationDefImpl::markScanAncestors()
 {
   // Verify that parent links have been established.
   assert(m_ix == 0 || m_parent != NULL);
@@ -2535,8 +2677,9 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix)
-  : NdbQueryOperationDefImpl(table,options,ident,ix)
+                           Uint32      ix,
+                           int& error)
+  : NdbQueryOperationDefImpl(table,options,ident,ix,error)
 {}
 
 int
