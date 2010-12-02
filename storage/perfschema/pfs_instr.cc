@@ -1057,7 +1057,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         {
           pfs->m_identity= identity;
           pfs->m_share= share;
-          share->m_refcount++;
+          share->inc_refcount();
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;
           pfs->m_wait_stat.m_parent= &share->m_wait_stat;

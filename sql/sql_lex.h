@@ -205,7 +205,7 @@ typedef struct st_lex_server_options
 */
 typedef struct st_lex_master_info
 {
-  char *host, *user, *password, *log_file_name;
+  char *host, *user, *password, *log_file_name, *bind_addr;
   uint port, connect_retry;
   float heartbeat_period;
   int sql_delay;
