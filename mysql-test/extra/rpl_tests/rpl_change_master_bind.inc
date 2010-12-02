@@ -18,10 +18,20 @@ create table t1(n int, b varchar(256));
 --replace_result $master_bind <master_bind>
 eval insert into t1 values(1, $master_bind);
 
-# Configure slave to connect to master with then give bind address
+# Configure slave to connect to master with the give bind address
+# for master_bind and master_host unless it's an invalid address
 connection slave;
+let $_master_host=;
+if (!$master_bind_error_expected)
+{
+  if ($master_bind != '')
+  {
+    let $_master_host=master_host=$master_bind,;
+  }
+}
+
 --replace_result $master_bind <master_bind>
-eval change master to master_bind=$master_bind;
+eval change master to $_master_host master_bind=$master_bind;
 start slave;
 
 # Check that SHOW SLAVE STATUS has Master_bind column set to $master_bind
@@ -42,7 +52,7 @@ if ($master_bind_error_expected)
   echo got expected error $master_bind_error_expected;
   source include/stop_slave.inc;
 
-  # Reset the master_bind to that cleanup can run
+  # Reset the master_bind so that cleanup can run
   eval change master to master_bind='';
   start slave;
 
