@@ -24,7 +24,7 @@ connection slave;
 let $_master_host=;
 if (!$master_bind_error_expected)
 {
-  if ($master_bind != '')
+  if ($master_bind != "''")
   {
     let $_master_host=master_host=$master_bind,;
   }

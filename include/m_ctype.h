@@ -635,6 +635,8 @@ extern my_bool my_parse_charset_xml(const char *bug, size_t len,
                                     char *error, size_t errsize);
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
+extern size_t my_strcspn(CHARSET_INFO *cs, const char *str, const char *end,
+                         const char *accept);
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, size_t len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, size_t len);

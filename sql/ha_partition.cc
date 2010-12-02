@@ -3095,7 +3095,7 @@ int ha_partition::write_row(uchar * buf)
   my_bitmap_map *old_map;
   THD *thd= ha_thd();
   timestamp_auto_set_type saved_timestamp_type= table->timestamp_field_type;
-  ulong saved_sql_mode= thd->variables.sql_mode;
+  sql_mode_t saved_sql_mode= thd->variables.sql_mode;
   bool saved_auto_inc_field_not_null= table->auto_increment_field_not_null;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
