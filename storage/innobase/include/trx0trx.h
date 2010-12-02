@@ -359,7 +359,7 @@ All these operations take place within the context of locking. Therefore state
 changes within the locking code must acquire both the lock mutex and the
 trx_t::mutex when changing trx_lock_t::que_state to TRX_QUE_LOCK_WAIT but
 when the lock wait ends it is sufficient to only acquire the trx_t::mutex.
-To query the mutex either of the mutexes is sufficient within the locking
+To query the state either of the mutexes is sufficient within the locking
 code and no mutex is required when the query thread is no longer waiting. */
 
 /** Transactions locks and state, these variables are protected by
