@@ -2516,13 +2516,12 @@ sub fix_vs_config_dir () {
   my $modified = 1e30;
   $opt_vs_config="";
 
-  for my $dir (qw(sql/*)) {
-    for (<$basedir/$dir/mysqld.exe>) {
-      if (-M $_ < $modified)
-      {
-        $modified = -M _;
-        $opt_vs_config = basename(dirname($_));
-      }
+
+  for (<$basedir/sql/*/mysqld.exe>) {
+    if (-M $_ < $modified)
+    {
+      $modified = -M _;
+      $opt_vs_config = basename(dirname($_));
     }
   }
 
