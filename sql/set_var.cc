@@ -128,7 +128,9 @@ static void fix_net_write_timeout(THD *thd, enum_var_type type);
 static void fix_net_retry_count(THD *thd, enum_var_type type);
 static void fix_max_join_size(THD *thd, enum_var_type type);
 static void fix_query_cache_size(THD *thd, enum_var_type type);
+#ifdef HAVE_QUERY_CACHE
 static void fix_query_cache_min_res_unit(THD *thd, enum_var_type type);
+#endif
 static void fix_myisam_max_sort_file_size(THD *thd, enum_var_type type);
 static void fix_max_binlog_size(THD *thd, enum_var_type type);
 static void fix_max_relay_log_size(THD *thd, enum_var_type type);
