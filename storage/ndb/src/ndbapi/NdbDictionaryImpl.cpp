@@ -2240,8 +2240,8 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       DBUG_RETURN(-1);
     }
     int res = (ptr ? 
-	       getTransporter()->sendFragmentedSignal(sig, node, ptr, secs):
-	       getTransporter()->sendSignal(sig, node));
+	       m_impl->sendFragmentedSignal(sig, node, ptr, secs):
+	       m_impl->sendSignal(sig, node));
     if(res != 0){
       DBUG_PRINT("info", ("dictSignal failed to send signal"));
       m_error.code = 4007;
@@ -5599,7 +5599,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       m_error.code= 4009;
       return -1;
     }
-    NodeInfo info = getTransporter()->theClusterMgr->getNodeInfo(aNodeId).m_info;
+    NodeInfo info = m_impl->getNodeInfo(aNodeId).m_info;
     if (ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
     {
       /*
@@ -5617,7 +5617,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
       return -1;
     }
 
-    if (getTransporter()->sendSignal(signal, aNodeId) != 0) {
+    if (m_impl->sendSignal(signal, aNodeId) != 0) {
       continue;
     }
     m_error.code= 0;
@@ -5639,7 +5639,7 @@ NdbDictInterface::execLIST_TABLES_CONF(const NdbApiSignal* signal,
                                        const LinearSectionPtr ptr[3])
 {
   Uint16 nodeId = refToNode(signal->theSendersBlockRef);
-  NodeInfo info = getTransporter()->theClusterMgr->getNodeInfo(nodeId).m_info;
+  NodeInfo info = m_impl->getNodeInfo(nodeId).m_info;
   if (!ndbd_LIST_TABLES_CONF_long_signal(info.m_version))
   {
     /*
@@ -5760,7 +5760,7 @@ NdbDictInterface::forceGCPWait(int type)
         m_error.code= 4009;
         return -1;
       }
-      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0)
+      if (m_impl->sendSignal(&tSignal, aNodeId) != 0)
       {
         continue;
       }
@@ -5788,20 +5788,20 @@ NdbDictInterface::forceGCPWait(int type)
     const Uint32 RETRIES = 100;
     for (Uint32 i = 0; i < RETRIES; i++)
     {
-      getTransporter()->lock_mutex();
+      m_impl->lock();
       Uint16 aNodeId = getTransporter()->get_an_alive_node();
       if (aNodeId == 0) {
         m_error.code= 4009;
-        getTransporter()->unlock_mutex();
+        m_impl->unlock();
         return -1;
       }
-      if (getTransporter()->sendSignal(&tSignal, aNodeId) != 0) {
-        getTransporter()->unlock_mutex();
+      if (m_impl->sendSignal(&tSignal, aNodeId) != 0) {
+        m_impl->unlock();
         continue;
       }
 
-      getTransporter()->forceSend(refToBlock(m_reference));
-      getTransporter()->unlock_mutex();
+      m_impl->forceSend();
+      m_impl->unlock();
     }
     return m_error.code == 0 ? 0 : -1;
   }

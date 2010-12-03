@@ -1418,7 +1418,7 @@ NdbImpl::send_event_report(bool has_lock,
   int ret = 0;
   if (!has_lock)
   {
-    tp->lock_mutex();
+    lock();
   }
   Uint32 tNode;
   Ndb_cluster_connection_node_iter node_iter;
@@ -1427,7 +1427,7 @@ NdbImpl::send_event_report(bool has_lock,
   {
     if(get_node_alive(tNode))
     {
-      sendSignal(&aSignal, tNode);
+      tp->sendSignal(&aSignal, tNode);
       goto done;
     }
   }
@@ -1436,7 +1436,7 @@ NdbImpl::send_event_report(bool has_lock,
 done:
   if (!has_lock)
   {
-    tp->unlock_mutex();
+    unlock();
   }
   return ret;
 }
