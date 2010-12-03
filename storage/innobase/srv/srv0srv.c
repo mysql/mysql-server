@@ -1356,8 +1356,8 @@ srv_printf_innodb_monitor(
 	current_time = time(NULL);
 
 	/* We add 0.001 seconds to time_elapsed to prevent division
-	by zero if two users happen to call SHOW INNODB STATUS at the same
-	time */
+	by zero if two users happen to call SHOW ENGINE INNODB STATUS at the
+	same time */
 
 	time_elapsed = difftime(current_time, srv_last_monitor_time)
 		+ 0.001;

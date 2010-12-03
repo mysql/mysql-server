@@ -735,8 +735,8 @@ innobase_flush_logs(
 	handlerton*	hton);		/*!< in: InnoDB handlerton */
 
 /************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client.
+Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+InnoDB Monitor to the client.
 @return 0 on success */
 static
 int
@@ -9513,8 +9513,8 @@ innodb_export_status()
 }
 
 /************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client.
+Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+InnoDB Monitor to the client.
 @return 0 on success */
 static
 int
@@ -12017,7 +12017,7 @@ static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
 
 static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
-  "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
+  "Enable SHOW ENGINE INNODB STATUS output in the innodb_status.<pid> file",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
