@@ -27,22 +27,34 @@ static int mode = S_IRWXU+S_IRWXG+S_IRWXO;
 
 static void test_shutdown(void);
 
+#define OLDDATADIR "../../../../tokudb.data/"
+
+static char *env_dir = ENVDIR; // the default env_dir.
+
+static char * dir_v4_clean = "env_simple.4.1.1.cleanshutdown";
+static char * dir_v4_dirty = "env_simple.4.1.1.dirtyshutdown";
+static char * dir_v4_dirty_multilogfile = OLDDATADIR "env_preload.4.1.1.multilog.dirtyshutdown";
+
+
 static void
-setup (u_int32_t flags, BOOL clean) {
+setup (u_int32_t flags, BOOL clean, char * src_db_dir) {
     int r;
+    int len = 256;
+    char syscmd[len];
+
     if (env)
         test_shutdown();
-    r = system("rm -rf " ENVDIR);
+
+    r = snprintf(syscmd, len, "rm -rf %s", env_dir);
+    assert(r<len);
+    r = system(syscmd);                                                                                  
     CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    
+    r = snprintf(syscmd, len, "cp -r %s %s", src_db_dir, env_dir);
+    assert(r<len);
+    r = system(syscmd);                                                                                 
     CKERR(r);
-    if (clean) {
-	r = system("cp env_simple.4.1.1.cleanshutdown/* " ENVDIR);
-    }
-    else {
-	r = system("cp env_simple.4.1.1.dirtyshutdown/* " ENVDIR);
-    }
-    CKERR(r);
+
     r=db_env_create(&env, 0); 
     CKERR(r);
     env->set_errfile(env, stderr);
@@ -68,10 +80,19 @@ test_env_startup(void) {
     u_int32_t flags;
     
     flags = FLAGS_LOG;
-    setup(flags, TRUE);
+
+    setup(flags, TRUE, dir_v4_clean);
     print_engine_status(env);
     test_shutdown();
-    setup(flags, FALSE);
+
+    setup(flags, FALSE, dir_v4_dirty);
+    if (verbose) {
+	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
+    }
+    print_engine_status(env);
+    test_shutdown();
+
+    setup(flags, FALSE, dir_v4_dirty_multilogfile);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }
