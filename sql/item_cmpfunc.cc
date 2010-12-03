@@ -5598,15 +5598,15 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
+  eval_item->store_value(item);
   if ((null_value= item->null_value))
     return 0;
-  eval_item->store_value(item);
   while ((item_field= it++))
   {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if (eval_item->cmp(item_field) || (null_value= item_field->null_value))
         return 0;
     }
   }

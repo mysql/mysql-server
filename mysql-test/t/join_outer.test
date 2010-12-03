@@ -1066,4 +1066,24 @@ SELECT * FROM
 
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # Bug#57034 incorrect OUTER JOIN result when joined on unique key
+--echo #
+
+CREATE TABLE t1 (pk INT PRIMARY KEY, col_int INT, col_int_unique INT UNIQUE KEY);
+INSERT INTO t1 VALUES (1,NULL,2), (2,0,0);
+CREATE TABLE t2 (pk INT PRIMARY KEY, col_int INT, col_int_unique INT UNIQUE KEY);
+INSERT INTO t2 VALUES (1,0,1), (2,0,2);
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2
+  ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int 
+  WHERE t1.pk=1;
+
+SELECT * FROM t1 LEFT JOIN t2
+  ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int 
+  WHERE t1.pk=1;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.1 tests
