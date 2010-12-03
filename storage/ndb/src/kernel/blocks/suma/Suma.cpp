@@ -1018,6 +1018,19 @@ Suma::api_fail_subscriber_list(Signal* signal, Uint32 nodeId)
 {
   jam();
   Ptr<SubOpRecord> subOpPtr;
+
+  if (c_outstanding_drop_trig_req > 9)
+  {
+    jam();
+    /**
+     * Make sure not to overflow DbtupProxy with too many GSN_DROP_TRIG_IMPL_REQ
+     *   9 is arbitrary number...
+     */
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100,
+                        signal->getLength());
+    return;
+  }
+
   subOpPtr.i = signal->theData[2];
   if (subOpPtr.i == RNIL)
   {
@@ -3409,6 +3422,7 @@ Suma::drop_triggers(Signal* signal, SubscriptionPtr subPtr)
         req->triggerId = triggerId;
         req->receiverRef = SUMA_REF;
 
+        c_outstanding_drop_trig_req++;
         sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
                    signal, DropTrigImplReq::SignalLength, JBB);
       }
@@ -3442,6 +3456,9 @@ Suma::execDROP_TRIG_IMPL_REF(Signal* signal)
 
   ndbrequire(subPtr.p->m_outstanding_trigger);
   subPtr.p->m_outstanding_trigger--;
+
+  ndbrequire(c_outstanding_drop_trig_req);
+  c_outstanding_drop_trig_req--;
 
   if (subPtr.p->m_outstanding_trigger)
   {
@@ -3477,6 +3494,9 @@ Suma::execDROP_TRIG_IMPL_CONF(Signal* signal)
 
   ndbrequire(subPtr.p->m_outstanding_trigger);
   subPtr.p->m_outstanding_trigger--;
+
+  ndbrequire(c_outstanding_drop_trig_req);
+  c_outstanding_drop_trig_req--;
 
   if (subPtr.p->m_outstanding_trigger)
   {
