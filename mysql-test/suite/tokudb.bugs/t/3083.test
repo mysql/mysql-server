@@ -1,0 +1,30 @@
+#--source include/have_tokudb.inc
+#
+#test update multiple
+#
+#
+SET STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_prelock_empty=0;
+
+create table foo (a int, b int, c int, primary key (a), clustering key (b));
+insert into foo values (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5);
+
+--echo # Both explains should use primary key;
+explain select * from foo;
+explain select a from foo;
+DROP table foo;
+
+create table foo (a int, b int, c int, clustering key (b), primary key (a));
+insert into foo values (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5);
+
+--echo # Both explains should use primary key;
+explain select * from foo;
+explain select a from foo;
+
+DROP TABLE foo;
+
