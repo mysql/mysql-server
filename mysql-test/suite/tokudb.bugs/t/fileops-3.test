@@ -1,6 +1,7 @@
 # ticket 895 is a query optimization problem with the primary key
 
-#--source include/have_tokudb.inc
+--source include/have_tokudb.inc
+--source include/not_5_5.inc
 --echo # Establish connection conn1 (user = root)
 connect (conn1,localhost,root,,);
 SET STORAGE_ENGINE = 'tokudb';
