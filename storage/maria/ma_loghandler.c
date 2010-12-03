@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB & Sanja Belkin
+/* Copyright (C) 2007 MySQL AB & Sanja Belkin. 2010 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2526,10 +2526,9 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
   {
     /* some other flush in progress */
     translog_wait_for_closing(buffer);
+    if (buffer->file != file || buffer->offset != offset || buffer->ver != ver)
+      DBUG_RETURN(0); /* some the thread flushed the buffer already */
   }
-
-  if (buffer->file != file || buffer->offset != offset || buffer->ver != ver)
-    DBUG_RETURN(0); /* some the thread flushed the buffer already */
 
   if (buffer->overlay && translog_prev_buffer_flush_wait(buffer))
     DBUG_RETURN(0); /* some the thread flushed the buffer already */
@@ -7648,17 +7647,27 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
     struct st_translog_buffer *buffer= log_descriptor.bc.buffer;
     lsn= log_descriptor.bc.buffer->last_lsn; /* fix lsn if it was horizon */
     DBUG_PRINT("info", ("LSN to flush fixed to last lsn: (%lu,0x%lx)",
-               LSN_IN_PARTS(log_descriptor.bc.buffer->last_lsn)));
+               LSN_IN_PARTS(lsn)));
     last_buffer_no= log_descriptor.bc.buffer_no;
     log_descriptor.is_everything_flushed= 1;
     translog_force_current_buffer_to_finish();
     translog_buffer_unlock(buffer);
   }
-  else
+  else if (log_descriptor.bc.buffer->prev_last_lsn != LSN_IMPOSSIBLE)
   {
+    /* fix lsn if it was horizon */
+    lsn= log_descriptor.bc.buffer->prev_last_lsn;
+    DBUG_PRINT("info", ("LSN to flush fixed to prev last lsn: (%lu,0x%lx)",
+               LSN_IN_PARTS(lsn)));
     last_buffer_no= ((log_descriptor.bc.buffer_no + TRANSLOG_BUFFERS_NO -1) %
                      TRANSLOG_BUFFERS_NO);
     translog_unlock();
+  }
+  else if (log_descriptor.bc.buffer->last_lsn == LSN_IMPOSSIBLE)
+  {
+    DBUG_PRINT("info", ("There is no LSNs yet generated => do nothing"));
+    translog_unlock();
+    goto out;
   }
   sent_to_disk= translog_get_sent_to_disk();
   if (cmp_translog_addr(lsn, sent_to_disk) > 0)

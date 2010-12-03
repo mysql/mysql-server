@@ -1025,6 +1025,7 @@ finish:
 */
 static inline void inc_counter_for_resize_op(PAGECACHE *pagecache)
 {
+  safe_mutex_assert_owner(&pagecache->cache_lock);
   pagecache->cnt_for_resize_op++;
 }
 
@@ -1037,6 +1038,7 @@ static inline void dec_counter_for_resize_op(PAGECACHE *pagecache)
 {
 #ifdef THREAD
   struct st_my_thread_var *last_thread;
+  safe_mutex_assert_owner(&pagecache->cache_lock);
   if (!--pagecache->cnt_for_resize_op &&
       (last_thread= pagecache->resize_queue.last_thread))
   {
@@ -1085,6 +1087,37 @@ void change_pagecache_param(PAGECACHE *pagecache, uint division_limit,
 
 
 /*
+  Check that pagecache was used and cleaned up properly.
+*/
+
+#ifndef DBUG_OFF
+void check_pagecache_is_cleaned_up(PAGECACHE *pagecache)
+{
+  DBUG_ENTER("check_pagecache_is_cleaned_up");
+  /*
+    Ensure we called inc_counter_for_resize_op and dec_counter_for_resize_op
+    the same number of times. (If not, a resize() could never happen.
+  */
+  DBUG_ASSERT(pagecache->cnt_for_resize_op == 0);
+
+  if (pagecache->disk_blocks > 0)
+  {
+    if (pagecache->block_mem)
+    {
+      uint i;
+      for (i=0 ; i < pagecache->blocks_used ; i++)
+      {
+        DBUG_ASSERT(pagecache->block_root[i].status == 0);
+        DBUG_ASSERT(pagecache->block_root[i].type == PAGECACHE_EMPTY_PAGE);
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
+
+
+/*
   Removes page cache from memory. Does NOT flush pages to disk.
 
   SYNOPSIS
@@ -1106,6 +1139,10 @@ void end_pagecache(PAGECACHE *pagecache, my_bool cleanup)
 
   if (pagecache->disk_blocks > 0)
   {
+#ifndef DBUG_OFF
+    check_pagecache_is_cleaned_up(pagecache);
+#endif
+
     if (pagecache->block_mem)
     {
       my_large_free(pagecache->block_mem, MYF(0));
@@ -2250,6 +2287,7 @@ static my_bool pagecache_wait_lock(PAGECACHE *pagecache,
                                 &pagecache->cache_lock);
   }
   while(thread->next);
+  inc_counter_for_resize_op(pagecache);
 #else
   DBUG_ASSERT(0);
 #endif
@@ -3457,7 +3495,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
   {
     /*
       this call is just 'hint' for the cache to free the page so we will
-      not interferes with flushing process but gust return success
+      not interferes with flushing process but must return success
     */
     goto out;
   }
@@ -3527,8 +3565,17 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
   page_link->requests--;
   /* See NOTE for pagecache_unlock about registering requests. */
   free_block(pagecache, block);
+  dec_counter_for_resize_op(pagecache);
+  return 0;
 
 out:
+  /* Cache is locked, so we can relese page before freeing it */
+  if (make_lock_and_pin(pagecache, block,
+                        PAGECACHE_LOCK_WRITE_UNLOCK,
+                        PAGECACHE_UNPIN, FALSE))
+    DBUG_ASSERT(0);
+  page_link->requests--;
+  unreg_request(pagecache, block, 1);
   dec_counter_for_resize_op(pagecache);
   return error;
 }
@@ -3695,6 +3742,7 @@ restart:
     if (!page_link)
     {
       DBUG_PRINT("info", ("There is no such page in the cache"));
+      dec_counter_for_resize_op(pagecache);
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_RETURN(0);
     }
@@ -3707,6 +3755,7 @@ restart:
                            "reassigned" : "in switch")));
       PCBLOCK_INFO(block);
       page_link->requests--;
+      dec_counter_for_resize_op(pagecache);
       goto end;
     }
     /* See NOTE for pagecache_unlock about registering requests. */
