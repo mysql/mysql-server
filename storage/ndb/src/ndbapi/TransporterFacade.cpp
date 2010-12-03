@@ -857,47 +857,47 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
  * SEND SIGNAL METHODS
  *****************************************************************************/
 int
-TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
+TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode)
+{
   Uint32* tDataPtr = aSignal->getDataPtrSend();
   Uint32 Tlen = aSignal->theLength;
   Uint32 TBno = aSignal->theReceiversBlockNumber;
-  if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      LinearSectionPtr ptr[3];
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      tDataPtr,
-			      aNode, ptr, 0);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-#endif
-    if ((Tlen != 0) && (Tlen <= 25) && (TBno != 0)) {
-      SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-							  1, // JBB
-							  tDataPtr, 
-							  aNode, 
-							  (LinearSectionPtr*)0);
-      //if (ss != SEND_OK) ndbout << ss << endl;
-      return (ss == SEND_OK ? 0 : -1);
-    } else {
-      ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
-      ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
-      assert(0);
-    }//if
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+    Uint32 tmp = aSignal->theSendersBlockRef;
+    aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+    LinearSectionPtr ptr[3];
+    signalLogger.sendSignal(* aSignal,
+                            1,
+                            tDataPtr,
+                            aNode, ptr, 0);
+    signalLogger.flushSignalLog();
+    aSignal->theSendersBlockRef = tmp;
   }
-  //const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(aNode);
-  //const Uint32 startLevel = node.m_state.startLevel;
+#endif
+  if ((Tlen != 0) && (Tlen <= 25) && (TBno != 0)) {
+    SendStatus ss = theTransporterRegistry->prepareSend(aSignal,
+                                                        1, // JBB
+                                                        tDataPtr,
+                                                        aNode,
+                                                        (LinearSectionPtr*)0);
+    //if (ss != SEND_OK) ndbout << ss << endl;
+    return (ss == SEND_OK ? 0 : -1);
+  }
+  else
+  {
+    ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
+    ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
+    assert(0);
+  }//if
   return -1; // Node Dead
 }
 
 int
 TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, 
                                     NodeId aNode,
-                                    Uint32 prio){
+                                    Uint32 prio)
+{
   Uint32* tDataPtr = aSignal->getDataPtrSend();
   assert(prio <= 1);
 #ifdef API_TRACE
@@ -1151,7 +1151,7 @@ public:
 int
 TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
                                         NodeId aNode,
-					const GenericSectionPtr ptr[3],
+                                        const GenericSectionPtr ptr[3],
                                         Uint32 secs)
 {
   unsigned i;
@@ -1163,10 +1163,6 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
   if (totalSectionLength <= CHUNK_SZ)
     return sendSignal(aSignal, aNode, ptr, secs);
   
-  /* We will fragment */
-  if(getIsNodeSendable(aNode) != true)
-    return -1;
-
   // TODO : Consider tracing fragment signals?
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
@@ -1333,8 +1329,8 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
 }
 
 int
-TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
-					const LinearSectionPtr ptr[3],
+TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
+                                        const LinearSectionPtr ptr[3],
                                         Uint32 secs)
 {
   /* Use the GenericSection variant of sendFragmentedSignal */
@@ -1363,70 +1359,64 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
   
 
 int
-TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode, 
-			      const LinearSectionPtr ptr[3], Uint32 secs){
+TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
+                              const LinearSectionPtr ptr[3], Uint32 secs)
+{
   aSignal->m_noOfSections = secs;
-  if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      aSignal->getDataPtrSend(),
-			      aNode,
-                              ptr, secs);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-#endif
-    SendStatus ss = theTransporterRegistry->prepareSend
-      (aSignal, 
-       1, // JBB
-       aSignal->getDataPtrSend(),
-       aNode, 
-       ptr);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    aSignal->m_noOfSections = 0;
-    return (ss == SEND_OK ? 0 : -1);
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+    Uint32 tmp = aSignal->theSendersBlockRef;
+    aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+    signalLogger.sendSignal(* aSignal,
+                            1,
+                            aSignal->getDataPtrSend(),
+                            aNode,
+                            ptr, secs);
+    signalLogger.flushSignalLog();
+    aSignal->theSendersBlockRef = tmp;
   }
+#endif
+  SendStatus ss = theTransporterRegistry->prepareSend
+    (aSignal,
+     1, // JBB
+     aSignal->getDataPtrSend(),
+     aNode,
+     ptr);
+  assert(ss != SEND_MESSAGE_TOO_BIG);
   aSignal->m_noOfSections = 0;
-  return -1;
+  return (ss == SEND_OK ? 0 : -1);
 }
 
 int
 TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
-                              const GenericSectionPtr ptr[3], Uint32 secs){
+                              const GenericSectionPtr ptr[3], Uint32 secs)
+{
   aSignal->m_noOfSections = secs;
-  if(getIsNodeSendable(aNode) == true){
 #ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      aSignal->getDataPtrSend(),
-			      aNode,
-                              ptr, secs);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-    /* Reset section iterators */
-    for(Uint32 s=0; s < secs; s++)
-      ptr[s].sectionIter->reset();
-#endif
-    SendStatus ss = theTransporterRegistry->prepareSend
-      (aSignal, 
-       1, // JBB
-       aSignal->getDataPtrSend(),
-       aNode, 
-       ptr);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    aSignal->m_noOfSections = 0;
-    return (ss == SEND_OK ? 0 : -1);
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+    Uint32 tmp = aSignal->theSendersBlockRef;
+    aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+    signalLogger.sendSignal(* aSignal,
+                            1,
+                            aSignal->getDataPtrSend(),
+                            aNode,
+                            ptr, secs);
+    signalLogger.flushSignalLog();
+    aSignal->theSendersBlockRef = tmp;
   }
+  /* Reset section iterators */
+  for(Uint32 s=0; s < secs; s++)
+    ptr[s].sectionIter->reset();
+#endif
+  SendStatus ss = theTransporterRegistry->prepareSend
+    (aSignal,
+     1, // JBB
+     aSignal->getDataPtrSend(),
+     aNode,
+     ptr);
+  assert(ss != SEND_MESSAGE_TOO_BIG);
   aSignal->m_noOfSections = 0;
-  return -1;
+  return (ss == SEND_OK ? 0 : -1);
 }
 
 /******************************************************************************
@@ -1719,7 +1709,8 @@ template class Vector<trp_client*>;
 #include "SignalSender.hpp"
 
 SendStatus
-SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
+SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
+{
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(s->header.theVerId_signalNumber)){
     SignalHeader tmp = s->header;
