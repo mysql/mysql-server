@@ -268,4 +268,24 @@ FROM t1,t2 WHERE t1.f1 = t2.f1 ORDER BY t2.f1;
 
 DROP TABLE t1, t2, t3;
 
+
+#
+# Bug #55615: debug assertion after using variable in assignment and
+# referred to
+# Bug #55564: crash with user variables, assignments, joins...
+#
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0),(0);
+--echo # BUG#55615 : should not crash
+SELECT (@a:=((SELECT @a:=1 FROM t1 LIMIT 1))) AND COUNT(1) FROM t1 GROUP BY @a;
+--echo # BUG#55564 : should not crash
+SELECT IF(
+  @v:=LEAST((SELECT 1 FROM t1 t2 LEFT JOIN t1 ON (@v) GROUP BY t1.a), a),
+  count(*), 1) 
+FROM t1 GROUP BY a LIMIT 1;
+
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
