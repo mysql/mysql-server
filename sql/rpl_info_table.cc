@@ -51,18 +51,18 @@ Rpl_info_table::Rpl_info_table(uint nparam, uint param_field_idx,
 }
 
 Rpl_info_table::~Rpl_info_table()
-{ 
+{
   if (access)
     delete access;
   
   if (description)
-    delete description;
+    my_free(description);
 
   if (str_table.str)
-    delete str_table.str;
+    my_free(str_table.str);
 
   if (str_schema.str)
-    delete str_schema.str;
+    my_free(str_schema.str);
 }
 
 int Rpl_info_table::do_init_info()
