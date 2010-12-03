@@ -71,6 +71,13 @@ protected:
   
   bool inside_first_fix_fields;
   bool done_first_fix_fields;
+  /*
+    Set to TRUE if at optimization or execution time we determine that this
+    item's value is a constant. We need this member because it is not possible
+    to substitute 'this' with a constant item.
+  */
+  bool forced_const;
+
 public:
   /* A reference from inside subquery predicate to somewhere outside of it */
   class Ref_to_outside : public Sql_alloc
@@ -119,6 +126,12 @@ public:
   Item_subselect();
 
   virtual subs_type substype() { return UNKNOWN_SUBS; }
+  bool is_in_predicate()
+  {
+    return (substype() == Item_subselect::IN_SUBS ||
+            substype() == Item_subselect::ALL_SUBS ||
+            substype() == Item_subselect::ANY_SUBS);
+  }
 
   /*
     We need this method, because some compilers do not allow 'this'
@@ -149,12 +162,21 @@ public:
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
   virtual bool exec();
+  /*
+    If subquery optimization or execution determines that the subquery has
+    an empty result, mark the subquery predicate as a constant value.
+  */
+  void make_const()
+  { 
+    used_tables_cache= 0;
+    const_item_cache= 0;
+    forced_const= TRUE; 
+  }
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   table_map not_null_tables() const { return 0; }
   bool const_item() const;
   inline table_map get_used_tables_cache() { return used_tables_cache; }
-  inline bool get_const_item_cache() { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
@@ -172,6 +194,7 @@ public:
   */
   bool is_evaluated() const;
   bool is_uncacheable() const;
+  bool is_expensive() { return TRUE; }
 
   /*
     Used by max/min subquery to initialize value presence registration
@@ -181,11 +204,23 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   bool mark_as_eliminated_processor(uchar *arg);
+  bool eliminate_subselect_processor(uchar *arg);
+  bool set_fake_select_as_master_processor(uchar *arg);
   bool enumerate_field_refs_processor(uchar *arg);
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor("subselect");
   }
+  /**
+    Callback to test if an IN predicate is expensive.
+
+    @notes
+    The return value affects the behavior of make_cond_for_table().
+
+    @retval TRUE  if the predicate is expensive
+    @retval FALSE otherwise
+  */
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
 
   /**
@@ -313,6 +348,18 @@ public:
 };
 
 
+/*
+  Possible methods to execute an IN predicate. These are set by the optimizer
+  based on user-set optimizer switches, semantic analysis and cost comparison.
+*/
+#define SUBS_NOT_TRANSFORMED 0 /* No execution method was chosen for this IN. */
+#define SUBS_SEMI_JOIN 1       /* IN was converted to semi-join. */
+#define SUBS_IN_TO_EXISTS 2    /* IN was converted to correlated EXISTS. */
+#define SUBS_MATERIALIZATION 4 /* Execute IN via subquery materialization. */
+/* Partial matching substrategies of MATERIALIZATION. */
+#define SUBS_PARTIAL_MATCH_ROWID_MERGE 8
+#define SUBS_PARTIAL_MATCH_TABLE_SCAN 16
+
 /**
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
@@ -330,8 +377,6 @@ public:
 
 class Item_in_subselect :public Item_exists_subselect
 {
-public:
-  Item *left_expr;
 protected:
   /*
     Cache of the left operand of the subquery predicate. Allocated in the
@@ -339,12 +384,6 @@ protected:
   */
   List<Cached_item> *left_expr_cache;
   bool first_execution;
-  /*
-    Set to TRUE if at query execution time we determine that this item's
-    value is a constant during this execution. We need this member because
-    it is not possible to substitute 'this' with a constant item.
-  */
-  bool is_constant;
 
   /*
     expr & optimizer used in subselect rewriting to store Item for
@@ -354,10 +393,24 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
-public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
-  
+  Comp_creator *func;
+
+protected:
+  bool init_cond_guards();
+  trans_res select_in_like_transformer(JOIN *join);
+  trans_res single_value_transformer(JOIN *join);
+  trans_res row_value_transformer(JOIN * join);
+  bool fix_having(Item *having, st_select_lex *select_lex);
+  trans_res create_single_in_to_exists_cond(JOIN * join,
+                                            Item **where_item,
+                                            Item **having_item);
+  trans_res create_row_in_to_exists_cond(JOIN * join,
+                                         Item **where_item,
+                                         Item **having_item);
+public:
+  Item *left_expr;
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
   int sj_convert_priority;
   /*
@@ -388,14 +441,8 @@ public:
   */
   bool sjm_scan_allowed;
 
-  /* The method chosen to execute the IN predicate.  */
-  enum enum_exec_method {
-    NOT_TRANSFORMED, /* No execution method was chosen for this IN. */
-    SEMI_JOIN,   /* IN was converted to semi-join nest and should be removed. */
-    IN_TO_EXISTS, /* IN was converted to correlated EXISTS. */
-    MATERIALIZATION /* IN will be executed via subquery materialization. */
-  };
-  enum_exec_method exec_method;
+  /* A bitmap of possible execution strategies for an IN predicate. */
+  uchar in_strategy;
 
   bool *get_cond_guard(int i)
   {
@@ -413,9 +460,10 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-    is_constant(FALSE), optimizer(0), abort_on_null(0),
-    pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
-  {}
+    optimizer(0), abort_on_null(0),
+    pushed_cond_guards(NULL), func(NULL), in_strategy(0),
+    upper_item(0)
+    {}
   void cleanup();
   subs_type substype() { return IN_SUBS; }
   void reset() 
@@ -426,12 +474,9 @@ public:
     was_null= 0;
   }
   trans_res select_transformer(JOIN *join);
-  trans_res select_in_like_transformer(JOIN *join, Comp_creator *func);
-  trans_res single_value_transformer(JOIN *join, Comp_creator *func);
-  trans_res row_value_transformer(JOIN * join);
-  trans_res single_value_in_to_exists_transformer(JOIN * join,
-                                                  Comp_creator *func);
-  trans_res row_value_in_to_exists_transformer(JOIN * join);
+  bool create_in_to_exists_cond(JOIN *join_arg);
+  bool inject_in_to_exists_cond(JOIN *join_arg);
+
   virtual bool exec();
   longlong val_int();
   double val_real();
@@ -446,11 +491,10 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void update_used_tables();
-  bool setup_engine();
+  bool setup_mat_engine();
   bool init_left_expr_cache();
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
-  bool is_expensive_processor(uchar *arg);
   bool expr_cache_is_needed(THD *thd);
   
   /* 
@@ -472,7 +516,6 @@ class Item_allany_subselect :public Item_in_subselect
 {
 public:
   chooser_compare_func_creator func_creator;
-  Comp_creator *func;
   bool all;
 
   Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
@@ -481,6 +524,7 @@ public:
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
+  void create_comp_func(bool invert) { func= func_creator(invert); }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -821,10 +865,9 @@ public:
   }
   ~subselect_hash_sj_engine();
 
-  bool init_permanent(List<Item> *tmp_columns);
-  bool init_runtime();
+  bool init(List<Item> *tmp_columns);
   void cleanup();
-  int prepare() { return 0; } /* Override virtual function in base class. */
+  int prepare();
   int exec();
   virtual void print(String *str, enum_query_type query_type);
   uint cols()

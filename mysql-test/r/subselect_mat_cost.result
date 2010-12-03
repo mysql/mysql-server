@@ -1,0 +1,3877 @@
+drop table if exists t1, t2, t1_1024, t2_1024;
+drop procedure if exists make_t1_indexes;
+drop procedure if exists make_t2_indexes;
+drop procedure if exists remove_t1_indexes;
+drop procedure if exists remove_t2_indexes;
+drop procedure if exists add_materialization_data;
+drop procedure if exists delete_materialization_data;
+drop procedure if exists set_all_columns_not_null;
+drop procedure if exists set_all_columns_nullable;
+create table t1 (a1 char(8), a2 char(8), a3 char(8), a4 int);
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00', 0);
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01', 1);
+insert into t1 values ('1 - 02', '2 - 02', '3 - 02', 2);
+create table t2 (b1 char(8), b2 char(8), b3 char(8), b4 int);
+insert into t2 values ('1 - 01', '2 - 01', '3 - 01', 1);
+insert into t2 values ('1 - 01', '2 - 01', '3 - 02', 2);
+insert into t2 values ('1 - 02', '2 - 02', '3 - 03', 3);
+insert into t2 values ('1 - 02', '2 - 02', '3 - 04', 4);
+insert into t2 values ('1 - 03', '2 - 03', '3 - 05', 5);
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+insert into t1_1024 values (concat('1 - 00', repeat('x', 1018)), concat('2 - 00', repeat('x', 1018)));
+insert into t1_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+insert into t2_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 02', repeat('x', 1018)), concat('2 - 02', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 04', repeat('x', 1018)), concat('2 - 04', repeat('x', 1018)));
+create procedure make_t1_indexes()
+begin
+create index it1i1 on t1 (a1);
+create index it1i2 on t1 (a2);
+create index it1i3 on t1 (a1, a2);
+create index it1_1024i1 on t1_1024 (a1(6));
+create index it1_1024i2 on t1_1024 (a2(6));
+create index it1_1024i3 on t1_1024 (a1(6), a2(6));
+end|
+create procedure make_t2_indexes()
+begin
+create index it2i1 on t2 (b1);
+create index it2i2 on t2 (b2);
+create index it2i3 on t2 (b1, b2);
+create unique index it2i4 on t2 (b1, b2, b3);
+create index it2_1024i1 on t2_1024 (b1(6));
+create index it2_1024i2 on t2_1024 (b2(6));
+create index it2_1024i3 on t2_1024 (b1(6), b2(6));
+end|
+create procedure remove_t1_indexes()
+begin
+drop index it1i1 on t1;
+drop index it1i2 on t1;
+drop index it1i3 on t1;
+drop index it1_1024i1 on t1_1024;
+drop index it1_1024i2 on t1_1024;
+drop index it1_1024i3 on t1_1024;
+end|
+create procedure remove_t2_indexes()
+begin
+drop index it2i1 on t2;
+drop index it2i2 on t2;
+drop index it2i3 on t2;
+drop index it2i4 on t2;
+drop index it2_1024i1 on t2_1024;
+drop index it2_1024i2 on t2_1024;
+drop index it2_1024i3 on t2_1024;
+end|
+create procedure add_materialization_data()
+begin
+insert into t1 values ('1 - 03', '2 - 03', '3 - 03', 3);
+insert into t1 values ('1 - 04', '2 - 04', '3 - 04', 4);
+insert into t1 values ('1 - 05', '2 - 05', '3 - 05', 5);
+insert into t1 values ('1 - 06', '2 - 06', '3 - 06', 6);
+insert into t1 values ('1 - 07', '2 - 07', '3 - 07', 7);
+insert into t1_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
+end|
+create procedure delete_materialization_data()
+begin
+delete from t1 where a1 >= '1 - 03';
+delete from t1_1024 where a1 >= '1 - 03';
+end|
+create procedure set_all_columns_not_null()
+begin
+alter table t1 modify a1 char(8) not null, modify a2 char(8) not null, modify a3 char(8) not null;
+alter table t2 modify b1 char(8) not null, modify b2 char(8) not null, modify b3 char(8) not null;
+end|
+create procedure set_all_columns_nullable()
+begin
+alter table t1 modify a1 char(8) null, modify a2 char(8) null, modify a3 char(8) null;
+alter table t2 modify b1 char(8) null, modify b2 char(8) null, modify b3 char(8) null;
+end|
+
+/******************************************************************************
+1. Both materialization and in-to-exists are ON, make a cost-based choice.
+******************************************************************************/
+set @@optimizer_switch='materialization=on,in_to_exists=on';
+
+/* 1.1 In-to-exists is cheaper */
+call make_t1_indexes();
+/* 1.1.1 non-indexed table access */
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+3	DEPENDENT UNION	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	9	const	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 1.1.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i3	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i3	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i2	it2i2	9	func	2	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	18	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	27	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	9	const	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	18	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	1	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	27	NULL	1	Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	27	NULL	1	Using where; Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	27	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	const	2	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 1.1.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i4	8	func	1	Using index; Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i4,it2i1,it2i2,it2i3	it2i4	8	func	2	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i4,it2i1,it2i2,it2i3	it2i4	8	func	2	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i2	it2i2	8	func	2	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	16	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	24	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	8	const	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	16	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	1	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	24	NULL	1	Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	24	NULL	1	Using where; Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	24	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	8	const	5	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	16	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+call set_all_columns_nullable();
+
+/* 1.2 Materialization is cheaper */
+call add_materialization_data();
+call remove_t1_indexes();
+/* 1.2.1 non-indexed table access */
+call remove_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+3	DEPENDENT UNION	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 1.2.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	5	Using where; Using index
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i3	18	NULL	5	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i2,it2i3	it2i3	9	NULL	4	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i2	it2i2	9	NULL	5	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i3	18	NULL	5	Using where; Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	27	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ref	it2i2	it2i2	9	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i4	27	NULL	5	Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	5	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	27	NULL	6	Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	27	NULL	6	Using where; Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	27	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	const	2	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 1.2.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	5	Using where; Using index
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i3	16	NULL	5	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i2,it2i3	it2i3	8	NULL	4	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i2	it2i2	8	NULL	5	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i3	16	NULL	5	Using where; Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	24	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	ref	it2i2	it2i2	8	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i2,it2i3	it2i4	24	NULL	5	Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	5	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	24	NULL	6	Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	24	NULL	6	Using where; Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	24	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	8	const	5	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+call set_all_columns_nullable();
+/******************************************************************************
+2. Materialization is OFF, in-to-exists is ON, materialization is cheaper.
+******************************************************************************/
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+/* 2.1 non-indexed table access */
+call remove_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+3	DEPENDENT UNION	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 2.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i3	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i3	9	func	2	Using index; Using where; Full scan on NULL key
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i2	it2i2	9	func	2	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	18	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	27	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	18	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	1	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	27	NULL	1	Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	27	NULL	1	Using where; Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	27	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	const	2	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 2.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i4	8	func	1	Using index; Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+1 - 03	1
+1 - 04	0
+1 - 05	0
+1 - 06	0
+1 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ref	it2i4,it2i1,it2i2,it2i3	it2i4	8	func	2	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
+2	DEPENDENT SUBQUERY	t2	ref	it2i4,it2i1,it2i2,it2i3	it2i4	8	func	2	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+1 - 03	2 - 03	1
+1 - 04	2 - 04	0
+1 - 05	2 - 05	0
+1 - 06	2 - 06	0
+1 - 07	2 - 07	0
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i2	it2i2	8	func	2	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	16	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+1 - 04	2 - 04
+1 - 05	2 - 05
+1 - 06	2 - 06
+1 - 07	2 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	24	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+2 - 03
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i2,it2i3	it2i4	16	func,func	1	Using index; Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+1 - 03	2 - 03
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	1	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	1	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+1 - 03	2 - 03	3 - 03	3
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	24	NULL	1	Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	index	NULL	it2i4	24	NULL	1	Using where; Using index
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	24	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+1 - 03x	2 - 03x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	8	const	5	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+1 - 03
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+1 - 03
+1 - 04
+1 - 05
+1 - 06
+1 - 07
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+1 - 03
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+call set_all_columns_nullable();
+/******************************************************************************
+3. Materialization is ON, in-to-exists is OFF, in-to-exists is cheaper.
+******************************************************************************/
+set @@optimizer_switch='materialization=on,in_to_exists=off';
+call delete_materialization_data();
+call make_t1_indexes();
+/* 3.1 non-indexed table access */
+call remove_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+3	DEPENDENT UNION	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	9	const	1	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where; Using temporary; Using filesort
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 3.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	5	Using where; Using index
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using index
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i3	9	NULL	4	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	NULL	it2i2	9	NULL	5	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	9	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	27	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	9	const	1	Using where; Using index
+2	SUBQUERY	t2	ref	it2i2	it2i2	9	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	NULL	it2i4	27	NULL	5	Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	9	NULL	5	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	18	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	27	NULL	6	Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	27	NULL	6	Using where; Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	27	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	9	const	2	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	18	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	9	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+/* 3.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+
+/* A. Subqueries in the SELECT clause. */
+explain
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	5	Using where; Using index
+select a1, a1 in (select b1 from t2 where b1 > '0') from t1;
+a1	a1 in (select b1 from t2 where b1 > '0')
+1 - 00	0
+1 - 01	1
+1 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+explain
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using index
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i3	8	NULL	4	Using where; Using index
+select a1, a2, (a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9') from t1;
+a1	a2	(a1, a2) in (select b1, b2 from t2 where b1 > '0' and b1 < '9')
+1 - 00	2 - 00	0
+1 - 01	2 - 01	1
+1 - 02	2 - 02	1
+
+/*
+B. "Natural" examples of subqueries without grouping that
+cannot be flattened into semijoin.
+*/
+explain
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	NULL	it2i2	8	NULL	5	Using index
+select a1 from t1 where a1 in (select b2 from t2) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0') or a2 < '9';
+a1	a2
+1 - 00	2 - 00
+1 - 01	2 - 01
+1 - 02	2 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i2	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	ref	it2i2	it2i2	8	func	2	Using index
+3	DEPENDENT UNION	t3	index	NULL	it2i4	24	NULL	5	Using where; Using index
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a2 from t1 where a2 in (select b2 from t2 UNION select b3 from t2 as t3);
+a2
+2 - 01
+2 - 02
+
+explain
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ref	it1i1,it1i3	it1i1	8	const	1	Using where; Using index
+2	SUBQUERY	t2	ref	it2i2	it2i2	8	const	1	Using index condition
+select a1 from t1 where a1 = '1 - 02' and a1 in (select max(b1) from t2 where b2 = '2 - 02');
+a1
+1 - 02
+
+explain
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i3	16	NULL	3	Using where; Using index
+2	SUBQUERY	t2	index	NULL	it2i4	24	NULL	5	Using index
+select a1, a2 from t1 where (a1, a2) in (select b1, b2 from t2 order by b3);
+a1	a2
+1 - 01	2 - 01
+1 - 02	2 - 02
+
+/* C. Subqueries in the WHERE clause with GROUP BY. */
+explain
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i1	8	NULL	5	Using where; Using index
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	index	it2i4,it2i1,it2i3	it2i3	16	NULL	5	Using where; Using index
+select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2 having b2 <  '2 - 04');
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+1 - 02	2 - 02	3 - 02	2
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	24	NULL	6	Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 group by b1, b2, b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+explain
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	NULL	it2i4	24	NULL	6	Using where; Using index for group-by
+select * from t1 where (a1, a2, a3) in (select b1, b2, b3 from t2 where b3 = '3 - 02' group by b1, b2);
+a1	a2	a3	a4
+
+explain
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	SUBQUERY	t2	range	it2i4,it2i1,it2i3	it2i4	24	NULL	2	Using where; Using index for group-by
+select * from t1 where (a1,a2,a3) in (select b1,b2,b3 from t2 where b1 = '1 - 01' group by b1,b2,b3);
+a1	a2	a3	a4
+1 - 01	2 - 01	3 - 01	1
+
+/*
+D. Subqueries for which materialization is not possible, and the
+optimizer reverts to in-to-exists.
+*/
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i3	it2_1024i3	9	func	1	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select b1 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	index_subquery	it2_1024i1,it2_1024i2,it2_1024i3	it2_1024i1	9	func	2	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+explain
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+explain
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1_1024	ALL	it1_1024i2	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2_1024	range	it2_1024i1,it2_1024i3	it2_1024i1	9	NULL	4	Using where
+select left(a1,7), left(a2,7) from t1_1024 where (a1,a2) in (select substring(b1,1,1024), substring(b2,1,1024) from t2_1024 where b1 > '0') or a2 < '9';
+left(a1,7)	left(a2,7)
+1 - 00x	2 - 00x
+1 - 01x	2 - 01x
+
+
+/* E. Edge cases. */
+
+/* E.1 Both materialization and in_to_exists cannot be off. */
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch = 'materialization=off,in_to_exists=off';
+select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
+ERROR HY000: At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'.
+set @@optimizer_switch = @save_optimizer_switch;
+/* E.2 Outer query without tables, always uses IN-TO-EXISTS. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	t2	index_subquery	it2i4,it2i1,it2i3	it2i1	8	const	5	Using index; Using where
+select '1 - 03' in (select b1 from t2 where b1 > '0');
+'1 - 03' in (select b1 from t2 where b1 > '0')
+1
+/* E.3 Subqueries without tables. */
+explain
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i1,it1i2,it1i3	it1i3	16	NULL	3	Using where; Using index
+Warnings:
+Note	1249	Select 2 was reduced during optimization
+select a1 from t1 where a1 in (select '1 - 03') or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+UNION subqueries are currently limited to only use IN-TO-EXISTS.
+explain
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+select a1 from t1 where a1 in (select '1 - 03' UNION select '1 - 02');
+a1
+1 - 02
+/* E.4 optimize_cond detects FALSE where/having clause. */
+explain
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	it1i2	it1i3	16	NULL	3	Using where; Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+select a1 from t1 where a1 in (select b1 from t2 where b1 = b2 and b2 = '1 - 03' and b1 = '1 - 02' ) or a2 < '9';
+a1
+1 - 00
+1 - 01
+1 - 02
+/* E.5 opt_sum_query detects no matching min/max row or substitutes MIN/MAX with a const. */
+TODO this test produces wrong result due to missing logic to handle the case
+when JOIN::optimize detects an empty subquery result.
+explain
+select a1 from t1 where a1 in (select max(b1) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select a1 from t1 where a1 in (select max(b1) from t2);
+a1
+
+explain
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	it1i1	8	NULL	3	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+select a1 from t1 where a1 in (select max(b1) from t2 where b1 = '7 - 02');
+a1
+/* E.6 make_join_select detects impossible WHERE. *
+TODO
+/* E.7 constant optimization detects "no matching row in const table". */
+TODO
+/* E.8 Impossible WHERE noticed after reading const tables. */
+explain
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select '1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0');
+'1 - 03' in (select b1 from t2 where b1 > '0' and b1 < '0')
+0
+
+/* F. UPDATE/DELETE with subqueries. */
+
+TODO
+
+call set_all_columns_nullable();
+drop procedure make_t1_indexes;
+drop procedure make_t2_indexes;
+drop procedure remove_t1_indexes;
+drop procedure remove_t2_indexes;
+drop procedure add_materialization_data;
+drop procedure delete_materialization_data;
+drop procedure set_all_columns_not_null;
+drop procedure set_all_columns_nullable;
+drop table t1, t2, t1_1024, t2_1024;
+#
+# LP BUG#643424 valgrind warning in choose_subquery_plan()
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2));
+INSERT INTO t1 VALUES (1,NULL,2);
+INSERT INTO t1 VALUES (2,7,9);
+INSERT INTO t1 VALUES (9,NULL,8);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2));
+INSERT INTO t2 VALUES (1,1,7);
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+SELECT pk FROM t1 WHERE (c2, c1) IN (SELECT c2, c2 FROM t2);
+pk
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;
+#
+# LP BUG#652727 Crash in create_ref_for_key()
+#
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+PRIMARY KEY (pk));
+INSERT INTO t2 VALUES (10,7);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (17,NULL);
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (19,NULL);
+CREATE TABLE t3 (c2 int(11) DEFAULT NULL, KEY c2 (c2));
+INSERT INTO t3 VALUES (1);
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+SELECT c2
+FROM t3
+WHERE (2, 6) IN (SELECT t1.c1, t1.c1 FROM t1 STRAIGHT_JOIN t2 ON t2.pk = t1.pk);
+c2
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;
+#
+# LP BUG#641245 Crash in Item_equal::contains
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+c3 varchar(1) DEFAULT NULL,
+c4 varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2),
+KEY c3 (c3,c2));
+INSERT INTO t1 VALUES (10,7,8,'v','v');
+INSERT INTO t1 VALUES (11,1,9,'r','r');
+INSERT INTO t1 VALUES (12,5,9,'a','a');
+create table t1a like t1;
+insert into t1a select * from t1;
+create table t1b like t1;
+insert into t1b select * from t1;
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+c1 int(11) DEFAULT NULL,
+c2 int(11) DEFAULT NULL,
+c3 varchar(1) DEFAULT NULL,
+c4 varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY c2 (c2),
+KEY c3 (c3,c2));
+INSERT INTO t2 VALUES (1,NULL,2,'w','w');
+INSERT INTO t2 VALUES (2,7,9,'m','m');
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+EXPLAIN EXTENDED SELECT pk
+FROM t1
+WHERE c1 IN
+(SELECT t1a.c1
+FROM (t1b JOIN t2 ON t2.c3 = t1b.c4) LEFT JOIN
+t1a ON (t1a.c2 = t1b.pk AND 2)
+WHERE t1.pk) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	index	c3	c3	9	NULL	2	100.00	Using index
+2	DEPENDENT SUBQUERY	t1b	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
+2	DEPENDENT SUBQUERY	t1a	ref	c2	c2	5	test.t1b.pk	2	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <expr_cache><`test`.`t1`.`c1`,(`test`.`t1`.`pk` and (`test`.`t1b`.`c4` = `test`.`t2`.`c3`) and (<cache>(`test`.`t1`.`c1`) = `test`.`t1a`.`c1`))>(<in_optimizer>(`test`.`t1`.`c1`,<exists>(select `test`.`t1a`.`c1` from `test`.`t1b` join `test`.`t2` left join `test`.`t1a` on((2 and (`test`.`t1a`.`c2` = `test`.`t1b`.`pk`))) where (`test`.`t1`.`pk` and (`test`.`t1b`.`c4` = `test`.`t2`.`c3`) and (<cache>(`test`.`t1`.`c1`) = `test`.`t1a`.`c1`)))))
+SELECT pk
+FROM t1
+WHERE c1 IN
+(SELECT t1a.c1
+FROM (t1b JOIN t2 ON t2.c3 = t1b.c4) LEFT JOIN
+t1a ON (t1a.c2 = t1b.pk AND 2)
+WHERE t1.pk) ;
+pk
+DROP TABLE t1, t1a, t1b, t2;

@@ -266,6 +266,8 @@ public:
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
+  bool is_expensive_processor(uchar *arg);
+  bool is_expensive();
 };
 
 class Comp_creator
@@ -1303,8 +1305,6 @@ public:
 
 class Item_func_isnull :public Item_bool_func
 {
-protected:
-  longlong cached_value;
 public:
   Item_func_isnull(Item *a) :Item_bool_func(a) {}
   longlong val_int();
@@ -1322,18 +1322,9 @@ public:
     {
       used_tables_cache= 0;			/* is always false */
       const_item_cache= 1;
-      cached_value= (longlong) 0;
     }
     else
-    {
       args[0]->update_used_tables();
-      if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-          !with_subselect))
-      {
-	/* Remember if the value is always NULL or never NULL */
-	cached_value= (longlong) args[0]->is_null();
-      }
-    }
   }
   table_map not_null_tables() const { return 0; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
