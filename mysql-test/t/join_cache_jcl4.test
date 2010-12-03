@@ -3,7 +3,10 @@ let $requires_join_cache_level = 4;
 
 --eval set optimizer_join_cache_level = $requires_join_cache_level;
 
-set optimizer_switch='mrr_cost_based=off';
+if (`select locate('mrr_cost_based', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='mrr_cost_based=off';
+}
 
 --source include/join_cache.inc
 
