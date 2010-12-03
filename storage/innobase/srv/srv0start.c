@@ -2271,9 +2271,6 @@ innobase_shutdown_for_mysql(void)
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);
 	}
-	if (lock_latest_err_file) {
-		fclose(lock_latest_err_file);
-	}
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);

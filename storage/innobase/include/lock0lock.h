@@ -42,8 +42,6 @@ Created 5/7/1996 Heikki Tuuri
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
-/* Buffer for storing information about the most recent deadlock error */
-extern FILE*	lock_latest_err_file;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
