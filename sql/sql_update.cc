@@ -42,11 +42,68 @@
                          // mysql_handle_derived,
                          // mysql_derived_filling
 
-/* Return 0 if row hasn't changed */
 
-bool compare_record(TABLE *table)
+/**
+   True if the table's input and output record buffers are comparable using
+   compare_records(TABLE*).
+ */
+bool records_are_comparable(const TABLE *table) {
+  return ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) == 0) ||
+    bitmap_is_subset(table->write_set, table->read_set);
+}
+
+
+/**
+   Compares the input and outbut record buffers of the table to see if a row
+   has changed. The algorithm iterates over updated columns and if they are
+   nullable compares NULL bits in the buffer before comparing actual
+   data. Special care must be taken to compare only the relevant NULL bits and
+   mask out all others as they may be undefined. The storage engine will not
+   and should not touch them.
+
+   @param table The table to evaluate.
+
+   @return true if row has changed.
+   @return false otherwise.
+*/
+bool compare_records(const TABLE *table)
 {
+  DBUG_ASSERT(records_are_comparable(table));
+
+  if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0)
+  {
+    /*
+      Storage engine may not have read all columns of the record.  Fields
+      (including NULL bits) not in the write_set may not have been read and
+      can therefore not be compared.
+    */ 
+    for (Field **ptr= table->field ; *ptr != NULL; ptr++)
+    {
+      Field *field= *ptr;
+      if (bitmap_is_set(table->write_set, field->field_index))
+      {
+        if (field->real_maybe_null())
+        {
+          uchar null_byte_index= field->null_ptr - table->record[0];
+          
+          if (((table->record[0][null_byte_index]) & field->null_bit) !=
+              ((table->record[1][null_byte_index]) & field->null_bit))
+            return TRUE;
+        }
+        if (field->cmp_binary_offset(table->s->rec_buff_length))
+          return TRUE;
+      }
+    }
+    return FALSE;
+  }
+  
+  /* 
+     The storage engine has read all columns, so it's safe to compare all bits
+     including those not in the write_set. This is cheaper than the field-by-field
+     comparison done above.
+  */ 
   if (table->s->blob_fields + table->s->varchar_fields == 0)
+    // Fixed-size record: do bitwise comparison of the records 
     return cmp_record(table,record[1]);
   /* Compare null bits */
   if (memcmp(table->null_flags,
@@ -160,7 +217,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Tell the engine about the new set. */
   table->file->column_bitmaps_signal();
   /* Read record that is identified by table->file->ref. */
-  (void) table->file->rnd_pos(table->record[1], table->file->ref);
+  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
   for (field_p= table->field; (field= *field_p); field_p++)
     if (bitmap_is_set(&unique_map, field->field_index))
@@ -195,7 +252,7 @@ int mysql_update(THD *thd,
                  TABLE_LIST *table_list,
                  List<Item> &fields,
 		 List<Item> &values,
-                 COND *conds,
+                 Item *conds,
                  uint order_num, ORDER *order,
 		 ha_rows limit,
 		 enum enum_duplicates handle_duplicates, bool ignore,
@@ -204,7 +261,6 @@ int mysql_update(THD *thd,
   bool		using_limit= limit != HA_POS_ERROR;
   bool		safe_update= test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   bool          used_key_is_modified= FALSE, transactional_table, will_batch;
-  bool		can_compare_record;
   int           res;
   int		error, loc_error;
   uint          used_index, dup_key_found;
@@ -345,6 +401,7 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
+  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
   if (error || !limit ||
       (select && select->check_quick(thd, safe_update, limit)))
@@ -378,8 +435,6 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, select_lex, 1);
-
-  table->mark_columns_needed_for_update();
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);
@@ -585,15 +640,6 @@ int mysql_update(THD *thd,
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
     table->prepare_for_position();
 
-  /*
-    We can use compare_record() to optimize away updates if
-    the table handler is returning all columns OR if
-    if all updated columns are read
-  */
-  can_compare_record= (!(table->file->ha_table_flags() &
-                         HA_PARTIAL_COLUMN_READ) ||
-                       bitmap_is_subset(table->write_set, table->read_set));
-
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->examined_row_count++;
@@ -611,7 +657,7 @@ int mysql_update(THD *thd,
 
       found++;
 
-      if (!can_compare_record || compare_record(table))
+      if (!records_are_comparable(table) || compare_records(table))
       {
         if ((res= table_list->view_check_option(thd, ignore)) !=
             VIEW_CHECK_OK)
@@ -985,9 +1031,17 @@ int mysql_multi_update_prepare(THD *thd)
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
-  /* open tables and create derived ones, but do not lock and fill them */
+  /*
+    Open tables and create derived ones, but do not lock and fill them yet.
+
+    During prepare phase acquire only S metadata locks instead of SW locks to
+    keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
+    and global read lock.
+  */
   if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count, 0)) ||
+       open_tables(thd, &table_list, &table_count,
+                   (thd->stmt_arena->is_stmt_prepare() ?
+                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
   /*
@@ -1146,57 +1200,6 @@ int mysql_multi_update_prepare(THD *thd)
 }
 
 
-/**
-   Implementation of the safe update options during UPDATE IGNORE. This syntax
-   causes an UPDATE statement to ignore all errors. In safe update mode,
-   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
-   is a special hook in my_message_sql that will otherwise delete all errors
-   when the IGNORE option is specified. 
-
-   In the future, all IGNORE handling should be used with this class and all
-   traces of the hack outlined below should be removed.
-
-   - The parser detects IGNORE option and sets thd->lex->ignore= 1
-   
-   - In JOIN::optimize, if this is set, then 
-     thd->lex->current_select->no_error gets set.
-
-   - In my_message_sql(), if the flag above is set then any error is
-     unconditionally converted to a warning.
-
-   We are moving in the direction of using Internal_error_handler subclasses
-   to do all such error tweaking, please continue this effort if new bugs
-   appear.
- */
-class Safe_dml_handler : public Internal_error_handler {
-
-private:
-  bool m_handled_error;
-
-public:
-  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
-
-  bool handle_condition(THD *thd,
-                        uint sql_errno,
-                        const char* sqlstate,
-                        MYSQL_ERROR::enum_warning_level level,
-                        const char* msg,
-                        MYSQL_ERROR ** cond_hdl)
-  {
-    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
-        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
-    {
-      thd->stmt_da->set_error_status(thd, sql_errno, msg, sqlstate);
-      m_handled_error= TRUE;
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  bool handled_error() { return m_handled_error; }
-
-};
-
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1205,7 +1208,7 @@ bool mysql_multi_update(THD *thd,
                         TABLE_LIST *table_list,
                         List<Item> *fields,
                         List<Item> *values,
-                        COND *conds,
+                        Item *conds,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
                         bool ignore,
@@ -1230,11 +1233,6 @@ bool mysql_multi_update(THD *thd,
 
   List<Item> total_list;
 
-  Safe_dml_handler handler;
-  bool using_handler= thd->variables.option_bits & OPTION_SAFE_UPDATES;
-  if (using_handler)
-    thd->push_internal_handler(&handler);
-
   res= mysql_select(thd, &select_lex->ref_pointer_array,
                     table_list, select_lex->with_wild,
                     total_list,
@@ -1244,25 +1242,13 @@ bool mysql_multi_update(THD *thd,
                     OPTION_SETUP_TABLES_DONE,
                     *result, unit, select_lex);
 
-  if (using_handler)
-  {
-    Internal_error_handler *top_handler;
-    top_handler= thd->pop_internal_handler();
-    DBUG_ASSERT(&handler == top_handler);
-  }
-
   DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  /*
-    Todo: remove below code and make Safe_dml_handler do error processing
-    instead. That way we can return the actual error instead of
-    ER_UNKNOWN_ERROR.
-  */
-  if (unlikely(res) && (!using_handler || !handler.handled_error()))
+  if (unlikely(res))
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
-    (*result)->abort();
+    (*result)->abort_result_set();
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(res);
@@ -1714,18 +1700,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
     if (table->status & (STATUS_NULL_ROW | STATUS_UPDATED))
       continue;
 
-    /*
-      We can use compare_record() to optimize away updates if
-      the table handler is returning all columns OR if
-      if all updated columns are read
-    */
     if (table == table_to_update)
     {
-      bool can_compare_record;
-      can_compare_record= (!(table->file->ha_table_flags() &
-                             HA_PARTIAL_COLUMN_READ) ||
-                           bitmap_is_subset(table->write_set,
-                                            table->read_set));
       table->status|= STATUS_UPDATED;
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, *fields_for_table[offset],
@@ -1740,7 +1716,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       */
       table->auto_increment_field_not_null= FALSE;
       found++;
-      if (!can_compare_record || compare_record(table))
+      if (!records_are_comparable(table) || compare_records(table))
       {
 	int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -1842,11 +1818,13 @@ bool multi_update::send_data(List<Item> &not_used_values)
       {
         if (error &&
             create_myisam_from_heap(thd, tmp_table,
-                                    tmp_table_param + offset, error, 1))
+                                         tmp_table_param[offset].start_recinfo,
+                                         &tmp_table_param[offset].recinfo,
+                                         error, TRUE, NULL))
         {
           do_update= 0;
-          DBUG_RETURN(1);			// Not a table_is_full error
-        }
+	  DBUG_RETURN(1);			// Not a table_is_full error
+	}
         found++;
       }
     }
@@ -1862,7 +1840,7 @@ void multi_update::send_error(uint errcode,const char *err)
 }
 
 
-void multi_update::abort()
+void multi_update::abort_result_set()
 {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
@@ -1929,7 +1907,6 @@ int multi_update::do_updates()
     DBUG_RETURN(0);
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
-    bool can_compare_record;
     uint offset= cur_table->shared;
 
     table = cur_table->table;
@@ -1966,16 +1943,11 @@ int multi_update::do_updates()
     if ((local_error = tmp_table->file->ha_rnd_init(1)))
       goto err;
 
-    can_compare_record= (!(table->file->ha_table_flags() &
-                           HA_PARTIAL_COLUMN_READ) ||
-                         bitmap_is_subset(table->write_set,
-                                          table->read_set));
-
     for (;;)
     {
       if (thd->killed && trans_safe)
 	goto err;
-      if ((local_error=tmp_table->file->rnd_next(tmp_table->record[0])))
+      if ((local_error=tmp_table->file->ha_rnd_next(tmp_table->record[0])))
       {
 	if (local_error == HA_ERR_END_OF_FILE)
 	  break;
@@ -1984,15 +1956,15 @@ int multi_update::do_updates()
 	goto err;
       }
 
-      /* call rnd_pos() using rowids from temporary table */
+      /* call ha_rnd_pos() using rowids from temporary table */
       check_opt_it.rewind();
       TABLE *tbl= table;
       uint field_num= 0;
       do
       {
         if((local_error=
-              tbl->file->rnd_pos(tbl->record[0],
-                                (uchar *) tmp_table->field[field_num]->ptr)))
+              tbl->file->ha_rnd_pos(tbl->record[0],
+                                    (uchar *) tmp_table->field[field_num]->ptr)))
           goto err;
         field_num++;
       } while((tbl= check_opt_it++));
@@ -2011,7 +1983,7 @@ int multi_update::do_updates()
                                             TRG_ACTION_BEFORE, TRUE))
         goto err2;
 
-      if (!can_compare_record || compare_record(table))
+      if (!records_are_comparable(table) || compare_records(table))
       {
         int error;
         if ((error= cur_table->view_check_option(thd, ignore)) !=
@@ -2102,7 +2074,9 @@ bool multi_update::send_eof()
      Does updates for the last n - 1 tables, returns 0 if ok;
      error takes into account killed status gained in do_updates()
   */
-  int local_error = (table_count) ? do_updates() : 0;
+  int local_error= thd->is_error();
+  if (!local_error)
+    local_error = (table_count) ? do_updates() : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.

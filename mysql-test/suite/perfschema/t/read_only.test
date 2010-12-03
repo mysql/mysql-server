@@ -16,8 +16,8 @@
 # Tests for PERFORMANCE_SCHEMA
 #
 # Check that
-# - a regular user can not update SETUP_ tables under --read-only
-# - a user with SUPER privileges cam
+# - a regular user can not update setup_ tables under --read-only
+# - a user with SUPER privileges can
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
@@ -43,9 +43,9 @@ connection con1;
 select @@global.read_only;
 show grants;
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 --enable_result_log
 
 --echo connection default;
@@ -59,11 +59,11 @@ connection con1;
 select @@global.read_only;
 show grants;
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
+select * from performance_schema.setup_instruments;
 --error ER_OPTION_PREVENTS_STATEMENT
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.setup_instruments set enabled='NO';
 --error ER_OPTION_PREVENTS_STATEMENT
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
 --enable_result_log
 
 --echo connection default;
@@ -79,12 +79,13 @@ connect (con1, localhost, pfsuser, , test);
 select @@global.read_only;
 show grants;
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 --enable_result_log
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 
 --echo connection default;
 connection default;

@@ -14,7 +14,6 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
-  --with-debug=full       Build with full debug.
   --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
@@ -30,8 +29,6 @@ parse_options()
     case "$1" in
     --prefix=*)
       prefix=`get_key_value "$1"`;;
-    --with-debug=full)
-      full_debug="=full";;
     --warning-mode=*)
       warning_mode=`get_key_value "$1"`;;
     -c | --just-configure)
@@ -60,7 +57,6 @@ fi
 prefix="/usr/local/mysql"
 just_print=
 just_configure=
-full_debug=
 warning_mode=
 maintainer_mode=
 
@@ -115,8 +111,7 @@ else
 # C++ warnings
   cxx_warnings="$warnings -Wno-unused-parameter"
 # cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
-  cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
-# Added unless --with-debug=full
+  cxx_warnings="$cxx_warnings -Wnon-virtual-dtor"
   debug_extra_cflags="-O0 -g3 -gdwarf-2"
 fi
 
@@ -141,11 +136,8 @@ base_cxxflags="-felide-constructors -fno-exceptions -fno-rtti"
 # Be as fast as we can be without losing our ability to backtrace.
 fast_cflags="-O3 -fno-omit-frame-pointer"
 
-debug_configs="--with-debug$full_debug"
-if [ -z "$full_debug" ]
-then
-  debug_cflags="$debug_cflags $debug_extra_cflags"
-fi
+debug_configs="--with-debug"
+debug_cflags="$debug_cflags $debug_extra_cflags"
 
 #
 # Configuration options.

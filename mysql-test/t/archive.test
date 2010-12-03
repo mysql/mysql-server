@@ -11,7 +11,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
 
-SET storage_engine=ARCHIVE;
+SET default_storage_engine=ARCHIVE;
 
 CREATE TABLE t1 (
   Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
@@ -1700,4 +1700,25 @@ REPAIR TABLE t1;
 SELECT * FROM t1;
 REPAIR TABLE t1 EXTENDED;
 SELECT * FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#45377: ARCHIVE tables aren't discoverable after OPTIMIZE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int) ENGINE=ARCHIVE;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.frm;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1 ORDER BY a;
+SHOW CREATE TABLE t1;
 DROP TABLE t1;

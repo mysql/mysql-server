@@ -821,4 +821,65 @@ select date_sub("0069-01-01 00:00:01",INTERVAL 2 SECOND);
 select date_sub("0169-01-01 00:00:01",INTERVAL 2 SECOND);
 
 
+#
+# Bug #55565: debug assertion when ordering by expressions with user
+# variable assignments
+#
+
+CREATE TABLE t1(a DOUBLE NOT NULL);
+INSERT INTO t1 VALUES (0),(9.216e-096);
+--echo # should not crash
+SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #52160: crash and inconsistent results when grouping
+--echo #             by a function and column
+--echo #
+
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
+DROP TABLE t1;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#43578 "MyISAM&Maria gives wrong rows with range access
+--echo # ORDER BY DESC on date index"
+--echo #
+
+CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
+INDEX idx2(c2));
+SET TIMESTAMP=1235553613; #'2009-02-25'
+INSERT INTO t1 VALUES(NOW(),NOW(),3),
+(ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
+(ADDTIME(NOW(),'2 01:01:01'),ADDTIME(NOW(),'2 01:01:01'),5),
+(ADDTIME(NOW(),'3 01:01:01'),ADDTIME(NOW(),'3 01:01:01'),6);
+SELECT * FROM t1;
+
+# bug was that 3 rows were returned
+SELECT * FROM t1 WHERE c1 > ADDTIME(NOW(),'1 01:01:01') ORDER BY c1 DESC;
+
+drop table t1;
+
+--echo End of 5.5 tests
+
+--echo #
+--echo # Bug#57039: constant subtime expression returns incorrect result.
+--echo #
+CREATE TABLE t1 (`date_date` datetime NOT NULL);
+INSERT INTO t1 VALUES ('2008-01-03 00:00:00'), ('2008-01-03 00:00:00');
+SELECT * FROM t1 WHERE date_date >= subtime(now(), "00:30:00");
+SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57512 str_to_date crash...
+--echo #
+
+SELECT WEEK(STR_TO_DATE(NULL,0));
+SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
+
+--echo #
+

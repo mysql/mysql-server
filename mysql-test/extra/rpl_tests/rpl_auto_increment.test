@@ -237,6 +237,7 @@ let $diff_table_2= slave:test.t2;
 source include/diff_tables.inc;
 
 # End cleanup
+connection master;
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';

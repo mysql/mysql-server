@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -48,6 +48,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
+#include "srv0mon.h"
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -826,6 +827,8 @@ log_init(void)
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
+	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
+			   log_sys->last_checkpoint_lsn);
 	log_sys->n_pending_checkpoint_writes = 0;
 
 	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
@@ -1135,6 +1138,7 @@ log_io_complete(
 
 	group->n_pending_writes--;
 	log_sys->n_pending_writes--;
+	MONITOR_DEC(MONITOR_PENDING_LOG_WRITE);
 
 	unlock = log_group_check_flush_completion(group);
 	unlock = unlock | log_sys_check_flush_completion();
@@ -1166,7 +1170,7 @@ log_group_file_header_flush(
 	buf = *(group->file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
 	/* Wipe over possible label of ibbackup --restore */
 	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
@@ -1182,6 +1186,8 @@ log_group_file_header_flush(
 #endif /* UNIV_DEBUG */
 	if (log_do_write) {
 		log_sys->n_log_ios++;
+
+		MONITOR_INC(MONITOR_LOG_IO);
 
 		srv_os_log_pending_writes++;
 
@@ -1302,6 +1308,8 @@ loop:
 
 	if (log_do_write) {
 		log_sys->n_log_ios++;
+
+		MONITOR_INC(MONITOR_LOG_IO);
 
 		srv_os_log_pending_writes++;
 
@@ -1442,6 +1450,7 @@ loop:
 	}
 #endif /* UNIV_DEBUG */
 	log_sys->n_pending_writes++;
+	MONITOR_INC(MONITOR_PENDING_LOG_WRITE);
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 	group->n_pending_writes++;	/*!< We assume here that we have only
@@ -1507,12 +1516,18 @@ loop:
 
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 
+		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
+				   log_sys->flushed_to_disk_lsn);
+
 	} else if (flush_to_disk) {
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 		fil_flush(group->space_id);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
+
+		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
+				   log_sys->flushed_to_disk_lsn);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1524,6 +1539,7 @@ loop:
 
 	group->n_pending_writes--;
 	log_sys->n_pending_writes--;
+	MONITOR_DEC(MONITOR_PENDING_LOG_WRITE);
 
 	unlock = log_group_check_flush_completion(group);
 	unlock = unlock | log_sys_check_flush_completion();
@@ -1683,6 +1699,9 @@ log_complete_checkpoint(void)
 
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
 
+	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
+			   log_sys->last_checkpoint_lsn);
+
 	rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
 }
 
@@ -1698,6 +1717,7 @@ log_io_complete_checkpoint(void)
 	ut_ad(log_sys->n_pending_checkpoint_writes > 0);
 
 	log_sys->n_pending_checkpoint_writes--;
+	MONITOR_DEC(MONITOR_PENDING_CHECKPOINT_WRITE);
 
 	if (log_sys->n_pending_checkpoint_writes == 0) {
 		log_complete_checkpoint();
@@ -1769,8 +1789,8 @@ log_group_checkpoint(
 
 	buf = group->checkpoint_buf;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			log_group_calc_lsn_offset(
@@ -1790,9 +1810,9 @@ log_group_checkpoint(
 		}
 	}
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {
@@ -1847,8 +1867,11 @@ log_group_checkpoint(
 		}
 
 		log_sys->n_pending_checkpoint_writes++;
+		MONITOR_INC(MONITOR_PENDING_CHECKPOINT_WRITE);
 
 		log_sys->n_log_ios++;
+
+		MONITOR_INC(MONITOR_LOG_IO);
 
 		/* We send as the last parameter the group machine address
 		added with 1, as we want to distinguish between a normal log
@@ -1884,7 +1907,7 @@ log_reset_first_header_and_checkpoint(
 	ib_uint64_t	lsn;
 
 	mach_write_to_4(hdr_buf + LOG_GROUP_ID, 0);
-	mach_write_ull(hdr_buf + LOG_FILE_START_LSN, start);
+	mach_write_to_8(hdr_buf + LOG_FILE_START_LSN, start);
 
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
@@ -1896,15 +1919,15 @@ log_reset_first_header_and_checkpoint(
 				+ (sizeof "ibbackup ") - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 
-	mach_write_ull(buf + LOG_CHECKPOINT_NO, 0);
-	mach_write_ull(buf + LOG_CHECKPOINT_LSN, lsn);
+	mach_write_to_8(buf + LOG_CHECKPOINT_NO, 0);
+	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
 			LOG_FILE_HDR_SIZE + LOG_BLOCK_HDR_SIZE);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, 2 * 1024 * 1024);
 
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_to_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_1, fold);
@@ -1932,6 +1955,8 @@ log_group_read_checkpoint_info(
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
 	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->space_id, 0,
 	       field / UNIV_PAGE_SIZE, field % UNIV_PAGE_SIZE,
@@ -2041,6 +2066,8 @@ log_checkpoint(
 #endif /* UNIV_DEBUG */
 
 	log_groups_write_checkpoint_info();
+
+	MONITOR_INC(MONITOR_NUM_CHECKPOINT);
 
 	mutex_exit(&(log_sys->mutex));
 
@@ -2220,6 +2247,8 @@ loop:
 
 	log_sys->n_log_ios++;
 
+	MONITOR_INC(MONITOR_LOG_IO);
+
 	fil_io(OS_FILE_READ | OS_FILE_LOG, sync, group->space_id, 0,
 	       source_offset / UNIV_PAGE_SIZE, source_offset % UNIV_PAGE_SIZE,
 	       len, buf, NULL);
@@ -2272,7 +2301,7 @@ log_group_archive_file_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_GROUP_ID, group->id);
-	mach_write_ull(buf + LOG_FILE_START_LSN, start_lsn);
+	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 	mach_write_to_4(buf + LOG_FILE_NO, file_no);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, FALSE);
@@ -2280,6 +2309,8 @@ log_group_archive_file_header_write(
 	dest_offset = nth_file * group->file_size;
 
 	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
 	       dest_offset / UNIV_PAGE_SIZE,
@@ -2308,11 +2339,13 @@ log_group_archive_completed_header_write(
 	buf = *(group->archive_file_header_bufs + nth_file);
 
 	mach_write_to_4(buf + LOG_FILE_ARCH_COMPLETED, TRUE);
-	mach_write_ull(buf + LOG_FILE_END_LSN, end_lsn);
+	mach_write_to_8(buf + LOG_FILE_END_LSN, end_lsn);
 
 	dest_offset = nth_file * group->file_size + LOG_FILE_ARCH_COMPLETED;
 
 	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->archive_space_id,
 	       dest_offset / UNIV_PAGE_SIZE,
@@ -2440,6 +2473,8 @@ loop:
 	log_sys->n_pending_archive_ios++;
 
 	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
 
 	fil_io(OS_FILE_WRITE | OS_FILE_LOG, FALSE, group->archive_space_id,
 	       next_offset / UNIV_PAGE_SIZE, next_offset % UNIV_PAGE_SIZE,
@@ -3076,8 +3111,12 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_uint64_t	lsn;
-	ulint		arch_log_no;
+	ib_uint64_t		lsn;
+	ulint			arch_log_no;
+	ulint			count = 0;
+	ulint			total_trx;
+	ulint			pending_io;
+	enum srv_thread_type	active_thd;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3090,34 +3129,55 @@ logs_empty_and_mark_files_at_shutdown(void)
 loop:
 	os_thread_sleep(100000);
 
-	mutex_enter(&kernel_mutex);
+	count++;
 
 	/* We need the monitor threads to stop before we proceed with a
 	normal shutdown. In case of very fast shutdown, however, we can
 	proceed without waiting for monitor threads. */
 
-	if (srv_fast_shutdown < 2
-	   && (srv_error_monitor_active
-	      || srv_lock_timeout_active || srv_monitor_active)) {
+	if (srv_fast_shutdown < 2) {
+	       	const char*	thread_name;
+		
+		thread_name = srv_any_background_threads_are_active();
 
-		mutex_exit(&kernel_mutex);
+		if (thread_name != NULL) {
+			/* Print a message every 60 seconds if we are waiting
+			for the monitor thread to exit. Master and worker
+		       	threads check will be done later. */
 
-		goto loop;
+			if (srv_print_verbose_log && count > 600) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: Waiting for %s "
+					"to exit\n", thread_name);
+				count = 0;
+			}
+
+			goto loop;
+		}
 	}
 
 	/* Check that there are no longer transactions. We need this wait even
 	for the 'very fast' shutdown, because the InnoDB layer may have
 	committed or prepared transactions and we don't want to lose them. */
 
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+	total_trx = trx_sys_any_active_transactions();
 
-		mutex_exit(&kernel_mutex);
+	if (total_trx > 0) {
+
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu "
+				"active transactions to finish\n",
+				(ulong) total_trx);
+
+			count = 0;
+		}
 
 		goto loop;
 	}
 
 	if (srv_fast_shutdown == 2) {
+
 		/* In this fastest shutdown we do not flush the buffer pool:
 		it is essentially a 'crash' of the InnoDB server. Make sure
 		that the log is all flushed to disk, so that we can recover
@@ -3131,11 +3191,43 @@ loop:
 		return; /* We SKIP ALL THE REST !! */
 	}
 
-	mutex_exit(&kernel_mutex);
-
 	/* Check that the background threads are suspended */
 
-	if (srv_is_any_background_thread_active()) {
+	active_thd = srv_get_active_thread_type();
+
+	if (active_thd != SRV_NONE) {
+
+		/* The srv_lock_timeout_thread, srv_error_monitor_thread
+		and srv_monitor_thread should already exit by now. The
+		only threads to be suspended are the master threads
+		and worker threads (purge threads). Print the thread
+		type if any of such threads not in suspended mode */
+		if (srv_print_verbose_log && count > 600) {
+			const char*	thread_type = "<null>";
+
+			switch (active_thd) {
+			case SRV_NONE:
+				/* This shouldn't happen because we've already
+				checked for this case before entering the if().
+				We handle it here to avoid a compiler worning. */
+				ut_error;
+			case SRV_WORKER:
+				thread_type = "worker threads";
+				break;
+			case SRV_MASTER:
+				thread_type = "master thread";
+				break;
+			case SRV_PURGE:
+				thread_type = "purge thread";
+				break;
+			}
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %s "
+				" to be suspended\n", thread_type);
+			count = 0;
+		}
+
 		goto loop;
 	}
 
@@ -3149,12 +3241,30 @@ loop:
 
 		mutex_exit(&(log_sys->mutex));
 
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Pending checkpoint_writes: %lu\n"
+				"  InnoDB: Pending log flush writes: %lu\n",
+				(ulong) log_sys->n_pending_checkpoint_writes,
+				(ulong) log_sys->n_pending_writes);
+			count = 0;
+		}
 		goto loop;
 	}
 
 	mutex_exit(&(log_sys->mutex));
 
-	if (!buf_pool_check_no_pending_io()) {
+	pending_io = buf_pool_check_no_pending_io();
+
+	if (pending_io) {
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu buffer page "
+				"I/Os to complete\n",
+				(ulong) pending_io);
+			count = 0;
+		}
 
 		goto loop;
 	}
@@ -3197,7 +3307,7 @@ loop:
 	mutex_exit(&(log_sys->mutex));
 
 	/* Check that the background threads stay suspended */
-	if (srv_is_any_background_thread_active()) {
+	if (srv_get_active_thread_type() != SRV_NONE) {
 		fprintf(stderr,
 			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
@@ -3215,13 +3325,20 @@ loop:
 
 	if (!buf_all_freed()) {
 
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for dirty buffer "
+				"pages to be flushed\n");
+			count = 0;
+		}
+
 		goto loop;
 	}
 
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3243,7 +3360,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);

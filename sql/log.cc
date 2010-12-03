@@ -27,7 +27,7 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "log.h"
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // open_log_table
 #include "sql_delete.h"                         // mysql_truncate
 #include "sql_parse.h"                          // command_name
 #include "sql_time.h"           // calc_time_from_sec, my_time_compare
@@ -925,8 +925,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     if (!query)
     {
       is_command= TRUE;
-      query= command_name[thd->command].str;
-      query_length= command_name[thd->command].length;
+      query= command_name[thd->get_command()].str;
+      query_length= command_name[thd->get_command()].length;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -1125,7 +1125,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
 void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
-  MYSQL_LOG *file_log;
+  MYSQL_LOG *file_log= NULL;
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1137,7 +1137,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
     file_log= file_log_handler->get_mysql_log();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!(*tmp_opt))
@@ -1359,7 +1359,11 @@ bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
     1   error
 */
 
-bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
+bool MYSQL_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                     PSI_file_key log_file_key,
+#endif
+                     const char *log_name, enum_log_type log_type_arg,
                      const char *new_name, enum cache_type io_cache_type_arg)
 {
   char buff[FN_REFLEN];
@@ -1387,7 +1391,12 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   db[0]= 0;
 
-  if ((file= mysql_file_open(key_file_MYSQL_LOG,
+#ifdef HAVE_PSI_INTERFACE
+  /* Keep the key for reopen */
+  m_log_file_key= log_file_key;
+#endif
+
+  if ((file= mysql_file_open(log_file_key,
                              log_file_name, open_flags,
                              MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
@@ -1571,7 +1580,11 @@ void MYSQL_QUERY_LOG::reopen_file()
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(save_name, log_type, 0, io_cache_type);
+  open(
+#ifdef HAVE_PSI_INTERFACE
+       m_log_file_key,
+#endif
+       save_name, log_type, 0, io_cache_type);
   my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
@@ -1932,8 +1945,6 @@ bool general_log_write(THD *thd, enum enum_server_command command,
   return FALSE;
 }
 
-
-
 /**
   Check if a string is a valid number.
 
@@ -1993,64 +2004,107 @@ void sql_perror(const char *message)
 }
 
 
+#ifdef __WIN__
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream)
+{
+  int handle_fd;
+  int err_fd, out_fd;
+  HANDLE osfh;
+
+  DBUG_ASSERT(filename && errstream);
+
+  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
+  err_fd= _fileno(errstream);
+  if (err_fd < 0)
+  {
+    if (!freopen(filename, "a+", errstream))
+      return TRUE;
+
+    setbuf(errstream, NULL);
+    err_fd= _fileno(errstream);
+  }
+
+  if (outstream)
+  {
+    out_fd= _fileno(outstream);
+    if (out_fd < 0)
+    {
+      if (!freopen(filename, "a+", outstream))
+        return TRUE;
+      out_fd= _fileno(outstream);
+    }
+  }
+
+  if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE |
+                        FILE_SHARE_DELETE, NULL,
+                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                        NULL)) == INVALID_HANDLE_VALUE)
+    return TRUE;
+
+  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
+                                  _O_APPEND | _O_TEXT)) == -1)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  if (_dup2(handle_fd, err_fd) < 0)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  if (outstream && _dup2(handle_fd, out_fd) < 0)
+  {
+    CloseHandle(osfh);
+    return TRUE;
+  }
+
+  _close(handle_fd);
+  return FALSE;
+}
+#else
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream)
+{
+  if (outstream && !freopen(filename, "a+", outstream))
+    return TRUE;
+
+  if (errstream && !freopen(filename, "a+", errstream))
+    return TRUE;
+
+  return FALSE;
+}
+#endif
+
+
+/*
+  Unfortunately, there seems to be no good way
+  to restore the original streams upon failure.
+*/
+static bool redirect_std_streams(const char *file)
+{
+  if (reopen_fstreams(file, stdout, stderr))
+    return TRUE;
+
+  setbuf(stderr, NULL);
+  return FALSE;
+}
+
+
 bool flush_error_log()
 {
-  bool result=0;
+  bool result= 0;
   if (opt_error_log)
   {
-    char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
-    strmov(end, "-old");
     mysql_mutex_lock(&LOCK_error_log);
-#ifdef __WIN__
-    char err_temp[FN_REFLEN+5];
-    /*
-     On Windows is necessary a temporary file for to rename
-     the current error file.
-    */
-    strxmov(err_temp, err_renamed,"-tmp",NullS);
-    my_delete(err_temp, MYF(0));
-    if (freopen(err_temp,"a+",stdout))
-    {
-      int fd;
-      size_t bytes;
-      uchar buf[IO_SIZE];
-
-      freopen(err_temp,"a+",stderr);
-      setbuf(stderr, NULL);
-      my_delete(err_renamed, MYF(0));
-      my_rename(log_error_file, err_renamed, MYF(0));
-      if (freopen(log_error_file,"a+",stdout))
-      {
-        freopen(log_error_file,"a+",stderr);
-        setbuf(stderr, NULL);
-      }
-
-      if ((fd= my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
-      {
-        while ((bytes= mysql_file_read(fd, buf, IO_SIZE, MYF(0))) &&
-               bytes != MY_FILE_ERROR)
-          my_fwrite(stderr, buf, bytes, MYF(0));
-        mysql_file_close(fd, MYF(0));
-      }
-      my_delete(err_temp, MYF(0));
-    }
-    else
-     result= 1;
-#else
-   my_rename(log_error_file, err_renamed, MYF(0));
-   if (freopen(log_error_file,"a+",stdout))
-   {
-     FILE *reopen;
-     reopen= freopen(log_error_file,"a+",stderr);
-     setbuf(stderr, NULL);
-   }
-   else
-     result= 1;
-#endif
+    if (redirect_std_streams(log_error_file))
+      result= 1;
     mysql_mutex_unlock(&LOCK_error_log);
   }
-   return result;
+  return result;
 }
 
 #ifdef _WIN32
@@ -2089,25 +2143,9 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
 #endif /* _WIN32 */
 
 
-/**
-  Prints a printf style message to the error log and, under NT, to the
-  Windows event log.
-
-  This function prints the message into a buffer and then sends that buffer
-  to other functions to write that message to other logging sources.
-
-  @param event_type          Type of event to write (Error, Warning, or Info)
-  @param format              Printf style format of message
-  @param args                va_list list of arguments for the message
-
-  @returns
-    The function always returns 0. The return value is present in the
-    signature to be compatible with other logging routines, which could
-    return an error (e.g. logging to the log tables)
-*/
-
 #ifndef EMBEDDED_LIBRARY
-static void print_buffer_to_file(enum loglevel level, const char *buffer)
+static void print_buffer_to_file(enum loglevel level, const char *buffer,
+                                 size_t length)
 {
   time_t skr;
   struct tm tm_tmp;
@@ -2121,7 +2159,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %s\n",
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %.*s\n",
           start->tm_year % 100,
           start->tm_mon+1,
           start->tm_mday,
@@ -2130,7 +2168,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
           start->tm_sec,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "Warning" : "Note"),
-          buffer);
+          (int) length, buffer);
 
   fflush(stderr);
 
@@ -2138,7 +2176,22 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
   DBUG_VOID_RETURN;
 }
 
+/**
+  Prints a printf style message to the error log and, under NT, to the
+  Windows event log.
 
+  This function prints the message into a buffer and then sends that buffer
+  to other functions to write that message to other logging sources.
+
+  @param level          The level of the msg significance
+  @param format         Printf style format of message
+  @param args           va_list list of arguments for the message
+
+  @returns
+    The function always returns 0. The return value is present in the
+    signature to be compatible with other logging routines, which could
+    return an error (e.g. logging to the log tables)
+*/
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
@@ -2146,7 +2199,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
   DBUG_ENTER("vprint_msg_to_log");
 
   length= my_vsnprintf(buff, sizeof(buff), format, args);
-  print_buffer_to_file(level, buff);
+  print_buffer_to_file(level, buff, length);
 
 #ifdef _WIN32
   print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
@@ -2154,7 +2207,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_RETURN(0);
 }
-#endif /*EMBEDDED_LIBRARY*/
+#endif /* EMBEDDED_LIBRARY */
 
 
 void sql_print_error(const char *format, ...) 

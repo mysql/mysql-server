@@ -103,6 +103,17 @@ row_mysql_read_blob_ref(
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
 /**************************************************************//**
+Pad a column with spaces. */
+UNIV_INTERN
+void
+row_mysql_pad_col(
+/*==============*/
+	ulint	mbminlen,	/*!< in: minimum size of a character,
+				in bytes */
+	byte*	pad,		/*!< out: padded buffer */
+	ulint	len);		/*!< in: number of bytes to pad */
+
+/**************************************************************//**
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c.
@@ -176,15 +187,6 @@ row_update_prebuilt_trx(
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt struct
 					in MySQL handle */
 	trx_t*		trx);		/*!< in: transaction handle */
-/*********************************************************************//**
-Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
-function should be called at the the end of an SQL statement, by the
-connection thread that owns the transaction (trx->mysql_thd). */
-UNIV_INTERN
-void
-row_unlock_table_autoinc_for_mysql(
-/*===============================*/
-	trx_t*	trx);			/*!< in/out: transaction */
 /*********************************************************************//**
 Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
 AUTO_INC lock gives exclusive access to the auto-inc counter of the
@@ -515,6 +517,20 @@ row_is_magic_monitor_table(
 	const char*	table_name);	/*!< in: name of the table, in the
 					form database/table_name */
 
+/*********************************************************************//**
+Initialize this module */
+UNIV_INTERN
+void
+row_mysql_init(void);
+/*================*/
+
+/*********************************************************************//**
+Close this module */
+UNIV_INTERN
+void
+row_mysql_close(void);
+/*=================*/
+
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
@@ -527,6 +543,14 @@ struct mysql_row_templ_struct {
 					Innobase record in the current index;
 					not defined if template_type is
 					ROW_MYSQL_WHOLE_ROW */
+	ulint	clust_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the clustered index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
+	ulint	icp_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the current index;
+					not defined unless
+					index condition pushdown is used */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL
@@ -622,7 +646,11 @@ struct row_prebuilt_struct {
 					the secondary index, then this is
 					set to TRUE */
 	unsigned	templ_contains_blob:1;/*!< TRUE if the template contains
-					BLOB column(s) */
+					a column with DATA_BLOB ==
+					get_innobase_type_from_mysql_type();
+					not to be confused with InnoDB
+					externally stored columns
+					(VARCHAR can be off-page too) */
 	mysql_row_templ_t* mysql_template;/*!< template used to transform
 					rows fast between MySQL and Innobase
 					formats; memory for this template
@@ -756,6 +784,13 @@ struct row_prebuilt_struct {
 					autoinc value from the table. We
 					store it here so that we can return
 					it to MySQL */
+	/*----------------------*/
+	void*		idx_cond;	/*!< In ICP, pointer to a ha_innobase,
+					passed to innobase_index_cond().
+					NULL if index condition pushdown is
+					not used. */
+	ulint		idx_cond_n_cols;/*!< Number of fields in idx_cond_cols.
+					0 if and only if idx_cond == NULL. */
 	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */

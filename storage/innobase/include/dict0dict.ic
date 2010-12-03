@@ -29,6 +29,46 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 
 /*********************************************************************//**
+Gets the minimum number of bytes per character.
+@return minimum multi-byte char size, in bytes */
+UNIV_INLINE
+ulint
+dict_col_get_mbminlen(
+/*==================*/
+	const dict_col_t*	col)	/*!< in: column */
+{
+	return(DATA_MBMINLEN(col->mbminmaxlen));
+}
+/*********************************************************************//**
+Gets the maximum number of bytes per character.
+@return maximum multi-byte char size, in bytes */
+UNIV_INLINE
+ulint
+dict_col_get_mbmaxlen(
+/*==================*/
+	const dict_col_t*	col)	/*!< in: column */
+{
+	return(DATA_MBMAXLEN(col->mbminmaxlen));
+}
+/*********************************************************************//**
+Sets the minimum and maximum number of bytes per character. */
+UNIV_INLINE
+void
+dict_col_set_mbminmaxlen(
+/*=====================*/
+	dict_col_t*	col,		/*!< in/out: column */
+	ulint		mbminlen,	/*!< in: minimum multi-byte
+					character size, in bytes */
+	ulint		mbmaxlen)	/*!< in: minimum multi-byte
+					character size, in bytes */
+{
+	ut_ad(mbminlen < DATA_MBMAX);
+	ut_ad(mbmaxlen < DATA_MBMAX);
+	ut_ad(mbminlen <= mbmaxlen);
+
+	col->mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
+}
+/*********************************************************************//**
 Gets the column data type. */
 UNIV_INLINE
 void
@@ -42,8 +82,7 @@ dict_col_copy_type(
 	type->mtype = col->mtype;
 	type->prtype = col->prtype;
 	type->len = col->len;
-	type->mbminlen = col->mbminlen;
-	type->mbmaxlen = col->mbmaxlen;
+	type->mbminmaxlen = col->mbminmaxlen;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -65,8 +104,7 @@ dict_col_type_assert_equal(
 	ut_ad(col->prtype == type->prtype);
 	ut_ad(col->len == type->len);
 # ifndef UNIV_HOTBACKUP
-	ut_ad(col->mbminlen == type->mbminlen);
-	ut_ad(col->mbmaxlen == type->mbmaxlen);
+	ut_ad(col->mbminmaxlen == type->mbminmaxlen);
 # endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -84,7 +122,7 @@ dict_col_get_min_size(
 	const dict_col_t*	col)	/*!< in: column */
 {
 	return(dtype_get_min_size_low(col->mtype, col->prtype, col->len,
-				      col->mbminlen, col->mbmaxlen));
+				      col->mbminmaxlen));
 }
 /***********************************************************************//**
 Returns the maximum size of the column.
@@ -109,7 +147,7 @@ dict_col_get_fixed_size(
 	ulint			comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
 {
 	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
-					col->mbminlen, col->mbmaxlen, comp));
+					col->mbminmaxlen, comp));
 }
 /***********************************************************************//**
 Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
@@ -452,6 +490,48 @@ dict_table_zip_size(
 	return(dict_table_flags_to_zip_size(table->flags));
 }
 
+/*********************************************************************//**
+Obtain exclusive locks on all index trees of the table. This is to prevent
+accessing index trees while InnoDB is updating internal metadata for
+operations such as truncate tables. */
+UNIV_INLINE
+void
+dict_table_x_lock_indexes(
+/*======================*/
+	dict_table_t*	table)	/*!< in: table */
+{
+	dict_index_t*   index;
+
+	ut_a(table);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	/* Loop through each index of the table and lock them */
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+	}
+}
+
+/*********************************************************************//**
+Release the exclusive locks on all index tree. */
+UNIV_INLINE
+void
+dict_table_x_unlock_indexes(
+/*========================*/
+	dict_table_t*	table)	/*!< in: table */
+{
+	dict_index_t*   index;
+
+	ut_a(table);
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+}
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.
@@ -614,6 +694,20 @@ dict_index_get_nth_col_no(
 	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
 }
 
+/********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INLINE
+ulint
+dict_index_get_nth_col_pos(
+/*=======================*/
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			n)	/*!< in: column number */
+{
+	return(dict_index_get_nth_col_or_prefix_pos(index, n, FALSE));
+}
+
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Returns the minimum data size of an index record.
@@ -723,84 +817,4 @@ dict_index_get_space_reserve(void)
 	return(UNIV_PAGE_SIZE / 16);
 }
 
-/**********************************************************************//**
-Checks if a table is in the dictionary cache.
-@return	table, NULL if not found */
-UNIV_INLINE
-dict_table_t*
-dict_table_check_if_in_cache_low(
-/*=============================*/
-	const char*	table_name)	/*!< in: table name */
-{
-	dict_table_t*	table;
-	ulint		table_fold;
-
-	ut_ad(table_name);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	/* Look for the table name in the hash table */
-	table_fold = ut_fold_string(table_name);
-
-	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold,
-		    dict_table_t*, table, ut_ad(table->cached),
-		    !strcmp(table->name, table_name));
-	return(table);
-}
-
-/**********************************************************************//**
-Gets a table; loads it to the dictionary cache if necessary. A low-level
-function.
-@return	table, NULL if not found */
-UNIV_INLINE
-dict_table_t*
-dict_table_get_low(
-/*===============*/
-	const char*	table_name)	/*!< in: table name */
-{
-	dict_table_t*	table;
-
-	ut_ad(table_name);
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	table = dict_table_check_if_in_cache_low(table_name);
-
-	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE);
-	}
-
-	ut_ad(!table || table->cached);
-
-	return(table);
-}
-
-/**********************************************************************//**
-Returns a table object based on table id.
-@return	table, NULL if does not exist */
-UNIV_INLINE
-dict_table_t*
-dict_table_get_on_id_low(
-/*=====================*/
-	dulint	table_id)	/*!< in: table id */
-{
-	dict_table_t*	table;
-	ulint		fold;
-
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	/* Look for the table name in the hash table */
-	fold = ut_fold_dulint(table_id);
-
-	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold,
-		    dict_table_t*, table, ut_ad(table->cached),
-		    !ut_dulint_cmp(table->id, table_id));
-	if (table == NULL) {
-		table = dict_load_table_on_id(table_id);
-	}
-
-	ut_ad(!table || table->cached);
-
-	/* TODO: should get the type information from MySQL */
-
-	return(table);
-}
 #endif /* !UNIV_HOTBACKUP */

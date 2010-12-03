@@ -12,7 +12,7 @@
 # Change:                                                                      #
 ################################################################################
 
-if (`SELECT @@session.storage_engine NOT IN('ndbcluster')`)
+if (`SELECT @@session.default_storage_engine NOT IN('ndbcluster')`)
 {
    --error ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
    eval CREATE TABLE t1 (
@@ -27,7 +27,7 @@ if (`SELECT @@session.storage_engine NOT IN('ndbcluster')`)
    )
    $partition_scheme;
 }
-if (`SELECT @@session.storage_engine IN('ndbcluster')`)
+if (`SELECT @@session.default_storage_engine IN('ndbcluster')`)
 {
    eval CREATE TABLE t1 (
    $column_list,

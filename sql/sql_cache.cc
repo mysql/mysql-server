@@ -334,6 +334,7 @@ TODO list:
 #include "tztime.h"                             // struct Time_zone
 #include "sql_acl.h"                            // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
+#include "debug_sync.h"                         // DEBUG_SYNC
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -341,6 +342,7 @@ TODO list:
 #include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
 #include "probes_mysql.h"
+#include "transaction.h"
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
@@ -370,32 +372,6 @@ TODO list:
   __LINE__,(ulong)(B)));B->query()->unlock_reading();}
 #define DUMP(C) DBUG_EXECUTE("qcache", {\
   (C)->cache_dump(); (C)->queries_dump();(C)->tables_dump();})
-
-
-/**
-  Causes the thread to wait in a spin lock for a query kill signal.
-  This function is used by the test frame work to identify race conditions.
-
-  The signal is caught and ignored and the thread is not killed.
-*/
-
-static void debug_wait_for_kill(const char *info)
-{
-  DBUG_ENTER("debug_wait_for_kill");
-  const char *prev_info;
-  THD *thd;
-  thd= current_thd;
-  prev_info= thd->proc_info;
-  thd->proc_info= info;
-  sql_print_information("%s", info);
-  while(!thd->killed)
-    my_sleep(1000);
-  thd->killed= THD::NOT_KILLED;
-  sql_print_information("Exit debug_wait_for_kill");
-  thd->proc_info= prev_info;
-  DBUG_VOID_RETURN;
-}
-
 #else
 #define RW_WLOCK(M) mysql_rwlock_wrlock(M)
 #define RW_RLOCK(M) mysql_rwlock_rdlock(M)
@@ -406,6 +382,52 @@ static void debug_wait_for_kill(const char *info)
 #define BLOCK_UNLOCK_RD(B) B->query()->unlock_reading()
 #define DUMP(C)
 #endif
+
+
+/**
+  Macro that executes the requested action at a synchronization point
+  only if the thread has a associated THD session.
+*/
+#if defined(ENABLED_DEBUG_SYNC)
+#define QC_DEBUG_SYNC(name)               \
+  do {                                    \
+    THD *thd= current_thd;                \
+    if (thd)                              \
+      DEBUG_SYNC(thd, name);              \
+  } while (0)
+#else
+#define QC_DEBUG_SYNC(name)
+#endif
+
+
+/**
+  Thread state to be used when the query cache lock needs to be acquired.
+  Sets the thread state name in the constructor, resets on destructor.
+*/
+
+struct Query_cache_wait_state
+{
+  THD *m_thd;
+  const char *m_proc_info;
+
+  Query_cache_wait_state(THD *thd, const char *func,
+                         const char *file, unsigned int line)
+  : m_thd(thd),
+    m_proc_info(NULL)
+  {
+    if (m_thd)
+      m_proc_info= set_thd_proc_info(m_thd,
+                                     "Waiting for query cache lock",
+                                     func, file, line);
+  }
+
+  ~Query_cache_wait_state()
+  {
+    if (m_thd)
+      set_thd_proc_info(m_thd, m_proc_info, NULL, NULL, 0);
+  }
+};
+
 
 /**
   Serialize access to the query cache.
@@ -428,6 +450,8 @@ static void debug_wait_for_kill(const char *info)
 bool Query_cache::try_lock(bool use_timeout)
 {
   bool interrupt= FALSE;
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::try_lock");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -437,7 +461,6 @@ bool Query_cache::try_lock(bool use_timeout)
     {
       m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-      THD *thd= current_thd;
       if (thd)
         m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -496,6 +519,8 @@ bool Query_cache::try_lock(bool use_timeout)
 
 void Query_cache::lock_and_suspend(void)
 {
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock_and_suspend");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -503,7 +528,6 @@ void Query_cache::lock_and_suspend(void)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -524,6 +548,8 @@ void Query_cache::lock_and_suspend(void)
 
 void Query_cache::lock(void)
 {
+  THD *thd= current_thd;
+  Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::lock");
 
   mysql_mutex_lock(&structure_guard_mutex);
@@ -531,7 +557,6 @@ void Query_cache::lock(void)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
-  THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
@@ -871,9 +896,7 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
   if (is_disabled() || query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_insert",
-                  debug_wait_for_kill("wait_in_query_cache_insert"); );
-
+  QC_DEBUG_SYNC("wait_in_query_cache_insert");
 
   if (try_lock())
     DBUG_VOID_RETURN;
@@ -1199,7 +1222,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+sql mode: 0x%llx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
 def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
@@ -1346,6 +1369,57 @@ end:
 }
 
 
+#ifndef EMBEDDED_LIBRARY
+/**
+  Send a single memory block from the query cache.
+
+  Respects the client/server protocol limits for the
+  size of the network packet, and splits a large block
+  in pieces to ensure that individual piece doesn't exceed
+  the maximal allowed size of the network packet (16M).
+
+  @param[in] net NET handler
+  @param[in] packet packet to send
+  @param[in] len packet length
+
+  @return Operation status
+    @retval FALSE On success
+    @retval TRUE On error
+*/
+static bool
+send_data_in_chunks(NET *net, const uchar *packet, ulong len)
+{
+  /*
+    On the client we may require more memory than max_allowed_packet
+    to keep, both, the truncated last logical packet, and the
+    compressed next packet.  This never (or in practice never)
+    happens without compression, since without compression it's very
+    unlikely that a) a truncated logical packet would remain on the
+    client when it's time to read the next packet b) a subsequent
+    logical packet that is being read would be so large that
+    size-of-new-packet + size-of-old-packet-tail >
+    max_allowed_packet.  To remedy this issue, we send data in 1MB
+    sized packets, that's below the current client default of 16MB
+    for max_allowed_packet, but large enough to ensure there is no
+    unnecessary overhead from too many syscalls per result set.
+  */
+  static const ulong MAX_CHUNK_LENGTH= 1024*1024;
+
+  while (len > MAX_CHUNK_LENGTH)
+  {
+    if (net_real_write(net, packet, MAX_CHUNK_LENGTH))
+      return TRUE;
+    packet+= MAX_CHUNK_LENGTH;
+    len-= MAX_CHUNK_LENGTH;
+  }
+  if (len && net_real_write(net, packet, len))
+    return TRUE;
+
+  return FALSE;
+}
+#endif
+
+
 /*
   Check if the query is in the cache. If it was cached, send it
   to the user.
@@ -1490,7 +1564,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   DBUG_PRINT("qcache", ("\
 long %d, 4.1: %d, bin_proto: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
-sql mode: 0x%lx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
+sql mode: 0x%llx, sort len: %lu, conncat len: %lu, div_precision: %lu, \
 def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.client_long_flag,
                           (int)flags.client_protocol_41,
@@ -1632,6 +1706,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       }
       else
         thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
+      /* End the statement transaction potentially started by engine. */
+      trans_rollback_stmt(thd);
       goto err_unlock;				// Parse query
     }
     else
@@ -1655,11 +1731,11 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                                    ALIGN_SIZE(sizeof(Query_cache_result)))));
     
     Query_cache_result *result = result_block->result();
-    if (net_real_write(&thd->net, result->data(),
-		       result_block->used -
-		       result_block->headers_len() -
-		       ALIGN_SIZE(sizeof(Query_cache_result))))
-      break;					// Client aborted
+    if (send_data_in_chunks(&thd->net, result->data(),
+                            result_block->used -
+                            result_block->headers_len() -
+                            ALIGN_SIZE(sizeof(Query_cache_result))))
+      break;                                    // Client aborted
     result_block = result_block->next;
     thd->net.pkt_nr= query->last_pkt_nr; // Keep packet number updated
   } while (result_block != first_result_block);
@@ -1673,7 +1749,15 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
-  thd->stmt_da->disable_status();
+  /*
+    End the statement transaction potentially started by an
+    engine callback. We ignore the return value for now,
+    since as long as EOF packet is part of the query cache
+    response, we can't handle it anyway.
+  */
+  (void) trans_commit_stmt(thd);
+  if (!thd->stmt_da->is_set())
+    thd->stmt_da->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
   MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);
@@ -1717,8 +1801,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
       invalidate_table(thd, tables_used);
   }
 
-  DBUG_EXECUTE_IF("wait_after_query_cache_invalidate",
-                  debug_wait_for_kill("wait_after_query_cache_invalidate"););
+  DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
 
   DBUG_VOID_RETURN;
 }
@@ -1909,8 +1992,7 @@ void Query_cache::flush()
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_flush1",
-                  debug_wait_for_kill("wait_in_query_cache_flush1"););
+  QC_DEBUG_SYNC("wait_in_query_cache_flush1");
 
   lock_and_suspend();
   if (query_cache_size > 0)
@@ -2250,9 +2332,7 @@ void Query_cache::free_cache()
 
 void Query_cache::flush_cache()
 {
-  
-  DBUG_EXECUTE_IF("wait_in_query_cache_flush2",
-                  debug_wait_for_kill("wait_in_query_cache_flush2"););
+  QC_DEBUG_SYNC("wait_in_query_cache_flush2");
 
   my_hash_reset(&queries);
   while (queries_blocks != 0)
@@ -2698,8 +2778,7 @@ void Query_cache::invalidate_table(THD *thd, TABLE *table)
 
 void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
 {
-  DBUG_EXECUTE_IF("wait_in_query_cache_invalidate1",
-                   debug_wait_for_kill("wait_in_query_cache_invalidate1"); );
+  DEBUG_SYNC(thd, "wait_in_query_cache_invalidate1");
 
   /*
     Lock the query cache and queue all invalidation attempts to avoid
@@ -2707,9 +2786,7 @@ void Query_cache::invalidate_table(THD *thd, uchar * key, uint32  key_length)
   */
   lock();
 
-  DBUG_EXECUTE_IF("wait_in_query_cache_invalidate2",
-                  debug_wait_for_kill("wait_in_query_cache_invalidate2"); );
-
+  DEBUG_SYNC(thd, "wait_in_query_cache_invalidate2");
 
   if (query_cache_size > 0)
     invalidate_table_internal(thd, key, key_length);
@@ -2759,7 +2836,6 @@ Query_cache::invalidate_query_block_list(THD *thd,
     Query_cache_block *query_block= list_root->next->block();
     BLOCK_LOCK_WR(query_block);
     free_query(query_block);
-    DBUG_EXECUTE_IF("debug_cache_locks", sleep(10););
   }
 }
 

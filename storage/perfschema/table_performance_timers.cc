@@ -58,11 +58,12 @@ table_performance_timers::m_field_def=
 PFS_engine_table_share
 table_performance_timers::m_share=
 {
-  { C_STRING_WITH_LEN("PERFORMANCE_TIMERS") },
+  { C_STRING_WITH_LEN("performance_timers") },
   &pfs_readonly_acl,
   &table_performance_timers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   COUNT_TIMER_NAME, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,

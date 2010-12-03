@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@ Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
 #include <mysqld_error.h>
-#include <sql_acl.h>                            // PROCESS_ACL
+#include <sql_acl.h>				// PROCESS_ACL
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -36,17 +36,16 @@ Created July 18, 2007 Vasil Dimov
 #include <mysql/innodb_priv.h>
 
 extern "C" {
-#include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
 #include "buf0buddy.h" /* for i_s_cmpmem */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
-#include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "srv0mon.h"
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -126,7 +125,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond);	/*!< in: condition (not used) */
+	Item*		);	/*!< in: condition (not used) */
 
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
@@ -150,16 +149,20 @@ field_store_time_t(
 	MYSQL_TIME	my_time;
 	struct tm	tm_time;
 
+	if (time) {
 #if 0
-	/* use this if you are sure that `variables' and `time_zone'
-	are always initialized */
-	thd->variables.time_zone->gmt_sec_to_TIME(
-		&my_time, (my_time_t) time);
+		/* use this if you are sure that `variables' and `time_zone'
+		are always initialized */
+		thd->variables.time_zone->gmt_sec_to_TIME(
+			&my_time, (my_time_t) time);
 #else
-	localtime_r(&time, &tm_time);
-	localtime_to_TIME(&my_time, &tm_time);
-	my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
+		localtime_r(&time, &tm_time);
+		localtime_to_TIME(&my_time, &tm_time);
+		my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
 #endif
+	} else {
+		memset(&my_time, 0, sizeof(my_time));
+	}
 
 	return(field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME));
 }
@@ -401,133 +404,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 #define IDX_TRX_ADAPTIVE_HASH_LATCHED	20
-	{STRUCT_FLD(field_name,		"trx_apative_hash_latched"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ADAPTIVE_HASH_TIMEOUT	21
-	{STRUCT_FLD(field_name,		"trx_adaptive_hash_timeout"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_OPERATION_STATE	8
-	{STRUCT_FLD(field_name,		"trx_operation_state"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_OP_STATE_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_TABLES_IN_USE	9
-	{STRUCT_FLD(field_name,		"trx_tables_in_use"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_TABLES_LOCKED	10
-	{STRUCT_FLD(field_name,		"trx_tables_locked"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LOCK_STRUCTS	11
-	{STRUCT_FLD(field_name,		"trx_lock_structs"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LOCK_MEMORY_BYTES	12
-	{STRUCT_FLD(field_name,		"trx_lock_memory_bytes"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ROWS_LOCKED	13
-	{STRUCT_FLD(field_name,		"trx_rows_locked"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ROWS_MODIFIED		14
-	{STRUCT_FLD(field_name,		"trx_rows_modified"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_CONNCURRENCY_TICKETS	15
-	{STRUCT_FLD(field_name,		"trx_concurrency_tickets"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ISOLATION_LEVEL	16
-	{STRUCT_FLD(field_name,		"trx_isolation_level"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_UNIQUE_CHECKS	17
-	{STRUCT_FLD(field_name,		"trx_unique_checks"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	STRUCT_FLD(value,		1),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_FOREIGN_KEY_CHECKS	18
-	{STRUCT_FLD(field_name,		"trx_foreign_key_checks"),
-	 STRUCT_FLD(field_length,	1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		1),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_LAST_FOREIGN_KEY_ERROR	19
-	{STRUCT_FLD(field_name,		"trx_last_foreign_key_error"),
-	 STRUCT_FLD(field_length,	TRX_I_S_TRX_FK_ERROR_MAX_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_ADAPTIVE_HASH_LATCHED	20
-	{STRUCT_FLD(field_name,		"trx_apative_hash_latched"),
+	{STRUCT_FLD(field_name,		"trx_adaptive_hash_latched"),
 	 STRUCT_FLD(field_length,	1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -674,7 +551,7 @@ fill_innodb_trx_from_cache(
 		OK(field_store_string(fields[IDX_TRX_LAST_FOREIGN_KEY_ERROR],
 				      row->trx_foreign_key_error));
 
-		/* trx_apative_hash_latched */
+		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
 			   row->trx_has_search_latch));
 
@@ -1233,7 +1110,7 @@ trx_i_s_common_fill_table(
 /*======================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (not used) */
+	Item*		)	/*!< in: condition (not used) */
 {
 	const char*		table_name;
 	int			ret;
@@ -1320,6 +1197,7 @@ trx_i_s_common_fill_table(
 	deadlock occurs between the mysqld server and mysql client,
 	see http://bugs.mysql.com/29900 ; when that bug is resolved
 	we can enable the DBUG_RETURN(ret) above */
+	ret++;  // silence a gcc46 warning
 	DBUG_RETURN(0);
 #endif
 }
@@ -1392,7 +1270,7 @@ i_s_cmp_fill_low(
 /*=============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	Item*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	TABLE*	table	= (TABLE *) tables->table;
@@ -1449,7 +1327,7 @@ i_s_cmp_fill(
 /*=========*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmp_fill_low(thd, tables, cond, FALSE));
 }
@@ -1463,7 +1341,7 @@ i_s_cmp_reset_fill(
 /*===============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmp_fill_low(thd, tables, cond, TRUE));
 }
@@ -1652,7 +1530,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Duration of Relocations,"
-		    			" in Seconds"),
+					" in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
@@ -1668,7 +1546,7 @@ i_s_cmpmem_fill_low(
 /*================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond,	/*!< in: condition (ignored) */
+	Item*		,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
 	int		status = 0;
@@ -1740,7 +1618,7 @@ i_s_cmpmem_fill(
 /*============*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
 }
@@ -1754,7 +1632,7 @@ i_s_cmpmem_reset_fill(
 /*==================*/
 	THD*		thd,	/*!< in: thread */
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	COND*		cond)	/*!< in: condition (ignored) */
+	Item*		cond)	/*!< in: condition (ignored) */
 {
 	return(i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
 }
@@ -1894,6 +1772,438 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_metrics */
+static ST_FIELD_INFO	innodb_metrics_fields_info[] =
+{
+#define	METRIC_NAME		0
+	{STRUCT_FLD(field_name,		"NAME"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_SUBSYS		1
+	{STRUCT_FLD(field_name,		"SUBSYSTEM"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_VALUE_START	2
+	{STRUCT_FLD(field_name,		"COUNT"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MAX_VALUE_START	3
+	{STRUCT_FLD(field_name,		"MAX_COUNT"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MIN_VALUE_START	4
+	{STRUCT_FLD(field_name,		"MIN_COUNT"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_AVG_VALUE_START	5
+	{STRUCT_FLD(field_name,		"AVG_COUNT"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_VALUE_RESET	6
+	{STRUCT_FLD(field_name,		"COUNT_SINCE_RESET"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MAX_VALUE_RESET	7
+	{STRUCT_FLD(field_name,		"MAX_COUNT_SINCE_RESET"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_MIN_VALUE_RESET	8
+	{STRUCT_FLD(field_name,		"MIN_COUNT_SINCE_RESET"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_AVG_VALUE_RESET	9
+	{STRUCT_FLD(field_name,		"AVG_COUNT_SINCE_RESET"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_START_TIME	10
+	{STRUCT_FLD(field_name,		"TIME_ENABLED"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_STOP_TIME	11
+	{STRUCT_FLD(field_name,		"TIME_DISABLED"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_RESET_TIME	12
+	{STRUCT_FLD(field_name,		"TIME_RESET"),
+	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_STATUS		13
+	{STRUCT_FLD(field_name,		"STATUS"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_TYPE		14
+	{STRUCT_FLD(field_name,		"TYPE"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	METRIC_DESC		15
+	{STRUCT_FLD(field_name,		"COMMENT"),
+	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/**********************************************************************//**
+Fill the information schema metrics table.
+@return	0 on success */
+static
+int
+i_s_metrics_fill(
+/*=============*/
+	THD*		thd,		/*!< in: thread */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+{
+	int		count;
+	Field**		fields;
+	double		time_diff;
+	monitor_info_t*	monitor_info;
+	lint		min_val;
+	lint		max_val;
+
+	DBUG_ENTER("i_s_metrics_fill");
+	fields = table_to_fill->field;
+
+	for (count = 0; count < NUM_MONITOR; count++) {
+		monitor_info = srv_mon_get_info((monitor_id_t)count);
+
+		/* A good place to sanity check the Monitor ID */
+		ut_a(count == monitor_info->monitor_id);
+
+		/* If the item refers to a Module, nothing to fill,
+		continue. */
+		if (monitor_info->monitor_type & MONITOR_MODULE) {
+			continue;
+		}
+
+		/* If this is an existing "status variable", and
+		its corresponding counter is still on, we need
+		to calculate the result from its corresponding
+		counter. */
+		if (monitor_info->monitor_type & MONITOR_EXISTING
+		    && MONITOR_IS_ON(count)) {
+			srv_mon_process_existing_counter((monitor_id_t)count,
+							 MONITOR_GET_VALUE);
+		}
+
+		/* Fill in counter's basic information */
+		OK(field_store_string(fields[METRIC_NAME],
+				      monitor_info->monitor_name));
+
+		OK(field_store_string(fields[METRIC_SUBSYS],
+				      monitor_info->monitor_module));
+
+		OK(field_store_string(fields[METRIC_DESC],
+				      monitor_info->monitor_desc));
+
+		/* Fill in counter values */
+		OK(fields[METRIC_VALUE_RESET]->store(MONITOR_VALUE(count)));
+
+		OK(fields[METRIC_VALUE_START]->store(
+			MONITOR_VALUE_SINCE_START(count)));
+
+		/* If the max value is MAX_RESERVED, counter max
+		value has not been updated. Set the column value
+		to NULL. */
+		if (MONITOR_MAX_VALUE(count) == MAX_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MAX_VALUE_RESET]->set_null();
+		} else {
+			OK(fields[METRIC_MAX_VALUE_RESET]->store(
+				MONITOR_MAX_VALUE(count)));
+			fields[METRIC_MAX_VALUE_RESET]->set_notnull();
+		}
+
+		/* If the min value is MAX_RESERVED, counter min
+		value has not been updated. Set the column value
+		to NULL. */
+		if (MONITOR_MIN_VALUE(count) == MIN_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MIN_VALUE_RESET]->set_null();
+		} else {
+			OK(fields[METRIC_MIN_VALUE_RESET]->store(
+				MONITOR_MIN_VALUE(count)));
+			fields[METRIC_MIN_VALUE_RESET]->set_notnull();
+		}
+
+		/* Calculate the max value since counter started */
+		max_val = srv_mon_calc_max_since_start((monitor_id_t)count);
+
+		if (max_val == MAX_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MAX_VALUE_START]->set_null();
+		} else {
+			OK(fields[METRIC_MAX_VALUE_START]->store(max_val));
+			fields[METRIC_MAX_VALUE_START]->set_notnull();
+		}
+
+		/* Calculate the min value since counter started */
+		min_val = srv_mon_calc_min_since_start((monitor_id_t)count);
+
+		if (min_val == MIN_RESERVED
+		    || MONITOR_MAX_MIN_NOT_INIT(count)) {
+			fields[METRIC_MIN_VALUE_START]->set_null();
+		} else {
+			OK(fields[METRIC_MIN_VALUE_START]->store(min_val));
+			fields[METRIC_MIN_VALUE_START]->set_notnull();
+		}
+
+		if (monitor_info->monitor_type & MONITOR_AVERAGE) {
+			if (MONITOR_IS_ON(count)) {
+				time_diff = difftime(time(NULL),
+					MONITOR_FIELD(count, mon_start_time));
+			} else {
+				time_diff =  difftime(
+					MONITOR_FIELD(count, mon_stop_time),
+					MONITOR_FIELD(count, mon_start_time));
+			}
+
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_START]->store(
+					MONITOR_VALUE_SINCE_START(count)
+					/ time_diff));
+				fields[METRIC_AVG_VALUE_START]->set_notnull();
+
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					MONITOR_VALUE(count) / time_diff));
+
+				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_START]->set_null();
+				fields[METRIC_AVG_VALUE_RESET]->set_null();
+			}
+		} else {
+			fields[METRIC_AVG_VALUE_START]->set_null();
+			fields[METRIC_AVG_VALUE_RESET]->set_null();
+		}
+
+		if (MONITOR_FIELD(count, mon_start_time)) {
+			OK(field_store_time_t(fields[METRIC_START_TIME],
+				(time_t)MONITOR_FIELD(count, mon_start_time)));
+			fields[METRIC_START_TIME]->set_notnull();
+		} else {
+			fields[METRIC_START_TIME]->set_null();
+		}
+
+		if (MONITOR_IS_ON(count)) {
+			/* If monitor is on, the stop time will set to NULL */
+			fields[METRIC_STOP_TIME]->set_null();
+
+			/* Display latest Monitor Reset Time only if Monitor
+			counter is on. */
+			if (MONITOR_FIELD(count, mon_reset_time)) {
+				OK(field_store_time_t(
+					fields[METRIC_RESET_TIME],
+					(time_t)MONITOR_FIELD(
+						count, mon_reset_time)));
+				fields[METRIC_RESET_TIME]->set_notnull();
+			} else {
+				fields[METRIC_RESET_TIME]->set_null();
+			}
+
+			/* Display the monitor status as "enabled" */
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "enabled"));
+		} else {
+			if (MONITOR_FIELD(count, mon_stop_time)) {
+				OK(field_store_time_t(fields[METRIC_STOP_TIME],
+				(time_t)MONITOR_FIELD(count, mon_stop_time)));
+				fields[METRIC_STOP_TIME]->set_notnull();
+			} else {
+				fields[METRIC_STOP_TIME]->set_null();
+			}
+
+			fields[METRIC_RESET_TIME]->set_null();
+
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "disabled"));
+		}
+
+		if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "value"));
+		} else {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "counter"));
+		}
+
+		OK(schema_table_store_record(thd, table_to_fill));
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Function to fill information schema metrics tables.
+@return	0 on success */
+static
+int
+i_s_metrics_fill_table(
+/*===================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
+{
+	DBUG_ENTER("i_s_metrics_fill_table");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+                DBUG_RETURN(0);
+	}
+
+	i_s_metrics_fill(thd, tables->table);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.innodb_metrics
+@return	0 on success */
+static
+int
+innodb_metrics_init(
+/*================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_metrics_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_metrics_fields_info;
+	schema->fill_table = i_s_metrics_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_METRICS"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Oracle and/or its affiliates."),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB Metrics Info"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_metrics_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
 @return	0 on success */
@@ -1909,6 +2219,7 @@ i_s_common_deinit(
 
 	DBUG_RETURN(0);
 }
+#if 0
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
 static ST_FIELD_INFO    innodb_sys_tables_fields_info[] =
@@ -1971,18 +2282,15 @@ i_s_dict_fill_sys_tables(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
 	dict_table_t*	table,		/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tables");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(table->id);
-
-	OK(fields[SYS_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_TABLE_ID]->store(longlong(table->id), TRUE));
 
 	OK(field_store_string(fields[SYS_TABLE_NAME], table->name));
 
@@ -2004,9 +2312,9 @@ static
 int
 i_s_sys_tables_fill_table(
 /*======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2076,7 +2384,7 @@ static
 int
 innodb_sys_tables_init(
 /*===================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2236,18 +2544,15 @@ i_s_dict_fill_sys_tablestats(
 /*=========================*/
 	THD*		thd,		/*!< in: thread */
 	dict_table_t*	table,		/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_tablestats");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(table->id);
-
-	OK(fields[SYS_TABLESTATS_ID]->store(table_id, TRUE));
+	OK(fields[SYS_TABLESTATS_ID]->store(longlong(table->id), TRUE));
 
 	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
 
@@ -2288,9 +2593,9 @@ static
 int
 i_s_sys_tables_fill_table_stats(
 /*============================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2354,7 +2659,7 @@ static
 int
 innodb_sys_tablestats_init(
 /*=======================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2495,27 +2800,22 @@ int
 i_s_dict_fill_sys_indexes(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		tableid,	/*!< in: table id */
+	table_id_t	table_id,	/*!< in: table id */
 	dict_index_t*	index,		/*!< in: populated dict_index_t
 					struct with index info */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	longlong	table_id;
-	longlong	index_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(tableid);
-	index_id = ut_conv_dulint_to_longlong(index->id);
-
-	OK(fields[SYS_INDEX_ID]->store(index_id, TRUE));
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 
 	OK(field_store_string(fields[SYS_INDEX_NAME], index->name));
 
-	OK(fields[SYS_INDEX_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
 
 	OK(fields[SYS_INDEX_TYPE]->store(index->type));
 
@@ -2537,9 +2837,9 @@ static
 int
 i_s_sys_indexes_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t		pcur;
 	const rec_t*		rec;
@@ -2564,7 +2864,7 @@ i_s_sys_indexes_fill_table(
 	/* Process each record in the table */
 	while (rec) {
 		const char*	err_msg;;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_index_t	index_rec;
 
 		/* Populate a dict_index_t structure with information from
@@ -2605,7 +2905,7 @@ static
 int
 innodb_sys_indexes_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2737,22 +3037,19 @@ int
 i_s_dict_fill_sys_columns(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		tableid,	/*!< in: table ID */
+	table_id_t	table_id,	/*!< in: table ID */
 	const char*	col_name,	/*!< in: column name */
 	dict_col_t*	column,		/*!< in: dict_col_t struct holding
 					more column information */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	longlong	table_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_columns");
 
 	fields = table_to_fill->field;
 
-	table_id = ut_conv_dulint_to_longlong(tableid);
-
-	OK(fields[SYS_COLUMN_TABLE_ID]->store(table_id, TRUE));
+	OK(fields[SYS_COLUMN_TABLE_ID]->store(longlong(table_id), TRUE));
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
@@ -2776,9 +3073,9 @@ static
 int
 i_s_sys_columns_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -2803,7 +3100,7 @@ i_s_sys_columns_fill_table(
 	while (rec) {
 		const char*	err_msg;
 		dict_col_t	column_rec;
-		dulint		table_id;
+		table_id_t	table_id;
 
 		/* populate a dict_col_t structure with information from
 		a SYS_COLUMNS row */
@@ -2844,7 +3141,7 @@ static
 int
 innodb_sys_columns_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -2948,21 +3245,18 @@ int
 i_s_dict_fill_sys_fields(
 /*=====================*/
 	THD*		thd,		/*!< in: thread */
-	dulint		indexid,	/*!< in: index id for the field */
+	index_id_t	index_id,	/*!< in: index id for the field */
 	dict_field_t*	field,		/*!< in: table */
 	ulint		pos,		/*!< in: Field position */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
-	longlong	index_id;
 	Field**		fields;
 
 	DBUG_ENTER("i_s_dict_fill_sys_fields");
 
 	fields = table_to_fill->field;
 
-	index_id = ut_conv_dulint_to_longlong(indexid);
-
-	OK(fields[SYS_FIELD_INDEX_ID]->store(index_id, TRUE));
+	OK(fields[SYS_FIELD_INDEX_ID]->store(longlong(index_id), TRUE));
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
@@ -2981,14 +3275,14 @@ static
 int
 i_s_sys_fields_fill_table(
 /*======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
-	dulint		last_id;
+	index_id_t	last_id;
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_fields_fill_table");
@@ -3005,14 +3299,14 @@ i_s_sys_fields_fill_table(
 
 	/* will save last index id so that we know whether we move to
 	the next index. This is used to calculate prefix length */
-	last_id = ut_dulint_create(0, 0);
+	last_id = 0;
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_FIELDS);
 
 	while (rec) {
 		ulint		pos;
 		const char*	err_msg;
-		dulint		index_id;
+		index_id_t	index_id;
 		dict_field_t	field_rec;
 
 		/* Populate a dict_field_t structure with information from
@@ -3054,7 +3348,7 @@ static
 int
 innodb_sys_fields_init(
 /*===================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3178,7 +3472,7 @@ i_s_dict_fill_sys_foreign(
 /*======================*/
 	THD*		thd,		/*!< in: thread */
 	dict_foreign_t*	foreign,	/*!< in: table */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3211,9 +3505,9 @@ static
 int
 i_s_sys_foreign_fill_table(
 /*=======================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3275,7 +3569,7 @@ static
 int
 innodb_sys_foreign_init(
 /*====================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3393,7 +3687,7 @@ i_s_dict_fill_sys_foreign_cols(
 	const char*	ref_col_name,	/*!< in: referenced column
 					name */
 	ulint		pos,		/*!< in: column position */
-	TABLE*		table_to_fill)  /*!< in/out: fill this table */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
 
@@ -3422,9 +3716,9 @@ static
 int
 i_s_sys_foreign_cols_fill_table(
 /*============================*/
-	THD*		thd,    /*!< in: thread */
-	TABLE_LIST*	tables, /*!< in/out: tables to fill */
-	COND*		cond)   /*!< in: condition (not used) */
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
 {
         btr_pcur_t	pcur;
 	const rec_t*	rec;
@@ -3489,7 +3783,7 @@ static
 int
 innodb_sys_foreign_cols_init(
 /*========================*/
-        void*   p)      /*!< in/out: table schema object */
+        void*   p)	/*!< in/out: table schema object */
 {
         ST_SCHEMA_TABLE*        schema;
 
@@ -3552,3 +3846,4 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+#endif

@@ -87,7 +87,8 @@ void Set_signal_information::clear()
   memset(m_item, 0, sizeof(m_item));
 }
 
-void Signal_common::assign_defaults(MYSQL_ERROR *cond,
+void Sql_cmd_common_signal::assign_defaults(
+                                    MYSQL_ERROR *cond,
                                     bool set_level_code,
                                     MYSQL_ERROR::enum_warning_level level,
                                     int sqlcode)
@@ -101,7 +102,7 @@ void Signal_common::assign_defaults(MYSQL_ERROR *cond,
     cond->set_builtin_message_text(ER(sqlcode));
 }
 
-void Signal_common::eval_defaults(THD *thd, MYSQL_ERROR *cond)
+void Sql_cmd_common_signal::eval_defaults(THD *thd, MYSQL_ERROR *cond)
 {
   DBUG_ASSERT(cond);
 
@@ -256,7 +257,7 @@ static int assign_condition_item(MEM_ROOT *mem_root, const char* name, THD *thd,
 }
 
 
-int Signal_common::eval_signal_informations(THD *thd, MYSQL_ERROR *cond)
+int Sql_cmd_common_signal::eval_signal_informations(THD *thd, MYSQL_ERROR *cond)
 {
   struct cond_item_map
   {
@@ -288,7 +289,7 @@ int Signal_common::eval_signal_informations(THD *thd, MYSQL_ERROR *cond)
   String *member;
   const LEX_STRING *name;
 
-  DBUG_ENTER("Signal_common::eval_signal_informations");
+  DBUG_ENTER("Sql_cmd_common_signal::eval_signal_informations");
 
   for (i= FIRST_DIAG_SET_PROPERTY;
        i <= LAST_DIAG_SET_PROPERTY;
@@ -414,13 +415,13 @@ end:
   DBUG_RETURN(result);
 }
 
-bool Signal_common::raise_condition(THD *thd, MYSQL_ERROR *cond)
+bool Sql_cmd_common_signal::raise_condition(THD *thd, MYSQL_ERROR *cond)
 {
   bool result= TRUE;
 
-  DBUG_ENTER("Signal_common::raise_condition");
+  DBUG_ENTER("Sql_cmd_common_signal::raise_condition");
 
-  DBUG_ASSERT(m_lex->query_tables == NULL);
+  DBUG_ASSERT(thd->lex->query_tables == NULL);
 
   eval_defaults(thd, cond);
   if (eval_signal_informations(thd, cond))
@@ -447,12 +448,12 @@ bool Signal_common::raise_condition(THD *thd, MYSQL_ERROR *cond)
   DBUG_RETURN(result);
 }
 
-bool Signal_statement::execute(THD *thd)
+bool Sql_cmd_signal::execute(THD *thd)
 {
   bool result= TRUE;
   MYSQL_ERROR cond(thd->mem_root);
 
-  DBUG_ENTER("Signal_statement::execute");
+  DBUG_ENTER("Sql_cmd_signal::execute");
 
   /*
     WL#2110 SIGNAL specification says:
@@ -476,12 +477,12 @@ bool Signal_statement::execute(THD *thd)
 }
 
 
-bool Resignal_statement::execute(THD *thd)
+bool Sql_cmd_resignal::execute(THD *thd)
 {
   MYSQL_ERROR *signaled;
   int result= TRUE;
 
-  DBUG_ENTER("Resignal_statement::execute");
+  DBUG_ENTER("Sql_cmd_resignal::execute");
 
   thd->warning_info->m_warn_id= thd->query_id;
 
@@ -499,20 +500,7 @@ bool Resignal_statement::execute(THD *thd)
   }
 
   /* RESIGNAL with signal_value */
-
-  /* Make room for 2 conditions */
-  thd->warning_info->reserve_space(thd, 2);
-
-  MYSQL_ERROR *raised= NULL;
-  raised= thd->raise_condition_no_handler(signaled->get_sql_errno(),
-                                          signaled->get_sqlstate(),
-                                          signaled->get_level(),
-                                          signaled->get_message_text());
-  if (raised)
-    raised->copy_opt_attributes(signaled);
-
   result= raise_condition(thd, signaled);
 
   DBUG_RETURN(result);
 }
-

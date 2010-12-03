@@ -568,6 +568,7 @@ USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SET GLOBAL event_scheduler = ON;
 CREATE TABLE events_test.event_log
 (id int KEY AUTO_INCREMENT, ev_nm char(40), ev_cnt int, ev_tm timestamp)

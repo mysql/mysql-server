@@ -109,20 +109,14 @@ Database: information_schema
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
-| INNODB_SYS_FIELDS                     |
-| INNODB_TRX                            |
-| INNODB_SYS_INDEXES                    |
-| INNODB_LOCK_WAITS                     |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_CMP                            |
-| INNODB_SYS_COLUMNS                    |
 | INNODB_CMP_RESET                      |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_LOCKS                          |
+| INNODB_TRX                            |
 | INNODB_CMPMEM_RESET                   |
+| INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_TABLES                     |
+| INNODB_CMP                            |
+| INNODB_METRICS                        |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -158,20 +152,14 @@ Database: INFORMATION_SCHEMA
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
-| INNODB_SYS_FIELDS                     |
-| INNODB_TRX                            |
-| INNODB_SYS_INDEXES                    |
-| INNODB_LOCK_WAITS                     |
-| INNODB_SYS_TABLESTATS                 |
-| INNODB_CMP                            |
-| INNODB_SYS_COLUMNS                    |
 | INNODB_CMP_RESET                      |
-| INNODB_SYS_FOREIGN_COLS               |
-| INNODB_LOCKS                          |
+| INNODB_TRX                            |
 | INNODB_CMPMEM_RESET                   |
+| INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_SYS_TABLES                     |
+| INNODB_CMP                            |
+| INNODB_METRICS                        |
+| INNODB_LOCKS                          |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+
@@ -179,4 +167,9 @@ Wildcard: inf_rmation_schema
 +--------------------+
 | information_schema |
 +--------------------+
+Database: test
++--------+
+| Tables |
++--------+
++--------+
 End of 5.0 tests

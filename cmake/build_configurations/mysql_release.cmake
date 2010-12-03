@@ -101,8 +101,10 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 IF(WIN32)
-  # Sign executables with authenticode certificate
-  SET(SIGNCODE 1 CACHE BOOL "")
+  IF(NOT CMAKE_USING_VC_FREE_TOOLS)
+    # Sign executables with authenticode certificate
+    SET(SIGNCODE 1 CACHE BOOL "")
+  ENDIF()
 ENDIF()
 
 IF(UNIX)
@@ -120,7 +122,13 @@ IF(UNIX)
     CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
     IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
-      MESSAGE(FATAL_ERROR "aio is required on Linux")
+      MESSAGE(FATAL_ERROR "
+      aio is required on Linux, you need to install the required library:
+
+        Debian/Ubuntu:              apt-get install libaio-dev
+        RedHat/Fedora/Oracle Linux: yum install libaio-devel
+        SuSE:                       zypper install libaio-devel
+       ")
     ENDIF()
   ENDIF()
 
@@ -131,16 +139,16 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer")
+    SET(COMMON_C_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing")
     SET(CMAKE_C_FLAGS_DEBUG          "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS               "-g -static-libgcc -fno-omit-frame-pointer -fno-strict-aliasing")
     SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
   ENDIF()
-  
+
   # HPUX flags
   IF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
     IF(CMAKE_C_COMPILER_ID MATCHES "HP")
@@ -156,7 +164,7 @@ IF(UNIX)
     ENDIF()
     SET(WITH_SSL no)
   ENDIF()
-  
+
   # Linux flags
   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
@@ -173,18 +181,18 @@ IF(UNIX)
       SET(WITH_SSL no)
     ENDIF()
   ENDIF()
-  
+
   # OSX flags
   IF(APPLE)
-    SET(COMMON_C_FLAGS                 "-g -fno-common")
+    SET(COMMON_C_FLAGS                 "-g -fno-common -fno-strict-aliasing")
     # XXX: why are we using -felide-constructors on OSX?
-    SET(COMMON_CXX_FLAGS               "-g -fno-common -felide-constructors")
+    SET(COMMON_CXX_FLAGS               "-g -fno-common -felide-constructors -fno-strict-aliasing")
     SET(CMAKE_C_FLAGS_DEBUG            "-O ${COMMON_C_FLAGS}")
     SET(CMAKE_CXX_FLAGS_DEBUG          "-O ${COMMON_CXX_FLAGS}")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-Os ${COMMON_C_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os ${COMMON_CXX_FLAGS}")
   ENDIF()
-  
+
   # Solaris flags
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
     IF(CMAKE_SYSTEM_VERSION VERSION_GREATER "5.9")
@@ -219,22 +227,4 @@ IF(UNIX)
       ENDIF()
     ENDIF()
   ENDIF()
-  
-  IF(CMAKE_C_FLAGS_DEBUG)
-    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}"
-      CACHE STRING "Debug C compile flags")
-  ENDIF()
-  IF(CMAKE_CXX_FLAGS_DEBUG)
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}"
-      CACHE STRING "Debug C++ compile flags")
-  ENDIF()
-  IF(CMAKE_C_FLAGS_RELWITHDEBINFO)
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "RelWithDebInfo C compile flags")
-  ENDIF()
-  IF(CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "RelWithDebInfo C++ compile flags")
-  ENDIF()
-
 ENDIF()

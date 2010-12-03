@@ -1,6 +1,6 @@
 # We are using .opt file since we need small binlog size
 # TODO: Need to look at making a row based version once the new row based client is completed. [jbm]
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 
 -- source include/have_log_bin.inc
 
@@ -487,3 +487,26 @@ diff_files $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn $MYSQLTEST_VARDIR/tmp/mysqlbin
 # Cleanup for this part of test
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
+
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlbinlog --protocol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_BINLOG --short-form --read-from-remote-server --protocol=tcp --bind-address=127.0.0.1 master-bin.000001 > /dev/null
+
+#
+# WL#5625: Deprecate mysqlbinlog options --base64-output=always and --base64-output
+#
+
+--echo # Expect error for unknown argument.
+--error 1
+--exec $MYSQL_BINLOG --base64-output=always std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+--echo # Expect error for unknown argument again.
+--error 1
+--exec $MYSQL_BINLOG --base64-output std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+# Clean up this part of the test.
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn

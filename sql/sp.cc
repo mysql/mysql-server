@@ -27,7 +27,7 @@
 #include "sql_acl.h"                       // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
-#include "lock.h"                               // lock_routine_name
+#include "lock.h"                               // lock_object_name
 
 #include <my_user.h>
 
@@ -42,11 +42,11 @@ create_string(THD *thd, String *buf,
 	      st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode);
+              sql_mode_t sql_mode);
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                sql_mode_t sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
@@ -440,6 +440,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
 {
   TABLE_LIST table_list;
   TABLE *table;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_proc_table_for_update");
 
   table_list.init_one_table("mysql", 5, "proc", 4, "proc", TL_WRITE);
@@ -451,9 +452,9 @@ static TABLE *open_proc_table_for_update(THD *thd)
     DBUG_RETURN(table);
 
   close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_RETURN(NULL);
-
 }
 
 
@@ -495,8 +496,8 @@ db_find_routine_aux(THD *thd, int type, sp_name *name, TABLE *table)
   key_copy(key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
     DBUG_RETURN(SP_KEY_NOT_FOUND);
 
   DBUG_RETURN(SP_OK);
@@ -538,7 +539,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
-  ulong sql_mode, saved_mode= thd->variables.sql_mode;
+  sql_mode_t sql_mode, saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
 
@@ -635,7 +636,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   modified= table->field[MYSQL_PROC_FIELD_MODIFIED]->val_int();
   created= table->field[MYSQL_PROC_FIELD_CREATED]->val_int();
 
-  sql_mode= (ulong) table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
 
   table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
@@ -712,11 +713,11 @@ Silence_deprecated_warning::handle_condition(
     @retval   0                     error
 */
 
-static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
+static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
                            Stored_program_creation_ctx *creation_ctx)
 {
   sp_head *sp;
-  ulong old_sql_mode= thd->variables.sql_mode;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
@@ -757,7 +758,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                sql_mode_t sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx)
@@ -777,6 +778,9 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
 
   int ret= 0;
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&ret))
+    return TRUE;
 
   thd->lex= &newlex;
   newlex.current_select= NULL;
@@ -856,6 +860,7 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   }
 
 end:
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return ret;
@@ -919,7 +924,9 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
   CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
@@ -939,8 +946,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        sp->m_db.str, sp->m_name.str))
+  if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   /* Reset sql_mode during data dictionary operations. */
@@ -1159,8 +1165,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
 done:
   thd->count_cuted_fields= saved_count_cuted_fields;
   thd->variables.sql_mode= saved_mode;
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1190,6 +1194,8 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   TABLE *table;
   int ret;
   bool save_binlog_row_based;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1198,8 +1204,7 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
+  if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_DELETE_ROW_FAILED);
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1239,8 +1244,6 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
         sp_cache_flush_obsolete(spc, &sp);
     }
   }
-
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1272,6 +1275,8 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   TABLE *table;
   int ret;
   bool save_binlog_row_based;
+  MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
+                                        MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
@@ -1280,8 +1285,7 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
               type == TYPE_ENUM_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
+  if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   if (!(table= open_proc_table_for_update(thd)))
@@ -1348,12 +1352,111 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     sp_cache_invalidate();
   }
 err:
-  close_thread_tables(thd);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
+}
+
+
+/**
+  This internal handler is used to trap errors from opening mysql.proc.
+*/
+
+class Lock_db_routines_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl)
+  {
+    if (sql_errno == ER_NO_SUCH_TABLE ||
+        sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
+      return true;
+    return false;
+  }
+};
+
+
+/**
+   Acquires exclusive metadata lock on all stored routines in the
+   given database.
+
+   @note Will also return false (=success) if mysql.proc can't be opened
+         or is outdated. This allows DROP DATABASE to continue in these
+         cases.
+ */
+
+bool lock_db_routines(THD *thd, char *db)
+{
+  TABLE *table;
+  uint key_len;
+  int nxtres= 0;
+  Open_tables_backup open_tables_state_backup;
+  MDL_request_list mdl_requests;
+  Lock_db_routines_error_handler err_handler;
+  DBUG_ENTER("lock_db_routines");
+
+  /*
+    mysql.proc will be re-opened during deletion, so we can ignore
+    errors when opening the table here. The error handler is
+    used to avoid getting the same warning twice.
+  */
+  thd->push_internal_handler(&err_handler);
+  table= open_proc_table_for_read(thd, &open_tables_state_backup);
+  thd->pop_internal_handler();
+  if (!table)
+  {
+    /*
+      DROP DATABASE should not fail even if mysql.proc does not exist
+      or is outdated. We therefore only abort mysql_rm_db() if we
+      have errors not handled by the error handler.
+    */
+    DBUG_RETURN(thd->is_error() || thd->killed);
+  }
+
+  table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
+  key_len= table->key_info->key_part[0].store_length;
+  table->file->ha_index_init(0, 1);
+
+  if (! table->file->index_read_map(table->record[0],
+                                    table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  {
+    do
+    {
+      char *sp_name= get_field(thd->mem_root,
+                               table->field[MYSQL_PROC_FIELD_NAME]);
+      longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+      MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+      mdl_request->init(sp_type == TYPE_ENUM_FUNCTION ?
+                        MDL_key::FUNCTION : MDL_key::PROCEDURE,
+                        db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+      mdl_requests.push_front(mdl_request);
+    } while (! (nxtres= table->file->index_next_same(table->record[0],
+                                         table->field[MYSQL_PROC_FIELD_DB]->ptr,
+						     key_len)));
+  }
+  table->file->ha_index_end();
+  if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(nxtres, MYF(0));
+    close_system_tables(thd, &open_tables_state_backup);
+    DBUG_RETURN(true);
+  }
+  close_system_tables(thd, &open_tables_state_backup);
+
+  /* We should already hold a global IX lock and a schema X lock. */
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                             MDL_INTENTION_EXCLUSIVE) &&
+              thd->mdl_context.is_lock_owner(MDL_key::SCHEMA, db, "",
+                                             MDL_EXCLUSIVE));
+  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
+                                             thd->variables.lock_wait_timeout));
 }
 
 
@@ -1370,6 +1473,7 @@ sp_drop_db_routines(THD *thd, char *db)
   TABLE *table;
   int ret;
   uint key_len;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("sp_drop_db_routines");
   DBUG_PRINT("enter", ("db: %s", db));
 
@@ -1382,9 +1486,9 @@ sp_drop_db_routines(THD *thd, char *db)
 
   ret= SP_OK;
   table->file->ha_index_init(0, 1);
-  if (! table->file->index_read_map(table->record[0],
-                                    (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_map(table->record[0],
+                                       (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       (key_part_map)1, HA_READ_KEY_EXACT))
   {
     int nxtres;
     bool deleted= FALSE;
@@ -1399,7 +1503,7 @@ sp_drop_db_routines(THD *thd, char *db)
 	nxtres= 0;
 	break;
       }
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
                                 (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
 						     key_len)));
     if (nxtres != HA_ERR_END_OF_FILE)
@@ -1410,6 +1514,11 @@ sp_drop_db_routines(THD *thd, char *db)
   table->file->ha_index_end();
 
   close_thread_tables(thd);
+  /*
+    Make sure to only release the MDL lock on mysql.proc, not other
+    metadata locks DROP DATABASE might have acquired.
+  */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
 err:
   DBUG_RETURN(ret);
@@ -1501,6 +1610,9 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
                        (int) name->m_db.length, name->m_db.str,
                        (int) name->m_name.length, name->m_name.str,
                        type, cache_only));
+
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&depth))
+    return NULL;
 
   if ((sp= sp_cache_lookup(cp, name)))
   {
@@ -1633,38 +1745,6 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool any)
 }
 
 
-/**
-  Check if a routine exists in the mysql.proc table, without actually
-  parsing the definition. (Used for dropping).
-
-  @param thd          thread context
-  @param name         name of procedure
-
-  @retval
-    0       Success
-  @retval
-    non-0   Error;  SP_OPEN_TABLE_FAILED or SP_KEY_NOT_FOUND
-*/
-
-int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name)
-{
-  TABLE *table;
-  int ret;
-  Open_tables_backup open_tables_state_backup;
-
-  if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
-    ret= SP_OPEN_TABLE_FAILED;
-  else
-  {
-    if ((ret= db_find_routine_aux(thd, type, name, table)) != SP_OK)
-      ret= SP_KEY_NOT_FOUND;
-    close_system_tables(thd, &open_tables_state_backup);
-  }
-  return ret;
-}
-
-
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first)
 {
@@ -1720,7 +1800,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
       (Sroutine_hash_entry *)arena->alloc(sizeof(Sroutine_hash_entry));
     if (!rn)              // OOM. Error will be reported using fatal_error().
       return FALSE;
-    rn->mdl_request.init(key, MDL_SHARED);
+    rn->mdl_request.init(key, MDL_SHARED, MDL_TRANSACTION);
     if (my_hash_insert(&prelocking_ctx->sroutines, (uchar *)rn))
       return FALSE;
     prelocking_ctx->sroutines_list.link_in_list(rn, &rn->next);
@@ -2013,9 +2093,9 @@ create_string(THD *thd, String *buf,
               st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode)
+              sql_mode_t sql_mode)
 {
-  ulong old_sql_mode= thd->variables.sql_mode;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
@@ -2097,7 +2177,7 @@ create_string(THD *thd, String *buf,
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, sql_mode_t sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head)
 {
@@ -2142,6 +2222,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   newlex.current_select= NULL; 
   sp= sp_compile(thd, &defstr, sql_mode, creation_ctx);
   *free_sp_head= 1;
+  thd->lex->sphead= NULL;
   lex_end(thd->lex);
   thd->lex= old_lex;
   return sp;

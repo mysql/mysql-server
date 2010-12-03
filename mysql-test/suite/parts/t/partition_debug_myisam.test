@@ -1,0 +1,17 @@
+# Partitioning test that require debug features
+# including crashing tests.
+
+--source include/have_debug.inc
+--source include/have_partition.inc
+--source include/not_valgrind.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--let $DATADIR= `SELECT @@datadir;`
+
+let $engine= 'MyISAM';
+
+--echo # Test crash and failure recovery in fast_alter_partition_table.
+--source suite/parts/inc/partition_mgm_crash.inc

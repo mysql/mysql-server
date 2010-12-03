@@ -28,6 +28,25 @@ INSERT INTO t1 VALUES (1,2), (2,3);
 UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
 UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
 DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());
+INSERT INTO t1 VALUES (FOUND_ROWS());
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
+INSERT INTO t1 VALUES (ROW_COUNT());
+INSERT INTO t1 VALUES (SESSION_USER());
+INSERT INTO t1 VALUES (SLEEP(1));
+INSERT INTO t1 VALUES (SYSDATE());
+INSERT INTO t1 VALUES (SYSTEM_USER());
+INSERT INTO t1 VALUES (USER());
+INSERT INTO t1 VALUES (UUID());
+INSERT INTO t1 VALUES (UUID_SHORT());
+INSERT INTO t1 VALUES (VERSION());
+INSERT INTO t1 VALUES (RAND());
 DROP DATABASE b42851;
 USE test;
 #
@@ -67,8 +86,11 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 SELECT sf_bug50192();
 sf_bug50192()
 1
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 SHOW WARNINGS;
 Level	Code	Message
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
 DROP FUNCTION sf_bug50192;
 DROP TRIGGER tr_bug50192;
 DROP TABLE t1, t2;

@@ -36,8 +36,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
   if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
                            setup_tables_done_option)))
     res= unit->exec();
-  if (res || !thd->cursor || !thd->cursor->is_open())
-    res|= unit->cleanup();
+  res|= unit->cleanup();
   DBUG_RETURN(res);
 }
 
@@ -69,7 +68,8 @@ bool select_union::send_data(List<Item> &values)
   {
     /* create_myisam_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_myisam_from_heap(thd, table, &tmp_table_param, error, 1))
+        create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
+                                &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
   }
   return 0;
@@ -104,6 +104,8 @@ bool select_union::flush()
       is_union_distinct  if set, the temporary table will eliminate
                          duplicates on insert
       options            create options
+      table_alias        name of the temporary table
+      bit_fields_as_long convert bit fields to ulonglong
 
   DESCRIPTION
     Create a temporary table that is used to store the result of a UNION,
@@ -117,16 +119,18 @@ bool select_union::flush()
 bool
 select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
                                   bool is_union_distinct, ulonglong options,
-                                  const char *alias, bool create_table)
+                                  const char *table_alias,
+                                  bool bit_fields_as_long, bool create_table)
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
   tmp_table_param.field_count= column_types->elements;
   tmp_table_param.skip_create_table= !create_table;
+  tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
   if (! (table= create_tmp_table(thd_arg, &tmp_table_param, *column_types,
                                  (ORDER*) 0, is_union_distinct, 1,
-                                 options, HA_POS_ERROR, alias)))
+                                 options, HA_POS_ERROR, (char*) table_alias)))
     return TRUE;
   if (create_table)
   {
@@ -134,6 +138,22 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   }
   return FALSE;
+}
+
+
+/**
+  Reset and empty the temporary table that stores the materialized query result.
+
+  @note The cleanup performed here is exactly the same as for the two temp
+  tables of JOIN - exec_tmp_table_[1 | 2].
+*/
+
+void select_union::cleanup()
+{
+  table->file->extra(HA_EXTRA_RESET_STATE);
+  table->file->ha_delete_all_rows();
+  free_io_cache(table);
+  filesort_free_buffers(table,0);
 }
 
 
@@ -181,7 +201,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
   SELECT_LEX *sl, *first_sl= first_select();
   select_result *tmp_result;
   bool is_union_select;
-  TABLE *empty_table= 0;
   DBUG_ENTER("st_select_lex_unit::prepare");
 
   describe= test(additional_options & SELECT_DESCRIBE);
@@ -283,14 +302,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       types= first_sl->item_list;
     else if (sl == first_sl)
     {
-      /*
-        We need to create an empty table object. It is used
-        to create tmp_table fields in Item_type_holder.
-        The main reason of this is that we can't create
-        field object without table.
-      */
-      DBUG_ASSERT(!empty_table);
-      empty_table= (TABLE*) thd->calloc(sizeof(TABLE));
       types.empty();
       List_iterator_fast<Item> it(sl->item_list);
       Item *item_tmp;
@@ -383,7 +394,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       create_options= create_options | TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(thd, &types, test(union_distinct),
-                                          create_options, "", TRUE))
+                                          create_options, "", FALSE, TRUE))
       goto err;
     bzero((char*) &result_table_list, sizeof(result_table_list));
     result_table_list.db= (char*) "";
@@ -448,6 +459,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
 
 err:
   thd_arg->lex->current_select= lex_select_save;
+  (void) cleanup();
   DBUG_RETURN(TRUE);
 }
 
@@ -594,6 +606,7 @@ bool st_select_lex_unit::exec()
         sl->join->select_options= 
           (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
           sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
 	saved_error= sl->join->optimize();
       }
       if (!saved_error)
@@ -830,8 +843,8 @@ void st_select_lex_unit::reinit_exec_mechanism()
     TRUE  - error
 */
 
-bool st_select_lex_unit::change_result(select_subselect *new_result,
-                                       select_subselect *old_result)
+bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
+                                       select_result_interceptor *old_result)
 {
   bool res= FALSE;
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())

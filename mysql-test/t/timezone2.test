@@ -273,5 +273,14 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #55424: convert_tz crashes when fed invalid data
+--echo #
+
+CREATE TABLE t1 (a SET('x') NOT NULL);
+INSERT INTO t1 VALUES ('');
+SELECT CONVERT_TZ(1, a, 1) FROM t1;
+SELECT CONVERT_TZ(1, 1, a) FROM t1;
+DROP TABLE t1;
 
 --echo End of 5.1 tests

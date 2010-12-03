@@ -116,11 +116,14 @@ sym_tab_add_bound_id(
 
 /** Types of a symbol table node */
 enum sym_tab_entry {
+	SYM_UNSET,		/*!< Unset entry. */
 	SYM_VAR = 91,		/*!< declared parameter or local
 				variable of a procedure */
 	SYM_IMPLICIT_VAR,	/*!< storage for a intermediate result
 				of a calculation */
 	SYM_LIT,		/*!< literal */
+	SYM_TABLE_REF_COUNTED,	/*!< database table name, ref counted. Must
+				be closed explicitly. */
 	SYM_TABLE,		/*!< database table name */
 	SYM_COLUMN,		/*!< database table name */
 	SYM_CURSOR,		/*!< named cursor */

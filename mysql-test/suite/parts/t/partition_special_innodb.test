@@ -58,8 +58,8 @@ ENGINE = InnoDB
 PARTITION BY HASH (a)
 PARTITIONS 2;
 
-connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
 
 --connection con1
 SET autocommit=OFF;
@@ -76,3 +76,132 @@ ALTER TABLE t1 AUTO_INCREMENT = 10;
 --disconnect con1
 --connection default
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#53676: Unexpected errors and possible table corruption on
+--echo #            ADD PARTITION and LOCK TABLE
+--connect (con1,localhost,root,,)
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+
+--connect (con2,localhost,root,,)
+SET lock_wait_timeout = 2;
+
+--connection con1
+--echo #Connection 1 locks the table
+LOCK TABLE t1 READ;
+
+--connection con2
+--echo # Connection 2 tries to add partitions:
+--echo # First attempt: lock wait timeout (as expected)
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--echo # Second attempt: says that partition already exists
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+
+--connection con1
+--echo # Connection 1 unlocks the table and locks it again:
+UNLOCK TABLES;
+--real_sleep 1
+LOCK TABLE t1 READ;
+
+--connection con2
+--echo # Connection 2 tries again to add partitions:
+--echo # Third attempt: says that the table does not exist
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--echo # Check table returns the same (not after fixing bug#56172!)
+CHECK TABLE t1;
+
+--connection con1
+UNLOCK TABLES;
+
+--connection con2
+DROP TABLE t1;
+
+# End of Test1
+
+# Test2
+
+--connection con1
+
+CREATE TABLE t2 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+
+--connection con2
+SET lock_wait_timeout = 2;
+
+--connection con1
+LOCK TABLE t2 READ;
+
+--connection con2
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t2 ADD PARTITION PARTITIONS 2;
+send ALTER TABLE t2 ADD PARTITION PARTITIONS 2;
+
+--connection con1
+UNLOCK TABLES;
+
+--connection con2
+--reap
+
+--connect (con3,localhost,root,,)
+CHECK TABLE t2;
+SELECT * FROM t2;
+DROP TABLE t2;
+
+# End of Test2
+# Test #3
+
+--connection con1
+
+CREATE TABLE t3 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+        ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+
+--connection con2
+SET lock_wait_timeout = 2;
+
+--connection con1
+--echo # Connection 1 locks the table
+LOCK TABLE t3 READ;
+
+--connection con2
+--echo # Connection 2 tries to add partitions (timeout):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t3 ADD PARTITION PARTITIONS 2;
+
+--connection con3
+SET lock_wait_timeout = 2;
+--echo # Connection 3 tries to add partitions (partition already exists):
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t3 ADD PARTITION PARTITIONS 2;
+
+--connect (con4,localhost,root,,)
+--echo # Connection 4 tries to rename the table:
+send RENAME TABLE t3 TO t4;
+
+--connection con1
+--real_sleep 1
+--echo # Connection 1 unlocks the table:
+UNLOCK TABLES;
+
+--connection con4
+--echo # Connection 4 gets error on rename:
+--reap
+
+--connect (con5,localhost,root,,)
+--echo # SHOW TABLES returns the table (not renamed):
+SHOW TABLES;
+--echo # Connection 5 attempts to read from the table (table does not exist):
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+DROP TABLE t4;
+
+--disconnect con5
+--disconnect con4
+--disconnect con3
+--disconnect con2
+--disconnect con1
+--connection default
+# End of Test #3

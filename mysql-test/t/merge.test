@@ -2,6 +2,15 @@
 # Test of MERGE TABLES
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+# MERGE tables require MyISAM tables
+let $default=`select @@global.default_storage_engine`;
+set global default_storage_engine=myisam;
+set session default_storage_engine=myisam;
+
+# Clean up resources used in this test case.
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
 drop database if exists mysqltest;
@@ -222,7 +231,6 @@ CREATE TABLE t2 (c1 INT NOT NULL);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t1,t2);
---error ER_WRONG_MRG_TABLE
 SELECT * FROM t3;
 CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL);
 CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL);
@@ -254,7 +262,6 @@ create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
 select * from t3;
 drop table t3;
 create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
---error ER_WRONG_MRG_TABLE
 select * from t3;
 drop table t3, t2, t1;
 --echo # CREATE...SELECT is not implemented for MERGE tables.
@@ -575,7 +582,7 @@ DROP TABLE tm1, t1, t2;
 #
 CREATE TABLE t1(c1 INT);
 CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
---error ER_UPDATE_TABLE_USED
+# After WL#5370, it just generates a warning that the table already exists
 CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
@@ -891,12 +898,9 @@ INSERT INTO t4 VALUES (4);
 --echo # If the temporary MERGE table uses the locked children only,
 --echo # it can even be used.
 CREATE TEMPORARY TABLE t4 LIKE t3;
---error ER_WRONG_MRG_TABLE
 SHOW CREATE TABLE t4;
---error ER_WRONG_MRG_TABLE
 INSERT INTO t4 VALUES (4);
 UNLOCK TABLES;
---error ER_WRONG_MRG_TABLE
 INSERT INTO t4 VALUES (4);
 DROP TABLE t4;
 #
@@ -1730,6 +1734,84 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS m1, t1;
+--enable_warnings
+#
+# Test derived from a proposal of Shane Bester.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+#
+# REPAIR ... USE_FRM with LOCK TABLES.
+#
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+UNLOCK TABLES;
+#
+# REPAIR ... USE_FRM without LOCK TABLES.
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+DROP TABLE m1,t1;
+#
+# Test derived from a proposal of Matthias Leich.
+#
+# Base table is missing.
+#
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+#
+# Same with temporary tables.
+#
+# Base table is missing.
+#
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Create base table.
+#
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+#
+# This statement crashed the server (Bug#46339).
+#
+REPAIR TABLE m1 USE_FRM;
+#
+# Normal repair as reference.
+#
+REPAIR TABLE m1;
+#
+# Cleanup.
+#
+DROP TABLE m1, t1;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -2117,6 +2199,325 @@ OPTIMIZE TABLE t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
+--echo # More tests with TEMPORARY MERGE table and permanent children.
+--echo # First without locked tables.
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3, t4, m1, m2;
+--enable_warnings
+#
+--echo #
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE m1;
+SELECT * FROM m1;
+INSERT INTO t1 VALUES (111, 121);
+INSERT INTO m1 VALUES (211, 221);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+#
+--echo #
+ALTER TABLE m1 RENAME m2;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+--error ER_TABLE_EXISTS_ERROR
+ALTER TABLE m2 RENAME m1;
+DROP TABLE m1;
+ALTER TABLE m2 RENAME m1;
+SHOW CREATE TABLE m1;
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 ADD COLUMN c3 INT;
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (212, 222, 232);
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ALTER TABLE t2 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 DROP COLUMN c3;
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (213, 223);
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t2 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+SELECT * FROM m1;
+#
+--echo #
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3);
+INSERT INTO m1 VALUES (311, 321);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+#
+--echo #
+CREATE TEMPORARY TABLE t4 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3,t4);
+INSERT INTO m1 VALUES (411, 421);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+SELECT * FROM t4;
+#
+--echo #
+ALTER TABLE m1 ENGINE=MyISAM;
+SHOW CREATE TABLE m1;
+INSERT INTO m1 VALUES (511, 521);
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+#
+--echo #
+CREATE TEMPORARY TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (611, 621);
+SELECT * FROM m1;
+DROP TABLE t1;
+SELECT * FROM m1;
+#
+#
+--echo #
+--echo #
+SHOW CREATE TABLE m1;
+#
+--echo #
+CREATE TABLE m2 SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST;
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+--error ER_WRONG_OBJECT
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST SELECT * FROM m1;
+#
+--echo #
+--error ER_WRONG_OBJECT
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST SELECT * FROM m1;
+#
+--echo #
+CREATE TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+#
+#
+--echo #
+--echo #
+LOCK TABLE m1 WRITE, m2 WRITE;
+SELECT * FROM m1,m2 WHERE m1.c1=m2.c1;
+UNLOCK TABLES;
+#
+DROP TABLE t1, t2, t3, t4, m1, m2;
+#
+#
+#
+--echo #
+--echo # Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
+--echo # More tests with TEMPORARY MERGE table and permanent children.
+--echo # (continued) Now the same with locked table.
+--echo #
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE m1;
+SELECT * FROM m1;
+INSERT INTO t1 VALUES (111, 121);
+INSERT INTO m1 VALUES (211, 221);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+#
+--echo #
+LOCK TABLE m1 WRITE, t1 WRITE, t2 WRITE;
+#
+--echo #
+ALTER TABLE m1 RENAME m2;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+--error ER_TABLE_EXISTS_ERROR
+ALTER TABLE m2 RENAME m1;
+DROP TABLE m1;
+ALTER TABLE m2 RENAME m1;
+SHOW CREATE TABLE m1;
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 ADD COLUMN c3 INT;
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (212, 222, 232);
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ALTER TABLE t2 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 DROP COLUMN c3;
+--error ER_WRONG_MRG_TABLE
+INSERT INTO m1 VALUES (213, 223);
+--error ER_WRONG_MRG_TABLE
+SELECT * FROM m1;
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t2 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+SELECT * FROM m1;
+#
+--echo #
+UNLOCK TABLES;
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3);
+LOCK TABLE m1 WRITE;
+INSERT INTO m1 VALUES (311, 321);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+#
+--echo #
+CREATE TEMPORARY TABLE t4 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3,t4);
+INSERT INTO m1 VALUES (411, 421);
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+SELECT * FROM t4;
+#
+--echo #
+ALTER TABLE m1 ENGINE=MyISAM;
+SHOW CREATE TABLE m1;
+INSERT INTO m1 VALUES (511, 521);
+SELECT * FROM m1;
+#
+--echo #
+ALTER TABLE m1 ENGINE=MRG_MyISAM UNION=(t1,t2)
+  INSERT_METHOD=LAST;
+SELECT * FROM m1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+#
+--echo #
+CREATE TEMPORARY TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (611, 621);
+SELECT * FROM m1;
+DROP TABLE t1;
+SELECT * FROM m1;
+#
+#
+--echo #
+--echo #
+SHOW CREATE TABLE m1;
+--error ER_TABLE_NOT_LOCKED
+CREATE TABLE m2 SELECT * FROM m1;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST;
+SELECT * FROM m2;
+LOCK TABLE m1 WRITE, m2 WRITE;
+UNLOCK TABLES;
+DROP TABLE m2;
+LOCK TABLE m1 WRITE;
+#
+--echo #
+--echo # ER_TABLE_NOT_LOCKED is returned in ps-protocol
+--error ER_WRONG_OBJECT, ER_TABLE_NOT_LOCKED
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST SELECT * FROM m1;
+#
+--echo #
+--error ER_WRONG_OBJECT
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST SELECT * FROM m1;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+LOCK TABLE m1 WRITE, m2 WRITE;
+SHOW CREATE TABLE m2;
+SELECT * FROM m2;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+DROP TABLE m2;
+#
+--echo #
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+  INSERT_METHOD=LAST;
+LOCK TABLE m1 WRITE, m2 WRITE;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+#
+--echo #
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4, m1, m2;
+
+--echo #
 --echo # Bug47098 assert in MDL_context::destroy on HANDLER
 --echo #          <damaged merge table> OPEN
 --echo #
@@ -2199,7 +2600,7 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 --echo #
---echo # If children are to be altered, they need an explicit lock.
+--echo # Locking the merge table won't implicitly lock children.
 --echo #
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
@@ -2225,6 +2626,186 @@ show create table m1;
 show create table m2;
 drop tables m1, m2, t1;
 
+--echo #
+--echo # Test case for Bug#54811 "Assert in mysql_lock_have_duplicate()"
+--echo # Check that unique_table() works correctly for merge tables.
+--echo #
+--disable_warnings
+drop table if exists t1, t2, t3, m1, m2;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (b int);
+create view v1 as select * from t3,t1;
+create table m1 (a int) engine=merge union (t1, t2) insert_method=last;
+create table m2 (a int) engine=merge union (t1, t2) insert_method=first;
+create temporary table tmp (b int);
+insert into tmp (b) values (1);
+
+insert into t1 (a) values (1);
+insert into t3 (b) values (1);
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t2));
+
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from t3, t2));
+
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, m1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, m2));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, t1));
+--error ER_UPDATE_TABLE_USED
+insert into m1 (a) values ((select max(a) from tmp, t2));
+ 
+--error ER_VIEW_PREVENT_UPDATE
+insert into m1 (a) values ((select max(a) from v1));
+--error ER_VIEW_PREVENT_UPDATE
+insert into m1 (a) values ((select max(a) from tmp, v1));
+
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t2));
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from t3, t2));
+
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, m1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, m2));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, t1));
+--error ER_UPDATE_TABLE_USED
+update m1 set a = ((select max(a) from tmp, t2));
+ 
+--error ER_VIEW_PREVENT_UPDATE
+update m1 set a = ((select max(a) from v1));
+--error ER_VIEW_PREVENT_UPDATE
+update m1 set a = ((select max(a) from tmp, v1));
+
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t2);
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from t3, t2);
+
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, m1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, m2);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, t1);
+--error ER_UPDATE_TABLE_USED
+delete from m1 where a = (select max(a) from tmp, t2);
+ 
+--error ER_VIEW_PREVENT_UPDATE
+delete from m1 where a = (select max(a) from v1);
+--error ER_VIEW_PREVENT_UPDATE
+delete from m1 where a = (select max(a) from tmp, v1);
+
+drop view v1;
+drop temporary table tmp;
+drop table t1, t2, t3, m1, m2;
+
+
+--echo #
+--echo # Bug#56494 Segfault in upgrade_shared_lock_to_exclusive() for
+--echo #           REPAIR of merge table
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t_not_exists;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 engine= MERGE UNION (t_not_exists);
+# This caused the segfault
+ANALYZE TABLE t1;
+CHECK TABLE t1;
+CHECKSUM TABLE t1;
+OPTIMIZE TABLE t1;
+REPAIR TABLE t1;
+
+# This caused an assert
+REPAIR TABLE t1 USE_FRM;
+
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT) engine= MERGE UNION (t1);
+# This caused an assert
+REPAIR TABLE t2 USE_FRM;
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#57002 Assert in upgrade_shared_lock_to_exclusive()
+--echo #           for ALTER TABLE + MERGE tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE m1(a INT) engine=merge UNION(t1);
+LOCK TABLES t1 READ, m1 WRITE;
+
+# This caused an assert
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t1 engine=myisam;
+
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
 
 --echo End of 6.0 tests
 
+--disable_result_log
+--disable_query_log
+eval set global default_storage_engine=$default;
+--enable_result_log
+--enable_query_log
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

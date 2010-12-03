@@ -201,8 +201,8 @@ drop table t1;
 # We can't use varchar.inc becasue heap doesn't support blob's
 #
 
-let $default=`select @@storage_engine`;
-set storage_engine=HEAP;
+let $default=`select @@default_storage_engine`;
+set default_storage_engine=HEAP;
 
 #
 # Simple basic test that endspace is saved
@@ -405,7 +405,7 @@ drop table t1;
 #
 # Reset varchar test
 #
-eval set storage_engine=$default;
+eval set default_storage_engine=$default;
 
 #
 # Bug #8489: Strange auto_increment behaviour

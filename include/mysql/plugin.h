@@ -71,7 +71,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0102
 
 /*
   The allowable types of plugins
@@ -83,7 +83,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
 #define MYSQL_AUDIT_PLUGIN           5  /* The Audit plugin type        */
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    7  /* The number of plugin types   */
+#define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    8  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0
@@ -528,6 +529,7 @@ long long thd_test_options(const MYSQL_THD thd, long long test_options);
 int thd_sql_command(const MYSQL_THD thd);
 const char *thd_proc_info(MYSQL_THD thd, const char *info);
 void **thd_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
+void thd_storage_lock_wait(MYSQL_THD thd, long long value);
 int thd_tx_isolation(const MYSQL_THD thd);
 char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);

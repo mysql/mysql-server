@@ -99,6 +99,8 @@ return i;
 end|
 set @error_in_func:= 0|
 insert into t1 values (bug10015_6(5)), (bug10015_6(6))|
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 select @error_in_func|
 @error_in_func
 1
@@ -524,6 +526,8 @@ until done end repeat;
 close c;
 end|
 call bug14210()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select count(*) from t4|
 count(*)
 256
@@ -581,3 +585,20 @@ UPDATE t1_aux SET f2 = 2 WHERE f1 = f1_two_inserts()|
 ERROR 23000: Column 'f2' cannot be null
 DROP TABLE t1_aux, t1_not_null|
 DROP FUNCTION f1_two_inserts|
+#
+# Bug#49938: Failing assertion: inode or deadlock in fsp/fsp0fsp.c
+#
+DROP PROCEDURE IF EXISTS p1|
+DROP TABLE IF EXISTS t1|
+CREATE TABLE t1 (a INT) ENGINE=INNODB|
+CREATE PROCEDURE p1()
+BEGIN
+TRUNCATE TABLE t1;
+END|
+LOCK TABLES t1 WRITE|
+CALL p1()|
+FLUSH TABLES;
+UNLOCK TABLES|
+CALL p1()|
+DROP PROCEDURE p1|
+DROP TABLE t1|

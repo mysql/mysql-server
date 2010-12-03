@@ -509,6 +509,24 @@ public:
     DBUG_ASSERT(0);
     return GEOM_GEOMETRY;
   }
+#ifndef DBUG_OFF
+  /* Print field value into debug trace, in NULL-aware way. */
+  void dbug_print()
+  {
+    if (is_real_null())
+      fprintf(DBUG_FILE, "NULL");
+    else
+    {
+      char buf[256];
+      String str(buf, sizeof(buf), &my_charset_bin);
+      str.length(0);
+      String *pstr;
+      pstr= val_str(&str);
+      fprintf(DBUG_FILE, "'%s'", pstr->c_ptr_safe());
+    }
+  }
+#endif
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
@@ -554,6 +572,48 @@ private:
   { return 0; }
 
 protected:
+  static void handle_int16(uchar *to, const uchar *from,
+                           bool low_byte_first_from, bool low_byte_first_to)
+  {
+    int16 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_from)
+      val = sint2korr(from);
+    else
+#endif
+      shortget(val, from);
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_to)
+      int2store(to, val);
+    else
+#endif
+      shortstore(to, val);
+  }
+
+  static void handle_int24(uchar *to, const uchar *from,
+                           bool low_byte_first_from, bool low_byte_first_to)
+  {
+    int32 val;
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_from)
+      val = sint3korr(from);
+    else
+#endif
+      val= (from[0] << 16) + (from[1] << 8) + from[2];
+
+#ifdef WORDS_BIGENDIAN
+    if (low_byte_first_to)
+      int2store(to, val);
+    else
+#endif
+    {
+      to[0]= 0xFF & (val >> 16);
+      to[1]= 0xFF & (val >> 8);
+      to[2]= 0xFF & val;
+    }
+  }
+
   /*
     Helper function to pack()/unpack() int32 values
   */
@@ -596,6 +656,32 @@ protected:
     else
 #endif
       longlongstore(to, val);
+  }
+
+  uchar *pack_int16(uchar *to, const uchar *from, bool low_byte_first_to)
+  {
+    handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
+    return to  + sizeof(int16);
+  }
+
+  const uchar *unpack_int16(uchar* to, const uchar *from,
+                            bool low_byte_first_from)
+  {
+    handle_int16(to, from, low_byte_first_from, table->s->db_low_byte_first);
+    return from + sizeof(int16);
+  }
+
+  uchar *pack_int24(uchar *to, const uchar *from, bool low_byte_first_to)
+  {
+    handle_int24(to, from, table->s->db_low_byte_first, low_byte_first_to);
+    return to + 3;
+  }
+
+  const uchar *unpack_int24(uchar* to, const uchar *from,
+                            bool low_byte_first_from)
+  {
+    handle_int24(to, from, low_byte_first_from, table->s->db_low_byte_first);
+    return from + 3;
   }
 
   uchar *pack_int32(uchar *to, const uchar *from, bool low_byte_first_to)
@@ -678,6 +764,17 @@ public:
 	    uchar null_bit_arg, utype unireg_check_arg,
 	    const char *field_name_arg, CHARSET_INFO *charset);
   Item_result result_type () const { return STRING_RESULT; }
+  /*
+    match_collation_to_optimize_range() is to distinguish in
+    range optimizer (see opt_range.cc) between real string types:
+      CHAR, VARCHAR, TEXT
+    and the other string-alike types with result_type() == STRING_RESULT:
+      DATE, TIME, DATETIME, TIMESTAMP
+    We need it to decide whether to test if collation of the operation
+    matches collation of the field (needed only for real string types).
+    QQ: shouldn't DATE/TIME types have their own XXX_RESULT types eventually?
+  */
+  virtual bool match_collation_to_optimize_range() const=0;
   uint decimals() const { return NOT_FIXED_DEC; }
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val)=0;
@@ -918,41 +1015,13 @@ public:
   virtual uchar *pack(uchar* to, const uchar *from,
                       uint max_length, bool low_byte_first)
   {
-    int16 val;
-#ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-      val = sint2korr(from);
-    else
-#endif
-      shortget(val, from);
-
-#ifdef WORDS_BIGENDIAN
-    if (low_byte_first)
-      int2store(to, val);
-    else
-#endif
-      shortstore(to, val);
-    return to + sizeof(val);
+    return pack_int16(to, from, low_byte_first);
   }
 
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first)
   {
-    int16 val;
-#ifdef WORDS_BIGENDIAN
-    if (low_byte_first)
-      val = sint2korr(from);
-    else
-#endif
-      shortget(val, from);
-
-#ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
-      int2store(to, val);
-    else
-#endif
-      shortstore(to, val);
-    return from + sizeof(val);
+    return unpack_int16(to, from, low_byte_first);
   }
 };
 
@@ -1187,6 +1256,7 @@ public:
 	       unireg_check_arg, field_name_arg, cs)
     {}
   enum_field_types type() const { return MYSQL_TYPE_NULL;}
+  bool match_collation_to_optimize_range() const { return FALSE; }
   int  store(const char *to, uint length, CHARSET_INFO *cs)
   { null[0]=1; return 0; }
   int store(double nr)   { null[0]=1; return 0; }
@@ -1216,6 +1286,7 @@ public:
   Field_timestamp(bool maybe_null_arg, const char *field_name_arg,
 		  CHARSET_INFO *cs);
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
+  bool match_collation_to_optimize_range() const { return FALSE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
@@ -1320,6 +1391,7 @@ public:
     :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
+  bool match_collation_to_optimize_range() const { return FALSE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
@@ -1369,6 +1441,7 @@ public:
                NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum_field_types real_type() const { return MYSQL_TYPE_NEWDATE; }
+  bool match_collation_to_optimize_range() const { return FALSE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
@@ -1408,6 +1481,7 @@ public:
     :Field_str((uchar*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
+  bool match_collation_to_optimize_range() const { return FALSE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
@@ -1447,6 +1521,7 @@ public:
     :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
 	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
+  bool match_collation_to_optimize_range() const { return FALSE; }
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
@@ -1515,6 +1590,7 @@ public:
             orig_table->s->frm_version < FRM_VER_TRUE_VARCHAR ?
 	    MYSQL_TYPE_VAR_STRING : MYSQL_TYPE_STRING);
   }
+  bool match_collation_to_optimize_range() const { return TRUE; }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_BINARY : HA_KEYTYPE_TEXT; }
   bool zero_pack() const { return 0; }
@@ -1595,6 +1671,7 @@ public:
   }
 
   enum_field_types type() const { return MYSQL_TYPE_VARCHAR; }
+  bool match_collation_to_optimize_range() const { return TRUE; }
   enum ha_base_keytype key_type() const;
   uint row_pack_length() { return field_length; }
   bool zero_pack() const { return 0; }
@@ -1690,6 +1767,7 @@ public:
     :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
     packlength(packlength_arg) {}
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
+  bool match_collation_to_optimize_range() const { return TRUE; }
   enum ha_base_keytype key_type() const
     { return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
@@ -1839,6 +1917,7 @@ public:
   { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
+  bool match_collation_to_optimize_range() const { return FALSE; }
   void sql_type(String &str) const;
   int  store(const char *to, uint length, CHARSET_INFO *charset);
   int  store(double nr);
@@ -1870,6 +1949,7 @@ public:
   }
   Field *new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type);
   enum_field_types type() const { return MYSQL_TYPE_STRING; }
+  bool match_collation_to_optimize_range() const { return FALSE; }
   enum Item_result cmp_type () const { return INT_RESULT; }
   enum Item_result cast_to_int_type () const { return INT_RESULT; }
   enum ha_base_keytype key_type() const;
@@ -1895,6 +1975,12 @@ public:
   bool has_charset(void) const { return TRUE; }
   /* enum and set are sorted as integers */
   CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
+
+  virtual uchar *pack(uchar *to, const uchar *from,
+                      uint max_length, bool low_byte_first);
+  virtual const uchar *unpack(uchar *to, const uchar *from,
+                              uint param_data, bool low_byte_first);
+
 private:
   int do_save_field_metadata(uchar *first_byte);
   uint is_equal(Create_field *new_field);

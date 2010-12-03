@@ -159,8 +159,8 @@
 # B - Begin.
 # C - Commit.
 # R - Rollback.
-# S1 - Savepoint.
-# R1 - Rollback to S1.
+# Sn - Savepoint Sn.
+# Rn - Rollback to Sn.
 #
 # - Change only T-Tables:
 # T - Updates a T-Table.
@@ -247,6 +247,7 @@
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
+SET @verbose= 'Y';
 SET @commands= 'configure';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
@@ -1608,16 +1609,16 @@ SET @commands= 'B N TeN-func R';
 --echo ###################################################################################
 --echo #                               2 - SAVEPOINT
 --echo ###################################################################################
-SET @commands= 'B T S1 T R1 C';
+SET @commands= 'B T Sn T Rn C';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B N T S1 T R1 C';
+SET @commands= 'B N T Sn T Rn C';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T N S1 T R1 C';
+SET @commands= 'B T N Sn T Rn C';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T S1 N T R1 C';
+SET @commands= 'B T Sn N T Rn C';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 --echo ###################################################################################
@@ -1728,7 +1729,7 @@ SET @commands= 'B T CT R';
 SET @commands= 'drop-CT';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
-SET @commands= 'B T S1 T CT R1 R';
+SET @commands= 'B T Sn T CT Rn R';
 --source extra/rpl_tests/rpl_mixing_engines.inc
 
 SET @commands= 'drop-CT';

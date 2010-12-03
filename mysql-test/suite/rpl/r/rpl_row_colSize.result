@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS t1;
 Checking MYSQL_TYPE_NEWDECIMAL fields
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 STOP SLAVE;
 RESET SLAVE;
 CREATE TABLE t1 (a DECIMAL(5,2));

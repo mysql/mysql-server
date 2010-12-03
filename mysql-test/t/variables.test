@@ -8,7 +8,6 @@ drop table if exists t1,t2;
 #
 # Bug#19263: variables.test doesn't clean up after itself (I/II -- save)
 #
-set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -16,6 +15,7 @@ set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
+set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
@@ -340,11 +340,9 @@ select @@sql_auto_is_null;
 set @@sql_auto_is_null=0;
 select @@sql_auto_is_null;
 set sql_big_selects=1;
-set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -519,14 +517,6 @@ SET GLOBAL table_open_cache=DEFAULT;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
 set names latin1;
-
-
-#
-# Bug #9613: @@have_innodb
-#
-
---replace_column 1 #
-select @@have_innodb;
 
 #
 # Tests for lc_time_names
@@ -806,7 +796,6 @@ set join_buffer_size=@save_join_buffer_size;
 # Bug #19263: variables.test doesn't clean up after itself (II/II --
 # restore)
 #
-set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 set global delayed_queue_size        =@my_delayed_queue_size;
@@ -814,6 +803,7 @@ set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =@my_max_binlog_cache_size;
+set global binlog_cache_size         =@my_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
@@ -1240,6 +1230,51 @@ SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 SELECT @@skip_name_resolve;
 SHOW VARIABLES LIKE 'skip_name_resolve';
 
+--echo #
+--echo # Bug #43233 : Some server variables are clipped during "update,"
+--echo #              not "check" stage
+--echo #
+
+SET @kbs=@@global.key_buffer_size;
+SET @kcbs=@@global.key_cache_block_size;
+
+--echo throw errors in STRICT mode
+SET SQL_MODE=STRICT_ALL_TABLES;
+
+# sys_var_ulonglong_ptr: sys_max_binlog_cache_size
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.max_binlog_cache_size=-1;
+
+# sys_var_thd_ha_rows: "max_join_size" et al.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.max_join_size=0;
+
+# sys_var_key_buffer_size: "key_buffer_size"
+--error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size=0;
+
+# sys_var_key_cache_long: "key_cache_block_size" et al.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.key_cache_block_size=0;
+
+--echo throw warnings in default mode
+SET SQL_MODE=DEFAULT;
+
+SET @@global.max_binlog_cache_size=-1;
+SET @@global.max_join_size=0;
+# this is an exception. since this is a new error/warning, let's stay
+# compatible with the upcoming 5.6.
+--error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size=0;
+SET @@global.key_cache_block_size=0;
+
+# cleanup
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
+
 --echo End of 5.1 tests
 
 ###########################################################################
@@ -1402,4 +1437,50 @@ SET @@sql_quote_show_create = @sql_quote_show_create_saved;
 --echo # End of Bug#34828.
 --echo
 
+--echo # Make sure we can manipulate with autocommit in the
+--echo # along with other variables.
+
+
+--disable_warnings
+drop table if exists t1;
+drop function if exists t1_max;
+drop function if exists t1_min;
+--enable_warnings
+
+create table t1 (a int) engine=innodb;
+insert into t1(a) values (0), (1);
+create function t1_max() returns int return (select max(a) from t1);
+create function t1_min() returns int return (select min(a) from t1);
+select t1_min();
+select t1_max();
+set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+    @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+    @@session.autocommit=t1_min(), @@session.autocommit=t1_max();
+
+--echo # Cleanup.
+drop table t1;
+drop function t1_min;
+drop function t1_max;
+
+
 ###########################################################################
+
+
+--echo #
+--echo # Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
+--echo #           compiler warning
+--echo #
+
+# Several tests currently use "@@sql_mode= cast(pow(2,32)-1"
+# to activate all SQL modes. This will stop working once
+# someone adds a new flag. The test below is designed to break
+# once this happens to indicate that other tests will have to
+# be updated.
+#
+# The test does this by trying to set sql_mode to the next 
+# currently unused flag value and check that this currently fails.
+# Once a new flag is added, this value will become valid and
+# the statement below will succeed.
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@sql_mode= 4294967296;

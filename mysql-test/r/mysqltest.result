@@ -177,6 +177,9 @@ mysqltest: At line 1: End of line junk detected: "disconnect default # comment
 "
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 1: Spurious text after `query` expression
+mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S
@@ -262,6 +265,9 @@ a long \$where variable content
 
 banana = banana
 Not a banana: ba\$cat\$cat
+with\`some"escaped\'quotes
+with\`some"escaped\'quotes
+single'tick`backtick
 mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Missing assignment operator in let
@@ -302,6 +308,10 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+`select 42`
+drop table t1;
 mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
@@ -325,6 +335,7 @@ outer=2 ifval=0
 outer=1 ifval=1
 here is the sourced script
 ERROR 42S02: Table 'test.nowhere' doesn't exist
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'else' at line 1
 
 In loop
 here is the sourced script
@@ -362,23 +373,24 @@ mysqltest: At line 1: Missing required argument 'sleep_delay' to command 'real_s
 mysqltest: At line 1: Invalid argument to sleep "abc"
 mysqltest: At line 1: Invalid argument to real_sleep "abc"
 1
-2
 101
-hej
-1
+-99
 mysqltest: At line 1: Missing argument to inc
 mysqltest: At line 1: The argument to inc must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
-4
-4
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+-96
+-96
 -1
--2
 99
-hej
--1
 mysqltest: At line 1: Missing argument to dec
 mysqltest: At line 1: The argument to dec must be a variable (start with $)
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
+mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 mysqltest: At line 1: Missing arguments to system, nothing to do!
 system command 'NonExistsinfComamdn 2> /dev/null' failed
@@ -391,7 +403,43 @@ true-inner
 true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
+Counter should still be 10, is 10
 Counter is not 0, (counter=0)
+Not space var works
+Counter is true, (counter=alpha)
+while with string, only once
+5<7
+5<7 again
+5<7 still
+5<6
+5>=5
+5>=5 again
+5>3
+5==5
+5!=8
+5!=five
+5==3+2
+5   ==   5
+hello == hello
+hello   ==   hello
+hello != goodbye
+'quoted' == ''quoted''
+two words
+'two words'
+"two words"
+two words are two words
+right answer
+anything goes
+0 != string
+mysqltest: At line 2: Only == and != are supported for string values
+mysqltest: At line 2: Found junk '~= 6' after $variable in condition
+mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+counter is 2
+counter is 3
+counter is 4
+counter is 5
+counter is 6
+counter is 7
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
@@ -442,13 +490,16 @@ mysqltest: At line 1: Missing required argument 'host' to command 'connect'
 mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1049: Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
-OK
-mysqltest: The test didn't produce any output
+200 connects succeeded
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
-connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
 show tables;
 ERROR 3D000: No database selected
+connect  con1,localhost,root,,;
+connection default;
+connection con1;
+disconnect con1;
+connection default;
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
 Output from mysqltest-x.inc
@@ -572,7 +623,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: Failed to open file 'non_existing_file'
+mysqltest: At line 1: command "cat_file" failed with error 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
@@ -788,13 +839,17 @@ mysqltest: At line 1: change user failed: Access denied for user 'root'@'localho
 file1.txt
 file1.txt
 file2.txt
+prefix1.txt
+prefix2.txt
+prefix3.txt
+SELECT "bla bla file" as x;
+x
+bla bla file
 file11.txt
 dir-list.txt
 SELECT 'c:\\a.txt' AS col;
 col
 z
-hej
-mysqltest: At line 1: Found junk ' != 143' after $variable in expression
 select 1;
 1
 1

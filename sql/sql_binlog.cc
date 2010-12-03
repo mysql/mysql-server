@@ -17,7 +17,8 @@
 #include "sql_binlog.h"
 #include "sql_parse.h"
 #include "sql_acl.h"
-#include "rpl_rli.h"
+#include "rpl_info.h"
+#include "rpl_info_factory.h"
 #include "base64.h"
 #include "rpl_slave.h"                              // apply_event_and_update_pos
 #include "log_event.h"                          // Format_description_log_event,
@@ -73,7 +74,8 @@ static int check_event_type(int type, Relay_log_info *rli)
 
     /* It is always allowed to execute FD events. */
     return 0;
-    
+
+  case ROWS_QUERY_LOG_EVENT:
   case TABLE_MAP_EVENT:
   case WRITE_ROWS_EVENT:
   case UPDATE_ROWS_EVENT:
@@ -143,14 +145,25 @@ void mysql_client_binlog_statement(THD* thd)
   size_t decoded_len= base64_needed_decoded_length(coded_len);
 
   /*
+    option_bits will be changed when applying the event. But we don't expect
+    it be changed permanently after BINLOG statement, so backup it first.
+    It will be restored at the end of this function.
+  */
+  ulonglong thd_options= thd->variables.option_bits;
+
+  /*
     Allocation
   */
-
-  int err;
-  Relay_log_info *rli;
-  rli= thd->rli_fake;
-  if (!rli && (rli= thd->rli_fake= new Relay_log_info(FALSE)))
-    rli->sql_thd= thd;
+  int err= 0;
+  Relay_log_info *rli= thd->rli_fake;
+  if (!rli)
+  {
+    if ((rli= Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE)))
+    {
+      thd->rli_fake= rli;
+      rli->info_thd= thd;
+    }
+  }
 
   const char *error= 0;
   char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
@@ -235,7 +248,8 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)
@@ -263,8 +277,6 @@ void mysql_client_binlog_statement(THD* thd)
       */
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
       err= ev->apply_event(rli);
-#else
-      err= 0;
 #endif
       /*
         Format_description_log_event should not be deleted because it
@@ -273,8 +285,15 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev; 
-      ev= 0;
+      {
+        if (thd->variables.binlog_rows_query_log_events)
+          handle_rows_query_log_event(ev, rli);
+        if (ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+        {
+          delete ev;
+          ev= NULL;
+        }
+      }
       if (err)
       {
         /*
@@ -292,6 +311,12 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
+  if ((error || err) && rli->rows_query_ev)
+  {
+    delete rli->rows_query_ev;
+    rli->rows_query_ev= NULL;
+  }
+  thd->variables.option_bits= thd_options;
   rli->slave_close_thread_tables(thd);
   my_free(buf);
   DBUG_VOID_RETURN;

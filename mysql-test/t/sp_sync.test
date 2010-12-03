@@ -87,7 +87,7 @@ SET DEBUG_SYNC= 'now WAIT_FOR locked';
 --echo # Connection con3
 connection con3;
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-  WHERE state= 'Waiting for table' 
+  WHERE state= 'Waiting for stored function metadata lock' 
   AND info='SHOW OPEN TABLES WHERE f1()=0';
 --source include/wait_condition.inc
 --echo # Check that the IS query is blocked before releasing the x-lock

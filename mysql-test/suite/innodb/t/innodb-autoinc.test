@@ -665,7 +665,17 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-
+##
+# 55277: Failing assertion: auto_inc > 0
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (18446744073709551615);
+# Restart the server
+-- source include/restart_mysqld.inc
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
 #
 # restore environment to the state it was before this test execution
 #

@@ -8,7 +8,7 @@ mysql.db                                           OK
 mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
-note     : The storage engine for the table doesn't support optimize
+note     : The storage engine for the table doesn't support analyze
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -18,9 +18,12 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
 mysql.slow_log
-note     : The storage engine for the table doesn't support optimize
+note     : The storage engine for the table doesn't support analyze
 mysql.tables_priv                                  OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
@@ -28,6 +31,8 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -43,7 +48,10 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
 mysql.slow_log
 note     : The storage engine for the table doesn't support optimize
 mysql.tables_priv                                  OK
@@ -53,10 +61,68 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log
+note     : The storage engine for the table doesn't support analyze
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slow_log
+note     : The storage engine for the table doesn't support analyze
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mysql.columns_priv                                 Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.event                                        Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log
+note     : The storage engine for the table doesn't support optimize
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.host                                         Table is already up to date
+mysql.ndb_binlog_index                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.proc                                         Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slow_log
+note     : The storage engine for the table doesn't support optimize
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
 create table t1 (a int);
 create view v1 as select * from t1;
 test.t1                                            OK
+test.t1                                            Table is already up to date
 test.t1                                            OK
+test.t1                                            Table is already up to date
 drop view v1;
 drop table t1;
 create table `t``1`(a int);
@@ -125,6 +191,7 @@ Tables_in_test
 t1
 #mysql50#v-1
 v1
+test.t1                                            OK
 show tables;
 Tables_in_test
 t1
@@ -198,3 +265,6 @@ Tables_in_test (t1-1)
 t1-1
 drop table `t1-1`;
 End of 5.1 tests
+#
+# Bug #35269: mysqlcheck behaves different depending on order of parameters
+#

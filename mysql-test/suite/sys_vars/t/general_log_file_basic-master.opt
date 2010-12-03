@@ -1,1 +1,2 @@
---log=test.log
+--general-log
+--general-log-file=test.log

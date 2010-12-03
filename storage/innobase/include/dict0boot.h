@@ -51,32 +51,35 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
-	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
-	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
-	ulint*	space_id);	/*!< out: space id (not assigned if NULL) */
+	table_id_t*	table_id,	/*!< out: table id
+					(not assigned if NULL) */
+	index_id_t*	index_id,	/*!< out: index id
+					(not assigned if NULL) */
+	ulint*		space_id);	/*!< out: space id
+					(not assigned if NULL) */
 /**********************************************************************//**
 Returns a new row id.
 @return	the new id */
 UNIV_INLINE
-dulint
+row_id_t
 dict_sys_get_new_row_id(void);
 /*=========================*/
 /**********************************************************************//**
 Reads a row id from a record or other 6-byte stored form.
 @return	row id */
 UNIV_INLINE
-dulint
+row_id_t
 dict_sys_read_row_id(
 /*=================*/
-	byte*	field);	/*!< in: record field */
+	const byte*	field);	/*!< in: record field */
 /**********************************************************************//**
 Writes a row id to a record or other 6-byte stored form. */
 UNIV_INLINE
 void
 dict_sys_write_row_id(
 /*==================*/
-	byte*	field,	/*!< in: record field */
-	dulint	row_id);/*!< in: row id */
+	byte*		field,	/*!< in: record field */
+	row_id_t	row_id);/*!< in: row id */
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */
@@ -97,12 +100,12 @@ dict_create(void);
 #define	DICT_HDR_PAGE_NO	FSP_DICT_HDR_PAGE_NO
 
 /* The ids for the basic system tables and their indexes */
-#define DICT_TABLES_ID		ut_dulint_create(0, 1)
-#define DICT_COLUMNS_ID		ut_dulint_create(0, 2)
-#define DICT_INDEXES_ID		ut_dulint_create(0, 3)
-#define DICT_FIELDS_ID		ut_dulint_create(0, 4)
+#define DICT_TABLES_ID		1
+#define DICT_COLUMNS_ID		2
+#define DICT_INDEXES_ID		3
+#define DICT_FIELDS_ID		4
 /* The following is a secondary index on SYS_TABLES */
-#define DICT_TABLE_IDS_ID	ut_dulint_create(0, 5)
+#define DICT_TABLE_IDS_ID	5
 
 #define	DICT_HDR_FIRST_ID	10	/* the ids for tables etc. start
 					from this number, except for basic
@@ -110,7 +113,6 @@ dict_create(void);
 					indexes; ibuf tables and indexes are
 					assigned as the id the number
 					DICT_IBUF_ID_MIN plus the space id */
-#define DICT_IBUF_ID_MIN	ut_dulint_create(0xFFFFFFFFUL, 0)
 
 /* The offset of the dictionary header on the page */
 #define	DICT_HDR		FSEG_PAGE_DATA

@@ -225,10 +225,12 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
       /*
         We are reading the actual size from the master_data record
         because this field has the actual lengh stored in the first
-        byte.
+        one or two bytes.
       */
-      length= (uint) *master_data + 1;
-      DBUG_ASSERT(length != 0);
+      length= max_display_length_for_field(MYSQL_TYPE_STRING, m_field_metadata[col]) > 255 ? 2 : 1;
+
+      /* As in Field_string::unpack */
+      length+= ((length == 1) ? *master_data : uint2korr(master_data));
     }
     break;
   }
@@ -284,7 +286,6 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
   case MYSQL_TYPE_VARCHAR:
   {
     length= m_field_metadata[col] > 255 ? 2 : 1; // c&p of Field_varstring::data_length()
-    DBUG_ASSERT(uint2korr(master_data) > 0);
     length+= length == 1 ? (uint32) *master_data : uint2korr(master_data);
     break;
   }
@@ -1056,3 +1057,58 @@ table_def::~table_def()
 #endif
 }
 
+/**
+   @param   even_buf    point to the buffer containing serialized event
+   @param   event_len   length of the event accounting possible checksum alg
+
+   @return  TRUE        if test fails
+            FALSE       as success
+*/
+bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
+{
+  bool res= FALSE;
+  uint16 flags= 0; // to store in FD's buffer flags orig value
+
+  if (alg != BINLOG_CHECKSUM_ALG_OFF && alg != BINLOG_CHECKSUM_ALG_UNDEF)
+  {
+    ha_checksum incoming;
+    ha_checksum computed;
+
+    if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+    {
+#ifndef DBUG_OFF
+      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+                             BINLOG_CHECKSUM_ALG_DESC_LEN];
+#endif
+      /*
+        FD event is checksummed and therefore verified w/o the binlog-in-use flag
+      */
+      flags= uint2korr(event_buf + FLAGS_OFFSET);
+      if (flags & LOG_EVENT_BINLOG_IN_USE_F)
+        event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
+      /* 
+         The only algorithm currently is CRC32. Zero indicates 
+         the binlog file is checksum-free *except* the FD-event.
+      */
+      DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
+      DBUG_ASSERT(alg == BINLOG_CHECKSUM_ALG_CRC32);
+      /*
+        Complile time guard to watch over  the max number of alg
+      */
+      compile_time_assert(BINLOG_CHECKSUM_ALG_ENUM_END <= 0x80);
+    }
+    incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
+    computed= my_checksum(0L, NULL, 0);
+    /* checksum the event content but the checksum part itself */
+    computed= my_checksum(computed, (const uchar*) event_buf, 
+                          event_len - BINLOG_CHECKSUM_LEN);
+    if (flags != 0)
+    {
+      /* restoring the orig value of flags of FD */
+      DBUG_ASSERT(event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
+      event_buf[FLAGS_OFFSET]= flags;
+    }
+    res= !(computed == incoming);
+  }
+  return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
+}

@@ -13,13 +13,30 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX
+  AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+  IF(NOT DEFINED BUGGY_GCC_NO_DTRACE_MODULES)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1}  --version
+      OUTPUT_VARIABLE out)
+    IF(out MATCHES "3.4.6")
+     # This gcc causes crashes in dlopen() for dtraced shared libs,
+     # while standard shipped with Solaris10 3.4.3 is ok
+     SET(BUGGY_GCC_NO_DTRACE_MODULES 1 CACHE INTERNAL "")
+    ELSE()
+     SET(BUGGY_GCC_NO_DTRACE_MODULES 0 CACHE INTERNAL "")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
 # Check if OS supports DTrace
 MACRO(CHECK_DTRACE)
  FIND_PROGRAM(DTRACE dtrace)
  MARK_AS_ADVANCED(DTRACE)
 
  # On FreeBSD, dtrace does not handle userland tracing yet
- IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+ IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD"
+     AND NOT BUGGY_GCC_NO_DTRACE_MODULES)
    SET(ENABLE_DTRACE ON CACHE BOOL "Enable dtrace")
  ENDIF()
  SET(HAVE_DTRACE ${ENABLE_DTRACE})
@@ -70,22 +87,6 @@ IF(ENABLE_DTRACE)
   ${CMAKE_BINARY_DIR}/include/probes_mysql_dtrace.h
   ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h
   ) 
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX
-  AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-  IF(NOT DEFINED BUGGY_GCC_NO_DTRACE_MODULES)
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1}  --version
-      OUTPUT_VARIABLE out)
-    IF(out MATCHES "3.4.6")
-     # This gcc causes crashes in dlopen() for dtraced shared libs,
-     # while standard shipped with Solaris10 3.4.3 is ok
-     SET(BUGGY_GCC_NO_DTRACE_MODULES 1 CACHE INTERNAL "")
-    ELSE()
-     SET(BUGGY_GCC_NO_DTRACE_MODULES 0 CACHE INTERNAL "")
-    ENDIF()
-  ENDIF()
 ENDIF()
 
 FUNCTION(DTRACE_INSTRUMENT target)
@@ -152,13 +153,23 @@ ENDFUNCTION()
 # to mysqld.
 MACRO (DTRACE_INSTRUMENT_STATIC_LIBS target libs)
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
+  # Filter out non-static libraries in the list, if any
+  SET(static_libs)
   FOREACH(lib ${libs})
+    GET_TARGET_PROPERTY(libtype ${lib} TYPE)
+    IF(libtype MATCHES STATIC_LIBRARY)
+      SET(static_libs ${static_lics} ${lib})
+    ENDIF()
+  ENDFOREACH()
+
+  FOREACH(lib ${static_libs})
     SET(dirs ${dirs} ${TARGET_OBJECT_DIRECTORY_${lib}})
   ENDFOREACH()
+
   SET (obj ${CMAKE_CURRENT_BINARY_DIR}/${target}_dtrace_all.o)
   ADD_CUSTOM_COMMAND(
   OUTPUT ${obj}
-  DEPENDS ${libs}
+  DEPENDS ${static_libs}
   COMMAND ${CMAKE_COMMAND}
    -DDTRACE=${DTRACE}	  
    -DOUTFILE=${obj} 

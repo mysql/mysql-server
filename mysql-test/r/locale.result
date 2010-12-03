@@ -44,7 +44,7 @@ a	abmon	mon
 2006-12-01	Δεκ	Δεκέμβριος
 SELECT format(123456.789, 3, 'el_GR');
 format(123456.789, 3, 'el_GR')
-123456.789
+123456,789
 DROP TABLE t1;
 #
 # Bug#46633 Obsolete Serbian locale name

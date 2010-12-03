@@ -503,9 +503,14 @@ typedef Item* (Item::*Item_transformer) (uchar *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
 
-class Item {
+class Item
+{
   Item(const Item &);			/* Prevent use of these */
   void operator=(Item &);
+  /* Cache of the result of is_expensive(). */
+  int8 is_expensive_cache;
+  virtual bool is_expensive_processor(uchar *arg) { return 0; }
+
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
@@ -547,7 +552,7 @@ public:
      @see Query_arena::free_list
    */
   Item *next;
-  uint32 max_length;
+  uint32 max_length;                    /* Maximum length, in bytes */
   uint name_length;                     /* Length of name */
   int8 marker;
   uint8 decimals;
@@ -561,7 +566,7 @@ public:
   DTCollation collation;
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
-                                           subselect */
+                                           subselect. Computed by fix_fields. */
   Item_result cmp_context;              /* Comparison context */
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -587,6 +592,20 @@ public:
   virtual void make_field(Send_field *field);
   Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
+  /**
+    Fix after tables have been moved from one select_lex level to the parent
+    level, e.g by semijoin conversion.
+    Basically re-calculate all attributes dependent on the tables.
+
+    @param parent_select  select_lex that tables are moved to.
+    @param removed_select select_lex that tables are moved away from,
+                          child of parent_select.
+    @param ref            updated with new ref whenever the function substitutes
+                          this item with another.
+  */
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref) {};
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1020,10 +1039,10 @@ public:
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return 0; }
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
+  virtual bool add_field_to_set_processor(uchar * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(uchar *arg) { return 0; }
   virtual bool change_context_processor(uchar *context) { return 0; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
-  virtual bool is_expensive_processor(uchar *arg) { return 0; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
 
@@ -1209,6 +1228,29 @@ public:
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+
+  /*
+    Test whether an expression is expensive to compute. Used during
+    optimization to avoid computing expensive expressions during this
+    phase. Also used to force temp tables when sorting on expensive
+    functions.
+    TODO:
+    Normally we should have a method:
+      cost Item::execution_cost(),
+    where 'cost' is either 'double' or some structure of various cost
+    parameters.
+
+    NOTE
+      This function is now used to prevent evaluation of materialized IN
+      subquery predicates before it is allowed. grep for 
+      DontEvaluateMaterializedSubqueryTooEarly to see the uses.
+  */
+  virtual bool is_expensive()
+  {
+    if (is_expensive_cache < 0)
+      is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
+    return test(is_expensive_cache);
+  }
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
@@ -1221,6 +1263,18 @@ public:
     max_length= char_to_byte_length_safe(max_char_length_arg,
                                          collation.collation->mbmaxlen);
   }
+  void fix_char_length_ulonglong(ulonglong max_char_length_arg)
+  {
+    ulonglong max_result_length= max_char_length_arg *
+                                 collation.collation->mbmaxlen;
+    if (max_result_length >= MAX_BLOB_WIDTH)
+    {
+      max_length= MAX_BLOB_WIDTH;
+      maybe_null= 1;
+    }
+    else
+      max_length= max_result_length;
+  }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
     collation.set(&my_charset_numeric, DERIVATION_NUMERIC, MY_REPERTOIRE_ASCII);
@@ -1230,6 +1284,19 @@ public:
     Return TRUE if the item points to a column of an outer-joined table.
   */
   virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
+
+  /**
+     Check if an item either is a blob field, or will be represented as a BLOB
+     field if a field is created based on this item.
+     
+     @note Original non-BLOB items that are longer than
+     CONVERT_IF_BIGGER_TO_BLOB will be converted to BLOBs when a field
+     is created for it.
+     
+     @retval TRUE  If a field based on this item will be a BLOB field,
+     @retval FALSE Otherwise.
+  */
+  bool is_blob_field() const;
 };
 
 
@@ -1694,10 +1761,16 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
+  /*
+    Return used table information for the level on which this table is resolved.
+  */
+  table_map resolved_used_tables() const;
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -1724,6 +1797,7 @@ public:
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
+  bool add_field_to_set_processor(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -1755,6 +1829,32 @@ public:
   }
   CHARSET_INFO *charset_for_protocol(void) const
   { return field->charset_for_protocol(); }
+
+#ifndef DBUG_OFF
+  void dbug_print()
+  {
+    fprintf(DBUG_FILE, "<field ");
+    if (field)
+    {
+      fprintf(DBUG_FILE, "'%s.%s': ", field->table->alias, field->field_name);
+      field->dbug_print();
+    }
+    else
+      fprintf(DBUG_FILE, "NULL");
+
+    fprintf(DBUG_FILE, ", result_field: ");
+    if (result_field)
+    {
+      fprintf(DBUG_FILE, "'%s.%s': ",
+              result_field->table->alias, result_field->field_name);
+      result_field->dbug_print();
+    }
+    else
+      fprintf(DBUG_FILE, "NULL");
+    fprintf(DBUG_FILE, ">\n");
+  }
+#endif
+
   friend class Item_default_value;
   friend class Item_insert_value;
   friend class st_select_lex_unit;
@@ -2486,6 +2586,8 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   int save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -2560,7 +2662,7 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
-  virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
+  virtual bool basic_const_item() const { return ref && (*ref)->basic_const_item(); }
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
@@ -2624,6 +2726,8 @@ public:
   {}
 
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {
@@ -2680,6 +2784,8 @@ public:
     outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
@@ -2825,6 +2931,7 @@ protected:
     cached_result_type= item->result_type();
     unsigned_flag= item->unsigned_flag;
     fixed= item->fixed;
+    collation.set(item->collation);
   }
 
 public:
@@ -2982,6 +3089,7 @@ public:
 class Cached_item_str :public Cached_item
 {
   Item *item;
+  uint32 value_max_length;
   String value,tmp_value;
 public:
   Cached_item_str(THD *thd, Item *arg);
@@ -3025,9 +3133,24 @@ class Cached_item_field :public Cached_item
   uint length;
 
 public:
-  Cached_item_field(Item_field *item)
+#ifndef DBUG_OFF
+  void dbug_print()
   {
-    field= item->field;
+    uchar *org_ptr;
+    org_ptr= field->ptr;
+    fprintf(DBUG_FILE, "new: ");
+    field->dbug_print();
+    field->ptr= buff;
+    fprintf(DBUG_FILE, ", old: ");
+    field->dbug_print();
+    field->ptr= org_ptr;
+    fprintf(DBUG_FILE, "\n");
+  }
+#endif
+  Cached_item_field(Field *arg_field) : field(arg_field)
+  {
+    field= arg_field;
+    /* TODO: take the memory allocation below out of the constructor. */
     buff= (uchar*) sql_calloc(length=field->pack_length());
   }
   bool cmp(void);
@@ -3265,7 +3388,14 @@ public:
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
+  bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  Item_result result_type() const
+  {
+    if (!example)
+      return INT_RESULT;
+    return Field::result_merge_type(example->field_type());
+  }
 };
 
 
@@ -3335,7 +3465,9 @@ public:
     is_varbinary(item->type() == FIELD_ITEM &&
                  cached_field_type == MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
-  {}
+  {
+    collation.set(const_cast<DTCollation&>(item->collation));
+  }
   double val_real();
   longlong val_int();
   String* val_str(String *);
@@ -3493,7 +3625,8 @@ void mark_select_range_as_dependent(THD *thd,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 
-extern Cached_item *new_Cached_item(THD *thd, Item *item);
+extern Cached_item *new_Cached_item(THD *thd, Item *item,
+                                    bool use_result_field);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);

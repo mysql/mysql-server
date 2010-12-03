@@ -1,307 +1,326 @@
-# This test doesn't work with the embedded version as this code
-# assumes that one query is running while we are doing queries on
-# a second connection.
-# This would work if mysqltest run would be threaded and handle each
-# connection in a separate thread.
 #
--- source include/not_embedded.inc
+# Test KILL and KILL QUERY statements.
+#
+# Killing a connection in an embedded server does not work like in a normal
+# server, if it is waiting for a new statement. In an embedded server, the
+# connection does not read() from a socket, but returns control to the
+# application. 'mysqltest' does not handle the kill request.
+#
 
-# Disable concurrent inserts to avoid test failures when reading the
-# connection id which was inserted into a table by another thread.
-set @old_concurrent_insert= @@global.concurrent_insert;
-set @@global.concurrent_insert= 0;
+-- source include/not_embedded.inc
+-- source include/have_debug_sync.inc
+
+--disable_warnings
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE IF EXISTS t1, t2, t3;
+DROP FUNCTION IF EXISTS MY_KILL;
+--enable_warnings
+
+delimiter |;
+# Helper function used to repeatedly kill a session.
+CREATE FUNCTION MY_KILL(tid INT) RETURNS INT
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  KILL tid;
+  RETURN (SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = tid);
+END|
+delimiter ;|
 
 connect (con1, localhost, root,,);
 connect (con2, localhost, root,,);
 
-#remember id of con1
+# Save id of con1
 connection con1;
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
-
 --disable_reconnect
-create table t1 (kill_id int);
-insert into t1 values(connection_id());
-
-#kill con1
+let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
-select ((@id := kill_id) - kill_id) from t1; 
-kill @id;
+let $ignore= `SELECT @id := $ID`;
+connection con1;
+# Signal when this connection is terminating.
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+# See if we can kill read().
+# Run into read() immediately after hitting 'before_do_command_net_read'.
+SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read';
+
+# Kill con1
+connection con2;
+SET DEBUG_SYNC='now WAIT_FOR con1_read';
+# At this point we have no way to figure out, when con1 is blocked in
+# reading from the socket. Sending KILL to early would not terminate
+# con1. So we repeat KILL until con1 terminates.
+let $wait_condition= SELECT MY_KILL(@id);
+--source include/wait_condition.inc
+# If KILL missed the read(), sync point wait will time out.
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+SET DEBUG_SYNC = 'RESET';
 
 connection con1;
---sleep 2
-
---disable_query_log
---disable_result_log
-# One of the following statements should fail
---error 0,2006,2013
-select 1;
---error 0,2006,2013
-select 1;
---enable_query_log
---enable_result_log
+--error 1053,2006,2013
+SELECT 1;
 
 --enable_reconnect
 # this should work, and we should have a new connection_id()
-select ((@id := kill_id) - kill_id) from t1;
-select @id != connection_id();
+SELECT 1;
+let $ignore= `SELECT @id := $ID`;
+SELECT @id != CONNECTION_ID();
 
 #make sure the server is still alive
 connection con2;
-select 4;
-drop table t1;
+SELECT 4;
 connection default;
 
 --error ER_NOT_SUPPORTED_YET
-kill (select count(*) from mysql.user);
+KILL (SELECT COUNT(*) FROM mysql.user);
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+connection con1;
+disable_reconnect;
+# Signal when this connection is terminating.
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+# See if we can kill the sync point itself.
+# Wait in 'before_do_command_net_read' until killed.
+# It doesn't wait for a signal 'kill' but for to be killed.
+# The signal name doesn't matter here.
+SET DEBUG_SYNC= 'before_do_command_net_read SIGNAL con1_read WAIT_FOR kill';
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR con1_read';
+# Repeat KILL until con1 terminates.
+let $wait_condition= SELECT MY_KILL(@id);
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+SET DEBUG_SYNC = 'RESET';
+
+connection con1;
+--error 1053,2006,2013
+SELECT 1;
+enable_reconnect;
+SELECT 1;
+let $ignore= `SELECT @id := $ID`;
+SELECT @id != CONNECTION_ID();
+connection con2;
+SELECT 4;
+connection default;
 
 #
 # BUG#14851: killing long running subquery processed via a temporary table.
 #
-create table t1 (id int primary key);
-create table t2 (id int unsigned not null);
 
-connect (conn1, localhost, root,,);
-connection conn1;
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE t2 (id INT UNSIGNED NOT NULL);
 
--- disable_result_log
--- disable_query_log
-let $1 = 4096;
-while ($1)
-{
-  eval insert into t1 values ($1);
-  dec $1;
-}
--- enable_query_log
--- enable_result_log
+INSERT INTO t1 VALUES
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0);
+INSERT t1 SELECT 0 FROM t1 AS a1, t1 AS a2 LIMIT 4032;
 
-insert into t2 select id from t1;
+INSERT INTO t2 SELECT id FROM t1;
 
-create table t3 (kill_id int);
-insert into t3 values(connection_id());
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
 
-connect (conn2, localhost, root,,);
-connection conn2;
+connection con1;
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+SET DEBUG_SYNC= 'before_acos_function SIGNAL in_sync';
+# This is a very long running query. If this test start failing,
+# it may be necessary to change to an even longer query.
+send SELECT id FROM t1 WHERE id IN
+       (SELECT DISTINCT a.id FROM t2 a, t2 b, t2 c, t2 d
+          GROUP BY ACOS(1/a.id), b.id, c.id, d.id
+          HAVING a.id BETWEEN 10 AND 20);
 
-connection conn1;
--- disable_result_log
-# This is a very long running query. If this test start failing, it may
-# be necessary to change to an even longer query.
-send select id from t1 where id in (select distinct a.id from t2 a, t2 b, t2 c, t2 d group by a.id, b.id, c.id, d.id having a.id between 10 and 20);
--- enable_result_log
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL @id;
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
 
-connection conn2;
-select ((@id := kill_id) - kill_id) from t3;
--- sleep 1
-kill @id;
-
-connection conn1;
--- error 1317,2013
+connection con1;
+--error 1317,1053,2006,2013
 reap;
+SELECT 1;
 
 connection default;
-
-drop table t1, t2, t3;
-
-# End of 4.1 tests
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
 
 #
-# test of blocking of sending ERROR after OK or EOF
+# Test of blocking of sending ERROR after OK or EOF
 #
 connection con1;
-select get_lock("a", 10);
+let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
-let $ID= `select connection_id()`;
-send select get_lock("a", 10);
-real_sleep 2;
+let $ignore= `SELECT @id := $ID`;
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+SET DEBUG_SYNC= 'before_acos_function SIGNAL in_sync WAIT_FOR kill';
+send SELECT ACOS(0);
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 reap;
-select 1;
-connection con1;
-select RELEASE_LOCK("a");
+SELECT 1;
+SELECT @id = CONNECTION_ID();
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 #
 # Bug#27563: Stored functions and triggers wasn't throwing an error when killed.
 #
-create table t1(f1 int);
+CREATE TABLE t1 (f1 INT);
 delimiter |;
-create function bug27563() returns int(11)
-deterministic
-begin
-  declare continue handler for sqlstate '70100' set @a:= 'killed';
-  declare continue handler for sqlexception set @a:= 'exception';
-  set @a= get_lock("lock27563", 10);
-  return 1;
-end|
+CREATE FUNCTION bug27563() RETURNS INT(11)
+DETERMINISTIC
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '70100' SET @a:= 'killed';
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
+  SET DEBUG_SYNC= 'now SIGNAL in_sync WAIT_FOR kill';
+  RETURN 1;
+END|
 delimiter ;|
 # Test stored functions
 # Test INSERT
 connection con1;
-select get_lock("lock27563",10);
+let $ID= `SELECT @id := CONNECTION_ID()`;
 connection con2;
-let $ID= `select connection_id()`;
-send insert into t1 values (bug27563());
-real_sleep 2;
+let $ignore= `SELECT @id := $ID`;
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+send INSERT INTO t1 VALUES (bug27563());
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 --error 1317
 reap;
-select @a;
-connection con1;
-select * from t1;
+SELECT * FROM t1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 # Test UPDATE
-insert into t1 values(0);
-connection con2;
-send update t1 set f1= bug27563();
-real_sleep 2;
+INSERT INTO t1 VALUES(0);
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+send UPDATE t1 SET f1= bug27563();
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 --error 1317
 reap;
-select @a;
-connection con1;
-select * from t1;
+SELECT * FROM t1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 # Test DELETE
-insert into t1 values(1);
-connection con2;
-send delete from t1 where bug27563() is null;
-real_sleep 2;
+INSERT INTO t1 VALUES(1);
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+send DELETE FROM t1 WHERE bug27563() IS NULL;
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 --error 1317
 reap;
-select @a;
-connection con1;
-select * from t1;
+SELECT * FROM t1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 # Test SELECT
-connection con2;
-send select * from t1 where f1= bug27563();
-real_sleep 2;
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+send SELECT * FROM t1 WHERE f1= bug27563();
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 --error 1317
 reap;
-select @a;
-
-# Test PROCEDURE
-connection con2;
-delimiter |;
-create procedure proc27563()
-begin
-  declare continue handler for sqlstate '70100' set @a:= 'killed';
-  declare continue handler for sqlexception set @a:= 'exception';
-  select get_lock("lock27563",10);
-  select "shouldn't be selected";
-end|
-delimiter ;|
-send call proc27563();
-real_sleep 2;
-connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
-connection con2;
---error 1317
-reap;
-select @a;
+SELECT * FROM t1;
+connection default;
+SET DEBUG_SYNC = 'RESET';
+DROP FUNCTION bug27563;
 
 # Test TRIGGERS
-connection con2;
-create table t2 (f2 int);
+CREATE TABLE t2 (f2 INT);
 delimiter |;
-create trigger trg27563 before insert on t1 for each row 
-begin 
-  declare continue handler for sqlstate '70100' set @a:= 'killed';
-  declare continue handler for sqlexception set @a:= 'exception';
-  set @a:= get_lock("lock27563",10);
-  insert into t2 values(1);
-end|
+CREATE TRIGGER trg27563 BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '70100' SET @a:= 'killed';
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @a:= 'exception';
+  INSERT INTO t2 VALUES(0);
+  SET DEBUG_SYNC= 'now SIGNAL in_sync WAIT_FOR kill';
+  INSERT INTO t2 VALUES(1);
+END|
 delimiter ;|
-send insert into t1 values(2),(3);
-real_sleep 2;
 connection con1;
-disable_query_log;
-eval kill query $ID;
-enable_query_log;
+send INSERT INTO t1 VALUES(2),(3);
 connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
 --error 1317
 reap;
-select @a;
-connection con1;
-select * from t1;
-select * from t2;
-
-# Cleanup
-select release_lock("lock27563");
-drop table t1, t2;
-drop function bug27563;
-drop procedure proc27563;
+SELECT * FROM t1;
+SELECT * FROM t2;
+connection default;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1, t2;
 
 #
 # Bug#28598: mysqld crash when killing a long-running explain query.
 #
---disable_query_log
 connection con1;
-let $ID= `select connection_id()`;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+connection con1;
+--disable_query_log
 let $tab_count= 40;
 
 let $i= $tab_count;
 while ($i)
 {
-  eval CREATE TABLE t$i (a$i int, KEY(a$i));
+  eval CREATE TABLE t$i (a$i INT, KEY(a$i));
   eval INSERT INTO t$i VALUES (1),(2),(3),(4),(5),(6),(7);
   dec $i ;
 }
-set session optimizer_search_depth=0;
+SET SESSION optimizer_search_depth=0;
 
 let $i=$tab_count;
 while ($i)
 {
- let $a= a$i;
- let $t= t$i;
- dec $i;
- if ($i)
- {
-   let $comma=,;
-   let $from=$comma$t$from;
-   let $where=a$i=$a $and $where;
- }
- if (!$i) 
- {
-   let $from=FROM $t$from;
-   let $where=WHERE $where;
- }
- let $and=AND;
+  let $a= a$i;
+  let $t= t$i;
+  dec $i;
+  if ($i)
+  {
+    let $comma=,;
+    let $from=$comma$t$from;
+    let $where=a$i=$a $and $where;
+  }
+  if (!$i)
+  {
+    let $from=FROM $t$from;
+    let $where=WHERE $where;
+  }
+  let $and=AND;
 }
 
 --enable_query_log
+SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync';
 eval PREPARE stmt FROM 'EXPLAIN SELECT * $from $where';
 send EXECUTE stmt;
---disable_query_log
 
 connection con2;
-real_sleep 2;
-eval kill query $ID;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+KILL QUERY @id;
+connection con1;
+--error 1317
+reap;
+--disable_query_log
 let $i= $tab_count;
 while ($i)
 {
@@ -309,8 +328,8 @@ while ($i)
   dec $i ;
 }
 --enable_query_log
-
-###########################################################################
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 --echo #
 --echo # Bug#19723: kill of active connection yields different error code
@@ -318,16 +337,27 @@ while ($i)
 --echo #
 
 --echo
---echo # Connection: con2.
---connection con2
+--echo # Connection: con1.
+--connection con1
+let $ID= `SELECT @id := CONNECTION_ID()`;
+SET DEBUG_SYNC= 'thread_end SIGNAL con1_end';
+--disable_reconnect
+--error ER_QUERY_INTERRUPTED
+KILL @id;
 
-KILL CONNECTION_ID();
-
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR, depending on the timing 
---echo # of close of the connection socket
---error 2013, 2006 
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR con1_end';
+connection con1;
+--echo # ER_SERVER_SHUTDOWN, CR_SERVER_GONE_ERROR, CR_SERVER_LOST,
+--echo # depending on the timing of close of the connection socket
+--error 1053,2006,2013
 SELECT 1;
---connection default
+--enable_reconnect
+SELECT 1;
+let $ignore= `SELECT @id := $ID`;
+SELECT @id != CONNECTION_ID();
+connection default;
+SET DEBUG_SYNC = 'RESET';
 
 --echo #
 --echo # Additional test for WL#3726 "DDL locking for all metadata objects"
@@ -357,7 +387,8 @@ let $ID= `select connection_id()`;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --replace_result $ID ID
 eval kill query $ID;
@@ -372,7 +403,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "drop table t1";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -388,7 +419,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "create trigger t1_bi before insert on t1 for each row set @a:=1";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -407,7 +438,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "alter table t1 add column j int";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -423,7 +454,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "alter table t1 rename to t2";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -437,7 +468,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "alter table t1 disable keys";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -452,7 +483,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "alter table t1 alter column i set default 100";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -474,7 +505,7 @@ connection ddl;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info = "alter table t2 alter column i set default 100";
 --source include/wait_condition.inc
 --replace_result $ID ID
@@ -488,28 +519,26 @@ connection ddl;
 --echo # Switching to connection 'blocker'
 connection blocker;
 unlock tables;
-drop table t2;
-create table t2 (k int);
 lock tables t1 read;
 --echo # Switching to connection 'ddl'
 connection ddl;
 # Let us add pending exclusive metadata lock on t2
---send rename tables t1 to t3, t2 to t1
+--send truncate table t1
 --echo # Switching to connection 'dml'
 connection dml;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
-        info = "rename tables t1 to t3, t2 to t1";
+  where state = "Waiting for table metadata lock" and
+        info = "truncate table t1";
 --source include/wait_condition.inc
 let $ID2= `select connection_id()`;
---send insert into t2 values (1)
+--send insert into t1 values (1)
 --echo # Switching to connection 'default'
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
-        info = "insert into t2 values (1)";
+  where state = "Waiting for table metadata lock" and
+        info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 --replace_result $ID2 ID2
 eval kill query $ID2;
@@ -536,7 +565,7 @@ connection ddl;
 connection dml;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and
+  where state = "Waiting for table flush" and
         info = "flush tables";
 --source include/wait_condition.inc
 --send select * from t1
@@ -544,7 +573,7 @@ let $wait_condition=
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table flush" and
         info = "select * from t1";
 --source include/wait_condition.inc
 --replace_result $ID2 ID2
@@ -563,10 +592,10 @@ connection ddl;
 --echo # Cleanup.
 --echo # Switching to connection 'default'
 connection default;
-drop table t3;
 drop table t1;
+drop table t2;
 
 ###########################################################################
 
-# Restore global concurrent_insert value. Keep in the end of the test file.
-set @@global.concurrent_insert= @old_concurrent_insert;
+SET DEBUG_SYNC = 'RESET';
+DROP FUNCTION MY_KILL;

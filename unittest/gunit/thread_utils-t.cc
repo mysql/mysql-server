@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-// Must include gtest first, since MySQL source has macros for min() etc ....
+// First include (the generated) my_config.h, to get correct platform defines,
+// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+#include "my_config.h"
 #include <gtest/gtest.h>
 
 #include "thread_utils.h"

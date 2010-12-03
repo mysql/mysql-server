@@ -781,7 +781,7 @@ create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h 
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	#	Using index condition
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=innodb;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
@@ -1222,7 +1222,7 @@ count(*)
 623
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	#	Using index condition
 update t1 set c=a;
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1755,7 +1755,7 @@ set global innodb_thread_sleep_delay=10000;
 show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
-set storage_engine=INNODB;
+set default_storage_engine=INNODB;
 set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
@@ -1910,7 +1910,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2086,7 +2086,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2353,7 +2353,7 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 create table t1 (v varchar(16384)) engine=innodb;
 drop table t1;
 create table t1 (a char(1), b char(1), key(a, b)) engine=innodb;
@@ -2424,10 +2424,6 @@ drop table t1,t2;
 CREATE TABLE t1 (
 id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
 ) ENGINE=InnoDB;
-CREATE TABLE t2 (
-id INTEGER NOT NULL,
-FOREIGN KEY (id) REFERENCES t1 (id)
-) ENGINE=InnoDB;
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 id
@@ -2443,7 +2439,7 @@ INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 id
 1
-DROP TABLE t2, t1;
+DROP TABLE t1;
 CREATE TABLE t1
 (
 id INT PRIMARY KEY
@@ -2621,13 +2617,15 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 update t4 set a=2;
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
 truncate t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
 truncate t3;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t3` (`a`))
 truncate t2;
 truncate t4;
 truncate t1;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
 truncate t3;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t3` (`a`))
 drop table t4,t3,t2,t1;
 create table t1 (a varchar(255) character set utf8,
 b varchar(255) character set utf8,
@@ -3073,7 +3071,7 @@ c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(
 id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
@@ -3092,8 +3090,8 @@ SET TX_ISOLATION='read-committed';
 SET AUTOCOMMIT=0;
 DROP TABLE IF EXISTS t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 CREATE TABLE t2 LIKE t1;
 SELECT * FROM t2;

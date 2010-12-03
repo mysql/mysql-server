@@ -876,3 +876,26 @@ c1	hex(c4)	c5
 3	6231623162316231	QA
 DROP TABLE t5;
 
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET NAMES utf8;
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE='InnoDB';
+SET SQL_LOG_BIN=1;
+CREATE TABLE t1 (c1 INT) ENGINE='InnoDB';
+INSERT INTO t1 VALUES ();
+SET @text= REPEAT(_utf8'ç', 255);
+INSERT INTO t1 VALUES (1, @text);
+SELECT * FROM t1;
+c1	c2
+0	
+1	ççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççç
+SELECT * FROM t1;
+c1
+0
+1
+DROP TABLE t1;

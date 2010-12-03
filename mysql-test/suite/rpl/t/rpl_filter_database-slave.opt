@@ -1,0 +1,1 @@
+--replicate-do-db=dbx --replicate-wild-do-table=db%.t1

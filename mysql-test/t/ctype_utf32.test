@@ -328,6 +328,7 @@ SET collation_connection='utf32_general_ci';
 SET NAMES latin1;
 SET collation_connection='utf32_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_filesort2.inc
 -- source include/ctype_like_escape.inc
 
 #
@@ -799,6 +800,46 @@ SELECT *, HEX(s1) FROM t1;
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
+--echo #
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT HEX(0x00) AS my_col;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32859 Character sets: no warning with non-fitting chariot wheel
+--echo #
+CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
+INSERT INTO t1 (utf32) VALUES (0xc581);
+UPDATE t1 SET latin1 = utf32;
+DELETE FROM t1;
+INSERT INTO t1 (utf32) VALUES (0x100cc);
+UPDATE t1 SET latin1 = utf32;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#55912 FORMAT with locale set fails for numbers < 1000
+--echo #
+SET collation_connection=utf32_general_ci;
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#42511 mysqld: ctype-ucs2.c:2044: my_strnncollsp_utf32: Assertion (tlen % 4) == 0' faied
+--echo #
+CREATE TABLE t1 (
+ b char(250) CHARACTER SET utf32,
+ key (b)
+) ENGINE=MYISAM;
+INSERT INTO t1 VALUES ('d'),('f');
+SELECT * FROM t1 WHERE b BETWEEN 'a' AND 'z';
+DROP TABLE t1;
 
 --echo #
 --echo # End of 5.5 tests

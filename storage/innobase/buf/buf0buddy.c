@@ -281,7 +281,7 @@ buf_buddy_alloc_from(
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool_zip_mutex or any block->mutex.
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool->mutex may only be released and reacquired if lru != NULL.
 @return	allocated block, possibly NULL if lru==NULL */
 UNIV_INTERN
@@ -354,6 +354,9 @@ buf_buddy_relocate_block(
 {
 	buf_page_t*	b;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ulint		fold = buf_page_address_fold(bpage->space,
+						     bpage->offset);
+	mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -373,9 +376,11 @@ buf_buddy_relocate_block(
 		break;
 	}
 
+	mutex_enter(hash_mutex);
 	mutex_enter(&buf_pool->zip_mutex);
 
 	if (!buf_page_can_relocate(bpage)) {
+		mutex_exit(hash_mutex);
 		mutex_exit(&buf_pool->zip_mutex);
 		return(FALSE);
 	}
@@ -395,6 +400,7 @@ buf_buddy_relocate_block(
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
+	mutex_exit(hash_mutex);
 	mutex_exit(&buf_pool->zip_mutex);
 	return(TRUE);
 }
@@ -454,7 +460,7 @@ buf_buddy_relocate(
 		on uninitialized value. */
 		UNIV_MEM_VALID(&space, sizeof space);
 		UNIV_MEM_VALID(&page_no, sizeof page_no);
-		bpage = buf_page_hash_get(buf_pool, space, page_no);
+		bpage = buf_page_hash_get(buf_pool, space, page_no, NULL);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly
@@ -464,8 +470,6 @@ buf_buddy_relocate(
 
 			return(FALSE);
 		}
-
-		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 
 		if (page_zip_get_size(&bpage->zip) != size) {
 			/* The block is of different size.  We would
@@ -698,7 +702,9 @@ buddy_nonfree:
 		bpage->list pointers. */
 		for (c = (char*) buf + (BUF_BUDDY_LOW << i);
 		     c-- > (char*) buf; ) {
-			*c = ~*c ^ i;
+			/* We can live with possible loss of data here due
+			to conversion from ulint to char. */
+			*c = (char) (~*c ^ i);
 		}
 	} else {
 		/* Fill large blocks with a constant pattern. */

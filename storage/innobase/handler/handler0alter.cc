@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Smart ALTER TABLE
 #include <mysql/innodb_priv.h>
 
 extern "C" {
+#include "dict0stats.h"
 #include "log0log.h"
 #include "row0merge.h"
 #include "srv0srv.h"
@@ -34,6 +35,7 @@ extern "C" {
 #include "trx0roll.h"
 #include "ha_prototypes.h"
 #include "handler0alter.h"
+#include "srv0mon.h"
 }
 
 #include "ha_innodb.h"
@@ -99,8 +101,10 @@ innobase_col_to_mysql(
 #ifdef UNIV_DEBUG
 	case DATA_MYSQL:
 		ut_ad(flen >= len);
-		ut_ad(col->mbmaxlen >= col->mbminlen);
-		ut_ad(col->mbmaxlen > col->mbminlen || flen == len);
+		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
+		      >= DATA_MBMINLEN(col->mbminmaxlen));
+		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
+		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -618,6 +622,57 @@ innobase_create_temporary_tablename(
 }
 
 /*******************************************************************//**
+Clean up on ha_innobase::add_index error. */
+static
+void
+innobase_add_index_cleanup(
+/*=======================*/
+	row_prebuilt_t*	prebuilt,		/*!< in/out: prebuilt */
+	trx_t*		trx,			/*!< in/out: transaction */
+	dict_table_t*	table,			/*!< in/out: table on which
+						the indexes were going to be
+						created */
+	mem_heap_t*	heap)			/*!< in/own: heap that was
+						going to be used for the index
+						creation */
+{
+	mem_heap_free(heap);
+
+	trx_general_rollback_for_mysql(trx, NULL);
+
+	ut_a(trx != prebuilt->trx);
+
+	trx_free_for_mysql(trx);
+	trx = NULL;
+
+	trx_commit_for_mysql(prebuilt->trx);
+
+	if (table != NULL) {
+
+		rw_lock_x_lock(&dict_operation_lock);
+
+		dict_mutex_enter_for_mysql();
+
+		/* Note: This check exludes the system tables. However, we
+		should be safe because users cannot add indexes to system
+	        tables. */
+
+		if (UT_LIST_GET_LEN(table->foreign_list) == 0
+		    && UT_LIST_GET_LEN(table->referenced_list) == 0
+		    && !table->can_be_evicted) {
+
+			dict_table_move_from_non_lru_to_lru(table);
+		}
+
+		dict_table_close(table, TRUE);
+
+		dict_mutex_exit_for_mysql();
+
+		rw_lock_x_unlock(&dict_operation_lock);
+	}
+}
+
+/*******************************************************************//**
 Create indexes.
 @return	0 or error number */
 UNIV_INTERN
@@ -656,19 +711,21 @@ ha_innobase::add_index(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
-	innodb_table = indexed_table
-		= dict_table_get(prebuilt->table->name, FALSE);
+	indexed_table = dict_table_open_on_name(prebuilt->table->name, FALSE);
+
+	innodb_table = indexed_table;
 
 	if (UNIV_UNLIKELY(!innodb_table)) {
-		error = HA_ERR_NO_SUCH_TABLE;
-		goto err_exit;
+		innobase_add_index_cleanup(prebuilt, trx, NULL, heap);
+
+		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
 	/* Check if the index name is reserved. */
@@ -681,13 +738,24 @@ ha_innobase::add_index(
 	}
 
 	if (UNIV_UNLIKELY(error)) {
-err_exit:
-		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, NULL);
-		trx_free_for_mysql(trx);
-		trx_commit_for_mysql(prebuilt->trx);
+		innobase_add_index_cleanup(prebuilt, trx, innodb_table, heap);
+
 		DBUG_RETURN(error);
 	}
+
+	/* We don't want this table to be evicted from the cache while we
+	are building an index on it. Another issue is that while we are
+	building the index this table could be referred to in a foreign
+	key relationship. In innobase_add_index_cleanup() we check for
+	that condition before moving it back to the LRU list. */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	if (innodb_table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(innodb_table);
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	/* Create table containing all indexes to be built in this
 	alter table add index so that they are in the correct order
@@ -731,8 +799,9 @@ err_exit:
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* This transaction should be the only one
-		operating on the table. */
-		ut_a(innodb_table->n_mysql_handles_opened == 1);
+		operating on the table. The table get above
+		would have incremented the ref count to 2. */
+		ut_a(innodb_table->n_ref_count == 2);
 
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, '1', innodb_table->name);
@@ -761,7 +830,11 @@ err_exit:
 			ut_d(dict_table_check_for_dup_indexes(innodb_table,
 							      FALSE));
 			row_mysql_unlock_data_dictionary(trx);
-			goto err_exit;
+
+			innobase_add_index_cleanup(
+				prebuilt, trx, innodb_table, heap);
+
+			DBUG_RETURN(error);
 		}
 
 		trx->table_id = indexed_table->id;
@@ -799,8 +872,7 @@ err_exit:
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
-	ut_a(trx->n_active_thrs == 0);
-	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	ut_a(trx->lock.n_active_thrs == 0);
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
@@ -823,6 +895,7 @@ err_exit:
 					index, num_of_idx, table);
 
 error_handling:
+
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 
@@ -844,6 +917,8 @@ error_handling:
 						       index, num_created);
 			}
 
+			dict_table_close(innodb_table, dict_locked);
+
 			goto convert_error;
 		}
 
@@ -859,6 +934,11 @@ error_handling:
 						tmp_name, trx);
 
 		if (error != DB_SUCCESS) {
+
+			dict_table_close(innodb_table, dict_locked);
+
+			ut_a(innodb_table->n_ref_count == 1);
+			ut_a(indexed_table->n_ref_count == 0);
 
 			row_merge_drop_table(trx, indexed_table);
 
@@ -876,13 +956,21 @@ error_handling:
 		}
 
 		trx_commit_for_mysql(prebuilt->trx);
-		row_prebuilt_free(prebuilt, TRUE);
-		prebuilt = row_create_prebuilt(indexed_table);
 
-		indexed_table->n_mysql_handles_opened++;
+		dict_table_close(innodb_table, dict_locked);
+
+		ut_a(innodb_table->n_ref_count == 1);
+
+		row_prebuilt_free(prebuilt, TRUE);
+
+		ut_a(innodb_table->n_ref_count == 0);
 
 		error = row_merge_drop_table(trx, innodb_table);
+
+		prebuilt = row_create_prebuilt(indexed_table);
+
 		innodb_table = indexed_table;
+
 		goto convert_error;
 
 	case DB_TOO_BIG_RECORD:
@@ -896,10 +984,13 @@ error:
 		prebuilt->trx->error_info = NULL;
 		/* fall through */
 	default:
+		dict_table_close(innodb_table, dict_locked);
+
 		trx->error_state = DB_SUCCESS;
 
 		if (new_primary) {
 			if (indexed_table != innodb_table) {
+				dict_table_close(indexed_table, dict_locked);
 				row_merge_drop_table(trx, indexed_table);
 			}
 		} else {
@@ -917,6 +1008,8 @@ convert_error:
 						    innodb_table->flags,
 						    user_thd);
 	}
+
+	ut_a(innodb_table->n_ref_count == 1);
 
 	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);
@@ -1014,12 +1107,13 @@ ha_innobase::prepare_drop_index(
 		index->to_be_dropped = TRUE;
 	}
 
-	/* If FOREIGN_KEY_CHECK = 1 you may not drop an index defined
+	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
 	for a foreign key constraint because InnoDB requires that both
-	tables contain indexes for the constraint.  Note that CREATE
-	INDEX id ON table does a CREATE INDEX and DROP INDEX, and we
-	can ignore here foreign keys because a new index for the
-	foreign key has already been created.
+	tables contain indexes for the constraint. Such index can
+	be dropped only if FOREIGN_KEY_CHECKS is set to 0.
+	Note that CREATE INDEX id ON table does a CREATE INDEX and
+	DROP INDEX, and we can ignore here foreign keys because a
+	new index for the foreign key has already been created.
 
 	We check for the foreign key constraints after marking the
 	candidate indexes for deletion, because when we check for an
@@ -1163,12 +1257,12 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Flag this transaction as a dictionary operation, so that
 	the data dictionary will be locked in crash recovery. */
@@ -1179,6 +1273,36 @@ ha_innobase::final_drop_index(
 	err = convert_error_code_to_mysql(
 		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		prebuilt->table->flags, user_thd);
+
+	/* Delete corresponding rows from the stats table.
+	Marko advises not to edit both user tables and SYS_* tables in one
+	trx, thus we use prebuilt->trx instead of trx. Because of this the
+	drop from SYS_* and from the stats table cannot happen in one
+	transaction and eventually if a crash occurs below, between
+	trx_commit_for_mysql(trx); which drops the indexes from SYS_* and
+	trx_commit_for_mysql(prebuilt->trx);
+	then an orphaned rows will be left in the stats table. */
+	for (index = dict_table_get_first_index(prebuilt->table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+
+			enum db_err	ret;
+			char		errstr[1024];
+
+			ret = dict_stats_delete_index_stats(
+				index, prebuilt->trx,
+				errstr, sizeof(errstr));
+
+			if (ret != DB_SUCCESS) {
+				push_warning(user_thd,
+					     MYSQL_ERROR::WARN_LEVEL_WARN,
+					     ER_LOCK_WAIT_TIMEOUT,
+					     errstr);
+			}
+		}
+	}
 
 	row_mysql_lock_data_dictionary(trx);
 	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));

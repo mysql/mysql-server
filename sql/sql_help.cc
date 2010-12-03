@@ -300,13 +300,13 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
 
   rkey_id->store((longlong) key_id, TRUE);
   rkey_id->get_key_image(buff, rkey_id->pack_length(), Field::itRAW);
-  int key_res= relations->file->index_read_map(relations->record[0],
-                                               buff, (key_part_map) 1,
-                                               HA_READ_KEY_EXACT);
+  int key_res= relations->file->ha_index_read_map(relations->record[0],
+                                                  buff, (key_part_map) 1,
+                                                  HA_READ_KEY_EXACT);
 
   for ( ;
         !key_res && key_id == (int16) rkey_id->val_int() ;
-	key_res= relations->file->index_next(relations->record[0]))
+	key_res= relations->file->ha_index_next(relations->record[0]))
   {
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
@@ -314,8 +314,8 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     field->store((longlong) topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
-    if (!topics->file->index_read_map(topics->record[0], topic_id_buff,
-                                      (key_part_map)1, HA_READ_KEY_EXACT))
+    if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,
+                                         (key_part_map)1, HA_READ_KEY_EXACT))
     {
       memorize_variant_topic(thd,topics,count,find_fields,
 			     names,name,description,example);
@@ -643,23 +643,24 @@ bool mysqld_help(THD *thd, const char *mask)
   MEM_ROOT *mem_root= thd->mem_root;
   DBUG_ENTER("mysqld_help");
 
-  bzero((uchar*)tables,sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "help_topic";
-  tables[0].lock_type= TL_READ;
+  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("help_topic"),
+                           "help_topic", TL_READ);
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("help_category"),
+                           "help_category", TL_READ);
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("help_relation"),
+                           "help_relation", TL_READ);
+  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+                           C_STRING_WITH_LEN("help_keyword"),
+                           "help_keyword", TL_READ);
   tables[0].next_global= tables[0].next_local= 
     tables[0].next_name_resolution_table= &tables[1];
-  tables[1].alias= tables[1].table_name= (char*) "help_category";
-  tables[1].lock_type= TL_READ;
   tables[1].next_global= tables[1].next_local= 
     tables[1].next_name_resolution_table= &tables[2];
-  tables[2].alias= tables[2].table_name= (char*) "help_relation";
-  tables[2].lock_type= TL_READ;
   tables[2].next_global= tables[2].next_local= 
     tables[2].next_name_resolution_table= &tables[3];
-  tables[3].alias= tables[3].table_name= (char*) "help_keyword";
-  tables[3].lock_type= TL_READ;
-  tables[0].db= tables[1].db= tables[2].db= tables[3].db= (char*) "mysql";
-  init_mdl_requests(tables);
 
   /*
     HELP must be available under LOCK TABLES. 
@@ -698,7 +699,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (count_topics == 0)
   {
-    int key_id;
+    int UNINIT_VAR(key_id);
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,

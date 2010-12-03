@@ -46,7 +46,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                   SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
   bool          will_batch;
@@ -525,9 +525,7 @@ int mysql_multi_delete_prepare(THD *thd)
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
       DBUG_ASSERT(target_tbl->correspondent_table->view &&
-                  target_tbl->correspondent_table->merge_underlying_list &&
-                  target_tbl->correspondent_table->merge_underlying_list->
-                  next_local);
+                  target_tbl->correspondent_table->multitable_view);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                target_tbl->correspondent_table->view_db.str,
                target_tbl->correspondent_table->view_name.str);
@@ -770,9 +768,9 @@ void multi_delete::send_error(uint errcode,const char *err)
 }
 
 
-void multi_delete::abort()
+void multi_delete::abort_result_set()
 {
-  DBUG_ENTER("multi_delete::abort");
+  DBUG_ENTER("multi_delete::abort_result_set");
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||

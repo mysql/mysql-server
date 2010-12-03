@@ -76,7 +76,7 @@
 #define	EQ(a, b)	(memcmp(a, b, m->g->nstates) == 0)
 #define	STATEVARS	int vn; char *space
 #define	STATESETUP(m, nv)	{ (m)->space = malloc((nv)*(m)->g->nstates); \
-				if ((m)->space == NULL) return(REG_ESPACE); \
+				if ((m)->space == NULL) return(MY_REG_ESPACE); \
 				(m)->vn = 0; }
 #define	STATETEARDOWN(m)	{ free((m)->space); }
 #define	SETUP(v)	((v) = &m->space[m->vn++ * m->g->nstates])
@@ -98,18 +98,18 @@
  - regexec - interface for matching
  = extern int regexec(const regex_t *, const char *, size_t, \
  =					regmatch_t [], int);
- = #define	REG_NOTBOL	00001
- = #define	REG_NOTEOL	00002
- = #define	REG_STARTEND	00004
- = #define	REG_TRACE	00400	// tracing of execution
- = #define	REG_LARGE	01000	// force large representation
- = #define	REG_BACKR	02000	// force use of backref code
+ = #define	MY_REG_NOTBOL	00001
+ = #define	MY_REG_NOTEOL	00002
+ = #define	MY_REG_STARTEND	00004
+ = #define	MY_REG_TRACE	00400	// tracing of execution
+ = #define	MY_REG_LARGE	01000	// force large representation
+ = #define	MY_REG_BACKR	02000	// force use of backref code
  *
  * We put this here so we can exploit knowledge of the state representation
  * when choosing which matcher to call.  Also, by this point the matchers
  * have been prototyped.
  */
-int				/* 0 success, REG_NOMATCH failure */
+int				/* 0 success, MY_REG_NOMATCH failure */
 my_regexec(preg, str, nmatch, pmatch, eflags)
 const my_regex_t *preg;
 const char *str;
@@ -117,23 +117,24 @@ size_t nmatch;
 my_regmatch_t pmatch[];
 int eflags;
 {
+	char *pstr = (char *) str;
 	register struct re_guts *g = preg->re_g;
 #ifdef REDEBUG
 #	define	GOODFLAGS(f)	(f)
 #else
-#	define	GOODFLAGS(f)	((f)&(REG_NOTBOL|REG_NOTEOL|REG_STARTEND))
+#	define	GOODFLAGS(f)	((f)&(MY_REG_NOTBOL|MY_REG_NOTEOL|MY_REG_STARTEND))
 #endif
 
 	if (preg->re_magic != MAGIC1 || g->magic != MAGIC2)
-		return(REG_BADPAT);
+		return(MY_REG_BADPAT);
 	assert(!(g->iflags&BAD));
 	if (g->iflags&BAD)		/* backstop for no-debug case */
-		return(REG_BADPAT);
+		return(MY_REG_BADPAT);
 	eflags = GOODFLAGS(eflags);
 
 	if ((size_t) g->nstates <= CHAR_BIT*sizeof(states1) &&
-	    !(eflags&REG_LARGE))
-		return(smatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
+	    !(eflags&MY_REG_LARGE))
+		return(smatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
 	else
-		return(lmatcher(preg->charset, g, (char *)str, nmatch, pmatch, eflags));
+		return(lmatcher(preg->charset, g, pstr, nmatch, pmatch, eflags));
 }

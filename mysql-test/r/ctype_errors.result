@@ -24,7 +24,7 @@ lc_messages	ru_RU
 SET GLOBAL lc_messages=en_US;
 DROP TABLE t1;
 drop table `ק`;
-ERROR 42S02: Unknown table 'ק'
+ERROR 42S02: Unknown table 'test.ק'
 SET lc_messages=cs_CZ;
 SET NAMES UTF8;
 USE nonexistant;

@@ -1,4 +1,4 @@
-# Copyright (C) 2007 MySQL AB, 2009 Sun Microsystems,Inc
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 
 MACRO (MY_ADD_TEST name)
   ADD_EXECUTABLE(${name}-t ${name}-t.c)
-  TARGET_LINK_LIBRARIES(${name}-t mytap mysys)
+  TARGET_LINK_LIBRARIES(${name}-t mytap mysys strings)
   ADD_TEST(${name} ${name}-t)
 ENDMACRO()
 

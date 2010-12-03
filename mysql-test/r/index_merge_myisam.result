@@ -1,5 +1,5 @@
 #---------------- Index merge test 1 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t0, t1, t2, t3, t4;
 create table t0
 (
@@ -19,7 +19,7 @@ Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
 explain select * from t0 where key1 < 3 or key1 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using index condition
 explain
 select * from t0 where key1 < 3 or key2 > 1020;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -115,7 +115,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 100);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
+1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using index condition; Using where
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -271,11 +271,11 @@ explain select * from t0,t1 where t0.key1 = 5 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ref	i1	i1	4	const	1	
-1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer
+1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where; Using join buffer (BNL, regular buffers)
 explain select * from t0,t1 where t0.key1 < 3 and
 (t1.key1 = t0.key1 or t1.key8 = t0.key1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using where
+1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using index condition
 1	SIMPLE	t1	ALL	i1,i8	NULL	NULL	NULL	1024	Range checked for each record (index map: 0x81)
 explain select * from t1 where key1=3 or key2=4
 union select * from t1 where key1<4 or key3=5;
@@ -348,7 +348,7 @@ where (A.key1 < 500000 or A.key2 < 3)
 and   (B.key1 < 500000 or B.key2 < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 < 500000 or A.key2 < 3)
@@ -362,7 +362,7 @@ where (A.key1 = 1 or A.key2 = 1)
 and   (B.key1 = 1 or B.key2 = 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
-1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
 where (A.key1 = 1 or A.key2 = 1)
@@ -377,7 +377,7 @@ where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
-1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer (BNL, regular buffers)
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
 from t0 as A, t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
@@ -581,7 +581,7 @@ SET SESSION sort_buffer_size=DEFAULT;
 DROP TABLE t1;
 End of 5.0 tests
 #---------------- ROR-index_merge tests -----------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t0,t1,t2;
 create table t1
 (
@@ -831,7 +831,7 @@ SELECT * FROM t1;
 c1	c2	c3
 DROP TABLE t1,t2;
 #---------------- Index merge test 2 -------------------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1,t2;
 create table t1
 (
@@ -1156,8 +1156,63 @@ key1	key2	key3
 38	38	38
 39	39	39
 drop table t1;
+#
+# Bug#56423: Different count with SELECT and CREATE SELECT queries
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+c INT,
+d INT,
+PRIMARY KEY (a),
+KEY (c),
+KEY bd (b,d)
+);
+INSERT INTO t1 VALUES
+(1, 0, 1, 0),
+(2, 1, 1, 1),
+(3, 1, 1, 1),
+(4, 0, 1, 1);
+EXPLAIN
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	c,bd	bd	10	const,const	2	Using where
+CREATE TABLE t2 ( a INT )
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+SELECT * FROM t2;
+a
+2
+3
+DROP TABLE t1, t2;
+CREATE TABLE t1( a INT, b INT, KEY(a), KEY(b) );
+INSERT INTO t1 VALUES (1, 2), (1, 2), (1, 2), (1, 2);
+SELECT * FROM t1 FORCE INDEX(a, b) WHERE a = 1 AND b = 2;
+a	b
+1	2
+1	2
+1	2
+1	2
+DROP TABLE t1;
+# Code coverage of fix.
+CREATE TABLE t1 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 (b) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+SELECT * FROM t1;
+a	b
+1	2
+CREATE TABLE t2 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1) );
+INSERT INTO t2 (b) VALUES ('a');
+UPDATE t2 SET b = 'b' WHERE a = 1;
+SELECT * FROM t2;
+a	b
+1	b
+DROP TABLE t1, t2;
 #---------------- 2-sweeps read Index merge test 2 -------------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists t1;
 create table t1 (
 pk int primary key,
@@ -1295,7 +1350,7 @@ pk	key1	key2	filler	filler2
 1	1	1	filler-data	filler-data-2
 drop table t1;
 #---------------- Clustered PK ROR-index_merge tests -----------------------------
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION DEFAULT_STORAGE_ENGINE = MyISAM;
 drop table if exists  t1;
 create table t1
 (
@@ -1324,7 +1379,7 @@ primary key (pk1, pk2)
 );
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using where
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using index condition; Using where
 select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
 1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
@@ -1414,24 +1469,42 @@ WHERE
 `TESTID`='' AND `UCCHECK`='';
 drop table t1;
 #
+# Bug#50402 Optimizer producing wrong results when using Index Merge on InnoDB
+#
+CREATE TABLE t1 (f1 INT, PRIMARY KEY (f1));
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (f1 INT, f2 INT, f3 char(1),
+PRIMARY KEY (f1), KEY (f2), KEY (f3) );
+INSERT INTO t2 VALUES (1, 1, 'h'), (2, 3, 'h'), (3, 2, ''), (4, 2, '');
+SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+f1
+2
+EXPLAIN SELECT t1.f1 FROM t1
+WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ref	f2,f3	f2	5	const	1	Using where
+DROP TABLE t1,t2;
+#
 # Generic @@optimizer_switch tests (move those into a separate file if
 #  we get another @@optimizer_switch user)
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set optimizer_switch='index_merge=off,index_merge_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set optimizer_switch='index_merge_union=on';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set optimizer_switch='default,index_merge_sort_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set optimizer_switch=4;
 set optimizer_switch=NULL;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
@@ -1457,21 +1530,21 @@ set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 set @@global.optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 #
 # Check index_merge's @@optimizer_switch flags
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -1581,5 +1654,5 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 set optimizer_switch=default;
 show variables like 'optimizer_switch';
 Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 drop table t0, t1;

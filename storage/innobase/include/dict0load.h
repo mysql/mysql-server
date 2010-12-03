@@ -109,25 +109,30 @@ dict_load_column_low(
 					a SYS_COLUMNS record */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill */
-	dulint*		table_id,	/*!< out: table id */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill,
+					or NULL if table != NULL */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec);		/*!< in: SYS_COLUMNS record */
 /********************************************************************//**
 Loads an index definition from a SYS_INDEXES record to dict_index_t.
-@return error message, or NULL on success */
+If allocate=TRUE, we will create a dict_index_t structure and fill it
+accordingly. If allocated=FALSE, the dict_index_t will be supplied by
+the caller and filled with information read from the record.  @return
+error message, or NULL on success */
 UNIV_INTERN
 const char*
 dict_load_index_low(
 /*================*/
-	byte*		table_id,	/*!< in/out: table id (8 bytes_,
-					an "in" value if cached=TRUE
-					and "out" when cached=FALSE */
+	byte*		table_id,	/*!< in/out: table id (8 bytes),
+					an "in" value if allocate=TRUE
+					and "out" when allocate=FALSE */
 	const char*	table_name,	/*!< in: table name */
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		cached,		/*!< in: TRUE = add to cache
-					FALSE = do not */
+	ibool		allocate,	/*!< in: TRUE=allocate *index,
+					FALSE=fill in a pre-allocated
+					*index */
 	dict_index_t**	index);		/*!< out,own: index, or NULL */
 /********************************************************************//**
 Loads an index field definition from a SYS_FIELDS record to
@@ -173,7 +178,7 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	dulint	table_id);	/*!< in: table id */
+	table_id_t	table_id);	/*!< in: table id */
 /********************************************************************//**
 This function is called when the database is booted.
 Loads system table index definitions except for the clustered index which
@@ -195,6 +200,8 @@ ulint
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
+	ibool		check_recursive,/*!< in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets);/*!< in: TRUE=check charsets
 					compatibility */
 /********************************************************************//**
@@ -255,7 +262,7 @@ dict_process_sys_indexes_rec(
 	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
 	dict_index_t*	index,		/*!< out: dict_index_t to be
 					filled */
-	dulint*		table_id);	/*!< out: table id */
+	table_id_t*	table_id);	/*!< out: table id */
 /********************************************************************//**
 This function parses a SYS_COLUMNS record and populate a dict_column_t
 structure with the information from the record.
@@ -267,7 +274,7 @@ dict_process_sys_columns_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name);	/*!< out: column name */
 /********************************************************************//**
 This function parses a SYS_FIELDS record and populate a dict_field_t
@@ -282,8 +289,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	dulint*		index_id,	/*!< out: current index id */
-	dulint		last_id);	/*!< in: previous index id */
+	index_id_t*	index_id,	/*!< out: current index id */
+	index_id_t	last_id);	/*!< in: previous index id */
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information

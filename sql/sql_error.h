@@ -78,12 +78,6 @@ public:
   const char* get_sqlstate() const
   { DBUG_ASSERT(m_status == DA_ERROR); return m_sqlstate; }
 
-  uint server_status() const
-  {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_server_status;
-  }
-
   ulonglong affected_rows() const
   { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
 
@@ -109,15 +103,6 @@ private:
 
   char m_sqlstate[SQLSTATE_LENGTH+1];
 
-  /**
-    Copied from thd->server_status when the diagnostics area is assigned.
-    We need this member as some places in the code use the following pattern:
-    thd->server_status|= ...
-    my_eof(thd);
-    thd->server_status&= ~...
-    Assigned by OK, EOF or ERROR.
-  */
-  uint m_server_status;
   /**
     The number of rows affected by the last statement. This is
     semantically close to thd->row_count_func, but has a different
@@ -152,8 +137,8 @@ private:
   Representation of a SQL condition.
   A SQL condition can be a completion condition (note, warning),
   or an exception condition (error, not found).
-  @note This class is named MYSQL_ERROR instead of SQL_condition for historical reasons,
-  to facilitate merging code with previous releases.
+  @note This class is named MYSQL_ERROR instead of SQL_condition for
+  historical reasons, to facilitate merging code with previous releases.
 */
 class MYSQL_ERROR : public Sql_alloc
 {
@@ -214,9 +199,9 @@ private:
   */
   friend class THD;
   friend class Warning_info;
-  friend class Signal_common;
-  friend class Signal_statement;
-  friend class Resignal_statement;
+  friend class Sql_cmd_common_signal;
+  friend class Sql_cmd_signal;
+  friend class Sql_cmd_resignal;
   friend class sp_rcontext;
 
   /**
@@ -470,18 +455,6 @@ public:
 
   ulong statement_warn_count() const { return m_statement_warn_count; }
 
-  /**
-    Reserve some space in the condition area.
-    This is a privileged operation, reserved for the RESIGNAL implementation,
-    as only the RESIGNAL statement is allowed to remove conditions from
-    the condition area.
-    For other statements, new conditions are not added to the condition
-    area once the condition area is full.
-    @param thd The current thread
-    @param count The number of slots to reserve
-  */
-  void reserve_space(THD *thd, uint count);
-
   /** Add a new condition to the current list. */
   MYSQL_ERROR *push_warning(THD *thd,
                             uint sql_errno, const char* sqlstate,
@@ -513,7 +486,7 @@ private:
   /** Read only status. */
   bool m_read_only;
 
-  friend class Resignal_statement;
+  friend class Sql_cmd_resignal;
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,

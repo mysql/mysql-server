@@ -307,7 +307,7 @@ connection update;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where command = "Delayed insert" and state = "Table lock";
+  where command = "Delayed insert" and state = "Waiting for table level lock";
 --source include/wait_condition.inc
 connect (select,localhost,root,,);
 --echo connection: select
@@ -388,3 +388,231 @@ CREATE TABLE t1 LIKE t2;
 
 DROP TABLE t2;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54332 Deadlock with two connections doing LOCK TABLE+INSERT DELAYED
+--echo #
+
+--echo # This test is not supposed to work under --ps-protocol since
+--echo # INSERT DELAYED doesn't work under LOCK TABLES with this protocol.
+--disable_ps_protocol
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+
+--echo # Test 1: Using LOCK TABLE
+
+--echo # Connection con1
+connect (con1, localhost, root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+LOCK TABLE t2 WRITE;
+--echo # Sending:
+--send INSERT DELAYED INTO t1 VALUES (1)
+
+--echo # Connection con1
+connection con1;
+--echo # Wait until INSERT DELAYED is blocked on table 't1'.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock"
+  AND info = "INSERT DELAYED INTO t1 VALUES (1)";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+INSERT DELAYED INTO t2 VALUES (1);
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+--echo # Reaping: INSERT DELAYED INTO t1 VALUES (1)
+--reap
+UNLOCK TABLES;
+
+--echo # Test 2: Using ALTER TABLE
+
+START TRANSACTION;
+SELECT * FROM t1 WHERE a=0;
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send ALTER TABLE t1 COMMENT 'test'
+
+--echo # Connection default
+connection default;
+--echo # Wait until ALTER TABLE is blocked on table 't1'.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock"
+  AND info = "ALTER TABLE t1 COMMENT 'test'";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+INSERT DELAYED INTO t1 VALUES (3);
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: ALTER TABLE t1 COMMENT 'test'
+--reap
+
+--echo # Test 3: Using RENAME TABLE
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+INSERT INTO t2 VALUES (1);
+
+--echo # Connection con1
+connection con1;
+--echo # Sending:
+--send RENAME TABLE t1 to t5, t2 to t4
+
+--echo # Connection default
+connection default;
+--echo # Wait until RENAME TABLE is blocked on table 't1'.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock"
+  AND info = "RENAME TABLE t1 to t5, t2 to t4";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+INSERT DELAYED INTO t1 VALUES (4);
+COMMIT;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: RENAME TABLE t1 to t5, t2 to t4
+--reap
+
+--echo # Connection default
+connection default;
+--echo # Reverting the renames
+RENAME TABLE t5 to t1, t4 to t2;
+
+--echo # Test 4: Two INSERT DELAYED on the same table
+
+START TRANSACTION;
+INSERT INTO t2 VALUES (1);
+
+--echo # Connection con2
+connect (con2, localhost, root);
+--send LOCK TABLE t1 WRITE, t2 WRITE
+
+--echo # Connection con1
+connection con1;
+--echo # Wait until LOCK TABLE is blocked on table 't2'.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock"
+  AND info = "LOCK TABLE t1 WRITE, t2 WRITE";
+--source include/wait_condition.inc
+--send INSERT DELAYED INTO t1 VALUES (5)
+
+--echo # Connection default
+connection default;
+--echo # Wait until INSERT DELAYED is blocked on table 't1'.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock"
+  AND info = "INSERT DELAYED INTO t1 VALUES (5)";
+--source include/wait_condition.inc
+--error ER_LOCK_DEADLOCK
+INSERT DELAYED INTO t1 VALUES (6);
+COMMIT;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: LOCK TABLE t1 WRITE, t2 WRITE
+--reap
+UNLOCK TABLES;
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: INSERT DELAYED INTO t1 VALUES (5)
+--reap
+
+--echo # Connection default
+connection default;
+
+--echo # Test 5: LOCK TABLES + INSERT DELAYED in one connection.
+--echo # This test has triggered some asserts in metadata locking
+--echo # subsystem at some point in time..
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (7);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 0;
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (8);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 1;
+
+--echo # Connection con2
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # Connection con1
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP TABLE t1, t2, t3;
+--enable_ps_protocol
+
+
+--echo #
+--echo # Test for bug #56251 "Deadlock with INSERT DELAYED and MERGE tables".
+--echo #
+connect (con1,localhost,root,,);
+connection default;
+--disable_warnings
+drop table if exists t1, t2, tm;
+--enable_warnings
+create table t1(a int);
+create table t2(a int);
+create table tm(a int) engine=merge union=(t1, t2);
+begin;
+select * from t1;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 comment 'test'
+
+--echo # Connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE blocks and starts waiting
+--echo # for connection 'default'. It should wait with a
+--echo # pending SNW lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 comment 'test'";
+--source include/wait_condition.inc
+--echo # Attempt to perform delayed insert into 'tm' should not lead
+--echo # to a deadlock. Instead error ER_DELAYED_NOT_SUPPORTED should
+--echo # be emitted.
+--error ER_DELAYED_NOT_SUPPORTED
+insert delayed into tm values (1);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE:
+--reap
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # Connection 'default'.
+connection default;
+drop tables tm, t1, t2;

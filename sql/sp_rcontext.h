@@ -131,67 +131,40 @@ class sp_rcontext : public Sql_alloc
     return m_return_value_set;
   }
 
+  /*
+    SQL handlers support.
+  */
+
   void push_handler(struct sp_cond_type *cond, uint h, int type);
 
   void pop_handlers(uint count);
 
-  // Returns 1 if a handler was found, 0 otherwise.
   bool
   find_handler(THD *thd,
                uint sql_errno,
-               const char* sqlstate,
+               const char *sqlstate,
                MYSQL_ERROR::enum_warning_level level,
-               const char* msg,
-               MYSQL_ERROR ** cond_hdl);
+               const char *msg);
 
-  // If there is an error handler for this error, handle it and return TRUE.
+  MYSQL_ERROR *
+  raised_condition() const;
+
+  void
+  push_hstack(uint h);
+
+  uint
+  pop_hstack();
+
   bool
-  handle_condition(THD *thd,
-                   uint sql_errno,
-                   const char* sqlstate,
-                   MYSQL_ERROR::enum_warning_level level,
-                   const char* msg,
-                   MYSQL_ERROR ** cond_hdl);
+  activate_handler(THD *thd,
+                   uint *ip,
+                   sp_instr *instr,
+                   Query_arena *execute_arena,
+                   Query_arena *backup_arena);
 
-  // Returns handler type and sets *ip to location if one was found
-  inline int
-  found_handler(uint *ip, uint *index)
-  {
-    if (m_hfound < 0)
-      return SP_HANDLER_NONE;
-    *ip= m_handler[m_hfound].handler;
-    *index= m_hfound;
-    return m_handler[m_hfound].type;
-  }
 
-  MYSQL_ERROR* raised_condition() const;
-
-  // Returns true if we found a handler in this context
-  inline bool
-  found_handler_here()
-  {
-    return (m_hfound >= 0);
-  }
-
-  // Clears the handler find state
-  inline void
-  clear_handler()
-  {
-    m_hfound= -1;
-  }
-
-  void push_hstack(uint h);
-
-  uint pop_hstack();
-
-  /**
-    Enter a SQL exception handler.
-    @param hip the handler instruction pointer
-    @param index the handler index
-  */
-  void enter_handler(uint hip, uint index);
-
-  void exit_handler();
+  void
+  exit_handler();
 
   void
   push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
@@ -199,7 +172,7 @@ class sp_rcontext : public Sql_alloc
   void
   pop_cursors(uint count);
 
-  void
+  inline void
   pop_all_cursors()
   {
     pop_cursors(m_ccount);
@@ -247,6 +220,7 @@ private:
     during execution.
   */
   bool m_return_value_set;
+
   /**
     TRUE if the context is created for a sub-statement.
   */

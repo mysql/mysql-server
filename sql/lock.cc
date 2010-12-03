@@ -116,14 +116,21 @@ static int
 lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
 {
   uint system_count, i;
-  bool is_superuser, log_table_write_query;
+  bool is_superuser;
+  /*
+    Identifies if the executed sql command can updated either a log
+    or rpl info table.
+  */
+  bool log_table_write_query, rpl_info_table_write_query;
 
   DBUG_ENTER("lock_tables_check");
 
   system_count= 0;
   is_superuser= thd->security_ctx->master_access & SUPER_ACL;
-  log_table_write_query= (is_log_table_write_query(thd->lex->sql_command)
-                         || ((flags & MYSQL_LOCK_LOG_TABLE) != 0));
+  log_table_write_query=
+     is_log_table_write_query(thd->lex->sql_command);
+  rpl_info_table_write_query=
+     is_rpl_info_table_write_query(thd->lex->sql_command);
 
   for (i=0 ; i<count; i++)
   {
@@ -138,16 +145,34 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
       When a user is requesting a lock, the following
       constraints are enforced:
     */
-    if (t->s->require_write_privileges() &&
-        ! log_table_write_query)
+    if (t->s->table_category == TABLE_CATEGORY_RPL_INFO &&
+        (flags & MYSQL_LOCK_RPL_INFO_TABLE) == 0 &&
+        !rpl_info_table_write_query)
     {
       /*
         A user should not be able to prevent writes,
         or hold any type of lock in a session,
         since this would be a DOS attack.
       */
-      if ((t->reginfo.lock_type >= TL_READ_NO_INSERT)
-          || (thd->lex->sql_command == SQLCOM_LOCK_TABLES))
+      if (t->reginfo.lock_type >= TL_READ_NO_INSERT ||
+          thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+      {
+          my_error(ER_CANT_LOCK_RPL_INFO_TABLE, MYF(0));
+          DBUG_RETURN(1);
+      }
+    }
+
+    if (t->s->table_category == TABLE_CATEGORY_LOG &&
+        (flags & MYSQL_LOCK_LOG_TABLE) == 0 &&
+        !log_table_write_query)
+    {
+      /*
+        A user should not be able to prevent writes,
+        or hold any type of lock in a session,
+        since this would be a DOS attack.
+      */
+      if (t->reginfo.lock_type >= TL_READ_NO_INSERT ||
+          thd->lex->sql_command == SQLCOM_LOCK_TABLES)
       {
         my_error(ER_CANT_LOCK_LOG_TABLE, MYF(0));
         DBUG_RETURN(1);
@@ -313,7 +338,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
   rc= thr_lock_errno_to_mysql[(int) thr_multi_lock(sql_lock->locks +
                                                    sql_lock->lock_count,
                                                    sql_lock->lock_count,
-                                                   thd->lock_id, timeout)];
+                                                   &thd->lock_info, timeout)];
   if (rc)
   {
     if (sql_lock->table_count)
@@ -627,110 +652,6 @@ MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b)
 }
 
 
-/**
-  Find duplicate lock in tables.
-
-  Temporary tables are ignored here like they are ignored in
-  get_lock_data(). If we allow two opens on temporary tables later,
-  both functions should be checked.
-
-  @param thd                 The current thread.
-  @param needle              The table to check for duplicate lock.
-  @param haystack            The list of tables to search for the dup lock.
-
-  @note
-    This is mainly meant for MERGE tables in INSERT ... SELECT
-    situations. The 'real', underlying tables can be found only after
-    the MERGE tables are opened. This function assumes that the tables are
-    already locked.
-
-  @retval
-    NULL    No duplicate lock found.
-  @retval
-    !NULL   First table from 'haystack' that matches a lock on 'needle'.
-*/
-
-TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
-                                      TABLE_LIST *haystack)
-{
-  MYSQL_LOCK            *mylock;
-  TABLE                 **lock_tables;
-  TABLE                 *table;
-  TABLE                 *table2;
-  THR_LOCK_DATA         **lock_locks;
-  THR_LOCK_DATA         **table_lock_data;
-  THR_LOCK_DATA         **end_data;
-  THR_LOCK_DATA         **lock_data2;
-  THR_LOCK_DATA         **end_data2;
-  DBUG_ENTER("mysql_lock_have_duplicate");
-
-  /*
-    Table may not be defined for derived or view tables.
-    Table may not be part of a lock for delayed operations.
-  */
-  if (! (table= needle->table) || ! table->lock_count)
-    goto end;
-
-  /* A temporary table does not have locks. */
-  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-    goto end;
-
-  /* Get command lock or LOCK TABLES lock. Maybe empty for INSERT DELAYED. */
-  if (! (mylock= thd->lock))
-    goto end;
-
-  /* If we have less than two tables, we cannot have duplicates. */
-  if (mylock->table_count < 2)
-    goto end;
-
-  lock_locks=  mylock->locks;
-  lock_tables= mylock->table;
-
-  /* Prepare table related variables that don't change in loop. */
-  DBUG_ASSERT((table->lock_position < mylock->table_count) &&
-              (table == lock_tables[table->lock_position]));
-  table_lock_data= lock_locks + table->lock_data_start;
-  end_data= table_lock_data + table->lock_count;
-
-  for (; haystack; haystack= haystack->next_global)
-  {
-    if (haystack->placeholder())
-      continue;
-    table2= haystack->table;
-    if (table2->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-      continue;
-
-    /* All tables in list must be in lock. */
-    DBUG_ASSERT((table2->lock_position < mylock->table_count) &&
-                (table2 == lock_tables[table2->lock_position]));
-
-    for (lock_data2=  lock_locks + table2->lock_data_start,
-           end_data2= lock_data2 + table2->lock_count;
-         lock_data2 < end_data2;
-         lock_data2++)
-    {
-      THR_LOCK_DATA **lock_data;
-      THR_LOCK *lock2= (*lock_data2)->lock;
-
-      for (lock_data= table_lock_data;
-           lock_data < end_data;
-           lock_data++)
-      {
-        if ((*lock_data)->lock == lock2)
-        {
-          DBUG_PRINT("info", ("haystack match: '%s'", haystack->table_name));
-          DBUG_RETURN(haystack);
-        }
-      }
-    }
-  }
-
- end:
-  DBUG_PRINT("info", ("no duplicate found"));
-  DBUG_RETURN(NULL);
-}
-
-
 /** Unlock a set of external. */
 
 static int unlock_external(THD *thd, TABLE **table,uint count)
@@ -827,8 +748,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     }
     *to++= table;
     if (locks)
+    {
       for ( ; org_locks != locks ; org_locks++)
+      {
 	(*org_locks)->debug_print_param= (void *) table;
+        (*org_locks)->m_psi= table->file->m_psi;
+      }
+    }
   }
   /*
     We do not use 'tables', because there are cases where store_lock()
@@ -851,73 +777,62 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 }
 
 
-/*****************************************************************************
-  Lock table based on the name.
-  This is used when we need total access to a closed, not open table
-*****************************************************************************/
-
 /**
-   Obtain exclusive metadata locks on the list of tables.
+  Obtain an exclusive metadata lock on a schema name.
 
-   @param thd         Thread handle
-   @param table_list  List of tables to lock
+  @param thd         Thread handle.
+  @param db          The database name.
 
-   @note This function assumes that no metadata locks were acquired
-         before calling it. Also it cannot be called while holding
-         LOCK_open mutex. Both these invariants are enforced by asserts
-         in MDL_context::acquire_locks().
-   @note Initialization of MDL_request members of TABLE_LIST elements
-         is a responsibility of the caller.
+  This function cannot be called while holding LOCK_open mutex.
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
 
-   @retval FALSE  Success.
-   @retval TRUE   Failure (OOM or thread was killed).
+  @retval FALSE  Success.
+  @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
+                 or this connection was killed.
 */
 
-bool lock_table_names(THD *thd, TABLE_LIST *table_list)
+bool lock_schema_name(THD *thd, const char *db)
 {
   MDL_request_list mdl_requests;
   MDL_request global_request;
-  TABLE_LIST *lock_table;
+  MDL_request mdl_request;
 
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+  if (thd->locked_tables_mode)
+  {
+    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    return TRUE;
+  }
 
-  for (lock_table= table_list; lock_table; lock_table= lock_table->next_local)
-    mdl_requests.push_front(&lock_table->mdl_request);
+  if (thd->global_read_lock.can_acquire_protection())
+    return TRUE;
+  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                      MDL_STATEMENT);
+  mdl_request.init(MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE, MDL_TRANSACTION);
 
+  mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    return 1;
+    return TRUE;
 
-  return 0;
+  DEBUG_SYNC(thd, "after_wait_locked_schema_name");
+  return FALSE;
 }
 
 
 /**
-   Release all metadata locks previously obtained by lock_table_names().
-
-   @param thd  Thread handle.
-
-   @note Cannot be called while holding LOCK_open mutex.
-*/
-
-void unlock_table_names(THD *thd)
-{
-  DBUG_ENTER("unlock_table_names");
-  thd->mdl_context.release_transactional_locks();
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Obtain an exclusive metadata lock on the stored routine name.
+  Obtain an exclusive metadata lock on an object name.
 
   @param thd         Thread handle.
-  @param is_function Stored routine type (only functions or procedures
-                     are name-locked.
-  @param db          The schema the routine belongs to.
-  @param name        Routine name.
+  @param mdl_type    Object type (currently functions, procedures
+                     and events can be name-locked).
+  @param db          The schema the object belongs to.
+  @param name        Object name in the schema.
 
   This function assumes that no metadata locks were acquired
   before calling it. Additionally, it cannot be called while
@@ -933,14 +848,12 @@ void unlock_table_names(THD *thd)
                  or this connection was killed.
 */
 
-bool lock_routine_name(THD *thd, bool is_function,
+bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                        const char *db, const char *name)
 {
-  MDL_key::enum_mdl_namespace mdl_type= (is_function ?
-                                         MDL_key::FUNCTION :
-                                         MDL_key::PROCEDURE);
   MDL_request_list mdl_requests;
   MDL_request global_request;
+  MDL_request schema_request;
   MDL_request mdl_request;
 
   if (thd->locked_tables_mode)
@@ -953,10 +866,16 @@ bool lock_routine_name(THD *thd, bool is_function,
   DBUG_ASSERT(name);
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
-  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
-  mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE);
+  if (thd->global_read_lock.can_acquire_protection())
+    return TRUE;
+  global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                      MDL_STATEMENT);
+  schema_request.init(MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
+                      MDL_TRANSACTION);
+  mdl_request.init(mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&global_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
@@ -1003,45 +922,24 @@ static void print_lock_error(int error, const char *table)
 /****************************************************************************
   Handling of global read locks
 
+  Global read lock is implemented using metadata lock infrastructure.
+
   Taking the global read lock is TWO steps (2nd step is optional; without
   it, COMMIT of existing transactions will be allowed):
   lock_global_read_lock() THEN make_global_read_lock_block_commit().
 
-  The global locks are handled through the global variables:
-  global_read_lock
-    count of threads which have the global read lock (i.e. have completed at
-    least the first step above)
-  global_read_lock_blocks_commit
-    count of threads which have the global read lock and block
-    commits (i.e. are in or have completed the second step above)
-  waiting_for_read_lock
-    count of threads which want to take a global read lock but cannot
-  protect_against_global_read_lock
-    count of threads which have set protection against global read lock.
-
-  access to them is protected with a mutex LOCK_global_read_lock
-
-  (XXX: one should never take LOCK_open if LOCK_global_read_lock is
-  taken, otherwise a deadlock may occur. Other mutexes could be a
-  problem too - grep the code for global_read_lock if you want to use
-  any other mutex here) Also one must not hold LOCK_open when calling
-  wait_if_global_read_lock(). When the thread with the global read lock
-  tries to close its tables, it needs to take LOCK_open in
-  close_thread_table().
-
   How blocking of threads by global read lock is achieved: that's
-  advisory. Any piece of code which should be blocked by global read lock must
-  be designed like this:
-  - call to wait_if_global_read_lock(). When this returns 0, no global read
-  lock is owned; if argument abort_on_refresh was 0, none can be obtained.
-  - job
-  - if abort_on_refresh was 0, call to start_waiting_global_read_lock() to
-  allow other threads to get the global read lock. I.e. removal of the
-  protection.
-  (Note: it's a bit like an implementation of rwlock).
-
-  [ I am sorry to mention some SQL syntaxes below I know I shouldn't but found
-  no better descriptive way ]
+  semi-automatic. We assume that any statement which should be blocked
+  by global read lock will either open and acquires write-lock on tables
+  or acquires metadata locks on objects it is going to modify. For any
+  such statement global IX metadata lock is automatically acquired for
+  its duration (in case of LOCK TABLES until end of LOCK TABLES mode).
+  And lock_global_read_lock() simply acquires global S metadata lock
+  and thus prohibits execution of statements which modify data (unless
+  they modify only temporary tables). If deadlock happens it is detected
+  by MDL subsystem and resolved in the standard fashion (by backing-off
+  metadata locks acquired so far and restarting open tables process
+  if possible).
 
   Why does FLUSH TABLES WITH READ LOCK need to block COMMIT: because it's used
   to read a non-moving SHOW MASTER STATUS, and a COMMIT writes to the binary
@@ -1075,11 +973,6 @@ static void print_lock_error(int error, const char *table)
 
 ****************************************************************************/
 
-volatile uint global_read_lock=0;
-volatile uint global_read_lock_blocks_commit=0;
-static volatile uint protect_against_global_read_lock=0;
-static volatile uint waiting_for_read_lock=0;
-
 /**
   Take global read lock, wait if there is protection against lock.
 
@@ -1100,85 +993,17 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
   if (!m_state)
   {
     MDL_request mdl_request;
-    const char *old_message;
-    const char *new_message= "Waiting to get readlock";
-    (void) mysql_mutex_lock(&LOCK_global_read_lock);
-
-#if defined(ENABLED_DEBUG_SYNC)
-    /*
-      The below sync point fires if we have to wait for
-      protect_against_global_read_lock.
-
-      WARNING: Beware to use WAIT_FOR with this sync point. We hold
-      LOCK_global_read_lock here.
-
-      Call the sync point before calling enter_cond() as it does use
-      enter_cond() and exit_cond() itself if a WAIT_FOR action is
-      executed in spite of the above warning.
-
-      Pre-set proc_info so that it is available immediately after the
-      sync point sends a SIGNAL. This makes tests more reliable.
-    */
-    if (protect_against_global_read_lock)
-    {
-      thd_proc_info(thd, new_message);
-      DEBUG_SYNC(thd, "wait_lock_global_read_lock");
-    }
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
-    old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
-                                new_message);
-    DBUG_PRINT("info",
-	       ("waiting_for: %d  protect_against: %d",
-		waiting_for_read_lock, protect_against_global_read_lock));
-
-    waiting_for_read_lock++;
-    while (protect_against_global_read_lock && !thd->killed)
-      mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
-    waiting_for_read_lock--;
-    if (thd->killed)
-    {
-      thd->exit_cond(old_message);
-      DBUG_RETURN(1);
-    }
-    m_state= GRL_ACQUIRED;
-    global_read_lock++;
-    thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
-    /*
-      When we perform FLUSH TABLES or ALTER TABLE under LOCK TABLES,
-      tables being reopened are protected only by meta-data locks at
-      some point. To avoid sneaking in with our global read lock at
-      this moment we have to take global shared meta data lock.
-
-      TODO: We should change this code to acquire global shared metadata
-            lock before acquiring global read lock. But in order to do
-            this we have to get rid of all those places in which
-            wait_if_global_read_lock() is called before acquiring
-            metadata locks first. Also long-term we should get rid of
-            redundancy between metadata locks, global read lock and DDL
-            blocker (see WL#4399 and WL#4400).
-    */
 
     DBUG_ASSERT(! thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
                                                  MDL_SHARED));
-    mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED);
+    mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
-    {
-      /* Our thread was killed -- return back to initial state. */
-      mysql_mutex_lock(&LOCK_global_read_lock);
-      if (!(--global_read_lock))
-      {
-        DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
-        mysql_cond_broadcast(&COND_global_read_lock);
-      }
-      mysql_mutex_unlock(&LOCK_global_read_lock);
-      m_state= GRL_NONE;
       DBUG_RETURN(1);
-    }
-    thd->mdl_context.move_ticket_after_trans_sentinel(mdl_request.ticket);
+
     m_mdl_global_shared_lock= mdl_request.ticket;
+    m_state= GRL_ACQUIRED;
   }
   /*
     We DON'T set global_read_lock_blocks_commit now, it will be set after
@@ -1204,163 +1029,19 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
 void Global_read_lock::unlock_global_read_lock(THD *thd)
 {
-  uint tmp;
   DBUG_ENTER("unlock_global_read_lock");
-  DBUG_PRINT("info",
-             ("global_read_lock: %u  global_read_lock_blocks_commit: %u",
-              global_read_lock, global_read_lock_blocks_commit));
 
   DBUG_ASSERT(m_mdl_global_shared_lock && m_state);
 
+  if (m_mdl_blocks_commits_lock)
+  {
+    thd->mdl_context.release_lock(m_mdl_blocks_commits_lock);
+    m_mdl_blocks_commits_lock= NULL;
+  }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
   m_mdl_global_shared_lock= NULL;
-
-  mysql_mutex_lock(&LOCK_global_read_lock);
-  tmp= --global_read_lock;
-  if (m_state == GRL_ACQUIRED_AND_BLOCKS_COMMIT)
-    --global_read_lock_blocks_commit;
-  mysql_mutex_unlock(&LOCK_global_read_lock);
-  /* Send the signal outside the mutex to avoid a context switch */
-  if (!tmp)
-  {
-    DBUG_PRINT("signal", ("Broadcasting COND_global_read_lock"));
-    mysql_cond_broadcast(&COND_global_read_lock);
-  }
   m_state= GRL_NONE;
 
-  DBUG_VOID_RETURN;
-}
-
-/**
-  Wait if the global read lock is set, and optionally seek protection against
-  global read lock.
-
-  See also "Handling of global read locks" above.
-
-  @param thd              Reference to thread.
-  @param abort_on_refresh If True, abort waiting if a refresh occurs,
-                          do NOT seek protection against GRL.
-                          If False, wait until the GRL is released and seek
-                          protection against GRL.
-  @param is_not_commit    If False, called from a commit operation,
-                          wait only if commit blocking is also enabled.
-
-  @retval False  Success, protection against global read lock is set
-                          (if !abort_on_refresh)
-  @retval True   Failure, wait was aborted or thread was killed.
-*/
-
-#define must_wait (global_read_lock &&                             \
-                   (is_not_commit ||                               \
-                    global_read_lock_blocks_commit))
-
-bool Global_read_lock::
-wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                         bool is_not_commit)
-{
-  const char *UNINIT_VAR(old_message);
-  bool result= 0, need_exit_cond;
-  DBUG_ENTER("wait_if_global_read_lock");
-
-  /*
-    If we already have protection against global read lock,
-    just increment the counter.
-  */
-  if (unlikely(m_protection_count > 0))
-  {
-    if (!abort_on_refresh)
-      m_protection_count++;
-    DBUG_RETURN(FALSE);
-  }
-  /*
-    Assert that we do not own LOCK_open. If we would own it, other
-    threads could not close their tables. This would make a pretty
-    deadlock.
-  */
-  mysql_mutex_assert_not_owner(&LOCK_open);
-
-  mysql_mutex_lock(&LOCK_global_read_lock);
-  if ((need_exit_cond= must_wait))
-  {
-    if (m_state)		// This thread had the read locks
-    {
-      if (is_not_commit)
-        my_message(ER_CANT_UPDATE_WITH_READLOCK,
-                   ER(ER_CANT_UPDATE_WITH_READLOCK), MYF(0));
-      mysql_mutex_unlock(&LOCK_global_read_lock);
-      /*
-        We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
-        This allowance is needed to not break existing versions of innobackup
-        which do a BEGIN; INSERT; FLUSH TABLES WITH READ LOCK; COMMIT.
-      */
-      DBUG_RETURN(is_not_commit);
-    }
-    old_message=thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
-				"Waiting for release of readlock");
-    while (must_wait && ! thd->killed &&
-	   (!abort_on_refresh || !thd->open_tables ||
-            thd->open_tables->s->version == refresh_version))
-    {
-      DBUG_PRINT("signal", ("Waiting for COND_global_read_lock"));
-      mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
-      DBUG_PRINT("signal", ("Got COND_global_read_lock"));
-    }
-    if (thd->killed)
-      result=1;
-  }
-  if (!abort_on_refresh && !result)
-  {
-    m_protection_count++;
-    protect_against_global_read_lock++;
-    DBUG_PRINT("sql_lock", ("protect_against_global_read_lock incr: %u",
-                            protect_against_global_read_lock));
-  }
-  /*
-    The following is only true in case of a global read locks (which is rare)
-    and if old_message is set
-  */
-  if (unlikely(need_exit_cond))
-    thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
-  else
-    mysql_mutex_unlock(&LOCK_global_read_lock);
-  DBUG_RETURN(result);
-}
-
-
-/**
-  Release protection against global read lock and restart
-  global read lock waiters.
-
-  Should only be called if we have protection against global read lock.
-
-  See also "Handling of global read locks" above.
-
-  @param thd     Reference to thread.
-*/
-
-void Global_read_lock::start_waiting_global_read_lock(THD *thd)
-{
-  bool tmp;
-  DBUG_ENTER("start_waiting_global_read_lock");
-  /*
-    Ignore request if we do not have protection against global read lock.
-    (Note that this is a violation of the interface contract, hence the assert).
-  */
-  DBUG_ASSERT(m_protection_count > 0);
-  if (unlikely(m_protection_count == 0))
-    DBUG_VOID_RETURN;
-  /* Decrement local read lock protection counter, return if we still have it */
-  if (unlikely(--m_protection_count > 0))
-    DBUG_VOID_RETURN;
-  if (unlikely(m_state))
-    DBUG_VOID_RETURN;
-  mysql_mutex_lock(&LOCK_global_read_lock);
-  DBUG_ASSERT(protect_against_global_read_lock);
-  tmp= (!--protect_against_global_read_lock &&
-        (waiting_for_read_lock || global_read_lock_blocks_commit));
-  mysql_mutex_unlock(&LOCK_global_read_lock);
-  if (tmp)
-    mysql_cond_broadcast(&COND_global_read_lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1382,8 +1063,7 @@ void Global_read_lock::start_waiting_global_read_lock(THD *thd)
 
 bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
 {
-  bool error;
-  const char *old_message;
+  MDL_request mdl_request;
   DBUG_ENTER("make_global_read_lock_block_commit");
   /*
     If we didn't succeed lock_global_read_lock(), or if we already suceeded
@@ -1391,50 +1071,32 @@ bool Global_read_lock::make_global_read_lock_block_commit(THD *thd)
   */
   if (m_state != GRL_ACQUIRED)
     DBUG_RETURN(0);
-  mysql_mutex_lock(&LOCK_global_read_lock);
-  /* increment this BEFORE waiting on cond (otherwise race cond) */
-  global_read_lock_blocks_commit++;
-  /* For testing we set up some blocking, to see if we can be killed */
-  DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
-                  protect_against_global_read_lock++;);
-  old_message= thd->enter_cond(&COND_global_read_lock, &LOCK_global_read_lock,
-                               "Waiting for all running commits to finish");
-  while (protect_against_global_read_lock && !thd->killed)
-    mysql_cond_wait(&COND_global_read_lock, &LOCK_global_read_lock);
-  DBUG_EXECUTE_IF("make_global_read_lock_block_commit_loop",
-                  protect_against_global_read_lock--;);
-  if ((error= test(thd->killed)))
-    global_read_lock_blocks_commit--; // undo what we did
-  else
-    m_state= GRL_ACQUIRED_AND_BLOCKS_COMMIT;
-  thd->exit_cond(old_message); // this unlocks LOCK_global_read_lock
-  DBUG_RETURN(error);
+
+  mdl_request.init(MDL_key::COMMIT, "", "", MDL_SHARED, MDL_EXPLICIT);
+
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
+    DBUG_RETURN(TRUE);
+
+  m_mdl_blocks_commits_lock= mdl_request.ticket;
+  m_state= GRL_ACQUIRED_AND_BLOCKS_COMMIT;
+
+  DBUG_RETURN(FALSE);
 }
 
 
 /**
-  Broadcast COND_refresh and COND_global_read_lock.
+  Set explicit duration for metadata locks which are used to implement GRL.
 
-    Due to a bug in a threading library it could happen that a signal
-    did not reach its target. A condition for this was that the same
-    condition variable was used with different mutexes in
-    mysql_cond_wait(). Some time ago we changed LOCK_open to
-    LOCK_global_read_lock in global read lock handling. So COND_refresh
-    was used with LOCK_open and LOCK_global_read_lock.
-
-    We did now also change from COND_refresh to COND_global_read_lock
-    in global read lock handling. But now it is necessary to signal
-    both conditions at the same time.
-
-  @note
-    When signalling COND_global_read_lock within the global read lock
-    handling, it is not necessary to also signal COND_refresh.
+  @param thd     Reference to thread.
 */
 
-void broadcast_refresh(void)
+void Global_read_lock::set_explicit_lock_duration(THD *thd)
 {
-  mysql_cond_broadcast(&COND_refresh);
-  mysql_cond_broadcast(&COND_global_read_lock);
+  if (m_mdl_global_shared_lock)
+    thd->mdl_context.set_lock_duration(m_mdl_global_shared_lock, MDL_EXPLICIT);
+  if (m_mdl_blocks_commits_lock)
+    thd->mdl_context.set_lock_duration(m_mdl_blocks_commits_lock, MDL_EXPLICIT);
 }
 
 /**

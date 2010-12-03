@@ -1,0 +1,748 @@
+select * from information_schema.innodb_metrics;
+NAME	SUBSYSTEM	COUNT	MAX_COUNT	MIN_COUNT	AVG_COUNT	COUNT_SINCE_RESET	MAX_COUNT_SINCE_RESET	MIN_COUNT_SINCE_RESET	AVG_COUNT_SINCE_RESET	TIME_ENABLED	TIME_DISABLED	TIME_RESET	STATUS	TYPE	COMMENT
+metadata_table_opened	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handlers opened
+metadata_table_closed	Server Metadata	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table handlers closed
+lock_deadlock_count	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of deadlocks
+lock_timeout	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of lock timeouts
+lock_lockrec_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times waited for record lock
+lock_lockrec_request	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks requested
+lock_lockrec_created	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks created
+lock_lockrec_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of record locks destroyed
+lock_num_lockrec	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Total number of record locks
+lock_tablelock_created	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table locks created
+lock_tablelock_removed	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of table locks destroyed
+lock_num_tablelock	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Total number of table locks
+lock_row_lock_current_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Current row lock wait
+lock_row_lock_wait_time	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Time waited for lock acquisition
+lock_row_lock_wait	Lock	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Total row lock waits
+buffer_reads	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads from disk
+buffer_read_request	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of read requests
+buffer_write_request	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of write requests
+buffer_page_in_flush	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages in flush list
+buffer_wait_free	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of times waited for free buffer
+buffer_read_ahead	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read as read ahead
+buffer_read_ahead_evict	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Read ahead pages evicted without being accessed
+buffer_pool_total_page	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Total buffer pool pages
+buffer_pool_page_misc	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Buffer pages for misc use
+buffer_pool_page_data	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Buffer pages contain data
+buffer_pool_page_dirty	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Buffer pages currently dirty
+buffer_pool_page_free	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Buffer pages currently free
+buffer_page_created	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages created
+buffer_page_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages written
+buffer_page_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read
+buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data read in bytes
+buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data written in bytes
+buf_page_read_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages read
+buf_page_read_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages read
+buf_page_read_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages read
+buf_page_read_index_ibuf_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Non-Leaf Pages read
+buf_page_read_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Undo Log Pages read
+buf_page_read_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages read
+buf_page_read_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages read
+buf_page_read_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages read
+buf_page_read_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages read
+buf_page_read_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages read
+buf_page_read_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages read
+buf_page_read_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages read
+buf_page_read_blob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Uncompressed Blob Pages read
+buf_page_read_zblob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of First Compressed Blob Pages read
+buf_page_read_zblob2	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Subsequent Compressed Blob Pages read
+buf_page_read_other	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of other/unknown (old version InnoDB) Pages read
+buf_page_written_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages written
+buf_page_written_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages written
+buf_page_written_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages written
+buf_page_written_index_ibuf_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Non-Leaf Pages written
+buf_page_written_undo_log	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Undo Log Pages written
+buf_page_written_index_inode	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Inode Pages written
+buf_page_written_ibuf_free_list	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Free List Pages written
+buf_page_written_ibuf_bitmap	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Bitmap Pages written
+buf_page_written_system_page	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of System Pages written
+buf_page_written_trx_system	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Transaction System Pages written
+buf_page_written_fsp_hdr	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of File Space Header Pages written
+buf_page_written_xdes	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Extent Descriptor Pages written
+buf_page_written_blob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Uncompressed Blob Pages written
+buf_page_written_zblob	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of First Compressed Blob Pages written
+buf_page_written_zblob2	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Subsequent Compressed Blob Pages written
+buf_page_written_other	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of other/unknown (old version InnoDB) Pages written
+os_num_reads	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads initiated
+os_num_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes initiated
+os_num_fsync	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of fsync() calls
+os_num_pending_reads	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of reads pending
+os_num_pending_writes	OS	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of writes pending
+os_log_byte_written	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Bytes of log written
+os_log_fsync	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of fsync log writes
+os_log_pending_fsync	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pending fsync write
+os_log_pending_write	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pending log file writes
+trx_num_commit	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of transactions committed
+trx_num_abort	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of transactions aborted
+trx_active_trx	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of active transactions
+trx_num_row_purged	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows purged
+trx_purge_delay	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Microseconds DML to be delayed due to purge lagging
+trx_rseg_history_len	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Length of the TRX_RSEG_HISTORY list
+trx_num_undo_slot_used	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of undo slots used
+trx_num_undo_slot_cached	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of undo slots cached
+trx_rseg_cur_size	Transaction	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Current rollback segment size in pages
+log_num_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of checkpoints
+log_lsn_last_flush	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Last flush's LSN
+log_lsn_last_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	LSN at last checkpoint
+log_current_lsn	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Current LSN value
+log_pending_log_write	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Pending Log Writes
+log_pending_checkpoint	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Pending Checkpoints
+log_num_log_io	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log I/Os
+log_waits	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log waits due to small log buffer
+log_write_request	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log write requests
+log_writes	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log writes
+log_flush_io_capacity	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
+log_flush_dirty_page_exceed	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of flush calls when the max dirty page pct was hit
+compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages compressed
+compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages decompressed
+index_num_split	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index splits
+index_num_merge	Index	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of index merges
+fil_system_num_open_file	Tablespace	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of files currently open
+dml_num_reads	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows read
+dml_num_inserts	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows inserted
+dml_num_deletes	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows deleted
+dml_updates	DML	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of rows updated
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	disabled
+metadata_table_closed	disabled
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+buffer_reads	disabled
+buffer_read_request	disabled
+buffer_write_request	disabled
+buffer_page_in_flush	disabled
+buffer_wait_free	disabled
+buffer_read_ahead	disabled
+buffer_read_ahead_evict	disabled
+buffer_pool_total_page	disabled
+buffer_pool_page_misc	disabled
+buffer_pool_page_data	disabled
+buffer_pool_page_dirty	disabled
+buffer_pool_page_free	disabled
+buffer_page_created	disabled
+buffer_page_written	disabled
+buffer_page_read	disabled
+buffer_byte_read	disabled
+buffer_byte_written	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	disabled
+os_num_pending_reads	disabled
+os_num_pending_writes	disabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	disabled
+os_log_pending_write	disabled
+trx_num_commit	disabled
+trx_num_abort	disabled
+trx_active_trx	disabled
+trx_num_row_purged	disabled
+trx_purge_delay	disabled
+trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
+log_num_checkpoint	disabled
+log_lsn_last_flush	disabled
+log_lsn_last_checkpoint	disabled
+log_current_lsn	disabled
+log_pending_log_write	disabled
+log_pending_checkpoint	disabled
+log_num_log_io	disabled
+log_waits	disabled
+log_write_request	disabled
+log_writes	disabled
+log_flush_io_capacity	disabled
+log_flush_dirty_page_exceed	disabled
+compress_num_page_compressed	disabled
+compress_num_page_decompressed	disabled
+index_num_split	disabled
+index_num_merge	disabled
+fil_system_num_open_file	disabled
+dml_num_reads	disabled
+dml_num_inserts	disabled
+dml_num_deletes	disabled
+dml_updates	disabled
+set global innodb_enable_monitor_counter = all;
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	enabled
+metadata_table_closed	enabled
+lock_deadlock_count	enabled
+lock_timeout	enabled
+lock_lockrec_wait	enabled
+lock_lockrec_request	enabled
+lock_lockrec_created	enabled
+lock_lockrec_removed	enabled
+lock_num_lockrec	enabled
+lock_tablelock_created	enabled
+lock_tablelock_removed	enabled
+lock_num_tablelock	enabled
+lock_row_lock_current_wait	enabled
+lock_row_lock_wait_time	enabled
+lock_row_lock_wait	enabled
+buffer_reads	enabled
+buffer_read_request	enabled
+buffer_write_request	enabled
+buffer_page_in_flush	enabled
+buffer_wait_free	enabled
+buffer_read_ahead	enabled
+buffer_read_ahead_evict	enabled
+buffer_pool_total_page	enabled
+buffer_pool_page_misc	enabled
+buffer_pool_page_data	enabled
+buffer_pool_page_dirty	enabled
+buffer_pool_page_free	enabled
+buffer_page_created	enabled
+buffer_page_written	enabled
+buffer_page_read	enabled
+buffer_byte_read	enabled
+buffer_byte_written	enabled
+buf_page_read_index_leaf	enabled
+buf_page_read_index_non_leaf	enabled
+buf_page_read_index_ibuf_leaf	enabled
+buf_page_read_index_ibuf_non_leaf	enabled
+buf_page_read_undo_log	enabled
+buf_page_read_index_inode	enabled
+buf_page_read_ibuf_free_list	enabled
+buf_page_read_ibuf_bitmap	enabled
+buf_page_read_system_page	enabled
+buf_page_read_trx_system	enabled
+buf_page_read_fsp_hdr	enabled
+buf_page_read_xdes	enabled
+buf_page_read_blob	enabled
+buf_page_read_zblob	enabled
+buf_page_read_zblob2	enabled
+buf_page_read_other	enabled
+buf_page_written_index_leaf	enabled
+buf_page_written_index_non_leaf	enabled
+buf_page_written_index_ibuf_leaf	enabled
+buf_page_written_index_ibuf_non_leaf	enabled
+buf_page_written_undo_log	enabled
+buf_page_written_index_inode	enabled
+buf_page_written_ibuf_free_list	enabled
+buf_page_written_ibuf_bitmap	enabled
+buf_page_written_system_page	enabled
+buf_page_written_trx_system	enabled
+buf_page_written_fsp_hdr	enabled
+buf_page_written_xdes	enabled
+buf_page_written_blob	enabled
+buf_page_written_zblob	enabled
+buf_page_written_zblob2	enabled
+buf_page_written_other	enabled
+os_num_reads	enabled
+os_num_writes	enabled
+os_num_fsync	enabled
+os_num_pending_reads	enabled
+os_num_pending_writes	enabled
+os_log_byte_written	enabled
+os_log_fsync	enabled
+os_log_pending_fsync	enabled
+os_log_pending_write	enabled
+trx_num_commit	enabled
+trx_num_abort	enabled
+trx_active_trx	enabled
+trx_num_row_purged	enabled
+trx_purge_delay	enabled
+trx_rseg_history_len	enabled
+trx_num_undo_slot_used	enabled
+trx_num_undo_slot_cached	enabled
+trx_rseg_cur_size	enabled
+log_num_checkpoint	enabled
+log_lsn_last_flush	enabled
+log_lsn_last_checkpoint	enabled
+log_current_lsn	enabled
+log_pending_log_write	enabled
+log_pending_checkpoint	enabled
+log_num_log_io	enabled
+log_waits	enabled
+log_write_request	enabled
+log_writes	enabled
+log_flush_io_capacity	enabled
+log_flush_dirty_page_exceed	enabled
+compress_num_page_compressed	enabled
+compress_num_page_decompressed	enabled
+index_num_split	enabled
+index_num_merge	enabled
+fil_system_num_open_file	enabled
+dml_num_reads	enabled
+dml_num_inserts	enabled
+dml_num_deletes	enabled
+dml_updates	enabled
+set global innodb_enable_monitor_counter = aaa;
+ERROR 42000: Variable 'innodb_enable_monitor_counter' can't be set to the value of 'aaa'
+set global innodb_disable_monitor_counter = All;
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	disabled
+metadata_table_closed	disabled
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+buffer_reads	disabled
+buffer_read_request	disabled
+buffer_write_request	disabled
+buffer_page_in_flush	disabled
+buffer_wait_free	disabled
+buffer_read_ahead	disabled
+buffer_read_ahead_evict	disabled
+buffer_pool_total_page	disabled
+buffer_pool_page_misc	disabled
+buffer_pool_page_data	disabled
+buffer_pool_page_dirty	disabled
+buffer_pool_page_free	disabled
+buffer_page_created	disabled
+buffer_page_written	disabled
+buffer_page_read	disabled
+buffer_byte_read	disabled
+buffer_byte_written	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	disabled
+os_num_pending_reads	disabled
+os_num_pending_writes	disabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	disabled
+os_log_pending_write	disabled
+trx_num_commit	disabled
+trx_num_abort	disabled
+trx_active_trx	disabled
+trx_num_row_purged	disabled
+trx_purge_delay	disabled
+trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
+log_num_checkpoint	disabled
+log_lsn_last_flush	disabled
+log_lsn_last_checkpoint	disabled
+log_current_lsn	disabled
+log_pending_log_write	disabled
+log_pending_checkpoint	disabled
+log_num_log_io	disabled
+log_waits	disabled
+log_write_request	disabled
+log_writes	disabled
+log_flush_io_capacity	disabled
+log_flush_dirty_page_exceed	disabled
+compress_num_page_compressed	disabled
+compress_num_page_decompressed	disabled
+index_num_split	disabled
+index_num_merge	disabled
+fil_system_num_open_file	disabled
+dml_num_reads	disabled
+dml_num_inserts	disabled
+dml_num_deletes	disabled
+dml_updates	disabled
+set global innodb_reset_all_monitor_counter = all;
+select name, count, status from information_schema.innodb_metrics;
+name	count	status
+metadata_table_opened	0	disabled
+metadata_table_closed	0	disabled
+lock_deadlock_count	0	disabled
+lock_timeout	0	disabled
+lock_lockrec_wait	0	disabled
+lock_lockrec_request	0	disabled
+lock_lockrec_created	0	disabled
+lock_lockrec_removed	0	disabled
+lock_num_lockrec	0	disabled
+lock_tablelock_created	0	disabled
+lock_tablelock_removed	0	disabled
+lock_num_tablelock	0	disabled
+lock_row_lock_current_wait	0	disabled
+lock_row_lock_wait_time	0	disabled
+lock_row_lock_wait	0	disabled
+buffer_reads	0	disabled
+buffer_read_request	0	disabled
+buffer_write_request	0	disabled
+buffer_page_in_flush	0	disabled
+buffer_wait_free	0	disabled
+buffer_read_ahead	0	disabled
+buffer_read_ahead_evict	0	disabled
+buffer_pool_total_page	0	disabled
+buffer_pool_page_misc	0	disabled
+buffer_pool_page_data	0	disabled
+buffer_pool_page_dirty	0	disabled
+buffer_pool_page_free	0	disabled
+buffer_page_created	0	disabled
+buffer_page_written	0	disabled
+buffer_page_read	0	disabled
+buffer_byte_read	0	disabled
+buffer_byte_written	0	disabled
+buf_page_read_index_leaf	0	disabled
+buf_page_read_index_non_leaf	0	disabled
+buf_page_read_index_ibuf_leaf	0	disabled
+buf_page_read_index_ibuf_non_leaf	0	disabled
+buf_page_read_undo_log	0	disabled
+buf_page_read_index_inode	0	disabled
+buf_page_read_ibuf_free_list	0	disabled
+buf_page_read_ibuf_bitmap	0	disabled
+buf_page_read_system_page	0	disabled
+buf_page_read_trx_system	0	disabled
+buf_page_read_fsp_hdr	0	disabled
+buf_page_read_xdes	0	disabled
+buf_page_read_blob	0	disabled
+buf_page_read_zblob	0	disabled
+buf_page_read_zblob2	0	disabled
+buf_page_read_other	0	disabled
+buf_page_written_index_leaf	0	disabled
+buf_page_written_index_non_leaf	0	disabled
+buf_page_written_index_ibuf_leaf	0	disabled
+buf_page_written_index_ibuf_non_leaf	0	disabled
+buf_page_written_undo_log	0	disabled
+buf_page_written_index_inode	0	disabled
+buf_page_written_ibuf_free_list	0	disabled
+buf_page_written_ibuf_bitmap	0	disabled
+buf_page_written_system_page	0	disabled
+buf_page_written_trx_system	0	disabled
+buf_page_written_fsp_hdr	0	disabled
+buf_page_written_xdes	0	disabled
+buf_page_written_blob	0	disabled
+buf_page_written_zblob	0	disabled
+buf_page_written_zblob2	0	disabled
+buf_page_written_other	0	disabled
+os_num_reads	0	disabled
+os_num_writes	0	disabled
+os_num_fsync	0	disabled
+os_num_pending_reads	0	disabled
+os_num_pending_writes	0	disabled
+os_log_byte_written	0	disabled
+os_log_fsync	0	disabled
+os_log_pending_fsync	0	disabled
+os_log_pending_write	0	disabled
+trx_num_commit	0	disabled
+trx_num_abort	0	disabled
+trx_active_trx	0	disabled
+trx_num_row_purged	0	disabled
+trx_purge_delay	0	disabled
+trx_rseg_history_len	0	disabled
+trx_num_undo_slot_used	0	disabled
+trx_num_undo_slot_cached	0	disabled
+trx_rseg_cur_size	0	disabled
+log_num_checkpoint	0	disabled
+log_lsn_last_flush	0	disabled
+log_lsn_last_checkpoint	0	disabled
+log_current_lsn	0	disabled
+log_pending_log_write	0	disabled
+log_pending_checkpoint	0	disabled
+log_num_log_io	0	disabled
+log_waits	0	disabled
+log_write_request	0	disabled
+log_writes	0	disabled
+log_flush_io_capacity	0	disabled
+log_flush_dirty_page_exceed	0	disabled
+compress_num_page_compressed	0	disabled
+compress_num_page_decompressed	0	disabled
+index_num_split	0	disabled
+index_num_merge	0	disabled
+fil_system_num_open_file	0	disabled
+dml_num_reads	0	disabled
+dml_num_inserts	0	disabled
+dml_num_deletes	0	disabled
+dml_updates	0	disabled
+set global innodb_enable_monitor_counter = metadata_table_opened;
+create table monitor_test(col int) engine = innodb;
+select * from monitor_test;
+col
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	1	NULL	1	1	NULL	1	enabled
+set global innodb_reset_monitor_counter = metadata_table_opened;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	1	NULL	1	NULL	NULL	0	enabled
+drop table monitor_test;
+create table monitor_test(col int) engine = innodb;
+select * from monitor_test;
+col
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	1	NULL	1	enabled
+set global innodb_reset_all_monitor_counter = metadata_table_opened;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	1	NULL	1	enabled
+set global innodb_disable_monitor_counter = metadata_table_opened;
+set global innodb_reset_monitor_counter = metadata_table_opened;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	NULL	NULL	0	disabled
+drop table monitor_test;
+create table monitor_test(col int) engine = innodb;
+select * from monitor_test;
+col
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	NULL	NULL	0	disabled
+set global innodb_reset_all_monitor_counter = metadata_table_opened;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_enable_monitor_counter = metadata_table_opened;
+drop table monitor_test;
+create table monitor_test(col int) engine = innodb;
+select * from monitor_test;
+col
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_opened";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	1	NULL	1	1	NULL	1	enabled
+set global innodb_enable_monitor_counter = metadata_table_closed;
+create index idx on monitor_test(col);
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name = "metadata_table_closed";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_closed	1	NULL	1	1	NULL	1	enabled
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	2	NULL	2	enabled
+metadata_table_closed	1	NULL	1	1	NULL	1	enabled
+set global innodb_disable_monitor_counter = module_metadata;
+set global innodb_reset_monitor_counter = module_metadata;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	2	NULL	2	NULL	NULL	0	disabled
+metadata_table_closed	1	NULL	1	NULL	NULL	0	disabled
+set global innodb_reset_all_monitor_counter = module_metadata;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "metadata%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+metadata_table_opened	NULL	NULL	0	NULL	NULL	0	disabled
+metadata_table_closed	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_enable_monitor_counter = module_trx;
+begin;
+insert into monitor_test values(9);
+commit;
+begin;
+insert into monitor_test values(9);
+rollback;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "trx_num_abort" or name like "trx_active_trx";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+trx_num_abort	1	NULL	1	1	NULL	1	enabled
+trx_active_trx	1	0	0	1	0	0	enabled
+set global innodb_disable_monitor_counter = module_trx;
+set global innodb_enable_monitor_counter = module_dml;
+insert into monitor_test values(9);
+update monitor_test set col = 10 where col = 9;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	4	NULL	4	4	NULL	4	enabled
+dml_num_inserts	1	NULL	1	1	NULL	1	enabled
+dml_num_deletes	0	NULL	0	0	NULL	0	enabled
+dml_updates	2	NULL	2	2	NULL	2	enabled
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	6	NULL	6	6	NULL	6	enabled
+dml_num_inserts	1	NULL	1	1	NULL	1	enabled
+dml_num_deletes	2	NULL	2	2	NULL	2	enabled
+dml_updates	2	NULL	2	2	NULL	2	enabled
+set global innodb_reset_monitor_counter =  module_dml;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	6	NULL	6	0	NULL	0	enabled
+dml_num_inserts	1	NULL	1	0	NULL	0	enabled
+dml_num_deletes	2	NULL	2	0	NULL	0	enabled
+dml_updates	2	NULL	2	0	NULL	0	enabled
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	8	NULL	8	2	NULL	2	enabled
+dml_num_inserts	3	NULL	3	2	NULL	2	enabled
+dml_num_deletes	4	NULL	4	2	NULL	2	enabled
+dml_updates	2	NULL	2	0	NULL	0	enabled
+set global innodb_reset_all_monitor_counter  =  module_dml;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	8	NULL	8	2	NULL	2	enabled
+dml_num_inserts	3	NULL	3	2	NULL	2	enabled
+dml_num_deletes	4	NULL	4	2	NULL	2	enabled
+dml_updates	2	NULL	2	0	NULL	0	enabled
+set global innodb_disable_monitor_counter = module_dml;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	8	NULL	8	2	NULL	2	disabled
+dml_num_inserts	3	NULL	3	2	NULL	2	disabled
+dml_num_deletes	4	NULL	4	2	NULL	2	disabled
+dml_updates	2	NULL	2	0	NULL	0	disabled
+set global innodb_reset_all_monitor_counter  = module_dml;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_num_inserts	NULL	NULL	0	NULL	NULL	0	disabled
+dml_num_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_enable_monitor_counter = dml_num_inserts;
+insert into monitor_test values(9);
+insert into monitor_test values(1);
+delete from monitor_test;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "dml%";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+dml_num_reads	NULL	NULL	0	NULL	NULL	0	disabled
+dml_num_inserts	2	NULL	2	2	NULL	2	enabled
+dml_num_deletes	NULL	NULL	0	NULL	NULL	0	disabled
+dml_updates	NULL	NULL	0	NULL	NULL	0	disabled
+set global innodb_disable_monitor_counter = module_dml;
+drop table monitor_test;
+set global innodb_enable_monitor_counter = fil_system_num_open_file;
+select name, max_count, min_count, count,
+max_count_since_reset, min_count_since_reset, count_since_reset, status
+from information_schema.innodb_metrics
+where name like "fil_system_num_open_file";
+name	max_count	min_count	count	max_count_since_reset	min_count_since_reset	count_since_reset	status
+fil_system_num_open_file	3	3	3	3	3	3	enabled
+set global innodb_disable_monitor_counter = fil_system_num_open_file;
+set global innodb_enable_monitor_counter = default;
+set global innodb_disable_monitor_counter = default;
+set global innodb_reset_monitor_counter = default;
+set global innodb_reset_all_monitor_counter = default;

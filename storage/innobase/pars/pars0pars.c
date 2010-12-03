@@ -559,19 +559,21 @@ pars_retrieve_table_def(
 /*====================*/
 	sym_node_t*	sym_node)	/*!< in: table node */
 {
-	const char*	table_name;
-
 	ut_a(sym_node);
 	ut_a(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
 
-	sym_node->resolved = TRUE;
-	sym_node->token_type = SYM_TABLE;
+	/* Open the table only if it is not already opened. */
+	if (sym_node->token_type != SYM_TABLE_REF_COUNTED) {
 
-	table_name = (const char*) sym_node->name;
+		ut_a(sym_node->table == NULL);
 
-	sym_node->table = dict_table_get_low(table_name);
+		sym_node->resolved = TRUE;
+		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-	ut_a(sym_node->table);
+		sym_node->table = dict_table_open_on_name(sym_node->name, TRUE);
+
+		ut_a(sym_node->table != NULL);
+	}
 }
 
 /*********************************************************************//**
@@ -1549,7 +1551,7 @@ commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
 {
-	return(commit_node_create(pars_sym_tab_global->heap));
+	return(trx_commit_node_create(pars_sym_tab_global->heap));
 }
 
 /*********************************************************************//**
@@ -2031,29 +2033,6 @@ pars_info_add_int4_literal(
 Equivalent to:
 
 char buf[8];
-mach_write_ull(buf, val);
-pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
-
-except that the buffer is dynamically allocated from the info struct's
-heap. */
-UNIV_INTERN
-void
-pars_info_add_uint64_literal(
-/*=========================*/
-	pars_info_t*	info,		/*!< in: info struct */
-	const char*	name,		/*!< in: name */
-	ib_uint64_t	val)		/*!< in: value */
-{
-	byte*	buf = mem_heap_alloc(info->heap, 8);
-
-	mach_write_ull(buf, val);
-	pars_info_add_literal(info, name, buf, 8, DATA_INT, 0);
-}
-
-/****************************************************************//**
-Equivalent to:
-
-char buf[8];
 mach_write_to_8(buf, val);
 pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
 
@@ -2061,11 +2040,11 @@ except that the buffer is dynamically allocated from the info struct's
 heap. */
 UNIV_INTERN
 void
-pars_info_add_dulint_literal(
-/*=========================*/
+pars_info_add_ull_literal(
+/*======================*/
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
-	dulint		val)		/*!< in: value */
+	ib_uint64_t	val)		/*!< in: value */
 {
 	byte*	buf = mem_heap_alloc(info->heap, 8);
 

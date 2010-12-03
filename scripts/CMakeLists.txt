@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,8 +11,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
@@ -24,6 +23,7 @@ ENDIF()
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
   FIND_PROGRAM(CAT_EXECUTABLE cat DOC "path to the executable")
+  MARK_AS_ADVANCED(CAT_EXECUTABLE)
 ENDIF()
 
 IF(CAT_EXECUTABLE)
@@ -81,12 +81,9 @@ INSTALL(FILES
 )
 
 # TCMalloc hacks
-IF($ENV{MALLOC_LIB})
-  SET(MALLOC_LIB $ENV{MALLOC_LIB} CACHE STRING "malloc library")
-ENDIF()
-
 IF(MALLOC_LIB)
-  INSTALL(FILES ${MALLOC_LIB} DESTINATION lib OPTIONAL)
+  MESSAGE("Using tcmalloc '${MALLOC_LIB}'")
+  INSTALL(FILES ${MALLOC_LIB} DESTINATION ${INSTALL_LIBDIR} OPTIONAL)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Makefiles")
@@ -139,6 +136,7 @@ ELSE()
 ENDIF()
 
 SET(HOSTNAME "hostname")
+SET(MYSQLD_USER "mysql")
 
 # Required for mysqlbug until autotools are deprecated, once done remove these
 # and expand default cmake variables
@@ -251,43 +249,40 @@ IF(POLICY CMP0007)
   CMAKE_POLICY(SET CMP0007 OLD)
 ENDIF()
 
-LIST(REMOVE_ITEM mysqlclient_LIB_DEPENDS "")
-LIST(REMOVE_DUPLICATES mysqlclient_LIB_DEPENDS)
-FOREACH(lib ${mysqlclient_LIB_DEPENDS})
-  # Filter out "general", it is not a library, just CMake hint
-  IF(NOT lib STREQUAL "general" AND NOT CLIENT_LIBS MATCHES "-l${lib} ")
-     IF (lib MATCHES "^\\-l")
-       SET(CLIENT_LIBS "${CLIENT_LIBS} ${lib} ") 
-     ELSEIF(lib MATCHES "^/")
-       # Full path, convert to just filename, strip "lib" prefix and extension
-       GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
-       STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
-     ELSE()
-       SET(CLIENT_LIBS "${CLIENT_LIBS}-l${lib} " ) 
-     ENDIF()
+# Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
+# returned string in ${var} is can be passed to linker's command line
+MACRO(EXTRACT_LINK_LIBRARIES target var)
+  IF(${target}_LIB_DEPENDS)
+    LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
+    LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
+    FOREACH(lib ${${target}_LIB_DEPENDS})
+      # Filter out "general", it is not a library, just CMake hint
+      # Also, remove duplicates
+      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
+        IF (lib MATCHES "^\\-l")
+          SET(${var} "${${var}} ${lib} ") 
+        ELSEIF(lib MATCHES "^/")
+          # Full path, convert to just filename, strip "lib" prefix and extension
+          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+          SET(${var} "${${var}}-l${lib} " ) 
+        ELSE()
+          SET(${var} "${${var}}-l${lib} " ) 
+        ENDIF()
+      ENDIF()
+    ENDFOREACH()
   ENDIF()
-ENDFOREACH()
+  IF(MSVC)
+    STRING(REPLACE "-l" "" ${var} "${${var}}")
+  ENDIF()
+ENDMACRO()
 
+EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+EXTRACT_LINK_LIBRARIES(mysqlserver LIBS)
 
-IF(LIBDL AND NOT LIBDL MATCHES "-l")
-  SET(LIBDL "-l${LIBDL}")
-ENDIF()
-
-IF(LIBWRAP)
-  SET(WRAPLIBS "-lwrap")
-ENDIF()
-
-SET(LIBS "${CLIENT_LIBS}")
-
-IF(LIBCRYPT)
-  SET(LIBS "${LIBS} -l${LIBCRYPT}")
-ENDIF()
-
-IF(MSVC)
-  STRING(REPLACE "-l" "" CLIENT_LIBS "${CLIENT_LIBS}")
-  STRING(REPLACE "-l" "" LIBS "${LIBS}" )
-ENDIF()
+# mysql_config evaluates ${LIBDL}, we want to avoid it
+# as our CLIENT_LIBS and LIBS are already correct
+SET(LIBDL)
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
@@ -315,7 +310,7 @@ IF(WIN32)
   FOREACH(file ${SH_FILES})
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh
        ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
-    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT ${${file}_COMPONENT})
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT Server_Scripts)
   ENDFOREACH()
 ELSE()
   # On Unix, most of the files end up in the bin directory
@@ -347,6 +342,7 @@ ELSE()
       MESSAGE(FATAL_ERROR "Can not find ${file}.sh or ${file} in "
         "${CMAKE_CURRENT_SOURCE_DIR}" )
     ENDIF()
+    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
     IF(NOT ${file}_COMPONENT)
       SET(${file}_COMPONENT Server)
     ENDIF()

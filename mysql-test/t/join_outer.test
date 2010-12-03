@@ -309,7 +309,7 @@ insert into t2 values (1, 2, 3),(2, 2, 8), (4,3,9),(3,2,10);
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1;
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
-t1.m = t2.m where t1.n = 1 order by t1.o;
+t1.m = t2.m where t1.n = 1 order by t1.o,t1.m;
 drop table t1,t2;
 
 # Test bug with NATURAL join:
@@ -981,4 +981,108 @@ EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY (f1, f2));
+
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (7, 7);
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#54235 Extra rows with join_cache_level=4,6,8 and two LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+
+INSERT INTO t1 VALUES (null),(null);
+
+let $query = SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
+ON 0 WHERE t1.a OR t3.a;
+
+eval explain $query;
+
+eval $query;
+
+let $query = SELECT t1.a FROM t1 LEFT JOIN
+(t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a)
+ON 0 WHERE t1.a OR t4.a;
+
+eval explain $query;
+
+eval $query;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#56254 Assertion tab->ref.use_count fails in
+--echo # join_read_key_unlock_row() on 4-way JOIN
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_key INT,
+  col_int INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (6, -448724992, NULL);
+
+CREATE TABLE t2 (
+  col_int INT,
+  col_varchar_10 VARCHAR(10)
+);
+
+INSERT INTO t2 VALUES (6,'afasdkiyum');
+
+CREATE TABLE t3 (
+  col_varchar_10 VARCHAR(10),
+  col_int INT
+);
+
+CREATE TABLE t4 (
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t4 VALUES (1);
+INSERT INTO t4 VALUES (2);
+
+SELECT t1.col_int
+FROM t1
+  LEFT JOIN t2
+    LEFT JOIN t3
+      JOIN t4  
+      ON t3.col_int  = t4.pk
+    ON t2.col_varchar_10 = t3.col_varchar_10
+  ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+
+DROP TABLE t1,t2,t3,t4;

@@ -31,7 +31,7 @@ int az_open(azio_stream *s, const char *path, int Flags, File  fd);
 int do_flush(azio_stream *file, int flush);
 int    get_byte(azio_stream *s);
 void   check_header(azio_stream *s);
-void write_header(azio_stream *s);
+int write_header(azio_stream *s);
 int    destroy(azio_stream *s);
 void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
@@ -155,7 +155,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
 }
 
 
-void write_header(azio_stream *s)
+int write_header(azio_stream *s)
 {
   char buffer[AZHEADER_SIZE + AZMETA_BUFFER_SIZE];
   char *ptr= buffer;
@@ -191,8 +191,8 @@ void write_header(azio_stream *s)
   *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
 
   /* Always begin at the begining, and end there as well */
-  my_pwrite(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
-            MYF(0));
+  return my_pwrite(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE,
+                   0, MYF(MY_NABP)) ? 1 : 0;
 }
 
 /* ===========================================================================
@@ -838,19 +838,19 @@ int azwrite_frm(azio_stream *s, char *blob, unsigned int length)
   s->frm_length= length;
   s->start+= length;
 
-  my_pwrite(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
-
-  write_header(s);
-  my_seek(s->file, 0, MY_SEEK_END, MYF(0));
+  if (my_pwrite(s->file, (uchar*) blob, s->frm_length,
+                s->frm_start_pos, MYF(MY_NABP)) ||
+      write_header(s) ||
+      (my_seek(s->file, 0, MY_SEEK_END, MYF(0)) == MY_FILEPOS_ERROR))
+    return 1;
 
   return 0;
 }
 
 int azread_frm(azio_stream *s, char *blob)
 {
-  my_pread(s->file, (uchar*) blob, s->frm_length, s->frm_start_pos, MYF(0));
-
-  return 0;
+  return my_pread(s->file, (uchar*) blob, s->frm_length,
+                  s->frm_start_pos, MYF(MY_NABP)) ? 1 : 0;
 }
 
 

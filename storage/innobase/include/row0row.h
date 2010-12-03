@@ -267,7 +267,7 @@ enum row_search_result {
 				secondary index leaf page was not in
 				the buffer pool, and the operation was
 				enqueued in the insert/delete buffer */
-	ROW_NOT_DELETED_REF,	/*!< BTR_DELETE was specified, and
+	ROW_NOT_DELETED_REF	/*!< BTR_DELETE was specified, and
 				row_purge_poss_sec() failed */
 };
 
@@ -292,10 +292,7 @@ row_search_index_entry(
 /* The allowed latching order of index records is the following:
 (1) a secondary index record ->
 (2) the clustered index record ->
-(3) rollback segment data for the clustered index record.
-
-No new latches may be obtained while the kernel mutex is reserved.
-However, the kernel mutex can be reserved while latches are owned. */
+(3) rollback segment data for the clustered index record. */
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) using

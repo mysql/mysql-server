@@ -1,0 +1,33 @@
+#
+# This file contains tests for WL#5096.
+#
+
+-- source include/rpl_chained_3_hosts.inc
+-- source include/have_binlog_format_row.inc
+
+-- connection mysqld_a
+-- source include/have_innodb.inc
+-- connection mysqld_b
+-- source include/have_innodb.inc
+-- connection mysqld_c
+-- source include/have_innodb.inc
+-- connection mysqld_a
+
+#
+#   WL#5096 Tests.
+# 
+
+#
+# Tests MINIMAL image against a mix of MyISAM and InnoDB engines on
+# each of the three servers.
+#
+
+-- let $row_img_set=mysqld_a:MINIMAL:N,mysqld_b:MINIMAL:Y,mysqld_c:MINIMAL:Y
+-- source include/rpl_row_img_set.inc
+
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
+-- source include/rpl_row_img_general_loop.inc
+
+-- let $row_img_set=mysqld_a:FULL:N,mysqld_b:FULL:Y,mysqld_c:FULL:Y
+-- source include/rpl_row_img_set.inc
+

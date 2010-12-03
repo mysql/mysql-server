@@ -496,7 +496,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name, current_message.lang_short_name);
 	DBUG_RETURN(0);
       }
-      if (insert_dynamic(&current_error->msg, (uchar *) & current_message))
+      if (insert_dynamic(&current_error->msg, &current_message))
 	DBUG_RETURN(0);
       continue;
     }
@@ -857,7 +857,6 @@ static struct message *parse_message_string(struct message *new_message,
 static struct errors *parse_error_string(char *str, int er_count)
 {
   struct errors *new_error;
-  char *start;
   DBUG_ENTER("parse_error_string");
   DBUG_PRINT("enter", ("str: %s", str));
 
@@ -868,7 +867,6 @@ static struct errors *parse_error_string(char *str, int er_count)
     DBUG_RETURN(0);				/* OOM: Fatal error */
 
   /* getting the error name */
-  start= str;
   str= skip_delimiters(str);
 
   if (!(new_error->er_name= get_word(&str)))

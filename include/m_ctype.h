@@ -154,6 +154,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_PUREASCII 4096   /* if a charset is pure ascii     */
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
+#define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -431,6 +432,7 @@ extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
 
 extern CHARSET_INFO my_charset_utf8_general_ci;
+extern CHARSET_INFO my_charset_utf8_tolower_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
@@ -515,6 +517,7 @@ ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs,
 
 void my_fill_8bit(CHARSET_INFO *cs, char* to, size_t l, int fill);
 
+/* For 8-bit character set */
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      const char *ptr, size_t ptr_length,
 			      pbool escape, pbool w_one, pbool w_many,
@@ -522,6 +525,7 @@ my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      char *min_str, char *max_str,
 			      size_t *min_length, size_t *max_length);
 
+/* For ASCII-based multi-byte character sets with mbminlen=1 */
 my_bool  my_like_range_mb(CHARSET_INFO *cs,
 			  const char *ptr, size_t ptr_length,
 			  pbool escape, pbool w_one, pbool w_many,
@@ -529,26 +533,13 @@ my_bool  my_like_range_mb(CHARSET_INFO *cs,
 			  char *min_str, char *max_str,
 			  size_t *min_length, size_t *max_length);
 
-my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
-			    const char *ptr, size_t ptr_length,
-			    pbool escape, pbool w_one, pbool w_many,
-			    size_t res_length,
-			    char *min_str, char *max_str,
-			    size_t *min_length, size_t *max_length);
-
-my_bool  my_like_range_utf16(CHARSET_INFO *cs,
-			     const char *ptr, size_t ptr_length,
-			     pbool escape, pbool w_one, pbool w_many,
-			     size_t res_length,
-			     char *min_str, char *max_str,
-			     size_t *min_length, size_t *max_length);
-
-my_bool  my_like_range_utf32(CHARSET_INFO *cs,
-			     const char *ptr, size_t ptr_length,
-			     pbool escape, pbool w_one, pbool w_many,
-			     size_t res_length,
-			     char *min_str, char *max_str,
-			     size_t *min_length, size_t *max_length);
+/* For other character sets, with arbitrary mbminlen and mbmaxlen numbers */
+my_bool  my_like_range_generic(CHARSET_INFO *cs,
+                               const char *ptr, size_t ptr_length,
+                               pbool escape, pbool w_one, pbool w_many,
+                               size_t res_length,
+                               char *min_str, char *max_str,
+                               size_t *min_length, size_t *max_length);
 
 int my_wildcmp_8bit(CHARSET_INFO *,
 		    const char *str,const char *str_end,
@@ -627,6 +618,11 @@ size_t my_strnxfrm_mb(CHARSET_INFO *,
 size_t my_strnxfrm_unicode(CHARSET_INFO *,
                            uchar *dst, size_t dstlen, uint nweights,
                            const uchar *src, size_t srclen, uint flags);
+
+size_t my_strnxfrm_unicode_full_bin(CHARSET_INFO *,
+                                    uchar *dst, size_t dstlen, uint nweights,
+                                    const uchar *src, size_t srclen, uint flags);
+size_t  my_strnxfrmlen_unicode_full_bin(CHARSET_INFO *, size_t); 
 
 int my_wildcmp_unicode(CHARSET_INFO *cs,
                        const char *str, const char *str_end,

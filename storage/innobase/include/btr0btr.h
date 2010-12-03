@@ -105,32 +105,41 @@ btr_root_get(
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 buf_block_t*
-btr_block_get(
-/*==========*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	ulint	mode,		/*!< in: latch mode */
-	mtr_t*	mtr);		/*!< in: mtr */
-/**************************************************************//**
-Gets a buffer page and declares its latching order level. */
-UNIV_INLINE
-page_t*
-btr_page_get(
-/*=========*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	ulint	mode,		/*!< in: latch mode */
-	mtr_t*	mtr);		/*!< in: mtr */
+btr_block_get_func(
+/*===============*/
+	ulint		space,		/*!< in: space id */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	ulint		page_no,	/*!< in: page number */
+	ulint		mode,		/*!< in: latch mode */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
+	mtr_t*		mtr)		/*!< in/out: mtr */
+	__attribute__((nonnull));
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param mtr	mini-transaction handle
+@return the block descriptor */
+# define btr_block_get(space,zip_size,page_no,mode,mtr) \
+	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param mtr	mini-transaction handle
+@return the uncompressed page frame */
+# define btr_page_get(space,zip_size,page_no,mode,mtr) \
+	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
 @return	index id */
 UNIV_INLINE
-dulint
+index_id_t
 btr_page_get_index_id(
 /*==================*/
 	const page_t*	page);	/*!< in: index page */
@@ -226,7 +235,7 @@ btr_create(
 	ulint		space,	/*!< in: space where created */
 	ulint		zip_size,/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	dulint		index_id,/*!< in: index id */
+	index_id_t	index_id,/*!< in: index id */
 	dict_index_t*	index,	/*!< in: index */
 	mtr_t*		mtr);	/*!< in: mini-transaction handle */
 /************************************************************//**

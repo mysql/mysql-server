@@ -78,19 +78,6 @@ the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
- && !defined(HAVE_IB_SOLARIS_ATOMICS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(HAVE_IB_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
-
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
 # define __WIN__
@@ -231,6 +218,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_AIO_DEBUG				/* prints info about
 						submitted and reaped AIO
 						requests to the log. */
+#define UNIV_STATS_DEBUG			/* prints various stats
+						related debug info from
+						dict0stats.c */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -254,8 +244,10 @@ by one. */
 			option off; also some ibuf tests are suppressed */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
-that are only referenced from within InnoDB, not from MySQL */
-#if defined(__GNUC__) && (__GNUC__ >= 4) || defined(__INTEL_COMPILER)
+that are only referenced from within InnoDB, not from MySQL. We disable the
+GCC visibility directive on all Sun operating systems because there is no
+easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
 # define UNIV_INTERN __attribute__((visibility ("hidden")))
 #else
 # define UNIV_INTERN
@@ -309,6 +301,16 @@ management to ensure correct alignment for doubles etc. */
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
+
+/* The maximum length of a table name. This is the MySQL limit and is
+defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
+number does not include a terminating '\0'. InnoDB probably can handle
+longer names internally */
+#define MAX_TABLE_NAME_LEN	192
+
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
 
 /*
 			UNIVERSAL TYPE DEFINITIONS
@@ -365,14 +367,25 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/* The 'undefined' value for a ib_uint64_t */
+#define UINT64_UNDEFINED	((ib_uint64_t)(-1))
+
+/** The bitmask of 32-bit unsigned integer */
+#define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	0xFFFFFFFF
+#define	ULINT32_UNDEFINED	ULINT32_MASK
 
 /* Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+
+/** The generic InnoDB system object identifier data type */
+typedef ib_uint64_t	ib_id_t;
+
+/* The 'undefined' value for a ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

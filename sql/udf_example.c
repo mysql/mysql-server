@@ -1071,7 +1071,7 @@ char *myfunc_argument_name(UDF_INIT *initid __attribute__((unused)),
 {
   if (!args->attributes[0])
   {
-    null_value= 0;
+    *null_value= 1;
     return 0;
   }
   (*length)--; /* space for ending \0 (for debugging purposes) */

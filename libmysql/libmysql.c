@@ -5,8 +5,7 @@
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software. View the full text of the exception in file
-   EXCEPTIONS-CLIENT in the directory of this software distribution.
+   is applied to this software.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -126,6 +125,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     if (my_init())				/* Will init threads */
       return 1;
     init_client_errs();
+    if (mysql_client_plugin_init())
+      return 1;
     if (!mysql_port)
     {
       char *env;
@@ -195,6 +196,8 @@ void STDCALL mysql_server_end()
 {
   if (!mysql_client_init)
     return;
+
+  mysql_client_plugin_deinit();
 
 #ifdef EMBEDDED_LIBRARY
   end_embedded_server();
@@ -345,44 +348,14 @@ mysql_connect(MYSQL *mysql,const char *host,
   Change user and database
 **************************************************************************/
 
-int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
-{
-  NET *net= &mysql->net;
-  ulong pkt_length;
-
-  pkt_length= cli_safe_read(mysql);
-  
-  if (pkt_length == packet_error)
-    return 1;
-
-  if (pkt_length == 1 && net->read_pos[0] == 254 &&
-      mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    /*
-      By sending this very specific reply server asks us to send scrambled
-      password in old format. The reply contains scramble_323.
-    */
-    scramble_323(buff, mysql->scramble, passwd);
-    if (my_net_write(net, (uchar*) buff, SCRAMBLE_LENGTH_323 + 1) ||
-        net_flush(net))
-    {
-      set_mysql_error(mysql, CR_SERVER_LOST, unknown_sqlstate);
-      return 1;
-    }
-    /* Read what server thinks about out new auth message report */
-    if (cli_safe_read(mysql) == packet_error)
-      return 1;
-  }
-  return 0;
-}
-
 my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 				  const char *passwd, const char *db)
 {
-  char buff[USERNAME_LENGTH+SCRAMBLED_PASSWORD_CHAR_LENGTH+NAME_LEN+2];
-  char *end= buff;
   int rc;
   CHARSET_INFO *saved_cs= mysql->charset;
+  char *saved_user= mysql->user;
+  char *saved_passwd= mysql->passwd;
+  char *saved_db= mysql->db;
 
   DBUG_ENTER("mysql_change_user");
 
@@ -396,49 +369,11 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 
   /* Use an empty string instead of NULL. */
 
-  if (!user)
-    user="";
-  if (!passwd)
-    passwd="";
+  mysql->user= (char*)(user ? user : "");
+  mysql->passwd= (char*)(passwd ? passwd : "");
+  mysql->db= 0;
 
-  /*
-    Store user into the buffer.
-    Advance position as strmake returns a pointer to the closing NUL.
-  */
-  end= strmake(end, user, USERNAME_LENGTH) + 1;
-
-  /* write scrambled password according to server capabilities */
-  if (passwd[0])
-  {
-    if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-    {
-      *end++= SCRAMBLE_LENGTH;
-      scramble(end, mysql->scramble, passwd);
-      end+= SCRAMBLE_LENGTH;
-    }
-    else
-    {
-      scramble_323(end, mysql->scramble, passwd);
-      end+= SCRAMBLE_LENGTH_323 + 1;
-    }
-  }
-  else
-    *end++= '\0';                               /* empty password */
-  /* Add database if needed */
-  end= strmake(end, db ? db : "", NAME_LEN) + 1;
-
-  /* Add character set number. */
-
-  if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
-  {
-    int2store(end, (ushort) mysql->charset->number);
-    end+= 2;
-  }
-
-  /* Write authentication package */
-  simple_command(mysql,COM_CHANGE_USER, (uchar*) buff, (ulong) (end-buff), 1);
-
-  rc= (*mysql->methods->read_change_user_result)(mysql, buff, passwd);
+  rc= run_plugin_auth(mysql, 0, 0, 0, db);
 
   /*
     The server will close all statements no matter was the attempt
@@ -448,18 +383,21 @@ my_bool	STDCALL mysql_change_user(MYSQL *mysql, const char *user,
   if (rc == 0)
   {
     /* Free old connect information */
-    my_free(mysql->user);
-    my_free(mysql->passwd);
-    my_free(mysql->db);
+    my_free(saved_user);
+    my_free(saved_passwd);
+    my_free(saved_db);
 
     /* alloc new connect information */
-    mysql->user=  my_strdup(user,MYF(MY_WME));
-    mysql->passwd=my_strdup(passwd,MYF(MY_WME));
-    mysql->db=    db ? my_strdup(db,MYF(MY_WME)) : 0;
+    mysql->user= my_strdup(mysql->user, MYF(MY_WME));
+    mysql->passwd= my_strdup(mysql->passwd, MYF(MY_WME));
+    mysql->db= db ? my_strdup(db, MYF(MY_WME)) : 0;
   }
   else
   {
     mysql->charset= saved_cs;
+    mysql->user= saved_user;
+    mysql->passwd= saved_passwd;
+    mysql->db= saved_db;
   }
 
   DBUG_RETURN(rc);
@@ -2118,6 +2056,8 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
       set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
+  else if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    stmt->mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
   DBUG_RETURN(0);
 }
 
@@ -2256,7 +2196,7 @@ static int stmt_read_row_unbuffered(MYSQL_STMT *stmt, unsigned char **row)
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, NULL);
     return 1;
   }
-  if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, stmt->unbuffered_fetch_cancelled ?
                    CR_FETCH_CANCELED : CR_COMMANDS_OUT_OF_SYNC,
@@ -4448,7 +4388,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
       DBUG_RETURN(1);
     }
   }
-  else if (mysql->status != MYSQL_STATUS_GET_RESULT)
+  else if (mysql->status != MYSQL_STATUS_STATEMENT_GET_RESULT)
   {
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate, NULL);
     DBUG_RETURN(1);
@@ -4871,6 +4811,9 @@ int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, &mysql->net);
     DBUG_RETURN(rc);
   }
+
+  if (mysql->status == MYSQL_STATUS_GET_RESULT)
+    mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
 
   stmt->state= MYSQL_STMT_EXECUTE_DONE;
   stmt->bind_result_done= FALSE;

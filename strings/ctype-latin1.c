@@ -379,7 +379,10 @@ int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
   if (str >= end)
     return MY_CS_TOOSMALL;
   
-  pl= uni_to_cs[(wc>>8) & 0xFF];
+  if (wc > 0xFFFF)
+    return MY_CS_ILUNI;
+  
+  pl= uni_to_cs[wc >> 8];
   str[0]= pl ? pl[wc & 0xFF] : '\0';
   return (!str[0] && wc) ? MY_CS_ILUNI : 1;
 }

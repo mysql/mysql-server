@@ -22,6 +22,8 @@
 
 #include <memory.h>
 
+#include "stub_server_misc.h"
+
 void test_no_instruments()
 {
   int rc;
@@ -43,6 +45,7 @@ void test_no_instruments()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "zero init");
@@ -83,6 +86,7 @@ void test_no_instances()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "no instances init");
@@ -142,10 +146,10 @@ void test_no_instances()
   ok(file == NULL, "no file");
   ok(file_lost == 5, "lost 5");
 
-  table= create_table(& dummy_table_share, NULL);
+  table= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table == NULL, "no table");
   ok(table_lost == 1, "lost 1");
-  table= create_table(& dummy_table_share, NULL);
+  table= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table == NULL, "no table");
   ok(table_lost == 2, "lost 2");
 
@@ -196,6 +200,7 @@ void test_with_instances()
   param.m_file_handle_sizing= 100;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "instances init");
@@ -292,17 +297,17 @@ void test_with_instances()
   ok(file_2 == NULL, "no file");
   ok(file_lost == 2, "lost");
 
-  table_1= create_table(& dummy_table_share, NULL);
+  table_1= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_1 != NULL, "table");
   ok(table_lost == 0, "not lost");
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 != NULL, "table");
   ok(table_lost == 0, "not lost");
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 == NULL, "no table");
   ok(table_lost == 1, "lost 1");
   destroy_table(table_1);
-  table_2= create_table(& dummy_table_share, NULL);
+  table_2= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_2 != NULL, "table");
   ok(table_lost == 1, "no new loss");
 
@@ -355,6 +360,7 @@ void test_per_thread_wait()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
+  param.m_setup_actor_sizing= 0;
 
   rc= init_instruments(& param);
   ok(rc == 0, "instances init");

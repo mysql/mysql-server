@@ -29,7 +29,10 @@ include/stop_slave.inc
 START SLAVE;
 ==== Verify that Slave_IO_Running = No ====
 Slave_IO_Running = No (should be No)
-==== Cleanup (Note that slave IO thread is not running) ====
-DROP TABLE t1;
+==== Cleanup ====
 [on master]
 DROP TABLE t1;
+[on slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='root', master_password='';
+include/start_slave.inc

@@ -37,7 +37,6 @@ let $message= Testcase for db level:;
         show grants for test_noprivs@localhost;
 
 # no trigger privilege->create trigger must fail:
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 let $message= no trigger privilege on db level for create:;
 --source include/show_msg.inc
@@ -47,7 +46,6 @@ let $message= no trigger privilege on db level for create:;
 		set new.f1 = 'trig 1_1-no';
 
 # user with minimum privs on t1->no trigger executed;
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	use priv_db;
 	insert into t1 (f1) values ('insert-yes');

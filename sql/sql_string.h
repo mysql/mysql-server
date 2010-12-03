@@ -91,9 +91,13 @@ public:
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return (void*) alloc_root(mem_root, (uint) size); }
-  static void operator delete(void *ptr_arg,size_t size)
-  { TRASH(ptr_arg, size); }
-  static void operator delete(void *ptr_arg, MEM_ROOT *mem_root)
+  static void operator delete(void *ptr_arg, size_t size)
+  {
+    (void) ptr_arg;
+    (void) size;
+    TRASH(ptr_arg, size);
+  }
+  static void operator delete(void *, MEM_ROOT *)
   { /* never called */ }
   ~String() { free(); }
 
@@ -104,7 +108,7 @@ public:
   inline uint32 alloced_length() const { return Alloced_length;}
   inline char& operator [] (uint32 i) const { return Ptr[i]; }
   inline void length(uint32 len) { str_length=len ; }
-  inline bool is_empty() { return (str_length == 0); }
+  inline bool is_empty() const { return (str_length == 0); }
   inline void mark_as_const() { Alloced_length= 0;}
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
@@ -196,7 +200,9 @@ public:
   */
   inline void chop()
   {
-    Ptr[str_length--]= '\0'; 
+    str_length--;
+    Ptr[str_length]= '\0';
+    DBUG_ASSERT(strlen(Ptr) == str_length);
   }
 
   inline void free()
@@ -265,8 +271,12 @@ public:
 	    CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
   bool append(const char *s);
-  bool append(const char *s,uint32 arg_length);
-  bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
+  bool append(LEX_STRING *ls)
+  {
+    return append(ls->str, ls->length);
+  }
+  bool append(const char *s, uint32 arg_length);
+  bool append(const char *s, uint32 arg_length, CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 

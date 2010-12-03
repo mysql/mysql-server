@@ -1072,8 +1072,6 @@ SELECT @x;
 NULL
 SET @x=2;
 UPDATE t1 SET i1 = @x;
-Warnings:
-Warning	1365	Division by 0
 SELECT @x;
 @x
 NULL
@@ -1085,9 +1083,6 @@ SELECT @x;
 NULL
 SET @x=4;
 UPDATE t1 SET i1 = @x;
-Warnings:
-Warning	1365	Division by 0
-Warning	1365	Division by 0
 SELECT @x;
 @x
 NULL
@@ -1198,8 +1193,6 @@ Warnings:
 Warning	1365	Division by 0
 create trigger t1_bi before insert on t1 for each row set @a:=1/0|
 insert into t1 values(20, 20)|
-Warnings:
-Warning	1365	Division by 0
 drop trigger t1_bi|
 create trigger t1_bi before insert on t1 for each row
 begin
@@ -1218,8 +1211,6 @@ set @a:=1/0;
 end|
 set @check=0, @t4_bi_called=0, @t4_bu_called=0|
 insert into t1 values(30, 30)|
-Warnings:
-Warning	1365	Division by 0
 select @check, @t4_bi_called, @t4_bu_called|
 @check	@t4_bi_called	@t4_bu_called
 2	1	1
@@ -1420,9 +1411,7 @@ create trigger t1_ai after insert on t1 for each row set @a := 7;
 create table t2 (j int);
 insert into t2 values (1), (2);
 set @a:="";
-create table if not exists t1 select * from t2;
-Warnings:
-Note	1050	Table 't1' already exists
+insert into t1 select * from t2;
 select * from t1;
 i
 7
@@ -1434,9 +1423,7 @@ drop trigger t1_bi;
 drop trigger t1_ai;
 create table t3 (isave int);
 create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
-create table if not exists t1 select * from t2;
-Warnings:
-Note	1050	Table 't1' already exists
+insert into t1 select * from t2;
 select * from t1;
 i
 7
@@ -1622,10 +1609,8 @@ After DELETE, old=REPLACE, inserting a new key
 After INSERT, new=REPLACE, deleting the duplicate
 truncate t1;
 truncate t1_op_log;
-create table if not exists t1
+insert into t1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
-Warnings:
-Note	1050	Table 't1' already exists
 set @id=last_insert_id();
 select * from t1;
 id	operation
@@ -1635,10 +1620,8 @@ operation
 Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 truncate t1_op_log;
-create table if not exists t1 replace
+replace into t1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
-Warnings:
-Note	1050	Table 't1' already exists
 select * from t1;
 id	operation
 1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
@@ -1817,10 +1800,8 @@ After DELETE, old=REPLACE, inserting a new key
 After INSERT, new=REPLACE, deleting the duplicate
 truncate t1;
 truncate t1_op_log;
-create table if not exists v1
+insert into v1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
-Warnings:
-Note	1050	Table 'v1' already exists
 set @id=last_insert_id();
 select * from t1;
 id	operation
@@ -1830,10 +1811,8 @@ operation
 Before INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 After INSERT, new=CREATE TABLE ... SELECT, inserting a new key
 truncate t1_op_log;
-create table if not exists v1 replace
+replace into v1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
-Warnings:
-Note	1050	Table 'v1' already exists
 select * from t1;
 id	operation
 1	CREATE TABLE ... REPLACE SELECT, deleting a duplicate key
@@ -2083,7 +2062,8 @@ BEGIN
 UPDATE a_nonextisting_table SET a = 1;
 END//
 CREATE TABLE IF NOT EXISTS t2 ( a INT, b INT ) SELECT a, b FROM t1;
-ERROR 42S02: Table 'test.a_nonextisting_table' doesn't exist
+Warnings:
+Note	1050	Table 't2' already exists
 SELECT * FROM t2;
 a	b
 DROP TABLE t1, t2;
@@ -2101,12 +2081,8 @@ SELECT 1 FROM t1 c WHERE
 END//
 SET @bug51650 = 1;
 INSERT IGNORE INTO t2 VALUES();
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 INSERT IGNORE INTO t1 SET b = '777';
 INSERT IGNORE INTO t2 SET a = '111';
-Warnings:
-Warning	1329	No data - zero rows fetched, selected, or processed
 SET @bug51650 = 1;
 INSERT IGNORE INTO t2 SET a = '777';
 DROP TRIGGER trg1;
@@ -2143,7 +2119,7 @@ CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1
 SHOW TRIGGERS IN db1;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 INSERT INTO t2 VALUES (1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'VALUES (1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1
 SELECT * FROM t1;
 b
 # Work around Bug#45235
@@ -2188,8 +2164,6 @@ SELECT 'ab' INTO a;
 SELECT 'a' INTO a;
 END|
 INSERT INTO t1 VALUES (1);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
 DROP TRIGGER trg1;
 DROP TABLE t1;
 DROP TRIGGER IF EXISTS trg1;
@@ -2207,20 +2181,12 @@ DECLARE trg2 CHAR;
 SELECT 'ab' INTO trg2;
 END|
 INSERT INTO t1 VALUES (0);
-Warnings:
-Warning	1265	Data truncated for column 'trg1' at row 1
-Warning	1265	Data truncated for column 'trg2' at row 1
 SELECT * FROM t1;
 a
 0
 SHOW WARNINGS;
 Level	Code	Message
 INSERT INTO t1 VALUES (1),(2);
-Warnings:
-Warning	1265	Data truncated for column 'trg1' at row 1
-Warning	1265	Data truncated for column 'trg2' at row 1
-Warning	1265	Data truncated for column 'trg1' at row 1
-Warning	1265	Data truncated for column 'trg2' at row 1
 DROP TRIGGER trg1;
 DROP TRIGGER trg2;
 DROP TABLE t1;

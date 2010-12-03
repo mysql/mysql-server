@@ -1,0 +1,117 @@
+#
+# WL#4033 & WL#5404
+# This test verifies if the query of the rows event
+# is displayed with its row event as comment in RBR
+# by SHOW BINLOG EVENTS and MYSQLBINLOG DUMP.
+# Verifies if the Rows_query log event can be applied
+# and relayed 
+#
+
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+source include/have_binlog_rows_query.inc;
+source include/have_innodb.inc;
+source include/have_debug.inc;
+
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
+--echo # Test non-transaction
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+create table t1(a int, b int) engine= myisam;
+insert into t1(a,b) values(1,1),(2,1);
+update t1 set a = a + 5 where b = 1 LIMIT 1;
+delete from t1 where a = 6;
+
+-- echo # Test transaction
+create table t2(a int, b int) engine=innodb;
+begin;
+insert into t2(a,b) values(2,1),(3,1);
+update t2 set a = a + 5 where b = 1;
+delete from t2 where a = 7;
+commit;
+
+--echo # Test mixed transaction
+begin;
+insert into t1(a,b) values(1,5);
+insert into t2(a,b) values(2,5);
+insert into t2(a,b) values(2,6);
+insert into t1(a,b) values(1,7);
+commit;
+
+drop table t1, t2;
+let $end_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+
+create table t3(a int, b int) engine= myisam;
+create table t4(a int, b int) engine= myisam;
+create table t5(a int, b int) engine= myisam;
+insert into t3(a, b) values(1,1);
+--echo # Test the Rows_query log event will be filtered out if slave applys
+--echo # '--replicate-ignore-table' option on the table
+insert into t4(a, b) values(2,1);
+--echo # Test the Rows_query log event will be relayed if slave
+--echo # filters out part Rows event from a rows statement
+update t3,t4 set t3.a=3, t4.a=4 where t3.b=t4.b;
+
+--echo # Test the Rows_query log event will be filtered out if slave applys
+--echo # '--replicate-wild-ignore-table' option on the table
+insert into t5(a, b) values(3,1);
+--echo # Test the Rows_query log event will be filtered out if slave filters
+--echo # out all its related tables by replication filtering rules
+update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
+
+--echo # Test insert delayed ...
+let $table=t3;
+insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
+let $count=4;
+--source include/wait_until_rows_count.inc
+SET @@global.debug= @old_debug;
+
+--echo # Test load data infile
+create table t6(a VARCHAR(60)) engine= myisam;
+load data infile '../../std_data/words.dat' into table t6;
+
+drop table t3, t6;
+drop table t4, t5;
+
+--echo # SHOW BINLOG EVENTS ON MASTER before '--exec MYSQL_BINLOG'
+source include/show_binlog_events.inc;
+
+--echo # MYSQL_BINLOG output base on master-bin.000001
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /TIMESTAMP=[0-9]*/TIMESTAMP=t/ /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /exec_time=[0-9]*/exec_time=#/ /error_code=[0-9]*/error_code=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /Start: binlog v [0-9]*/Start: binlog v#/ /created [0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* at startup/created # #:#:# at startup/ /[	 ]CRC32 0x[abcdef0-9]+//
+--exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/$master_binlog
+
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+--echo # Test the Rows_query log event can be applied
+--exec $MYSQL_BINLOG -v -v --stop-position=$end_pos $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1
+
+--echo # SHOW BINLOG EVENTS ON MASTER after '--exec MYSQL_BINLOG'
+source include/show_binlog_events.inc;
+
+connect (master2,localhost,root,,);
+connection master2;
+--echo # SHOW BINLOG EVENTS ON 2nd CONNECTION TO MASTE
+set @@session.binlog_rows_query_log_events= off;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+--echo # Test statements from the 2nd connection have no comment event
+--echo # when setting binlog_rows_query_log_events= off
+create table t7(a bigint) engine= myisam;
+insert into t7(a) values(1),(2);
+delete from t7 where a = 1;
+
+set session binlog_format=mixed;
+set @@session.binlog_rows_query_log_events= on;
+--echo # Test the comment event is sent in mixed mode for special
+--echo # functions when setting binlog_rows_query_log_events= on
+insert into t7(a) values(UUID_SHORT());
+drop table t7;
+source include/show_binlog_events.inc;
+
+sync_slave_with_master;
+--let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
+--echo # Test The Rows_query log event can be relayed.
+--echo # SHOW BINLOG EVENTS ON SLAVE
+source include/show_binlog_events.inc;
+

@@ -88,7 +88,10 @@ host
 plugin
 proc
 procs_priv
+proxies_priv
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
@@ -304,7 +307,7 @@ information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	
-1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer
+1	SIMPLE	#	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Using join buffer (BNL, regular buffers)
 select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
 mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 ROUTINE_NAME	name
@@ -684,6 +687,7 @@ Alter_routine_priv	select,insert,update,references
 max_questions	select,insert,update,references
 max_connections	select,insert,update,references
 max_user_connections	select,insert,update,references
+authentication_string	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -770,9 +774,9 @@ count(*)
 68
 drop view a2, a1;
 drop table t_crashme;
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
 table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
@@ -790,7 +794,9 @@ information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 table_name	column_name	data_type
 EVENTS	EXECUTE_AT	datetime
 EVENTS	STARTS	datetime
@@ -870,7 +876,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	30
-mysql	22
+mysql	25
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1476,7 +1482,7 @@ from information_schema.tables a, information_schema.columns b
 where a.table_name='t1' and a.table_schema='test' and b.table_name=a.table_name;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	a	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Skip_open_table; Scanned 0 databases
-1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer
+1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned all databases; Using join buffer (BNL, regular buffers)
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA
 WHERE SCHEMA_NAME = 'mysqltest';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
@@ -1839,3 +1845,47 @@ USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
 WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
+#
+# A test case for Bug#56540 "Exception (crash) in sql_show.cc
+# during rqg_info_schema test on Windows"
+# Ensure that we never access memory of a closed table,
+# in particular, never access table->field[] array.
+# Before the fix, the below test case, produced
+# valgrind errors.
+#
+drop table if exists t1;
+drop view if exists v1;
+create table t1 (a int, b int);
+create view v1 as select t1.a, t1.b from t1;
+alter table t1 change b c int;
+lock table t1 read;
+# --> connection con1
+flush tables;
+# --> connection default
+select * from information_schema.views;
+TABLE_CATALOG	def
+TABLE_SCHEMA	test
+TABLE_NAME	v1
+VIEW_DEFINITION	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`
+CHECK_OPTION	NONE
+IS_UPDATABLE	
+DEFINER	root@localhost
+SECURITY_TYPE	DEFINER
+CHARACTER_SET_CLIENT	latin1
+COLLATION_CONNECTION	latin1_swedish_ci
+Warnings:
+Level	Warning
+Code	1356
+Message	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+unlock tables;
+#
+# Cleanup.
+#
+# --> connection con1
+# Reaping 'flush tables'
+# --> connection default
+drop table t1;
+drop view v1;
+#
+# End of 5.5 tests
+#

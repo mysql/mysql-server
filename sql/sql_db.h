@@ -35,8 +35,8 @@ bool mysql_opt_change_db(THD *thd,
                          LEX_STRING *saved_db_name,
                          bool force_switch,
                          bool *cur_db_changed);
-bool my_database_names_init(void);
-void my_database_names_free(void);
+bool my_dboptions_cache_init(void);
+void my_dboptions_cache_free(void);
 bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 bool load_db_opt_by_name(THD *thd, const char *db_name,
@@ -44,9 +44,6 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
 CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name);
 bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
-
-extern int creating_database; // How many database locks are made
-extern HASH lock_db_cache;
 
 #define MY_DB_OPT_FILE "db.opt"
 

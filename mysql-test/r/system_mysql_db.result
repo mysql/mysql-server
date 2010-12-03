@@ -14,7 +14,10 @@ ndb_binlog_index
 plugin
 proc
 procs_priv
+proxies_priv
 servers
+slave_master_info
+slave_relay_log_info
 slow_log
 tables_priv
 time_zone
@@ -119,6 +122,8 @@ user	CREATE TABLE `user` (
   `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
   `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
   `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `plugin` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `authentication_string` text COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`Host`,`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
 show create table func;

@@ -551,10 +551,19 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   bitmap_clear_all(&sort_form->tmp_set);
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
-  register_used_fields(param);
+  // Include fields used for sorting in the read_set.
+  register_used_fields(param); 
+
+  // Include fields used by conditions in the read_set.
   if (select && select->cond)
     select->cond->walk(&Item::register_field_in_read_map, 1,
                        (uchar*) sort_form);
+
+  // Include fields used by pushed conditions in the read_set.
+  if (select && select->icp_cond)
+    select->icp_cond->walk(&Item::register_field_in_read_map, 1,
+                           (uchar*) sort_form);
+
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
   for (;;)
@@ -575,11 +584,11 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	  error= my_errno ? my_errno : -1;		/* Abort */
 	  break;
 	}
-	error=file->rnd_pos(sort_form->record[0],next_pos);
+	error= file->ha_rnd_pos(sort_form->record[0], next_pos);
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error= file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row

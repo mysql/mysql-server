@@ -21,20 +21,23 @@
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
+#include "table_setup_actors.h"
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
-#include "table_setup_objects.h"
 #include "table_setup_timers.h"
 #include "table_performance_timers.h"
-#include "table_processlist.h"
+#include "table_threads.h"
 #include "table_events_waits_summary.h"
+#include "table_ews_global_by_event_name.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
 #include "table_file_summary.h"
+#include "table_threads.h"
 
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+#include "pfs_setup_actor.h"
 #include "pfs_global.h"
 
 #include "sql_base.h"                           // close_thread_tables
@@ -47,24 +50,24 @@
 
 static PFS_engine_table_share *all_shares[]=
 {
+  &table_cond_instances::m_share,
   &table_events_waits_current::m_share,
-  &table_events_waits_history::m_share,
   &table_events_waits_history_long::m_share,
-  &table_setup_consumers::m_share,
-  &table_setup_instruments::m_share,
-  &table_setup_objects::m_share,
-  &table_setup_timers::m_share,
-  &table_performance_timers::m_share,
-  &table_processlist::m_share,
-  &table_events_waits_summary_by_thread_by_event_name::m_share,
-  &table_events_waits_summary_by_event_name::m_share,
+  &table_events_waits_history::m_share,
   &table_events_waits_summary_by_instance::m_share,
+  &table_events_waits_summary_by_thread_by_event_name::m_share,
+  &table_ews_global_by_event_name::m_share,
+  &table_file_instances::m_share,
   &table_file_summary_by_event_name::m_share,
   &table_file_summary_by_instance::m_share,
   &table_mutex_instances::m_share,
+  &table_performance_timers::m_share,
   &table_rwlock_instances::m_share,
-  &table_cond_instances::m_share,
-  &table_file_instances::m_share,
+  &table_setup_actors::m_share,
+  &table_setup_consumers::m_share,
+  &table_setup_instruments::m_share,
+  &table_setup_timers::m_share,
+  &table_threads::m_share,
   NULL
 };
 
@@ -79,7 +82,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
   DBUG_EXECUTE_IF("tampered_perfschema_table1",
                   {
                     /* Hack SETUP_INSTRUMENT, incompatible change. */
-                    all_shares[4]->m_field_def->count++;
+                    all_shares[15]->m_field_def->count++;
                   });
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
@@ -170,6 +173,45 @@ void PFS_engine_table_share::delete_all_locks(void)
     thr_lock_delete((*current)->m_thr_lock_ptr);
 }
 
+ha_rows PFS_engine_table_share::get_row_count(void) const
+{
+  /* If available, count the exact number or records */
+  if (m_get_row_count)
+    return m_get_row_count();
+  /* Otherwise, return an estimate */
+  return m_records;
+}
+
+int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,
+                                      Field **fields) const
+{
+  my_bitmap_map *org_bitmap;
+
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in m_write_row.
+  */
+  if (! m_checked)
+  {
+    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+             PERFORMANCE_SCHEMA_str.str, m_name);
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+  if (m_write_row == NULL)
+  {
+    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  /* We internally read from Fields to support the write interface */
+  org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+  int result= m_write_row(table, buf, fields);
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
+
+  return result;
+}
+
 static int compare_table_names(const char *name1, const char *name2)
 {
   /*
@@ -224,6 +266,8 @@ int PFS_engine_table::read_row(TABLE *table,
                                Field **fields)
 {
   my_bitmap_map *org_bitmap;
+  Field *f;
+  Field **fields_reset;
 
   /*
     Make sure the table structure is as expected before mapping
@@ -241,6 +285,16 @@ int PFS_engine_table::read_row(TABLE *table,
 
   /* We internally write to Fields to support the read interface */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
+
+  /*
+    Some callers of the storage engine interface do not honor the
+    f->is_null() flag, and will attempt to read the data itself.
+    A known offender is mysql_checksum_table().
+    For robustness, reset every field.
+  */
+  for (fields_reset= fields; (f= *fields_reset) ; fields_reset++)
+    f->reset();
+
   int result= read_row_values(table, buf, fields, read_all);
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
@@ -281,6 +335,39 @@ int PFS_engine_table::update_row(TABLE *table,
   return result;
 }
 
+int PFS_engine_table::delete_row(TABLE *table,
+                                 const unsigned char *buf,
+                                 Field **fields)
+{
+  my_bitmap_map *org_bitmap;
+
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in delete_row_values.
+  */
+  if (! m_share_ptr->m_checked)
+  {
+    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+  /* We internally read from Fields to support the delete interface */
+  org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+  int result= delete_row_values(table, buf, fields);
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
+
+  return result;
+}
+
+int PFS_engine_table::delete_row_values(TABLE *,
+                                        const unsigned char *,
+                                        Field **)
+{
+  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+  return HA_ERR_WRONG_COMMAND;
+}
+
 /**
   Get the position of the current row.
   @param [out] ref        position
@@ -313,11 +400,27 @@ void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
   f2->store(value, true);
 }
 
+void PFS_engine_table::set_field_char_utf8(Field *f, const char* str,
+                                           uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
 void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
                                               uint len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
+                                               uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
   f2->store(str, len, &my_charset_utf8_bin);
 }
 
@@ -333,6 +436,24 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2= (Field_enum*) f;
   return f2->val_int();
+}
+
+String*
+PFS_engine_table::get_field_char_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  val= f2->val_str(NULL, val);
+  return val;
+}
+
+String*
+PFS_engine_table::get_field_varchar_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  val= f2->val_str(NULL, val);
+  return val;
 }
 
 int PFS_engine_table::update_row_values(TABLE *,
@@ -742,11 +863,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= table_max * sizeof(PFS_table);
       total_memory+= size;
       break;
+    case 50:
+      name= "SETUP_ACTORS.ROW_SIZE";
+      size= sizeof(PFS_setup_actor);
+      break;
+    case 51:
+      name= "SETUP_ACTORS.ROW_COUNT";
+      size= setup_actor_max;
+      break;
+    case 52:
+      name= "SETUP_ACTORS.MEMORY";
+      size= setup_actor_max * sizeof(PFS_setup_actor);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 50:
+    case 53:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
       /* This will fail if something is not advertised here */
@@ -770,5 +904,4 @@ end:
 }
 
 /** @} */
-
 

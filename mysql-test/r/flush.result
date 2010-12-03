@@ -205,6 +205,51 @@ a
 insert into t2 (a) values (3);
 # --> connection default;
 unlock tables;
+#
+# Check that "FLUSH TABLES <list> WITH READ LOCK" is
+# compatible with active "FLUSH TABLES WITH READ LOCK".
+# Vice versa it is not true, since tables read-locked by
+# "FLUSH TABLES <list> WITH READ LOCK" can't be flushed.
+flush tables with read lock;
+# --> connection con1;
+flush table t1 with read lock;
+select * from t1;
+a
+1
+unlock tables;
+# --> connection default;
+unlock tables;
+#
+# Check that FLUSH TABLES t1 WITH READ LOCK
+# does not conflict with an existing FLUSH TABLES t2
+# WITH READ LOCK.
+#
+flush table t1 with read lock;
+# --> connection con1
+flush table t2 with read lock;
+unlock tables;
+# --> connection default
+unlock tables;
+#
+# Check that FLUSH TABLES t1 WITH READ LOCK
+# does not conflict with SET GLOBAL read_only=1.
+#
+set global read_only=1;
+# connection con1
+flush table t1 with read lock;
+unlock tables;
+# connection default
+set global read_only=0;
+#
+# Check that it's possible to read-lock 
+# tables locked with FLUSH TABLE <list> WITH READ LOCK.
+#
+flush tables t1, t2 with read lock;
+# connection con1
+lock table t1 read, t2 read;
+unlock tables;
+# connection default
+unlock tables;
 # --> connection con1
 drop table t1, t2, t3;
 #
@@ -234,3 +279,175 @@ drop temporary table v1;
 unlock tables;
 drop view v2, v3;
 drop table t1, v1;
+# 
+# FLUSH TABLES <list> WITH READ LOCK and HANDLER
+# 
+drop table if exists t1;
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3);
+handler t1 open;
+handler t1 read a next;
+a
+1
+handler t1 read a next;
+a
+2
+flush tables t1 with read lock;
+handler t1 read a next;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+#
+# Sic: lost handler position.
+#
+handler t1 read a next;
+a
+1
+handler t1 close;
+drop table t1;
+#
+# Bug#52117 Pending FLUSH TALBES <list> aborts
+# transactions unnecessarily.
+#
+drop table if exists t1;
+# --> conection default
+create table t1 (a int);
+begin;
+select * from t1;
+a
+# --> connection con1
+# 
+# Issue a LOCK TABLE t1 READ. We could use HANDLER t1 OPEN
+# or a long-running select -- anything that
+# prevents FLUSH TABLE t1 from immediate completion would do.
+#
+lock table t1 read;
+# --> connection con2
+#
+# FLUSH TABLE expels the table definition from the cache.
+# Sending 'flush table t1'...
+flush table t1;
+# --> connection default
+# Let flush table sync in.
+select * from t1;
+# --> connection con1 
+select * from t1;
+a
+unlock tables;
+# --> connection con2 
+# Reaping 'flush table t1'...
+# --> connection default 
+# Reaping 'select * from t1'...
+a
+commit;
+#
+# Repeat the same test but with FLUSH TABLES
+#
+begin;
+select * from t1;
+a
+# --> connection con1
+# 
+# Issue a LOCK TABLE t1 READ.
+#
+lock table t1 read;
+# --> connection con2
+#
+# FLUSH TABLES expels the table definition from the cache.
+# Sending 'flush tables'...
+flush tables;
+# --> connection default
+# Let flush table sync in.
+select * from t1;
+# --> connection con1 
+select * from t1;
+a
+unlock tables;
+# --> connection con2 
+# Reaping 'flush tables'...
+# --> connection default 
+# Reaping 'select * from t1'...
+a
+commit;
+# Cleanup
+# --> connection con1
+# --> connection con2
+# --> connection default
+drop table t1;
+#
+# Test for bug #55273 "FLUSH TABLE tm WITH READ LOCK for Merge table
+#                      causes assert failure".
+#
+drop table if exists t1, t2, tm;
+create table t1 (i int);
+create table t2 (i int);
+create table tm (i int) engine=merge union=(t1, t2);
+insert into t1 values (1), (2);
+insert into t2 values (3), (4);
+# The below statement should succeed and lock merge
+# table for read. Only merge table gets flushed and
+# not underlying tables.
+flush tables tm with read lock;
+select * from tm;
+i
+1
+2
+3
+4
+# Check that underlying tables are locked.
+select * from t1;
+i
+1
+2
+select * from t2;
+i
+3
+4
+unlock tables;
+# This statement should succeed as well and flush
+# all tables in the list.
+flush tables tm, t1, t2 with read lock;
+select * from tm;
+i
+1
+2
+3
+4
+# Naturally, underlying tables should be locked in this case too.
+select * from t1;
+i
+1
+2
+select * from t2;
+i
+3
+4
+unlock tables;
+drop tables tm, t1, t2;
+#
+# Test for bug #57006 "Deadlock between HANDLER and
+#                      FLUSH TABLES WITH READ LOCK".
+#
+drop table if exists t1, t2;
+create table t1 (i int);
+create table t2 (i int);
+handler t1 open;
+# Switching to connection 'con1'.
+# Sending:
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL starts waiting for 't1' to be closed.
+# Switching to connection 'default'.
+# The below statement should not cause deadlock.
+# Sending:
+insert into t2 values (1);
+# Switching to connection 'con2'.
+# Wait until INSERT starts to wait for FTWRL to go away.
+# Switching to connection 'con1'.
+# FTWRL should be able to continue now.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+# Reap INSERT.
+handler t1 close;
+# Cleanup.
+drop tables t1, t2;

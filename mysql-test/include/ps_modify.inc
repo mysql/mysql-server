@@ -254,6 +254,7 @@ set @arg02=82 ;
 set @arg03='8-2' ;
 prepare stmt1 from 'insert into t1 values(?,?),(?,?)';
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
+--sorted_result
 select a,b from t1 where a in (@arg00,@arg02) ;
 
 ## insert with two parameter in the set part

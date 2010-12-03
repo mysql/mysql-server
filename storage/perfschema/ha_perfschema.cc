@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_pthread.h"
+#include "my_atomic.h"
 #include "sql_plugin.h"
 #include "mysql/plugin.h"
 #include "ha_perfschema.h"
@@ -27,6 +28,17 @@
 #include "pfs_column_values.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
+
+#ifdef MY_ATOMIC_MODE_DUMMY
+/*
+  The performance schema can can not function with MY_ATOMIC_MODE_DUMMY,
+  a fully functional implementation of MY_ATOMIC should be used instead.
+  If the build fails with this error message:
+  - either use a different ./configure --with-atomic-ops option
+  - or do not build with the performance schema.
+*/
+#error "The performance schema needs a functional MY_ATOMIC implementation."
+#endif
 
 handlerton *pfs_hton= NULL;
 
@@ -68,7 +80,8 @@ static int pfs_init_func(void *p)
   pfs_hton->show_status= pfs_show_status;
   pfs_hton->flags= HTON_ALTER_NOT_SUPPORTED |
     HTON_TEMPORARY_NOT_SUPPORTED |
-    HTON_NO_PARTITION;
+    HTON_NO_PARTITION |
+    HTON_NO_BINLOG_ROW_OPT;
 
   /*
     As long as the server implementation keeps using legacy_db_type,
@@ -186,8 +199,6 @@ int ha_perfschema::open(const char *name, int mode, uint test_if_locked)
   thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
   ref_length= m_table_share->m_ref_length;
 
-  psi_open();
-
   DBUG_RETURN(0);
 }
 
@@ -197,8 +208,6 @@ int ha_perfschema::close(void)
   m_table_share= NULL;
   delete m_table;
   m_table= NULL;
-
-  psi_close();
 
   DBUG_RETURN(0);
 }
@@ -212,13 +221,7 @@ int ha_perfschema::write_row(uchar *buf)
   ha_statistic_increment(&SSV::ha_write_count);
   DBUG_ASSERT(m_table_share);
 
-  if (m_table_share->m_write_row)
-    result= m_table_share->m_write_row(table, buf, table->field);
-  else
-  {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
-    result= HA_ERR_WRONG_COMMAND;
-  }
+  result= m_table_share->write_row(table, buf, table->field);
 
   DBUG_RETURN(result);
 }
@@ -240,6 +243,15 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
 
   DBUG_ASSERT(m_table);
   int result= m_table->update_row(table, old_data, new_data, table->field);
+  DBUG_RETURN(result);
+}
+
+int ha_perfschema::delete_row(const uchar *buf)
+{
+  DBUG_ENTER("ha_perfschema::delete_row");
+
+  DBUG_ASSERT(m_table);
+  int result= m_table->delete_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
 
@@ -310,7 +322,7 @@ int ha_perfschema::info(uint flag)
   DBUG_ENTER("ha_perfschema::info");
   DBUG_ASSERT(m_table_share);
   if (flag & HA_STATUS_VARIABLE)
-    stats.records= m_table_share->m_records;
+    stats.records= m_table_share->get_row_count();
   if (flag & HA_STATUS_CONST)
     ref_length= m_table_share->m_ref_length;
   DBUG_RETURN(0);
@@ -331,6 +343,11 @@ int ha_perfschema::delete_all_rows(void)
     result= HA_ERR_WRONG_COMMAND;
   }
   DBUG_RETURN(result);
+}
+
+int ha_perfschema::truncate()
+{
+  return delete_all_rows();
 }
 
 THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,

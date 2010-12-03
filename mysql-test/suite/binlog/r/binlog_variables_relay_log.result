@@ -1,0 +1,17 @@
+SHOW VARIABLES LIKE 'relay_log%';
+Variable_name	relay_log
+Value	other-relay
+Variable_name	relay_log_basename
+Value	MYSQLTEST_VARDIR/mysqld.1/data/other-relay
+Variable_name	relay_log_index
+Value	MYSQLTEST_VARDIR/mysqld.1/data/other-relay.index
+Variable_name	relay_log_info_file
+Value	relay-log.info
+Variable_name	relay_log_info_repository
+Value	FILE
+Variable_name	relay_log_purge
+Value	ON
+Variable_name	relay_log_recovery
+Value	OFF
+Variable_name	relay_log_space_limit
+Value	0

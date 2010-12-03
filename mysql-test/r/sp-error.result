@@ -466,7 +466,7 @@ drop table t5;
 end|
 create table t5 (x int)|
 call bug3294()|
-ERROR 42S02: Unknown table 't5'
+ERROR 42S02: Unknown table 'test.t5'
 drop procedure bug3294|
 drop procedure if exists bug8776_1|
 drop procedure if exists bug8776_2|
@@ -1344,6 +1344,8 @@ set @in_func := 0;
 select func_20713_a();
 func_20713_a()
 NULL
+Warnings:
+Error	1146	Table 'test.bogus_table_20713' doesn't exist
 select @in_func;
 @in_func
 2
@@ -1351,6 +1353,8 @@ set @in_func := 0;
 select func_20713_b();
 func_20713_b()
 NULL
+Warnings:
+Error	1146	Table 'test.bogus_table_20713' doesn't exist
 select @in_func;
 @in_func
 2
@@ -1563,7 +1567,7 @@ f2()
 1
 drop function f2;
 drop table t2;
-ERROR 42S02: Unknown table 't2'
+ERROR 42S02: Unknown table 'test.t2'
 End of 5.1 tests
 drop procedure if exists proc_33983_a;
 drop procedure if exists proc_33983_b;
@@ -1714,3 +1718,277 @@ DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#23032: Handlers declared in a SP do not handle warnings generated in sub-SP
+#
+
+# - Case 1
+
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+DROP PROCEDURE IF EXISTS p6;
+CREATE PROCEDURE p1()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+SELECT 1;
+CALL p2();
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+END|
+CALL p1();
+CAST('10 ' as unsigned integer)
+10
+1
+1
+CAST('10 ' as unsigned integer)
+10
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+# - Case 2
+
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c INT DEFAULT 0;
+DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
+CALL p2();
+CALL p3();
+CALL p4();
+SELECT c;
+SELECT @@warning_count;
+SHOW WARNINGS;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+END|
+CREATE PROCEDURE p3()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+SELECT 1;
+END|
+CREATE PROCEDURE p4()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+CALL p2();
+END|
+CREATE PROCEDURE p5()
+BEGIN
+SELECT CAST('10 ' as unsigned integer);
+SHOW WARNINGS;
+END|
+CREATE PROCEDURE P6()
+BEGIN
+DECLARE c INT DEFAULT 0;
+DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
+CALL p5();
+SELECT c;
+END|
+CALL p1();
+CAST('10 ' as unsigned integer)
+10
+CAST('10 ' as unsigned integer)
+10
+1
+1
+CAST('10 ' as unsigned integer)
+10
+CAST('10 ' as unsigned integer)
+10
+c
+3
+@@warning_count
+1
+Level	Code	Message
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+CALL p6();
+CAST('10 ' as unsigned integer)
+10
+Level	Code	Message
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+c
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+
+# - Case 3: check that "Exception trumps No Data".
+
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c CURSOR FOR SELECT a FROM t1;
+OPEN c;
+BEGIN
+DECLARE v1 INT;
+DECLARE v2 INT;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+SELECT "Error caught (expected)";
+DECLARE EXIT HANDLER FOR NOT FOUND
+SELECT "End of Result Set found!";
+WHILE TRUE DO
+FETCH c INTO v1, v2;
+END WHILE;
+END;
+CLOSE c;
+SELECT a INTO @foo FROM t1 LIMIT 1; # Clear warning stack
+END|
+CALL p1();
+Error caught (expected)
+Error caught (expected)
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#
+# Bug#36185: Incorrect precedence for warning and exception handlers
+#
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (a INT, b INT NOT NULL);
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'warning';
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'exception';
+INSERT INTO t1 VALUES (CAST('10 ' AS SIGNED), NULL);
+END|
+CALL p1();
+exception
+exception
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '10 '
+Error	1048	Column 'b' cannot be null
+DROP TABLE t1;
+DROP PROCEDURE p1;
+#
+# Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+DECLARE EXIT HANDLER FOR SQLWARNING
+SET NEW.a = 10;
+SET NEW.a = 99999999999;
+END|
+UPDATE t1 SET b = 20;
+SHOW WARNINGS;
+Level	Code	Message
+SELECT * FROM t1;
+a	b
+10	20
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+#
+# Bug#9857: Stored procedures: handler for sqlwarning ignored
+#
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode = traditional;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLWARNING
+SELECT 'warning caught (expected)';
+SELECT 5 / 0;
+END|
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+SELECT 'error caught (unexpected)';
+SELECT 5 / 0;
+END|
+CALL p1();
+5 / 0
+NULL
+warning caught (expected)
+warning caught (expected)
+Warnings:
+Warning	1365	Division by 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1365	Division by 0
+CALL p2();
+5 / 0
+NULL
+Warnings:
+Warning	1365	Division by 0
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1365	Division by 0
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+SET sql_mode = @sql_mode_saved;
+#
+# Bug#55850: Trigger warnings not cleared.
+#
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT,
+d SMALLINT, e SMALLINT, f SMALLINT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+INSERT INTO t2(a, b, c) VALUES(99999, 99999, 99999);
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
+INSERT INTO t2(d, e, f) VALUES(99999, 99999, 99999);
+CREATE PROCEDURE p1()
+INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+CALL p1();
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+Warning	1264	Out of range value for column 'y' at row 1
+Warning	1264	Out of range value for column 'z' at row 1
+
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1264	Out of range value for column 'x' at row 1
+Warning	1264	Out of range value for column 'y' at row 1
+Warning	1264	Out of range value for column 'z' at row 1
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;
+# ----------------------------------------------------------------------
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+INSERT INTO t2 VALUES(
+CAST('111111 ' AS SIGNED),
+CAST('222222 ' AS SIGNED),
+NULL);
+END|
+CREATE PROCEDURE p1()
+INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+CALL p1();
+ERROR 23000: Column 'c' cannot be null
+
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1264	Out of range value for column 'x' at row 1
+Warning	1264	Out of range value for column 'y' at row 1
+Warning	1264	Out of range value for column 'z' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '111111 '
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '222222 '
+Warning	1264	Out of range value for column 'b' at row 1
+Error	1048	Column 'c' cannot be null
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;

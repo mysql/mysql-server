@@ -346,32 +346,32 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
 1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
 explain select * from t1,t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c,c_2	c	5	const	1	Using where
+1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
 explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
@@ -430,7 +430,7 @@ a	b	c
 drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
 INSERT t1 VALUES ("can \tcan");
 INSERT t1 VALUES ("can   can");
@@ -1079,6 +1079,8 @@ length(c1)	c1
 DROP TABLE t1;
 End of 4.1 tests
 set storage_engine=MyISAM;
+Warnings:
+Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1232,7 +1234,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1408,7 +1410,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1675,6 +1677,8 @@ drop table t1;
 create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
 set storage_engine=MyISAM;
+Warnings:
+Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
 create table t1 (a int);
@@ -2415,6 +2419,33 @@ DROP TABLE t1;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 End of 5.1 tests
+#
+# Bug#43600: Incorrect type conversion caused wrong result.
+#
+CREATE TABLE t1 (
+a int NOT NULL
+) engine= myisam;
+CREATE TABLE t2 (
+a int NOT NULL,
+b int NOT NULL,
+filler char(100) DEFAULT NULL,
+KEY a (a,b)
+) engine= myisam;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
+explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using index condition
+select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+a	a	b	filler
+0	0	1	filler
+1	1	1	filler
+2	2	1	filler
+3	3	1	filler
+4	4	1	filler
+drop table t1,t2;
+# End of test case for the bug#43600
 #
 # Bug#51327 MyISAM table is automatically repaired on ALTER
 #           even if myisam-recover is OFF

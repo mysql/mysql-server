@@ -660,7 +660,7 @@ retry_page_get:
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}
 
-	ut_ad(0 == ut_dulint_cmp(index->id, btr_page_get_index_id(page)));
+	ut_ad(index->id == btr_page_get_index_id(page));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
 		/* We are in the root node */
@@ -854,8 +854,7 @@ btr_cur_open_at_index_side_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
-		ut_ad(0 == ut_dulint_cmp(index->id,
-					 btr_page_get_index_id(page)));
+		ut_ad(index->id == btr_page_get_index_id(page));
 
 		block->check_index_page_at_flush = TRUE;
 
@@ -975,8 +974,7 @@ btr_cur_open_at_rnd_pos_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
-		ut_ad(0 == ut_dulint_cmp(index->id,
-					 btr_page_get_index_id(page)));
+		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -1073,7 +1071,7 @@ btr_cur_ins_lock_and_undo(
 				not zero, the parameters index and thr
 				should be specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
+	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ibool*		inherit)/*!< out: TRUE if the inserted new record maybe
@@ -1135,7 +1133,7 @@ btr_cur_trx_report(
 	const char*		op)	/*!< in: operation */
 {
 	fprintf(stderr, "Trx with id " TRX_ID_FMT " going to ",
-		TRX_ID_PREP_PRINTF(trx->id));
+		(ullint) trx->id);
 	fputs(op, stderr);
 	dict_index_name_print(stderr, trx, index);
 	putc('\n', stderr);
@@ -1746,7 +1744,7 @@ func_exit:
 See if there is enough place in the page modification log to log
 an update-in-place.
 @return	TRUE if enough place */
-static
+UNIV_INTERN
 ibool
 btr_cur_update_alloc_zip(
 /*=====================*/
@@ -1826,7 +1824,7 @@ btr_cur_update_in_place(
 	page_zip_des_t*	page_zip;
 	ulint		err;
 	rec_t*		rec;
-	roll_ptr_t	roll_ptr	= ut_dulint_zero;
+	roll_ptr_t	roll_ptr	= 0;
 	trx_t*		trx;
 	ulint		was_delete_marked;
 	mem_heap_t*	heap		= NULL;
@@ -1956,7 +1954,6 @@ btr_cur_optimistic_update(
 	page_t*		page;
 	page_zip_des_t*	page_zip;
 	rec_t*		rec;
-	rec_t*		orig_rec;
 	ulint		max_size;
 	ulint		new_rec_size;
 	ulint		old_rec_size;
@@ -1970,7 +1967,7 @@ btr_cur_optimistic_update(
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
-	orig_rec = rec = btr_cur_get_rec(cursor);
+	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -3155,6 +3152,7 @@ btr_cur_add_path_info(
 {
 	btr_path_t*	slot;
 	rec_t*		rec;
+	page_t*		page;
 
 	ut_a(cursor->path_arr);
 
@@ -3177,8 +3175,156 @@ btr_cur_add_path_info(
 
 	slot = cursor->path_arr + (root_height - height);
 
+	page = page_align(rec);
+
 	slot->nth_rec = page_rec_get_n_recs_before(rec);
-	slot->n_recs = page_get_n_recs(page_align(rec));
+	slot->n_recs = page_get_n_recs(page);
+	slot->page_no = page_get_page_no(page);
+	slot->page_level = btr_page_get_level_low(page);
+}
+
+/*******************************************************************//**
+Estimate the number of rows between slot1 and slot2 for any level on a
+B-tree. This function starts from slot1->page and reads a few pages to
+the right, counting their records. If we reach slot2->page quickly then
+we know exactly how many records there are between slot1 and slot2 and
+we set is_n_rows_exact to TRUE. If we cannot reach slot2->page quickly
+then we calculate the average number of records in the pages scanned
+so far and assume that all pages that we did not scan up to slot2->page
+contain the same number of records, then we multiply that average to
+the number of pages between slot1->page and slot2->page (which is
+n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
+@return	number of rows (exact or estimated) */
+static
+ib_int64_t
+btr_estimate_n_rows_in_range_on_level(
+/*==================================*/
+	dict_index_t*	index,			/*!< in: index */
+	btr_path_t*	slot1,			/*!< in: left border */
+	btr_path_t*	slot2,			/*!< in: right border */
+	ib_int64_t	n_rows_on_prev_level,	/*!< in: number of rows
+						on the previous level for the
+						same descend paths; used to
+						determine the numbe of pages
+						on this level */
+	ibool*		is_n_rows_exact)	/*!< out: TRUE if the returned
+						value is exact i.e. not an
+						estimation */
+{
+	ulint		space;
+	ib_int64_t	n_rows;
+	ulint		n_pages_read;
+	ulint		page_no;
+	ulint		zip_size;
+	ulint		level;
+
+	space = dict_index_get_space(index);
+
+	n_rows = 0;
+	n_pages_read = 0;
+
+	/* Assume by default that we will scan all pages between
+	slot1->page_no and slot2->page_no */
+	*is_n_rows_exact = TRUE;
+
+	/* add records from slot1->page_no which are to the right of
+	the record which serves as a left border of the range, if any */
+	if (slot1->nth_rec < slot1->n_recs) {
+		n_rows += slot1->n_recs - slot1->nth_rec;
+	}
+
+	/* add records from slot2->page_no which are to the left of
+	the record which servers as a right border of the range, if any */
+	if (slot2->nth_rec > 1) {
+		n_rows += slot2->nth_rec - 1;
+	}
+
+	/* count the records in the pages between slot1->page_no and
+	slot2->page_no (non inclusive), if any */
+
+	zip_size = fil_space_get_zip_size(space);
+
+	/* Do not read more than this number of pages in order not to hurt
+	performance with this code which is just an estimation. If we read
+	this many pages before reaching slot2->page_no then we estimate the
+	average from the pages scanned so far */
+#	define N_PAGES_READ_LIMIT	10
+
+	page_no = slot1->page_no;
+	level = slot1->page_level;
+
+	do {
+		mtr_t		mtr;
+		page_t*		page;
+		buf_block_t*	block;
+
+		mtr_start(&mtr);
+
+		/* fetch the page */
+		block = buf_page_get(space, zip_size, page_no, RW_S_LATCH,
+				     &mtr);
+
+		page = buf_block_get_frame(block);
+
+		/* It is possible that the tree has been reorganized in the
+		meantime and this is a different page. If this happens the
+		calculated estimate will be bogus, which is not fatal as
+		this is only an estimate. We are sure that a page with
+		page_no exists because InnoDB never frees pages, only
+		reuses them. */
+		if (fil_page_get_type(page) != FIL_PAGE_INDEX
+		    || btr_page_get_index_id(page) != index->id
+		    || btr_page_get_level_low(page) != level) {
+
+			/* The page got reused for something else */
+			mtr_commit(&mtr);
+			goto inexact;
+		}
+
+		n_pages_read++;
+
+		if (page_no != slot1->page_no) {
+			/* Do not count the records on slot1->page_no,
+			we already counted them before this loop. */
+			n_rows += page_get_n_recs(page);
+		}
+
+		page_no = btr_page_get_next(page, &mtr);
+
+		mtr_commit(&mtr);
+
+		if (n_pages_read == N_PAGES_READ_LIMIT
+		    || page_no == FIL_NULL) {
+			/* Either we read too many pages or
+			we reached the end of the level without passing
+			through slot2->page_no, the tree must have changed
+			in the meantime */
+			goto inexact;
+		}
+
+	} while (page_no != slot2->page_no);
+
+	return(n_rows);
+
+inexact:
+
+	*is_n_rows_exact = FALSE;
+
+	/* We did interrupt before reaching slot2->page */
+
+	if (n_pages_read > 0) {
+		/* The number of pages on this level is
+		n_rows_on_prev_level, multiply it by the
+		average number of recs per page so far */
+		n_rows = n_rows_on_prev_level
+			* n_rows / n_pages_read;
+	} else {
+		/* The tree changed before we could even
+		start with slot1->page_no */
+		n_rows = 10;
+	}
+
+	return(n_rows);
 }
 
 /*******************************************************************//**
@@ -3203,6 +3349,7 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged_lot;
 	ulint		divergence_level;
 	ib_int64_t	n_rows;
+	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -3245,6 +3392,7 @@ btr_estimate_n_rows_in_range(
 	/* We have the path information for the range in path1 and path2 */
 
 	n_rows = 1;
+	is_n_rows_exact = TRUE;
 	diverged = FALSE;	    /* This becomes true when the path is not
 				    the same any more */
 	diverged_lot = FALSE;	    /* This becomes true when the paths are
@@ -3260,7 +3408,7 @@ btr_estimate_n_rows_in_range(
 		if (slot1->nth_rec == ULINT_UNDEFINED
 		    || slot2->nth_rec == ULINT_UNDEFINED) {
 
-			if (i > divergence_level + 1) {
+			if (i > divergence_level + 1 && !is_n_rows_exact) {
 				/* In trees whose height is > 1 our algorithm
 				tends to underestimate: multiply the estimate
 				by 2: */
@@ -3272,7 +3420,9 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2) {
+			if (n_rows > index->table->stat_n_rows / 2
+			    && !is_n_rows_exact) {
+
 				n_rows = index->table->stat_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
@@ -3298,10 +3448,15 @@ btr_estimate_n_rows_in_range(
 					divergence_level = i;
 				}
 			} else {
-				/* Maybe the tree has changed between
-				searches */
-
-				return(10);
+				/* It is possible that
+				slot1->nth_rec >= slot2->nth_rec
+				if, for example, we have a single page
+				tree which contains (inf, 5, 6, supr)
+				and we select where x > 20 and x < 30;
+				in this case slot1->nth_rec will point
+				to the supr record and slot2->nth_rec
+				will point to 6 */
+				n_rows = 0;
 			}
 
 		} else if (diverged && !diverged_lot) {
@@ -3325,8 +3480,9 @@ btr_estimate_n_rows_in_range(
 			}
 		} else if (diverged_lot) {
 
-			n_rows = (n_rows * (slot1->n_recs + slot2->n_recs))
-				/ 2;
+			n_rows = btr_estimate_n_rows_in_range_on_level(
+				index, slot1, slot2, n_rows,
+				&is_n_rows_exact);
 		}
 	}
 }
@@ -3334,7 +3490,9 @@ btr_estimate_n_rows_in_range(
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals. */
+The estimates are stored in the array index->stat_n_diff_key_vals[] and
+the number of pages that were sampled is saved in
+index->stat_n_sample_sizes[]. */
 UNIV_INTERN
 void
 btr_estimate_number_of_different_key_vals(
@@ -3369,14 +3527,14 @@ btr_estimate_number_of_different_key_vals(
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
-	if (srv_stats_sample_pages > index->stat_index_size) {
+	if (srv_stats_transient_sample_pages > index->stat_index_size) {
 		if (index->stat_index_size > 0) {
 			n_sample_pages = index->stat_index_size;
 		} else {
 			n_sample_pages = 1;
 		}
 	} else {
-		n_sample_pages = srv_stats_sample_pages;
+		n_sample_pages = srv_stats_transient_sample_pages;
 	}
 
 	/* We sample some pages in the index to get an estimate */
@@ -3477,8 +3635,6 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	dict_index_stat_mutex_enter(index);
-
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3506,9 +3662,9 @@ btr_estimate_number_of_different_key_vals(
 		}
 
 		index->stat_n_diff_key_vals[j] += add_on;
-	}
 
-	dict_index_stat_mutex_exit(index);
+		index->stat_n_sample_sizes[j] = n_sample_pages;
+	}
 
 	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -3605,9 +3761,10 @@ btr_cur_set_ownership_of_extern_field(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
@@ -3621,13 +3778,14 @@ btr_cur_mark_extern_inherited_fields(
 	ulint	n;
 	ulint	j;
 	ulint	i;
+	ibool	change_ownership = FALSE;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 
 	if (!rec_offs_any_extern(offsets)) {
 
-		return;
+		return(FALSE);
 	}
 
 	n = rec_offs_n_fields(offsets);
@@ -3650,10 +3808,14 @@ btr_cur_mark_extern_inherited_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
+
+			change_ownership = TRUE;
 updated:
 			;
 		}
 	}
+
+	return(change_ownership);
 }
 
 /*******************************************************************//**
@@ -3882,7 +4044,6 @@ btr_blob_free(
 	mtr_commit(mtr);
 
 	buf_pool_mutex_enter(buf_pool);
-	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
@@ -3903,7 +4064,6 @@ btr_blob_free(
 	}
 
 	buf_pool_mutex_exit(buf_pool);
-	mutex_exit(&block->mutex);
 }
 
 /*******************************************************************//**
@@ -3911,7 +4071,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or error */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
 btr_store_big_rec_extern_fields(
@@ -4401,17 +4561,20 @@ btr_free_externally_stored_field(
 	}
 
 	for (;;) {
+#ifdef UNIV_SYNC_DEBUG
 		buf_block_t*	rec_block;
+#endif /* UNIV_SYNC_DEBUG */
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
 
-		rec_block = buf_page_get(page_get_space_id(
-						 page_align(field_ref)),
-					 rec_zip_size,
-					 page_get_page_no(
-						 page_align(field_ref)),
-					 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		rec_block =
+#endif /* UNIV_SYNC_DEBUG */
+		buf_page_get(page_get_space_id(page_align(field_ref)),
+			     rec_zip_size,
+			     page_get_page_no(page_align(field_ref)),
+			     RW_X_LATCH, &mtr);
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
 
@@ -4936,7 +5099,7 @@ btr_copy_externally_stored_field(
 
 /*******************************************************************//**
 Copies an externally stored field of a record to mem heap.
-@return	the field copied to heap */
+@return	the field copied to heap, or NULL if the field is incomplete */
 UNIV_INTERN
 byte*
 btr_rec_copy_externally_stored_field(
@@ -4965,6 +5128,18 @@ btr_rec_copy_externally_stored_field(
 	the extern bit is available in those two bytes. */
 
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	if (UNIV_UNLIKELY
+	    (!memcmp(data + local_len - BTR_EXTERN_FIELD_REF_SIZE,
+		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+		/* The externally stored field was not written yet.
+		This record should only be seen by
+		recv_recovery_rollback_active() or any
+		TRX_ISO_READ_UNCOMMITTED transactions. */
+		return(NULL);
+	}
 
 	return(btr_copy_externally_stored_field(len, data,
 						zip_size, local_len, heap));

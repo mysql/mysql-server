@@ -148,12 +148,12 @@ f1()
 # Sending 'drop procedure p1'...
 drop procedure p1;
 # --> connection con2 
-# Waitng for 'drop procedure t1' to get blocked on MDL lock...
+# Waiting for 'drop procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -174,12 +174,12 @@ f1()
 # Sending 'create procedure p1'...
 create procedure p1() begin end;
 # --> connection con2 
-# Waitng for 'create procedure t1' to get blocked on MDL lock...
+# Waiting for 'create procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -200,12 +200,12 @@ f1()
 # Sending 'alter procedure p1'...
 alter procedure p1 contains sql;
 # --> connection con2 
-# Waitng for 'alter procedure t1' to get blocked on MDL lock...
+# Waiting for 'alter procedure t1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -226,12 +226,12 @@ f1()
 # Sending 'drop function f1'...
 drop function f1;
 # --> connection con2 
-# Waitng for 'drop function f1' to get blocked on MDL lock...
+# Waiting for 'drop function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -252,12 +252,12 @@ f1()
 # Sending 'create function f1'...
 create function f1() returns int return 2;
 # --> connection con2 
-# Waitng for 'create function f1' to get blocked on MDL lock...
+# Waiting for 'create function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -279,12 +279,12 @@ f1()
 # Sending 'alter function f1'...
 alter function f1 contains sql;
 # --> connection con2 
-# Waitng for 'alter function f1' to get blocked on MDL lock...
+# Waiting for 'alter function f1' to get blocked on MDL lock...
 # Demonstrate that there is a pending exclusive lock.
 # Sending 'select f1()'...
 select f1();
 # --> connection con3
-# Waitng for 'select f1()' to get blocked by a pending MDL lock...
+# Waiting for 'select f1()' to get blocked by a pending MDL lock...
 # --> connection default
 commit;
 # --> connection con1
@@ -360,7 +360,7 @@ insert into t1 (a) values (1);
 # Sending 'drop function f1'
 drop function f1;
 # --> connection con2 
-# Waitng for 'drop function f1' to get blocked on MDL lock...
+# Waiting for 'drop function f1' to get blocked on MDL lock...
 # --> connnection default
 commit;
 # --> connection con1
@@ -379,7 +379,7 @@ a
 # Sending 'drop function f1'
 drop function f1;
 # --> connection con2 
-# Waitng for 'drop function f1' to get blocked on MDL lock...
+# Waiting for 'drop function f1' to get blocked on MDL lock...
 # --> connnection default
 commit;
 # --> connection con1
@@ -403,7 +403,7 @@ a
 # Sending 'drop procedure p1'
 drop procedure p1;
 # --> connection con2 
-# Waitng for 'drop procedure p1' to get blocked on MDL lock...
+# Waiting for 'drop procedure p1' to get blocked on MDL lock...
 # --> connnection default
 commit;
 # --> connection con1
@@ -424,7 +424,7 @@ insert into t1 (a) values (3);
 # Sending 'drop function f2'
 drop function f2;
 # --> connection con2 
-# Waitng for 'drop function f2' to get blocked on MDL lock...
+# Waiting for 'drop function f2' to get blocked on MDL lock...
 # --> connnection default
 commit;
 # --> connection con1
@@ -479,11 +479,11 @@ f2()
 # Sending 'drop function f1'...
 drop function f1;
 # --> connection con2
-# Waitng for 'drop function f1' to get blocked on MDL lock...
+# Waiting for 'drop function f1' to get blocked on MDL lock...
 # Sending 'drop function f2'...
 drop function f2;
 # --> connection default
-# Waitng for 'drop function f2' to get blocked on MDL lock...
+# Waiting for 'drop function f2' to get blocked on MDL lock...
 rollback to savepoint sv;
 # --> connection con2
 # Reaping 'drop function f2'...
@@ -537,10 +537,10 @@ f1()
 # Sending 'alter function f1 ...'...
 alter function f1 comment "comment";
 # --> connection con2
-# Waitng for 'alter function f1 ...' to get blocked on MDL lock...
+# Waiting for 'alter function f1 ...' to get blocked on MDL lock...
 # Sending 'call p1()'...
 call p1();
-# Waitng for 'call p1()' to get blocked on MDL lock on f1...
+# Waiting for 'call p1()' to get blocked on MDL lock on f1...
 # Let 'alter function f1 ...' go through...
 commit;
 # --> connection con1
@@ -573,7 +573,7 @@ f1()
 # Sending 'alter function f1 ...'...
 alter function f1 comment "comment";
 # --> connection con2
-# Waitng for 'alter function f1 ...' to get blocked on MDL lock...
+# Waiting for 'alter function f1 ...' to get blocked on MDL lock...
 # 
 # We just mention p1() in the body of f2() to make
 # sure that p1() is prelocked for f2().
@@ -595,7 +595,7 @@ select f2() into @var;
 end|
 # Sending 'call p1()'...
 call p1();
-# Waitng for 'call p1()' to get blocked on MDL lock on f1...
+# Waiting for 'call p1()' to get blocked on MDL lock on f1...
 # Let 'alter function f1 ...' go through...
 commit;
 # --> connection con1
@@ -634,7 +634,7 @@ get_lock("30977", 0)
 # Sending 'select f3()'...
 select f3();
 # --> connection con1 
-# Waitng for 'select f3()' to get blocked on the user level lock...
+# Waiting for 'select f3()' to get blocked on the user level lock...
 # Do something to change the cache version.
 create function f4() returns int return  4;
 drop function f4;
@@ -734,6 +734,97 @@ END	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Connection 2
 # Connection default;
 DROP PROCEDURE p1;
+#
+# Bug#57663 Concurrent statement using stored function and DROP DATABASE
+#           breaks SBR
+#
+DROP DATABASE IF EXISTS db1;
+DROP FUNCTION IF EXISTS f1;
+# Test 1: Check that DROP DATABASE block if a function is used
+#         by an active transaction.
+# Connection default
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+SELECT db1.f1();
+db1.f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on f1()
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 2: Check that DROP DATABASE blocks if a procedure is
+#         used by an active transaction.
+# Connection default
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() BEGIN END;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+CALL db1.p1();
+RETURN 1;
+END|
+START TRANSACTION;
+SELECT f1();
+f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on p1()
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 3: Check that DROP DATABASE is not selected as a victim if a
+#         deadlock is discovered with DML statements.
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+START TRANSACTION;
+SELECT db1.f1();
+db1.f1()
+1
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection default
+# Waiting for DROP DATABASE to be blocked by the lock on f1()
+SELECT * FROM db1.t1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Test 4: Check that active DROP DATABASE blocks stored routine DDL.
+# Connection default
+CREATE DATABASE db1;
+CREATE FUNCTION db1.f1() RETURNS INTEGER RETURN 1;
+CREATE FUNCTION db1.f2() RETURNS INTEGER RETURN 2;
+START TRANSACTION;
+SELECT db1.f2();
+db1.f2()
+2
+# Connection con1
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+# Waiting for DROP DATABASE to be blocked by the lock on f2()
+# Sending:
+ALTER FUNCTION db1.f1 COMMENT "test";
+# Connection default
+# Waiting for ALTER FUNCTION to be blocked by the schema lock on db1
+COMMIT;
+# Connection con1
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: ALTER FUNCTION f1 COMMENT 'test'
+ERROR 42000: FUNCTION db1.f1 does not exist
+# Connection default
+DROP FUNCTION f1;
 #
 # End of 5.5 tests
 #

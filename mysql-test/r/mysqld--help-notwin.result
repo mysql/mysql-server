@@ -19,6 +19,7 @@ The following options may be given as the first argument:
  --auto-increment-offset[=#] 
  Offset added to Auto-increment columns. Used when
  auto-increment-increment != 1
+ --autocommit        Set default value for autocommit (0 or 1)
  --automatic-sp-privileges 
  Creating and dropping stored procedures alters ACLs
  (Defaults to on; use --skip-automatic-sp-privileges to disable.)
@@ -35,6 +36,10 @@ The following options may be given as the first argument:
  binary log during a transaction. If you often use big,
  multi-statement transactions you can increase this to get
  more performance
+ --binlog-checksum=name 
+ Type of BINLOG_CHECKSUM_ALG. Include checksum for log
+ events in the binary log. Possible values are NONE and
+ CRC32; default is NONE.
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -65,6 +70,19 @@ The following options may be given as the first argument:
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-row-image=name 
+ Controls whether rows should be logged in 'FULL',
+ 'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all
+ columns in the before and after image are logged.
+ 'NOBLOB', means that mysqld avoids logging blob columns
+ whenever possible (eg, blob column was not changed or is
+ not part of primary key). 'MINIMAL', means that a PK
+ equivalent (PK columns or full row if there is no PK in
+ the table) is logged in the before image, and only
+ changed columns are logged in the after image. (Default:
+ FULL).
+ --binlog-rows-query-log-events 
+ Allow writing of Rows_query_log events into binary log.
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -124,10 +142,6 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
- --engine-condition-pushdown 
- Push supported query conditions to the storage engine.
- Deprecated, use --optimizer-switch instead.
- (Defaults to on; use --skip-engine-condition-pushdown to disable.)
  --event-scheduler[=name] 
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
@@ -199,7 +213,7 @@ The following options may be given as the first argument:
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
  --lc-messages=name  Set the language used for the error messages.
- -L, --lc-messages-dir=name 
+ --lc-messages-dir=name 
  Directory where error messages are
  --lc-time-names=name 
  Set the language used for the month names and the days of
@@ -209,14 +223,12 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- -l, --log[=name]    Log connections and queries to file (deprecated option,
- use --general-log/--general-log-file instead).
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
  location for the binary log files.
  --log-bin-index=name 
- File that holds the names for last binary log files.
+ File that holds the names for binary log files.
  --log-bin-trust-function-creators 
  If set to FALSE (the default), then when --log-bin is
  used, creation of a stored function (or trigger) is
@@ -241,12 +253,6 @@ The following options may be given as the first argument:
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
- --log-slow-queries[=name] 
- Log slow queries to a table or log file. Defaults logging
- to table mysql.slow_log or hostname-slow.log if
- --log-output=file is used. Must be enabled to activate
- other slow log options. Deprecated option, use
- --slow-query-log/--slow-query-log-file instead.
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
@@ -269,9 +275,17 @@ The following options may be given as the first argument:
  The location and name of the file that remembers the
  master and where the I/O replication thread is in the
  master's binlogs.
+ --master-info-repository=name 
+ Defines the type of the repository for the master
+ information.
  --master-retry-count=# 
  The number of tries the slave will make to connect to the
- master before giving up.
+ master before giving up. Deprecated option, use 'CHANGE
+ MASTER TO master_retry_count = <num>' instead.
+ --master-verify-checksum 
+ Force checksum verification of logged events in binary
+ log before sending them to slaves or printing them in
+ output of SHOW BINLOG EVENTS. Disabled by default.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
@@ -373,14 +387,16 @@ The following options may be given as the first argument:
  Enable old-style user limits (before 5.0.3, user
  resources were counted per each user+host vs. per
  account).
- --one-thread        (Deprecated): Only use one thread (for debugging under
- Linux). Use thread-handling=no-threads instead.
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
  value is 0 then mysqld will reserve max_connections*5 or
  max_connections + table_cache*2 (whichever is larger)
  number of file descriptors
+ --optimizer-join-cache-level=# 
+ Controls what join operations can be executed with join
+ buffers. Odd numbers are used for plain join buffers
+ while even numbers are used for linked buffers
  --optimizer-prune-level=# 
  Controls the heuristic(s) applied during query
  optimization to prune less-promising partial plans from
@@ -399,8 +415,8 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown} and val is one of {on, off,
- default}
+ engine_condition_pushdown, index_condition_pushdown} and
+ val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -433,6 +449,8 @@ The following options may be given as the first argument:
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads.
+ --performance-schema-setup-actors-size=# 
+ Maximum number of rows in SETUP_ACTORS.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -482,11 +500,13 @@ The following options may be given as the first argument:
  are read through this buffer to avoid a disk seeks
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
- The location and name to use for the file that keeps a
- list of the last relay logs
+ File that holds the names for relay log files.
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
+ --relay-log-info-repository=name 
+ Defines the type of the repository for the relay log
+ information.
  --relay-log-purge   if disabled - do not purge relay logs. if enabled - purge
  them as soon as they are no more needed
  (Defaults to on; use --skip-relay-log-purge to disable.)
@@ -597,10 +617,6 @@ The following options may be given as the first argument:
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
  --skip-stack-trace  Don't print a stack trace on failure.
- --skip-thread-priority 
- Don't give threads different priorities. This option is
- deprecated because it has no effect; the implied behavior
- is already the default.
  --slave-compressed-protocol 
  Use compression on master/slave protocol
  --slave-exec-mode=name 
@@ -619,6 +635,13 @@ The following options may be given as the first argument:
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
+ --slave-sql-verify-checksum 
+ Force checksum verification of replication events after
+ reading them from relay log. Note: Events are always
+ checksum-verified by slave on receiving them from the
+ network before writing them to the relay log. Enabled by
+ default.
+ (Defaults to on; use --skip-slave-sql-verify-checksum to disable.)
  --slave-transaction-retries=# 
  Number of times the slave SQL thread will retry a
  transaction in case it failed with a deadlock or elapsed
@@ -681,7 +704,7 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads
+ one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
  --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
@@ -723,9 +746,12 @@ back-log 50
 big-tables FALSE
 bind-address (No default value)
 binlog-cache-size 32768
+binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
+binlog-row-image FULL
+binlog-rows-query-log-events FALSE
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
@@ -748,7 +774,6 @@ delayed-insert-timeout 300
 delayed-queue-size 1000
 disconnect-slave-event-count 0
 div-precision-increment 4
-engine-condition-pushdown TRUE
 event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
@@ -799,7 +824,9 @@ long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
 master-info-file master.info
+master-info-repository FILE
 master-retry-count 86400
+master-verify-checksum FALSE
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
@@ -840,9 +867,10 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
+optimizer-join-cache-level 1
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -852,13 +880,14 @@ performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances 10000
 performance-schema-max-mutex-classes 200
-performance-schema-max-mutex-instances 1000
-performance-schema-max-rwlock-classes 20
-performance-schema-max-rwlock-instances 1000
-performance-schema-max-table-handles 100000
-performance-schema-max-table-instances 50000
+performance-schema-max-mutex-instances 1000000
+performance-schema-max-rwlock-classes 30
+performance-schema-max-rwlock-instances 1000000
+performance-schema-max-table-handles 10000
+performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
+performance-schema-setup-actors-size 100
 plugin-load (No default value)
 port 3306
 port-open-timeout 0
@@ -878,6 +907,7 @@ read-rnd-buffer-size 262144
 relay-log (No default value)
 relay-log-index (No default value)
 relay-log-info-file relay-log.info
+relay-log-info-repository FILE
 relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
@@ -900,11 +930,11 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-skip-errors (No default value)
+slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
-socket /tmp/mysql.sock
 sort-buffer-size 2097152
 sporadic-binlog-dump-fail FALSE
 sql-mode 

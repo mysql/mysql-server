@@ -43,8 +43,7 @@ read_view_t*
 read_view_open_now(
 /*===============*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or ut_dulint_zero
-					used in purge */
+					transaction, or 0 used in purge */
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
@@ -53,19 +52,16 @@ must be closed with ..._close.
 @return	own: read view struct */
 UNIV_INTERN
 read_view_t*
-read_view_oldest_copy_or_open_new(
-/*==============================*/
-	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or ut_dulint_zero
-					used in purge */
+read_view_purge_open(
+/*=================*/
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
-Closes a read view. */
+Remove read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
-read_view_close(
-/*============*/
+read_view_remove(
+/*=============*/
 	read_view_t*	view);	/*!< in: read view */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
@@ -125,7 +121,7 @@ read should not see the modifications to the database. */
 
 struct read_view_struct{
 	ulint		type;	/*!< VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
-	undo_no_t	undo_no;/*!< ut_dulint_zero or if type is
+	undo_no_t	undo_no;/*!< 0 or if type is
 				VIEW_HIGH_GRANULARITY
 				transaction undo_no when this high-granularity
 				consistent read view was created */
@@ -156,7 +152,7 @@ struct read_view_struct{
 				that is, up_limit_id and low_limit_id. */
 	trx_id_t	creator_trx_id;
 				/*!< trx id of creating transaction, or
-				ut_dulint_zero used in purge */
+				0 used in purge */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/*!< List of read views in trx_sys */
 };

@@ -318,6 +318,58 @@ insert into t2 (a) values (3);
 --echo # --> connection default;
 connection default;
 unlock tables;
+--echo #
+--echo # Check that "FLUSH TABLES <list> WITH READ LOCK" is
+--echo # compatible with active "FLUSH TABLES WITH READ LOCK".
+--echo # Vice versa it is not true, since tables read-locked by
+--echo # "FLUSH TABLES <list> WITH READ LOCK" can't be flushed.
+flush tables with read lock;
+--echo # --> connection con1;
+connection con1;
+flush table t1 with read lock;
+select * from t1;
+unlock tables;
+--echo # --> connection default;
+connection default;
+unlock tables;
+--echo #
+--echo # Check that FLUSH TABLES t1 WITH READ LOCK
+--echo # does not conflict with an existing FLUSH TABLES t2
+--echo # WITH READ LOCK.
+--echo #
+flush table t1 with read lock;
+--echo # --> connection con1
+connection con1;
+flush table t2 with read lock;
+unlock tables;
+--echo # --> connection default
+connection default;
+unlock tables;
+--echo #
+--echo # Check that FLUSH TABLES t1 WITH READ LOCK
+--echo # does not conflict with SET GLOBAL read_only=1.
+--echo #
+set global read_only=1;
+--echo # connection con1
+connection con1;
+flush table t1 with read lock;
+unlock tables;
+--echo # connection default
+connection default;
+set global read_only=0;
+--echo #
+--echo # Check that it's possible to read-lock 
+--echo # tables locked with FLUSH TABLE <list> WITH READ LOCK.
+--echo #
+flush tables t1, t2 with read lock;
+--echo # connection con1
+connection con1;
+lock table t1 read, t2 read;
+unlock tables;
+--echo # connection default
+connection default;
+unlock tables;
+
 --echo # --> connection con1
 connection con1;
 disconnect con1;
@@ -355,3 +407,240 @@ drop temporary table v1;
 unlock tables;
 drop view v2, v3;
 drop table t1, v1;
+
+
+--echo # 
+--echo # FLUSH TABLES <list> WITH READ LOCK and HANDLER
+--echo # 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, key a (a));
+insert into t1 (a) values (1), (2), (3);
+handler t1 open;
+handler t1 read a next;
+handler t1 read a next;
+flush tables t1 with read lock;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+handler t1 read a next;
+unlock tables;
+--echo #
+--echo # Sic: lost handler position.
+--echo #
+handler t1 read a next;
+handler t1 close;
+drop table t1;
+
+--echo #
+--echo # Bug#52117 Pending FLUSH TALBES <list> aborts
+--echo # transactions unnecessarily.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+--echo # --> conection default
+connection default;
+
+create table t1 (a int);
+begin;
+select * from t1;
+--echo # --> connection con1
+connection con1;
+--echo # 
+--echo # Issue a LOCK TABLE t1 READ. We could use HANDLER t1 OPEN
+--echo # or a long-running select -- anything that
+--echo # prevents FLUSH TABLE t1 from immediate completion would do.
+--echo #
+lock table t1 read;
+--echo # --> connection con2
+connection con2;
+--echo #
+--echo # FLUSH TABLE expels the table definition from the cache.
+--echo # Sending 'flush table t1'...
+send flush table t1;
+--echo # --> connection default
+connection default;
+--echo # Let flush table sync in.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "flush table t1";
+--source include/wait_condition.inc
+send select * from t1;
+--echo # --> connection con1 
+connection con1;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "select * from t1";
+select * from t1;
+unlock tables;
+--echo # --> connection con2 
+connection con2;
+--echo # Reaping 'flush table t1'...
+reap;
+--echo # --> connection default 
+connection default;
+--echo # Reaping 'select * from t1'...
+reap;
+commit;
+
+--echo #
+--echo # Repeat the same test but with FLUSH TABLES
+--echo #
+
+begin;
+select * from t1;
+--echo # --> connection con1
+connection con1;
+--echo # 
+--echo # Issue a LOCK TABLE t1 READ.
+--echo #
+lock table t1 read;
+--echo # --> connection con2
+connection con2;
+--echo #
+--echo # FLUSH TABLES expels the table definition from the cache.
+--echo # Sending 'flush tables'...
+send flush tables;
+--echo # --> connection default
+connection default;
+--echo # Let flush table sync in.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "flush tables";
+--source include/wait_condition.inc
+send select * from t1;
+--echo # --> connection con1 
+connection con1;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "select * from t1";
+select * from t1;
+unlock tables;
+--echo # --> connection con2 
+connection con2;
+--echo # Reaping 'flush tables'...
+reap;
+--echo # --> connection default 
+connection default;
+--echo # Reaping 'select * from t1'...
+reap;
+commit;
+
+--echo # Cleanup
+
+--echo # --> connection con1
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # --> connection con2
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # --> connection default
+connection default;
+drop table t1;
+
+
+--echo #
+--echo # Test for bug #55273 "FLUSH TABLE tm WITH READ LOCK for Merge table
+--echo #                      causes assert failure".
+--echo #
+--disable_warnings
+drop table if exists t1, t2, tm;
+--enable_warnings
+create table t1 (i int);
+create table t2 (i int);
+create table tm (i int) engine=merge union=(t1, t2);
+insert into t1 values (1), (2);
+insert into t2 values (3), (4);
+--echo # The below statement should succeed and lock merge
+--echo # table for read. Only merge table gets flushed and
+--echo # not underlying tables.
+flush tables tm with read lock;
+select * from tm;
+--echo # Check that underlying tables are locked.
+select * from t1;
+select * from t2;
+unlock tables;
+--echo # This statement should succeed as well and flush
+--echo # all tables in the list.
+flush tables tm, t1, t2 with read lock;
+select * from tm;
+--echo # Naturally, underlying tables should be locked in this case too.
+select * from t1;
+select * from t2;
+unlock tables;
+drop tables tm, t1, t2;
+
+
+--echo #
+--echo # Test for bug #57006 "Deadlock between HANDLER and
+--echo #                      FLUSH TABLES WITH READ LOCK".
+--echo #
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection default;
+create table t1 (i int);
+create table t2 (i int);
+handler t1 open;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send flush tables with read lock
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Wait until FTWRL starts waiting for 't1' to be closed.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "flush tables with read lock";
+--source include/wait_condition.inc
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # The below statement should not cause deadlock.
+--echo # Sending:
+--send insert into t2 values (1)
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Wait until INSERT starts to wait for FTWRL to go away.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock"
+  and info = "insert into t2 values (1)";
+--source include/wait_condition.inc
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # FTWRL should be able to continue now.
+--echo # Reap FTWRL.
+--reap
+unlock tables;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap INSERT.
+--reap
+handler t1 close;
+
+--echo # Cleanup.
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+drop tables t1, t2;

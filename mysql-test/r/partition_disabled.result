@@ -3,7 +3,7 @@ FLUSH TABLES;
 SELECT * FROM t1;
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 TRUNCATE TABLE t1;
-ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
+ERROR 42S02: Table 'test.t1' doesn't exist
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	The MySQL server is running with the --skip-partition option so it cannot execute this statement
@@ -56,7 +56,7 @@ ERROR HY000: The MySQL server is running with the --skip-partition option so it 
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (
 firstname VARCHAR(25) NOT NULL,
 lastname VARCHAR(25) NOT NULL,
@@ -73,7 +73,7 @@ PARTITION p4 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE( YEAR(purchased) )
 SUBPARTITION BY HASH( TO_DAYS(purchased) )
@@ -84,7 +84,7 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The MySQL server is running with the --skip-partition option so it cannot execute this statement
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 create table t1 (a varchar(10) charset latin1 collate latin1_bin);
 insert into t1 values (''),(' '),('a'),('a '),('a  ');
 explain partitions select * from t1 where a='a ' OR a='a';

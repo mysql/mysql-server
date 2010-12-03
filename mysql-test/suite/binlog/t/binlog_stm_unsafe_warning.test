@@ -72,6 +72,27 @@ UPDATE t1 SET b='4' WHERE a=1 LIMIT 1;
 UPDATE t1 SET b='5' WHERE a=2 ORDER BY a LIMIT 1;
 DROP TABLE t1;
 
+
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (FOUND_ROWS());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SLEEP(1));             #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSDATE());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSTEM_USER());        #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (USER());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID_SHORT());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (VERSION());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (RAND());               #marked unsafe in BUG#49222
+
 # clean up
 DROP DATABASE b42851;
 
@@ -96,7 +117,7 @@ DROP TABLE t1;
 SET GLOBAL log_warnings = @old_log_warnings;
 
 let $log_error_= `SELECT @@GLOBAL.log_error`;
-if(!`select LENGTH('$log_error_')`)
+if(!$log_error_)
 {
   # MySQL Server on windows is started with --console and thus
   # does not know the location of its .err log, use default location

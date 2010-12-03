@@ -1,3 +1,4 @@
+-- source include/have_ucs2.inc
 -- source include/have_utf16.inc
 -- source include/have_utf8mb4.inc
 
@@ -326,6 +327,7 @@ SET collation_connection='utf16_general_ci';
 SET NAMES latin1;
 SET collation_connection='utf16_bin';
 -- source include/ctype_filesort.inc
+-- source include/ctype_filesort2.inc
 -- source include/ctype_like_escape.inc
 
 #

@@ -540,4 +540,43 @@ DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #53034: Multiple-table DELETE statements not accepting
+--echo #             "Access compatibility" syntax
+--echo #
+
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+
+DELETE FROM t1.*, test.t2.*, a.* USING t1, t2, t3 AS a;
+
+DROP TABLE t1, t2, t3;
+
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Bug#51099 Assertion in mysql_multi_delete_prepare()
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1, v2;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(b INT);
+CREATE VIEW v1 AS SELECT a, b FROM t1, t2;
+CREATE VIEW v2 AS SELECT a FROM v1;
+
+# This is a normal delete
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM v2;
+# This is a multi table delete, check that we get the same error
+# This caused the assertion.
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE v2 FROM v2;
+
+DROP VIEW v2, v1;
+DROP TABLE t1, t2;

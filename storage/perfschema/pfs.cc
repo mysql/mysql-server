@@ -19,6 +19,8 @@
 */
 
 #include "my_global.h"
+#include "my_pthread.h"
+#include "sql_const.h"
 #include "pfs.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -26,9 +28,7 @@
 #include "pfs_column_values.h"
 #include "pfs_timer.h"
 #include "pfs_events_waits.h"
-
-/* Pending WL#4895 PERFORMANCE_SCHEMA Instrumenting Table IO */
-#undef HAVE_TABLE_WAIT
+#include "pfs_setup_actor.h"
 
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
@@ -722,6 +722,20 @@ static enum_operation_type file_operation_map[]=
 };
 
 /**
+  Conversion map from PSI_table_operation to enum_operation_type.
+  Indexed by enum PSI_table_operation.
+*/
+static enum_operation_type table_operation_map[]=
+{
+  OPERATION_TYPE_TABLE_LOCK,
+  OPERATION_TYPE_TABLE_EXTERNAL_LOCK,
+  OPERATION_TYPE_TABLE_FETCH,
+  OPERATION_TYPE_TABLE_WRITE_ROW,
+  OPERATION_TYPE_TABLE_UPDATE_ROW,
+  OPERATION_TYPE_TABLE_DELETE_ROW
+};
+
+/**
   Build the prefix name of a class of instruments in a category.
   For example, this function builds the string 'wait/sync/mutex/sql/' from
   a prefix 'wait/sync/mutex' and a category 'sql'.
@@ -907,43 +921,76 @@ static void destroy_cond_v1(PSI_cond* cond)
   destroy_cond(pfs);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::get_table_share.
+*/
 static PSI_table_share*
-get_table_share_v1(const char *schema_name, int schema_name_length,
-                   const char *table_name, int table_name_length,
-                   const void *identity)
+get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-#ifdef HAVE_TABLE_WAIT
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
     return NULL;
-  PFS_table_share* share;
-  share= find_or_create_table_share(pfs_thread,
-                                    schema_name, schema_name_length,
-                                    table_name, table_name_length);
-  return reinterpret_cast<PSI_table_share*> (share);
-#else
-  return NULL;
-#endif
+  if (! global_table_class.m_enabled)
+    return NULL;
+  PFS_table_share* pfs_share;
+  pfs_share= find_or_create_table_share(pfs_thread, temporary, share);
+  return reinterpret_cast<PSI_table_share*> (pfs_share);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::release_table_share.
+*/
 static void release_table_share_v1(PSI_table_share* share)
 {
-  /*
-    To be implemented by WL#4895 PERFORMANCE_SCHEMA Instrumenting Table IO.
-  */
+  DBUG_ASSERT(share != NULL);
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+  PFS_table_share* pfs;
+  pfs= reinterpret_cast<PFS_table_share*> (share);
+  purge_table_share(pfs_thread, pfs);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::drop_table_share.
+*/
+static void
+drop_table_share_v1(const char *schema_name, int schema_name_length,
+                    const char *table_name, int table_name_length)
+{
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+  /* TODO: temporary tables */
+  drop_table_share(pfs_thread, false, schema_name, schema_name_length,
+                   table_name, table_name_length);
+}
+
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::open_table.
+*/
 static PSI_table*
 open_table_v1(PSI_table_share *share, const void *identity)
 {
+  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(thread == NULL))
+    return NULL;
   PFS_table_share *pfs_table_share=
     reinterpret_cast<PFS_table_share*> (share);
   PFS_table *pfs_table;
   DBUG_ASSERT(pfs_table_share);
-  pfs_table= create_table(pfs_table_share, identity);
+  pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::close_table.
+*/
 static void close_table_v1(PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
@@ -996,9 +1043,25 @@ void* pfs_spawn_thread(void *arg)
   /* First, attach instrumentation to this newly created pthread. */
   PFS_thread_class *klass= find_thread_class(typed_arg->m_child_key);
   if (likely(klass != NULL))
+  {
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
+    if (likely(pfs != NULL))
+    {
+      PFS_thread *parent= typed_arg->m_parent_thread;
+
+      pfs->m_parent_thread_internal_id= parent->m_thread_internal_id;
+
+      memcpy(pfs->m_username, parent->m_username, sizeof(pfs->m_username));
+      pfs->m_username_length= parent->m_username_length;
+
+      memcpy(pfs->m_hostname, parent->m_hostname, sizeof(pfs->m_hostname));
+      pfs->m_hostname_length= parent->m_hostname_length;
+    }
+  }
   else
+  {
     pfs= NULL;
+  }
   my_pthread_setspecific_ptr(THR_PFS, pfs);
 
   /*
@@ -1069,6 +1132,188 @@ get_thread_v1(void)
   return reinterpret_cast<PSI_thread*> (pfs);
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user.
+*/
+static void set_thread_user_v1(const char *user, int user_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((user != NULL) || (user_len == 0));
+  DBUG_ASSERT(user_len >= 0);
+  DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
+
+  if (unlikely(pfs == NULL))
+    return;
+
+  pfs->m_lock.allocated_to_dirty();
+  if (user_len > 0)
+    memcpy(pfs->m_username, user, user_len);
+  pfs->m_username_length= user_len;
+
+  bool enabled= false;
+
+  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  {
+    /*
+      TODO: performance improvement.
+      Once performance_schema.USERS is exposed,
+      we can use PFS_user::m_enabled instead of looking up
+      SETUP_ACTORS every time.
+    */
+    lookup_setup_actor(pfs,
+                       pfs->m_username, pfs->m_username_length,
+                       pfs->m_hostname, pfs->m_hostname_length,
+                       &enabled);
+  }
+
+  pfs->m_enabled= enabled;
+
+  pfs->m_lock.dirty_to_allocated();
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_user_host.
+*/
+static void set_thread_user_host_v1(const char *user, int user_len,
+                                    const char *host, int host_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((user != NULL) || (user_len == 0));
+  DBUG_ASSERT(user_len >= 0);
+  DBUG_ASSERT((uint) user_len <= sizeof(pfs->m_username));
+  DBUG_ASSERT((host != NULL) || (host_len == 0));
+  DBUG_ASSERT(host_len >= 0);
+  DBUG_ASSERT((uint) host_len <= sizeof(pfs->m_hostname));
+
+  if (unlikely(pfs == NULL))
+    return;
+
+  pfs->m_lock.allocated_to_dirty();
+
+  if (host_len > 0)
+    memcpy(pfs->m_hostname, host, host_len);
+  pfs->m_hostname_length= host_len;
+
+  if (user_len > 0)
+    memcpy(pfs->m_username, user, user_len);
+  pfs->m_username_length= user_len;
+
+  bool enabled= false;
+  if ((pfs->m_username_length > 0) && (pfs->m_hostname_length > 0))
+  {
+    /*
+      TODO: performance improvement.
+      Once performance_schema.USERS is exposed,
+      we can use PFS_user::m_enabled instead of looking up
+      SETUP_ACTORS every time.
+    */
+    lookup_setup_actor(pfs,
+                       pfs->m_username, pfs->m_username_length,
+                       pfs->m_hostname, pfs->m_hostname_length,
+                       &enabled);
+  }
+  pfs->m_enabled= enabled;
+
+  pfs->m_lock.dirty_to_allocated();
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_db.
+*/
+static void set_thread_db_v1(const char* db, int db_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((db != NULL) || (db_len == 0));
+  DBUG_ASSERT(db_len >= 0);
+  DBUG_ASSERT((uint) db_len <= sizeof(pfs->m_dbname));
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    if (db_len > 0)
+      memcpy(pfs->m_dbname, db, db_len);
+    pfs->m_dbname_length= db_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_command.
+*/
+static void set_thread_command_v1(int command)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT(command >= 0);
+  DBUG_ASSERT(command <= (int) COM_END);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_command= command;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_start_time.
+*/
+static void set_thread_start_time_v1(time_t start_time)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_start_time= start_time;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_state.
+*/
+static void set_thread_state_v1(const char* state)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    int state_len= state ? strlen(state) : 0;
+
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_processlist_state_ptr= state;
+    pfs->m_processlist_state_length= state_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_info.
+*/
+static void set_thread_info_v1(const char* info, int info_len)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_lock.allocated_to_dirty();
+    pfs->m_processlist_info_ptr= info;
+    pfs->m_processlist_info_length= info_len;
+    pfs->m_lock.dirty_to_allocated();
+  }
+}
+
 static void set_thread_v1(PSI_thread* thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
@@ -1117,7 +1362,14 @@ get_thread_mutex_locker_v1(PSI_mutex_locker_state *state,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_mutex= pfs_mutex;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1163,7 +1415,14 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_rwlock= pfs_rwlock;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1222,7 +1481,14 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_cond= pfs_cond;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1244,14 +1510,28 @@ get_thread_cond_locker_v1(PSI_cond_locker_state *state,
   return reinterpret_cast<PSI_cond_locker*> (pfs_locker);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::get_thread_table_locker.
+*/
 static PSI_table_locker*
 get_thread_table_locker_v1(PSI_table_locker_state *state,
-                           PSI_table *table)
+                           PSI_table *table, PSI_table_operation op, ulong flags)
 {
+  DBUG_ASSERT(static_cast<int> (op) >= 0);
+  DBUG_ASSERT(static_cast<uint> (op) < array_elements(table_operation_map));
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
   DBUG_ASSERT(pfs_table != NULL);
   DBUG_ASSERT(pfs_table->m_share != NULL);
+
   if (! flag_events_waits_current)
+    return NULL;
+  if (! global_table_class.m_enabled)
+    return NULL;
+  /*
+    Table locks will be recorded with WL#5371.
+  */
+  if ((op == PSI_TABLE_EXTERNAL_LOCK) || (op == PSI_TABLE_LOCK))
     return NULL;
   if (! pfs_table->m_share->m_enabled)
     return NULL;
@@ -1267,7 +1547,14 @@ get_thread_table_locker_v1(PSI_table_locker_state *state,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_table= pfs_table;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1281,6 +1568,9 @@ get_thread_table_locker_v1(PSI_table_locker_state *state,
     pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
   pfs_locker->m_waits_current.m_object_instance_addr= pfs_table->m_identity;
   pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
+  pfs_locker->m_waits_current.m_operation=
+    table_operation_map[static_cast<int> (op)];
+  pfs_locker->m_waits_current.m_flags= flags;
   pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_TABLE;
 
   pfs_thread->m_wait_locker_count++;
@@ -1320,7 +1610,14 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
 
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_file= pfs_file;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1372,7 +1669,14 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
-  pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
 
   pfs_locker->m_target.m_file= pfs_file;
   pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1441,7 +1745,14 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       }
       PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
         [pfs_thread->m_wait_locker_count];
-      pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
+      if (likely(pfs_thread->m_wait_locker_count == 0))
+        pfs_locker->m_waits_current.m_nesting_event_id= 0;
+      else
+      {
+        PFS_wait_locker *parent_locker= pfs_locker-1;
+        pfs_locker->m_waits_current.m_nesting_event_id=
+          parent_locker->m_waits_current.m_event_id;
+      }
 
       pfs_locker->m_target.m_file= pfs_file;
       pfs_locker->m_waits_current.m_thread= pfs_thread;
@@ -1635,16 +1946,23 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   if (rc == 0)
   {
     /* Thread safe: we are protected by the instrumented mutex */
-    PFS_single_stat_chain *stat;
     PFS_mutex *mutex= pfs_locker->m_target.m_mutex;
+    PFS_single_stat_chain *stat= find_per_thread_mutex_class_wait_stat(wait->m_thread, mutex->m_class);
     mutex->m_owner= wait->m_thread;
     mutex->m_last_locked= wait->m_timer_end;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
-    stat= find_per_thread_mutex_class_wait_stat(wait->m_thread,
-                                                mutex->m_class);
-   aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&mutex->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1690,18 +2008,26 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
       The statistics generated are not safe, which is why they are
       just statistics, not facts.
     */
-    PFS_single_stat_chain *stat;
     PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
+    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
+
     if (rwlock->m_readers == 0)
       rwlock->m_last_read= wait->m_timer_end;
     rwlock->m_writer= NULL;
     rwlock->m_readers++;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                   rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&rwlock->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1741,19 +2067,26 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
   if (rc == 0)
   {
     /* Thread safe : we are protected by the instrumented rwlock */
-    PFS_single_stat_chain *stat;
     PFS_rwlock *rwlock= pfs_locker->m_target.m_rwlock;
+    PFS_single_stat_chain *stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread, rwlock->m_class);
     rwlock->m_writer= wait->m_thread;
     rwlock->m_last_written= wait->m_timer_end;
     /* Reset the readers stats, they could be off */
     rwlock->m_readers= 0;
     rwlock->m_last_read= 0;
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
-    stat= find_per_thread_rwlock_class_wait_stat(wait->m_thread,
-                                                 rwlock->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&rwlock->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&rwlock->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1796,7 +2129,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       Not thread safe, race conditions will occur.
       A first race condition is:
       - thread 1 waits on cond A
-      - thread 2 waits on cond B
+      - thread 2 waits on cond A
       threads 1 and 2 compete when updating the same cond A
       statistics, possibly missing a min / max / sum / count.
       A second race condition is:
@@ -1807,19 +2140,26 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       in condition B.
       This is accepted, the data will be slightly inaccurate.
     */
-    PFS_single_stat_chain *stat;
     PFS_cond *cond= pfs_locker->m_target.m_cond;
+    PFS_single_stat_chain *stat= find_per_thread_cond_class_wait_stat(wait->m_thread, cond->m_class);
 
-    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-    aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
-    stat= find_per_thread_cond_class_wait_stat(wait->m_thread,
-                                               cond->m_class);
-    aggregate_single_stat_chain(stat, wait_time);
+    /* If timed then aggregate stats, else increment the value counts only */
+    if (wait->m_timer_state == TIMER_STATE_TIMED)
+    {
+      ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+      aggregate_single_stat_chain(&cond->m_wait_stat, wait_time);
+      aggregate_single_stat_chain(stat, wait_time);
+    }
+    else
+    {
+      increment_single_stat_chain(&cond->m_wait_stat);
+      increment_single_stat_chain(stat);
+    }
   }
   wait->m_thread->m_wait_locker_count--;
 }
 
-static void start_table_wait_v1(PSI_table_locker* locker,
+static void start_table_wait_v1(PSI_table_locker* locker, uint index,
                                 const char *src_file, uint src_line)
 {
   PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
@@ -1833,12 +2173,17 @@ static void start_table_wait_v1(PSI_table_locker* locker,
   }
   wait->m_source_file= src_file;
   wait->m_source_line= src_line;
-  wait->m_operation= OPERATION_TYPE_LOCK;
   PFS_table_share *share= pfs_locker->m_target.m_table->m_share;
+  wait->m_object_type= share->get_object_type();
   wait->m_schema_name= share->m_schema_name;
   wait->m_schema_name_length= share->m_schema_name_length;
   wait->m_object_name= share->m_table_name;
   wait->m_object_name_length= share->m_table_name_length;
+  /* FIXME: revise this */
+  if (share->get_object_type() == OBJECT_TYPE_TEMPORARY_TABLE)
+    wait->m_index= MAX_KEY;
+  else
+    wait->m_index= index;
 }
 
 static void end_table_wait_v1(PSI_table_locker* locker)
@@ -1858,8 +2203,17 @@ static void end_table_wait_v1(PSI_table_locker* locker)
     insert_events_waits_history_long(wait);
 
   PFS_table *table= pfs_locker->m_target.m_table;
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+
+  /* If timed then aggregate stats, else increment the value counts only */
+  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  {
+    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+    aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
+  }
+  else
+  {
+    increment_single_stat_chain(&table->m_wait_stat);
+  }
 
   /*
     There is currently no per table and per thread aggregation.
@@ -1961,14 +2315,21 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   if (flag_events_waits_history_long)
     insert_events_waits_history_long(wait);
 
-  PFS_single_stat_chain *stat;
   PFS_file *file= pfs_locker->m_target.m_file;
+  PFS_single_stat_chain *stat= find_per_thread_file_class_wait_stat(wait->m_thread, file->m_class);
 
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&file->m_wait_stat, wait_time);
-  stat= find_per_thread_file_class_wait_stat(wait->m_thread,
-                                             file->m_class);
-  aggregate_single_stat_chain(stat, wait_time);
+  /* If timed then aggregate stats, else increment the value counts only */
+  if (wait->m_timer_state == TIMER_STATE_TIMED)
+  {
+    ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
+    aggregate_single_stat_chain(&file->m_wait_stat, wait_time);
+    aggregate_single_stat_chain(stat, wait_time);
+  }
+  else
+  {
+    increment_single_stat_chain(&file->m_wait_stat);
+    increment_single_stat_chain(stat);
+  }
 
   PFS_file_class *klass= file->m_class;
 
@@ -2016,6 +2377,7 @@ PSI_v1 PFS_v1=
   destroy_cond_v1,
   get_table_share_v1,
   release_table_share_v1,
+  drop_table_share_v1,
   open_table_v1,
   close_table_v1,
   create_file_v1,
@@ -2023,6 +2385,13 @@ PSI_v1 PFS_v1=
   new_thread_v1,
   set_thread_id_v1,
   get_thread_v1,
+  set_thread_user_v1,
+  set_thread_user_host_v1,
+  set_thread_db_v1,
+  set_thread_command_v1,
+  set_thread_start_time_v1,
+  set_thread_state_v1,
+  set_thread_info_v1,
   set_thread_v1,
   delete_current_thread_v1,
   delete_thread_v1,

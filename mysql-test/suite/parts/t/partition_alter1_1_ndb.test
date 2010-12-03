@@ -46,6 +46,9 @@ let $more_pk_ui_tests= 0;
 # Thats why the next line is set to comment.
 # --source include/have_partition.inc
 
+# Does not work with --embedded
+--source include/not_embedded.inc
+
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 

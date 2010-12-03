@@ -1,0 +1,1406 @@
+#
+# Problem with range optimizer
+#
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+CREATE TABLE t1 (
+  event_date date DEFAULT '0000-00-00' NOT NULL,
+  type int(11) DEFAULT '0' NOT NULL,
+  event_id int(11) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (event_date,type,event_id)
+);
+
+INSERT INTO t1 VALUES ('1999-07-10',100100,24), ('1999-07-11',100100,25),
+('1999-07-13',100600,0), ('1999-07-13',100600,4), ('1999-07-13',100600,26),
+('1999-07-14',100600,10), ('1999-07-15',100600,16), ('1999-07-15',100800,45),
+('1999-07-15',101000,47), ('1999-07-16',100800,46), ('1999-07-20',100600,5),
+('1999-07-20',100600,27), ('1999-07-21',100600,11), ('1999-07-22',100600,17),
+('1999-07-23',100100,39), ('1999-07-24',100100,39), ('1999-07-24',100500,40),
+('1999-07-25',100100,39), ('1999-07-27',100600,1), ('1999-07-27',100600,6),
+('1999-07-27',100600,28), ('1999-07-28',100600,12), ('1999-07-29',100500,41),
+('1999-07-29',100600,18), ('1999-07-30',100500,41), ('1999-07-31',100500,41),
+('1999-08-01',100700,34), ('1999-08-03',100600,7), ('1999-08-03',100600,29),
+('1999-08-04',100600,13), ('1999-08-05',100500,42), ('1999-08-05',100600,19),
+('1999-08-06',100500,42), ('1999-08-07',100500,42), ('1999-08-08',100500,42),
+('1999-08-10',100600,2), ('1999-08-10',100600,9), ('1999-08-10',100600,30),
+('1999-08-11',100600,14), ('1999-08-12',100600,20), ('1999-08-17',100500,8),
+('1999-08-17',100600,31), ('1999-08-18',100600,15), ('1999-08-19',100600,22),
+('1999-08-24',100600,3), ('1999-08-24',100600,32), ('1999-08-27',100500,43),
+('1999-08-31',100600,33), ('1999-09-17',100100,37), ('1999-09-18',100100,37),
+('1999-09-19',100100,37), ('2000-12-18',100700,38);
+
+select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+explain select event_date,type,event_id from t1 WHERE type = 100601 and event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
+select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND (type=100600 OR type=100100) or event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND type=100099;
+drop table t1;
+
+CREATE TABLE t1 (
+  PAPER_ID smallint(6) DEFAULT '0' NOT NULL,
+  YEAR smallint(6) DEFAULT '0' NOT NULL,
+  ISSUE smallint(6) DEFAULT '0' NOT NULL,
+  CLOSED tinyint(4) DEFAULT '0' NOT NULL,
+  ISS_DATE date DEFAULT '0000-00-00' NOT NULL,
+  PRIMARY KEY (PAPER_ID,YEAR,ISSUE)
+);
+INSERT INTO t1 VALUES (3,1999,34,0,'1999-07-12'), (1,1999,111,0,'1999-03-23'),
+                      (1,1999,222,0,'1999-03-23'), (3,1999,33,0,'1999-07-12'),
+                      (3,1999,32,0,'1999-07-12'), (3,1999,31,0,'1999-07-12'),
+                      (3,1999,30,0,'1999-07-12'), (3,1999,29,0,'1999-07-12'),
+                      (3,1999,28,0,'1999-07-12'), (1,1999,40,1,'1999-05-01'),
+                      (1,1999,41,1,'1999-05-01'), (1,1999,42,1,'1999-05-01'),
+                      (1,1999,46,1,'1999-05-01'), (1,1999,47,1,'1999-05-01'),
+                      (1,1999,48,1,'1999-05-01'), (1,1999,49,1,'1999-05-01'),
+                      (1,1999,50,0,'1999-05-01'), (1,1999,51,0,'1999-05-01'),
+                      (1,1999,200,0,'1999-06-28'), (1,1999,52,0,'1999-06-28'),
+                      (1,1999,53,0,'1999-06-28'), (1,1999,54,0,'1999-06-28'),
+                      (1,1999,55,0,'1999-06-28'), (1,1999,56,0,'1999-07-01'),
+                      (1,1999,57,0,'1999-07-01'), (1,1999,58,0,'1999-07-01'),
+                      (1,1999,59,0,'1999-07-01'), (1,1999,60,0,'1999-07-01'),
+                      (3,1999,35,0,'1999-07-12');
+select YEAR,ISSUE from t1 where PAPER_ID=3 and (YEAR>1999 or (YEAR=1999 and ISSUE>28))  order by YEAR,ISSUE;
+check table t1;
+repair table t1;
+drop table t1;
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  parent_id int(11) DEFAULT '0' NOT NULL,
+  level tinyint(4) DEFAULT '0' NOT NULL,
+  PRIMARY KEY (id),
+  KEY parent_id (parent_id),
+  KEY level (level)
+);
+INSERT INTO t1 VALUES (1,0,0), (3,1,1), (4,1,1), (8,2,2), (9,2,2), (17,3,2),
+(22,4,2), (24,4,2), (28,5,2), (29,5,2), (30,5,2), (31,6,2), (32,6,2), (33,6,2),
+(203,7,2), (202,7,2), (20,3,2), (157,0,0), (193,5,2), (40,7,2), (2,1,1),
+(15,2,2), (6,1,1), (34,6,2), (35,6,2), (16,3,2), (7,1,1), (36,7,2), (18,3,2),
+(26,5,2), (27,5,2), (183,4,2), (38,7,2), (25,5,2), (37,7,2), (21,4,2),
+(19,3,2), (5,1,1), (179,5,2);
+SELECT * FROM t1 WHERE level = 1 AND parent_id = 1;
+# The following select returned 0 rows in 3.23.8
+SELECT * FROM t1 WHERE level = 1 AND parent_id = 1 order by id;
+drop table t1;
+
+#
+# Testing of bug in range optimizer with many key parts and > and <
+#
+
+create table t1(
+		Satellite		varchar(25)	not null,
+		SensorMode		varchar(25)	not null,
+		FullImageCornersUpperLeftLongitude	double	not null,
+		FullImageCornersUpperRightLongitude	double	not null,
+		FullImageCornersUpperRightLatitude	double	not null,
+		FullImageCornersLowerRightLatitude	double	not null,
+	        index two (Satellite, SensorMode, FullImageCornersUpperLeftLongitude, FullImageCornersUpperRightLongitude, FullImageCornersUpperRightLatitude, FullImageCornersLowerRightLatitude));
+
+insert into t1 values("OV-3","PAN1",91,-92,40,50);
+insert into t1 values("OV-4","PAN1",91,-92,40,50);
+
+select * from t1 where t1.Satellite = "OV-3" and t1.SensorMode = "PAN1" and t1.FullImageCornersUpperLeftLongitude > -90.000000 and t1.FullImageCornersUpperRightLongitude < -82.000000;
+drop table t1;
+
+create table t1 ( aString char(100) not null default "", key aString (aString(10)) );
+insert t1 (aString) values ( "believe in myself" ), ( "believe" ), ("baaa" ), ( "believe in love");
+select * from t1 where aString < "believe in myself" order by aString;
+select * from t1 where aString > "believe in love" order by aString;
+alter table t1 drop key aString;
+select * from t1 where aString < "believe in myself" order by aString;
+select * from t1 where aString > "believe in love" order by aString;
+drop table t1;
+
+#
+# Problem with binary strings
+#
+
+CREATE TABLE t1 (
+  t1ID int(10) unsigned NOT NULL auto_increment,
+  art binary(1) NOT NULL default '',
+  KNR char(5) NOT NULL default '',
+  RECHNR char(6) NOT NULL default '',
+  POSNR char(2) NOT NULL default '',
+  ARTNR char(10) NOT NULL default '',
+  TEX char(70) NOT NULL default '',
+  PRIMARY KEY  (t1ID),
+  KEY IdxArt (art),
+  KEY IdxKnr (KNR),
+  KEY IdxArtnr (ARTNR)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (art) VALUES ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),
+('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j'),('j');
+select count(*) from t1 where upper(art) = 'J';
+select count(*) from t1 where art = 'J' or art = 'j';
+select count(*) from t1 where art = 'j' or art = 'J';
+select count(*) from t1 where art = 'j';
+select count(*) from t1 where art = 'J';
+drop table t1;
+#
+# BETWEEN problems
+#
+create table t1 (x int, y int, index(x), index(y));
+insert into t1 (x) values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+update t1 set y=x;
+# between with only one end fixed
+explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
+explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
+# between with both expressions on both ends
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
+# equation propagation
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
+explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
+# testing IN
+explain select count(*) from t1 where x in (1);
+explain select count(*) from t1 where x in (1,2);
+drop table t1;
+
+#
+# bug #1172: "Force index" option caused server crash
+#
+CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
+INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
+CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
+INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
+explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
+explain select * from t1 force index(i1), t2 force index(j1) where 
+ (t1.key1 <t2.keya + 1) and t2.keya=3;
+DROP TABLE t1,t2;
+
+#
+# bug #1724: use RANGE on more selective column instead of REF on less
+# selective
+
+CREATE TABLE t1 (
+  a int(11) default NULL,
+  b int(11) default NULL,
+  KEY a (a),
+  KEY b (b)
+) ENGINE=MyISAM;
+
+
+INSERT INTO t1 VALUES
+(1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(10,2),
+(13,2),(14,2),(15,2),(16,2),(17,3),(17,3),(16,3),(17,3),(19,3),(20,3),
+(21,4),(22,5),(23,5),(24,5),(25,5),(26,5),(30,5),(31,5),(32,5),(33,5),
+(33,5),(33,5),(33,5),(33,5),(34,5),(35,5);
+
+# we expect that optimizer will choose index on A
+EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
+SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
+DROP TABLE t1;
+
+#
+# Test problem with range optimzer and sub ranges
+#
+
+CREATE TABLE t1 (a int, b int, c int, INDEX (c,a,b));
+INSERT INTO t1 VALUES (1,0,0),(1,0,0),(1,0,0);
+INSERT INTO t1 VALUES (0,1,0),(0,1,0),(0,1,0);
+# -- First reports 3; second reports 6
+SELECT COUNT(*) FROM t1 WHERE (c=0 and a=1) or (c=0 and b=1);
+SELECT COUNT(*) FROM t1 WHERE (c=0 and b=1) or (c=0 and a=1);
+DROP TABLE t1;
+
+#
+# Test problem with range optimization over overlapping ranges (#2448)
+#
+
+CREATE TABLE t1 ( a int not null, b int not null, INDEX ab(a,b) );
+INSERT INTO t1 VALUES (47,1), (70,1), (15,1), (15, 4);
+SELECT * FROM t1
+WHERE
+(
+    ( b =1 AND a BETWEEN 14 AND 21 ) OR
+    ( b =2 AND a BETWEEN 16 AND 18 ) OR
+    ( b =3 AND a BETWEEN 15 AND 19 ) OR
+    (a BETWEEN 19 AND 47)
+);
+DROP TABLE t1;
+
+#
+# Test of problem with IN on many different keyparts. (Bug #4157)
+#
+
+CREATE TABLE t1 (
+id int( 11 ) unsigned NOT NULL AUTO_INCREMENT ,
+line int( 5 ) unsigned NOT NULL default '0',
+columnid int( 3 ) unsigned NOT NULL default '0',
+owner int( 3 ) unsigned NOT NULL default '0',
+ordinal int( 3 ) unsigned NOT NULL default '0',
+showid smallint( 6 ) unsigned NOT NULL default '1',
+tableid int( 1 ) unsigned NOT NULL default '1',
+content int( 5 ) unsigned NOT NULL default '188',
+PRIMARY KEY ( owner, id ) ,
+KEY menu( owner, showid, columnid ) ,
+KEY `COLUMN` ( owner, columnid, line ) ,
+KEY `LINES` ( owner, tableid, content, id ) ,
+KEY recount( owner, line ) 
+) ENGINE = MYISAM;
+
+INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
+
+SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
+drop table t1;
+
+#
+# test for a bug with in() and unique key
+#
+
+create  table t1 (id int(10) primary key);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+select id from t1 where id in (2,5,9) ;
+select id from t1 where id=2 or id=5 or id=9 ;
+drop table t1;
+create table t1 ( id1 int not null, id2 int not null, idnull int null, c char(20), primary key (id1,id2));
+insert into t1 values (0,1,NULL,"aaa"), (1,1,NULL,"aaa"), (2,1,NULL,"aaa"),
+                      (3,1,NULL,"aaa"), (4,1,NULL,"aaa"), (5,1,NULL,"aaa"),
+                      (6,1,NULL,"aaa"), (7,1,NULL,"aaa"), (8,1,NULL,"aaa"),
+                      (9,1,NULL,"aaa"), (10,1,NULL,"aaa"), (11,1,NULL,"aaa"),
+                      (12,1,NULL,"aaa"), (13,1,NULL,"aaa"), (14,1,NULL,"aaa"),
+                      (15,1,NULL,"aaa"), (16,1,NULL,"aaa"), (17,1,NULL,"aaa"),
+                      (18,1,NULL,"aaa"), (19,1,NULL,"aaa"), (20,1,NULL,"aaa");
+select a.id1, b.idnull from t1 as a, t1 as b where a.id2=1 and a.id1=1 and b.id1=a.idnull order by b.id2 desc limit 1;
+drop table t1;
+
+
+#
+# Problem with optimizing !=
+#
+
+create table t1 (
+  id int not null auto_increment,
+  name char(1) not null,
+  uid int not null,
+  primary key (id),
+  index uid_index (uid));
+  
+create table t2 (
+  id int not null auto_increment,
+  name char(1) not null,
+  uid int not null,
+  primary key (id),
+  index uid_index (uid));
+  
+insert into t1(id, uid, name) values(1, 0, ' ');
+insert into t1(uid, name) values(0, ' ');
+
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t2(uid, name) select uid, name from t1;
+insert into t1(uid, name) select uid, name from t2;
+
+delete from t2;
+insert into t2(uid, name) values 
+  (1, CHAR(64+1)),
+  (2, CHAR(64+2)),
+  (3, CHAR(64+3)),
+  (4, CHAR(64+4)),
+  (5, CHAR(64+5)),
+  (6, CHAR(64+6)),
+  (7, CHAR(64+7)),
+  (8, CHAR(64+8)),
+  (9, CHAR(64+9)),
+  (10, CHAR(64+10)),
+  (11, CHAR(64+11)),
+  (12, CHAR(64+12)),
+  (13, CHAR(64+13)),
+  (14, CHAR(64+14)),
+  (15, CHAR(64+15)),
+  (16, CHAR(64+16)),
+  (17, CHAR(64+17)),
+  (18, CHAR(64+18)),
+  (19, CHAR(64+19)),
+  (20, CHAR(64+20)),
+  (21, CHAR(64+21)),
+  (22, CHAR(64+22)),
+  (23, CHAR(64+23)),
+  (24, CHAR(64+24)),
+  (25, CHAR(64+25)),
+  (26, CHAR(64+26));
+
+insert into t1(uid, name) select uid, name from t2 order by uid;
+
+delete from t2;
+insert into t2(id, uid, name) select id, uid, name from t1;
+
+select count(*) from t1;  
+select count(*) from t2;
+
+analyze table t1,t2;
+
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
+
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+
+drop table t1,t2;
+
+# Fix for bug#4488 
+#
+create table t1 (x bigint unsigned not null);
+insert into t1(x) values (0xfffffffffffffff0);
+insert into t1(x) values (0xfffffffffffffff1);
+select * from t1;
+select count(*) from t1 where x>0;
+select count(*) from t1 where x=0;
+select count(*) from t1 where x<0;
+select count(*) from t1 where x < -16;
+select count(*) from t1 where x = -16;
+select count(*) from t1 where x > -16;
+select count(*) from t1 where x = 18446744073709551601;
+
+
+create table t2 (x bigint not null);
+insert into t2(x) values (-16);
+insert into t2(x) values (-15);
+select * from t2;
+select count(*) from t2 where x>0;
+select count(*) from t2 where x=0;
+select count(*) from t2 where x<0;
+select count(*) from t2 where x < -16;
+select count(*) from t2 where x = -16;
+select count(*) from t2 where x > -16;
+select count(*) from t2 where x = 18446744073709551601;
+drop table t1,t2;
+
+--disable_warnings
+create table t1 (x bigint unsigned not null primary key) engine=innodb;
+--enable_warnings
+insert into t1(x) values (0xfffffffffffffff0);
+insert into t1(x) values (0xfffffffffffffff1);
+select * from t1;
+select count(*) from t1 where x>0;
+select count(*) from t1 where x=0;
+select count(*) from t1 where x<0;
+select count(*) from t1 where x < -16;
+select count(*) from t1 where x = -16;
+select count(*) from t1 where x > -16;
+select count(*) from t1 where x = 18446744073709551601;
+
+drop table t1;
+
+#
+# Bug #11185 incorrect comparison of unsigned int to signed constant
+#
+create table t1 (a bigint unsigned);
+create index t1i on t1(a);
+insert into t1 select 18446744073709551615;
+insert into t1 select 18446744073709551614;
+
+explain select * from t1 where a <> -1;
+select * from t1 where a <> -1;
+explain select * from t1 where a > -1 or a < -1;
+select * from t1 where a > -1 or a < -1;
+explain select * from t1 where a > -1;
+select * from t1 where a > -1;
+explain select * from t1 where a < -1;
+select * from t1 where a < -1;
+
+drop table t1;
+
+#
+# Bug #6045: Binary Comparison regression in MySQL 4.1
+# Binary searches didn't use a case insensitive index.
+#
+set names latin1;
+create table t1 (a char(10), b text, key (a)) character set latin1;
+INSERT INTO t1 (a) VALUES
+('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
+# all these three can be optimized
+explain select * from t1 where a='aaa';
+explain select * from t1 where a=binary 'aaa';
+explain select * from t1 where a='aaa' collate latin1_bin;
+# this one cannot:
+explain select * from t1 where a='aaa' collate latin1_german1_ci;
+drop table t1;
+
+# Test for BUG#9348 "result for WHERE A AND (B OR C) differs from WHERE a AND (C OR B)"
+--disable_warnings
+CREATE TABLE t1 (
+  `CLIENT` char(3) character set latin1 collate latin1_bin NOT NULL default '000',
+  `ARG1` char(3) character set latin1 collate latin1_bin NOT NULL default '',
+  `ARG2` char(3) character set latin1 collate latin1_bin NOT NULL default '',
+  `FUNCTION` varchar(10) character set latin1 collate latin1_bin NOT NULL default '',
+  `FUNCTINT` int(11) NOT NULL default '0',
+  KEY `VERI_CLNT~2` (`ARG1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+
+INSERT INTO t1 VALUES ('000',' 0',' 0','Text 001',0), ('000',' 0',' 1','Text 002',0),
+  ('000',' 1',' 2','Text 003',0), ('000',' 2',' 3','Text 004',0),
+  ('001',' 3',' 0','Text 017',0);
+
+SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 1' OR ARG1 != ' 2');
+
+SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 2' OR ARG1 != ' 1');
+drop table t1;
+
+# BUG#16168: Wrong range optimizer results, "Use_count: Wrong count ..."
+#            warnings in server stderr.
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t2 (
+  pk1 int(11) NOT NULL,
+  pk2 int(11) NOT NULL,
+  pk3 int(11) NOT NULL,
+  pk4 int(11) NOT NULL,
+  filler char(82),
+  PRIMARY KEY (pk1,pk2,pk3,pk4)
+) DEFAULT CHARSET=latin1;
+
+insert into t2 select 1, A.a+10*B.a, 432, 44, 'fillerZ' from t1 A, t1 B;
+INSERT INTO t2 VALUES (2621, 2635, 0, 0,'filler'), (2621, 2635, 1, 0,'filler'),
+  (2621, 2635, 10, 0,'filler'), (2621, 2635, 11, 0,'filler'),
+  (2621, 2635, 14, 0,'filler'), (2621, 2635, 1000015, 0,'filler');
+
+SELECT * FROM t2
+WHERE ((((pk4 =0) AND (pk1 =2621) AND (pk2 =2635)))
+OR ((pk4 =1) AND (((pk1 IN ( 7, 2, 1 ))) OR (pk1 =522)) AND ((pk2 IN ( 0, 2635))))
+) AND (pk3 >=1000000);
+drop table t1, t2;
+
+#
+# Bug #20732: Partial index and long sjis search with '>' fails sometimes
+#
+
+create table t1(a char(2), key(a(1)));
+insert into t1 values ('x'), ('xx');
+explain select a from t1 where a > 'x';
+select a from t1 where a > 'x';
+drop table t1;
+
+#
+# Bug #24776: assertion abort for 'range checked for each record' 
+#
+
+CREATE TABLE t1 (
+  OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+  OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid',
+  OXLEFT int NOT NULL DEFAULT '0',
+  OXRIGHT int NOT NULL DEFAULT '0',
+  OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '',
+  PRIMARY KEY  (OXID),
+  KEY OXNID (OXID),
+  KEY OXLEFT (OXLEFT),
+  KEY OXRIGHT (OXRIGHT),
+  KEY OXROOTID (OXROOTID)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci;
+
+INSERT INTO t1 VALUES
+('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'),
+('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3,
+ 'd8c4177d09f8b11f5.52725521'),
+('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5,
+ 'd8c4177d09f8b11f5.52725521'),
+('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7,
+ 'd8c4177d09f8b11f5.52725521'),
+('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9,
+ 'd8c4177d09f8b11f5.52725521'),
+('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11,
+ 'd8c4177d09f8b11f5.52725521');
+
+EXPLAIN
+SELECT s.oxid FROM t1 v, t1 s 
+  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+        v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+        s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+
+SELECT s.oxid FROM t1 v, t1 s 
+  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
+        v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
+        s.oxleft > v.oxleft AND s.oxleft < v.oxright;
+
+DROP TABLE t1;
+
+# BUG#26624 high mem usage (crash) in range optimizer (depends on order of fields in where)
+create table t1 (
+  c1  char(10), c2  char(10), c3  char(10), c4  char(10),
+  c5  char(10), c6  char(10), c7  char(10), c8  char(10),
+  c9  char(10), c10 char(10), c11 char(10), c12 char(10),
+  c13 char(10), c14 char(10), c15 char(10), c16 char(10),
+  index(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,c13,c14,c15,c16)
+);
+insert into t1 (c1) values ('1'),('1'),('1'),('1');
+
+# This must run without crash and fast:
+select * from t1 where
+     c1 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4",
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c2 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c3 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c4 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5", 
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c5 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4",
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c6 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4",
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c7 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c8 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c9 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC")
+ and c10 in ("abcdefgh", "123456789", "qwertyuio", "asddfgh", 
+            "abcdefg1", "123456781", "qwertyui1", "asddfg1", 
+            "abcdefg2", "123456782", "qwertyui2", "asddfg2", 
+            "abcdefg3", "123456783", "qwertyui3", "asddfg3", 
+            "abcdefg4", "123456784", "qwertyui4", "asddfg4", 
+            "abcdefg5", "123456785", "qwertyui5", "asddfg5",
+            "abcdefg6", "123456786", "qwertyui6", "asddfg6",
+            "abcdefg7", "123456787", "qwertyui7", "asddfg7",
+            "abcdefg8", "123456788", "qwertyui8", "asddfg8",
+            "abcdefg9", "123456789", "qwertyui9", "asddfg9",
+            "abcdefgA", "12345678A", "qwertyuiA", "asddfgA",
+            "abcdefgB", "12345678B", "qwertyuiB", "asddfgB",
+            "abcdefgC", "12345678C", "qwertyuiC", "asddfgC");
+drop table t1;
+--echo End of 4.1 tests
+
+#
+# Test for optimization request #10561: to use keys for
+# NOT IN (c1,...,cn) and NOT BETWEEN c1 AND c2
+#
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  status varchar(20),
+  PRIMARY KEY  (id),
+  KEY (status)
+);
+
+INSERT INTO t1 VALUES
+(1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
+(7,'B'), (8,'B'), (9,'B'), (10,'B'), (11,'B'), (12,'B'),
+(13,'B'), (14,'B'), (15,'B'), (16,'B'), (17,'B'), (18,'B'),
+(19,'B'), (20,'B'), (21,'B'), (22,'B'), (23,'B'), (24,'B'), 
+(25,'A'), (26,'A'), (27,'A'), (28,'A'), (29,'A'), (30,'A'),
+(31,'A'), (32,'A'), (33,'A'), (34,'A'), (35,'A'), (36,'A'),
+(37,'A'), (38,'A'), (39,'A'), (40,'A'), (41,'A'), (42,'A'),
+(43,'A'), (44,'A'), (45,'A'), (46,'A'), (47,'A'), (48,'A'),
+(49,'A'), (50,'A'), (51,'A'), (52,'A'), (53,'C'), (54,'C'),
+(55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
+
+EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
+EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
+
+SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
+SELECT * FROM t1 WHERE status NOT IN ('A','B');
+
+EXPLAIN SELECT status FROM t1 WHERE status <> 'A' AND status <> 'B';
+EXPLAIN SELECT status FROM t1 WHERE status NOT IN ('A','B');
+
+EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
+EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
+
+SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
+SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
+
+DROP TABLE t1;
+
+#
+# Test for bug #10031: range to be used over a view
+#
+
+CREATE TABLE  t1 (a int, b int, primary key(a,b));
+
+INSERT INTO  t1 VALUES
+  (1,1),(1,2),(1,3),(2,1),(2,2),(2,3),(3,1),(3,2),(3,3),(4,1),(4,2),(4,3);
+
+CREATE VIEW v1 as SELECT a,b FROM t1 WHERE b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2 and b=3;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2 and b=3;
+
+EXPLAIN SELECT a,b FROM t1 WHERE a < 2;
+EXPLAIN SELECT a,b FROM v1 WHERE a < 2;
+
+SELECT a,b FROM t1 WHERE a < 2 and b=3;
+SELECT a,b FROM v1 WHERE a < 2 and b=3; 
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #11853: DELETE statement with a NOT (LIKE/<=>) where condition
+#             for an indexed attribute              
+#             
+
+CREATE TABLE t1 (name varchar(15) NOT NULL, KEY idx(name));
+INSERT INTO t1 VALUES ('Betty'), ('Anna');
+
+SELECT * FROM t1;
+DELETE FROM t1 WHERE name NOT LIKE 'A%a';
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a int, KEY idx(a));
+INSERT INTO t1 VALUES (NULL), (1), (2), (3);
+
+SELECT * FROM t1;
+DELETE FROM t1 WHERE NOT(a <=> 2);
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+#
+# BUG#13317: range optimization doesn't work for IN over VIEW.
+#
+create table t1 (a int, b int, primary key(a,b));
+create view v1 as select a, b from t1;
+
+INSERT INTO `t1` VALUES
+(0,0),(1,0),(2,0),(3,0),(4,0),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(11,2),(12,2)
+,(13,2),(14,2),(15,3),(16,3),(17,3),(18,3),(19,3);
+
+--replace_column 9 #
+explain select * from t1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from v1 where a in (3,4)  and b in (1,2,3);
+--replace_column 9 #
+explain select * from t1 where a between 3 and 4 and b between 1 and 2;
+--replace_column 9 #
+explain select * from v1 where a between 3 and 4 and b between 1 and 2;
+ 
+drop view v1;
+drop table t1;
+
+# BUG#13455: 
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a varchar(10), filler char(200), key(a)) charset=binary;
+insert into t1 values ('a','');
+insert into t1 values ('a ','');
+insert into t1 values ('a  ', '');
+insert into t1 select concat('a', 1000 + A.a + 10 * (B.a + 10 * C.a)), ''
+  from t3 A, t3 B, t3 C;
+
+create table t2 (a varchar(10), filler char(200), key(a));
+insert into t2 select * from t1;
+
+--replace_column 9 #
+explain select * from t1 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t1 where a = 'a' or a='a ';
+
+--replace_column 9 #
+explain select * from t2 where a between 'a' and 'a '; 
+--replace_column 9 #
+explain select * from t2 where a = 'a' or a='a ';
+
+update t1 set a='b' where a<>'a';
+--replace_column 9 #
+explain select * from t1 where a not between 'b' and 'b'; 
+select a, hex(filler) from t1 where a not between 'b' and 'b'; 
+
+drop table t1,t2,t3;
+
+#
+# BUG#21282
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, key(a));
+insert into t2 select 2*(A.a + 10*(B.a + 10*C.a)) from t1 A, t1 B, t1 C;
+
+set @a="select * from t2 force index (a) where a NOT IN(0";
+select count(*) from (select @a:=concat(@a, ',', a) from t2 ) Z;
+set @a=concat(@a, ')');
+
+insert into t2 values (11),(13),(15);
+
+set @b= concat("explain ", @a);
+
+prepare stmt1 from @b;
+execute stmt1;
+
+prepare stmt1 from @a;
+execute stmt1;
+
+drop table t1, t2;
+
+#
+# Bug #18165: range access for BETWEEN with a constant for the first argument 
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL DEFAULT '0',
+  b int NOT NULL DEFAULT '0',
+  c int NOT NULL DEFAULT '0', 
+  INDEX idx1(b,c), INDEX idx2(c));
+
+INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+INSERT INTO t1(b,c) VALUES (3,4), (3,4);
+
+SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+
+EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+
+SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+
+EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+
+DROP TABLE t1;
+
+#
+# Bug #16249: different results for a range with an without index 
+#             when a range condition use an invalid datetime constant 
+#
+
+CREATE TABLE t1 (                                      
+  item char(20) NOT NULL default '',                          
+  started datetime NOT NULL default '0000-00-00 00:00:00', 
+  price decimal(16,3) NOT NULL default '0.000',                 
+  PRIMARY KEY (item,started)                     
+) ENGINE=MyISAM;   
+
+INSERT INTO t1 VALUES
+('A1','2005-11-01 08:00:00',1000),
+('A1','2005-11-15 00:00:00',2000),
+('A1','2005-12-12 08:00:00',3000),
+('A2','2005-12-01 08:00:00',1000);
+
+EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
+
+DROP INDEX `PRIMARY` ON t1;
+
+EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
+
+DROP TABLE t1;
+
+--echo
+--echo BUG#32198 "Comparison of DATE with DATETIME still not using indexes correctly"
+--echo
+CREATE TABLE t1 (
+  id int(11) NOT NULL auto_increment,
+  dateval date default NULL,
+  PRIMARY KEY  (id),
+  KEY dateval (dateval)
+) AUTO_INCREMENT=173;
+
+INSERT INTO t1 VALUES
+(1,'2007-01-01'),(2,'2007-01-02'),(3,'2007-01-03'),(4,'2007-01-04'),
+(5,'2007-01-05'),(6,'2007-01-06'),(7,'2007-01-07'),(8,'2007-01-08'),
+(9,'2007-01-09'),(10,'2007-01-10'),(11,'2007-01-11');
+
+--echo This must use range access:
+explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '2007-01-02 23:59:59';
+
+drop table t1;
+
+#
+# Bug #33833: different or-ed predicates were erroneously merged into one that
+# resulted in ref access instead of range access and  a wrong result set
+#
+
+CREATE TABLE t1 (
+  a varchar(32), index (a)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+
+INSERT INTO t1 VALUES
+  ('B'), ('A'), ('A'), ('C'), ('B'), ('A'), ('A');
+
+SELECT a FROM t1 WHERE a='b' OR a='B';
+EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
+
+DROP TABLE t1;
+
+#
+# Bug #34731: highest possible value for INT erroneously filtered by WHERE
+#
+
+# test UNSIGNED. only occurs when indexed.
+CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
+
+INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
+
+# test upper bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+
+# show we don't fiddle with lower bound on UNSIGNED
+# count 0
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+
+DROP TABLE t1;
+
+
+# test signed. only occurs when index.
+CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
+
+INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
+
+# test upper bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+
+# test lower bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+
+DROP TABLE t1;
+
+# End of 5.0 tests
+
+# BUG#22393 fix: Adjust 'ref' estimate if we have 'range' estimate for
+#                a smaller scan interval
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, filler char(100));
+insert into t2 select A.a + 10 * (B.a + 10 * C.a), 10, 'filler' from t1 A,
+t1 B, t1 C where A.a < 5;
+
+insert into t2 select 1000, b, 'filler' from t2;
+alter table t2 add index (a,b);
+# t2 values 
+#  ( 1  , 10, 'filler')
+#  ( 2  , 10, 'filler')
+#  ( 3  , 10, 'filler')
+#  (... , 10, 'filler')
+#   ...
+#  (1000, 10, 'filler') - 500 times
+
+# 500 rows, 1 row
+
+select 'In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)' Z;
+explain select * from t2 where a=1000 and b<11;
+
+drop table t1, t2;
+
+#
+# Bug#42846: wrong result returned for range scan when using covering index
+#
+CREATE TABLE t1( a INT, b INT, KEY( a, b ) );
+
+CREATE TABLE t2( a INT, b INT, KEY( a, b ) );
+
+CREATE TABLE t3( a INT, b INT, KEY( a, b ) );
+
+INSERT INTO t1( a, b ) 
+VALUES (0, 1), (1, 2), (1, 4), (2, 3), (5, 0), (9, 7);
+
+INSERT INTO t2( a, b ) 
+VALUES ( 1, 1), ( 2, 1), ( 3, 1), ( 4, 1), ( 5, 1),
+       ( 6, 1), ( 7, 1), ( 8, 1), ( 9, 1), (10, 1), 
+       (11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
+       (16, 1), (17, 1), (18, 1), (19, 1), (20, 1);
+
+INSERT INTO t2 SELECT a, 2 FROM t2 WHERE b = 1;
+INSERT INTO t2 SELECT a, 3 FROM t2 WHERE b = 1;
+
+# To make range scan compelling to the optimizer
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+INSERT INTO t2 SELECT -1, -1 FROM t2;
+
+INSERT INTO t3
+VALUES (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),
+       (6, 0), (7, 0), (8, 0), (9, 0), (10, 0);
+
+# To make range scan compelling to the optimizer
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+INSERT INTO t3 SELECT * FROM t3 WHERE a = 10;
+
+
+#
+# Problem#1 Test queries. Will give missing results unless Problem#1 is fixed.
+# With one exception, they are independent of Problem#2.
+#
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 < a AND b = 3 OR
+3 <= a;
+
+# Query below: Tests both Problem#1 and Problem#2 (EXPLAIN differs as well)
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a < 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+5 <= a AND b = 3 OR
+3 <= a;
+
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+
+EXPLAIN
+SELECT * FROM t1 WHERE
+3 <= a AND a <= 5 OR 
+3 <= a;
+
+#
+# Problem#2 Test queries. 
+# These queries will give missing results if Problem#1 is fixed.
+# But Problem#1 also hides this bug.
+#
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 1 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+
+EXPLAIN
+SELECT * FROM t2 WHERE
+5 <= a AND a < 10 AND b = 2 OR
+15 <= a AND a < 20 AND b = 3
+OR
+1 <= a AND b = 1;
+
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+
+EXPLAIN
+SELECT * FROM t3 WHERE
+5 <= a AND a < 10 AND b = 3 OR 
+a < 5 OR
+a < 10;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #47123: Endless 100% CPU loop with STRAIGHT_JOIN
+--echo #
+
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES (1), (NULL);
+SELECT * FROM t1 WHERE a <> NULL and (a <> NULL or a <= NULL);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#47925: regression of range optimizer and date comparison in 5.1.39!
+--echo #
+CREATE TABLE t1 ( a DATE,     KEY ( a ) );
+CREATE TABLE t2 ( a DATETIME, KEY ( a ) );
+
+--echo # Make optimizer choose range scan
+INSERT INTO t1 VALUES ('2009-09-22'), ('2009-09-22'), ('2009-09-22');
+INSERT INTO t1 VALUES ('2009-09-23'), ('2009-09-23'), ('2009-09-23');
+
+INSERT INTO t2 VALUES ('2009-09-22 12:00:00'), ('2009-09-22 12:00:00'),
+                      ('2009-09-22 12:00:00');
+INSERT INTO t2 VALUES ('2009-09-23 12:00:00'), ('2009-09-23 12:00:00'),
+                      ('2009-09-23 12:00:00');
+
+--echo # DATE vs DATE
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+SELECT * FROM t1 WHERE a >= '2009/09/23';
+SELECT * FROM t1 WHERE a >= '20090923';
+SELECT * FROM t1 WHERE a >=  20090923;
+SELECT * FROM t1 WHERE a >= '2009-9-23';
+SELECT * FROM t1 WHERE a >= '2009.09.23';
+SELECT * FROM t1 WHERE a >= '2009:09:23';
+
+--echo # DATE vs DATETIME
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '2009/09/23';
+SELECT * FROM t2 WHERE a >= '20090923';
+SELECT * FROM t2 WHERE a >=  20090923;
+SELECT * FROM t2 WHERE a >= '2009-9-23';
+SELECT * FROM t2 WHERE a >= '2009.09.23';
+SELECT * FROM t2 WHERE a >= '2009:09:23';
+
+--echo # DATETIME vs DATETIME
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009/09/23 12:00:00';
+SELECT * FROM t2 WHERE a >= '20090923120000';
+SELECT * FROM t2 WHERE a >=  20090923120000;
+SELECT * FROM t2 WHERE a >= '2009-9-23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009.09.23 12:00:00';
+SELECT * FROM t2 WHERE a >= '2009:09:23 12:00:00';
+
+--echo # DATETIME vs DATE
+--replace_column 1 X 2 X 3 X 7 X 8 X 9 X 10 X
+EXPLAIN
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009/09/23 00:00:00';
+SELECT * FROM t1 WHERE a >= '20090923000000';
+SELECT * FROM t1 WHERE a >=  20090923000000;
+SELECT * FROM t1 WHERE a >= '2009-9-23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009.09.23 00:00:00';
+SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
+
+--echo # Test of the new get_date_from_str implementation
+--echo # Behavior differs slightly between the trunk and mysql-pe.
+--echo # The former may give errors for the truncated values, while the latter
+--echo # gives warnings. The purpose of this test is not to interfere, and only
+--echo # preserve existing behavior.
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
+       str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
+
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
+       str_to_date('2007-20-00', '%Y-%m-%d') <= '';
+
+SELECT str_to_date('2007-10-00', '%Y-%m-%d') BETWEEN '' AND '2007/10/20';
+SELECT str_to_date('2007-20-00', '%Y-%m-%d') BETWEEN '2007/10/20' AND '';
+
+SELECT str_to_date('', '%Y-%m-%d');
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#48459: valgrind errors with query using 'Range checked for each 
+--echo # record'
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b CHAR(2),
+  c INT,
+  d INT,
+  KEY ( c ),
+  KEY ( d, a, b ( 2 ) ),
+  KEY ( b ( 1 ) )
+);
+
+INSERT INTO t1 VALUES ( NULL, 'a', 1, 2 ), ( NULL, 'a', 1, 2 ),
+                      ( 1,    'a', 1, 2 ), ( 1,    'a', 1, 2 );
+
+CREATE TABLE t2 (
+  a INT,
+  c INT,
+  e INT,
+  KEY ( e )
+);
+
+INSERT INTO t2 VALUES ( 1, 1, NULL ), ( 1, 1, NULL );
+
+--echo # Should not give Valgrind warnings
+SELECT 1
+FROM t1, t2
+WHERE t1.d <> '1' AND t1.b > '1'
+AND t1.a = t2.a AND t1.c = t2.c;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #48665: sql-bench's insert test fails due to wrong result
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));
+
+INSERT INTO t1 VALUES (0,0), (1,1);
+
+--replace_column 1 @ 2 @ 3 @ 5 @ 6 @ 7 @ 8 @ 9 @ 10 @
+EXPLAIN 
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+ WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+
+--echo # Should return 2 rows
+SELECT * FROM t1 FORCE INDEX (PRIMARY) 
+ WHERE (a>=1 AND a<=2) OR (a>=4 AND a<=5) OR (a>=0 AND a <=10);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #54802: 'NOT BETWEEN' evaluation is incorrect
+--echo #
+
+CREATE TABLE t1 (c_key INT, c_notkey INT, KEY(c_key));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+
+EXPLAIN SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+SELECT * FROM t1 WHERE 2 NOT BETWEEN c_notkey AND c_key;
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests
+
+#
+# BUG#32262 fix: crash with decimal column...
+#
+
+CREATE TABLE t1 (c1 DECIMAL(10,0),INDEX(c1));
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT c1 FROM t1 WHERE c1 >= 'A' GROUP BY 1;
+DROP TABLE t1;
+
+#
+# BUG#32229: Range optimizer crashes for 'range checked for each record' query
+#
+create table t1 (a int,b int,key (b),key (a),key (b,a));
+insert into t1(a,b) values (1,2),(3,4),(5,6),(7,8);
+create table t2 (c int);
+insert into t2(c) values (1),(5),(6),(7),(8);
+select 1 from (select c from t1,t2 where b >= 1 and a <=> c group by 1 limit 1) as d1;
+drop table t1, t2;
+
+--echo #
+--echo # Bug #26106: Wrong plan may be chosen when there are several possible
+--echo # range and ref accesses
+--echo #
+CREATE TABLE t1( 
+  a INT,
+  b INT,
+  KEY k ( a ),
+  KEY l ( a, b )
+); 
+
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t1 
+VALUES (2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3),(2,3);
+INSERT INTO t1 SELECT 3, 4 FROM t1 WHERE a = 2 AND b = 3;
+INSERT INTO t1 SELECT 4, 1 FROM t1 WHERE a = 2 AND b = 3;
+ANALYZE TABLE t1;
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 2
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 4
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 8
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 16
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 32
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 64
+INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 128
+--echo # This must use range over index l, not k.
+EXPLAIN SELECT * FROM t1 WHERE a = 1 AND b >= 2;
+
+CREATE TABLE t2( 
+  a INT, 
+  b INT, 
+  c INT,
+  KEY k ( a ), 
+  KEY l ( a, b ),
+  KEY m ( b ), 
+  KEY n ( a, c )
+); 
+
+INSERT INTO t2(a) VALUES (1);
+INSERT INTO t2 
+VALUES (2,3,3),(2,3,3),(2,3,3),(2,3,3),(2,3,3),
+       (2,3,3),(2,3,3),(2,3,3),(2,3,3),(2,3,3);
+INSERT INTO t2 SELECT 3, 4, 4 FROM t2 WHERE a = 2 AND b = 3;
+INSERT INTO t2 SELECT 4, 1, 1 FROM t2 WHERE a = 2 AND b = 3;
+ANALYZE TABLE t2;
+INSERT INTO t2 VALUES (1, 2, 2);
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 2
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 4
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 8
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 16
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 32
+INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 64
+INSERT INTO t2 VALUES (1, 1, 2);
+
+--echo # This must use range over index l, not n.
+EXPLAIN SELECT * FROM t2 WHERE a = 1 AND b >= 2 AND c >= 2;
+
+DROP TABLE t1, t2;

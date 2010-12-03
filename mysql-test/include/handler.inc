@@ -19,7 +19,7 @@
 #               main testing code put into include/handler.inc
 #
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t1,t3,t4,t5;
@@ -523,7 +523,7 @@ connection waiter;
 --echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table flush";
 --source include/wait_condition.inc
 connection default;
 --echo connection: default
@@ -557,7 +557,8 @@ connection waiter;
 --echo connection: waiter 
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t0";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t0";
 --source include/wait_condition.inc
 connection default;
 --echo connection: default
@@ -743,7 +744,8 @@ send alter table t1 engine=memory;
 connection con2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 engine=memory";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 engine=memory";
 --source include/wait_condition.inc
 connection default;
 --error ER_ILLEGAL_HA
@@ -764,7 +766,8 @@ send alter table t1 engine=memory;
 connection con2;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 engine=memory";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 engine=memory";
 --source include/wait_condition.inc
 connection default;
 --echo # Since S metadata lock was already acquired at HANDLER OPEN time
@@ -1024,7 +1027,9 @@ connection con1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waitng for 'drop table t1' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t1';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
@@ -1055,7 +1060,9 @@ connection con1;
 --echo # --> connection con2 
 connection con2;
 --echo # Waiting for 'drop table t1' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t1';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
@@ -1097,7 +1104,8 @@ send rename table t0 to t3, t1 to t0, t3 to t1;
 connection con1;
 --echo # Waiting for 'rename table ...' to get blocked...
 let $wait_condition=select count(*)=1 from information_schema.processlist
-where state='Waiting for table' and info='rename table t0 to t3, t1 to t0, t3 to t1';
+                    where state='Waiting for table metadata lock' and
+                          info='rename table t0 to t3, t1 to t0, t3 to t1';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
@@ -1137,7 +1145,9 @@ connection con2;
 --echo # --> connection con1
 connection con1;
 --echo # Waiting for 'drop table t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t2';
 --source include/wait_condition.inc
 --echo # --> connection default
 connection default;
@@ -1146,7 +1156,9 @@ send select * from t2;
 --echo # --> connection con1
 connection con1;
 --echo # Waiting for 'select * from t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='select * from t2';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='select * from t2';
 unlock tables;
 --echo # --> connection con2
 connection con2;
@@ -1190,10 +1202,14 @@ connection default;
 --echo # --> connection con3
 connection con3;
 --echo # Waiting for 'drop table t1' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t1';
 --source include/wait_condition.inc
 --echo # Waiting for 'drop table t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t2';
 --source include/wait_condition.inc
 --echo # Demonstrate that t2 lock was released and t2 was dropped
 --echo # after ROLLBACK TO SAVEPOINT
@@ -1255,10 +1271,14 @@ connection default;
 --echo # --> connection con3
 connection con3;
 --echo # Waiting for 'drop table t1' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t1';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t1';
 --source include/wait_condition.inc
 --echo # Waiting for 'drop table t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t2';
 --source include/wait_condition.inc
 --echo # Demonstrate that t2 lock was released and t2 was dropped
 --echo # after ROLLBACK TO SAVEPOINT
@@ -1314,7 +1334,9 @@ drop table t1, t2;
 --echo # --> connection con2
 connection con2;
 --echo # Waiting for 'drop table t3' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t3';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t3';
 --source include/wait_condition.inc
 --echo # Demonstrate that ROLLBACK TO SAVEPOINT didn't release the handler
 --echo # lock.
@@ -1348,7 +1370,9 @@ send drop table t2;
 --echo # --> connection con2
 connection con2;
 --echo # Waiting for 'drop table t2' to get blocked...
-let $wait_condition=select count(*)=1 from information_schema.processlist where state='Waiting for table' and info='drop table t2';
+let $wait_condition=select count(*)=1 from information_schema.processlist
+                    where state='Waiting for table metadata lock' and
+                          info='drop table t2';
 --source include/wait_condition.inc
 --echo # --> connection con1
 connection con1;
@@ -1400,7 +1424,8 @@ connection con2;
 --echo # has read from the table commits.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock tables t1 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock tables t1 write";
 --source include/wait_condition.inc
 
 --echo # --> connection default
@@ -1427,7 +1452,8 @@ connection con1;
 --echo # Waiting for 'handler t1 read a next' to get blocked...
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "handler t1 read a next";
+  where state = "Waiting for table level lock" and
+        info = "handler t1 read a next";
 --source include/wait_condition.inc
 
 --echo # The below 'drop table t1' should be able to proceed without
@@ -1519,8 +1545,6 @@ lock table not_exists_write read;
 --echo # We still have the read lock.
 --error ER_CANT_UPDATE_WITH_READLOCK
 drop table t1;
-handler t1 read next;
-handler t1 close;
 handler t1 open;
 select a from t2;
 handler t1 read next;
@@ -1757,3 +1781,58 @@ disconnect con51355;
 --echo # Connection default
 connection default;
 
+
+--echo #
+--echo # Bug#54401 assert in Diagnostics_area::set_eof_status , HANDLER
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INTEGER
+BEGIN
+  SELECT 1 FROM t2 INTO @a;
+  RETURN 1;
+END|
+delimiter ;|
+
+# Get f1() parsed and cached
+--error ER_NO_SUCH_TABLE
+SELECT f1();
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1);
+HANDLER t1 OPEN;
+# This used to cause the assert
+--error ER_NOT_SUPPORTED_YET
+HANDLER t1 READ FIRST WHERE f1() = 1;
+HANDLER t1 CLOSE;
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#54920 Stored functions are allowed in HANDLER statements,
+--echo #           but broken.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+HANDLER t1 OPEN;
+
+--error ER_NOT_SUPPORTED_YET
+HANDLER t1 READ FIRST WHERE f1() = 1;
+
+HANDLER t1 CLOSE;
+DROP FUNCTION f1;
+DROP TABLE t1;

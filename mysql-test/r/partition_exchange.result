@@ -1,0 +1,860 @@
+DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
+#
+# Bug#56484: !table || (!table->read_set ||
+#                       bitmap_is_set(table->read_set, field_index))
+#
+CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
+ENGINE=MyISAM
+PARTITION BY HASH (a) PARTITIONS 2;
+CREATE TABLE t2 (a INT) ENGINE=MYISAM;
+ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
+ERROR HY000: Tables have different definitions
+DROP TABLE t1, t2;
+#
+# Bug#55784: Foreign key integrity broken by alter table
+#
+CREATE TABLE t1 (s1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (s1 INT, FOREIGN KEY (s1) REFERENCES t1 (s1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (1),(2),(3);
+CREATE TABLE t3 (s1 INT PRIMARY KEY)
+ENGINE=InnoDB
+PARTITION BY LIST (s1)
+(PARTITION p1 VALUES IN (1,2,3));
+ALTER TABLE t3 EXCHANGE PARTITION p1 WITH TABLE t1;
+ERROR HY000: Table to exchange with partition has foreign key references: 't1'
+DROP TABLE t2, t1, t3;
+# Tests for WL#4445
+CREATE TABLE t (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM;
+CREATE TABLE tp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+CREATE TABLE tsp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH(a)
+(PARTITION p0 VALUES LESS THAN (100)
+(SUBPARTITION sp0,
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+(SUBPARTITION sp2,
+SUBPARTITION sp3));
+INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
+INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+10	Ten
+2	First value
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+SELECT * FROM tp;
+a	b
+1	First value
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+3	Three
+5	Five
+99	End of values
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
+ERROR HY000: Found row that does not match the partition
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+# Test list of partitions
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IGNORE' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t IGNORE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t IGNORE' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t' at line 1
+ALTER TABLE tp EXCHANGE PARTITION (p0,p1) WITH TABLE t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) WITH TABLE t' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE (t,t2);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2)' at line 1
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t,t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't2' at line 1
+ALTER TABLE tp EXCHANGE PARTITION non_existent WITH TABLE t;
+ERROR HY000: Unknown partition 'non_existent' in table 'tp'
+ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Subpartitioned table, use subpartition instead of partition
+ALTER TABLE tsp EXCHANGE PARTITION sp0 WITH TABLE tp;
+ERROR HY000: Table to exchange with partition is partitioned: 'tp'
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SHOW CREATE TABLE tsp;
+Table	Create Table
+tsp	CREATE TABLE `tsp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (100)
+ (SUBPARTITION sp0 ENGINE = MyISAM,
+  SUBPARTITION sp1 ENGINE = MyISAM),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION sp2 ENGINE = MyISAM,
+  SUBPARTITION sp3 ENGINE = MyISAM)) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+# Test exchange partition
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+10	Ten
+2	First value
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+SELECT * FROM tp;
+a	b
+1	First value
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+3	Three
+5	Five
+99	End of values
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+# Test exchange subpartition
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tsp;
+Table	Create Table
+tsp	CREATE TABLE `tsp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (100)
+ (SUBPARTITION sp0 ENGINE = MyISAM,
+  SUBPARTITION sp1 ENGINE = MyISAM),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION sp2 ENGINE = MyISAM,
+  SUBPARTITION sp3 ENGINE = MyISAM)) */
+SELECT * FROM t;
+a	b
+61	Sixty one
+63	Sixty three
+SELECT * FROM tsp;
+a	b
+1	First value
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+3	Three
+5	Five
+50	Fifty
+62	Sixty two
+64	Sixty four
+99	End of values
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
+ALTER TABLE t ENGINE = InnoDB;
+ALTER TABLE tp ENGINE = InnoDB;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+99	End of values
+SELECT * FROM tp;
+a	b
+10	Ten
+161	161
+162	162
+163	163
+164	164
+2	First value
+200	Two hundred, end of values
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t;
+a	b
+10	Ten
+2	First value
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+SELECT * FROM tp;
+a	b
+1	First value
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+3	Three
+5	Five
+99	End of values
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+# test different engines
+ALTER TABLE t ENGINE = MyISAM;
+ALTER TABLE tp ENGINE = InnoDB;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# Test different charsets
+ALTER TABLE t ENGINE = MyISAM;
+CREATE TABLE tmp LIKE t;
+INSERT INTO tmp SELECT * FROM t;
+RENAME TABLE t TO tmp2, tmp TO t;
+ALTER TABLE tp ENGINE = MyISAM;
+ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
+DROP TABLE t;
+# Test multiple different table options
+CREATE TABLE t (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM MAX_ROWS = 100000 MIN_ROWS = 1000;
+INSERT INTO t SELECT * FROM tmp2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 MIN_ROWS=1000 MAX_ROWS=100000
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
+SHOW WARNINGS;
+Level	Code	Message
+Error	1705	Non matching attribute 'MAX_ROWS' between partition and table
+Error	1705	Non matching attribute 'MIN_ROWS' between partition and table
+DROP TABLE t;
+RENAME TABLE tmp2 TO t;
+ALTER TABLE t ADD KEY ba_key (b, a);
+ALTER TABLE tp ADD KEY ba_key (b, a);
+ALTER TABLE tsp ADD KEY ba_key (b, a);
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+10	Ten
+2	First value
+50	Fifty
+61	Sixty one
+62	Sixty two
+63	Sixty three
+64	Sixty four
+SELECT * FROM tp;
+a	b
+1	First value
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+3	Three
+5	Five
+99	End of values
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ALTER TABLE t DROP KEY ba_key;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Tables have different definitions
+ALTER TABLE t ADD KEY b_key (b);
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
+ERROR HY000: Tables have different definitions
+ALTER TABLE t ADD KEY ba_key (b, a);
+ALTER TABLE t DROP KEY b_key;
+ALTER TABLE t CHANGE a c INT;
+ALTER TABLE tsp EXCHANGE PARTITION sp1 WITH TABLE t;
+ERROR HY000: Tables have different definitions
+ALTER TABLE t CHANGE c a INT;
+# test temporary table
+ALTER TABLE t ENGINE = MyISAM;
+ALTER TABLE tp ENGINE = MyISAM;
+CREATE TEMPORARY TABLE tmp LIKE t;
+INSERT INTO tmp SELECT * FROM t;
+ALTER TABLE t RENAME TO tmp2;
+ALTER TABLE tmp RENAME TO t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TEMPORARY TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Table to exchange with partition is temporary: 't'
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TEMPORARY TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `ba_key` (`b`,`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+DROP TEMPORARY TABLE t;
+ALTER TABLE tmp2 RENAME TO t;
+# Test non partitioned table
+ALTER TABLE tp REMOVE PARTITIONING;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+ERROR HY000: Partition management on a not partitioned table is not possible
+DROP TABLE t, tp, tsp;
+# Test with general_log
+use mysql;
+SET @old_general_log_state = @@global.general_log;
+SET GLOBAL general_log = 0;
+ALTER TABLE general_log ENGINE = MyISAM;
+CREATE TABLE t LIKE general_log;
+ALTER TABLE t PARTITION BY RANGE (UNIX_TIMESTAMP(event_time))
+(PARTITION p0 VALUES LESS THAN (123456789),
+PARTITION pMAX VALUES LESS THAN MAXVALUE);
+ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
+ERROR HY000: Incorrect usage of PARTITION and log table
+ALTER TABLE general_log ENGINE = CSV;
+SET @@global.general_log = @old_general_log_state;
+DROP TABLE t;
+use test;
+# Test with LOCK TABLE
+CREATE TABLE tp
+(a VARCHAR(24),
+b DATETIME,
+PRIMARY KEY (a,b))
+PARTITION BY RANGE COLUMNS (a, b)
+(PARTITION p0 VALUES LESS THAN ("Middle", '0000-00-00'),
+PARTITION p1 VALUES LESS THAN (MAXVALUE, '9999-12-31 23:59:59'));
+CREATE TABLE t LIKE tp;
+ALTER TABLE t REMOVE PARTITIONING;
+CREATE TABLE t2 LIKE t;
+INSERT INTO tp VALUES ("First in tp", '2000-01-02 03:04:25'), ("Zebra in tp", '0000-00-00 00:00:00'), ("Second in tp", '2010-01-01 05:12:24');
+INSERT INTO t VALUES ("First in t", '2000-01-02 03:04:25'), ("a test in t", '0000-00-00 00:00:00'), ("Echo in t", '2010-01-01 05:12:24');
+# tp_lock '0' t_lock 'READ' t2_lock 'READ' count '17'
+LOCK TABLE t READ, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# tp_lock '0' t_lock 'WRITE' t2_lock 'READ' count '16'
+LOCK TABLE t WRITE, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock '0' t2_lock 'READ' count '15'
+LOCK TABLE tp READ, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock 'READ' t2_lock 'READ' count '14'
+LOCK TABLE t READ, tp READ, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock 'WRITE' t2_lock 'READ' count '13'
+LOCK TABLE t WRITE, tp READ, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock '0' t2_lock 'READ' count '12'
+LOCK TABLE tp WRITE, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 't' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 't2' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock 'READ' t2_lock 'READ' count '11'
+LOCK TABLE t READ, tp WRITE, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 't' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 't2' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock 'WRITE' t2_lock 'READ' count '10'
+LOCK TABLE t WRITE, tp WRITE, t2 READ;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 't2' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock '0' t_lock '0' t2_lock 'WRITE' count '9'
+LOCK TABLE t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# tp_lock '0' t_lock 'READ' t2_lock 'WRITE' count '8'
+LOCK TABLE t READ, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# tp_lock '0' t_lock 'WRITE' t2_lock 'WRITE' count '7'
+LOCK TABLE t WRITE, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 'tp' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock '0' t2_lock 'WRITE' count '6'
+LOCK TABLE tp READ, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock 'READ' t2_lock 'WRITE' count '5'
+LOCK TABLE t READ, tp READ, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'READ' t_lock 'WRITE' t2_lock 'WRITE' count '4'
+LOCK TABLE t WRITE, tp READ, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 'tp' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock '0' t2_lock 'WRITE' count '3'
+LOCK TABLE tp WRITE, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1100	Table 't' was not locked with LOCK TABLES
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock 'READ' t2_lock 'WRITE' count '2'
+LOCK TABLE t READ, tp WRITE, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+Error	1099	Table 't' was locked with a READ lock and can't be updated
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+UNLOCK TABLES;
+# tp_lock 'WRITE' t_lock 'WRITE' t2_lock 'WRITE' count '1'
+LOCK TABLE t WRITE, tp WRITE, t2 WRITE;
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+SHOW WARNINGS;
+Level	Code	Message
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t2;
+SHOW WARNINGS;
+Level	Code	Message
+UNLOCK TABLES;
+DROP TABLE t, t2, tp;

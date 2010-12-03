@@ -42,6 +42,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0roll.h"
 #include "usr0sess.h"
 #include "ut0vec.h"
+#include "dict0priv.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -590,7 +591,7 @@ dict_build_index_def_step(
 	ins_node_set_new_row(node->ind_def, row);
 
 	/* Note that the index was created by this transaction. */
-	index->trx_id = (ib_uint64_t) ut_conv_dulint_to_longlong(trx->id);
+	index->trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -627,7 +628,6 @@ dict_create_index_tree_step(
 {
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
-	dict_table_t*	table;
 	dtuple_t*	search_tuple;
 	ulint		zip_size;
 	btr_pcur_t	pcur;
@@ -636,7 +636,6 @@ dict_create_index_tree_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	index = node->index;
-	table = node->table;
 
 	sys_indexes = dict_sys->sys_indexes;
 
@@ -761,7 +760,7 @@ dict_truncate_index_tree(
 	ibool		drop = !space;
 	ulint		zip_size;
 	ulint		type;
-	dulint		index_id;
+	index_id_t	index_id;
 	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
@@ -830,7 +829,7 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	btr_page_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, mtr);
 
 	btr_free_root(space, zip_size, root_page_no, mtr);
 create:
@@ -854,7 +853,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (!ut_dulint_cmp(index->id, index_id)) {
+		if (index->id == index_id) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -864,10 +863,9 @@ create:
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Index %lu %lu of table %s is missing\n"
+		"  InnoDB: Index %llu of table %s is missing\n"
 		"InnoDB: from the data dictionary during TRUNCATE!\n",
-		ut_dulint_get_high(index_id),
-		ut_dulint_get_low(index_id),
+		(ullint) index_id,
 		table->name);
 
 	return(FIL_NULL);
@@ -903,7 +901,7 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
@@ -940,7 +938,7 @@ ind_create_graph_create(
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
 
-	node->commit_node = commit_node_create(heap);
+	node->commit_node = trx_commit_node_create(heap);
 	node->commit_node->common.parent = node;
 
 	return(node);
@@ -1027,7 +1025,7 @@ dict_create_table_step(
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
 
-		dict_table_add_to_cache(node->table, node->heap);
+		dict_table_add_to_cache(node->table, TRUE, node->heap);
 
 		err = DB_SUCCESS;
 	}
@@ -1119,7 +1117,7 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		dulint	index_id = node->index->id;
+		index_id_t	index_id = node->index->id;
 
 		err = dict_index_add_to_cache(
 			node->table, node->index, FIL_NULL,
@@ -1187,6 +1185,46 @@ function_exit:
 }
 
 /****************************************************************//**
+Check whether the system foreign key tables exist. Additionally, If
+they exist then move them to non-LRU end of the table LRU list.
+@return TRUE if they exist. */
+static
+ibool
+dict_check_sys_foreign_tables_exist(void)
+/*=====================================*/
+{
+	dict_table_t*	sys_foreign;
+	ibool		exists = FALSE;
+	dict_table_t*	sys_foreign_cols;
+
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
+
+	mutex_enter(&dict_sys->mutex);
+
+	sys_foreign = dict_table_get_low("SYS_FOREIGN");
+	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
+
+	if (sys_foreign != NULL
+	    && sys_foreign_cols != NULL
+	    && UT_LIST_GET_LEN(sys_foreign->indexes) == 3
+	    && UT_LIST_GET_LEN(sys_foreign_cols->indexes) == 1) {
+
+		/* Foreign constraint system tables have already been
+		created, and they are ok. Ensure that they can't be
+		evicted from the table LRU cache.  */
+
+		dict_table_move_from_lru_to_non_lru(sys_foreign);
+		dict_table_move_from_lru_to_non_lru(sys_foreign_cols);
+
+		exists = TRUE;
+	}
+
+	mutex_exit(&dict_sys->mutex);
+
+	return(exists);
+}
+
+/****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
 not of the right form.
@@ -1196,29 +1234,17 @@ ulint
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
 {
-	dict_table_t*	table1;
-	dict_table_t*	table2;
-	ulint		error;
 	trx_t*		trx;
+	ulint		error;
+	ibool		success;
 
-	mutex_enter(&(dict_sys->mutex));
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
-	table1 = dict_table_get_low("SYS_FOREIGN");
-	table2 = dict_table_get_low("SYS_FOREIGN_COLS");
+	/* Note: The master thread has not been started at this point. */
 
-	if (table1 && table2
-	    && UT_LIST_GET_LEN(table1->indexes) == 3
-	    && UT_LIST_GET_LEN(table2->indexes) == 1) {
-
-		/* Foreign constraint system tables have already been
-		created, and they are ok */
-
-		mutex_exit(&(dict_sys->mutex));
-
+	if (dict_check_sys_foreign_tables_exist()) {
 		return(DB_SUCCESS);
 	}
-
-	mutex_exit(&(dict_sys->mutex));
 
 	trx = trx_allocate_for_mysql();
 
@@ -1226,17 +1252,20 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	row_mysql_lock_data_dictionary(trx);
 
-	if (table1) {
+	/* Check which incomplete table definition to drop. */
+
+	if (dict_table_get_low("SYS_FOREIGN") != NULL) {
 		fprintf(stderr,
 			"InnoDB: dropping incompletely created"
 			" SYS_FOREIGN table\n");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
-	if (table2) {
+	if (dict_table_get_low("SYS_FOREIGN_COLS") != NULL) {
 		fprintf(stderr,
 			"InnoDB: dropping incompletely created"
 			" SYS_FOREIGN_COLS table\n");
+
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
@@ -1303,6 +1332,12 @@ dict_create_or_check_foreign_constraint_tables(void)
 			"InnoDB: Foreign key constraint system tables"
 			" created\n");
 	}
+
+	/* Note: The master thread has not been started at this point. */
+	/* Confirm and move to the non-LRU part of the table LRU list. */
+
+	success = dict_check_sys_foreign_tables_exist();
+	ut_a(success);
 
 	return(error);
 }
@@ -1472,12 +1507,11 @@ dict_create_add_foreign_to_dictionary(
 		}
 	}
 
-	error = dict_foreign_eval_sql(NULL,
-				      "PROCEDURE P () IS\n"
-				      "BEGIN\n"
-				      "COMMIT WORK;\n"
-				      "END;\n"
-				      , table, foreign, trx);
+	trx->op_info = "committing foreign key definitions";
+
+	trx_commit(trx);
+
+	trx->op_info = "";
 
 	return(error);
 }

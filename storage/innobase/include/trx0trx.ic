@@ -23,39 +23,6 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-/*************************************************************//**
-Starts the transaction if it is not yet started. */
-UNIV_INLINE
-void
-trx_start_if_not_started(
-/*=====================*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
-
-	if (trx->conc_state == TRX_NOT_STARTED) {
-
-		trx_start(trx, ULINT_UNDEFINED);
-	}
-}
-
-/*************************************************************//**
-Starts the transaction if it is not yet started. Assumes we have reserved
-the kernel mutex! */
-UNIV_INLINE
-void
-trx_start_if_not_started_low(
-/*=========================*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
-
-	if (trx->conc_state == TRX_NOT_STARTED) {
-
-		trx_start_low(trx, ULINT_UNDEFINED);
-	}
-}
-
 /****************************************************************//**
 Retrieves the error_info field from a trx.
 @return	the error info */
@@ -69,18 +36,6 @@ trx_get_error_info(
 }
 
 /*******************************************************************//**
-Retrieves transacion's id, represented as unsigned long long.
-@return	transaction's id */
-UNIV_INLINE
-ullint
-trx_get_id(
-/*=======*/
-	const trx_t*	trx)	/*!< in: transaction */
-{
-	return((ullint)ut_conv_dulint_to_longlong(trx->id));
-}
-
-/*******************************************************************//**
 Retrieves transaction's que state in a human readable string. The string
 should not be free()'d or modified.
 @return	string in the data segment */
@@ -91,7 +46,7 @@ trx_get_que_state_str(
 	const trx_t*	trx)	/*!< in: transaction */
 {
 	/* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
-	switch (trx->que_state) {
+	switch (trx->lock.que_state) {
 	case TRX_QUE_RUNNING:
 		return("RUNNING");
 	case TRX_QUE_LOCK_WAIT:

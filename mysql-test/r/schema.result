@@ -48,3 +48,48 @@ ERROR HY000: Can't execute the given command because you have active locked tabl
 UNLOCK TABLES;
 # Connection con2
 # Connection default
+#
+# Bug#54360 Deadlock DROP/ALTER/CREATE DATABASE with open HANDLER
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+INSERT INTO db1.t1 VALUES (1), (2);
+# Connection con1
+HANDLER db1.t1 OPEN;
+# Connection default
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+# Connection con1
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+HANDLER t1 CLOSE;
+# Connection default
+# Reaping: DROP DATABASE db1
+#
+# Tests for increased CREATE/ALTER/DROP DATABASE concurrency with
+# database name locks.
+# 
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (id INT);
+START TRANSACTION;
+INSERT INTO db1.t1 VALUES (1);
+# Connection 2
+# DROP DATABASE should block due to the active transaction
+# Sending:
+DROP DATABASE db1;
+# Connection 3
+# But it should still be possible to CREATE/ALTER/DROP other databases.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+# Connection default
+# End the transaction so DROP DATABASE db1 can continue
+COMMIT;
+# Connection 2
+# Reaping: DROP DATABASE db1
+# Connection default;

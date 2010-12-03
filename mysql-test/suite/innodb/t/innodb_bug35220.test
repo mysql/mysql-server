@@ -5,7 +5,7 @@
 
 -- source include/have_innodb.inc
 
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not produce errors
 -- disable_query_log

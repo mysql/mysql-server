@@ -8,10 +8,11 @@
 # running mostly MySQL using InnoDB only tables and performing complex
 # queries with few connections.
 # 
-# You can copy this file to /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options 
-# (@localstatedir@ for this installation) or to
-# ~/.my.cnf to set user-specific options.
+# MySQL programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, see:
+# http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
@@ -108,6 +109,16 @@ binlog_cache_size = 1M
 # is a protection against the accidential creation of a very large HEAP
 # table which could otherwise use up all memory resources.
 max_heap_table_size = 64M
+
+# Size of the buffer used for doing full table scans.
+# Allocated per thread, if a full scan is needed.
+read_buffer_size = 2M
+
+# When reading rows in sorted order after a sort, the rows are read
+# through this buffer to avoid disk seeks. You can improve ORDER BY
+# performance a lot, if set this to a high value.
+# Allocated per thread, when needed.
+read_rnd_buffer_size = 16M
 
 # Sort buffer is used to perform sorts for some ORDER BY and GROUP BY
 # queries. If sorted data does not fit into the sort buffer, a disk
@@ -222,15 +233,6 @@ slow_query_log
 # currently measures time with second accuracy only).
 long_query_time = 2
 
-# The directory used by MySQL for storing temporary files. For example,
-# it is used to perform disk based large sorts, as well as for internal
-# and explicit temporary tables. It might be good to put it on a
-# swapfs/tmpfs filesystem, if you do not create very large temporary
-# files. Alternatively you can put it on dedicated disk. You can
-# specify multiple paths here by separating them by ";" - they will then
-# be used in a round-robin fashion.
-#tmpdir = /tmp
-
 
 # ***  Replication related settings 
 
@@ -309,16 +311,6 @@ server-id = 1
 # MyISAM tables, you should still set it to 8-64M as it will also be
 # used for internal temporary disk tables.
 key_buffer_size = 32M
-
-# Size of the buffer used for doing full table scans of MyISAM tables.
-# Allocated per thread, if a full scan is needed.
-read_buffer_size = 2M
-
-# When reading rows in sorted order after a sort, the rows are read
-# through this buffer to avoid disk seeks. You can improve ORDER BY
-# performance a lot, if set this to a high value.
-# Allocated per thread, when needed.
-read_rnd_buffer_size = 16M
 
 # MyISAM uses special tree-like cache to make bulk inserts (that is,
 # INSERT ... SELECT, INSERT ... VALUES (...), (...), ..., and LOAD DATA

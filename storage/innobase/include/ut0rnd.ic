@@ -85,9 +85,6 @@ ut_rnd_gen_ulint(void)
 /*==================*/
 {
 	ulint	rnd;
-	ulint	n_bits;
-
-	n_bits = 8 * sizeof(ulint);
 
 	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
 
@@ -173,16 +170,16 @@ ut_fold_ulint_pair(
 }
 
 /*************************************************************//**
-Folds a dulint.
+Folds a 64-bit integer.
 @return	folded value */
 UNIV_INLINE
 ulint
-ut_fold_dulint(
-/*===========*/
-	dulint	d)	/*!< in: dulint */
+ut_fold_ull(
+/*========*/
+	ib_uint64_t	d)	/*!< in: 64-bit integer */
 {
-	return(ut_fold_ulint_pair(ut_dulint_get_low(d),
-				  ut_dulint_get_high(d)));
+	return(ut_fold_ulint_pair((ulint) d & ULINT32_MASK,
+				  (ulint) (d >> 32)));
 }
 
 /*************************************************************//**
@@ -216,15 +213,37 @@ ut_fold_binary(
 	const byte*	str,	/*!< in: string of bytes */
 	ulint		len)	/*!< in: length */
 {
-	const byte*	str_end	= str + len;
 	ulint		fold = 0;
+	const byte*	str_end	= str + (len & 0xFFFFFFF8);
 
 	ut_ad(str || !len);
 
 	while (str < str_end) {
-		fold = ut_fold_ulint_pair(fold, (ulint)(*str));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	}
 
-		str++;
+	switch (len & 0x7) {
+	case 7:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 6:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 5:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 4:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 3:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 2:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
+	case 1:
+		fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
 	}
 
 	return(fold);

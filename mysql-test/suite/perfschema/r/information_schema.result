@@ -1,198 +1,198 @@
-select TABLE_SCHEMA, upper(TABLE_NAME), TABLE_CATALOG
+select TABLE_SCHEMA, lower(TABLE_NAME), TABLE_CATALOG
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-TABLE_SCHEMA	upper(TABLE_NAME)	TABLE_CATALOG
-performance_schema	COND_INSTANCES	def
-performance_schema	EVENTS_WAITS_CURRENT	def
-performance_schema	EVENTS_WAITS_HISTORY	def
-performance_schema	EVENTS_WAITS_HISTORY_LONG	def
-performance_schema	EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	def
-performance_schema	EVENTS_WAITS_SUMMARY_BY_INSTANCE	def
-performance_schema	EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	def
-performance_schema	FILE_INSTANCES	def
-performance_schema	FILE_SUMMARY_BY_EVENT_NAME	def
-performance_schema	FILE_SUMMARY_BY_INSTANCE	def
-performance_schema	MUTEX_INSTANCES	def
-performance_schema	PERFORMANCE_TIMERS	def
-performance_schema	PROCESSLIST	def
-performance_schema	RWLOCK_INSTANCES	def
-performance_schema	SETUP_CONSUMERS	def
-performance_schema	SETUP_INSTRUMENTS	def
-performance_schema	SETUP_OBJECTS	def
-performance_schema	SETUP_TIMERS	def
-select upper(TABLE_NAME), TABLE_TYPE, ENGINE
+TABLE_SCHEMA	lower(TABLE_NAME)	TABLE_CATALOG
+performance_schema	cond_instances	def
+performance_schema	events_waits_current	def
+performance_schema	events_waits_history	def
+performance_schema	events_waits_history_long	def
+performance_schema	events_waits_summary_by_instance	def
+performance_schema	events_waits_summary_by_thread_by_event_name	def
+performance_schema	events_waits_summary_global_by_event_name	def
+performance_schema	file_instances	def
+performance_schema	file_summary_by_event_name	def
+performance_schema	file_summary_by_instance	def
+performance_schema	mutex_instances	def
+performance_schema	performance_timers	def
+performance_schema	rwlock_instances	def
+performance_schema	setup_actors	def
+performance_schema	setup_consumers	def
+performance_schema	setup_instruments	def
+performance_schema	setup_timers	def
+performance_schema	threads	def
+select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	TABLE_TYPE	ENGINE
-COND_INSTANCES	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_CURRENT	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_HISTORY	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_HISTORY_LONG	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	BASE TABLE	PERFORMANCE_SCHEMA
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	BASE TABLE	PERFORMANCE_SCHEMA
-FILE_INSTANCES	BASE TABLE	PERFORMANCE_SCHEMA
-FILE_SUMMARY_BY_EVENT_NAME	BASE TABLE	PERFORMANCE_SCHEMA
-FILE_SUMMARY_BY_INSTANCE	BASE TABLE	PERFORMANCE_SCHEMA
-MUTEX_INSTANCES	BASE TABLE	PERFORMANCE_SCHEMA
-PERFORMANCE_TIMERS	BASE TABLE	PERFORMANCE_SCHEMA
-PROCESSLIST	BASE TABLE	PERFORMANCE_SCHEMA
-RWLOCK_INSTANCES	BASE TABLE	PERFORMANCE_SCHEMA
-SETUP_CONSUMERS	BASE TABLE	PERFORMANCE_SCHEMA
-SETUP_INSTRUMENTS	BASE TABLE	PERFORMANCE_SCHEMA
-SETUP_OBJECTS	BASE TABLE	PERFORMANCE_SCHEMA
-SETUP_TIMERS	BASE TABLE	PERFORMANCE_SCHEMA
-select upper(TABLE_NAME), VERSION, ROW_FORMAT
+lower(TABLE_NAME)	TABLE_TYPE	ENGINE
+cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_current	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_history	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_history_long	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_by_thread_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+events_waits_summary_global_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+file_instances	BASE TABLE	PERFORMANCE_SCHEMA
+file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
+file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
+mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
+performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
+rwlock_instances	BASE TABLE	PERFORMANCE_SCHEMA
+setup_actors	BASE TABLE	PERFORMANCE_SCHEMA
+setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
+setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
+setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
+threads	BASE TABLE	PERFORMANCE_SCHEMA
+select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	VERSION	ROW_FORMAT
-COND_INSTANCES	10	Dynamic
-EVENTS_WAITS_CURRENT	10	Dynamic
-EVENTS_WAITS_HISTORY	10	Dynamic
-EVENTS_WAITS_HISTORY_LONG	10	Dynamic
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	10	Dynamic
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	10	Dynamic
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	10	Dynamic
-FILE_INSTANCES	10	Dynamic
-FILE_SUMMARY_BY_EVENT_NAME	10	Dynamic
-FILE_SUMMARY_BY_INSTANCE	10	Dynamic
-MUTEX_INSTANCES	10	Dynamic
-PERFORMANCE_TIMERS	10	Fixed
-PROCESSLIST	10	Dynamic
-RWLOCK_INSTANCES	10	Dynamic
-SETUP_CONSUMERS	10	Dynamic
-SETUP_INSTRUMENTS	10	Dynamic
-SETUP_OBJECTS	10	Dynamic
-SETUP_TIMERS	10	Dynamic
-select upper(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
+lower(TABLE_NAME)	VERSION	ROW_FORMAT
+cond_instances	10	Dynamic
+events_waits_current	10	Dynamic
+events_waits_history	10	Dynamic
+events_waits_history_long	10	Dynamic
+events_waits_summary_by_instance	10	Dynamic
+events_waits_summary_by_thread_by_event_name	10	Dynamic
+events_waits_summary_global_by_event_name	10	Dynamic
+file_instances	10	Dynamic
+file_summary_by_event_name	10	Dynamic
+file_summary_by_instance	10	Dynamic
+mutex_instances	10	Dynamic
+performance_timers	10	Fixed
+rwlock_instances	10	Dynamic
+setup_actors	10	Fixed
+setup_consumers	10	Dynamic
+setup_instruments	10	Dynamic
+setup_timers	10	Dynamic
+threads	10	Dynamic
+select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	TABLE_ROWS	AVG_ROW_LENGTH
-COND_INSTANCES	1000	0
-EVENTS_WAITS_CURRENT	1000	0
-EVENTS_WAITS_HISTORY	1000	0
-EVENTS_WAITS_HISTORY_LONG	10000	0
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	1000	0
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	1000	0
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	1000	0
-FILE_INSTANCES	1000	0
-FILE_SUMMARY_BY_EVENT_NAME	1000	0
-FILE_SUMMARY_BY_INSTANCE	1000	0
-MUTEX_INSTANCES	1000	0
-PERFORMANCE_TIMERS	5	0
-PROCESSLIST	1000	0
-RWLOCK_INSTANCES	1000	0
-SETUP_CONSUMERS	8	0
-SETUP_INSTRUMENTS	1000	0
-SETUP_OBJECTS	1000	0
-SETUP_TIMERS	1	0
-select upper(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
+lower(TABLE_NAME)	TABLE_ROWS	AVG_ROW_LENGTH
+cond_instances	1000	0
+events_waits_current	1000	0
+events_waits_history	1000	0
+events_waits_history_long	10000	0
+events_waits_summary_by_instance	1000	0
+events_waits_summary_by_thread_by_event_name	1000	0
+events_waits_summary_global_by_event_name	1000	0
+file_instances	1000	0
+file_summary_by_event_name	1000	0
+file_summary_by_instance	1000	0
+mutex_instances	1000	0
+performance_timers	5	0
+rwlock_instances	1000	0
+setup_actors	1	0
+setup_consumers	8	0
+setup_instruments	1000	0
+setup_timers	1	0
+threads	1000	0
+select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
-COND_INSTANCES	0	0
-EVENTS_WAITS_CURRENT	0	0
-EVENTS_WAITS_HISTORY	0	0
-EVENTS_WAITS_HISTORY_LONG	0	0
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	0	0
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	0	0
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	0	0
-FILE_INSTANCES	0	0
-FILE_SUMMARY_BY_EVENT_NAME	0	0
-FILE_SUMMARY_BY_INSTANCE	0	0
-MUTEX_INSTANCES	0	0
-PERFORMANCE_TIMERS	0	0
-PROCESSLIST	0	0
-RWLOCK_INSTANCES	0	0
-SETUP_CONSUMERS	0	0
-SETUP_INSTRUMENTS	0	0
-SETUP_OBJECTS	0	0
-SETUP_TIMERS	0	0
-select upper(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
+lower(TABLE_NAME)	DATA_LENGTH	MAX_DATA_LENGTH
+cond_instances	0	0
+events_waits_current	0	0
+events_waits_history	0	0
+events_waits_history_long	0	0
+events_waits_summary_by_instance	0	0
+events_waits_summary_by_thread_by_event_name	0	0
+events_waits_summary_global_by_event_name	0	0
+file_instances	0	0
+file_summary_by_event_name	0	0
+file_summary_by_instance	0	0
+mutex_instances	0	0
+performance_timers	0	0
+rwlock_instances	0	0
+setup_actors	0	0
+setup_consumers	0	0
+setup_instruments	0	0
+setup_timers	0	0
+threads	0	0
+select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
-COND_INSTANCES	0	0	NULL
-EVENTS_WAITS_CURRENT	0	0	NULL
-EVENTS_WAITS_HISTORY	0	0	NULL
-EVENTS_WAITS_HISTORY_LONG	0	0	NULL
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	0	0	NULL
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	0	0	NULL
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	0	0	NULL
-FILE_INSTANCES	0	0	NULL
-FILE_SUMMARY_BY_EVENT_NAME	0	0	NULL
-FILE_SUMMARY_BY_INSTANCE	0	0	NULL
-MUTEX_INSTANCES	0	0	NULL
-PERFORMANCE_TIMERS	0	0	NULL
-PROCESSLIST	0	0	NULL
-RWLOCK_INSTANCES	0	0	NULL
-SETUP_CONSUMERS	0	0	NULL
-SETUP_INSTRUMENTS	0	0	NULL
-SETUP_OBJECTS	0	0	NULL
-SETUP_TIMERS	0	0	NULL
-select upper(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
+lower(TABLE_NAME)	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT
+cond_instances	0	0	NULL
+events_waits_current	0	0	NULL
+events_waits_history	0	0	NULL
+events_waits_history_long	0	0	NULL
+events_waits_summary_by_instance	0	0	NULL
+events_waits_summary_by_thread_by_event_name	0	0	NULL
+events_waits_summary_global_by_event_name	0	0	NULL
+file_instances	0	0	NULL
+file_summary_by_event_name	0	0	NULL
+file_summary_by_instance	0	0	NULL
+mutex_instances	0	0	NULL
+performance_timers	0	0	NULL
+rwlock_instances	0	0	NULL
+setup_actors	0	0	NULL
+setup_consumers	0	0	NULL
+setup_instruments	0	0	NULL
+setup_timers	0	0	NULL
+threads	0	0	NULL
+select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
-COND_INSTANCES	NULL	NULL	NULL
-EVENTS_WAITS_CURRENT	NULL	NULL	NULL
-EVENTS_WAITS_HISTORY	NULL	NULL	NULL
-EVENTS_WAITS_HISTORY_LONG	NULL	NULL	NULL
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	NULL	NULL	NULL
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	NULL	NULL	NULL
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	NULL	NULL	NULL
-FILE_INSTANCES	NULL	NULL	NULL
-FILE_SUMMARY_BY_EVENT_NAME	NULL	NULL	NULL
-FILE_SUMMARY_BY_INSTANCE	NULL	NULL	NULL
-MUTEX_INSTANCES	NULL	NULL	NULL
-PERFORMANCE_TIMERS	NULL	NULL	NULL
-PROCESSLIST	NULL	NULL	NULL
-RWLOCK_INSTANCES	NULL	NULL	NULL
-SETUP_CONSUMERS	NULL	NULL	NULL
-SETUP_INSTRUMENTS	NULL	NULL	NULL
-SETUP_OBJECTS	NULL	NULL	NULL
-SETUP_TIMERS	NULL	NULL	NULL
-select upper(TABLE_NAME), TABLE_COLLATION, CHECKSUM
+lower(TABLE_NAME)	CREATE_TIME	UPDATE_TIME	CHECK_TIME
+cond_instances	NULL	NULL	NULL
+events_waits_current	NULL	NULL	NULL
+events_waits_history	NULL	NULL	NULL
+events_waits_history_long	NULL	NULL	NULL
+events_waits_summary_by_instance	NULL	NULL	NULL
+events_waits_summary_by_thread_by_event_name	NULL	NULL	NULL
+events_waits_summary_global_by_event_name	NULL	NULL	NULL
+file_instances	NULL	NULL	NULL
+file_summary_by_event_name	NULL	NULL	NULL
+file_summary_by_instance	NULL	NULL	NULL
+mutex_instances	NULL	NULL	NULL
+performance_timers	NULL	NULL	NULL
+rwlock_instances	NULL	NULL	NULL
+setup_actors	NULL	NULL	NULL
+setup_consumers	NULL	NULL	NULL
+setup_instruments	NULL	NULL	NULL
+setup_timers	NULL	NULL	NULL
+threads	NULL	NULL	NULL
+select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
-COND_INSTANCES	utf8_general_ci	NULL
-EVENTS_WAITS_CURRENT	utf8_general_ci	NULL
-EVENTS_WAITS_HISTORY	utf8_general_ci	NULL
-EVENTS_WAITS_HISTORY_LONG	utf8_general_ci	NULL
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	utf8_general_ci	NULL
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	utf8_general_ci	NULL
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	utf8_general_ci	NULL
-FILE_INSTANCES	utf8_general_ci	NULL
-FILE_SUMMARY_BY_EVENT_NAME	utf8_general_ci	NULL
-FILE_SUMMARY_BY_INSTANCE	utf8_general_ci	NULL
-MUTEX_INSTANCES	utf8_general_ci	NULL
-PERFORMANCE_TIMERS	utf8_general_ci	NULL
-PROCESSLIST	utf8_general_ci	NULL
-RWLOCK_INSTANCES	utf8_general_ci	NULL
-SETUP_CONSUMERS	utf8_general_ci	NULL
-SETUP_INSTRUMENTS	utf8_general_ci	NULL
-SETUP_OBJECTS	utf8_general_ci	NULL
-SETUP_TIMERS	utf8_general_ci	NULL
-select upper(TABLE_NAME), TABLE_COMMENT
+lower(TABLE_NAME)	TABLE_COLLATION	CHECKSUM
+cond_instances	utf8_general_ci	NULL
+events_waits_current	utf8_general_ci	NULL
+events_waits_history	utf8_general_ci	NULL
+events_waits_history_long	utf8_general_ci	NULL
+events_waits_summary_by_instance	utf8_general_ci	NULL
+events_waits_summary_by_thread_by_event_name	utf8_general_ci	NULL
+events_waits_summary_global_by_event_name	utf8_general_ci	NULL
+file_instances	utf8_general_ci	NULL
+file_summary_by_event_name	utf8_general_ci	NULL
+file_summary_by_instance	utf8_general_ci	NULL
+mutex_instances	utf8_general_ci	NULL
+performance_timers	utf8_general_ci	NULL
+rwlock_instances	utf8_general_ci	NULL
+setup_actors	utf8_general_ci	NULL
+setup_consumers	utf8_general_ci	NULL
+setup_instruments	utf8_general_ci	NULL
+setup_timers	utf8_general_ci	NULL
+threads	utf8_general_ci	NULL
+select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
 where TABLE_SCHEMA='performance_schema';
-upper(TABLE_NAME)	TABLE_COMMENT
-COND_INSTANCES	
-EVENTS_WAITS_CURRENT	
-EVENTS_WAITS_HISTORY	
-EVENTS_WAITS_HISTORY_LONG	
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	
-FILE_INSTANCES	
-FILE_SUMMARY_BY_EVENT_NAME	
-FILE_SUMMARY_BY_INSTANCE	
-MUTEX_INSTANCES	
-PERFORMANCE_TIMERS	
-PROCESSLIST	
-RWLOCK_INSTANCES	
-SETUP_CONSUMERS	
-SETUP_INSTRUMENTS	
-SETUP_OBJECTS	
-SETUP_TIMERS	
+lower(TABLE_NAME)	TABLE_COMMENT
+cond_instances	
+events_waits_current	
+events_waits_history	
+events_waits_history_long	
+events_waits_summary_by_instance	
+events_waits_summary_by_thread_by_event_name	
+events_waits_summary_global_by_event_name	
+file_instances	
+file_summary_by_event_name	
+file_summary_by_instance	
+mutex_instances	
+performance_timers	
+rwlock_instances	
+setup_actors	
+setup_consumers	
+setup_instruments	
+setup_timers	
+threads	

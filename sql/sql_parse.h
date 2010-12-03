@@ -51,7 +51,6 @@ bool parse_sql(THD *thd,
                Object_creation_ctx *creation_ctx);
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query);
-void sql_kill(THD *thd, ulong id, bool only_kill_query);
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -81,9 +80,10 @@ bool check_identifier_name(LEX_STRING *str, uint max_char_length,
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
 bool is_update_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
+bool is_rpl_info_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, uint packet_length);
 void mysql_init_select(LEX *lex);
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  Parser_state *parser_state);
 void mysql_reset_thd_for_next_command(THD *thd);
 bool mysql_new_select(LEX *lex, bool move_down);
@@ -93,8 +93,6 @@ void mysql_init_multi_delete(LEX *lex);
 bool multi_delete_set_locks_and_link_aux_tables(LEX *lex);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 pthread_handler_t handle_bootstrap(void *arg);
-bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
-                          bool *write_to_binlog);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 void do_handle_bootstrap(THD *thd);
@@ -177,8 +175,6 @@ inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   table->grant.privilege= want_access;
   return false;
 }
-inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
-{ return false; }
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }

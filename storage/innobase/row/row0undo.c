@@ -185,9 +185,8 @@ row_undo_search_clust_to_pcur(
 	offsets = rec_get_offsets(rec, clust_index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	if (!found || 0 != ut_dulint_cmp(node->roll_ptr,
-					 row_get_rec_roll_ptr(rec, clust_index,
-							      offsets))) {
+	if (!found || node->roll_ptr
+	    != row_get_rec_roll_ptr(rec, clust_index, offsets)) {
 
 		/* We must remove the reservation on the undo log record
 		BEFORE releasing the latch on the clustered index page: this
@@ -199,8 +198,24 @@ row_undo_search_clust_to_pcur(
 
 		ret = FALSE;
 	} else {
+		row_ext_t**	ext;
+
+		if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+			/* In DYNAMIC or COMPRESSED format, there is
+			no prefix of externally stored columns in the
+			clustered index record. Build a cache of
+			column prefixes. */
+			ext = &node->ext;
+		} else {
+			/* REDUNDANT and COMPACT formats store a local
+			768-byte prefix of each externally stored
+			column. No cache is needed. */
+			ext = NULL;
+			node->ext = NULL;
+		}
+
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
-				      offsets, NULL, &node->ext, node->heap);
+				      offsets, NULL, ext, node->heap);
 		if (node->update) {
 			node->undo_row = dtuple_copy(node->row, node->heap);
 			row_upd_replace(node->undo_row, &node->undo_ext,
@@ -297,7 +312,7 @@ row_undo(
 
 	if (locked_data_dict) {
 
-		row_mysql_lock_data_dictionary(trx);
+		row_mysql_freeze_data_dictionary(trx);
 	}
 
 	if (node->state == UNDO_NODE_INSERT) {
@@ -312,7 +327,7 @@ row_undo(
 
 	if (locked_data_dict) {
 
-		row_mysql_unlock_data_dictionary(trx);
+		row_mysql_unfreeze_data_dictionary(trx);
 	}
 
 	/* Do some cleanup */
@@ -341,7 +356,7 @@ row_undo_step(
 
 	ut_ad(thr);
 
-	srv_activity_count++;
+	srv_inc_activity_count();
 
 	trx = thr_get_trx(thr);
 

@@ -46,6 +46,48 @@ buf_pool_get_curr_size(void)
 	return(srv_buf_pool_curr_size);
 }
 
+/********************************************************************//**
+Calculates the index of a buffer pool to the buf_pool[] array.
+@return	the position of the buffer pool in buf_pool[] */
+UNIV_INLINE
+ulint
+buf_pool_index(
+/*===========*/
+	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
+{
+	ulint	i = buf_pool - buf_pool_ptr;
+	ut_ad(i < MAX_BUFFER_POOLS);
+	ut_ad(i < srv_buf_pool_instances);
+	return(i);
+}
+
+/******************************************************************//**
+Returns the buffer pool instance given a page instance
+@return buf_pool */
+UNIV_INLINE
+buf_pool_t*
+buf_pool_from_bpage(
+/*================*/
+	const buf_page_t*	bpage) /*!< in: buffer pool page */
+{
+	ulint	i;
+	i = bpage->buf_pool_index;
+	ut_ad(i < srv_buf_pool_instances);
+	return(&buf_pool_ptr[i]);
+}
+
+/******************************************************************//**
+Returns the buffer pool instance given a block instance
+@return buf_pool */
+UNIV_INLINE
+buf_pool_t*
+buf_pool_from_block(
+/*================*/
+	const buf_block_t*	block) /*!< in: block */
+{
+	return(buf_pool_from_bpage(&block->page));
+}
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in pages.
 @return size in pages*/
@@ -301,7 +343,6 @@ buf_page_get_flush_type(
 #ifdef UNIV_DEBUG
 	switch (flush_type) {
 	case BUF_FLUSH_LRU:
-	case BUF_FLUSH_SINGLE_PAGE:
 	case BUF_FLUSH_LIST:
 		return(flush_type);
 	case BUF_FLUSH_N_TYPES:
@@ -886,33 +927,6 @@ buf_block_buf_fix_dec(
 }
 
 /******************************************************************//**
-Returns the buffer pool instance given a page instance
-@return buf_pool */
-UNIV_INLINE
-buf_pool_t*
-buf_pool_from_bpage(
-/*================*/
-	const buf_page_t*	bpage) /*!< in: buffer pool page */
-{
-	/* Every page must be in some buffer pool. */
-	ut_ad(bpage->buf_pool != NULL);
-
-	return(bpage->buf_pool);
-}
-
-/******************************************************************//**
-Returns the buffer pool instance given a block instance
-@return buf_pool */
-UNIV_INLINE
-buf_pool_t*
-buf_pool_from_block(
-/*================*/
-	const buf_block_t*	block) /*!< in: block */
-{
-	return(buf_pool_from_bpage(&block->page));
-}
-
-/******************************************************************//**
 Returns the buffer pool instance given space and offset of page
 @return buffer pool */
 UNIV_INLINE
@@ -929,7 +943,7 @@ buf_pool_get(
 	ignored_offset = offset >> 6; /* 2log of BUF_READ_AHEAD_AREA (64)*/
 	fold = buf_page_address_fold(space, ignored_offset);
 	index = fold % srv_buf_pool_instances;
-	return buf_pool_ptr[index];
+	return(&buf_pool_ptr[index]);
 }
 
 /******************************************************************//**
@@ -939,10 +953,12 @@ UNIV_INLINE
 buf_pool_t*
 buf_pool_from_array(
 /*================*/
-	ulint	index) 		/*!< in: array index to get
+	ulint	index)		/*!< in: array index to get
 				buffer pool instance from */
 {
-	return buf_pool_ptr[index];
+	ut_ad(index < MAX_BUFFER_POOLS);
+	ut_ad(index < srv_buf_pool_instances);
+	return(&buf_pool_ptr[index]);
 }
 
 /******************************************************************//**
@@ -952,18 +968,25 @@ UNIV_INLINE
 buf_page_t*
 buf_page_hash_get_low(
 /*==================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		space,		/*!< in: space id */
-	ulint		offset,		/*!< in: offset of the page
-					within space */
-	ulint		fold)		/*!< in: buf_page_address_fold(
-					space, offset) */
+	buf_pool_t*	buf_pool,/*!< buffer pool instance */
+	ulint		space,	/*!< in: space id */
+	ulint		offset,	/*!< in: offset of the page within space */
+	ulint		fold)	/*!< in: buf_page_address_fold(space, offset) */
 {
 	buf_page_t*	bpage;
 
+#ifdef UNIV_DEBUG
+	ulint		hash_fold;
+	mutex_t*	hash_mutex;
+
 	ut_ad(buf_pool);
-	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(fold == buf_page_address_fold(space, offset));
+
+	hash_fold = buf_page_address_fold(space, offset);
+	ut_ad(hash_fold == fold);
+
+	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
+	ut_ad(mutex_own(hash_mutex));
+#endif /* UNIV_DEBUG */
 
 	/* Look for the page in the hash table */
 
@@ -988,46 +1011,106 @@ buf_page_hash_get_low(
 
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
-@return	block, NULL if not found or not a real control block */
+If the block is found and mutex is not NULL then the appropriate
+page_hash mutex is acquired. It is up to the caller to release the
+mutex. If the block is found and the mutex is NULL then the page_hash
+mutex is released by this function.
+@return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
 buf_page_hash_get(
 /*==============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+					/*!< out: pointer to the bpage,
+					or NULL; if NULL, hash_mutex
+					is also NULL. */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
-	ulint		offset)		/*!< in: offset of the page
-					within space */
+	ulint		offset,		/*!< in: page number */
+	mutex_t**	mutex)		/*!< in/out: mutex of the page
+					hash acquired if bpage is
+					found. NULL otherwise. If NULL
+					is passed then the hash_mutex
+					is released by this function */
 {
 	buf_page_t*	bpage;
-	ulint		fold	= buf_page_address_fold(space, offset);
+	ulint		fold;
+	mutex_t*	hash_mutex;
 
-	bpage	= buf_page_hash_get_low(buf_pool, space, offset, fold);
+	if (mutex != NULL) {
+		*mutex = NULL;
+	}
 
-	if (bpage && buf_pool_watch_is_sentinel(buf_pool, bpage)) {
-		bpage = NULL;
+	fold = buf_page_address_fold(space, offset);
+	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
+
+	mutex_enter(hash_mutex);
+	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
+
+	if (!bpage || UNIV_UNLIKELY(buf_pool_watch_is_sentinel(buf_pool, bpage))) {
+		mutex_exit(hash_mutex);
+		return(NULL);
+	}
+
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(offset == bpage->offset);
+	ut_ad(space == bpage->space);
+
+	if (mutex == NULL) {
+		/* The caller wants us to release the page_hash mutex */
+		mutex_exit(hash_mutex);
+	} else {
+		/* To be released by the caller */
+		*mutex = hash_mutex;
 	}
 
 	return(bpage);
 }
 
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found
-or an uncompressed page frame does not exist.
+Returns the control block of a file page, NULL if not found or an
+uncompressed page frame does not exist.
+If the block is found and mutex is not NULL then the appropriate
+page_hash mutex is acquired. It is upto the caller to release the
+mutex. If the block is found and the mutex is NULL then the page_hash
+mutex is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
 buf_block_hash_get(
 /*===============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+					/*!< out: pointer to the bpage,
+					or NULL; if NULL, hash_mutex
+					is also NULL. */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
-	ulint		offset)		/*!< in: offset of the page
-					within space */
+	ulint		offset,		/*!< in: page number */
+	mutex_t**	mutex)		/*!< in/out: mutex of the page
+					hash acquired if bpage is
+					found. NULL otherwise. If NULL
+					is passed then the hash_mutex
+					is released by this function */
 {
-	buf_block_t*	block;
+	buf_page_t*	bpage = buf_page_hash_get(buf_pool, space, offset, mutex);
+	buf_block_t*	block = buf_page_get_block(bpage);
 
-	block = buf_page_get_block(buf_page_hash_get(buf_pool, space, offset));
+	if (block) {
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		ut_ad(!mutex || mutex_own(*mutex));
+		return(block);
+	} else if (bpage) {
+		/* It is not a block. Just a bpage */
+		ut_ad(buf_page_in_file(bpage));
 
-	return(block);
+		if (mutex) {
+			mutex_exit(*mutex);
+		}
+		*mutex = NULL;
+		return(NULL);
+	}
+
+	ut_ad(!bpage);
+	ut_ad(mutex == NULL ||*mutex == NULL);
+	return(NULL);
 }
 
 /********************************************************************//**
@@ -1044,16 +1127,9 @@ buf_page_peek(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: page number */
 {
-	const buf_page_t*	bpage;
 	buf_pool_t*		buf_pool = buf_pool_get(space, offset);
 
-	buf_pool_mutex_enter(buf_pool);
-
-	bpage = buf_page_hash_get(buf_pool, space, offset);
-
-	buf_pool_mutex_exit(buf_pool);
-
-	return(bpage != NULL);
+	return(buf_page_hash_get(buf_pool, space, offset, NULL) != NULL);
 }
 
 /********************************************************************//**

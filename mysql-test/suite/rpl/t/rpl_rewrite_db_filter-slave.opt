@@ -1,0 +1,1 @@
+--replicate-rewrite-db=MYDB->rewrite --lower_case_table_names=1

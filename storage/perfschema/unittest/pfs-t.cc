@@ -25,6 +25,7 @@
 #include <memory.h>
 
 #include "stub_print_error.h"
+#include "stub_server_misc.h"
 
 /* test helpers, to simulate the setup */
 
@@ -94,6 +95,7 @@ void test_bootstrap()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -136,6 +138,7 @@ PSI * load_perfschema()
   param.m_file_handle_sizing= 50;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10;
+  param.m_setup_actor_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -374,7 +377,7 @@ void test_bad_registration()
   ok(dummy_thread_key == 0, "zero key");
   dummy_thread_key= 9999;
   psi->register_thread("12345678901234567890123", bad_thread_1, 1);
-  ok(dummy_thread_key == 1, "assigned key");
+  ok(dummy_thread_key == 2, "assigned key");
 
   /*
     Test that length('thread/' (7) + category + '/' (1) + name) <= 128
@@ -410,7 +413,7 @@ void test_bad_registration()
   ok(dummy_thread_key == 0, "zero key");
 
   psi->register_thread("X", bad_thread_3, 1);
-  ok(dummy_thread_key == 2, "assigned key");
+  ok(dummy_thread_key == 3, "assigned key");
 
   /*
     Test that length('wait/io/file/' (13) + category + '/' (1)) < 32

@@ -737,6 +737,8 @@ close c;
 end|
 insert into t2 values ("foo", 42, -1.9), ("bar", 3, 12.1), ("zap", 666, -3.14)|
 call cur1()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t1|
 id	data
 foo	40
@@ -772,6 +774,8 @@ close c1;
 close c2;
 end|
 call cur2()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t3 order by i,s|
 s	i
 bar	3
@@ -861,6 +865,8 @@ end$
 set @@sql_mode = ''|
 set sql_select_limit = 1|
 call modes(@c1, @c2)|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 set sql_select_limit = default|
 select @c1, @c2|
 @c1	@c2
@@ -1682,42 +1688,64 @@ end|
 call h_ee()|
 h_ee
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_es()|
 h_es
 Outer (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_en()|
 h_en
 Outer (good)
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 call h_ew()|
 h_ew
 Outer (good)
 call h_ex()|
 h_ex
 Outer (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_se()|
 h_se
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_ss()|
 h_ss
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_sn()|
 h_sn
 Outer (good)
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 call h_sw()|
 h_sw
 Outer (good)
 call h_sx()|
 h_sx
 Outer (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_ne()|
 h_ne
 Inner (good)
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 call h_ns()|
 h_ns
 Inner (good)
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 call h_nn()|
 h_nn
 Inner (good)
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
 call h_we()|
 h_we
 Inner (good)
@@ -1730,12 +1758,18 @@ Inner (good)
 call h_xe()|
 h_xe
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_xs()|
 h_xs
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 call h_xx()|
 h_xx
 Inner (good)
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 drop table t3|
 drop procedure h_ee|
 drop procedure h_es|
@@ -1884,6 +1918,8 @@ set @x2 = 2;
 close c1;
 end|
 call bug2260()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select @x2|
 @x2
 2
@@ -2027,6 +2063,8 @@ insert into t3 values (123456789012);
 insert into t3 values (0);
 end|
 call bug2780()|
+Warnings:
+Warning	1264	Out of range value for column 's1' at row 1
 select @x|
 @x
 1
@@ -2449,6 +2487,8 @@ declare continue handler for sqlstate 'HY000' begin end;
 select s1 from t3 union select s2 from t3; 
 end|
 call bug4904()|
+Warnings:
+Error	1267	Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (latin2_general_ci,IMPLICIT) for operation 'UNION'
 drop procedure bug4904|
 drop table t3|
 drop procedure if exists bug336|
@@ -2588,13 +2628,17 @@ select row_count()|
 row_count()
 1
 call bug4905()|
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 select row_count()|
 row_count()
-0
+-1
 call bug4905()|
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 select row_count()|
 row_count()
-0
+-1
 select * from t3|
 s1
 1
@@ -2615,10 +2659,14 @@ insert into t3 values (1)|
 call bug6029()|
 sqlstate 23000
 sqlstate 23000
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 delete from t3|
 call bug6029()|
 1136
 1136
+Warnings:
+Error	1136	Column count doesn't match value count at row 1
 drop procedure bug6029|
 drop table t3|
 drop procedure if exists bug8540|
@@ -2910,15 +2958,23 @@ end|
 call bug6900()|
 2
 2
+Warnings:
+Error	1136	Column count doesn't match value count at row 1
 call bug9074()|
 x1	x2	x3	x4	x5	x6
 1	1	1	1	1	1
+Warnings:
+Error	1062	Duplicate entry 'a' for key 'w'
 call bug6900_9074(0)|
 sqlexception
 sqlexception
+Warnings:
+Error	1136	Column count doesn't match value count at row 1
 call bug6900_9074(1)|
 23000
 23000
+Warnings:
+Error	1062	Duplicate entry 'a' for key 'w'
 drop procedure bug6900|
 drop procedure bug9074|
 drop procedure bug6900_9074|
@@ -2961,9 +3017,13 @@ delete from t1|
 call bug9856()|
 16
 16
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 call bug9856()|
 16
 16
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug9856|
 drop procedure if exists bug9674_1|
 drop procedure if exists bug9674_2|
@@ -3194,6 +3254,8 @@ x
 2
 x
 3
+Warnings:
+Error	1326	Cursor is not open
 call bug10961()|
 x
 1
@@ -3201,6 +3263,8 @@ x
 2
 x
 3
+Warnings:
+Error	1326	Cursor is not open
 drop procedure bug10961|
 DROP PROCEDURE IF EXISTS bug6866|
 DROP VIEW IF EXISTS tv|
@@ -3208,9 +3272,9 @@ Warnings:
 Note	1051	Unknown table 'test.tv'
 DROP TABLE IF EXISTS tt1,tt2,tt3|
 Warnings:
-Note	1051	Unknown table 'tt1'
-Note	1051	Unknown table 'tt2'
-Note	1051	Unknown table 'tt3'
+Note	1051	Unknown table 'test.tt1'
+Note	1051	Unknown table 'test.tt2'
+Note	1051	Unknown table 'test.tt3'
 CREATE TABLE tt1 (a1 int, a2 int, a3 int, data varchar(10))|
 CREATE TABLE tt2 (a2 int, data2 varchar(10))|
 CREATE TABLE tt3 (a3 int, data3 varchar(10))|
@@ -3316,7 +3380,11 @@ insert into t1 values
 ('Name4', 13),
 ('Name5', 14)|
 call bug11529()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 call bug11529()|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 delete from t1|
 drop procedure bug11529|
 set character set utf8|
@@ -3490,24 +3558,32 @@ end;
 end if;
 end|
 call bug12168('a')|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 a
 1
 3
 truncate t4|
 call bug12168('b')|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 a
 2
 4
 truncate t4|
 call bug12168('a')|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 a
 1
 3
 truncate t4|
 call bug12168('b')|
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 select * from t4|
 a
 2
@@ -3807,6 +3883,8 @@ end|
 call bug7049_2()|
 Result
 Caught it
+Warnings:
+Error	1062	Duplicate entry '42' for key 'x'
 select * from t3|
 x
 42
@@ -3814,12 +3892,16 @@ delete from t3|
 call bug7049_4()|
 Result
 Caught it
+Warnings:
+Error	1062	Duplicate entry '42' for key 'x'
 select * from t3|
 x
 42
 select bug7049_2()|
 bug7049_2()
 1
+Warnings:
+Error	1062	Duplicate entry '42' for key 'x'
 drop table t3|
 drop procedure bug7049_1|
 drop procedure bug7049_2|
@@ -3947,6 +4029,8 @@ end|
 call bug14845()|
 a
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug14845|
 drop procedure if exists bug13549_1|
 drop procedure if exists bug13549_2|
@@ -4150,6 +4234,8 @@ end|
 call bug13729()|
 55
 55
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 select * from t3|
 s1
 1
@@ -4186,11 +4272,15 @@ Handler
 boo
 v	isnull(v)
 NULL	1
+Warnings:
+Error	1054	Unknown column 'undefined_var' in 'field list'
 call bug14643_2()|
 Handler
 boo
 Handler
 boo
+Warnings:
+Error	1054	Unknown column 'undefined_var' in 'field list'
 drop procedure bug14643_1|
 drop procedure bug14643_2|
 drop procedure if exists bug14304|
@@ -4514,11 +4604,15 @@ Handler
 error
 End
 done
+Warnings:
+Error	1054	Unknown column 'v' in 'field list'
 call bug14498_2()|
 Handler
 error
 End
 done
+Warnings:
+Error	1054	Unknown column 'v' in 'field list'
 call bug14498_3()|
 v
 maybe
@@ -4526,16 +4620,22 @@ Handler
 error
 End
 done
+Warnings:
+Error	1054	Unknown column 'v' in 'field list'
 call bug14498_4()|
 Handler
 error
 End
 done
+Warnings:
+Error	1054	Unknown column 'v' in 'field list'
 call bug14498_5()|
 Handler
 error
 End
 done
+Warnings:
+Error	1054	Unknown column 'v' in 'field list'
 drop procedure bug14498_1|
 drop procedure bug14498_2|
 drop procedure bug14498_3|
@@ -4546,6 +4646,8 @@ drop procedure if exists bug15231_1|
 drop procedure if exists bug15231_2|
 drop procedure if exists bug15231_3|
 drop procedure if exists bug15231_4|
+drop procedure if exists bug15231_5|
+drop procedure if exists bug15231_6|
 create table t3 (id int not null)|
 create procedure bug15231_1()
 begin
@@ -4568,7 +4670,7 @@ end|
 create procedure bug15231_3()
 begin
 declare exit handler for sqlwarning
-select 'Caught it (wrong)' as 'Result';
+select 'Caught it (correct)' as 'Result';
 call bug15231_4();
 end|
 create procedure bug15231_4()
@@ -4576,6 +4678,20 @@ begin
 declare x decimal(2,1);
 set x = 'zap';
 select 'Missed it (correct)' as 'Result';
+show warnings;
+end|
+create procedure bug15231_5()
+begin
+declare exit handler for sqlwarning
+select 'Caught it (wrong)' as 'Result';
+call bug15231_6();
+end|
+create procedure bug15231_6()
+begin
+declare x decimal(2,1);
+set x = 'zap';
+select 'Missed it (correct)' as 'Result';
+select id from t3;
 end|
 call bug15231_1()|
 1
@@ -4583,19 +4699,29 @@ Before NOT FOUND condition is triggered
 2
 After NOT FOUND condtition is triggered
 xid	xdone
-1	0
+1	1
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 call bug15231_3()|
 Result
 Missed it (correct)
+Level	Code	Message
+Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
+Result
+Caught it (correct)
 Warnings:
 Warning	1366	Incorrect decimal value: 'zap' for column 'x' at row 1
-drop table if exists t3|
-drop procedure if exists bug15231_1|
-drop procedure if exists bug15231_2|
-drop procedure if exists bug15231_3|
-drop procedure if exists bug15231_4|
+call bug15231_5()|
+Result
+Missed it (correct)
+id
+drop table t3|
+drop procedure bug15231_1|
+drop procedure bug15231_2|
+drop procedure bug15231_3|
+drop procedure bug15231_4|
+drop procedure bug15231_5|
+drop procedure bug15231_6|
 drop procedure if exists bug15011|
 create table t3 (c1 int primary key)|
 insert into t3 values (1)|
@@ -4613,6 +4739,8 @@ end|
 call bug15011()|
 Handler
 Inner
+Warnings:
+Error	1062	Duplicate entry '1' for key 'PRIMARY'
 drop procedure bug15011|
 drop table t3|
 drop procedure if exists bug17476|
@@ -4688,6 +4816,8 @@ i
 1
 i
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 drop table t3|
 drop procedure bug16887|
 drop procedure if exists bug16474_1|
@@ -4760,6 +4890,8 @@ declare continue handler for sqlexception begin end;
 select no_such_function();
 end|
 call bug18787()|
+Warnings:
+Error	1305	FUNCTION test.no_such_function does not exist
 drop procedure bug18787|
 create database bug18344_012345678901|
 use bug18344_012345678901|
@@ -5133,6 +5265,8 @@ statement failed
 statement failed
 statement after update
 statement after update
+Warnings:
+Error	1242	Subquery returns more than 1 row
 select * from t3|
 a
 1
@@ -5144,6 +5278,8 @@ statement failed
 statement failed
 statement after update
 statement after update
+Warnings:
+Error	1242	Subquery returns more than 1 row
 select * from t3|
 a
 1
@@ -5176,6 +5312,8 @@ in continue handler
 in continue handler
 reachable code a2
 reachable code a2
+Warnings:
+Error	1242	Subquery returns more than 1 row
 select * from t3|
 a
 1
@@ -5191,6 +5329,8 @@ in continue handler
 in continue handler
 reachable code a2
 reachable code a2
+Warnings:
+Error	1242	Subquery returns more than 1 row
 select * from t3|
 a
 1
@@ -5224,6 +5364,8 @@ in continue handler
 in continue handler
 reachable code a2
 reachable code a2
+Warnings:
+Error	1305	FUNCTION test.no_such_function does not exist
 drop procedure bug8153_proc_a|
 drop procedure bug8153_proc_b|
 drop table t3|
@@ -5792,9 +5934,13 @@ end|
 select func_8407_a()|
 func_8407_a()
 NULL
+Warnings:
+Error	1146	Table 'test.no_such_view' doesn't exist
 select func_8407_b()|
 func_8407_b()
 1500
+Warnings:
+Error	1146	Table 'test.no_such_view' doesn't exist
 drop function func_8407_a|
 drop function func_8407_b|
 drop table if exists table_26503|
@@ -5916,6 +6062,8 @@ looping	i
 looping	0
 leaving handler
 leaving handler
+Warnings:
+Error	1062	Duplicate entry '1' for key 'a'
 call proc_26503_ok_2(2)|
 do something
 do something
@@ -5927,6 +6075,8 @@ looping	i
 looping	4
 leaving handler
 leaving handler
+Warnings:
+Error	1062	Duplicate entry '2' for key 'a'
 call proc_26503_ok_3(3)|
 do something
 do something
@@ -5946,6 +6096,8 @@ looping	i
 looping	0
 leaving handler
 leaving handler
+Warnings:
+Error	1062	Duplicate entry '3' for key 'a'
 call proc_26503_ok_4(4)|
 do something
 do something
@@ -5957,6 +6109,8 @@ looping	i
 looping	4
 leaving handler
 leaving handler
+Warnings:
+Error	1062	Duplicate entry '4' for key 'a'
 drop table table_26503|
 drop procedure proc_26503_ok_1|
 drop procedure proc_26503_ok_2|
@@ -6319,8 +6473,8 @@ proc_25411_b
 select p1, p2;
 end
 proc_25411_c		begin
-select 1,2,3;
-select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
@@ -6332,8 +6486,8 @@ show create procedure proc_25411_c;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 proc_25411_c		CREATE DEFINER=`root`@`localhost` PROCEDURE `proc_25411_c`()
 begin
-select 1,2,3;
-select 1 ,2 ,3;
+select 1,2 ,3 ;
+select 1 ,2  ,3 ;
 select 1,2 ,3 ;
 select 1 ,2  ,3 ;
 select 1 ,2 ,3  ;
@@ -6371,19 +6525,19 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 CREATE VIEW v1 AS SELECT c1 FROM t1;
 EXPLAIN SELECT * FROM t1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM v1 WHERE c1=f1();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c1	c1	5	const	1	Using where; Using index
+1	SIMPLE	t1	ref	c1	c1	5	const	1	Using index
 EXPLAIN SELECT * FROM t1 WHERE c1=f2(c1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	c1	5	NULL	5	Using where; Using index
@@ -6670,6 +6824,8 @@ DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @exception:= 'run';
 SELECT x FROM t1;
 END|
 CALL bug29770();
+Warnings:
+Error	1054	Unknown column 'x' in 'field list'
 SELECT @state, @exception;
 @state	@exception
 run	NULL
@@ -6708,6 +6864,8 @@ end;
 end while;
 end//
 call proc_33618(20);
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 drop table t_33618;
 drop procedure proc_33618;
 #

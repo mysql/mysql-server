@@ -2408,6 +2408,7 @@ BEGIN
   DECLARE EXIT HANDLER FOR x
   BEGIN
     SELECT '2';
+    SHOW WARNINGS;
     RESIGNAL x SET MYSQL_ERRNO = 9999;
   END;
 
@@ -2415,9 +2416,10 @@ BEGIN
     DECLARE EXIT HANDLER FOR x
     BEGIN
       SELECT '1';
+      SHOW WARNINGS;
       RESIGNAL x SET
         SCHEMA_NAME = 'test',
-        MYSQL_ERRNO= 1231;
+        MYSQL_ERRNO= 1232;
     END;
     /* Raises ER_WRONG_VALUE_FOR_VAR : 1231, SQLSTATE 42000 */
     SET @@sql_mode=NULL;
@@ -2431,6 +2433,7 @@ BEGIN
   DECLARE EXIT HANDLER FOR x
   BEGIN
     SELECT '3';
+    SHOW WARNINGS;
     RESIGNAL x SET
       MESSAGE_TEXT = 'Hi, I am a useless error message',
       MYSQL_ERRNO = 9999;

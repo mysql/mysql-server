@@ -87,7 +87,8 @@ connection con1;
 --echo # Wait until LOCK TABLE is blocked on SQL-level lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # We should be able to do UPDATEs and SELECTs within transaction.
 update t1 set x=1 where id = 0;

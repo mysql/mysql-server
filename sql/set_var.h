@@ -81,7 +81,7 @@ protected:
   ptrdiff_t offset;     ///< offset to the value from global_system_variables
   on_check_function on_check;
   on_update_function on_update;
-  struct { uint version; const char *substitute; } deprecated;
+  const char *deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
 
 public:
@@ -90,12 +90,14 @@ public:
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute, int parse_flag);
-  /**
-    The instance should only be destroyed on shutdown, as it doesn't unlink
-    itself from the chain.
-  */
+          const char *substitute, int parse_flag);
+
   virtual ~sys_var() {}
+
+  /**
+    All the cleanup procedures should be performed here
+  */
+  virtual void cleanup() {}
   /**
     downcast for sys_var_pluginvar. Returns this if it's an instance
     of sys_var_pluginvar, and 0 otherwise.
@@ -132,7 +134,7 @@ public:
   bool register_option(DYNAMIC_ARRAY *array, int parse_flags)
   {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
-           insert_dynamic(array, (uchar*)&option);
+           insert_dynamic(array, &option);
   }
 
 private:
@@ -307,8 +309,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
-ulong expand_sql_mode(ulonglong sql_mode);
-bool sql_mode_string_representation(THD *thd, ulong sql_mode, LEX_STRING *ls);
+sql_mode_t expand_sql_mode(sql_mode_t sql_mode);
+bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
 

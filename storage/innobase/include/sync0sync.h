@@ -85,10 +85,9 @@ extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
 extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
-extern mysql_pfs_key_t	ios_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
-extern mysql_pfs_key_t	kernel_mutex_key;
+extern mysql_pfs_key_t	server_mutex_key;
 # ifdef UNIV_MEM_DEBUG
 extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
@@ -105,6 +104,7 @@ extern mysql_pfs_key_t	rw_lock_mutex_key;
 extern mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+extern mysql_pfs_key_t	srv_threads_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
 extern mysql_pfs_key_t	syn_arr_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -113,6 +113,13 @@ extern mysql_pfs_key_t	sync_thread_mutex_key;
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
 extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
+extern mysql_pfs_key_t	trx_mutex_key;
+extern mysql_pfs_key_t	lock_sys_mutex_key;
+extern mysql_pfs_key_t	lock_sys_wait_mutex_key;
+extern mysql_pfs_key_t	trx_sys_rw_lock_key;
+extern mysql_pfs_key_t	read_view_mutex_key;
+extern mysql_pfs_key_t	srv_sys_mutex_key;
+extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
@@ -582,10 +589,23 @@ V
 File system pages
 |
 V
-Kernel mutex				If a kernel operation needs a file
-|					page allocation, it must reserve the
-|					fsp x-latch before acquiring the kernel
-|					mutex.
+lock_sys_wait_mutex			Mutex protecting lock timeout data
+|
+V
+lock_sys_mutex				Mutex protecting lock_sys_t
+|
+V
+trx_sys_mutex				Mutex protecting trx_sys_t
+|
+V
+Threads mutex				Background thread scheduling mutex
+|
+V
+query_thr_mutex				Mutex protecting query threads
+|
+V
+trx_mutex				Mutex protecting trx_t fields
+|
 V
 Search system mutex
 |
@@ -621,7 +641,7 @@ or row lock! */
 #define SYNC_FILE_FORMAT_TAG	1200	/* Used to serialize access to the
 					file format tag */
 #define	SYNC_DICT_OPERATION	1001	/* table create, drop, etc. reserve
-					this in X-mode, implicit or backround
+					this in X-mode; implicit or backround
 					operations purge, rollback, foreign
 					key checks reserve this in S-mode */
 #define SYNC_DICT		1000
@@ -656,9 +676,13 @@ or row lock! */
 /*------------------------------------- MySQL query cache mutex */
 /*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/
-#define	SYNC_KERNEL		300
-#define SYNC_REC_LOCK		299
-#define	SYNC_TRX_LOCK_HEAP	298
+#define SYNC_LOCK_WAIT_SYS	300
+#define SYNC_LOCK_SYS		299
+#define SYNC_TRX_SYS		298
+#define SYNC_TRX		297
+#define SYNC_READ_VIEW		296
+#define SYNC_THREADS		295
+#define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
@@ -672,6 +696,7 @@ or row lock! */
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
 #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
+#define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash mutex */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140
@@ -771,6 +796,30 @@ extern ut_list_base_node_t  mutex_list;
 /** Mutex protecting the mutex_list variable */
 extern mutex_t mutex_list_mutex;
 
+#ifndef HAVE_ATOMIC_BUILTINS
+/**********************************************************//**
+Function that uses a mutex to decrement a variable atomically */
+UNIV_INLINE
+void
+os_atomic_dec_ulint_func(
+/*=====================*/
+	mutex_t*		mutex,		/*!< in: mutex guarding the
+						decrement */
+	ulint*			var,		/*!< in/out: variable to
+						decrement */
+	ulint			delta);		/*!< in: delta to decrement */
+/**********************************************************//**
+Function that uses a mutex to increment a variable atomically */
+UNIV_INLINE
+void
+os_atomic_inc_ulint_func(
+/*=====================*/
+	mutex_t*		mutex,		/*!< in: mutex guarding the
+						increment */
+	ulint*			var,		/*!< in/out: variable to
+						increment */
+	ulint			delta);		/*!< in: delta to increment */
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #ifndef UNIV_NONINL
 #include "sync0sync.ic"

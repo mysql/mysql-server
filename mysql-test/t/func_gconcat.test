@@ -708,6 +708,7 @@ SELECT 1 FROM
 
 DROP TABLE t1;
 
+--echo End of 5.0 tests
 
 --echo #
 --echo # Bug #52397: another crash with explain extended and group_concat
@@ -721,6 +722,36 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+
+--echo #
+--echo # Bug #54476: crash when group_concat and 'with rollup' in prepared statements
+--echo # 
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1.a ORDER BY t1.a) FROM t1 JOIN t1 t2 GROUP BY t1.a WITH ROLLUP";
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57194 group_concat cause crash and/or invalid memory reads with type errors
+--echo #
+
+CREATE TABLE t1(f1 int);
+INSERT INTO t1 values (0),(0);
+--disable_ps_protocol
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t GROUP BY t.f1 ) d));
+--enable_ps_protocol
+DROP TABLE t1;
+
+--echo End of 5.1 tests
+
 
 #
 # Bug#36785: Wrong error message when group_concat() exceeds max length

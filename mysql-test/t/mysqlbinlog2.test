@@ -105,7 +105,6 @@ select "--- stop-datetime --" as "";
 --disable_query_log
 select "--- Remote --" as "";
 --enable_query_log
-
 --exec $MYSQL_BINLOG --short-form --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 
 --disable_query_log

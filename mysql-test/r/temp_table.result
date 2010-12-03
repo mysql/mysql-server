@@ -145,7 +145,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 CREATE TEMPORARY TABLE t2 (i INT);
 DROP TEMPORARY TABLE t2, t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 SELECT * FROM t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 SELECT * FROM t1;
@@ -210,4 +210,16 @@ UPDATE t1,t2 SET t1.a = t2.a;
 INSERT INTO t2 SELECT f1();
 DROP TABLE t1,t2,t3;
 DROP FUNCTION f1;
+#
+# Bug #48067: A temp table with the same name as an existing table, 
+#             makes drop database fail.
+#
+DROP TEMPORARY TABLE IF EXISTS bug48067.t1;
+DROP DATABASE IF EXISTS bug48067;
+CREATE DATABASE bug48067;
+CREATE TABLE bug48067.t1 (c1 int);
+INSERT INTO bug48067.t1 values (1);
+CREATE TEMPORARY TABLE bug48067.t1 (c1 int);
+DROP DATABASE bug48067;
+DROP TEMPORARY table bug48067.t1;
 End of 5.1 tests

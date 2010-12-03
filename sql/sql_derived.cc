@@ -188,7 +188,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
     */
     if ((res= derived_result->create_result_table(thd, &unit->types, FALSE,
                                                  create_options,
-                                                 derived->alias, FALSE)))
+                                                 derived->alias, FALSE, FALSE)))
       goto exit;
 
     table= derived_result->table;
@@ -335,8 +335,8 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
       if (table->s->db_type() == myisam_hton)
       {
         if (create_myisam_tmp_table(table, table->key_info,
-                                      &result->tmp_table_param.recinfo,
                                       result->tmp_table_param.start_recinfo,
+                                      &result->tmp_table_param.recinfo,
                                       (unit->first_select()->options |
                                        thd->lex->select_lex.options |
                                        thd->variables.option_bits |

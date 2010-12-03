@@ -83,7 +83,7 @@ DROP TABLE t1;
 #
 # The NDB handler only supports 32 bit integers in VALUES
 # therefor we have to skip the next test for NDB.
-if (`SELECT @@session.storage_engine NOT IN('ndbcluster')`)
+if (`SELECT @@session.default_storage_engine NOT IN('ndbcluster')`)
 {
 --echo #  3.   LIST(<check value>)
 eval CREATE TABLE t1 (

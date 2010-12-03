@@ -556,9 +556,13 @@ DROP TABLE IF EXISTS t1;
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
 SELECT STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL (INTERVAL(1,2,3) + 1) MINUTE;
 STR_TO_DATE('10:00 PM', '%h:%i %p') + INTERVAL (INTERVAL(1,2,3) + 1) MINUTE
 NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
 SELECT "1997-12-31 23:59:59" + INTERVAL 1 SECOND;
 "1997-12-31 23:59:59" + INTERVAL 1 SECOND
 1998-01-01 00:00:00

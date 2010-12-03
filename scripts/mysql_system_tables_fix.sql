@@ -640,6 +640,18 @@ DROP PREPARE stmt;
 
 drop procedure mysql.die;
 
+ALTER TABLE user ADD plugin char(60) DEFAULT '' NOT NULL,  ADD authentication_string TEXT NOT NULL;
+ALTER TABLE user MODIFY plugin char(60) DEFAULT '' NOT NULL;
+
+-- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
+-- older versions
+
+CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
+INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
+INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
+DROP TABLE tmp_proxies_priv;
+
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

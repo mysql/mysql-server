@@ -1,0 +1,15 @@
+-- source include/not_windows.inc
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+#
+# Testing the MySQL command line client(mysql)
+#
+
+#
+# Bug #54466 client 5.5 built from source lacks "pager" support
+# 
+--echo Bug #54466 client 5.5 built from source lacks "pager" support
+--exec $MYSQL --pager test -e "select 1 as a"
+
+--echo
+--echo End of tests

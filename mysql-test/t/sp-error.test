@@ -2543,3 +2543,319 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # Bug#23032: Handlers declared in a SP do not handle warnings generated in sub-SP
+--echo #
+
+--echo
+--echo # - Case 1
+--echo
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+DROP PROCEDURE IF EXISTS p5;
+DROP PROCEDURE IF EXISTS p6;
+--enable_warnings
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+    SELECT 1;
+    CALL p2();
+  END|
+
+CREATE PROCEDURE p2()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+  END|
+
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+
+--echo
+--echo # - Case 2
+--echo
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+  BEGIN
+    DECLARE c INT DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
+    CALL p2();
+    CALL p3();
+    CALL p4();
+    SELECT c;
+    SELECT @@warning_count;
+    SHOW WARNINGS;
+  END|
+
+CREATE PROCEDURE p2()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+  END|
+
+CREATE PROCEDURE p3()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+    SELECT 1;
+  END|
+
+CREATE PROCEDURE p4()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+    CALL p2();
+  END|
+
+CREATE PROCEDURE p5()
+  BEGIN
+    SELECT CAST('10 ' as unsigned integer);
+    SHOW WARNINGS;
+  END|
+
+CREATE PROCEDURE P6()
+  BEGIN
+    DECLARE c INT DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLWARNING SET c = c + 1;
+    CALL p5();
+    SELECT c;
+  END|
+
+delimiter ;|
+
+CALL p1();
+CALL p6();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+DROP PROCEDURE p5;
+DROP PROCEDURE p6;
+
+--echo
+--echo # - Case 3: check that "Exception trumps No Data".
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c CURSOR FOR SELECT a FROM t1;
+
+  OPEN c;
+  
+  BEGIN
+    DECLARE v1 INT;
+    DECLARE v2 INT;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+      SELECT "Error caught (expected)";
+
+    DECLARE EXIT HANDLER FOR NOT FOUND
+      SELECT "End of Result Set found!";
+
+    WHILE TRUE DO
+      FETCH c INTO v1, v2;
+    END WHILE;
+  END;
+
+  CLOSE c;
+
+  SELECT a INTO @foo FROM t1 LIMIT 1; # Clear warning stack
+END|
+
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#36185: Incorrect precedence for warning and exception handlers
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT, b INT NOT NULL);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING SELECT 'warning';
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SELECT 'exception';
+  INSERT INTO t1 VALUES (CAST('10 ' AS SIGNED), NULL);
+END|
+
+delimiter ;|
+
+CALL p1();
+
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Bug#5889: Exit handler for a warning doesn't hide the warning in trigger
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 2);
+
+delimiter |;
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLWARNING
+    SET NEW.a = 10;
+
+  SET NEW.a = 99999999999;
+END|
+
+delimiter ;|
+
+UPDATE t1 SET b = 20;
+
+SHOW WARNINGS;
+
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#9857: Stored procedures: handler for sqlwarning ignored
+--echo #
+
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode = traditional;
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+    SELECT 'warning caught (expected)';
+  
+  SELECT 5 / 0;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    SELECT 'error caught (unexpected)';
+  
+  SELECT 5 / 0;
+END|
+
+delimiter ;|
+
+CALL p1();
+SHOW WARNINGS;
+
+CALL p2();
+SHOW WARNINGS;
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+SET sql_mode = @sql_mode_saved;
+
+--echo #
+--echo # Bug#55850: Trigger warnings not cleared.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT,
+                d SMALLINT, e SMALLINT, f SMALLINT);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  INSERT INTO t2(a, b, c) VALUES(99999, 99999, 99999);
+
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
+  INSERT INTO t2(d, e, f) VALUES(99999, 99999, 99999);
+
+CREATE PROCEDURE p1()
+  INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+# What happened before the patch was:
+#  - INSERT INTO t1 added 3 warnings about overflow in 'x', 'y' and 'z' columns;
+#  - t1_bi run and added 3 warnings about overflow in 'a', 'b' and 'c' columns;
+#  - t1_ai run and added 3 warnings about overflow in 'd', 'e' and 'f' columns;
+# => we had 9 warnings.
+#
+# Now what happens is:
+#  - INSERT INTO t1 adds 3 warnings about overflow in 'x', 'y' and 'z' columns;
+#  - t1_bi adds 3 warnings about overflow in 'a', 'b' and 'c' columns;
+#  - The warnings added by triggers are cleared;
+#  - t1_ai run and added 3 warnings about overflow in 'd', 'e' and 'f' columns;
+#  - The warnings added by triggers are cleared;
+# => we have 3 warnings.
+
+--echo
+CALL p1();
+
+--echo
+SHOW WARNINGS;
+
+--echo
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;
+
+--echo # ----------------------------------------------------------------------
+
+CREATE TABLE t1(x SMALLINT, y SMALLINT, z SMALLINT);
+CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT NOT NULL);
+
+delimiter |;
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  INSERT INTO t2 VALUES(
+    CAST('111111 ' AS SIGNED),
+    CAST('222222 ' AS SIGNED),
+    NULL);
+END|
+
+delimiter ;|
+
+CREATE PROCEDURE p1()
+  INSERT INTO t1 VALUES(99999, 99999, 99999);
+
+--echo
+--error ER_BAD_NULL_ERROR
+CALL p1();
+
+--echo
+SHOW WARNINGS;
+
+--echo
+DROP TABLE t1;
+DROP TABLE t2;
+DROP PROCEDURE p1;

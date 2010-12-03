@@ -24,7 +24,7 @@
 show variables like "performance_schema_max_thread_classes";
 
 # Not observable yet
-# select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS
+# select count(*) > 0 from performance_schema.setup_instruments
 #   where name like "thread/%";
 
 # Expect no class lost
@@ -33,7 +33,7 @@ show status like "performance_schema_thread_classes_lost";
 # Expect no instances
 show variables like "performance_schema_max_thread_instances";
 
-select count(*) from performance_schema.PROCESSLIST;
+select count(*) from performance_schema.threads;
 
 # Expect instances lost
 select variable_value > 0 from information_schema.global_status

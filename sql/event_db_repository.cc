@@ -199,7 +199,7 @@ mysql_event_fill_row(THD *thd,
                      TABLE *table,
                      Event_parse_data *et,
                      sp_head *sp,
-                     ulong sql_mode,
+                     sql_mode_t sql_mode,
                      my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
@@ -432,17 +432,17 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   }
 
   key_copy(key_buf, event_table->record[0], key_info, key_len);
-  if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
-                                               (key_part_map)1,
-                                               HA_READ_PREFIX)))
+  if (!(ret= event_table->file->ha_index_read_map(event_table->record[0], key_buf,
+                                                  (key_part_map)1,
+                                                  HA_READ_PREFIX)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
     {
       ret= copy_event_to_schema_table(thd, schema_table, event_table);
       if (ret == 0)
-        ret= event_table->file->index_next_same(event_table->record[0],
-                                                key_buf, key_len);
+        ret= event_table->file->ha_index_next_same(event_table->record[0],
+                                                   key_buf, key_len);
     } while (ret == 0);
   }
   DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
@@ -519,17 +519,20 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
 */
 
 bool
-Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
+Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
                                         const char *db)
 {
-  TABLE *schema_table= tables->table;
-  TABLE *event_table= NULL;
+  TABLE *schema_table= i_s_table->table;
+  Open_tables_backup open_tables_backup;
+  TABLE_LIST event_table;
   int ret= 0;
 
   DBUG_ENTER("Event_db_repository::fill_schema_events");
   DBUG_PRINT("info",("db=%s", db? db:"(null)"));
 
-  if (open_event_table(thd, TL_READ, &event_table))
+  event_table.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
+
+  if (open_system_tables_for_read(thd, &event_table, &open_tables_backup))
     DBUG_RETURN(TRUE);
 
   /*
@@ -542,11 +545,11 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
                   every single row's `db` with the schema which we show.
   */
   if (db)
-    ret= index_read_for_db_for_i_s(thd, schema_table, event_table, db);
+    ret= index_read_for_db_for_i_s(thd, schema_table, event_table.table, db);
   else
-    ret= table_scan_all_for_i_s(thd, schema_table, event_table);
+    ret= table_scan_all_for_i_s(thd, schema_table, event_table.table);
 
-  close_thread_tables(thd);
+  close_system_tables(thd, &open_tables_backup);
 
   DBUG_PRINT("info", ("Return code=%d", ret));
   DBUG_RETURN(ret);
@@ -585,10 +588,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   tables.init_one_table("mysql", 5, "event", 5, "event", lock_type);
 
   if (open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {
-    close_thread_tables(thd);
     DBUG_RETURN(TRUE);
-  }
 
   *table= tables.table;
   tables.table->use_all_columns();
@@ -622,7 +622,13 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   int ret= 1;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   DBUG_ENTER("Event_db_repository::create_event");
 
@@ -700,8 +706,9 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
 }
@@ -733,7 +740,13 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::update_event");
@@ -811,8 +824,9 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
 }
@@ -837,6 +851,12 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                                 bool drop_if_exists)
 {
   TABLE *table= NULL;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::drop_event");
@@ -865,8 +885,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   ret= 0;
 
 end:
-  if (table)
-    close_thread_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_RETURN(test(ret));
 }
@@ -911,8 +931,8 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
 
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
-  if (table->file->index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
-                                      HA_READ_KEY_EXACT))
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
     DBUG_PRINT("info", ("Row not found"));
     DBUG_RETURN(TRUE);
@@ -935,33 +955,13 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
 void
 Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 {
-  DBUG_ENTER("Event_db_repository::drop_schema_events");
-  drop_events_by_field(thd, ET_FIELD_DB, schema);
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Drops all events which have a specific value of a field.
-
-  @pre The thread handle has no open tables.
-
-  @param[in,out] thd         Thread
-  @param[in,out] table       mysql.event TABLE
-  @param[in]     field       Which field of the row to use for matching
-  @param[in]     field_value The value that should match
-*/
-
-void
-Event_db_repository::drop_events_by_field(THD *thd,
-                                          enum enum_events_table_field field,
-                                          LEX_STRING field_value)
-{
   int ret= 0;
   TABLE *table= NULL;
   READ_RECORD read_record_info;
-  DBUG_ENTER("Event_db_repository::drop_events_by_field");
-  DBUG_PRINT("enter", ("field=%d field_value=%s", field, field_value.str));
+  enum enum_events_table_field field= ET_FIELD_DB;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  DBUG_ENTER("Event_db_repository::drop_schema_events");
+  DBUG_PRINT("enter", ("field=%d schema=%s", field, schema.str));
 
   if (open_event_table(thd, TL_WRITE, &table))
     DBUG_VOID_RETURN;
@@ -980,7 +980,7 @@ Event_db_repository::drop_events_by_field(THD *thd,
                           get_field(thd->mem_root,
                                     table->field[ET_FIELD_NAME])));
 
-      if (!sortcmp_lex_string(et_field_lex, field_value, system_charset_info))
+      if (!sortcmp_lex_string(et_field_lex, schema, system_charset_info))
       {
         DBUG_PRINT("info", ("Dropping"));
         if ((ret= table->file->ha_delete_row(table->record[0])))
@@ -990,6 +990,11 @@ Event_db_repository::drop_events_by_field(THD *thd,
   }
   end_read_record(&read_record_info);
   close_thread_tables(thd);
+  /*
+    Make sure to only release the MDL lock on mysql.event, not other
+    metadata locks DROP DATABASE might have acquired.
+  */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_VOID_RETURN;
 }
@@ -1010,24 +1015,33 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
   bool ret;
-  TABLE *table= NULL;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  Open_tables_backup open_tables_backup;
+  TABLE_LIST event_table;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
   DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd,
                       (int) name.length, name.str));
 
+  event_table.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
+
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
 
-  if (!(ret= open_event_table(thd, TL_READ, &table)))
+  /*
+    We don't use open_event_table() here to make sure that SHOW
+    CREATE EVENT works properly in transactional context, and
+    does not release transactional metadata locks when the
+    event table is closed.
+  */
+  if (!(ret= open_system_tables_for_read(thd, &event_table, &open_tables_backup)))
   {
-    if ((ret= find_named_event(dbname, name, table)))
+    if ((ret= find_named_event(dbname, name, event_table.table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
-    else if ((ret= etn->load_from_row(thd, table)))
+    else if ((ret= etn->load_from_row(thd, event_table.table)))
       my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
 
-    close_thread_tables(thd);
+    close_system_tables(thd, &open_tables_backup);
   }
 
   thd->variables.sql_mode= saved_mode;
@@ -1047,15 +1061,14 @@ Event_db_repository::
 update_timing_fields_for_event(THD *thd,
                                LEX_STRING event_db_name,
                                LEX_STRING event_name,
-                               bool update_last_executed,
                                my_time_t last_executed,
-                               bool update_status,
                                ulonglong status)
 {
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
   bool save_binlog_row_based;
+  MYSQL_TIME time;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
@@ -1080,20 +1093,12 @@ update_timing_fields_for_event(THD *thd,
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  if (update_last_executed)
-  {
-    MYSQL_TIME time;
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
+  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
-    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
-                                               MYSQL_TIMESTAMP_DATETIME);
-  }
-  if (update_status)
-  {
-    fields[ET_FIELD_STATUS]->set_notnull();
-    fields[ET_FIELD_STATUS]->store(status, TRUE);
-  }
+  fields[ET_FIELD_STATUS]->set_notnull();
+  fields[ET_FIELD_STATUS]->store(status, TRUE);
 
   if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
   {
@@ -1105,7 +1110,8 @@ update_timing_fields_for_event(THD *thd,
 
 end:
   if (table)
-    close_thread_tables(thd);
+    close_mysql_tables(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -1152,7 +1158,7 @@ Event_db_repository::check_system_tables(THD *thd)
     if (table_intact.check(tables.table, &mysql_db_table_def))
       ret= 1;
 
-    close_thread_tables(thd);
+    close_mysql_tables(thd);
   }
   /* Check mysql.user */
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
@@ -1172,7 +1178,7 @@ Event_db_repository::check_system_tables(THD *thd)
                       event_priv_column_position);
       ret= 1;
     }
-    close_thread_tables(thd);
+    close_mysql_tables(thd);
   }
   /* Check mysql.event */
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
@@ -1186,7 +1192,7 @@ Event_db_repository::check_system_tables(THD *thd)
   {
     if (table_intact.check(tables.table, &event_table_def))
       ret= 1;
-    close_thread_tables(thd);
+    close_mysql_tables(thd);
   }
 
   DBUG_RETURN(test(ret));

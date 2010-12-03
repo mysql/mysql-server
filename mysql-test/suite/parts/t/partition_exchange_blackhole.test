@@ -1,0 +1,18 @@
+--source include/have_blackhole.inc
+--source include/have_partition.inc
+--source include/have_debug_sync.inc
+
+let $engine= 'Blackhole';
+--echo # Blackhole has not implemented check_if_incompatible_data,
+--echo # so it cannot support EXCHANGE PARTITION
+CREATE TABLE t (a int, b varchar(55)) ENGINE = 'Blackhole';
+CREATE TABLE tp (a int, b varchar(55)) ENGINE = 'Blackhole'
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+ PARTITION p1 VALUES LESS THAN MAXVALUE);
+--error ER_TABLES_DIFFERENT_METADATA
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+DROP TABLE t, tp;
+
+# to use when check_if_incompatible_data is implemented in ha_blackhole
+#--source suite/parts/inc/partition_exchange.inc

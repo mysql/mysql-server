@@ -693,6 +693,8 @@ ut_strerr(
 		return("Lock structs have exhausted the buffer pool");
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return("Foreign key activated with duplicate keys");
+	case DB_FOREIGN_EXCEED_MAX_CASCADE:
+		return("Foreign key cascade delete/update exceeds max depth");
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		return("Too many concurrent transactions");
 	case DB_UNSUPPORTED:
@@ -713,6 +715,10 @@ ut_strerr(
 		return("Zip overflow");
 	case DB_RECORD_NOT_FOUND:
 		return("Record not found");
+	case DB_CHILD_NO_INDEX:
+		return("No index on referencing keys in referencing table");
+	case DB_PARENT_NO_INDEX:
+		return("No index on referenced keys in referenced table");
 	case DB_END_OF_INDEX:
 		return("End of index");
 	/* do not add default: in order to produce a warning if new code

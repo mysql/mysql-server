@@ -3,7 +3,7 @@ FLUSH TABLES;
 SELECT * FROM t1;
 ERROR 42000: Unknown storage engine 'partition'
 TRUNCATE TABLE t1;
-ERROR 42000: Unknown storage engine 'partition'
+ERROR 42S02: Table 'test.t1' doesn't exist
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	Error	Unknown storage engine 'partition'
@@ -21,23 +21,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	Error	Unknown storage engine 'partition'
 test.t1	repair	error	Corrupt
 ALTER TABLE t1 REPAIR PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	Error	Unknown storage engine 'partition'
-test.t1	repair	error	Corrupt
+ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 ALTER TABLE t1 CHECK PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	check	Error	Unknown storage engine 'partition'
-test.t1	check	error	Corrupt
+ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 ALTER TABLE t1 OPTIMIZE PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	Unknown storage engine 'partition'
-test.t1	optimize	error	Corrupt
+ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 ALTER TABLE t1 ANALYZE PARTITION ALL;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	Unknown storage engine 'partition'
-test.t1	analyze	error	Corrupt
+ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 ALTER TABLE t1 REBUILD PARTITION ALL;
 ERROR 42000: Unknown storage engine 'partition'
+ALTER TABLE t1 TRUNCATE PARTITION ALL;
+ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 ALTER TABLE t1 ENGINE Memory;
 ERROR 42000: Unknown storage engine 'partition'
 ALTER TABLE t1 ADD (new INT);
@@ -56,7 +50,7 @@ ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '
 ALTER TABLE t1 PARTITION BY KEY(joined) PARTITIONS 2;
 ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (
 firstname VARCHAR(25) NOT NULL,
 lastname VARCHAR(25) NOT NULL,
@@ -73,7 +67,7 @@ PARTITION p4 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (id INT, purchased DATE)
 PARTITION BY RANGE( YEAR(purchased) )
 SUBPARTITION BY HASH( TO_DAYS(purchased) )
@@ -84,7 +78,7 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 );
 ERROR HY000: The 'partitioning' feature is disabled; you need MySQL built with '--with-plugin-partition' to have it working
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 create table t1 (a varchar(10) charset latin1 collate latin1_bin);
 insert into t1 values (''),(' '),('a'),('a '),('a  ');
 explain partitions select * from t1 where a='a ' OR a='a';

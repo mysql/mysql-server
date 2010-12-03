@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -43,6 +43,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "fil0fil.h"
 #include "buf0buf.h"
+#include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
 # include "os0sync.h"
 # include "os0thread.h"
@@ -183,7 +184,7 @@ struct os_aio_slot_struct{
 					which pending aio operation was
 					completed */
 #ifdef WIN_ASYNC_IO
-	os_event_t	event;		/*!< event object we need in the
+	HANDLE		handle;		/*!< handle object we need in the
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
@@ -225,7 +226,7 @@ struct os_aio_array_struct{
 				aio array outside the ibuf segment */
 	os_aio_slot_t*	slots;	/*!< Pointer to the slots in the array */
 #ifdef __WIN__
-	os_native_event_t* native_events;
+	HANDLE*		handles;
 				/*!< Pointer to an array of OS native
 				event handles where we copied the
 				handles from slots, in the same
@@ -304,7 +305,8 @@ UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
-@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000 */
+@return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
+OS_WIN7. */
 UNIV_INTERN
 ulint
 os_get_os_version(void)
@@ -322,10 +324,18 @@ os_get_os_version(void)
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
 		return(OS_WIN95);
 	} else if (os_info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-		if (os_info.dwMajorVersion <= 4) {
-			return(OS_WINNT);
-		} else {
-			return(OS_WIN2000);
+		switch (os_info.dwMajorVersion) {
+		case 3:
+		case 4:
+			return OS_WINNT;
+		case 5:
+			return (os_info.dwMinorVersion == 0) ? OS_WIN2000
+							     : OS_WINXP;
+		case 6:
+			return (os_info.dwMinorVersion == 0) ? OS_WINVISTA
+							     : OS_WIN7;
+		default:
+			return OS_WIN7;
 		}
 	} else {
 		ut_error;
@@ -673,10 +683,10 @@ os_io_init_simple(void)
 {
 	ulint	i;
 
-	os_file_count_mutex = os_mutex_create(NULL);
+	os_file_count_mutex = os_mutex_create();
 
 	for (i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = os_mutex_create(NULL);
+		os_file_seek_mutexes[i] = os_mutex_create();
 	}
 }
 
@@ -1286,10 +1296,12 @@ UNIV_INTERN
 void
 os_file_set_nocache(
 /*================*/
-	int		fd,		/*!< in: file descriptor to alter */
-	const char*	file_name,	/*!< in: file name, used in the
-					diagnostic message */
-	const char*	operation_name)	/*!< in: "open" or "create"; used in the
+	int		fd		/*!< in: file descriptor to alter */
+	__attribute__((unused)),
+	const char*	file_name	/*!< in: used in the diagnostic message */
+	__attribute__((unused)),
+	const char*	operation_name __attribute__((unused)))
+					/*!< in: "open" or "create"; used in the
 					diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
@@ -1473,8 +1485,6 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
-	const char*	type_str	= NULL;
-	const char*	purpose_str	= NULL;
 
 try_again:
 	ut_a(name);
@@ -1494,26 +1504,9 @@ try_again:
 		ut_error;
 	}
 
-	if (type == OS_LOG_FILE) {
-		type_str = "LOG";
-	} else if (type == OS_DATA_FILE) {
-		type_str = "DATA";
-	} else {
-		ut_error;
-	}
+	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
+	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
-	if (purpose == OS_FILE_AIO) {
-		purpose_str = "AIO";
-	} else if (purpose == OS_FILE_NORMAL) {
-		purpose_str = "NORMAL";
-	} else {
-		ut_error;
-	}
-
-#if 0
-	fprintf(stderr, "Opening file %s, mode %s, type %s, purpose %s\n",
-		name, mode_str, type_str, purpose_str);
-#endif
 #ifdef O_SYNC
 	/* We let O_SYNC only affect log files; note that we map O_DSYNC to
 	O_SYNC because the datasync options seemed to corrupt files in 2001
@@ -2210,6 +2203,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	n_bytes = pread(file, buf, (ssize_t)n, offs);
@@ -2217,6 +2211,7 @@ os_file_pread(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	return(n_bytes);
@@ -2230,6 +2225,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
+		MONITOR_INC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2253,6 +2249,7 @@ os_file_pread(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2301,6 +2298,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	ret = pwrite(file, buf, (ssize_t)n, offs);
@@ -2308,6 +2306,7 @@ os_file_pwrite(
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 # ifdef UNIV_DO_FLUSH
@@ -2333,6 +2332,7 @@ os_file_pwrite(
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes++;
+		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 # ifndef UNIV_HOTBACKUP
@@ -2372,6 +2372,7 @@ func_exit:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		return(ret);
@@ -2408,7 +2409,10 @@ os_file_read_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2423,6 +2427,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2442,6 +2447,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2455,6 +2461,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2534,7 +2541,10 @@ os_file_read_no_error_handling_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
 	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_reads++;
 	os_bytes_read_since_printout += n;
@@ -2549,6 +2559,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
+	MONITOR_INC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2568,6 +2579,7 @@ try_again:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
+		MONITOR_DEC(MONITOR_OS_PENDING_READS);
 		os_mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
@@ -2581,6 +2593,7 @@ try_again:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
+	MONITOR_DEC(MONITOR_OS_PENDING_READS);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -2666,7 +2679,10 @@ os_file_write_func(
 	ulint		i;
 #endif /* !UNIV_HOTBACKUP */
 
-	ut_a((offset & 0xFFFFFFFF) == offset);
+	/* On 64-bit Windows, ulint is 64 bits. But offset and n should be
+	no more than 32 bits. */
+	ut_a((offset & 0xFFFFFFFFUL) == offset);
+	ut_a((n & 0xFFFFFFFFUL) == n);
 
 	os_n_file_writes++;
 
@@ -2679,6 +2695,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
+	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
@@ -2698,6 +2715,7 @@ retry:
 
 		os_mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
+		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
 		ut_print_timestamp(stderr);
@@ -2734,6 +2752,7 @@ retry:
 
 	os_mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
+	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 	os_mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
@@ -3217,7 +3236,7 @@ os_aio_array_create(
 
 	array = ut_malloc(sizeof(os_aio_array_t));
 
-	array->mutex		= os_mutex_create(NULL);
+	array->mutex		= os_mutex_create();
 	array->not_full		= os_event_create(NULL);
 	array->is_empty		= os_event_create(NULL);
 
@@ -3229,10 +3248,13 @@ os_aio_array_create(
 	array->cur_seg		= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
 #ifdef __WIN__
-	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
+	array->handles		= ut_malloc(n * sizeof(HANDLE));
 #endif
 
 #if defined(LINUX_NATIVE_AIO)
+	array->aio_ctx = NULL;
+	array->aio_events = NULL;
+
 	/* If we are not using native aio interface then skip this
 	part of initialization. */
 	if (!srv_use_native_aio) {
@@ -3270,13 +3292,13 @@ skip_native_aio:
 		slot->pos = i;
 		slot->reserved = FALSE;
 #ifdef WIN_ASYNC_IO
-		slot->event = os_event_create(NULL);
+		slot->handle = CreateEvent(NULL,TRUE, FALSE, NULL);
 
 		over = &(slot->control);
 
-		over->hEvent = slot->event->handle;
+		over->hEvent = slot->handle;
 
-		*((array->native_events) + i) = over->hEvent;
+		*((array->handles) + i) = over->hEvent;
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3302,16 +3324,23 @@ os_aio_array_free(
 
 	for (i = 0; i < array->n_slots; i++) {
 		os_aio_slot_t*	slot = os_aio_array_get_nth_slot(array, i);
-		os_event_free(slot->event);
+		CloseHandle(slot->handle);
 	}
 #endif /* WIN_ASYNC_IO */
 
 #ifdef __WIN__
-	ut_free(array->native_events);
+	ut_free(array->handles);
 #endif /* __WIN__ */
 	os_mutex_free(array->mutex);
 	os_event_free(array->not_full);
 	os_event_free(array->is_empty);
+
+#if defined(LINUX_NATIVE_AIO)
+	if (srv_use_native_aio) {
+		ut_free(array->aio_events);
+		ut_free(array->aio_ctx);
+	}
+#endif /* LINUX_NATIVE_AIO */
 
 	ut_free(array->slots);
 	ut_free(array);
@@ -3453,7 +3482,7 @@ os_aio_array_wake_win_aio_at_shutdown(
 
 	for (i = 0; i < array->n_slots; i++) {
 
-		os_event_set((array->slots + i)->event);
+		SetEvent((array->slots + i)->handle);
 	}
 }
 #endif
@@ -3619,6 +3648,10 @@ os_aio_array_reserve_slot(
 	ulint		slots_per_seg;
 	ulint		local_seg;
 
+#ifdef WIN_ASYNC_IO
+	ut_a((len & 0xFFFFFFFFUL) == len);
+#endif
+
 	/* No need of a mutex. Only reading constant fields */
 	slots_per_seg = array->n_slots / array->n_segments;
 
@@ -3692,7 +3725,7 @@ found:
 	control = &(slot->control);
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3764,7 +3797,7 @@ os_aio_array_free_slot(
 
 #ifdef WIN_ASYNC_IO
 
-	os_event_reset(slot->event);
+	ResetEvent(slot->handle);
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3994,6 +4027,9 @@ os_aio_func(
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(os_aio_validate());
+#ifdef WIN_ASYNC_IO
+	ut_ad((n & 0xFFFFFFFFUL) == n);
+#endif
 
 	wake_later = mode & OS_AIO_SIMULATED_WAKE_LATER;
 	mode = mode & (~OS_AIO_SIMULATED_WAKE_LATER);
@@ -4198,13 +4234,20 @@ os_aio_windows_handle(
 	n = array->n_slots / array->n_segments;
 
 	if (array == os_aio_sync_array) {
-		os_event_wait(os_aio_array_get_nth_slot(array, pos)->event);
+		WaitForSingleObject(
+			os_aio_array_get_nth_slot(array, pos)->handle,
+			INFINITE);
 		i = pos;
 	} else {
 		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = os_event_wait_multiple(n,
-					   (array->native_events)
-					   + segment * n);
+		i = WaitForMultipleObjects((DWORD) n,
+					   array->handles + segment * n,
+					   FALSE,
+					   INFINITE);
+	}
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
 	}
 
 	os_mutex_enter(array->mutex);
@@ -4262,16 +4305,18 @@ os_aio_windows_handle(
 					    __FILE__, __LINE__);
 #endif
 
+		ut_a((slot->len & 0xFFFFFFFFUL) == slot->len);
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
-					slot->len, &len,
+					(DWORD) slot->len, &len,
 					&(slot->control));
 
 			break;
 		case OS_FILE_READ:
 			ret = ReadFile(slot->file, slot->buf,
-				       slot->len, &len,
+				       (DWORD) slot->len, &len,
 				       &(slot->control));
 
 			break;

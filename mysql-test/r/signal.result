@@ -1189,6 +1189,8 @@ end $$
 call test_signal() $$
 Caught by SQLSTATE
 Caught by SQLSTATE
+Warnings:
+Warning	1012	Raising a warning
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1204,6 +1206,8 @@ end $$
 call test_signal() $$
 Caught by number
 Caught by number
+Warnings:
+Warning	1012	Raising a warning
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1219,6 +1223,8 @@ end $$
 call test_signal() $$
 Caught by SQLWARNING
 Caught by SQLWARNING
+Warnings:
+Warning	1012	Raising a warning
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1234,6 +1240,8 @@ end $$
 call test_signal() $$
 Caught by SQLSTATE
 Caught by SQLSTATE
+Warnings:
+Error	1012	Raising a not found
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1249,6 +1257,8 @@ end $$
 call test_signal() $$
 Caught by number
 Caught by number
+Warnings:
+Error	1012	Raising a not found
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1264,6 +1274,8 @@ end $$
 call test_signal() $$
 Caught by NOT FOUND
 Caught by NOT FOUND
+Warnings:
+Error	1012	Raising a not found
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1279,6 +1291,8 @@ end $$
 call test_signal() $$
 Caught by SQLSTATE
 Caught by SQLSTATE
+Warnings:
+Error	1012	Raising an error
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1294,6 +1308,8 @@ end $$
 call test_signal() $$
 Caught by number
 Caught by number
+Warnings:
+Error	1012	Raising an error
 drop procedure test_signal $$
 create procedure test_signal()
 begin
@@ -1309,6 +1325,8 @@ end $$
 call test_signal() $$
 Caught by SQLEXCEPTION
 Caught by SQLEXCEPTION
+Warnings:
+Error	1012	Raising an error
 drop procedure test_signal $$
 #
 # Test where SIGNAL can be used
@@ -1361,9 +1379,6 @@ MESSAGE_TEXT = msg,
 MYSQL_ERRNO = 1012;
 end $$
 insert into t1 values (1), (2) $$
-Warnings:
-Warning	1012	This trigger SIGNAL a warning, a=1
-Warning	1012	This trigger SIGNAL a warning, a=2
 drop trigger t1_ai $$
 create trigger t1_ai after insert on t1 for each row
 begin
@@ -1398,11 +1413,7 @@ MESSAGE_TEXT = NEW.msg,
 MYSQL_ERRNO = NEW.errno;
 end $$
 insert into t1 set errno=1012, msg='Warning message 1 in trigger' $$
-Warnings:
-Warning	1012	Warning message 1 in trigger
 insert into t1 set errno=1013, msg='Warning message 2 in trigger' $$
-Warnings:
-Warning	1013	Warning message 2 in trigger
 drop table t1 $$
 drop table if exists t1 $$
 drop procedure if exists p1 $$
@@ -1454,6 +1465,7 @@ before RESIGNAL
 after RESIGNAL
 after RESIGNAL
 Warnings:
+Warning	1012	Raising a warning
 Warning	1012	Raising a warning
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -1509,6 +1521,7 @@ after RESIGNAL
 after RESIGNAL
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 drop procedure test_resignal $$
 create procedure test_resignal()
 begin
@@ -1542,7 +1555,7 @@ end $$
 call test_resignal() $$
 before RESIGNAL
 before RESIGNAL
-ERROR 42S02: Unknown table 'no_such_table'
+ERROR 42S02: Unknown table 'test.no_such_table'
 drop procedure test_resignal $$
 create procedure test_resignal()
 begin
@@ -1565,6 +1578,7 @@ before RESIGNAL
 after RESIGNAL
 after RESIGNAL
 Warnings:
+Warning	1012	Raising a warning
 Warning	5555	RESIGNAL of a warning
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -1625,6 +1639,7 @@ before RESIGNAL
 after RESIGNAL
 after RESIGNAL
 Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
 Warning	5555	RESIGNAL of a warning
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -2037,7 +2052,7 @@ before RESIGNAL
 after RESIGNAL
 after RESIGNAL
 Warnings:
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Warning	5555	RESIGNAL to a warning
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -2058,7 +2073,7 @@ before RESIGNAL
 ERROR 02444: RESIGNAL to a not found
 show warnings $$
 Level	Code	Message
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Error	5555	RESIGNAL to a not found
 drop procedure test_resignal $$
 create procedure test_resignal()
@@ -2079,7 +2094,7 @@ before RESIGNAL
 ERROR 44444: RESIGNAL to an error
 show warnings $$
 Level	Code	Message
-Error	1051	Unknown table 'no_such_table'
+Error	1051	Unknown table 'test.no_such_table'
 Error	5555	RESIGNAL to an error
 drop procedure test_resignal $$
 #
@@ -2126,6 +2141,9 @@ CALL peter_p2() $$
 ERROR 42000: Hi, I am a useless error message
 show warnings $$
 Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	9999	Variable 'sql_mode' can't be set to the value of 'NULL'
 Error	9999	Hi, I am a useless error message
 drop procedure peter_p1 $$
 drop procedure peter_p2 $$
@@ -2135,15 +2153,17 @@ DECLARE x CONDITION FOR SQLSTATE '42000';
 DECLARE EXIT HANDLER FOR x
 BEGIN
 SELECT '2';
+SHOW WARNINGS;
 RESIGNAL x SET MYSQL_ERRNO = 9999;
 END;
 BEGIN
 DECLARE EXIT HANDLER FOR x
 BEGIN
 SELECT '1';
+SHOW WARNINGS;
 RESIGNAL x SET
 SCHEMA_NAME = 'test',
-MYSQL_ERRNO= 1231;
+MYSQL_ERRNO= 1232;
 END;
 /* Raises ER_WRONG_VALUE_FOR_VAR : 1231, SQLSTATE 42000 */
 SET @@sql_mode=NULL;
@@ -2156,6 +2176,7 @@ DECLARE x CONDITION for SQLSTATE '42000';
 DECLARE EXIT HANDLER FOR x
 BEGIN
 SELECT '3';
+SHOW WARNINGS;
 RESIGNAL x SET
 MESSAGE_TEXT = 'Hi, I am a useless error message',
 MYSQL_ERRNO = 9999;
@@ -2166,15 +2187,24 @@ $$
 CALL peter_p2() $$
 1
 1
+Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
 2
 2
+Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
 3
 3
+Level	Code	Message
+Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	9999	Variable 'sql_mode' can't be set to the value of 'NULL'
 ERROR 42000: Hi, I am a useless error message
 show warnings $$
 Level	Code	Message
 Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
-Error	1231	Variable 'sql_mode' can't be set to the value of 'NULL'
+Error	1232	Variable 'sql_mode' can't be set to the value of 'NULL'
 Error	9999	Variable 'sql_mode' can't be set to the value of 'NULL'
 Error	9999	Hi, I am a useless error message
 drop procedure peter_p1 $$

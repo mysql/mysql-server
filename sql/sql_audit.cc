@@ -131,11 +131,35 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   
   /* lock the plugin and add it to the list */
   plugin= my_plugin_lock(NULL, &plugin);
-  insert_dynamic(&thd->audit_class_plugins, (uchar*) &plugin);
+  insert_dynamic(&thd->audit_class_plugins, &plugin);
 
   return 0;
 }
 
+
+/**
+  @brief Acquire audit plugins
+
+  @param[in]   thd              MySQL thread handle
+  @param[in]   event_class      Audit event class
+
+  @details Ensure that audit plugins interested in given event
+  class are locked by current thread.
+*/
+void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+{
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  DBUG_ENTER("mysql_audit_acquire_plugins");
+  set_audit_mask(event_class_mask, event_class);
+  if (thd && !check_audit_mask(mysql_global_audit_mask, event_class_mask) &&
+      check_audit_mask(thd->audit_class_mask, event_class_mask))
+  {
+    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &event_class);
+    add_audit_mask(thd->audit_class_mask, event_class_mask);
+  }
+  DBUG_VOID_RETURN;
+}
+ 
 
 /**
   Notify the audit system of an event
@@ -151,21 +175,8 @@ void mysql_audit_notify(THD *thd, uint event_class, uint event_subtype, ...)
 {
   va_list ap;
   audit_handler_t *handlers= audit_handlers + event_class;
-  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
-  
   DBUG_ASSERT(event_class < audit_handlers_count);
-
-  set_audit_mask(event_class_mask, event_class);
-  /*
-    Check to see if we have acquired the audit plugins for the
-    required audit event classes.
-  */
-  if (thd && check_audit_mask(thd->audit_class_mask, event_class_mask))
-  {
-    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &event_class);
-    add_audit_mask(thd->audit_class_mask, event_class_mask);
-  }
-
+  mysql_audit_acquire_plugins(thd, event_class);
   va_start(ap, event_subtype);  
   (*handlers)(thd, event_subtype, ap);
   va_end(ap);
@@ -446,6 +457,11 @@ static void event_class_dispatch(THD *thd, const struct mysql_event *event)
 
 
 #else /* EMBEDDED_LIBRARY */
+
+
+void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+{
+}
 
 
 void mysql_audit_initialize()

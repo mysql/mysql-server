@@ -49,8 +49,41 @@ Slave_IO_Running = No (expect No)
 SELECT "Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'" AS Last_IO_Error;
 Last_IO_Error
 Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
+STOP SLAVE;
+RESET SLAVE;
+RESET MASTER;
+SET @max_allowed_packet_0= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_1= @@session.max_allowed_packet;
+SHOW BINLOG EVENTS;
+SET @max_allowed_packet_2= @@session.max_allowed_packet;
+START SLAVE;
+DROP TABLE t1;
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+4096
+select @@global.net_buffer_length;
+@@global.net_buffer_length
+4096
+select @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1024
+select @@global.net_buffer_length;
+@@global.net_buffer_length
+1024
+CREATE TABLE t1 (a TEXT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (REPEAT('a', 2048));
+# 1153 = ER_NET_PACKET_TOO_LARGE
+Last_IO_Error = Got a packet bigger than 'max_allowed_packet' bytes
+# Record Read_Master_Log_Pos for the Table_map_log_event
+SET @@global.max_allowed_packet=1048576;
+SET @b55790_output.1= LOAD_FILE('MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog.1');
+WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
+SET @b55790_output.1= LOAD_FILE('MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog.1');
+WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
 ==== clean up ====
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;
 SET @@global.net_buffer_length= 1024;
+SET @@global.max_allowed_packet= 1024;
 DROP TABLE t1;

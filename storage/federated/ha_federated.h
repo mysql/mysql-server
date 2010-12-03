@@ -248,6 +248,7 @@ public:
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
 
   int delete_all_rows(void);
+  int truncate();
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info);                      //required
   ha_rows records_in_range(uint inx, key_range *start_key,

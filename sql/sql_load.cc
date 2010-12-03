@@ -175,6 +175,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
+  THD::killed_state killed_status= THD::NOT_KILLED;
 #endif
   char *db = table_list->db;			// This is never null
   /*
@@ -186,8 +187,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   ulong skip_lines= ex->skip_lines;
   bool transactional_table;
   bool is_concurrent;
-  THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_load");
+
+  /*
+    Bug #34283
+    mysqlbinlog leaves tmpfile after termination if binlog contains
+    load data infile, so in mixed mode we go to row-based for
+    avoiding the problem.
+  */
+  thd->set_current_stmt_binlog_format_row_if_mixed();
 
 #ifdef EMBEDDED_LIBRARY
   read_file_from_client  = 0; //server is always in the same process 
@@ -377,11 +385,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (thd->slave_thread)
       {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli.slave_patternload_file, name, 
-            active_mi->rli.slave_patternload_file_size))
+        if (strncmp(active_mi->rli->slave_patternload_file, name,
+            active_mi->rli->slave_patternload_file_size))
         {
           /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from 
+            LOAD DATA INFILE in the slave SQL Thread can only read from
             --slave-load-tmpdir". This should never happen. Please, report a bug.
            */
 
@@ -510,7 +518,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                     error=1;
                     thd->killed= THD::KILL_QUERY;
                   };);
-  killed_status= (error == 0)? THD::NOT_KILLED : thd->killed;
+
+#ifndef EMBEDDED_LIBRARY
+  killed_status= (error == 0) ? THD::NOT_KILLED : thd->killed;
+#endif
+
   /*
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
@@ -553,7 +565,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	if (lf_info.wrote_create_file)
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-          
+
           /* since there is already an error, the possible error of
              writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
@@ -767,12 +779,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   List_iterator_fast<Item> it(fields_vars);
   Item_field *sql_field;
   TABLE *table= table_list->table;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_fixed_length");
 
-  id= 0;
- 
   while (!read_info.read_fixed_length())
   {
     if (thd->killed)
@@ -901,12 +910,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   uint enclosed_length;
-  ulonglong id;
   bool err;
   DBUG_ENTER("read_sep_field");
 
   enclosed_length=enclosed.length();
-  id= 0;
 
   for (;;it.rewind())
   {
@@ -1338,6 +1345,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 		      MYF(MY_WME)))
     {
       my_free(buffer); /* purecov: inspected */
+      buffer= NULL;
       error=1;
     }
     else
@@ -1364,13 +1372,11 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
 
 READ_INFO::~READ_INFO()
 {
-  if (!error)
-  {
-    if (need_end_io_cache)
-      ::end_io_cache(&cache);
+  if (!error && need_end_io_cache)
+    ::end_io_cache(&cache);
+
+  if (buffer != NULL)
     my_free(buffer);
-    error=1;
-  }
   List_iterator<XML_TAG> xmlit(taglist);
   XML_TAG *t;
   while ((t= xmlit++))

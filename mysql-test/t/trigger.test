@@ -1751,7 +1751,7 @@ create trigger t1_ai after insert on t1 for each row set @a := 7;
 create table t2 (j int);
 insert into t2 values (1), (2);
 set @a:="";
-create table if not exists t1 select * from t2;
+insert into t1 select * from t2;
 select * from t1;
 select @a;
 # Let us check that trigger that involves table also works ok.
@@ -1759,7 +1759,7 @@ drop trigger t1_bi;
 drop trigger t1_ai;
 create table t3 (isave int);
 create trigger t1_bi before insert on t1 for each row insert into t3 values (new.i);
-create table if not exists t1 select * from t2;
+insert into t1 select * from t2;
 select * from t1;
 select * from t3;
 drop table t1, t2, t3;
@@ -1975,7 +1975,7 @@ select * from t1_op_log;
 truncate t1;
 truncate t1_op_log;
 
-create table if not exists t1
+insert into t1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
 
 set @id=last_insert_id();
@@ -1984,7 +1984,7 @@ select * from t1;
 select * from t1_op_log;
 truncate t1_op_log;
 
-create table if not exists t1 replace
+replace into t1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
 
 select * from t1;
@@ -2114,7 +2114,7 @@ select * from t1_op_log;
 truncate t1;
 truncate t1_op_log;
 
-create table if not exists v1
+insert into v1
 select NULL, "CREATE TABLE ... SELECT, inserting a new key";
 
 set @id=last_insert_id();
@@ -2123,7 +2123,7 @@ select * from t1;
 select * from t1_op_log;
 truncate t1_op_log;
 
-create table if not exists v1 replace
+replace into v1
 select @id, "CREATE TABLE ... REPLACE SELECT, deleting a duplicate key";
 
 select * from t1;
