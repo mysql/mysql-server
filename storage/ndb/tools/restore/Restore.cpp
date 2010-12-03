@@ -32,6 +32,7 @@
 #include "../../../../sql/ha_ndbcluster_tables.h"
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
+extern bool ga_skip_broken_objects;
 
 Uint16 Twiddle16(Uint16 in); // Byte shift 16-bit data
 Uint32 Twiddle32(Uint32 in); // Byte shift 32-bit data
@@ -565,13 +566,21 @@ RestoreMetaData::fixBlobs()
       }
       if (blobTable == NULL)
       {
+        table->m_broken = true;
         /* Corrupt backup, has main table, but no blob table */
         err << "Table " << table->m_dictTable->getName()
             << " has blob column " << j << " (" 
             << c->m_name.c_str()
             << ") with missing parts table in backup."
             << endl;
-        return false;
+        if (ga_skip_broken_objects)
+        {
+          continue;
+        }
+        else
+        {
+          return false;
+        }
       }
       assert(blobTable->m_dictTable != NULL);
       NdbTableImpl& bt = NdbTableImpl::getImpl(*blobTable->m_dictTable);
@@ -668,6 +677,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   backupVersion = version;
   m_isSysTable = false;
   m_isSYSTAB_0 = false;
+  m_broken = false;
   m_main_table = NULL;
   m_main_column_id = ~(Uint32)0;
   

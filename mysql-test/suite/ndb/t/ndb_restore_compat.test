@@ -85,3 +85,11 @@ USE test;
 # hugo generated data...
 select a,b,hex(b0),hex(b1),hex(b2),hex(b3),b4,hex(b5),b6,hex(b7) from t1 order by 1,2;
 drop table t1;
+
+# bug#54613
+
+--error 1
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 2 -m --core=0 --include-databases=ham --skip-unknown-objects $MYSQL_TEST_DIR/std_data/ndb_backup_bug54613 >> $NDB_TOOLS_OUTPUT
+
+--error 0
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 2 -n 2 -m --core=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $MYSQL_TEST_DIR/std_data/ndb_backup_bug54613 >> $NDB_TOOLS_OUTPUT

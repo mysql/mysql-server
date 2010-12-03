@@ -39,6 +39,7 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
 extern const char * g_connect_string;
 extern BaseString g_options;
 extern unsigned int opt_no_binlog;
+extern bool ga_skip_broken_objects;
 
 bool BackupRestore::m_preserve_trailing_spaces = false;
 
@@ -1607,6 +1608,10 @@ BackupRestore::endOfTables(){
       err << "Unable to find base table `" << split[2].c_str() 
 	  << "` for index `"
 	  << indtab.getName() << "`" << endl;
+      if (ga_skip_broken_objects)
+      {
+        continue;
+      }
       return false;
     }
     NdbTableImpl& base = NdbTableImpl::getImpl(*prim);

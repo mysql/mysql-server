@@ -175,6 +175,7 @@ class TableS {
 
   bool m_isSysTable;
   bool m_isSYSTAB_0;
+  bool m_broken;
 
   TableS *m_main_table;
   Uint32 m_main_column_id;
@@ -299,6 +300,12 @@ public:
   bool isSYSTAB_0() const {
     return m_isSYSTAB_0;
   } 
+
+  inline
+  bool isBroken() const {
+    return m_broken || (m_main_table && m_main_table->isBroken());
+  }
+  
 }; // TableS;
 
 class RestoreLogIterator;
