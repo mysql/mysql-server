@@ -3439,6 +3439,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         */
         if ((cond->functype() != Item_func::BETWEEN) ||
             ((Item_func_between*) cond)->negated ||
+            num_values < 2 ||
             !value[0]->eq(value[1], field->binary()))
           return;
         eq_func= TRUE;
