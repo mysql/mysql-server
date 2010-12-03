@@ -593,24 +593,21 @@ verify_snapshot_system(TOKULOGGER logger) {
 int toku_txn_ignore_init(TOKUTXN txn)
 {
     if ( !txn ) return EINVAL;
-    TXN_IGNORE txni = toku_malloc(sizeof(TXN_IGNORE_S)); 
-    if ( txni == NULL ) return ENOMEM;
+    TXN_IGNORE txni = &(txn->ignore_errors);
 
     txni->fns_allocated = 0;
     txni->filenums.num = 0;
     txni->filenums.filenums = NULL;
-
-    txn->ignore_errors = txni;
 
     return 0;
 }
 
 void toku_txn_ignore_free(TOKUTXN txn)
 {
-    TXN_IGNORE txni = txn->ignore_errors;
+    TXN_IGNORE txni = &(txn->ignore_errors);
     toku_free(txni->filenums.filenums);
-    toku_free(txni);
-    txni = NULL;
+    txni->filenums.num = 0;
+    txni->filenums.filenums = NULL;
 }
 
 // returns 
@@ -625,7 +622,7 @@ int toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum)
     if ( toku_txn_ignore_contains(txn, filenum) == 0 ) return 0;
     // alloc more space if needed
     const int N = 2;
-    TXN_IGNORE txni = txn->ignore_errors;
+    TXN_IGNORE txni = &(txn->ignore_errors);
     if ( txni->filenums.num == txni->fns_allocated ) {
         if ( txni->fns_allocated == 0 ) {
             CALLOC_N(N, txni->filenums.filenums);
@@ -634,7 +631,6 @@ int toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum)
         }
         else {
             XREALLOC_N(txni->fns_allocated * N, txni->filenums.filenums);
-            if ( txni->filenums.filenums == NULL ) return ENOMEM;
             txni->fns_allocated = txni->fns_allocated * N;
         }
     }
@@ -649,10 +645,11 @@ int toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum)
 //      ENOENT if not found
 //      EINVAL if txn = NULL
 //      -1 on other errors
+// THIS FUNCTION IS NOT USED IN FUNCTIONAL CODE, BUT IS USEFUL FOR TESTING
 int toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum)
 {
     if ( !txn ) return EINVAL; 
-    TXN_IGNORE txni = txn->ignore_errors;
+    TXN_IGNORE txni = &(txn->ignore_errors);
     int found_fn = 0;
     if ( txni->filenums.num == 0 ) return ENOENT;
     for(uint32_t i=0; i<txni->filenums.num; i++) {
@@ -678,7 +675,7 @@ int toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum)
 int toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum) 
 {
     if ( !txn ) return EINVAL;
-    TXN_IGNORE txni = txn->ignore_errors;
+    TXN_IGNORE txni = &(txn->ignore_errors);
     for(uint32_t i=0; i<txni->filenums.num; i++) {
         if ( txni->filenums.filenums[i].fileid == filenum.fileid ) {
             return 0;

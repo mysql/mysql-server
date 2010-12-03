@@ -403,7 +403,7 @@ live_txn_ignore(OMTVALUE vtxn, u_int32_t UU(idx) , void *vfn) {
     int r;
     for (uint32_t i=0; i<hot_index_filenums->num;i++) {
         r = toku_txn_ignore_add(txn, hot_index_filenums->filenums[i]);
-        if ( r != 0 ) return r;
+        invariant(r==0);
     }
     return 0;
 }
@@ -416,7 +416,6 @@ toku_rollback_hot_index (FILENUMS UU(hot_index_filenums),
                          LSN      UU(oplsn))
 {
     int r = toku_omt_iterate(txn->logger->live_txns, live_txn_ignore, &hot_index_filenums);
-    assert(r == 0);
     return r;
 }
 

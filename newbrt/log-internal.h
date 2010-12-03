@@ -152,7 +152,7 @@ struct tokutxn {
     BOOL       recovered_from_checkpoint;
     ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
     struct toku_list checkpoint_before_commit;
-    TXN_IGNORE ignore_errors; // 2954
+    TXN_IGNORE_S ignore_errors; // 2954
 };
 
 struct txninfo {

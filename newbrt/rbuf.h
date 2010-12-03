@@ -133,22 +133,23 @@ static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((_
 
 // 2954
 // Don't try to use the same space, malloc it
-static inline void rbuf_FILENUMS (struct rbuf *r, FILENUMS *filenums) {
+static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
     filenums->num = rbuf_int(r);
-    u_int32_t newndone = r->ndone + ( filenums->num * sizeof(FILENUM) );
-    assert(newndone <= r->size);
-    filenums->filenums = (FILENUM *) toku_memdup(&r->buf[r->ndone], (size_t)filenums->num * sizeof(FILENUM)); 
-    assert(filenums->filenums);
-    r->ndone = newndone;
+    filenums->filenums = toku_malloc( filenums->num * sizeof(FILENUM) );
+    assert(filenums->filenums != NULL);
+    for (u_int32_t i=0; i < filenums->num; i++) {
+        rbuf_FILENUM(r, &(filenums->filenums[i]));
+    }
 }
+
 // 2954
 static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
-    filenums->num = rbuf_int(r);
-    u_int32_t newndone = r->ndone + ( filenums->num * sizeof(FILENUM) );
-    assert(newndone <= r->size);
-    filenums->filenums = (FILENUM *) memarena_memdup(ma, &r->buf[r->ndone], (size_t)filenums->num * sizeof(FILENUM));
-    assert(filenums->filenums);
-    r->ndone = newndone;
+    rbuf_ma_u_int32_t(r, ma, &(filenums->num));
+    filenums->filenums = malloc_in_memarena(ma, filenums->num * sizeof(FILENUM) );
+    assert(filenums->filenums != NULL);
+    for (u_int32_t i=0; i < filenums->num; i++) {
+        rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
+    }
 }
 
 // Don't try to use the same space, malloc it

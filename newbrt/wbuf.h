@@ -202,6 +202,7 @@ static inline void wbuf_FILENUM (struct wbuf *w, FILENUM fileid) {
     wbuf_uint(w, fileid.fileid);
 }
 
+// 2954
 static inline void wbuf_nocrc_FILENUMS (struct wbuf *w, FILENUMS v) {
     wbuf_nocrc_uint(w, v.num);
     uint32_t i;
@@ -210,6 +211,7 @@ static inline void wbuf_nocrc_FILENUMS (struct wbuf *w, FILENUMS v) {
     }
 }
 
+// 2954
 static inline void wbuf_FILENUMS (struct wbuf *w, FILENUMS v) {
     wbuf_uint(w, v.num);
     uint32_t i;
