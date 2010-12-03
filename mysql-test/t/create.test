@@ -5,6 +5,7 @@
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
+drop view if exists v1;
 --enable_warnings
 
 create table t1 (b char(0));
@@ -192,17 +193,17 @@ drop table if exists t1;
 #
 # Test default table type
 #
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1286
-SET SESSION storage_engine="gemini";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="gemini";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 
 
@@ -232,7 +233,6 @@ drop table t1;
 
 create table t1 select 1,2,3;
 create table if not exists t1 select 1,2;
---error 1136
 create table if not exists t1 select 1,2,3,4;
 create table if not exists t1 select 1;
 select * from t1;
@@ -248,8 +248,6 @@ insert into t1 values (1,1);
 create table if not exists t1 select 2;
 select * from t1;
 create table if not exists t1 select 3 as 'a',4 as 'b';
---error ER_DUP_ENTRY
-create table if not exists t1 select 3 as 'a',3 as 'b';
 show warnings;
 show status like "Opened_tables";
 select * from t1;
@@ -353,17 +351,17 @@ drop tables t1, t2;
 #
 # Test default table type
 #
-SET SESSION storage_engine="heap";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
 drop table t1;
 --error 1286
-SET SESSION storage_engine="gemini";
-SELECT @@storage_engine;
+SET SESSION default_storage_engine="gemini";
+SELECT @@default_storage_engine;
 CREATE TABLE t1 (a int not null);
 show create table t1;
-SET SESSION storage_engine=default;
+SET SESSION default_storage_engine=default;
 drop table t1;
 
 #
@@ -517,7 +515,7 @@ drop table t1,t2;
 # an improper fix is present.
 #
 create table t1 (a int);
---error 1093
+--error ER_TABLE_EXISTS_ERROR
 create table t1 select * from t1;
 --error ER_WRONG_OBJECT
 create table t2 union = (t1) select * from t1;
@@ -730,7 +728,6 @@ create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1
 create table t1 (primary key(a)) select "b" as b;
 # Error in select_create::prepare() which is not related to table creation
 create table t1 (a int);
---error ER_WRONG_VALUE_COUNT_ON_ROW
 create table if not exists t1 select 1 as a, 2 as b;
 drop table t1;
 # Finally error which happens during insert
@@ -742,20 +739,13 @@ create table t1 (i int);
 create table t1 select 1 as i;
 create table if not exists t1 select 1 as i;
 select * from t1;
-# Error which is detected after successfull table open.
---error ER_UPDATE_TABLE_USED
+# After WL#5370, it just generates a warning that the table already exists.
 create table if not exists t1 select * from t1;
 select * from t1;
+drop table t1;
 # Error before select_create::prepare()
 --error ER_CANT_AGGREGATE_2COLLATIONS
 create table t1 select coalesce('a' collate latin1_swedish_ci,'b' collate latin1_bin);
-select * from t1;
-# Error which happens during insertion of rows
-alter table t1 add primary key (i);
---error ER_DUP_ENTRY
-create table if not exists t1 (select 2 as i) union all (select 2 as i);
-select * from t1;
-drop table t1;
 
 
 # Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
@@ -1229,11 +1219,9 @@ INSERT IGNORE INTO t1 (b) VALUES (5);
 CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
   SELECT a FROM t1;
 --error 1062
-CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
-  SELECT a FROM t1;
+INSERT INTO t2 SELECT a FROM t1;
 --error 1062
-CREATE TABLE IF NOT EXISTS t2 (a INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY)
-  SELECT a FROM t1;
+INSERT INTO t2 SELECT a FROM t1;
 
 DROP TABLE t1, t2;
 
@@ -1273,7 +1261,7 @@ CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
 drop table if exists t2;
 CREATE TABLE t2 (a int, b int, primary key (a));
 --error ER_DUP_ENTRY
-CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+INSERT INTO t2 select * from t1;
 SELECT * from t2;
 TRUNCATE table t2;
 --error ER_DUP_ENTRY
@@ -1283,11 +1271,7 @@ drop table t2;
 
 CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
 --error ER_DUP_ENTRY
-CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
-SELECT * from t2;
-TRUNCATE table t2;
---error ER_DUP_ENTRY
-INSERT INTO t2 select * from t1;
+INSERT INTO t2 SELECT * FROM t1;
 SELECT * from t2;
 drop table t1,t2;
 
@@ -1657,11 +1641,7 @@ END ; |
 
 --delimiter ;
 --error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
-CREATE TABLE IF NOT EXISTS t1 ( 
-  `pk` INTEGER NOT NULL AUTO_INCREMENT , 
-  `int` INTEGER ,
-  PRIMARY KEY ( `pk` ) 
-) SELECT `pk` , `int_key` FROM B ;
+INSERT INTO t1 (pk, int_key) SELECT `pk` , `int_key` FROM B ;
 
 --delimiter |
 --error ER_NOT_SUPPORTED_YET
@@ -1674,7 +1654,6 @@ END ;|
 
 DROP TABLE t1;
 DROP TABLE B;
-
 
 --echo #
 --echo # Bug #47107 assert in notify_shared_lock on incorrect 
@@ -1798,3 +1777,243 @@ show create table t1;
 show create table t2;
 set @@sql_mode= @old_mode;
 drop tables t1, t2;
+#
+# Bug#47132 CREATE TABLE.. SELECT.. data not inserted if table
+# is view over multiple tables
+#
+
+CREATE TABLE t1 (id int);
+CREATE TABLE t2 (id int);
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t2 VALUES (2), (2);
+
+CREATE VIEW v1 AS SELECT id FROM t2;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+SHOW CREATE TABLE v1;
+SELECT * FROM t2;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
+SELECT * FROM t2;
+SELECT * FROM tt1;
+DROP TEMPORARY TABLE tt1;
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # WL#5370 "Changing 'CREATE TABLE IF NOT EXISTS ... SELECT'
+--echo # behaviour.
+--echo # 
+
+--echo #
+--echo # 1. Basic case: a base table.
+--echo # 
+
+create table if not exists t1 (a int) select 1 as a;
+select * from t1;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int) select 2 as a;
+select * from t1;
+--echo # Produces an essential warning ER_TABLE_EXISTS.
+create table if not exists t1 (a int) select 2 as a;
+--echo # No new data in t1.
+select * from t1;
+drop table t1;
+
+--echo # 
+--echo # 2. A temporary table.
+--echo #
+
+create temporary table if not exists t1 (a int) select 1 as a;
+select * from t1;
+--error ER_TABLE_EXISTS_ERROR
+create temporary table t1 (a int) select 2 as a;
+select * from t1;
+--echo # An essential warning.
+create temporary table if not exists t1 (a int) select 2 as a;
+--echo # No new data in t1.
+select * from t1;
+drop temporary table t1;
+
+--echo # 
+--echo # 3. Creating a base table in presence of a temporary table.
+--echo #
+
+create table t1 (a int);
+--echo # Create a view for convenience of querying t1 shadowed by a temp.
+create view v1 as select a from t1;
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select 2 as a;
+select * from t1;
+select * from v1;
+--echo # Note: an essential warning.
+create table if not exists t1 (a int) select 3 as a;
+select * from t1;
+select * from v1;
+drop temporary table t1;
+select * from t1;
+drop view v1;
+drop table t1;
+
+--echo # 
+--echo # 4. Creating a temporary table in presence of a base table.
+--echo #
+
+create table t1 (a int) select 1 as a;
+create temporary table if not exists t1 select 2 as a;
+select * from t1;
+--echo # Note: an essential warning.
+create temporary table if not exists t1 select 3 as a;
+select * from t1;
+drop temporary table t1;
+select * from t1;
+drop table t1;
+
+--echo #
+--echo # 5. Creating a base table in presence of an updatable view.
+--echo # 
+create table t2 (a int unique);
+create view t1 as select a from t2;
+insert into t1 (a) values (1);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int);
+--echo # Note: an essential warning.
+create table if not exists t1 (a int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int) select 2 as a;
+select * from t1;
+--echo # Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+select * from t1;
+select * from t2;
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+select * from t2;
+--echo # Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+select * from t1;
+select * from t2;
+drop temporary table t1;
+
+--echo #
+--echo # Repeating the test with a non-updatable view.
+--echo #
+drop view t1;
+create view t1 as select a + 5 as a from t2;
+--error ER_NON_INSERTABLE_TABLE
+insert into t1 (a) values (1);
+--error ER_NONUPDATEABLE_COLUMN
+update t1 set a=3 where a=2;
+
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int);
+--echo # Note: an essential warning.
+create table if not exists t1 (a int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int) select 2 as a;
+select * from t1;
+--echo # Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+select * from t1;
+select * from t2;
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+select * from t2;
+--echo # Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+select * from t1;
+select * from t2;
+drop temporary table t1;
+drop view t1;
+drop table t2;
+
+--echo #
+--echo # Repeating the test with a view select a constant number
+--echo #
+create view t1 as select 1 as a;
+--error ER_NON_INSERTABLE_TABLE
+insert into t1 (a) values (1);
+--error ER_NON_UPDATABLE_TABLE
+update t1 set a=3 where a=2;
+
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int);
+--echo # Note: an essential warning.
+create table if not exists t1 (a int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int) select 2 as a;
+select * from t1;
+--echo # Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+select * from t1;
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+--echo # Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+select * from t1;
+drop temporary table t1;
+drop view t1;
+
+
+--echo #
+--echo # 6. Test of unique_table().
+--echo #
+
+create table t1 (a int) select 1 as a;
+create temporary table if not exists t1 (a int) select * from t1;
+--error ER_CANT_REOPEN_TABLE
+create temporary table if not exists t1 (a int) select * from t1;
+select * from t1;
+drop temporary table t1;
+select * from t1;
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select * from t1;
+create table if not exists t1 (a int) select * from t1;
+select * from t1;
+drop temporary table t1;
+select * from t1;
+drop table t1;
+--error ER_NO_SUCH_TABLE
+create table if not exists t1 (a int) select * from t1;
+
+--echo #
+--echo # 7. Test of non-matching columns, REPLACE and IGNORE.
+--echo #
+
+create table t1 (a int) select 1 as b, 2 as c;
+select * from t1;
+drop table t1;
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+select * from t1;
+drop table t1;
+set @@session.sql_mode='STRICT_ALL_TABLES';
+--error ER_TRUNCATED_WRONG_VALUE
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+--error ER_TRUNCATED_WRONG_VALUE
+create table if not exists t1 (a int, b date, c date) 
+  replace select 1 as b, 2 as c;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+
+create table if not exists t1 (a int, b date, c date) 
+  ignore select 1 as b, 2 as c;
+select * from t1;
+set @@session.sql_mode=default;
+drop table t1;
+
+create table if not exists t1 (a int unique, b int)
+  replace select 1 as a, 1 as b union select 1 as a, 2 as b;
+select * from t1;
+drop table t1;
+create table if not exists t1 (a int unique, b int)
+  ignore select 1 as a, 1 as b union select 1 as a, 2 as b;
+select * from t1;
+drop table t1;
+--echo #

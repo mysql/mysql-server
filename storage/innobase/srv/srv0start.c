@@ -120,15 +120,10 @@ UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
-/** Mutex protecting the ios count */
-static mutex_t		ios_mutex;
-/** Count of I/O operations in io_handler_thread() */
-static ulint		ios;
-
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
-/** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
+/** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -151,11 +146,6 @@ UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register ios_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -477,7 +467,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -490,15 +479,9 @@ io_handler_thread(
 	pfs_register_thread(io_handler_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
-
-		mutex_enter(&ios_mutex);
-		ios++;
-		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
@@ -1001,10 +984,6 @@ skip_size_check:
 				srv_data_file_is_raw_partition[i] != 0);
 	}
 
-	ios = 0;
-
-	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
-
 	return(DB_SUCCESS);
 }
 
@@ -1160,9 +1139,17 @@ innobase_start_or_create_for_mysql(void)
 
 		srv_use_native_aio = FALSE;
 		break;
-	default:
-		/* On Win 2000 and XP use async i/o */
+
+	case OS_WIN2000:
+	case OS_WINXP:
+		/* On 2000 and XP, async IO is available. */
 		srv_use_native_aio = TRUE;
+		break;
+
+	default:
+		/* Vista and later have both async IO and condition variables */
+		srv_use_native_aio = TRUE;
+		srv_use_native_conditions = TRUE;
 		break;
 	}
 
@@ -1326,7 +1313,26 @@ innobase_start_or_create_for_mysql(void)
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);
 
+	/* Print time to initialize the buffer pool */
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Initializing buffer pool, size =");
+
+	if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
+		fprintf(stderr,
+			" %.1fG\n",
+			((double) srv_buf_pool_size) / (1024 * 1024 * 1024));
+	} else {
+		fprintf(stderr,
+			" %.1fM\n",
+			((double) srv_buf_pool_size) / (1024 * 1024));
+	}
+
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Completed initialization of buffer pool\n");
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr,
@@ -1523,6 +1529,8 @@ innobase_start_or_create_for_mysql(void)
 
 	trx_sys_file_format_init();
 
+	trx_sys_create();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 
@@ -1534,7 +1542,14 @@ innobase_start_or_create_for_mysql(void)
 		the first rollback segment before the double write buffer.
 		All the remaining rollback segments will be created later,
 		after the double write buffer has been created. */
-		trx_sys_create();
+		trx_sys_create_sys_pages();
+
+		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		dict_create();
 
@@ -1558,6 +1573,11 @@ innobase_start_or_create_for_mysql(void)
 		dict_boot();
 
 		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1614,7 +1634,13 @@ innobase_start_or_create_for_mysql(void)
 		works for space 0. */
 
 		dict_boot();
+
 		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
@@ -1695,20 +1721,6 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&srv_lock_timeout_thread, NULL,
-			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
-
-	/* Create the thread which warns of long semaphore waits */
-	os_thread_create(&srv_error_monitor_thread, NULL,
-			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
-
-	/* Create the thread which prints InnoDB monitor info */
-	os_thread_create(&srv_monitor_thread, NULL,
-			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
-
-	srv_is_being_started = FALSE;
-
 	if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
@@ -1721,7 +1733,28 @@ innobase_start_or_create_for_mysql(void)
 	We create the new segments only if it's a new database or
 	the database was shutdown cleanly. */
 
+	/* Note: When creating the extra rollback segments during an upgrade
+	we violate the latching order, even if the change buffer is empty.
+	We make an exception in sync0sync.c and check srv_is_being_started
+	for that violation. It cannot create a deadlock because we are still
+	running in single threaded mode essentially. Only the IO threads
+	should be running at this stage. */
+
 	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
+
+	/* Create the thread which watches the timeouts for lock waits */
+	os_thread_create(&lock_wait_timeout_thread, NULL,
+			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which warns of long semaphore waits */
+	os_thread_create(&srv_error_monitor_thread, NULL,
+			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which prints InnoDB monitor info */
+	os_thread_create(&srv_monitor_thread, NULL,
+			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+	srv_is_being_started = FALSE;
 
 	err = dict_create_or_check_foreign_constraint_tables();
 
@@ -1729,19 +1762,30 @@ innobase_start_or_create_for_mysql(void)
 		return((int)DB_ERROR);
 	}
 
+	srv_is_being_started = FALSE;
+
 	/* Create the master thread which does purge and other utility
 	operations */
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
 
-	/* Currently we allow only a single purge thread. */
-	ut_a(srv_n_purge_threads == 0 || srv_n_purge_threads == 1);
-
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
-	if (srv_n_purge_threads == 1) {
-		os_thread_create(&srv_purge_thread, NULL, NULL);
+	if (srv_n_purge_threads >= 1) {
+
+		os_thread_create(
+			&srv_purge_coordinator_thread, NULL,
+			thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+		ut_a(UT_ARR_SIZE(thread_ids)
+		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
+
+		for (i = 1; i < srv_n_purge_threads; ++i) {
+			os_thread_create(
+				&srv_worker_thread, NULL,
+				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -1837,7 +1881,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB %s started; "
+			"  InnoDB: %s started; "
 			"log sequence number %llu\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
@@ -1983,7 +2027,7 @@ innobase_shutdown_for_mysql(void)
 		HERE OR EARLIER */
 
 		/* a. Let the lock timeout thread exit */
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 
 		/* b. srv error monitor thread exits automatically, no need
 		to do anything here */
@@ -1991,8 +2035,11 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. We wake the purge thread so that it exits */
-		srv_wake_purge_thread();
+		/* d. We wake the purge thread(s) so that they exit */
+		if (srv_n_purge_threads > 0) {
+			srv_wake_purge_thread();
+			srv_wake_worker_threads(srv_n_purge_threads - 1);
+		}
 
 		/* e. Exit the i/o threads */
 
@@ -2066,6 +2113,8 @@ innobase_shutdown_for_mysql(void)
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
 	os_aio_free();
+	que_close();
+	row_mysql_close();
 	sync_close();
 	srv_free();
 	fil_close();

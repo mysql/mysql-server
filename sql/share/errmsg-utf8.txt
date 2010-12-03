@@ -6157,7 +6157,7 @@ ER_WARN_ENGINE_TRANSACTION_ROLLBACK
 ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
-  eng "The requested value for the heartbeat period %s %s"
+  eng "The requested value for the heartbeat period is either negative or exceeds the maximum allowed (%s seconds)."
 
 ER_NDB_REPLICATION_SCHEMA_ERROR
         eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
@@ -6342,9 +6342,48 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
   eng "Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them."
 
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot modify @@session.sql_log_bin inside a transaction"
+
+ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
+  eng "Cannot change the sql_log_bin inside a stored function or trigger"
+
 ER_FAILED_READ_FROM_PAR_FILE
   eng "Failed to read from the .par file"
   swe "Misslyckades läsa från .par filen"
+
+ER_VALUES_IS_NOT_INT_TYPE_ERROR
+  eng "VALUES value for partition '%-.64s' must have type INT"
+  swe "Värden i VALUES för partition '%-.64s' måste ha typen INT"
+
+ER_ACCESS_DENIED_NO_PASSWORD_ERROR 28000 
+        cze "P-Břístup pro uživatele '%-.48s'@'%-.64s'"
+        dan "Adgang nægtet bruger: '%-.48s'@'%-.64s'"
+        nla "Toegang geweigerd voor gebruiker: '%-.48s'@'%-.64s'"
+        eng "Access denied for user '%-.48s'@'%-.64s'"
+        est "Ligipääs keelatud kasutajale '%-.48s'@'%-.64s'"
+        fre "Accès refusé pour l'utilisateur: '%-.48s'@'@%-.64s'"
+        ger "Benutzer '%-.48s'@'%-.64s' hat keine Zugriffsberechtigung"
+        greek "Δεν επιτέρεται η πρόσβαση στο χρήστη: '%-.48s'@'%-.64s'"
+        hun "A(z) '%-.48s'@'%-.64s' felhasznalo szamara tiltott eleres."
+        ita "Accesso non consentito per l'utente: '%-.48s'@'%-.64s'"
+        kor "'%-.48s'@'%-.64s' 사용자는 접근이 거부 되었습니다."
+        nor "Tilgang nektet for bruker: '%-.48s'@'%-.64s'"
+        norwegian-ny "Tilgang ikke tillate for brukar: '%-.48s'@'%-.64s'"
+        por "Acesso negado para o usuário '%-.48s'@'%-.64s'"
+        rum "Acces interzis pentru utilizatorul: '%-.48s'@'%-.64s'"
+        rus "Доступ закрыт для пользователя '%-.48s'@'%-.64s'"
+        serbian "Pristup je zabranjen korisniku '%-.48s'@'%-.64s'"
+        slo "Zakázaný prístup pre užívateľa: '%-.48s'@'%-.64s'"
+        spa "Acceso negado para usuario: '%-.48s'@'%-.64s'"
+        swe "Användare '%-.48s'@'%-.64s' är ej berättigad att logga in"
+        ukr "Доступ заборонено для користувача: '%-.48s'@'%-.64s'"
+
+ER_SET_PASSWORD_AUTH_PLUGIN
+        eng "SET PASSWORD has no significance for users authenticating via plugins"
+
+ER_GRANT_PLUGIN_USER_EXISTS
+        eng "GRANT with IDENTIFIED WITH is illegal because the user %-.*s already exists"
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
@@ -6354,14 +6393,60 @@ ER_CANNOT_LOAD_FROM_TABLE_V2
   eng "Cannot load from %s.%s. The table is probably corrupted"
   ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
-ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_SQL_LOG_BIN
-  eng "Cannot modify @@session.sql_log_bin inside a transaction"
-
-ER_STORED_FUNCTION_PREVENTS_SWITCH_SQL_LOG_BIN
-  eng "Cannot change the sql_log_bin inside a stored function or trigger"
-
 
 ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
   eng "The requested value %u for the master delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
+
+ER_PARTITION_EXCHANGE_DIFFERENT_OPTION
+  eng "Non matching attribute '%-.64s' between partition and table"
+  swe "Attributet '%-.64s' är olika mellan partition och tabell"
+ER_PARTITION_EXCHANGE_PART_TABLE
+  eng "Table to exchange with partition is partitioned: '%-.64s'"
+  swe "Tabellen att byta ut mot partition är partitionerad: '%-.64s'"
+ER_PARTITION_EXCHANGE_TEMP_TABLE
+  eng "Table to exchange with partition is temporary: '%-.64s'"
+  swe "Tabellen att byta ut mot partition är temporär: '%-.64s'"
+ER_PARTITION_INSTEAD_OF_SUBPARTITION
+  eng "Subpartitioned table, use subpartition instead of partition"
+  swe "Subpartitionerad tabell, använd subpartition istället för partition"
+ER_UNKNOWN_PARTITION
+  eng "Unknown partition '%-.64s' in table '%-.64s'"
+  swe "Okänd partition '%-.64s' i tabell '%-.64s'"
+ER_TABLES_DIFFERENT_METADATA
+  eng "Tables have different definitions"
+  swe "Tabellerna har olika definitioner"
+ER_ROW_DOES_NOT_MATCH_PARTITION
+  eng "Found row that does not match the partition"
+  swe "Hittade rad som inte passar i partitionen"
+ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
+  eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
+ER_WARN_INDEX_NOT_APPLICABLE
+  eng "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'"
+ER_TRUNCATE_ILLEGAL_FK 42000
+  eng "Cannot truncate a table referenced in a foreign key constraint (%.192s)"
+
+ER_PLUGIN_IS_PERMANENT
+  eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
+  eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
+
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
+  eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
+
+ER_PARTITION_EXCHANGE_FOREIGN_KEY
+  eng "Table to exchange with partition has foreign key references: '%-.64s'"
+  swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
+ER_NO_SUCH_KEY_VALUE
+  eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
+ER_RPL_INFO_DATA_TOO_LONG
+  eng "Data for column '%s' too long"
+ER_CANT_LOCK_RPL_INFO_TABLE
+        eng "You can't use locks with rpl info tables."
+ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from network."
+ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
+  eng "Replication event checksum verification failed while reading from a log file."
+

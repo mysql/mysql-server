@@ -84,9 +84,10 @@ ulint
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints
+				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr);	/*!< in: query thread */
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in

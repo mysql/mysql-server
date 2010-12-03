@@ -380,8 +380,8 @@ ERROR 42000: Incorrect table name ''
 drop table t1;
 drop table if exists t1, t2;
 Warnings:
-Note	1051	Unknown table 't1'
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
 create table t1 ( a varchar(10) not null primary key ) engine=myisam;
 create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
 flush tables;
@@ -666,7 +666,7 @@ create database mysqltest;
 create table t1 (c1 int);
 alter table t1 rename mysqltest.t1;
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 alter table mysqltest.t1 rename t1;
 drop table t1;
 create table t1 (c1 int);
@@ -1369,4 +1369,17 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int);
 INSERT INTO t1 VALUES (1), (2);
 ALTER TABLE t1 ADD COLUMN (f1 INT), ADD COLUMN (f2 INT), ADD KEY f2k(f2);
+DROP TABLE t1;
+#
+# Test for bug #53820 "ALTER a MEDIUMINT column table causes full
+#                      table copy".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT, b MEDIUMINT);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+# The below ALTER should not copy table and so no rows should
+# be shown as affected.
+ALTER TABLE t1 CHANGE a id INT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;

@@ -1,0 +1,45 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no instances
+show variables like "performance_schema_max_table_instances";
+
+# Expect handles
+show variables like "performance_schema_max_table_handles";
+
+# Create an instrumented table
+--disable_warnings
+drop table if exists test.instrument_me;
+--enable_warnings
+
+create table test.instrument_me(a int);
+insert into test.instrument_me values (1), (2), (3);
+select * from test.instrument_me;
+drop table test.instrument_me;
+
+# We lost all the instances
+select variable_value > 0 from information_schema.global_status
+  where variable_name like 'PERFORMANCE_SCHEMA_TABLE_INSTANCES_LOST';
+
+# Expect no handle lost
+show status like "performance_schema_table_handles_lost";
+

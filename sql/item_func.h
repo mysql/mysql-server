@@ -120,6 +120,8 @@ public:
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
+  void fix_after_pullout(st_select_lex *parent_select,
+                         st_select_lex *removed_select, Item **ref);
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -185,8 +187,13 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
+  inline double fix_result(double value)
+  {
+    if (isfinite(value))
+      return value;
+    null_value=1;
+    return 0.0;
+  }
   inline void raise_numeric_overflow(const char *type_name)
   {
     char buf[256];
@@ -1107,6 +1114,7 @@ class Item_udf_func :public Item_func
 {
 protected:
   udf_handler udf;
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
 
 public:
   Item_udf_func(udf_func *udf_arg)
@@ -1416,6 +1424,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_result();
   longlong val_int_result();
+  bool val_bool_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();
@@ -1570,7 +1579,8 @@ public:
   Item_func_inet_aton(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "inet_aton"; }
-  void fix_length_and_dec() { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
+  void fix_length_and_dec()
+    { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
 };
 
 
@@ -1594,7 +1604,7 @@ public:
        join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
-    DBUG_ENTER("Item_func_match");
+    DBUG_ENTER("Item_func_match::cleanup");
     Item_real_func::cleanup();
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);
@@ -1694,6 +1704,9 @@ private:
   bool execute_impl(THD *thd);
   bool init_result_field(THD *thd);
   
+protected:
+  bool is_expensive_processor(uchar *arg) { return TRUE; }
+
 public:
 
   Item_func_sp(Name_resolution_context *context_arg, sp_name *name);
@@ -1804,7 +1817,7 @@ extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
-bool eval_const_cond(COND *cond);
+bool eval_const_cond(Item *cond);
 
 extern bool volatile  mqh_used;
 

@@ -22,46 +22,46 @@
 
 # Note that TABLE_NAME is in uppercase is some platforms,
 # and in lowercase in others.
-# Using upper(TABLE_NAME) to have consistent results.
+# Using lower(TABLE_NAME) to have consistent results.
 
-select TABLE_SCHEMA, upper(TABLE_NAME), TABLE_CATALOG
+select TABLE_SCHEMA, lower(TABLE_NAME), TABLE_CATALOG
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), TABLE_TYPE, ENGINE
+select lower(TABLE_NAME), TABLE_TYPE, ENGINE
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), VERSION, ROW_FORMAT
+select lower(TABLE_NAME), VERSION, ROW_FORMAT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
+select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
+select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
+select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
+select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), TABLE_COLLATION, CHECKSUM
+select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
 # TABLESPACE_NAME does not exist in 5.4
-# select upper(TABLE_NAME), CREATE_OPTIONS, TABLESPACE_NAME
+# select lower(TABLE_NAME), CREATE_OPTIONS, TABLESPACE_NAME
 #   from information_schema.tables
 #   where TABLE_SCHEMA='performance_schema';
 
-select upper(TABLE_NAME), TABLE_COMMENT
+select lower(TABLE_NAME), TABLE_COMMENT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 

@@ -301,7 +301,6 @@ create table t1 (a int not null auto_increment,b int, primary key (a));
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 select AUTO_INCREMENT from information_schema.tables where table_name = 't1';
 drop table t1;
-
 create table t1 (s1 int);
 insert into t1 values (0),(9),(0);
 select s1 from t1 where s1 in (select version from
@@ -486,11 +485,14 @@ drop table t_crashme;
 # Bug#7215 information_schema: columns are longtext instead of varchar
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
-select table_schema,table_name, column_name from
-information_schema.columns
-where data_type = 'longtext';
+select table_schema, table_name, column_name from information_schema.columns
+where table_schema not like 'performance_schema'
+  and data_type = 'longtext';
+
 select table_name, column_name, data_type from information_schema.columns
-where data_type = 'datetime' and table_name not like 'innodb_%';
+where table_schema not like 'performance_schema'
+  and data_type = 'datetime'
+  and table_name not like 'innodb_%';
 
 #
 # Bug#8164 subquery with INFORMATION_SCHEMA.COLUMNS, 100 % CPU
@@ -1488,7 +1490,8 @@ connection con3726_2;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info like "rename table t2 to t3";
+  where state = "Waiting for table metadata lock" and
+        info like "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # These statements should not be blocked by pending lock requests
 select table_name, column_name, data_type from information_schema.columns
@@ -1569,6 +1572,11 @@ drop function f1;
 disconnect con7;
 
 
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
 #
 # Bug #43834    Assertion in Natural_join_column::db_name() on an I_S query
 #
@@ -1581,5 +1589,56 @@ WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
 
 
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
+--echo #
+--echo # A test case for Bug#56540 "Exception (crash) in sql_show.cc
+--echo # during rqg_info_schema test on Windows"
+--echo # Ensure that we never access memory of a closed table,
+--echo # in particular, never access table->field[] array.
+--echo # Before the fix, the below test case, produced
+--echo # valgrind errors.
+--echo #
+
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1;
+--enable_warnings
+
+create table t1 (a int, b int);
+create view v1 as select t1.a, t1.b from t1;
+alter table t1 change b c int;
+lock table t1 read;
+connect(con1, localhost, root,,);
+--echo # --> connection con1
+connection con1;
+send flush tables;
+--echo # --> connection default
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table flush" and
+          info = "flush tables";
+--source include/wait_condition.inc
+--vertical_results
+select * from information_schema.views;
+--horizontal_results
+unlock tables;
+
+--echo #
+--echo # Cleanup.
+--echo #
+
+--echo # --> connection con1
+connection con1;
+--echo # Reaping 'flush tables'
+reap;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # --> connection default
+connection default;
+drop table t1;
+drop view v1;
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

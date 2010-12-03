@@ -1029,4 +1029,39 @@ sync_slave_with_master;
 
 # END of 5.1 tests case
 
+#
+# BUG#53386: HA_ERR_CORRUPT_EVENT or debug assertion with different table on slave
+#
+
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+SET NAMES utf8;
+
+# CREATE Different tables on master and slave
+SET SQL_LOG_BIN=0;
+-- eval CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(255) CHARACTER SET UTF8 NOT NULL) ENGINE=$engine_type
+SET SQL_LOG_BIN=1;
+-- connection slave
+-- eval CREATE TABLE t1 (c1 INT) ENGINE=$engine_type
+
+# insert empty row (c2 gets an empty string)
+-- connection master
+
+-- disable_warnings
+INSERT INTO t1 VALUES (); 
+
+# insert multi-byte chars that will take more than 255 bytes 
+SET @text= REPEAT(_utf8'ç', 255);
+INSERT INTO t1 VALUES (1, @text);
+-- enable_warnings
+
+SELECT * FROM t1; 
+-- sync_slave_with_master
+SELECT * FROM t1; 
+
+# clean up
+-- connection master
+DROP TABLE t1; 
+-- sync_slave_with_master
 

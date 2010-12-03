@@ -1,0 +1,119 @@
+-- source include/master-slave.inc
+
+# There is no point in running this test in more
+# than once, ie, one for each binary log format.
+-- source include/have_binlog_format_row.inc
+
+#
+# BUG#43535: last_io_error in show slave status is confusing
+#
+
+############# CHECKS SQL ERRORS #############
+-- source include/master-slave-reset.inc
+-- connection master
+CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
+-- sync_slave_with_master
+# action: remove table on the slave to force SQL error
+DROP TABLE t1;
+
+-- connection master
+# action: drop the table on the master
+DROP TABLE t1; 
+
+-- connection slave
+# action: now  wait for the slave to stop because it cannot
+#         remove a table that does not exist
+-- source include/wait_for_slave_sql_to_stop.inc
+
+-- echo # assertion: timestamp should be filled
+-- let $errmsg0= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
+-- let $errts0= `SELECT SUBSTRING("$errmsg0" FROM 1 FOR 15)`
+if (`SELECT (NOT STRCMP("$errts0", "") OR NOT ("$errts0" REGEXP "[0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"))`)
+{
+  -- echo Timestamp does not match the expected one: expected '#### ##:##:##', got: '$errts0' 
+  -- die
+}
+
+# action: stop the slave (this should preserve the error)
+-- source include/stop_slave.inc
+-- let $errmsg1= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
+-- echo # assertion: show that error is preserved after stop slave as well as the timestamp
+if (`SELECT (STRCMP("$errmsg0", "$errmsg1"))`)
+{
+  -- let $errts1= `SELECT SUBSTRING("$errmsg1" FROM 1 FOR 15)`
+  -- echo timestamp { got: "$errts1", expected: "$errts0" }, message { got: "$errmsg1", expected: "$errmsg0" }
+  -- die
+}
+
+-- connection slave
+# action: create the table again on the slave so that it resumes replication
+#         correctly when we restart the slave
+CREATE TABLE  t1 (a INT, b blob, PRIMARY KEY(b(512)));
+-- let $sql_errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
+-- echo Last_SQL_Errno: $sql_errno
+-- source include/start_slave.inc
+
+-- echo # assertion: show that the error is not reported anymore since replication
+-- echo #            has resumed correctly
+let $slave_param= Last_SQL_Errno;
+let $slave_param_comparison= =; 
+let $slave_param_value= 0;
+let $slave_error_message= Failed while waiting for slave to clear the SQL error after starting;
+source include/wait_for_slave_param.inc;
+
+
+############# CHECKS IO ERRORS #############
+
+-- connection master
+-- source include/master-slave-reset.inc
+
+# mostly copied and extended from rpl_server_id1.test
+-- connection slave
+RESET MASTER;
+
+# replicate ourselves
+-- source include/stop_slave.inc
+-- replace_result $SLAVE_MYPORT SLAVE_PORT
+-- eval change master to master_port=$SLAVE_MYPORT
+START SLAVE;
+
+-- let $slave_param= Last_IO_Errno
+-- let $slave_param_value= 1593
+-- source include/wait_for_slave_param.inc
+-- echo *** must be having the replicate-same-server-id IO thread error ***
+
+-- echo # assertion: assert that error has been reported as well as a timestamp
+-- let $errmsg0= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
+-- let $errts0= `SELECT SUBSTRING("$errmsg0" FROM 1 FOR 15)`
+if (`SELECT (NOT STRCMP("$errts0", "") OR NOT ("$errts0" REGEXP "[0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"))`)
+{
+  -- echo Timestamp does not match the expected one: expected '#### ##:##:##', got: '$errts0' 
+  -- die
+}
+
+# action: stop the slave
+-- source include/stop_slave.inc
+
+-- let $errmsg1= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
+-- echo # assertion: show that error is preserved after stop slave as well as the timestamp
+if (`SELECT (STRCMP("$errmsg0", "$errmsg1"))`)
+{
+  -- let $errts1= `SELECT SUBSTRING("$errmsg1" FROM 1 FOR 15)`
+  -- echo timestamp { got: "$errts1", expected: "$errts0" }, message { got: "$errmsg1", expected: "$errmsg0" }
+  -- die
+}
+
+# action: restore correct settings
+-- replace_result $MASTER_MYPORT MASTER_PORT
+-- eval change master to master_port=$MASTER_MYPORT
+-- let $io_errno= query_get_value("SHOW SLAVE STATUS", Last_IO_Errno, 1)
+-- echo Last_IO_Errno: $io_errno
+-- source include/start_slave.inc
+
+-- echo # assertion: show that no error is reported anymore
+let $slave_param= Last_IO_Errno;
+let $slave_param_comparison= =; 
+let $slave_param_value= 0;
+let $slave_error_message= Failed while waiting for slave to clear the IO error after starting;
+source include/wait_for_slave_param.inc;
+

@@ -233,7 +233,7 @@ a+0	b+0
 127	403
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	2	NULL	19	Using where; Using index; Using filesort
+1	SIMPLE	t1	range	a	a	2	NULL	27	Using where; Using index; Using filesort
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 a+0	b+0
 44	307

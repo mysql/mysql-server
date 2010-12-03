@@ -565,3 +565,27 @@ HAVING field1 < 7;
 DROP TABLE t1,t2;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#46077 "wrong result: HAVING + ORDER BY + MyISAM + ICP
+--echo # returns extra rows"
+--echo #
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`)
+) AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+
+INSERT INTO `t1` VALUES (1,7),(2,9);
+
+SELECT `pk`, `int_key` field1
+FROM t1 WHERE  `pk`  <  3
+HAVING  field1  <  8
+ORDER  BY field1;
+
+drop table `t1`;
+
+--echo End of 5.5 tests
+

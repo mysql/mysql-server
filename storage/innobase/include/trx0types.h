@@ -28,15 +28,29 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ut0byte.h"
 
-/** prepare trx_t::id for being printed via printf(3) */
-#define TRX_ID_PREP_PRINTF(id)	(ullint) ut_conv_dulint_to_longlong(id)
-
-/** printf(3) format used for printing TRX_ID_PRINTF_PREP() */
+/** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		"%llX"
 
 /** maximum length that a formatted trx_t::id could take, not including
 the terminating NUL character. */
 #define TRX_ID_MAX_LEN		17
+
+/** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
+enum trx_que_enum {
+	TRX_QUE_RUNNING,		/*!< transaction is running */
+	TRX_QUE_LOCK_WAIT,		/*!< transaction is waiting for
+				       	a lock */
+	TRX_QUE_ROLLING_BACK, 		/*!< transaction is rolling back */
+	TRX_QUE_COMMITTING		/*!< transaction is committing */
+};
+
+/** Transaction states (trx_t::state) */
+enum trx_state_enum {
+	TRX_STATE_NOT_STARTED,
+	TRX_STATE_ACTIVE,
+	TRX_STATE_PREPARED,			/* Support for 2PC/XA */
+	TRX_STATE_COMMITTED_IN_MEMORY
+};
 
 /** Memory objects */
 /* @{ */
@@ -64,6 +78,10 @@ typedef struct roll_node_struct	roll_node_t;
 typedef struct commit_node_struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 typedef struct trx_named_savept_struct trx_named_savept_t;
+/** Transaction concurrency state */
+typedef enum trx_state_enum trx_state_t;
+/** Transaction query thread state */
+typedef enum trx_que_enum trx_que_t;
 /* @} */
 
 /** Rollback contexts */
@@ -81,12 +99,14 @@ enum trx_rb_ctx {
 			in crash recovery */
 };
 
+/** Row identifier (DB_ROW_ID, DATA_ROW_ID) */
+typedef ib_id_t	row_id_t;
 /** Transaction identifier (DB_TRX_ID, DATA_TRX_ID) */
-typedef dulint	trx_id_t;
+typedef ib_id_t	trx_id_t;
 /** Rollback pointer (DB_ROLL_PTR, DATA_ROLL_PTR) */
-typedef dulint	roll_ptr_t;
+typedef ib_id_t	roll_ptr_t;
 /** Undo number */
-typedef dulint	undo_no_t;
+typedef ib_id_t	undo_no_t;
 
 /** Transaction savepoint */
 typedef struct trx_savept_struct trx_savept_t;

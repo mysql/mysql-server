@@ -50,7 +50,7 @@ struct match {
 #ifdef REDEBUG
 #define	SP(t, s, c)	print(m, t, s, c, stdout)
 #define	AT(t, p1, p2, s1, s2)	at(m, t, p1, p2, s1, s2)
-#define	NOTE(str)	{ if (m->eflags&REG_TRACE) printf("=%s\n", (str)); }
+#define	NOTE(str)	{ if (m->eflags&MY_REG_TRACE) printf("=%s\n", (str)); }
 #else
 #define	SP(t, s, c)	/* nothing */
 #define	AT(t, p1, p2, s1, s2)	/* nothing */
@@ -62,7 +62,7 @@ struct match {
  == static int matcher(register struct re_guts *g, char *string, \
  ==	size_t nmatch, regmatch_t pmatch[], int eflags);
  */
-static int			/* 0 success, REG_NOMATCH failure */
+static int			/* 0 success, MY_REG_NOMATCH failure */
 matcher(charset,g, str, nmatch, pmatch, eflags)
 CHARSET_INFO *charset;
 register struct re_guts *g;
@@ -82,9 +82,9 @@ int eflags;
 	char *stop;
 
 	/* simplify the situation where possible */
-	if (g->cflags&REG_NOSUB)
+	if (g->cflags&MY_REG_NOSUB)
 		nmatch = 0;
-	if (eflags&REG_STARTEND) {
+	if (eflags&MY_REG_STARTEND) {
 		start = str + pmatch[0].rm_so;
 		stop = str + pmatch[0].rm_eo;
 	} else {
@@ -92,7 +92,7 @@ int eflags;
 		stop = start + strlen(start);
 	}
 	if (stop < start)
-		return(REG_INVARG);
+		return(MY_REG_INVARG);
 
 	/* prescreening; this does wonders for this rather slow code */
 	if (g->must != NULL) {
@@ -101,7 +101,7 @@ int eflags;
 				memcmp(dp, g->must, (size_t)g->mlen) == 0)
 				break;
 		if (dp == stop)		/* we didn't find g->must */
-			return(REG_NOMATCH);
+			return(MY_REG_NOMATCH);
 	}
 
 	/* match struct setup */
@@ -128,7 +128,7 @@ int eflags;
 		  if (m->lastpos != NULL)
 		    free((char *)m->lastpos);
 		  STATETEARDOWN(m);
-		  return(REG_NOMATCH);
+		  return(MY_REG_NOMATCH);
 		}
 		if (nmatch == 0 && !g->backrefs)
 			break;		/* no further info needed */
@@ -154,11 +154,11 @@ int eflags;
 		  	if (m->lastpos != NULL)
 		    	free((char *)m->lastpos);
 			STATETEARDOWN(m);
-			return(REG_ESPACE);
+			return(MY_REG_ESPACE);
 		}
 		for (i = 1; i <= m->g->nsub; i++)
 			m->pmatch[i].rm_so = m->pmatch[i].rm_eo = -1;
-		if (!g->backrefs && !(m->eflags&REG_BACKR)) {
+		if (!g->backrefs && !(m->eflags&MY_REG_BACKR)) {
 			NOTE("dissecting");
 			dp = dissect(charset, m, m->coldp, endp, gf, gl);
 		} else {
@@ -168,7 +168,7 @@ int eflags;
 			if (g->nplus > 0 && m->lastpos == NULL) {
 				free(m->pmatch);
 				STATETEARDOWN(m);
-				return(REG_ESPACE);
+				return(MY_REG_ESPACE);
 			}
 			NOTE("backref dissect");
 			dp = backref(charset, m, m->coldp, endp, gf, gl, (sopno)0);
@@ -256,7 +256,6 @@ sopno stopst;
 	register char *ssp;	/* start of string matched by subsubRE */
 	register char *sep;	/* end of string matched by subsubRE */
 	register char *oldssp;	/* previous ssp */
-	register char *dp;      /* used in debug mode to check asserts */
 
 	AT("diss", start, stop, startst, stopst);
 	sp = start;
@@ -314,11 +313,9 @@ sopno stopst;
 			ssub = ss + 1;
 			esub = es - 1;
 			/* did innards match? */
-			if (slow(charset, m, sp, rest, ssub, esub) != NULL) {
-				dp = dissect(charset, m, sp, rest, ssub, esub);
-				assert(dp == rest);
-			} else		/* no */
-				assert(sp == rest);
+			if (slow(charset, m, sp, rest, ssub, esub) != NULL)
+				sp = dissect(charset, m, sp, rest, ssub, esub);
+			assert(sp == rest);
 			sp = rest;
 			break;
 		case OPLUS_:
@@ -353,8 +350,8 @@ sopno stopst;
 			}
 			assert(sep == rest);	/* must exhaust substring */
 			assert(slow(charset, m, ssp, sep, ssub, esub) == rest);
-			dp = dissect(charset, m, ssp, sep, ssub, esub);
-			assert(dp == sep);
+			sp = dissect(charset, m, ssp, sep, ssub, esub);
+			assert(sp == sep);
 			sp = rest;
 			break;
 		case OCH_:
@@ -388,8 +385,8 @@ sopno stopst;
 				else
 					assert(OP(m->g->strip[esub]) == O_CH);
 			}
-			dp = dissect(charset, m, sp, rest, ssub, esub);
-			assert(dp == rest);
+			sp = dissect(charset, m, sp, rest, ssub, esub);
+			assert(sp == rest);
 			sp = rest;
 			break;
 		case O_PLUS:
@@ -444,7 +441,7 @@ sopno lev;			/* PLUS nesting level */
 	register size_t len;
 	register int hard;
 	register sop s;
-	register regoff_t offsave;
+	register my_regoff_t offsave;
 	register cset *cs;
 
 	AT("back", start, stop, startst, stopst);
@@ -469,25 +466,25 @@ sopno lev;			/* PLUS nesting level */
 				return(NULL);
 			break;
 		case OBOL:
-			if ( (sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
+			if ( (sp == m->beginp && !(m->eflags&MY_REG_NOTBOL)) ||
 					(sp < m->endp && *(sp-1) == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) )
+						(m->g->cflags&MY_REG_NEWLINE)) )
 				{ /* yes */ }
 			else
 				return(NULL);
 			break;
 		case OEOL:
-			if ( (sp == m->endp && !(m->eflags&REG_NOTEOL)) ||
+			if ( (sp == m->endp && !(m->eflags&MY_REG_NOTEOL)) ||
 					(sp < m->endp && *sp == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) )
+						(m->g->cflags&MY_REG_NEWLINE)) )
 				{ /* yes */ }
 			else
 				return(NULL);
 			break;
 		case OBOW:
-			if (( (sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
+			if (( (sp == m->beginp && !(m->eflags&MY_REG_NOTBOL)) ||
 					(sp < m->endp && *(sp-1) == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) ||
+						(m->g->cflags&MY_REG_NEWLINE)) ||
 					(sp > m->beginp &&
 							!ISWORD(charset,*(sp-1))) ) &&
 					(sp < m->endp && ISWORD(charset,*sp)) )
@@ -496,9 +493,9 @@ sopno lev;			/* PLUS nesting level */
 				return(NULL);
 			break;
 		case OEOW:
-			if (( (sp == m->endp && !(m->eflags&REG_NOTEOL)) ||
+			if (( (sp == m->endp && !(m->eflags&MY_REG_NOTEOL)) ||
 					(sp < m->endp && *sp == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) ||
+						(m->g->cflags&MY_REG_NEWLINE)) ||
 					(sp < m->endp && !ISWORD(charset,*sp)) ) &&
 					(sp > m->beginp && ISWORD(charset,*(sp-1))) )
 				{ /* yes */ }
@@ -665,13 +662,13 @@ sopno stopst;
 		/* is there an EOL and/or BOL between lastc and c? */
 		flagch = '\0';
 		i = 0;
-		if ( (lastc == '\n' && m->g->cflags&REG_NEWLINE) ||
-				(lastc == OUT && !(m->eflags&REG_NOTBOL)) ) {
+		if ( (lastc == '\n' && m->g->cflags&MY_REG_NEWLINE) ||
+				(lastc == OUT && !(m->eflags&MY_REG_NOTBOL)) ) {
 			flagch = BOL;
 			i = m->g->nbol;
 		}
-		if ( (c == '\n' && m->g->cflags&REG_NEWLINE) ||
-				(c == OUT && !(m->eflags&REG_NOTEOL)) ) {
+		if ( (c == '\n' && m->g->cflags&MY_REG_NEWLINE) ||
+				(c == OUT && !(m->eflags&MY_REG_NOTEOL)) ) {
 			flagch = (flagch == BOL) ? BOLEOL : EOL;
 			i += m->g->neol;
 		}
@@ -755,13 +752,13 @@ sopno stopst;
 		/* is there an EOL and/or BOL between lastc and c? */
 		flagch = '\0';
 		i = 0;
-		if ( (lastc == '\n' && m->g->cflags&REG_NEWLINE) ||
-				(lastc == OUT && !(m->eflags&REG_NOTBOL)) ) {
+		if ( (lastc == '\n' && m->g->cflags&MY_REG_NEWLINE) ||
+				(lastc == OUT && !(m->eflags&MY_REG_NOTBOL)) ) {
 			flagch = BOL;
 			i = m->g->nbol;
 		}
-		if ( (c == '\n' && m->g->cflags&REG_NEWLINE) ||
-				(c == OUT && !(m->eflags&REG_NOTEOL)) ) {
+		if ( (c == '\n' && m->g->cflags&MY_REG_NEWLINE) ||
+				(c == OUT && !(m->eflags&MY_REG_NOTEOL)) ) {
 			flagch = (flagch == BOL) ? BOLEOL : EOL;
 			i += m->g->neol;
 		}
@@ -954,7 +951,7 @@ FILE *d;
 	register int first = 1;
 	char buf[10];
 
-	if (!(m->eflags&REG_TRACE))
+	if (!(m->eflags&MY_REG_TRACE))
 		return;
 
 	fprintf(d, "%s", caption);
@@ -985,7 +982,7 @@ sopno startst;
 sopno stopst;
 {
 	char buf[10];
-	if (!(m->eflags&REG_TRACE))
+	if (!(m->eflags&MY_REG_TRACE))
 		return;
 
 	printf("%s %s-", title, printchar(*start,buf));

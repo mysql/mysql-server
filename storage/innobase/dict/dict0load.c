@@ -37,9 +37,11 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "dict0priv.h"
 
 
 /** Following are six InnoDB system tables */
@@ -170,9 +172,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -207,9 +209,9 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 }
 
 
@@ -344,9 +346,10 @@ dict_process_sys_tables_rec(
 	if ((status & DICT_TABLE_UPDATE_STATS)
 	    && dict_table_get_first_index(*table)) {
 
-		/* Update statistics if DICT_TABLE_UPDATE_STATS
-		is set */
-		dict_update_statistics_low(*table, TRUE);
+		/* Update statistics member fields in *table if
+		DICT_TABLE_UPDATE_STATS is set */
+		ut_ad(mutex_own(&dict_sys->mutex));
+		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
 	}
 
 	return(NULL);
@@ -364,7 +367,7 @@ dict_process_sys_indexes_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_INDEXES rec */
 	dict_index_t*	index,		/*!< out: index to be filled */
-	dulint*		table_id)	/*!< out: index table id */
+	table_id_t*	table_id)	/*!< out: index table id */
 {
 	const char*	err_msg;
 	byte*		buf;
@@ -390,7 +393,7 @@ dict_process_sys_columns_rec(
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
-	dulint*		table_id,	/*!< out: table id */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name)	/*!< out: column name */
 {
 	const char*	err_msg;
@@ -414,8 +417,8 @@ dict_process_sys_fields_rec(
 	dict_field_t*	sys_field,	/*!< out: dict_field_t to be
 					filled */
 	ulint*		pos,		/*!< out: Field position */
-	dulint*		index_id,	/*!< out: current index id */
-	dulint		last_id)	/*!< in: previous index id */
+	index_id_t*	index_id,	/*!< out: current index id */
+	index_id_t	last_id)	/*!< in: previous index id */
 {
 	byte*		buf;
 	byte*		last_index_id;
@@ -644,7 +647,7 @@ dict_check_tablespaces_and_store_max_id(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	const rec_t*	rec;
-	ulint		max_space_id	= 0;
+	ulint		max_space_id;
 	mtr_t		mtr;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -654,6 +657,11 @@ dict_check_tablespaces_and_store_max_id(
 	sys_tables = dict_table_get_low("SYS_TABLES");
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 	ut_a(!dict_table_is_comp(sys_tables));
+
+	max_space_id = mtr_read_ulint(dict_hdr_get(&mtr)
+				      + DICT_HDR_MAX_SPACE_ID,
+				      MLOG_4BYTES, &mtr);
+	fil_set_max_space_id_if_bigger(max_space_id);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
 				    TRUE, &mtr);
@@ -777,13 +785,14 @@ const char*
 dict_load_column_low(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table, could be NULL
-					if we just polulate a dict_column_t
+					if we just populate a dict_column_t
 					struct with information from
 					a SYS_COLUMNS record */
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
-	dict_col_t*	column,		/*!< out: dict_column_t to fill */
-	dulint*		table_id,	/*!< out: table id */
+	dict_col_t*	column,		/*!< out: dict_column_t to fill,
+					or NULL if table != NULL */
+	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
 	const rec_t*	rec)		/*!< in: SYS_COLUMNS record */
 {
@@ -794,6 +803,8 @@ dict_load_column_low(
 	ulint		prtype;
 	ulint		col_len;
 	ulint		pos;
+
+	ut_ad(table || column);
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return("delete-marked record in SYS_COLUMNS");
@@ -811,8 +822,7 @@ err_len:
 
 	if (table_id) {
 		*table_id = mach_read_from_8(field);
-	} else if (UNIV_UNLIKELY(ut_dulint_cmp(table->id,
-				 mach_read_from_8(field)))) {
+	} else if (UNIV_UNLIKELY(table->id != mach_read_from_8(field))) {
 		return("SYS_COLUMNS.TABLE_ID mismatch");
 	}
 
@@ -822,9 +832,9 @@ err_len:
 		goto err_len;
 	}
 
-	if (!table) {
-		pos = mach_read_from_4(field);
-	} else if (UNIV_UNLIKELY(table->n_def != mach_read_from_4(field))) {
+	pos = mach_read_from_4(field);
+
+	if (UNIV_UNLIKELY(table && table->n_def != pos)) {
 		return("SYS_COLUMNS.POS mismatch");
 	}
 
@@ -1168,36 +1178,36 @@ static const char* dict_load_index_id_err = "SYS_INDEXES.TABLE_ID mismatch";
 
 /********************************************************************//**
 Loads an index definition from a SYS_INDEXES record to dict_index_t.
-If "cached" is set to "TRUE", we will create a dict_index_t structure
-and fill it accordingly. Otherwise, the dict_index_t will
-be supplied by the caller and filled with information read from
-the record.
-@return error message, or NULL on success */
+If allocate=TRUE, we will create a dict_index_t structure and fill it
+accordingly. If allocated=FALSE, the dict_index_t will be supplied by
+the caller and filled with information read from the record.  @return
+error message, or NULL on success */
 UNIV_INTERN
 const char*
 dict_load_index_low(
 /*================*/
 	byte*		table_id,	/*!< in/out: table id (8 bytes),
-					an "in" value if cached=TRUE
-					and "out" when cached=FALSE */
+					an "in" value if allocate=TRUE
+					and "out" when allocate=FALSE */
 	const char*	table_name,	/*!< in: table name */
 	mem_heap_t*	heap,		/*!< in/out: temporary memory heap */
 	const rec_t*	rec,		/*!< in: SYS_INDEXES record */
-	ibool		cached,		/*!< in: TRUE = add to cache,
-					FALSE = do not */
+	ibool		allocate,	/*!< in: TRUE=allocate *index,
+					FALSE=fill in a pre-allocated
+					*index */
 	dict_index_t**	index)		/*!< out,own: index, or NULL */
 {
 	const byte*	field;
 	ulint		len;
 	ulint		name_len;
 	char*		name_buf;
-	dulint		id;
+	index_id_t	id;
 	ulint		n_fields;
 	ulint		type;
 	ulint		space;
 
-	if (cached) {
-		/* If "cached" is set to TRUE, no dict_index_t will
+	if (allocate) {
+		/* If allocate=TRUE, no dict_index_t will
 		be supplied. Initialize "*index" to NULL */
 		*index = NULL;
 	}
@@ -1216,7 +1226,7 @@ err_len:
 		return("incorrect column length in SYS_INDEXES");
 	}
 
-	if (!cached) {
+	if (!allocate) {
 		/* We are reading a SYS_INDEXES record. Copy the table_id */
 		memcpy(table_id, (const char*)field, 8);
 	} else if (memcmp(field, table_id, 8)) {
@@ -1272,7 +1282,7 @@ err_len:
 		goto err_len;
 	}
 
-	if (cached) {
+	if (allocate) {
 		*index = dict_mem_index_create(table_name, name_buf,
 					       space, type, n_fields);
 	} else {
@@ -1308,18 +1318,10 @@ dict_load_indexes(
 	dfield_t*	dfield;
 	const rec_t*	rec;
 	byte*		buf;
-	ibool		is_sys_table;
 	mtr_t		mtr;
 	ulint		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-
-	if ((ut_dulint_get_high(table->id) == 0)
-	    && (ut_dulint_get_low(table->id) < DICT_HDR_FIRST_ID)) {
-		is_sys_table = TRUE;
-	} else {
-		is_sys_table = FALSE;
-	}
 
 	mtr_start(&mtr);
 
@@ -1353,7 +1355,8 @@ dict_load_indexes(
 
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
-		ut_ad((index == NULL) == (err_msg != NULL));
+		ut_ad((index == NULL && err_msg != NULL)
+		      || (index != NULL && err_msg == NULL));
 
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have
@@ -1406,7 +1409,7 @@ corrupted:
 			      " is not clustered!\n", stderr);
 
 			goto corrupted;
-		} else if (is_sys_table
+		} else if (table->id < DICT_HDR_FIRST_ID
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
@@ -1710,7 +1713,7 @@ err_exit:
 	dict_load_columns(table, heap);
 
 	if (cached) {
-		dict_table_add_to_cache(table, heap);
+		dict_table_add_to_cache(table, TRUE, heap);
 	} else {
 		dict_table_add_system_columns(table, heap);
 	}
@@ -1719,13 +1722,24 @@ err_exit:
 
 	err = dict_load_indexes(table, heap);
 
+	/* Initialize table foreign_child value. Its value could be
+	changed when dict_load_foreigns() is called below */
+	table->fk_max_recusive_level = 0;
+
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
 	if (!cached) {
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, TRUE);
+		err = dict_load_foreigns(table->name, TRUE, TRUE);
+
+		if (err != DB_SUCCESS) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		} else {
+			table->fk_max_recusive_level = 0;
+		}
 	} else if (!srv_force_recovery) {
 		dict_table_remove_from_cache(table);
 		table = NULL;
@@ -1766,7 +1780,7 @@ UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
-	dulint	table_id)	/*!< in: table id */
+	table_id_t	table_id)	/*!< in: table id */
 {
 	byte		id_buf[8];
 	btr_pcur_t	pcur;
@@ -1829,7 +1843,7 @@ dict_load_table_on_id(
 	ut_ad(len == 8);
 
 	/* Check if the table id in record is the one searched for */
-	if (ut_dulint_cmp(table_id, mach_read_from_8(field)) != 0) {
+	if (table_id != mach_read_from_8(field)) {
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -1903,6 +1917,7 @@ dict_load_foreign_cols(
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign_cols->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign_cols));
 
@@ -1953,8 +1968,12 @@ dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
-	ibool		check_charsets)
+	ibool		check_charsets,
 				/*!< in: TRUE=check charset compatibility */
+	ibool		check_recursive)
+				/*!< in: Whether to record the foreign table
+				parent count to avoid unlimited recursive
+				load of chained foreign tables */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1968,6 +1987,8 @@ dict_load_foreign(
 	ulint		len;
 	ulint		n_fields_and_type;
 	mtr_t		mtr;
+	dict_table_t*	for_table;
+	dict_table_t*	ref_table;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1976,6 +1997,7 @@ dict_load_foreign(
 	mtr_start(&mtr);
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign));
 
@@ -2052,11 +2074,54 @@ dict_load_foreign(
 
 	dict_load_foreign_cols(id, foreign);
 
-	/* If the foreign table is not yet in the dictionary cache, we
-	have to load it so that we are able to make type comparisons
-	in the next function call. */
+	ref_table = dict_table_check_if_in_cache_low(
+			foreign->referenced_table_name);
 
-	dict_table_get_low(foreign->foreign_table_name);
+	/* We could possibly wind up in a deep recursive calls if
+	we call dict_table_get_low() again here if there
+	is a chain of tables concatenated together with
+	foreign constraints. In such case, each table is
+	both a parent and child of the other tables, and
+	act as a "link" in such table chains.
+	To avoid such scenario, we would need to check the
+	number of ancesters the current table has. If that
+	exceeds DICT_FK_MAX_CHAIN_LEN, we will stop loading
+	the child table.
+	Foreign constraints are loaded in a Breath First fashion,
+	that is, the index on FOR_NAME is scanned first, and then
+	index on REF_NAME. So foreign constrains in which
+	current table is a child (foreign table) are loaded first,
+	and then those constraints where current table is a
+	parent (referenced) table.
+	Thus we could check the parent (ref_table) table's
+	reference count (fk_max_recusive_level) to know how deep the
+	recursive call is. If the parent table (ref_table) is already
+	loaded, and its fk_max_recusive_level is larger than
+	DICT_FK_MAX_CHAIN_LEN, we will stop the recursive loading
+	by skipping loading the child table. It will not affect foreign
+	constraint check for DMLs since child table will be loaded
+	at that time for the constraint check. */
+	if (!ref_table
+	    || ref_table->fk_max_recusive_level < DICT_FK_MAX_RECURSIVE_LOAD) {
+
+		/* If the foreign table is not yet in the dictionary cache, we
+		have to load it so that we are able to make type comparisons
+		in the next function call. */
+
+		for_table = dict_table_get_low(foreign->foreign_table_name);
+
+		if (for_table && ref_table && check_recursive) {
+			/* This is to record the longest chain of ancesters
+			this table has, if the parent has more ancesters
+			than this table has, record it after add 1 (for this
+			parent */
+			if (ref_table->fk_max_recusive_level
+			    >= for_table->fk_max_recusive_level) {
+				for_table->fk_max_recusive_level =
+					 ref_table->fk_max_recusive_level + 1;
+			}
+		}
+	}
 
 	/* Note that there may already be a foreign constraint object in
 	the dictionary cache for this constraint: then the following
@@ -2081,6 +2146,8 @@ ulint
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
+	ibool		check_recursive,/*!< in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
 {
@@ -2182,7 +2249,7 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign(id, check_charsets);
+	err = dict_load_foreign(id, check_charsets, check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
@@ -2209,6 +2276,11 @@ load_next_index:
 	if (sec_index != NULL) {
 
 		mtr_start(&mtr);
+
+		/* Switch to scan index on REF_NAME, fk_max_recusive_level
+		already been updated when scanning FOR_NAME index, no need to
+		update again */
+		check_recursive = FALSE;
 
 		goto start_load;
 	}

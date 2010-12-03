@@ -51,7 +51,7 @@ connection default;
 #--sleep 8
 #SELECT ID,STATE,INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE ID = $con1_id AND STATE = 'Table lock';
+    WHERE ID = $con1_id AND STATE = 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 #SELECT NOW();
 --echo # Kick INSERT out of thr_multi_lock().
@@ -61,7 +61,7 @@ FLUSH TABLES;
 #--sleep 8
 #SELECT ID,STATE,INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE ID = $con1_id AND STATE = 'Table lock';
+    WHERE ID = $con1_id AND STATE = 'Waiting for table metadata lock';
 --source include/wait_condition.inc
 #SELECT NOW();
 --echo # Unlock and close table and wait for con1 to close too.

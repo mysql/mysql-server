@@ -605,27 +605,15 @@ null:
 
 void Item_func_concat::fix_length_and_dec()
 {
-  ulonglong max_result_length= 0;
+  ulonglong char_length= 0;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
-  {
-    if (args[i]->collation.collation->mbmaxlen != collation.collation->mbmaxlen)
-      max_result_length+= (args[i]->max_length /
-                           args[i]->collation.collation->mbmaxlen) *
-                           collation.collation->mbmaxlen;
-    else
-      max_result_length+= args[i]->max_length;
-  }
+    char_length+= args[i]->max_char_length();
 
-  if (max_result_length >= MAX_BLOB_WIDTH)
-  {
-    max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
-  max_length= (ulong) max_result_length;
+  fix_char_length_ulonglong(char_length);
 }
 
 /**
@@ -962,7 +950,7 @@ null:
 
 void Item_func_concat_ws::fix_length_and_dec()
 {
-  ulonglong max_result_length;
+  ulonglong char_length;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
@@ -972,16 +960,11 @@ void Item_func_concat_ws::fix_length_and_dec()
      it is done on parser level in sql_yacc.yy
      so, (arg_count - 2) is safe here.
   */
-  max_result_length= (ulonglong) args[0]->max_length * (arg_count - 2);
+  char_length= (ulonglong) args[0]->max_char_length() * (arg_count - 2);
   for (uint i=1 ; i < arg_count ; i++)
-    max_result_length+=args[i]->max_length;
+    char_length+= args[i]->max_char_length();
 
-  if (max_result_length >= MAX_BLOB_WIDTH)
-  {
-    max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
-  max_length= (ulong) max_result_length;
+  fix_char_length_ulonglong(char_length);
 }
 
 
@@ -1036,6 +1019,7 @@ String *Item_func_reverse::val_str(String *str)
 void Item_func_reverse::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   fix_char_length(args[0]->max_char_length());
 }
 
@@ -1165,22 +1149,17 @@ null:
 
 void Item_func_replace::fix_length_and_dec()
 {
-  ulonglong max_result_length= args[0]->max_length;
-  int diff=(int) (args[2]->max_length - args[1]->max_length);
-  if (diff > 0 && args[1]->max_length)
+  ulonglong char_length= (ulonglong) args[0]->max_char_length();
+  int diff=(int) (args[2]->max_char_length() - args[1]->max_char_length());
+  if (diff > 0 && args[1]->max_char_length())
   {						// Calculate of maxreplaces
-    ulonglong max_substrs= max_result_length/args[1]->max_length;
-    max_result_length+= max_substrs * (uint) diff;
+    ulonglong max_substrs= char_length / args[1]->max_char_length();
+    char_length+= max_substrs * (uint) diff;
   }
-  if (max_result_length >= MAX_BLOB_WIDTH)
-  {
-    max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
-  max_length= (ulong) max_result_length;
-  
+
   if (agg_arg_charsets_for_comparison(collation, args, 3))
     return;
+  fix_char_length_ulonglong(char_length);
 }
 
 
@@ -1204,6 +1183,20 @@ String *Item_func_insert::val_str(String *str)
     return res;                                 // Wrong param; skip insert
   if ((length < 0) || (length > res->length()))
     length= res->length();
+
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    res2->set_charset(&my_charset_bin);
+  }
 
   /* start and length are now sufficiently valid to pass to charpos function */
    start= res->charpos((int) start);
@@ -1235,19 +1228,14 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
-  ulonglong max_result_length;
+  ulonglong char_length;
 
   // Handle character set for args[0] and args[3].
   if (agg_arg_charsets_for_string_result(collation, args, 2, 3))
     return;
-  max_result_length= ((ulonglong) args[0]->max_length+
-                      (ulonglong) args[3]->max_length);
-  if (max_result_length >= MAX_BLOB_WIDTH)
-  {
-    max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
-  }
-  max_length= (ulong) max_result_length;
+  char_length= ((ulonglong) args[0]->max_char_length() +
+                (ulonglong) args[3]->max_char_length());
+  fix_char_length_ulonglong(char_length);
 }
 
 
@@ -1287,17 +1275,19 @@ String *Item_str_conv::val_str(String *str)
 void Item_func_lcase::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   multiply= collation.collation->casedn_multiply;
   converter= collation.collation->cset->casedn;
-  max_length= args[0]->max_length * multiply;
+  fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
 }
 
 void Item_func_ucase::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   multiply= collation.collation->caseup_multiply;
   converter= collation.collation->cset->caseup;
-  max_length= args[0]->max_length * multiply;
+  fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
 }
 
 
@@ -1328,21 +1318,23 @@ String *Item_func_left::val_str(String *str)
 
 void Item_str_func::left_right_max_length()
 {
-  max_length=args[0]->max_length;
+  uint32 char_length= args[0]->max_char_length();
   if (args[1]->const_item())
   {
-    int length=(int) args[1]->val_int()*collation.collation->mbmaxlen;
+    int length= (int) args[1]->val_int();
     if (length <= 0)
-      max_length=0;
+      char_length=0;
     else
-      set_if_smaller(max_length,(uint) length);
+      set_if_smaller(char_length, (uint) length);
   }
+  fix_char_length(char_length);
 }
 
 
 void Item_func_left::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   left_right_max_length();
 }
 
@@ -1376,6 +1368,7 @@ String *Item_func_right::val_str(String *str)
 void Item_func_right::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   left_right_max_length();
 }
 
@@ -1432,6 +1425,7 @@ void Item_func_substr::fix_length_and_dec()
   max_length=args[0]->max_length;
 
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
@@ -1454,10 +1448,9 @@ void Item_func_substr::fix_length_and_dec()
 
 void Item_func_substr_index::fix_length_and_dec()
 { 
-  max_length= args[0]->max_length;
-
   if (agg_arg_charsets_for_comparison(collation, args, 2))
     return;
+  fix_char_length(args[0]->max_char_length());
 }
 
 
@@ -1783,10 +1776,10 @@ String *Item_func_trim::val_str(String *str)
 
 void Item_func_trim::fix_length_and_dec()
 {
-  max_length= args[0]->max_length;
   if (arg_count == 1)
   {
     agg_arg_charsets_for_string_result(collation, args, 1);
+    DBUG_ASSERT(collation.collation != NULL);
     remove.set_charset(collation.collation);
     remove.set_ascii(" ",1);
   }
@@ -1797,6 +1790,7 @@ void Item_func_trim::fix_length_and_dec()
     if (agg_arg_charsets_for_comparison(collation, &args[1], 2, -1))
       return;
   }
+  fix_char_length(args[0]->max_char_length());
 }
 
 void Item_func_trim::print(String *str, enum_query_type query_type)
@@ -2072,9 +2066,11 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
 
 void Item_func_soundex::fix_length_and_dec()
 {
+  uint32 char_length= args[0]->max_char_length();
   agg_arg_charsets_for_string_result(collation, args, 1);
-  max_length=args[0]->max_length;
-  set_if_bigger(max_length, 4 * collation.collation->mbminlen);
+  DBUG_ASSERT(collation.collation != NULL);
+  set_if_bigger(char_length, 4);
+  fix_char_length(char_length);
   tmp_value.set_charset(collation.collation);
 }
 
@@ -2235,7 +2231,7 @@ const int FORMAT_MAX_DECIMALS= 30;
 MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
   DBUG_ASSERT(arg_count == 3);
-  String tmp, *locale_name= args[2]->val_str(&tmp);
+  String tmp, *locale_name= args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
   if (!locale_name ||
       !(lc= my_locale_by_name(locale_name->c_ptr_safe())))
@@ -2251,11 +2247,10 @@ MY_LOCALE *Item_func_format::get_locale(Item *item)
 
 void Item_func_format::fix_length_and_dec()
 {
-  uint char_length= args[0]->max_length/args[0]->collation.collation->mbmaxlen;
-  uint max_sep_count= char_length/3 + (decimals ? 1 : 0) + /*sign*/1;
+  uint32 char_length= args[0]->max_char_length();
+  uint32 max_sep_count= (char_length / 3) + (decimals ? 1 : 0) + /*sign*/1;
   collation.set(default_charset());
-  max_length= (char_length + max_sep_count + decimals) *
-    collation.collation->mbmaxlen;
+  fix_char_length(char_length + max_sep_count + decimals);
   if (arg_count == 3)
     locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
   else
@@ -2269,7 +2264,7 @@ void Item_func_format::fix_length_and_dec()
   are stored in more than one byte
 */
 
-String *Item_func_format::val_str(String *str)
+String *Item_func_format::val_str_ascii(String *str)
 {
   uint32 str_length;
   /* Number of decimal digits */
@@ -2309,8 +2304,7 @@ String *Item_func_format::val_str(String *str)
     if ((null_value=args[0]->null_value))
       return 0; /* purecov: inspected */
     nr= my_double_round(nr, (longlong) dec, FALSE, FALSE);
-    /* Here default_charset() is right as this is not an automatic conversion */
-    str->set_real(nr, dec, default_charset());
+    str->set_real(nr, dec, &my_charset_numeric);
     if (isnan(nr))
       return str;
     str_length=str->length();
@@ -2319,7 +2313,8 @@ String *Item_func_format::val_str(String *str)
   if (lc->grouping[0] > 0 &&
       str_length >= dec_length + 1 + lc->grouping[0])
   {
-    char buf[DECIMAL_MAX_STR_LENGTH * 2]; /* 2 - in the worst case when grouping=1 */
+    /* We need space for ',' between each group of digits as well. */
+    char buf[2 * FLOATING_POINT_BUFFER];
     int count;
     const char *grouping= lc->grouping;
     char sign_length= *str->ptr() == '-' ? 1 : 0;
@@ -2343,7 +2338,7 @@ String *Item_func_format::val_str(String *str)
         count will be initialized to -1 and
         we'll never get into this "if" anymore.
       */
-      if (!count)
+      if (count == 0)
       {
         *--dst= lc->thousand_sep;
         if (grouping[1])
@@ -2360,6 +2355,14 @@ String *Item_func_format::val_str(String *str)
     /* Put the rest of the integer part without grouping */
     str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
   }
+  else if (dec_length && lc->decimal_point != '.')
+  {
+    /*
+      For short values without thousands (<1000)
+      replace decimal point to localized value.
+    */
+    ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
+  }
   return str;
 }
 
@@ -2375,7 +2378,7 @@ void Item_func_format::print(String *str, enum_query_type query_type)
 
 void Item_func_elt::fix_length_and_dec()
 {
-  max_length=0;
+  uint32 char_length= 0;
   decimals=0;
 
   if (agg_arg_charsets_for_string_result(collation, args + 1, arg_count - 1))
@@ -2383,9 +2386,10 @@ void Item_func_elt::fix_length_and_dec()
 
   for (uint i= 1 ; i < arg_count ; i++)
   {
-    set_if_bigger(max_length,args[i]->max_length);
+    set_if_bigger(char_length, args[i]->max_char_length());
     set_if_bigger(decimals,args[i]->decimals);
   }
+  fix_char_length(char_length);
   maybe_null=1;					// NULL if wrong first arg
 }
 
@@ -2443,14 +2447,14 @@ void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
 
 void Item_func_make_set::fix_length_and_dec()
 {
-  max_length=arg_count-1;
+  uint32 char_length= arg_count - 1; /* Separators */
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
     return;
   
   for (uint i=0 ; i < arg_count ; i++)
-    max_length+=args[i]->max_length;
-
+    char_length+= args[i]->max_char_length();
+  fix_char_length(char_length);
   used_tables_cache|=	  item->used_tables();
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
@@ -2616,6 +2620,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 void Item_func_repeat::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
+  DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item())
   {
     /* must be longlong to avoid truncation */
@@ -2626,13 +2631,8 @@ void Item_func_repeat::fix_length_and_dec()
     if (count > INT_MAX32)
       count= INT_MAX32;
 
-    ulonglong max_result_length= (ulonglong) args[0]->max_length * count;
-    if (max_result_length >= MAX_BLOB_WIDTH)
-    {
-      max_result_length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
-    }
-    max_length= (ulong) max_result_length;
+    ulonglong char_length= (ulonglong) args[0]->max_char_length() * count;
+    fix_char_length_ulonglong(char_length);
   }
   else
   {
@@ -2703,26 +2703,13 @@ void Item_func_rpad::fix_length_and_dec()
     return;
   if (args[1]->const_item())
   {
-    ulonglong length= 0;
-
-    if (collation.collation->mbmaxlen > 0)
-    {
-      ulonglong temp= (ulonglong) args[1]->val_int();
-
-      /* Assumes that the maximum length of a String is < INT_MAX32. */
-      /* Set here so that rest of code sees out-of-bound value as such. */
-      if (temp > INT_MAX32)
-	temp = INT_MAX32;
-
-      length= temp * collation.collation->mbmaxlen;
-    }
-
-    if (length >= MAX_BLOB_WIDTH)
-    {
-      length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
-    }
-    max_length= (ulong) length;
+    ulonglong char_length= (ulonglong) args[1]->val_int();
+    DBUG_ASSERT(collation.collation->mbmaxlen > 0);
+    /* Assumes that the maximum length of a String is < INT_MAX32. */
+    /* Set here so that rest of code sees out-of-bound value as such. */
+    if (char_length > INT_MAX32)
+      char_length= INT_MAX32;
+    fix_char_length_ulonglong(char_length);
   }
   else
   {
@@ -2752,6 +2739,20 @@ String *Item_func_rpad::val_str(String *str)
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    rpad->set_charset(&my_charset_bin);
+  }
+
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));	// Shorten result if longer
@@ -2806,26 +2807,13 @@ void Item_func_lpad::fix_length_and_dec()
   
   if (args[1]->const_item())
   {
-    ulonglong length= 0;
-
-    if (collation.collation->mbmaxlen > 0)
-    {
-      ulonglong temp= (ulonglong) args[1]->val_int();
-
-      /* Assumes that the maximum length of a String is < INT_MAX32. */
-      /* Set here so that rest of code sees out-of-bound value as such. */
-      if (temp > INT_MAX32)
-        temp= INT_MAX32;
-
-      length= temp * collation.collation->mbmaxlen;
-    }
-
-    if (length >= MAX_BLOB_WIDTH)
-    {
-      length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
-    }
-    max_length= (ulong) length;
+    ulonglong char_length= (ulonglong) args[1]->val_int();
+    DBUG_ASSERT(collation.collation->mbmaxlen > 0);
+    /* Assumes that the maximum length of a String is < INT_MAX32. */
+    /* Set here so that rest of code sees out-of-bound value as such. */
+    if (char_length > INT_MAX32)
+      char_length= INT_MAX32;
+    fix_char_length_ulonglong(char_length);
   }
   else
   {
@@ -2853,6 +2841,20 @@ String *Item_func_lpad::val_str(String *str)
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
+
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    pad->set_charset(&my_charset_bin);
+  }
 
   res_char_length= res->numchars();
 
@@ -3136,7 +3138,7 @@ nl:
 }
 
 
-String *Item_func_hex::val_str(String *str)
+String *Item_func_hex::val_str_ascii(String *str)
 {
   String *res;
   DBUG_ASSERT(fixed == 1);
@@ -3175,6 +3177,7 @@ String *Item_func_hex::val_str(String *str)
   }
   null_value=0;
   tmp_value.length(res->length()*2);
+  tmp_value.set_charset(&my_charset_latin1);
 
   octet2hex((char*) tmp_value.ptr(), res->ptr(), res->length());
   return &tmp_value;
@@ -3220,6 +3223,41 @@ String *Item_func_unhex::val_str(String *str)
   }
   return &tmp_value;
 }
+
+
+#ifndef DBUG_OFF
+String *Item_func_like_range::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong nbytes= args[1]->val_int();
+  String *res= args[0]->val_str(str);
+  size_t min_len, max_len;
+  CHARSET_INFO *cs= collation.collation;
+
+  if (!res || args[0]->null_value || args[1]->null_value ||
+      nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
+      min_str.alloc(nbytes) || max_str.alloc(nbytes))
+    goto err;
+  null_value=0;
+
+  if (cs->coll->like_range(cs, res->ptr(), res->length(),
+                           '\\', '_', '%', nbytes,
+                           (char*) min_str.ptr(), (char*) max_str.ptr(),
+                           &min_len, &max_len))
+    goto err;
+
+  min_str.set_charset(collation.collation);
+  max_str.set_charset(collation.collation);
+  min_str.length(min_len);
+  max_str.length(max_len);
+
+  return is_min ? &min_str : &max_str;
+
+err:
+  null_value= 1;
+  return 0;
+}
+#endif
 
 
 void Item_func_binary::print(String *str, enum_query_type query_type)
@@ -3363,8 +3401,8 @@ String* Item_func_export_set::val_str(String* str)
 
 void Item_func_export_set::fix_length_and_dec()
 {
-  uint length=max(args[1]->max_length,args[2]->max_length);
-  uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
+  uint32 length= max(args[1]->max_char_length(), args[2]->max_char_length());
+  uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation,
                                          args + 1, min(4, arg_count) - 1))

@@ -186,7 +186,7 @@ Testcase 3.5.1.7: - need to fix
 -------------------------------
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (f1 int, f2 char(25),f3 int) engine = <engine_to_be_used>;
 CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 for each row set new.f3 = '14';

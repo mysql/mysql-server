@@ -1387,7 +1387,7 @@ ulong _mi_calc_blob_length(uint length, const uchar *pos)
 }
 
 
-void _my_store_blob_length(uchar *pos,uint pack_length,uint length)
+void _mi_store_blob_length(uchar *pos,uint pack_length,uint length)
 {
   switch (pack_length) {
   case 1:

@@ -24,8 +24,6 @@
 #include "parse_file.h"
 #include "sp.h"
 #include "sql_base.h"                          // find_temporary_table
-#include "lock.h"                    // wait_if_global_read_lock,
-                                     // start_waiting_global_read_lock
 #include "sql_show.h"                // append_definer, append_identifier
 #include "sql_table.h"                        // build_table_filename,
                                               // check_n_cut_mysql50_prefix
@@ -391,17 +389,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    We don't want perform our operations while global read lock is held
-    so we have to wait until its end and then prevent it from occurring
-    again until we are done, unless we are under lock tables. (Acquiring
-    LOCK_open is not enough because global read lock is held without holding
-    LOCK_open).
-  */
-  if (!thd->locked_tables_mode &&
-      thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-    DBUG_RETURN(TRUE);
-
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
@@ -460,7 +447,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   DBUG_ASSERT(tables->next_global == 0);
 
   /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  if (create && find_temporary_table(thd, tables))
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     goto end;
@@ -516,11 +503,9 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       goto end;
   }
 
-  mysql_mutex_lock(&LOCK_open);
   result= (create ?
            table->triggers->create_trigger(thd, tables, &stmt_query):
            table->triggers->drop_trigger(thd, tables, &stmt_query));
-  mysql_mutex_unlock(&LOCK_open);
 
   if (result)
     goto end;
@@ -540,9 +525,9 @@ end:
   }
 
   /*
-    If we are under LOCK TABLES we should restore original state of meta-data
-    locks. Otherwise call to close_thread_tables() will take care about both
-    TABLE instance created by open_n_lock_single_table() and metadata lock.
+    If we are under LOCK TABLES we should restore original state of
+    meta-data locks. Otherwise all locks will be released along
+    with the implicit commit.
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
@@ -550,9 +535,6 @@ end:
   /* Restore the query table list. Used only for drop trigger. */
   if (!create)
     thd->lex->restore_backup_query_tables_list(&backup);
-
-  if (thd->global_read_lock.has_protection())
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (!result)
     my_ok(thd);
@@ -594,7 +576,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_def;
   LEX_STRING definer_user;
   LEX_STRING definer_host;
-  ulonglong *trg_sql_mode;
+  sql_mode_t *trg_sql_mode;
   char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
   Item_trigger_field *trg_field;
@@ -735,7 +717,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   if (!(trg_def= alloc_lex_string(&table->mem_root)) ||
       definitions_list.push_back(trg_def, &table->mem_root) ||
 
-      !(trg_sql_mode= alloc_type<ulonglong>(&table->mem_root)) ||
+      !(trg_sql_mode= alloc_type<sql_mode_t>(&table->mem_root)) ||
       definition_modes_list.push_back(trg_sql_mode, &table->mem_root) ||
 
       !(trg_definer= alloc_lex_string(&table->mem_root)) ||
@@ -950,7 +932,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
 
   List_iterator_fast<LEX_STRING> it_name(names_list);
 
-  List_iterator<ulonglong> it_mod(definition_modes_list);
+  List_iterator<sql_mode_t> it_mod(definition_modes_list);
   List_iterator<LEX_STRING> it_def(definitions_list);
   List_iterator<LEX_STRING> it_definer(definers_list);
   List_iterator<LEX_STRING> it_client_cs_name(client_cs_names);
@@ -1156,7 +1138,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       List_iterator_fast<LEX_STRING> it(triggers->definitions_list);
       LEX_STRING *trg_create_str;
-      ulonglong *trg_sql_mode;
+      sql_mode_t *trg_sql_mode;
 
       if (triggers->definition_modes_list.is_empty() &&
           !triggers->definitions_list.is_empty())
@@ -1167,7 +1149,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           We use one mode (current) for all triggers, because we have not
           information about mode in old format.
         */
-        if (!(trg_sql_mode= alloc_type<ulonglong>(&table->mem_root)))
+        if (!(trg_sql_mode= alloc_type<sql_mode_t>(&table->mem_root)))
         {
           DBUG_RETURN(1); // EOM
         }
@@ -1304,14 +1286,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       if (!names_only && triggers->prepare_record1_accessors(table))
         DBUG_RETURN(1);
 
-      List_iterator_fast<ulonglong> itm(triggers->definition_modes_list);
+      List_iterator_fast<sql_mode_t> itm(triggers->definition_modes_list);
       List_iterator_fast<LEX_STRING> it_definer(triggers->definers_list);
       List_iterator_fast<LEX_STRING> it_client_cs_name(triggers->client_cs_names);
       List_iterator_fast<LEX_STRING> it_connection_cl_name(triggers->connection_cl_names);
       List_iterator_fast<LEX_STRING> it_db_cl_name(triggers->db_cl_names);
       LEX *old_lex= thd->lex, lex;
       sp_rcontext *save_spcont= thd->spcont;
-      ulong save_sql_mode= thd->variables.sql_mode;
+      sql_mode_t save_sql_mode= thd->variables.sql_mode;
       LEX_STRING *on_table_name;
 
       thd->lex= &lex;
@@ -1321,10 +1303,11 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->reset_db((char*) db, strlen(db));
       while ((trg_create_str= it++))
       {
+        sp_head *sp;
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
 
-        thd->variables.sql_mode= (ulong)*trg_sql_mode;
+        thd->variables.sql_mode= *trg_sql_mode;
 
         Parser_state parser_state;
         if (parser_state.init(thd, trg_create_str->str, trg_create_str->length))
@@ -1357,13 +1340,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         */
         lex.set_trg_event_type_for_tables();
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
-
         int event= lex.trg_chistics.event;
         int action_time= lex.trg_chistics.action_time;
 
-        lex.sphead->set_creation_ctx(creation_ctx);
-        triggers->bodies[event][action_time]= lex.sphead;
+        sp= triggers->bodies[event][action_time]= lex.sphead;
+        lex.sphead= NULL; /* Prevent double cleanup. */
+
+        sp->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
+        sp->set_creation_ctx(creation_ctx);
 
         if (!trg_definer->length)
         {
@@ -1376,27 +1360,26 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                 ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                                 (const char*) db,
-                                (const char*) lex.sphead->m_name.str);
+                                (const char*) sp->m_name.str);
           
           /*
             Set definer to the '' to correct displaying in the information
             schema.
           */
 
-          lex.sphead->set_definer((char*) "", 0);
+          sp->set_definer((char*) "", 0);
 
           /*
             Triggers without definer information are executed under the
             authorization of the invoker.
           */
 
-          lex.sphead->m_chistics->suid= SP_IS_NOT_SUID;
+          sp->m_chistics->suid= SP_IS_NOT_SUID;
         }
         else
-          lex.sphead->set_definer(trg_definer->str, trg_definer->length);
+          sp->set_definer(trg_definer->str, trg_definer->length);
 
-        if (triggers->names_list.push_back(&lex.sphead->m_name,
-                                           &table->mem_root))
+        if (triggers->names_list.push_back(&sp->m_name, &table->mem_root))
             goto err_with_lex_cleanup;
 
         if (!(on_table_name= alloc_lex_string(&table->mem_root)))
@@ -1516,7 +1499,7 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
                                            trg_action_time_type time_type,
                                            LEX_STRING *trigger_name,
                                            LEX_STRING *trigger_stmt,
-                                           ulong *sql_mode,
+                                           sql_mode_t *sql_mode,
                                            LEX_STRING *definer,
                                            LEX_STRING *client_cs_name,
                                            LEX_STRING *connection_cl_name,
@@ -1562,14 +1545,14 @@ bool Table_triggers_list::get_trigger_info(THD *thd, trg_event_type event,
 void Table_triggers_list::get_trigger_info(THD *thd,
                                            int trigger_idx,
                                            LEX_STRING *trigger_name,
-                                           ulonglong *sql_mode,
+                                           sql_mode_t *sql_mode,
                                            LEX_STRING *sql_original_stmt,
                                            LEX_STRING *client_cs_name,
                                            LEX_STRING *connection_cl_name,
                                            LEX_STRING *db_cl_name)
 {
   List_iterator_fast<LEX_STRING> it_trigger_name(names_list);
-  List_iterator_fast<ulonglong> it_sql_mode(definition_modes_list);
+  List_iterator_fast<sql_mode_t> it_sql_mode(definition_modes_list);
   List_iterator_fast<LEX_STRING> it_sql_orig_stmt(definitions_list);
   List_iterator_fast<LEX_STRING> it_client_cs_name(client_cs_names);
   List_iterator_fast<LEX_STRING> it_connection_cl_name(connection_cl_names);
@@ -1679,9 +1662,6 @@ bool add_table_for_trigger(THD *thd,
   @param db       schema for table
   @param name     name for table
 
-  @note
-    The calling thread should hold the LOCK_open mutex;
-
   @retval
     False   success
   @retval
@@ -1760,7 +1740,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
 {
   char path_buff[FN_REFLEN];
   LEX_STRING *def, *on_table_name, new_def;
-  ulong save_sql_mode= thd->variables.sql_mode;
+  sql_mode_t save_sql_mode= thd->variables.sql_mode;
   List_iterator_fast<LEX_STRING> it_def(definitions_list);
   List_iterator_fast<LEX_STRING> it_on_table_name(on_table_names_list);
   List_iterator_fast<ulonglong> it_mode(definition_modes_list);
@@ -1773,7 +1753,7 @@ Table_triggers_list::change_table_name_in_triggers(THD *thd,
   while ((def= it_def++))
   {
     on_table_name= it_on_table_name++;
-    thd->variables.sql_mode= (ulong) *(it_mode++);
+    thd->variables.sql_mode= *(it_mode++);
 
     /* Construct CREATE TRIGGER statement with new table name. */
     buff.length(0);
@@ -1880,6 +1860,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 
   @param[in,out] thd Thread context
   @param[in] db Old database of subject table
+  @param[in] old_alias Old alias of subject table
   @param[in] old_table Old name of subject table
   @param[in] new_db New database for subject table
   @param[in] new_table New name of subject table
@@ -1896,6 +1877,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 */
 
 bool Table_triggers_list::change_table_name(THD *thd, const char *db,
+                                            const char *old_alias,
                                             const char *old_table,
                                             const char *new_db,
                                             const char *new_table)
@@ -1911,17 +1893,13 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
 
   /*
     This method interfaces the mysql server code protected by
-    either LOCK_open mutex or with an exclusive metadata lock.
-    In the future, only an exclusive metadata lock will be enough.
+    an exclusive metadata lock.
   */
-#ifndef DBUG_OFF
-  if (thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
-                                     MDL_EXCLUSIVE))
-    mysql_mutex_assert_owner(&LOCK_open);
-#endif
+  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, old_table,
+                                             MDL_EXCLUSIVE));
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
-              my_strcasecmp(table_alias_charset, old_table, new_table));
+              my_strcasecmp(table_alias_charset, old_alias, new_table));
 
   if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
   {
@@ -1930,7 +1908,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
-    LEX_STRING old_table_name= { (char *) old_table, strlen(old_table) };
+    LEX_STRING old_table_name= { (char *) old_alias, strlen(old_alias) };
     LEX_STRING new_table_name= { (char *) new_table, strlen(new_table) };
     /*
       Since triggers should be in the same schema as their subject tables
@@ -2016,6 +1994,7 @@ bool Table_triggers_list::process_triggers(THD *thd,
   bool err_status;
   Sub_statement_state statement_state;
   sp_head *sp_trigger= bodies[event][time_type];
+  SELECT_LEX *save_current_select;
 
   if (sp_trigger == NULL)
     return FALSE;
@@ -2039,11 +2018,19 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
+  /*
+    Reset current_select before call execute_trigger() and
+    restore it after return from one. This way error is set
+    in case of failure during trigger execution.
+  */
+  save_current_select= thd->lex->current_select;
+  thd->lex->current_select= NULL;
   err_status=
     sp_trigger->execute_trigger(thd,
                                 &trigger_table->s->db,
                                 &trigger_table->s->table_name,
                                 &subject_table_grants[event][time_type]);
+  thd->lex->current_select= save_current_select;
 
   thd->restore_sub_statement_state(&statement_state);
 

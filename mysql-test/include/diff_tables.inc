@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
-# Check if the two given tables (possibly residing on different
-# master/slave servers) are equal.
+# Check if the two given tables (possibly accessed through different
+# connections) are equal.
 #
 # ==== Usage ====
 #
@@ -9,13 +9,15 @@
 # $diff_table_1 and $diff_table_2.  They must be of the
 # following form:
 #
-#  [master:|slave:]database.table
+#  [connection_name:]database.table
 #
-# I.e., both database and table must be speicified.  Optionally, you
-# can prefix the name with 'master:' (to read the table on master) or
-# with 'slave:' (to read the table on slave).  If no prefix is given,
-# reads the table from the current connection.  If one of these
-# variables has a prefix, both should have a prefix.
+# I.e., both database and table must be specified.  Optionally, you
+# can prefix the table FQ name with the name of a connection, eg
+# 'master:test.t'. If a connection prefix is provided, we read the
+# table from it.  If no prefix is given, we read the table from the
+# connection in use at the time diff_tables.inc was included. Setting
+# a connection_name is not mandatory and we even support setting it on
+# just one parameter.
 #
 # ==== Side effects ====
 #
@@ -24,12 +26,6 @@
 # - If the tables are different, prints the difference in a
 #   system-specific format (unified diff if supported) and generates
 #   an error.
-#
-# - If $diff_table_1 or $diff_table_2 begins with 'master:' or
-#   'slave:', it will stay connected to one of those hosts after
-#   execution.  The host is only guaranteed to remain unchanged if
-#   none of $diff_table_1 or $diff_table_2 begins with 'master:' or
-#   'slave:'.
 #
 # ==== Bugs ====
 #
@@ -55,6 +51,9 @@
 --echo Comparing tables $diff_table_1 and $diff_table_2
 disable_query_log;
 
+# saves old connection so that we can restore at the end
+-- let $old_connection= $CURRENT_CONNECTION
+
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_1
 --error 0,1
@@ -69,7 +68,7 @@ while ($_diff_i) {
 # and connect the appropriate server.
   let $_pos= `SELECT LOCATE(':', '$_diff_table')`;
   let $_diff_conn=`SELECT SUBSTR('$_diff_table', 1, $_pos-1)`;
-  if (`SELECT 'XX$_diff_conn' <> 'XX'`) {
+  if ($_diff_conn) {
     let $_diff_table=`SELECT SUBSTR('$_diff_table', $_pos+1)`;
     connection $_diff_conn;
   }
@@ -115,5 +114,7 @@ diff_files $MYSQLTEST_VARDIR/tmp/diff_table_1 $MYSQLTEST_VARDIR/tmp/diff_table_2
 
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_1
 --remove_file $MYSQLTEST_VARDIR/tmp/diff_table_2
+
+-- connection $old_connection
 
 enable_query_log;

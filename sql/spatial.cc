@@ -14,14 +14,35 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql_priv.h"
-#include "my_global.h"                          // REQUIRED for HAVE_* below
-#include "spatial.h"
-#include "gstream.h"                            // Gis_read_stream
 #include "sql_string.h"                         // String
+#include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "gstream.h"                            // Gis_read_stream
+#include "spatial.h"
 
 #ifdef HAVE_SPATIAL
 
-#define MAX_DIGITS_IN_DOUBLE MY_GCVT_MAX_FIELD_WIDTH
+/* 
+  exponential notation :
+  1   sign
+  1   number before the decimal point
+  1   decimal point
+  14  number of significant digits (see String::qs_append(double))
+  1   'e' sign
+  1   exponent sign
+  3   exponent digits
+  ==
+  22
+
+  "f" notation :
+  1   optional 0
+  1   sign
+  14  number significant digits (see String::qs_append(double) )
+  1   decimal point
+  ==
+  17
+*/
+
+#define MAX_DIGITS_IN_DOUBLE 30
 
 /***************************** Gis_class_info *******************************/
 
@@ -142,11 +163,10 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
 {
   uint32 geom_type;
   Geometry *result;
-  char byte_order;
 
   if (data_len < SRID_SIZE + WKB_HEADER_SIZE)   // < 4 + (1 + 4)
     return NULL;
-  byte_order= data[SRID_SIZE];
+  /* + 1 to skip the byte order (stored in position SRID_SIZE). */
   geom_type= uint4korr(data + SRID_SIZE + 1);
   if (!(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
@@ -248,12 +268,28 @@ Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
 }
 
 
+int Geometry::create_from_opresult(Geometry_buffer *g_buf,
+                                   String *res, Gcalc_result_receiver &rr)
+{
+  uint32 geom_type= rr.get_result_typeid();
+  Geometry *obj= create_by_typeid(g_buf, geom_type);
+
+  if (!obj || res->reserve(WKB_HEADER_SIZE, 512))
+    return 1;
+
+  res->q_append((char) wkb_ndr);
+  res->q_append(geom_type);
+  return obj->init_from_opresult(res, rr.result(), rr.get_nshapes());
+}
+
+
 bool Geometry::envelope(String *result) const
 {
   MBR mbr;
   const char *end;
 
-  if (get_mbr(&mbr, &end) || result->reserve(1+4*3+SIZEOF_STORED_DOUBLE*10))
+  if (get_mbr(&mbr, &end) ||
+      result->reserve(1 + 4 * 3 + SIZEOF_STORED_DOUBLE * 10))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -290,13 +326,13 @@ bool Geometry::envelope(String *result) const
 
 bool Geometry::create_point(String *result, const char *data) const
 {
-  if (no_data(data, SIZEOF_STORED_DOUBLE * 2) ||
-      result->reserve(1 + 4 + SIZEOF_STORED_DOUBLE * 2))
+  if (no_data(data, POINT_DATA_SIZE) ||
+      result->reserve(1 + 4 + POINT_DATA_SIZE))
     return 1;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) wkb_point);
   /* Copy two double in same format */
-  result->q_append(data, SIZEOF_STORED_DOUBLE*2);
+  result->q_append(data, POINT_DATA_SIZE);
   return 0;
 }
 
@@ -316,7 +352,7 @@ bool Geometry::create_point(String *result, const char *data) const
 
 bool Geometry::create_point(String *result, double x, double y) const
 {
-  if (result->reserve(1 + 4 + SIZEOF_STORED_DOUBLE * 2))
+  if (result->reserve(1 + 4 + POINT_DATA_SIZE))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -348,7 +384,7 @@ const char *Geometry::append_points(String *txt, uint32 n_points,
     double x,y;
     data+= offset;
     get_point(&x, &y, data);
-    data+= SIZEOF_STORED_DOUBLE * 2;
+    data+= POINT_DATA_SIZE;
     txt->qs_append(x);
     txt->qs_append(' ');
     txt->qs_append(y);
@@ -383,7 +419,7 @@ const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
   points= uint4korr(data);
   data+= 4;
 
-  if (no_data(data, (SIZEOF_STORED_DOUBLE * 2 + offset) * points))
+  if (no_data(data, (POINT_DATA_SIZE + offset) * points))
     return 0;
 
   /* Calculate MBR for points */
@@ -391,7 +427,7 @@ const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
   {
     data+= offset;
     mbr->add_xy(data, data + SIZEOF_STORED_DOUBLE);
-    data+= SIZEOF_STORED_DOUBLE * 2;
+    data+= POINT_DATA_SIZE;
   }
   return data;
 }
@@ -409,7 +445,7 @@ bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 {
   double x, y;
   if (trs->get_next_number(&x) || trs->get_next_number(&y) ||
-      wkb->reserve(SIZEOF_STORED_DOUBLE * 2))
+      wkb->reserve(POINT_DATA_SIZE))
     return 1;
   wkb->q_append(x);
   wkb->q_append(y);
@@ -455,6 +491,15 @@ bool Gis_point::get_mbr(MBR *mbr, const char **end) const
   *end= m_data+ POINT_DATA_SIZE;
   return 0;
 }
+
+
+int Gis_point::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  double x, y;
+
+  return get_xy(&x, &y) || trn->single_point(x, y);
+}
+
 
 const Geometry::Class_info *Gis_point::get_class_info() const
 {
@@ -507,9 +552,9 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   const char *wkb_end;
   Gis_point p;
 
-  if (len < 4)
+  if (len < 4 ||
+      (n_points= wkb_get_uint(wkb, bo))<1)
     return 0;
-  n_points= wkb_get_uint(wkb, bo);
   proper_length= 4 + n_points * POINT_DATA_SIZE;
 
   if (len < proper_length || res->reserve(proper_length))
@@ -538,7 +583,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, const char **end) const
   data += 4;
 
   if (n_points < 1 ||
-      no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points) ||
+      no_data(data, POINT_DATA_SIZE * n_points) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points))
     return 1;
 
@@ -546,7 +591,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, const char **end) const
   {
     double x, y;
     get_point(&x, &y, data);
-    data+= SIZEOF_STORED_DOUBLE * 2;
+    data+= POINT_DATA_SIZE;
     txt->qs_append(x);
     txt->qs_append(' ');
     txt->qs_append(y);
@@ -575,17 +620,16 @@ int Gis_line_string::geom_length(double *len) const
     return 1;
   n_points= uint4korr(data);
   data+= 4;
-  if (n_points < 1 || no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (n_points < 1 || no_data(data, POINT_DATA_SIZE * n_points))
     return 1;
 
   get_point(&prev_x, &prev_y, data);
-  data+= SIZEOF_STORED_DOUBLE*2;
-
+  data+= POINT_DATA_SIZE;
   while (--n_points)
   {
     double x, y;
     get_point(&x, &y, data);
-    data+= SIZEOF_STORED_DOUBLE * 2;
+    data+= POINT_DATA_SIZE;
     *len+= sqrt(pow(prev_x-x,2)+pow(prev_y-y,2));
     prev_x= x;
     prev_y= y;
@@ -609,14 +653,14 @@ int Gis_line_string::is_closed(int *closed) const
     return 0;
   }
   data+= 4;
-  if (no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (no_data(data, POINT_DATA_SIZE * n_points))
     return 1;
 
   /* Get first point */
   get_point(&x1, &y1, data);
 
   /* get last point */
-  data+= SIZEOF_STORED_DOUBLE*2 + (n_points-2)*POINT_DATA_SIZE;
+  data+= POINT_DATA_SIZE + (n_points-2)*POINT_DATA_SIZE;
   get_point(&x2, &y2, data);
 
   *closed= (x1==x2) && (y1==y2);
@@ -659,6 +703,34 @@ int Gis_line_string::point_n(uint32 num, String *result) const
 
   return create_point(result, m_data + 4 + (num - 1) * POINT_DATA_SIZE);
 }
+
+
+int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_points;
+  double x, y;
+  const char *data= m_data;
+
+  if (no_data(m_data, 4))
+    return 1;
+  n_points= uint4korr(data);
+  data+= 4;
+  if (n_points < 1 || no_data(data, POINT_DATA_SIZE * n_points))
+    return 1;
+
+  trn->start_line();
+
+  while (n_points--)
+  {
+    get_point(&x, &y, data);
+    data+= POINT_DATA_SIZE;
+    if (trn->add_point(x, y))
+      return 1;
+  }
+
+  return trn->complete_line();
+}
+
 
 const Geometry::Class_info *Gis_line_string::get_class_info() const
 {
@@ -721,6 +793,53 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 }
 
 
+uint Gis_polygon::priv_init_from_opresult(String *bin,
+                                          const char *opres, uint32 n_shapes,
+                                          uint32 *poly_shapes)
+{
+  const char *opres_orig= opres;
+  uint32 position= bin->length();
+
+  *poly_shapes= 0;
+  if (bin->reserve(4, 512))
+    return 0;
+  bin->q_append(*poly_shapes);
+
+  while (n_shapes--)
+  {
+    uint32 n_points, proper_length;
+    const char *op_end, *p1_position;
+    Gis_point p;
+    Gcalc_function::shape_type st;
+
+    st= (Gcalc_function::shape_type) uint4korr(opres);
+    if (*poly_shapes && st != Gcalc_function::shape_hole)
+      break;
+    (*poly_shapes)++;
+    n_points= uint4korr(opres + 4) + 1; /* skip shape type id */
+    proper_length= 4 + n_points * POINT_DATA_SIZE;
+
+    if (bin->reserve(proper_length, 512))
+      return 0;
+
+    bin->q_append(n_points);
+    op_end= opres + 8 + (n_points-1) * 8 * 2;
+    p1_position= (opres+= 8);
+    for (; opres<op_end; opres+= POINT_DATA_SIZE)
+    {
+      if (!p.init_from_wkb(opres, POINT_DATA_SIZE, wkb_ndr, bin))
+        return 0;
+    }
+    if (!p.init_from_wkb(p1_position, POINT_DATA_SIZE, wkb_ndr, bin))
+      return 0;
+  }
+
+  bin->write_at_position(position, *poly_shapes);
+
+  return (uint) (opres - opres_orig);
+}
+
+
 uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
                                 String *res)
 {
@@ -776,7 +895,7 @@ bool Gis_polygon::get_data_as_wkt(String *txt, const char **end) const
       return 1;
     n_points= uint4korr(data);
     data+= 4;
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points) ||
+    if (no_data(data, POINT_DATA_SIZE * n_points) ||
 	txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
@@ -830,16 +949,16 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
     if (no_data(data, 4))
       return 1;
     n_points= uint4korr(data);
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
+    if (no_data(data, POINT_DATA_SIZE * n_points))
       return 1;
     get_point(&prev_x, &prev_y, data+4);
-    data+= (4+SIZEOF_STORED_DOUBLE*2);
+    data+= (4+POINT_DATA_SIZE);
 
     while (--n_points)				// One point is already read
     {
       double x, y;
       get_point(&x, &y, data);
-      data+= (SIZEOF_STORED_DOUBLE*2);
+      data+= POINT_DATA_SIZE;
       lr_area+= (prev_x + x)* (prev_y - y);
       prev_x= x;
       prev_y= y;
@@ -866,7 +985,7 @@ int Gis_polygon::exterior_ring(String *result) const
   n_points= uint4korr(data);
   data+= 4;
   length= n_points * POINT_DATA_SIZE;
-  if (no_data(data, length) || result->reserve(1+4+4+ length))
+  if (no_data(data, length) || result->reserve(1 + 4 + 4 + length))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -912,7 +1031,7 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
   n_points= uint4korr(data);
   points_size= n_points * POINT_DATA_SIZE;
   data+= 4;
-  if (no_data(data, points_size) || result->reserve(1+4+4+ points_size))
+  if (no_data(data, points_size) || result->reserve(1 + 4 + 4 + points_size))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -951,16 +1070,16 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
       return 1;
     org_n_points= n_points= uint4korr(data);
     data+= 4;
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
+    if (no_data(data, POINT_DATA_SIZE * n_points))
       return 1;
     get_point(&prev_x, &prev_y, data);
-    data+= (SIZEOF_STORED_DOUBLE*2);
+    data+= POINT_DATA_SIZE;
 
     while (--n_points)				// One point is already read
     {
       double tmp_x, tmp_y;
       get_point(&tmp_x, &tmp_y, data);
-      data+= (SIZEOF_STORED_DOUBLE*2);
+      data+= POINT_DATA_SIZE;
       cur_area+= (prev_x + tmp_x) * (prev_y - tmp_y);
       cur_cx+= tmp_x;
       cur_cy+= tmp_y;
@@ -1000,6 +1119,49 @@ int Gis_polygon::centroid(String *result) const
   return create_point(result, x, y);
 }
 
+
+int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_linear_rings;
+  const char *data= m_data;
+
+  if (trn->start_poly())
+    return 1;
+
+  if (no_data(data, 4))
+    return 1;
+  n_linear_rings= uint4korr(data);
+  data+= 4;
+
+  while (n_linear_rings--)
+  {
+    uint32 n_points;
+
+    if (no_data(data, 4))
+      return 1;
+    n_points= uint4korr(data);
+    data+= 4;
+    if (no_data(data, POINT_DATA_SIZE * n_points))
+      return 1;
+
+    trn->start_ring();
+    while (--n_points)
+    {
+      double x, y;
+      get_point(&x, &y, data);
+      data+= POINT_DATA_SIZE;
+      if (trn->add_point(x, y))
+        return 1;
+    }
+    data+= POINT_DATA_SIZE;
+    trn->complete_ring();
+  }
+
+  trn->complete_poly();
+  return 0;
+}
+
+
 const Geometry::Class_info *Gis_polygon::get_class_info() const
 {
   return &polygon_class;
@@ -1028,7 +1190,7 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
   for (;;)
   {
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_point);
@@ -1040,6 +1202,32 @@ bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb)
   }
   wkb->write_at_position(np_pos, n_points);	// Store number of found points
   return 0;
+}
+
+
+uint Gis_multi_point::init_from_opresult(String *bin,
+                                         const char *opres, uint32 n_shapes)
+{
+  uint bin_size, opres_size;
+  Gis_point p;
+  const char *opres_end;
+
+  bin_size= n_shapes * (WKB_HEADER_SIZE + POINT_DATA_SIZE) + 4;
+  opres_size= n_shapes * (4 + 8*2);
+ 
+  if (bin->reserve(bin_size, 512))
+    return 0;
+    
+  bin->q_append(n_shapes);
+  opres_end= opres + opres_size;
+  for (; opres < opres_end; opres+= (4 + 8*2))
+  {
+    bin->q_append((char)wkb_ndr);
+    bin->q_append((uint32)wkb_point);
+    if (!p.init_from_wkb(opres + 4, POINT_DATA_SIZE, wkb_ndr, bin))
+      return 0;
+  }
+  return opres_size;
 }
 
 
@@ -1081,7 +1269,7 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, const char **end) const
 
   n_points= uint4korr(m_data);
   if (no_data(m_data+4,
-	      n_points * (SIZEOF_STORED_DOUBLE * 2 + WKB_HEADER_SIZE)) ||
+	      n_points * (POINT_DATA_SIZE + WKB_HEADER_SIZE)) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return 1;
   *end= append_points(txt, n_points, m_data+4, WKB_HEADER_SIZE);
@@ -1121,6 +1309,35 @@ int Gis_multi_point::geometry_n(uint32 num, String *result) const
   result->q_append(data, WKB_HEADER_SIZE + POINT_DATA_SIZE);
   return 0;
 }
+
+
+int Gis_multi_point::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_points;
+  Gis_point pt;
+  const char *data= m_data;
+
+  if (no_data(data, 4))
+    return 1;
+  n_points= uint4korr(data);
+  data+= 4;
+
+  if (trn->start_collection(n_points))
+    return 1;
+
+  while (n_points--)
+  {
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+    data+= WKB_HEADER_SIZE;
+    pt.set_data_ptr(data, (uint32) (m_data_end - data));
+    if (pt.store_shapes(trn))
+      return 1;
+    data+= pt.get_data_size();
+  }
+  return 0;
+}
+
 
 const Geometry::Class_info *Gis_multi_point::get_class_info() const
 {
@@ -1164,10 +1381,9 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   {
     Gis_line_string ls;
 
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
-    wkb->q_append((char) wkb_ndr);
-    wkb->q_append((uint32) wkb_linestring);
+    wkb->q_append((char) wkb_ndr); wkb->q_append((uint32) wkb_linestring);
 
     if (trs->check_next_symbol('(') ||
 	ls.init_from_wkt(trs, wkb) ||
@@ -1182,15 +1398,44 @@ bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
 }
 
 
+uint Gis_multi_line_string::init_from_opresult(String *bin,
+                                               const char *opres,
+                                               uint32 n_shapes)
+{
+  const char *opres_orig= opres;
+
+  if (bin->reserve(4, 512))
+    return 0;
+  bin->q_append(n_shapes);
+  
+  while (n_shapes--)
+  {
+    Gis_line_string ls;
+    int ls_len;
+
+    if (bin->reserve(WKB_HEADER_SIZE, 512))
+      return 0;
+
+    bin->q_append((char) wkb_ndr);
+    bin->q_append((uint32) wkb_linestring);
+
+    if (!(ls_len= ls.init_from_opresult(bin, opres)))
+      return 0;
+    opres+= ls_len;
+  }
+  return (uint) (opres - opres_orig);
+}
+
+
 uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
                                           wkbByteOrder bo, String *res)
 {
   uint32 n_line_strings;
   const char *wkb_orig= wkb;
 
-  if (len < 4)
+  if (len < 4 ||
+      (n_line_strings= wkb_get_uint(wkb, bo))< 1)
     return 0;
-  n_line_strings= wkb_get_uint(wkb, bo);
 
   if (res->reserve(4, 512))
     return 0;
@@ -1238,7 +1483,7 @@ bool Gis_multi_line_string::get_data_as_wkt(String *txt,
       return 1;
     n_points= uint4korr(data + WKB_HEADER_SIZE);
     data+= WKB_HEADER_SIZE + 4;
-    if (no_data(data, n_points * (SIZEOF_STORED_DOUBLE*2)) ||
+    if (no_data(data, n_points * POINT_DATA_SIZE) ||
 	txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
@@ -1368,6 +1613,35 @@ int Gis_multi_line_string::is_closed(int *closed) const
   return 0;
 }
 
+
+int Gis_multi_line_string::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_lines;
+  Gis_line_string ls;
+  const char *data= m_data;
+
+  if (no_data(data, 4))
+    return 1;
+  n_lines= uint4korr(data);
+  data+= 4;
+
+  if (trn->start_collection(n_lines))
+    return 1;
+
+  while (n_lines--)
+  {
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+    data+= WKB_HEADER_SIZE;
+    ls.set_data_ptr(data, (uint32) (m_data_end - data));
+    if (ls.store_shapes(trn))
+      return 1;
+    data+= ls.get_data_size();
+  }
+  return 0;
+}
+
+
 const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 {
   return &multilinestring_class;
@@ -1418,7 +1692,7 @@ bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
   for (;;)  
   {
-    if (wkb->reserve(1+4, 512))
+    if (wkb->reserve(1 + 4, 512))
       return 1;
     wkb->q_append((char) wkb_ndr);
     wkb->q_append((uint32) wkb_polygon);
@@ -1473,6 +1747,37 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
 }
 
 
+uint Gis_multi_polygon::init_from_opresult(String *bin,
+                                           const char *opres, uint32 n_shapes)
+{
+  Gis_polygon p;
+  const char *opres_orig= opres;
+  uint p_len;
+  uint poly_shapes;
+  uint n_poly= 0;
+  uint32 np_pos= bin->length();
+
+  if (bin->reserve(4, 512))
+    return 0;
+    
+  bin->q_append(n_shapes);
+  while (n_shapes)
+  {
+    if (bin->reserve(1 + 4, 512))
+      return 0;
+    bin->q_append((char)wkb_ndr);
+    bin->q_append((uint32)wkb_polygon);
+    if (!(p_len= p.priv_init_from_opresult(bin, opres, n_shapes, &poly_shapes)))
+      return 0;
+    n_shapes-= poly_shapes;
+    opres+= p_len;
+    n_poly++;
+  }
+  bin->write_at_position(np_pos, n_poly);
+  return opres - opres_orig;
+}
+
+
 bool Gis_multi_polygon::get_data_as_wkt(String *txt, const char **end) const
 {
   uint32 n_polygons;
@@ -1499,7 +1804,7 @@ bool Gis_multi_polygon::get_data_as_wkt(String *txt, const char **end) const
         return 1;
       uint32 n_points= uint4korr(data);
       data+= 4;
-      if (no_data(data, (SIZEOF_STORED_DOUBLE * 2) * n_points) ||
+      if (no_data(data, POINT_DATA_SIZE * n_points) ||
 	  txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points,
 		       512))
 	return 1;
@@ -1623,8 +1928,9 @@ int Gis_multi_polygon::area(double *ar,  const char **end_of_data) const
 int Gis_multi_polygon::centroid(String *result) const
 {
   uint32 n_polygons;
+  bool first_loop= 1;
   Gis_polygon p;
-  double res_area= 0.0, res_cx= 0.0, res_cy= 0.0;
+  double UNINIT_VAR(res_area), UNINIT_VAR(res_cx), UNINIT_VAR(res_cy);
   double cur_area, cur_cx, cur_cy;
   const char *data= m_data;
 
@@ -1641,16 +1947,52 @@ int Gis_multi_polygon::centroid(String *result) const
 	p.centroid_xy(&cur_cx, &cur_cy))
       return 1;
 
-    res_area+= cur_area;
-    res_cx+= cur_area * cur_cx;
-    res_cy+= cur_area * cur_cy;
+    if (!first_loop)
+    {
+      double sum_area= res_area + cur_area;
+      res_cx= (res_area * res_cx + cur_area * cur_cx) / sum_area;
+      res_cy= (res_area * res_cy + cur_area * cur_cy) / sum_area;
+    }
+    else
+    {
+      first_loop= 0;
+      res_area= cur_area;
+      res_cx= cur_cx;
+      res_cy= cur_cy;
+    }
   }
-   
-  res_cx/= res_area;
-  res_cy/= res_area;
 
   return create_point(result, res_cx, res_cy);
 }
+
+
+int Gis_multi_polygon::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_polygons;
+  Gis_polygon p;
+  const char *data= m_data;
+
+  if (no_data(data, 4))
+    return 1;
+  n_polygons= uint4korr(data);
+  data+= 4;
+
+  if (trn->start_collection(n_polygons))
+    return 1;
+
+  while (n_polygons--)
+  {
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+    data+= WKB_HEADER_SIZE;
+    p.set_data_ptr(data, (uint32) (m_data_end - data));
+    if (p.store_shapes(trn))
+      return 1;
+    data+= p.get_data_size();
+  }
+  return 0;
+}
+
 
 const Geometry::Class_info *Gis_multi_polygon::get_class_info() const
 {
@@ -1720,6 +2062,45 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb)
 
   wkb->write_at_position(no_pos, n_objects);
   return 0;
+}
+
+
+uint Gis_geometry_collection::init_from_opresult(String *bin,
+                                                 const char *opres,
+                                                 uint32 n_shapes)
+{
+  const char *opres_orig= opres;
+  Geometry_buffer buffer;
+  Geometry *geom;
+  int g_len;
+  uint32 wkb_type;
+
+  if (bin->reserve(4, 512))
+    return 0;
+  bin->q_append(n_shapes);
+  
+  while (n_shapes--)
+  {
+    switch ((Gcalc_function::shape_type) uint4korr(opres))
+    {
+      case Gcalc_function::shape_point:   wkb_type= wkb_point; break;
+      case Gcalc_function::shape_line:    wkb_type= wkb_linestring; break;
+      case Gcalc_function::shape_polygon: wkb_type= wkb_polygon; break;
+      default: wkb_type= 0; DBUG_ASSERT(FALSE);
+    };
+
+    if (bin->reserve(WKB_HEADER_SIZE, 512))
+      return 0;
+
+    bin->q_append((char) wkb_ndr);
+    bin->q_append(wkb_type);
+
+    if (!(geom= create_by_typeid(&buffer, wkb_type)) ||
+        !(g_len= geom->init_from_opresult(bin, opres, 1)))
+      return 0;
+    opres+= g_len;
+  }
+  return (uint) (opres - opres_orig);
 }
 
 
@@ -1872,7 +2253,7 @@ int Gis_geometry_collection::geometry_n(uint32 num, String *result) const
   } while (--num);
 
   /* Copy found object to result */
-  if (result->reserve(1+4+length))
+  if (result->reserve(1 + 4 + length))
     return 1;
   result->q_append((char) wkb_ndr);
   result->q_append((uint32) wkb_type);
@@ -1932,6 +2313,42 @@ bool Gis_geometry_collection::dimension(uint32 *res_dim, const char **end) const
   *end= data;
   return 0;
 }
+
+
+int Gis_geometry_collection::store_shapes(Gcalc_shape_transporter *trn) const
+{
+  uint32 n_objects;
+  const char *data= m_data;
+  Geometry_buffer buffer;
+  Geometry *geom;
+
+  if (no_data(data, 4))
+    return 1;
+  n_objects= uint4korr(data);
+  data+= 4;
+
+  if (trn->start_collection(n_objects))
+    return 1;
+
+  while (n_objects--)
+  {
+    uint32 wkb_type;
+
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+    wkb_type= uint4korr(data + 1);
+    data+= WKB_HEADER_SIZE;
+    if (!(geom= create_by_typeid(&buffer, wkb_type)))
+      return 1;
+    geom->set_data_ptr(data, (uint32) (m_data_end - data));
+    if (geom->store_shapes(trn))
+      return 1;
+
+    data+= geom->get_data_size();
+  }
+  return 0;
+}
+
 
 const Geometry::Class_info *Gis_geometry_collection::get_class_info() const
 {

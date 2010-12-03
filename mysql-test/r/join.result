@@ -404,7 +404,7 @@ SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	32	Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	Using where; Using join buffer (BNL, regular buffers)
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
 e
@@ -846,7 +846,7 @@ select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 a	b	a	a
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
 We expect rnd_next=5, and read_key must be 0 because of short-cutting:
@@ -854,6 +854,7 @@ show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	0
 Handler_read_key	0
+Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -869,7 +870,7 @@ insert into t3 select * from t2 where a < 800;
 explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a,b	NULL	NULL	NULL	1000	Using where
-1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	Using where
+1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	
 drop table t1, t2, t3;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -889,8 +890,8 @@ Z
 vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv
 explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
-1	SIMPLE	A	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	SIMPLE	A	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
 1	SIMPLE	B	eq_ref	PRIMARY	PRIMARY	4	test.A.b	1	
 show status like '%cost%';
 Variable_name	Value
@@ -910,7 +911,7 @@ INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	2	Using where
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -924,7 +925,7 @@ a	b	c	d
 2	NULL	2	NULL
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using where; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1096,10 +1097,10 @@ ON t1.a = t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t3	ref	a	a	5	test.t1.a	2	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (BNL, regular buffers)
 SELECT * 
 FROM 
 t1 JOIN t2 ON t1.a = t2.a 
@@ -1127,9 +1128,9 @@ EXPLAIN EXTENDED
 SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((1 = 1)) left join (`test`.`t1` left join `test`.`t1` `t2` on((1 = 1))) on(rand()) where 1
 DROP VIEW v1;
@@ -1184,4 +1185,40 @@ NULL
 NULL
 1
 DROP TABLE t1, t2, mm1;
+#
+# Bug #54468: crash after item's print() function when ordering/grouping 
+#             by subquery
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (), ();
+SELECT 1 FROM t1
+GROUP BY
+GREATEST(t1.a,
+(SELECT 1 FROM
+(SELECT t1.b FROM t1,t1 t2
+ORDER BY t1.a, t1.a LIMIT 1) AS d)
+);
+1
+1
+DROP TABLE t1;
+#
+# Bug #53544: Server hangs during JOIN query in stored procedure called
+#             twice in a row
+#
+CREATE TABLE t1(c INT);
+INSERT INTO t1 VALUES (1), (2);
+PREPARE stmt FROM "SELECT t2.c AS f1 FROM t1 LEFT JOIN
+                                        t1 t2 ON t1.c=t2.c RIGHT JOIN
+                                        t1 t3 ON t1.c=t3.c 
+                   GROUP BY f1;";
+EXECUTE stmt;
+f1
+1
+2
+EXECUTE stmt;
+f1
+1
+2
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.1 tests

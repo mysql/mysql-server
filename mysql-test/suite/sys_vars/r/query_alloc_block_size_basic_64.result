@@ -68,18 +68,6 @@ Warning	1292	Truncated incorrect query_alloc_block_size value: '1025'
 SELECT @@session.query_alloc_block_size;
 @@session.query_alloc_block_size
 1024
-SET @@session.query_alloc_block_size = 4294967295;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967295'
-SELECT @@session.query_alloc_block_size;
-@@session.query_alloc_block_size
-4294966272
-SET @@session.query_alloc_block_size = 4294967294;
-Warnings:
-Warning	1292	Truncated incorrect query_alloc_block_size value: '4294967294'
-SELECT @@session.query_alloc_block_size;
-@@session.query_alloc_block_size
-4294966272
 SET @@session.query_alloc_block_size = 655536;
 Warnings:
 Warning	1292	Truncated incorrect query_alloc_block_size value: '655536'

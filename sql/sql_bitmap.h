@@ -101,9 +101,20 @@ template <> class Bitmap<64>
 {
   ulonglong map;
 public:
-  Bitmap<64>() { }
+  Bitmap<64>() { init(); }
+  enum { ALL_BITS = 64 };
+
+#if defined(__NETWARE__) || defined(__MWERKS__)
+  /*
+    Metwork compiler gives error on Bitmap<64>
+    Changed to Bitmap, since in this case also it will proper construct
+    this class
+  */
+  explicit Bitmap(uint prefix_to_set) { set_prefix(prefix_to_set); }
+#else
   explicit Bitmap<64>(uint prefix_to_set) { set_prefix(prefix_to_set); }
-  void init() { }
+#endif
+  void init() { clear_all(); }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }
   void set_bit(uint n) { map|= ((ulonglong)1) << n; }
@@ -145,4 +156,30 @@ public:
 };
 
 
+/* An iterator to quickly walk over bits in unlonglong bitmap. */
+class Table_map_iterator
+{
+  ulonglong bmp;
+  uint no;
+public:
+  Table_map_iterator(ulonglong t) : bmp(t), no(0) {}
+  int next_bit()
+  {
+    static const char last_bit[16]= {32, 0, 1, 0, 
+                                      2, 0, 1, 0, 
+                                      3, 0, 1, 0,
+                                      2, 0, 1, 0};
+    uint bit;
+    while ((bit= last_bit[bmp & 0xF]) == 32)
+    {
+      no += 4;
+      bmp= bmp >> 4;
+      if (!bmp)
+        return BITMAP_END;
+    }
+    bmp &= ~(1LL << bit);
+    return no + bit;
+  }
+  enum { BITMAP_END= 64 };
+};
 #endif /* SQL_BITMAP_INCLUDED */

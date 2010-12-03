@@ -38,8 +38,6 @@ Created July 17, 2007 Vasil Dimov
 
 #include <mysql/plugin.h>
 
-#include "mysql_addons.h"
-
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
@@ -176,7 +174,8 @@ struct trx_i_s_cache_struct {
 	ha_storage_t*	storage;	/*!< storage for external volatile
 					data that can possibly not be
 					available later, when we release
-					the kernel mutex */
+					the lock_sys_t::mutex or the
+					trx_sys_t::mutex */
 	ulint		mem_allocd;	/*!< the amount of memory
 					allocated with mem_alloc*() */
 	ibool		is_truncated;	/*!< this is TRUE if the memory
@@ -417,6 +416,42 @@ table_cache_create_empty_row(
 	return(row);
 }
 
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Validates a row in the locks cache.
+@return	TRUE if valid */
+static
+ibool
+i_s_locks_row_validate(
+/*===================*/
+	const i_s_locks_row_t*	row)	/*!< in: row to validate */
+{
+	ut_ad(row->lock_trx_id != 0);
+	ut_ad(row->lock_mode != NULL);
+	ut_ad(row->lock_type != NULL);
+	ut_ad(row->lock_table != NULL);
+	ut_ad(row->lock_table_id != 0);
+
+	if (row->lock_space == ULINT_UNDEFINED) {
+		/* table lock */
+		ut_ad(!strcmp("TABLE", row->lock_type));
+		ut_ad(row->lock_index == NULL);
+		ut_ad(row->lock_data == NULL);
+		ut_ad(row->lock_page == ULINT_UNDEFINED);
+		ut_ad(row->lock_rec == ULINT_UNDEFINED);
+	} else {
+		/* record lock */
+		ut_ad(!strcmp("RECORD", row->lock_type));
+		ut_ad(row->lock_index != NULL);
+		ut_ad(row->lock_data != NULL);
+		ut_ad(row->lock_page != ULINT_UNDEFINED);
+		ut_ad(row->lock_rec != ULINT_UNDEFINED);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Fills i_s_trx_row_t object.
 If memory can not be allocated then FALSE is returned.
@@ -442,27 +477,25 @@ fill_trx_row(
 	size_t		stmt_len;
 	const char*	s;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
-	row->trx_id = trx_get_id(trx);
+	row->trx_id = trx->id;
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
+	row->requested_lock_row = requested_lock_row;
+	ut_ad(requested_lock_row == NULL
+	      || i_s_locks_row_validate(requested_lock_row));
 
-	if (trx->wait_lock != NULL) {
+	if (trx->lock.wait_lock != NULL) {
 
 		ut_a(requested_lock_row != NULL);
-
-		row->requested_lock_row = requested_lock_row;
-		row->trx_wait_started = (ib_time_t) trx->wait_started;
+		row->trx_wait_started = (ib_time_t) trx->lock.wait_started;
 	} else {
-
 		ut_a(requested_lock_row == NULL);
-
-		row->requested_lock_row = NULL;
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
+	row->trx_weight = (ullint) TRX_WEIGHT(trx);
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -521,13 +554,13 @@ thd_done:
 
 	row->trx_tables_locked = trx->mysql_n_tables_locked;
 
-	row->trx_lock_structs = UT_LIST_GET_LEN(trx->trx_locks);
+	row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 
-	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock_heap);
+	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock.lock_heap);
 
 	row->trx_rows_locked = lock_number_of_rows_locked(trx);
 
-	row->trx_rows_modified = ut_conv_dulint_to_longlong(trx->undo_no);
+	row->trx_rows_modified = trx->undo_no;
 
 	row->trx_concurrency_tickets = trx->n_tickets_to_enter_innodb;
 
@@ -814,6 +847,7 @@ fill_locks_row(
 	row->lock_table_id = lock_get_table_id(lock);
 
 	row->hash_chain.value = row;
+	ut_ad(i_s_locks_row_validate(row));
 
 	return(TRUE);
 }
@@ -834,6 +868,9 @@ fill_lock_waits_row(
 						relevant blocking lock
 						row in innodb_locks */
 {
+	ut_ad(i_s_locks_row_validate(requested_lock_row));
+	ut_ad(i_s_locks_row_validate(blocking_lock_row));
+
 	row->requested_lock_row = requested_lock_row;
 	row->blocking_lock_row = blocking_lock_row;
 
@@ -905,6 +942,7 @@ locks_row_eq_lock(
 					or ULINT_UNDEFINED if the lock
 					is a table lock */
 {
+	ut_ad(i_s_locks_row_validate(row));
 #ifdef TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T
 	return(0);
 #else
@@ -962,7 +1000,7 @@ search_innodb_locks(
 		/* auxiliary variable */
 		hash_chain,
 		/* assertion on every traversed item */
-		,
+		ut_ad(i_s_locks_row_validate(hash_chain->value)),
 		/* this determines if we have found the lock */
 		locks_row_eq_lock(hash_chain->value, lock, heap_no));
 
@@ -1002,6 +1040,7 @@ add_lock_to_cache(
 	dst_row = search_innodb_locks(cache, lock, heap_no);
 	if (dst_row != NULL) {
 
+		ut_ad(i_s_locks_row_validate(dst_row));
 		return(dst_row);
 	}
 #endif
@@ -1039,6 +1078,7 @@ add_lock_to_cache(
 	} /* for()-loop */
 #endif
 
+	ut_ad(i_s_locks_row_validate(dst_row));
 	return(dst_row);
 }
 
@@ -1093,25 +1133,25 @@ add_trx_relevant_locks_to_cache(
 					requested lock row, or NULL or
 					undefined */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
 
 	/* If transaction is waiting we add the wait lock and all locks
 	from another transactions that are blocking the wait lock. */
-	if (trx->que_state == TRX_QUE_LOCK_WAIT) {
+	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
 		const lock_t*		curr_lock;
 		ulint			wait_lock_heap_no;
 		i_s_locks_row_t*	blocking_lock_row;
 		lock_queue_iterator_t	iter;
 
-		ut_a(trx->wait_lock != NULL);
+		ut_a(trx->lock.wait_lock != NULL);
 
 		wait_lock_heap_no
-			= wait_lock_get_heap_no(trx->wait_lock);
+			= wait_lock_get_heap_no(trx->lock.wait_lock);
 
 		/* add the requested lock */
 		*requested_lock_row
-			= add_lock_to_cache(cache, trx->wait_lock,
+			= add_lock_to_cache(cache, trx->lock.wait_lock,
 					    wait_lock_heap_no);
 
 		/* memory could not be allocated */
@@ -1123,17 +1163,17 @@ add_trx_relevant_locks_to_cache(
 		/* then iterate over the locks before the wait lock and
 		add the ones that are blocking it */
 
-		lock_queue_iterator_reset(&iter, trx->wait_lock,
+		lock_queue_iterator_reset(&iter, trx->lock.wait_lock,
 					  ULINT_UNDEFINED);
 
 		curr_lock = lock_queue_iterator_get_prev(&iter);
 		while (curr_lock != NULL) {
 
-			if (lock_has_to_wait(trx->wait_lock,
+			if (lock_has_to_wait(trx->lock.wait_lock,
 					     curr_lock)) {
 
 				/* add the lock that is
-				blocking trx->wait_lock */
+				blocking trx->lock.wait_lock */
 				blocking_lock_row
 					= add_lock_to_cache(
 						cache, curr_lock,
@@ -1237,7 +1277,8 @@ fetch_data_into_cache(
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_mutex_own());
+	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	trx_i_s_cache_clear(cache);
 
@@ -1250,10 +1291,13 @@ fetch_data_into_cache(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
+		trx_mutex_enter(trx);
+
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1265,6 +1309,7 @@ fetch_data_into_cache(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1273,8 +1318,11 @@ fetch_data_into_cache(
 			/* memory could not be allocated */
 			cache->innodb_trx.rows_used--;
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
+
+		trx_mutex_exit(trx);
 	}
 
 	cache->is_truncated = FALSE;
@@ -1296,11 +1344,16 @@ trx_i_s_possibly_fetch_data_into_cache(
 	}
 
 	/* We need to read trx_sys and record/table lock queues */
-	mutex_enter(&kernel_mutex);
+
+	lock_mutex_enter();
+
+	rw_lock_s_lock(&trx_sys->lock);
 
 	fetch_data_into_cache(cache);
 
-	mutex_exit(&kernel_mutex);
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	lock_mutex_exit();
 
 	return(0);
 }
@@ -1328,8 +1381,8 @@ trx_i_s_cache_init(
 {
 	/* The latching is done in the following order:
 	acquire trx_i_s_cache_t::rw_lock, X
-	acquire kernel_mutex
-	release kernel_mutex
+	acquire lock mutex 
+	release lock mutex
 	release trx_i_s_cache_t::rw_lock
 	acquire trx_i_s_cache_t::rw_lock, S
 	acquire trx_i_s_cache_t::last_read_mutex

@@ -1,6 +1,6 @@
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
-set storage_engine = InnoDB;
+set default_storage_engine = InnoDB;
 set autocommit=1;
 drop table if exists t1;
 drop table if exists t2;
@@ -830,7 +830,7 @@ create table if not exists t2 (a int) select 6 union select 7;
 Warnings:
 Note	1050	Table 't2' already exists
 # Sic: first commits the statement, and then the transaction.
-call p_verify_status_increment(2, 0, 4, 4);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 create table t3 select a from t2;

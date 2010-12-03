@@ -17,6 +17,8 @@ call mtr.add_suppression("Slave I/O thread .* register on master");
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, its old UUID is.*");
+CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
+CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
 
 --let $uuid_file= auto.cnf
 
@@ -51,7 +53,7 @@ connection slave;
 --let $slave_param_value= $master_uuid_on_master
 source include/check_slave_param.inc;
 
-if (`SELECT '$slave_uuid_on_slave' <> '$slave_uuid_on_master'`)
+if ($slave_uuid_on_slave != $slave_uuid_on_master)
 {
   --echo slave_uuid_on_slave <> slave_uuid_on_master
   --echo $slave_uuid_on_slave <> $slave_uuid_on_master

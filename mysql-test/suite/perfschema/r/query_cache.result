@@ -33,10 +33,10 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+select spins from performance_schema.events_waits_current order by event_name limit 1;
 spins
 NULL
-select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+select name from performance_schema.setup_instruments order by name limit 1;
 name
 wait/io/file/csv/data
 show status like "Qcache_queries_in_cache";
@@ -48,10 +48,10 @@ Qcache_inserts	1
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
-select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+select spins from performance_schema.events_waits_current order by event_name limit 1;
 spins
 NULL
-select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+select name from performance_schema.setup_instruments order by name limit 1;
 name
 wait/io/file/csv/data
 show status like "Qcache_queries_in_cache";
@@ -65,3 +65,4 @@ Variable_name	Value
 Qcache_hits	1
 SET GLOBAL query_cache_size= default;
 drop table t1;
+flush status;

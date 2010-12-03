@@ -47,6 +47,7 @@
 #define rw_wrlock(A)
 #define rw_unlock(A)
 #define rwlock_destroy(A)
+#define safe_mutex_assert_owner(mp)
 
 #define mysql_mutex_init(A, B, C) do {} while (0)
 #define mysql_mutex_lock(A) do {} while (0)

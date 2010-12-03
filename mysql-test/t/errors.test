@@ -155,3 +155,19 @@ INSERT INTO t1 VALUES ('abc\0\0');
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES ('abc\0\0');
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#57882: Item_func_conv_charset::val_str(String*): 
+--echo #            Assertion `fixed == 1' failed
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
+
+SET NAMES utf8 COLLATE utf8_latvian_ci ;
+--error ER_DATA_OUT_OF_RANGE
+SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
+
+--echo #
+--echo # End Bug#57882
+--echo #

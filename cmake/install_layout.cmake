@@ -59,13 +59,16 @@
 # - INSTALL_SUPPORTFILESDIR (various extra support files)
 #
 # - INSTALL_MYSQLDATADIR    (data directory)
+#
+# When changing this page,  _please_ do not forget to update public Wiki
+# http://forge.mysql.com/wiki/CMake#Fine-tuning_installation_paths
 
 IF(NOT INSTALL_LAYOUT)
   SET(DEFAULT_INSTALL_LAYOUT "STANDALONE")
 ENDIF()
 
 SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}"
-CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip or tar.gz installer) or UNIX")
+CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip or tar.gz installer), RPM, DEB, SVR4")
 
 IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM")
@@ -83,6 +86,13 @@ IF(UNIX)
     SET(CMAKE_INSTALL_PREFIX ${default_prefix}
       CACHE PATH "install prefix" FORCE)
   ENDIF()
+  SET(VALID_INSTALL_LAYOUTS "RPM" "STANDALONE" "DEB" "SVR4")
+  LIST(FIND VALID_INSTALL_LAYOUTS "${INSTALL_LAYOUT}" ind)
+  IF(ind EQUAL -1)
+    MESSAGE(FATAL_ERROR "Invalid INSTALL_LAYOUT parameter:${INSTALL_LAYOUT}."
+    " Choose between ${VALID_INSTALL_LAYOUTS}" )
+  ENDIF()
+
   SET(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc"
     CACHE PATH "config directory (for my.cnf)")
   MARK_AS_ADVANCED(SYSCONFDIR)

@@ -36,7 +36,7 @@
 #include "sql_priv.h"
 #include "sql_servers.h"
 #include "unireg.h"
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "records.h"          // init_read_record, end_read_record
 #include "hash_filo.h"
 #include <m_ctype.h>
@@ -280,9 +280,7 @@ bool servers_reload(THD *thd)
   }
 
 end:
-  trans_commit_implicit(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
+  close_mysql_tables(thd);
   DBUG_PRINT("info", ("unlocking servers_cache"));
   mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);
@@ -535,6 +533,7 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
 {
   int error;
   DBUG_ENTER("insert_server_record");
+  tmp_disable_binlog(table->in_use);
   table->use_all_columns();
 
   empty_record(table);
@@ -545,10 +544,10 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
                          system_charset_info);
 
   /* read index until record is that specified in server_name */
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              HA_WHOLE_KEY,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     /* if not found, err */
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -571,6 +570,8 @@ int insert_server_record(TABLE *table, FOREIGN_SERVER *server)
   }
   else
     error= ER_FOREIGN_SERVER_EXISTS;
+
+  reenable_binlog(table->in_use);
   DBUG_RETURN(error);
 }
 
@@ -625,9 +626,9 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   error= delete_server_record(table, name.str, name.length);
 
   /* close the servers table before we call closed_cached_connection_tables */
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
 
-  if (close_cached_connection_tables(thd, TRUE, &name))
+  if (close_cached_connection_tables(thd, &name))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");
@@ -880,16 +881,17 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
 {
   int error=0;
   DBUG_ENTER("update_server_record");
+  tmp_disable_binlog(table->in_use);
   table->use_all_columns();
   /* set the field that's the PK to the value we're looking for */
   table->field[0]->store(server->server_name,
                          server->server_name_length,
                          system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                              (uchar *)table->field[0]->ptr,
-                                              ~(longlong)0,
-                                              HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 ~(longlong)0,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));
@@ -913,6 +915,7 @@ update_server_record(TABLE *table, FOREIGN_SERVER *server)
   }
 
 end:
+  reenable_binlog(table->in_use);
   DBUG_RETURN(error);
 }
 
@@ -938,15 +941,16 @@ delete_server_record(TABLE *table,
 {
   int error;
   DBUG_ENTER("delete_server_record");
+  tmp_disable_binlog(table->in_use);
   table->use_all_columns();
 
   /* set the field that's the PK to the value we're looking for */
   table->field[0]->store(server_name, server_name_length, system_charset_info);
 
-  if ((error= table->file->index_read_idx_map(table->record[0], 0,
-                                          (uchar *)table->field[0]->ptr,
-                                          HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)))
+  if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                 (uchar *)table->field[0]->ptr,
+                                                 HA_WHOLE_KEY,
+                                                 HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       table->file->print_error(error, MYF(0));
@@ -959,6 +963,7 @@ delete_server_record(TABLE *table,
       table->file->print_error(error, MYF(0));
   }
 
+  reenable_binlog(table->in_use);
   DBUG_RETURN(error);
 }
 
@@ -1050,9 +1055,9 @@ int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   error= update_server(thd, existing, altered);
 
   /* close the servers table before we call closed_cached_connection_tables */
-  close_thread_tables(thd);
+  close_mysql_tables(thd);
 
-  if (close_cached_connection_tables(thd, FALSE, &name))
+  if (close_cached_connection_tables(thd, &name))
   {
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_UNKNOWN_ERROR, "Server connection in use");

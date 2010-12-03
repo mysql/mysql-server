@@ -24,6 +24,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_column_types.h
   pfs_column_values.h
+  pfs_defaults.h
   pfs_events_waits.h
   pfs_global.h
   pfs.h
@@ -32,43 +33,49 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_lock.h
   pfs_atomic.h
   pfs_server.h
+  pfs_setup_actor.h
   pfs_stat.h
   pfs_engine_table.h
   pfs_timer.h
   table_all_instr.h
   table_events_waits.h
   table_events_waits_summary.h
+  table_ews_global_by_event_name.h
   table_file_instances.h
   table_file_summary.h
+  table_helper.h
   table_performance_timers.h
-  table_processlist.h
+  table_setup_actors.h
   table_setup_consumers.h
   table_setup_instruments.h
-  table_setup_objects.h
   table_setup_timers.h
   table_sync_instances.h
+  table_threads.h
   ha_perfschema.cc
   pfs.cc
   pfs_column_values.cc
+  pfs_defaults.cc
   pfs_events_waits.cc
   pfs_global.cc
   pfs_instr.cc
   pfs_instr_class.cc
   pfs_server.cc
+  pfs_setup_actor.cc
   pfs_engine_table.cc
   pfs_timer.cc
   table_all_instr.cc
   table_events_waits.cc
   table_events_waits_summary.cc
+  table_ews_global_by_event_name.cc
   table_file_instances.cc
   table_file_summary.cc
   table_performance_timers.cc
-  table_processlist.cc
+  table_setup_actors.cc
   table_setup_consumers.cc
   table_setup_instruments.cc
-  table_setup_objects.cc
   table_setup_timers.cc
   table_sync_instances.cc
+  table_threads.cc
   pfs_atomic.cc
   pfs_check.cc
 )

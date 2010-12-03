@@ -37,13 +37,12 @@ Created 2/6/1997 Heikki Tuuri
 
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
-index record. NOTE: the kernel mutex is temporarily released in this
-function!
-@return NULL if committed, else the active transaction */
+index record.
+@return 0 if committed, else the active transaction id */
 UNIV_INTERN
-trx_t*
-row_vers_impl_x_locked_off_kernel(
-/*==============================*/
+trx_id_t
+row_vers_impl_x_locked(
+/*===================*/
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */

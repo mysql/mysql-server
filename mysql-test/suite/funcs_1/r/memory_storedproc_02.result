@@ -348,6 +348,8 @@ CALL h1();
 -7-	1	1	1	1	1	1
 END	x1	x2	x3	x4	x5	x6
 END	1	1	1	1	1	1
+Warnings:
+Error	1062	Duplicate entry 'a' for key 'w'
 DROP TABLE IF EXISTS tnull;
 DROP PROCEDURE IF EXISTS sp1;
 CREATE TABLE tnull(f1 int);
@@ -446,6 +448,8 @@ END//
 CALL h2();
 x1	x2	x3	x4	x5	x6
 1	1	1	1	1	1
+Warnings:
+Error	1062	Duplicate entry 'a' for key 'w'
 SELECT * FROM res_t1;
 w	x
 a	b
@@ -551,6 +555,8 @@ exit handler 2
 exit handler 2
 exit handler 1
 exit handler 1
+Warnings:
+Error	1146	Table 'db_storedproc.tqq' doesn't exist
 create table res_t1(w char unique, x char);
 insert into res_t1 values ('a', 'b');
 CREATE PROCEDURE h1 ()
@@ -581,6 +587,8 @@ END//
 CALL h1();
 x1	x2	x3	x4	x5	x6
 1	1	1	1	1	1
+Warnings:
+Error	1062	Duplicate entry 'a' for key 'w'
 This will fail, SQLSTATE 00000 is not allowed
 CREATE PROCEDURE sp1()
 begin1_label:BEGIN
@@ -624,6 +632,8 @@ CALL sp2();
 NULL
 @x2	@x
 1	2
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 
@@ -655,6 +665,8 @@ ERROR 42000: Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expe
 CALL sp2();
 -1-	@x2	@x
 -1-	0	1
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 SELECT '-3-', @x2, @x;
 -3-	@x2	@x
 -3-	1	1
@@ -697,6 +709,8 @@ CALL sp2();
 -2-	1	20
 -4-	@x2	@x
 -4-	11	22
+Warnings:
+Error	1318	Incorrect number of arguments for PROCEDURE db_storedproc.sp1; expected 2, got 1
 DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 
@@ -763,21 +777,33 @@ SELECT @done, @x;
 0	1
 INSERT INTO temp VALUES('1', NULL);
 CALL sp1();
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
+Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
 INSERT INTO temp VALUES('2', NULL);
 CALL sp2();
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
+Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	1
 INSERT INTO temp VALUES('3', NULL);
 CALL sp3();
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
+Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	0
 INSERT INTO temp VALUES('4', NULL);
 CALL sp4();
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
+Warning	1265	Data truncated for column 'f2' at row 1
 SELECT @done, @x;
 @done	@x
 1	0
@@ -886,18 +912,26 @@ SELECT @done, @x;
 @done	@x
 0	1
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT @done, @x;
 @done	@x
 1	2
 CALL sp2();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT @done, @x;
 @done	@x
 1	2
 CALL sp3();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT @done, @x;
 @done	@x
 1	1
 CALL sp4();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT @done, @x;
 @done	@x
 1	1
@@ -1032,6 +1066,8 @@ SQLSTATE
 21000
 SQLSTATE
 24000
+Warnings:
+Error	1326	Cursor is not open
 SELECT '-1-', @x;
 -1-	@x
 -1-	6
@@ -1042,18 +1078,24 @@ SQLSTATE
 SQLEXCEPTION
 SQLSTATE
 24000
+Warnings:
+Error	1326	Cursor is not open
 SELECT '-2-', @x;
 -2-	@x
 -2-	6
 CALL sp3();
 SQLSTATE
 20000
+Warnings:
+Error	1339	Case not found for CASE statement
 SELECT '-3-', @x;
 -3-	@x
 -3-	1
 CALL sp4();
 SQLSTATE
 SQLEXCEPTION
+Warnings:
+Error	1339	Case not found for CASE statement
 SELECT '-4-', @x;
 -4-	@x
 -4-	1
@@ -1336,6 +1378,8 @@ CLOSE cur1;
 CLOSE cur2;
 END//
 CALL sp_outer();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM temp1;
 f0	cnt	f1	f2	f3	f4
 _sp_out_	1	a`	a`	1000-01-01	-5000

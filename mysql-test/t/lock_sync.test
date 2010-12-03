@@ -898,7 +898,7 @@ set debug_sync= 'now WAIT_FOR parked';
 connection default;
 --echo # Wait until this LOCK TABLES statement starts waiting for table lock.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                       where state= 'Table lock' and
+                       where state= 'Waiting for table level lock' and
                              info='lock table v1 write';
 --source include/wait_condition.inc
 --echo # Allow SELECT ... FOR UPDATE to resume.
@@ -972,7 +972,7 @@ connection default;
 connection con2;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table" 
+  WHERE state = "Waiting for table metadata lock" 
   AND info = "ALTER TABLE t1 ADD COLUMN j INT";
 --source include/wait_condition.inc
 
@@ -1021,6 +1021,61 @@ disconnect con1;
 connection default;
 DROP EVENT e2;
 SET DEBUG_SYNC="RESET";
+
+
+--echo #
+--echo # Bug#55930 Assertion `thd->transaction.stmt.is_empty() ||
+--echo #           thd->in_sub_stmt || (thd->state..
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
+--echo # Connection con1
+connection con1;
+SET SESSION lock_wait_timeout= 1;
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL opti_recreate WAIT_FOR opti_analyze';
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR opti_recreate';
+SET DEBUG_SYNC= 'after_lock_tables_takes_lock SIGNAL thrlock WAIT_FOR release_thrlock';
+--echo # Sending:
+--send INSERT INTO t1 VALUES (3)
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR thrlock';
+SET DEBUG_SYNC= 'now SIGNAL opti_analyze';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: OPTIMIZE TABLE t1
+--reap
+SET DEBUG_SYNC= 'now SIGNAL release_thrlock';
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: INSERT INTO t1 VALUES (3)
+--reap
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 
 
 # Check that all connections opened by test cases in this file are really

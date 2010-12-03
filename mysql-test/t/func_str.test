@@ -1404,3 +1404,20 @@ SELECT format(123, 1, 'Non-existent-locale');
 
 --echo End of 5.4 tests
 
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug#55912 FORMAT with locale set fails for numbers < 1000
+--echo #
+SELECT FORMAT(123.33, 2, 'no_NO'), FORMAT(1123.33, 2, 'no_NO');
+SELECT FORMAT(12333e-2, 2, 'no_NO'), FORMAT(112333e-2, 2, 'no_NO');
+CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

@@ -1,9 +1,9 @@
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/file/myisam/%";
-update performance_schema.SETUP_CONSUMERS
+update performance_schema.setup_consumers
 set enabled='YES';
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 flush status;
 drop table if exists test.no_index_tab;
 create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
@@ -14,8 +14,9 @@ select event_name,
 left(source, locate(":", source)) as short_source,
 operation, number_of_bytes,
 substring(object_name, locate("no_index_tab", object_name)) as short_name
-from performance_schema.EVENTS_WAITS_HISTORY_LONG
-where operation not like "tell"
+from performance_schema.events_waits_history_long
+where event_name like 'wait/io/file/%'
+  and operation not like "tell"
   order by thread_id, event_id;
 event_name	short_source	operation	number_of_bytes	short_name
 wait/io/file/myisam/kfile	mi_create.c:	create	NULL	no_index_tab.MYI
@@ -56,5 +57,5 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
 drop table test.no_index_tab;

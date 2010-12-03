@@ -179,7 +179,11 @@ public:
   MYSQL_LOG();
   void init_pthread_objects();
   void cleanup();
-  bool open(const char *log_name,
+  bool open(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_file_key log_file_key,
+#endif
+            const char *log_name,
             enum_log_type log_type,
             const char *new_name,
             enum cache_type io_cache_type_arg);
@@ -206,6 +210,10 @@ public:
   volatile enum_log_state log_state;
   enum cache_type io_cache_type;
   friend class Log_event;
+#ifdef HAVE_PSI_INTERFACE
+  /** Instrumentation key to use for file io in @c log_file */
+  PSI_file_key m_log_file_key;
+#endif
 };
 
 class MYSQL_QUERY_LOG: public MYSQL_LOG
@@ -224,14 +232,22 @@ public:
   bool open_slow_log(const char *log_name)
   {
     char buf[FN_REFLEN];
-    return open(generate_name(log_name, "-slow.log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+    return open(
+#ifdef HAVE_PSI_INTERFACE
+                key_file_slow_log,
+#endif
+                generate_name(log_name, "-slow.log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
   bool open_query_log(const char *log_name)
   {
     char buf[FN_REFLEN];
-    return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
-                WRITE_CACHE);
+    return open(
+#ifdef HAVE_PSI_INTERFACE
+                key_file_query_log,
+#endif
+                generate_name(log_name, ".log", 0, buf),
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
 
 private:
@@ -399,6 +415,15 @@ public:
       return file_log_handler->get_mysql_log();
     return NULL;
   }
+};
+
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
 };
 
 enum enum_binlog_format {

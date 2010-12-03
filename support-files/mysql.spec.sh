@@ -211,7 +211,6 @@
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            GPL
 %endif
@@ -223,7 +222,7 @@
 Name:           MySQL%{product_suffix}
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
-Version:        @MYSQL_U_SCORE_VERSION@
+Version:        @MYSQL_RPM_VERSION@
 Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
@@ -266,7 +265,7 @@ Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
 Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
-Obsoletes:      MySQL mysql mysql-server MySQL-server
+Obsoletes:      MySQL mysql mysql-server MySQL-server MySQL-server-community
 
 %description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -296,7 +295,7 @@ package "MySQL-client%{product_suffix}" as well!
 %package -n MySQL-client%{product_suffix}
 Summary:        MySQL - Client
 Group:          Applications/Databases
-Obsoletes:      mysql-client MySQL-client
+Obsoletes:      mysql-client MySQL-client MySQL-client-community
 Provides:       mysql-client MySQL-client
 
 %description -n MySQL-client%{product_suffix}
@@ -310,7 +309,7 @@ Requires:       MySQL-client%{product_suffix} perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
-Obsoletes:      mysql-bench mysql-test
+Obsoletes:      mysql-bench mysql-test MySQL-test-community
 AutoReqProv:    no
 
 %description -n MySQL-test%{product_suffix}
@@ -323,7 +322,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
-Obsoletes:      mysql-devel
+Obsoletes:      mysql-devel MySQL-devel-community
 
 %description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
@@ -335,6 +334,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
+Provides:       mysql-shared
+Obsoletes:      MySQL-shared-community
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -345,7 +346,7 @@ and applications need to dynamically load and use MySQL.
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
 Requires:       MySQL-devel%{product_suffix}
-Obsoletes:      mysql-embedded
+Obsoletes:      mysql-embedded MySQL-embedded-community
 
 %description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
@@ -521,6 +522,9 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 ##############################################################################
 
 %pre -n MySQL-server%{product_suffix}
+
+# ATTENTION: Parts of this are duplicated in the "triggerpostun" !
+
 mysql_datadir=%{mysqldatadir}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
@@ -669,6 +673,9 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n MySQL-server%{product_suffix}
+
+# ATTENTION: Parts of this are duplicated in the "triggerpostun" !
+
 mysql_datadir=%{mysqldatadir}
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
@@ -697,12 +704,12 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # ----------------------------------------------------------------------
 # NOTE: This still needs to be debated. Should we check whether these links
 # for the other run levels exist(ed) before the upgrade?
-# use insserv for older SuSE Linux versions
-if [ -x /sbin/insserv ] ; then
-        /sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Enterprise Linux and newer SuSE releases
-elif [ -x /sbin/chkconfig ] ; then
+if [ -x /sbin/chkconfig ] ; then
         /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -783,12 +790,9 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 	# Restart in the same way that mysqld will be started normally.
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
-		echo "Giving mysqld 2 seconds to start"
-		sleep 2
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
 	fi
-
-	# Allow mysqld_safe to start mysqld and print a message before we exit
-	sleep 2
 fi
 
 # Collect an upgrade history ...
@@ -797,7 +801,7 @@ echo                                             >> $STATUS_FILE
 echo "====="                                     >> $STATUS_FILE
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
 cat $STATUS_FILE >> $STATUS_HISTORY
-rm  $STATUS_FILE
+mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 
 
 #echo "Thank you for installing the MySQL Community Server! For Production
@@ -808,23 +812,82 @@ rm  $STATUS_FILE
 
 %preun -n MySQL-server%{product_suffix}
 
+# Which '$1' does this refer to?  Fedora docs have info:
+# " ... a count of the number of versions of the package that are installed.
+#   Action                           Count
+#   Install the first time           1
+#   Upgrade                          2 or higher (depending on the number of versions installed)
+#   Remove last version of package   0 "
+#
+#  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
+ 
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
                 %{_sysconfdir}/init.d/mysql stop > /dev/null
                 # Remove autostart of MySQL
-                # For older SuSE Linux versions
-                if [ -x /sbin/insserv ] ; then
-                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
                 # use chkconfig on Enterprise Linux and newer SuSE releases
-                elif [ -x /sbin/chkconfig ] ; then
+                if [ -x /sbin/chkconfig ] ; then
                         /sbin/chkconfig --del mysql
+                # For older SuSE Linux versions
+                elif [ -x /sbin/insserv ] ; then
+                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
                 fi
         fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
 # database files.
+
+%triggerpostun -n MySQL-server%{product_suffix} --MySQL-server-community
+
+# Setup: We renamed this package, so any existing "server-community"
+#   package will be removed when this "server" is installed.
+# Problem: RPM will first run the "pre" and "post" sections of this script,
+#   and only then the "preun" of that old community server.
+#   But this "preun" includes stopping the server and uninstalling the service,
+#   "chkconfig --del mysql" which removes the symlinks to the start script.
+# Solution: *After* the community server got removed, restart this server
+#   and re-install the service.
+#
+# For information about triggers in spec files, see the Fedora docs:
+#   http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch10s02.html
+# For all details of this code, see the "pre" and "post" sections.
+
+mysql_datadir=%{mysqldatadir}
+NEW_VERSION=%{mysql_version}-%{release}
+STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
+STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
+
+if [ -f $STATUS_FILE ] ; then
+	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+else
+	# This should never happen, but let's be prepared
+	SERVER_TO_START=''
+fi
+echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
+
+if [ -x /sbin/chkconfig ] ; then
+        /sbin/chkconfig --add mysql
+# use insserv for older SuSE Linux versions
+elif [ -x /sbin/insserv ] ; then
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
+fi
+
+# Was the server running before the upgrade? If so, restart the new one.
+if [ "$SERVER_TO_START" = "true" ] ; then
+	# Restart in the same way that mysqld will be started normally.
+	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+		%{_sysconfdir}/init.d/mysql start
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
+	fi
+fi
+
+echo "Trigger 'postun --community' finished at `date`"        >> $STATUS_HISTORY
+echo                                             >> $STATUS_HISTORY
+echo "====="                                     >> $STATUS_HISTORY
+
 
 # ----------------------------------------------------------------------
 # Clean up the BuildRoot after build is done
@@ -911,11 +974,23 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -961,9 +1036,6 @@ fi
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
-%if %{defined license_files_devel}
-%doc %{license_files_devel}
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -1012,6 +1084,21 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 6 2010 Georgi Kodinov <georgi.godinov@oracle.com>
+
+- Added example external authentication (WL#1054) plugin binaries
+
+* Wed Aug 11 2010 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- With a recent spec file cleanup, names have changed: A "-community" part was dropped.
+  Reflect that in the "Obsoletes" specifications.
+- Add a "triggerpostun" to handle the uninstall of the "-community" server RPM.
+- This fixes bug#55015 "MySQL server is not restarted properly after RPM upgrade".
+
+* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
+
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Change the behaviour on installation and upgrade:

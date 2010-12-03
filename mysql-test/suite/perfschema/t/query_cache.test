@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (C) 2009 Sun Microsystems, Inc
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 # Tests for PERFORMANCE_SCHEMA
 
@@ -33,7 +33,6 @@ SET GLOBAL query_cache_size=1355776;
 
 flush query cache;
 reset query cache;
-# Reset Qcache_* to a known state
 flush status;
 
 select * from t1;
@@ -48,17 +47,17 @@ show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
 
-select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+select spins from performance_schema.events_waits_current order by event_name limit 1;
 
-select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+select name from performance_schema.setup_instruments order by name limit 1;
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 show status like "Qcache_hits";
 
-select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+select spins from performance_schema.events_waits_current order by event_name limit 1;
 
-select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+select name from performance_schema.setup_instruments order by name limit 1;
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
@@ -67,4 +66,5 @@ show status like "Qcache_hits";
 SET GLOBAL query_cache_size= default;
 
 drop table t1;
+flush status;
 

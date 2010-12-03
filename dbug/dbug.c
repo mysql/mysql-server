@@ -496,6 +496,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
+    /* Free memory associated with the state before resetting its members */
     FreeState(cs, stack, 0);
     stack->flags= 0;
     stack->delay= 0;
@@ -515,11 +516,16 @@ int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= stack->next->maxdepth;
     stack->sub_level= stack->next->sub_level;
     strcpy(stack->name, stack->next->name);
-    stack->out_file= stack->next->out_file;
     stack->prof_file= stack->next->prof_file;
     if (stack->next == &init_settings)
     {
-      /* never share with the global parent - it can change under your feet */
+      /*
+        Never share with the global parent - it can change under your feet.
+
+        Reset out_file to stderr to prevent sharing of trace files between
+        global and session settings.
+      */
+      stack->out_file= stderr;
       stack->functions= ListCopy(init_settings.functions);
       stack->p_functions= ListCopy(init_settings.p_functions);
       stack->keywords= ListCopy(init_settings.keywords);
@@ -527,6 +533,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
     }
     else
     {
+      stack->out_file= stack->next->out_file;
       stack->functions= stack->next->functions;
       stack->p_functions= stack->next->p_functions;
       stack->keywords= stack->next->keywords;
@@ -898,6 +905,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
+  tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
 }
 
@@ -1335,15 +1343,11 @@ void _db_doprnt_(const char *format,...)
  * This function is intended as a
  * vfprintf clone with consistent, platform independent output for 
  * problematic formats like %p, %zd and %lld.
- * However: full functionality for my_vsnprintf has not been backported yet,
- * so code using "%g" or "%f" will have undefined behaviour.
  */
 static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
-  size_t len;
-  /* Do not use my_vsnprintf, it does not support "%g". */
-  len = vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
+  (void) my_vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
   (void) fprintf(stream, "%s\n", cvtbuf);
 }
 
@@ -1606,7 +1610,7 @@ static void PushState(CODE_STATE *cs)
   struct settings *new_malloc;
 
   new_malloc= (struct settings *) DbugMalloc(sizeof(struct settings));
-  bzero(new_malloc, sizeof(*new_malloc));
+  bzero(new_malloc, sizeof(struct settings));
   new_malloc->next= cs->stack;
   cs->stack= new_malloc;
 }
@@ -2086,7 +2090,7 @@ static FILE *OpenProfile(CODE_STATE *cs, const char *name)
 
 static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
 {
-  if (fp && fp != stderr && fp != stdout && fclose(fp) == EOF)
+  if (fp != NULL && fp != stderr && fp != stdout && fclose(fp) == EOF)
   {
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
@@ -2367,7 +2371,7 @@ static void DbugFlush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs;
+  CODE_STATE *cs= NULL;
   get_code_state_or_return;
   (void) fflush(cs->stack->out_file);
 }

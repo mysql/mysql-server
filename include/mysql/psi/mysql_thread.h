@@ -141,9 +141,7 @@ typedef struct st_mysql_rwlock mysql_rwlock_t;
   @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
   @sa mysql_prlock_init
   @sa mysql_prlock_rdlock
-  @sa mysql_prlock_tryrdlock
   @sa mysql_prlock_wrlock
-  @sa mysql_prlock_trywrlock
   @sa mysql_prlock_unlock
   @sa mysql_prlock_destroy
 */
@@ -214,6 +212,14 @@ typedef struct st_mysql_cond mysql_cond_t;
 */
 #define mysql_mutex_assert_not_owner(M) \
   safe_mutex_assert_not_owner(&(M)->m_mutex)
+
+/** Wrappers for instrumented prlock objects.  */
+
+#define mysql_prlock_assert_write_owner(M) \
+  rw_pr_lock_assert_write_owner(&(M)->m_prlock)
+
+#define mysql_prlock_assert_not_write_owner(M) \
+  rw_pr_lock_assert_not_write_owner(&(M)->m_prlock)
 
 /**
   @def mysql_mutex_init(K, M, A)
@@ -413,20 +419,6 @@ typedef struct st_mysql_cond mysql_cond_t;
 #endif
 
 /**
-  @def mysql_prlock_tryrdlock(RW)
-  Instrumented rw_pr_tryrdlock.
-  @c mysql_prlock_tryrdlock is a drop-in replacement
-  for @c rw_pr_tryrdlock.
-*/
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_prlock_tryrdlock(RW) \
-    inline_mysql_prlock_tryrdlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_prlock_tryrdlock(RW) \
-    inline_mysql_prlock_tryrdlock(RW)
-#endif
-
-/**
   @def mysql_rwlock_trywrlock(RW)
   Instrumented rwlock_trywrlock.
   @c mysql_rwlock_trywrlock is a drop-in replacement
@@ -438,20 +430,6 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #define mysql_rwlock_trywrlock(RW) \
     inline_mysql_rwlock_trywrlock(RW)
-#endif
-
-/**
-  @def mysql_prlock_trywrlock(RW)
-  Instrumented rw_pr_trywrlock.
-  @c mysql_prlock_trywrlock is a drop-in replacement
-  for @c rw_pr_trywrlock.
-*/
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_prlock_trywrlock(RW) \
-    inline_mysql_prlock_trywrlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_prlock_trywrlock(RW) \
-    inline_mysql_prlock_trywrlock(RW)
 #endif
 
 /**
@@ -897,35 +875,6 @@ static inline int inline_mysql_rwlock_tryrdlock(
   return result;
 }
 
-#ifndef DISABLE_MYSQL_PRLOCK_H
-static inline int inline_mysql_prlock_tryrdlock(
-  mysql_prlock_t *that
-#ifdef HAVE_PSI_INTERFACE
-  , const char *src_file, uint src_line
-#endif
-  )
-{
-  int result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_rwlock_locker *locker= NULL;
-  PSI_rwlock_locker_state state;
-  if (likely(PSI_server && that->m_psi))
-  {
-    locker= PSI_server->get_thread_rwlock_locker(&state, that->m_psi,
-                                                 PSI_RWLOCK_TRYREADLOCK);
-    if (likely(locker != NULL))
-      PSI_server->start_rwlock_rdwait(locker, src_file, src_line);
-  }
-#endif
-  result= rw_pr_tryrdlock(&that->m_prlock);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_rwlock_rdwait(locker, result);
-#endif
-  return result;
-}
-#endif
-
 static inline int inline_mysql_rwlock_trywrlock(
   mysql_rwlock_t *that
 #ifdef HAVE_PSI_INTERFACE
@@ -952,35 +901,6 @@ static inline int inline_mysql_rwlock_trywrlock(
 #endif
   return result;
 }
-
-#ifndef DISABLE_MYSQL_PRLOCK_H
-static inline int inline_mysql_prlock_trywrlock(
-  mysql_prlock_t *that
-#ifdef HAVE_PSI_INTERFACE
-  , const char *src_file, uint src_line
-#endif
-  )
-{
-  int result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_rwlock_locker *locker= NULL;
-  PSI_rwlock_locker_state state;
-  if (likely(PSI_server && that->m_psi))
-  {
-    locker= PSI_server->get_thread_rwlock_locker(&state, that->m_psi,
-                                                 PSI_RWLOCK_TRYWRITELOCK);
-    if (likely(locker != NULL))
-      PSI_server->start_rwlock_wrwait(locker, src_file, src_line);
-  }
-#endif
-  result= rw_pr_trywrlock(&that->m_prlock);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_rwlock_wrwait(locker, result);
-#endif
-  return result;
-}
-#endif
 
 static inline int inline_mysql_rwlock_unlock(
   mysql_rwlock_t *that)

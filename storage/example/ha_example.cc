@@ -180,7 +180,7 @@ static int example_done_func(void *p)
   my_hash_free(&example_open_tables);
   mysql_mutex_destroy(&example_mutex);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -356,14 +356,14 @@ int ha_example::close(void)
   is happening. buf() is a byte array of data. You can use the field
   information to extract the data from the native byte array type.
 
-    @details
+  @details
   Example of this would be:
-    @code
+  @code
   for (Field **field=table->field ; *field ; field++)
   {
     ...
   }
-    @endcode
+  @endcode
 
   See ha_tina.cc for an example of extracting all of the data as strings.
   ha_berekly.cc has an example of how to store it intact by "packing" it
@@ -375,7 +375,7 @@ int ha_example::close(void)
   Called from item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc, and sql_update.cc.
 
-    @see
+  @see
   item_sum.cc, item_sum.cc, sql_acl.cc, sql_insert.cc,
   sql_insert.cc, sql_select.cc, sql_table.cc, sql_udf.cc and sql_update.cc
 */
@@ -400,19 +400,19 @@ int ha_example::write_row(uchar *buf)
   Keep in mind that the server can do updates based on ordering if an ORDER BY
   clause was used. Consecutive ordering is not guaranteed.
 
-    @details
+  @details
   Currently new_data will not have an updated auto_increament record, or
   and updated timestamp field. You can do these for example by doing:
-    @code
+  @code
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
     update_auto_increment();
-    @endcode
+  @endcode
 
   Called from sql_select.cc, sql_acl.cc, sql_update.cc, and sql_insert.cc.
 
-    @see
+  @see
   sql_select.cc, sql_acl.cc, sql_update.cc and sql_insert.cc
 */
 int ha_example::update_row(const uchar *old_data, uchar *new_data)
@@ -507,10 +507,10 @@ int ha_example::index_prev(uchar *buf)
   @brief
   index_first() asks for the first key in the index.
 
-    @details
+  @details
   Called from opt_range.cc, opt_sum.cc, sql_handler.cc, and sql_select.cc.
 
-    @see
+  @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
 int ha_example::index_first(uchar *buf)
@@ -528,10 +528,10 @@ int ha_example::index_first(uchar *buf)
   @brief
   index_last() asks for the last key in the index.
 
-    @details
+  @details
   Called from opt_range.cc, opt_sum.cc, sql_handler.cc, and sql_select.cc.
 
-    @see
+  @see
   opt_range.cc, opt_sum.cc, sql_handler.cc and sql_select.cc
 */
 int ha_example::index_last(uchar *buf)
@@ -551,11 +551,11 @@ int ha_example::index_last(uchar *buf)
   scan. See the example in the introduction at the top of this file to see when
   rnd_init() is called.
 
-    @details
+  @details
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc,
   and sql_update.cc.
 
-    @see
+  @see
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
 int ha_example::rnd_init(bool scan)
@@ -578,11 +578,11 @@ int ha_example::rnd_end()
   The Field structure for the table is the key to getting data into buf
   in a manner that will allow the server to understand it.
 
-    @details
+  @details
   Called from filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc,
   and sql_update.cc.
 
-    @see
+  @see
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and sql_update.cc
 */
 int ha_example::rnd_next(uchar *buf)
@@ -602,11 +602,11 @@ int ha_example::rnd_next(uchar *buf)
   position() is called after each call to rnd_next() if the data needs
   to be ordered. You can do something like the following to store
   the position:
-    @code
+  @code
   my_store_ptr(ref, ref_length, current_position);
-    @endcode
+  @endcode
 
-    @details
+  @details
   The server uses ref to store data. ref_length in the above case is
   the size needed to store current_position. ref is just a byte array
   that the server will maintain. If you are using offsets to mark rows, then
@@ -615,7 +615,7 @@ int ha_example::rnd_next(uchar *buf)
 
   Called from filesort.cc, sql_select.cc, sql_delete.cc, and sql_update.cc.
 
-    @see
+  @see
   filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc
 */
 void ha_example::position(const uchar *record)
@@ -632,10 +632,10 @@ void ha_example::position(const uchar *record)
   ref. You can use ha_get_ptr(pos,ref_length) to retrieve whatever key
   or position you saved when position() was called.
 
-    @details
+  @details
   Called from filesort.cc, records.cc, sql_insert.cc, sql_select.cc, and sql_update.cc.
 
-    @see
+  @see
   filesort.cc, records.cc, sql_insert.cc, sql_select.cc and sql_update.cc
 */
 int ha_example::rnd_pos(uchar *buf, uchar *pos)
@@ -655,15 +655,15 @@ int ha_example::rnd_pos(uchar *buf, uchar *pos)
   ::info() is used to return information to the optimizer. See my_base.h for
   the complete description.
 
-    @details
+  @details
   Currently this table handler doesn't implement most of the fields really needed.
   SHOW also makes use of this data.
 
   You will probably want to have the following in your code:
-    @code
+  @code
   if (records < 2)
     records = 2;
-    @endcode
+  @endcode
   The reason is that the server will optimize for cases of only a single
   record. If, in a table scan, you don't know the number of records, it
   will probably be better to set records to two so you can return as many
@@ -682,7 +682,7 @@ int ha_example::rnd_pos(uchar *buf, uchar *pos)
   sql_select.cc, sql_select.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_show.cc,
   sql_table.cc, sql_union.cc, and sql_update.cc.
 
-    @see
+  @see
   filesort.cc, ha_heap.cc, item_sum.cc, opt_sum.cc, sql_delete.cc, sql_delete.cc,
   sql_derived.cc, sql_select.cc, sql_select.cc, sql_select.cc, sql_select.cc,
   sql_select.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_show.cc, sql_table.cc,
@@ -716,14 +716,14 @@ int ha_example::extra(enum ha_extra_function operation)
   Used to delete all rows in a table, including cases of truncate and cases where
   the optimizer realizes that all rows will be removed as a result of an SQL statement.
 
-    @details
+  @details
   Called from item_sum.cc by Item_func_group_concat::clear(),
   Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
   Called from sql_delete.cc by mysql_delete().
   Called from sql_select.cc by JOIN::reinit().
   Called from sql_union.cc by st_select_lex_unit::exec().
 
-    @see
+  @see
   Item_func_group_concat::clear(), Item_sum_count_distinct::clear() and
   Item_func_group_concat::clear() in item_sum.cc;
   mysql_delete() in sql_delete.cc;
@@ -739,17 +739,40 @@ int ha_example::delete_all_rows()
 
 /**
   @brief
+  Used for handler specific truncate table.  The table is locked in
+  exclusive mode and handler is responsible for reseting the auto-
+  increment counter.
+
+  @details
+  Called from Truncate_statement::handler_truncate.
+  Not used if the handlerton supports HTON_CAN_RECREATE, unless this
+  engine can be used as a partition. In this case, it is invoked when
+  a particular partition is to be truncated.
+
+  @see
+  Truncate_statement in sql_truncate.cc
+  Remarks in handler::truncate.
+*/
+int ha_example::truncate()
+{
+  DBUG_ENTER("ha_example::truncate");
+  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+}
+
+
+/**
+  @brief
   This create a lock on the table. If you are implementing a storage engine
   that can handle transacations look at ha_berkely.cc to see how you will
   want to go about doing this. Otherwise you should consider calling flock()
   here. Hint: Read the section "locking functions for mysql" in lock.cc to understand
   this.
 
-    @details
+  @details
   Called from lock.cc by lock_external() and unlock_external(). Also called
   from sql_table.cc by copy_data_between_tables().
 
-    @see
+  @see
   lock.cc by lock_external() and unlock_external() in lock.cc;
   the section "locking functions for mysql" in lock.cc;
   copy_data_between_tables() in sql_table.cc.
@@ -767,7 +790,7 @@ int ha_example::external_lock(THD *thd, int lock_type)
   should be needed for the table. For updates/deletes/inserts we get WRITE
   locks, for SELECT... we get read locks.
 
-    @details
+  @details
   Before adding the lock into the table lock handler (see thr_lock.c),
   mysqld calls store lock with the requested locks. Store lock can now
   modify a write lock to a read lock (or some other lock), ignore the
@@ -790,12 +813,12 @@ int ha_example::external_lock(THD *thd, int lock_type)
 
   Called from lock.cc by get_lock_data().
 
-    @note
+  @note
   In this method one should NEVER rely on table->in_use, it may, in fact,
   refer to a different thread! (this happens if get_lock_data() is called
   from mysql_lock_abort_for_thread() function)
 
-    @see
+  @see
   get_lock_data() in lock.cc
 */
 THR_LOCK_DATA **ha_example::store_lock(THD *thd,
@@ -816,7 +839,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   shared references released). The variable name will just be the name of
   the table. You will need to remove any files you have created at this point.
 
-    @details
+  @details
   If you do not implement this, the default delete_table() is called from
   handler.cc and it will delete all files with the file extensions returned
   by bas_ext().
@@ -825,7 +848,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   during create if the table_flag HA_DROP_BEFORE_CREATE was specified for
   the storage engine.
 
-    @see
+  @see
   delete_table and ha_create_table() in handler.cc
 */
 int ha_example::delete_table(const char *name)

@@ -131,6 +131,7 @@ public:
   int rnd_pos(uchar * buf, uchar *pos);
   void position(const uchar *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
+  int truncate();
   int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);

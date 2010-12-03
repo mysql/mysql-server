@@ -36,6 +36,7 @@
 #include "my_md5.h"
 #include "my_bit.h"
 #include "sql_select.h"
+#include "mdl.h"                 // MDL_wait_for_graph_visitor
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -51,6 +52,12 @@ LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
 
 /* SLOW_LOG name */
 LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
+
+/* RLI_INFO name */
+LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
+
+/* MI_INFO name */
+LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 
 	/* Functions defined in this file */
 
@@ -261,6 +268,18 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                        SLOW_LOG_NAME.str,
                        name->str) == 0))
       return TABLE_CATEGORY_LOG;
+
+    if ((name->length == RLI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      RLI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == MI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      MI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
   }
 
   return TABLE_CATEGORY_USER;
@@ -327,6 +346,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 
     share->used_tables.empty();
     share->free_tables.empty();
+    share->m_flush_tickets.empty();
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
@@ -391,10 +411,67 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 
   share->used_tables.empty();
   share->free_tables.empty();
+  share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Release resources (plugins) used by the share and free its memory.
+  TABLE_SHARE is self-contained -- it's stored in its own MEM_ROOT.
+  Free this MEM_ROOT.
+*/
+
+void TABLE_SHARE::destroy()
+{
+  uint idx;
+  KEY *info_it;
+
+  /* The mutex is initialized only for shares that are part of the TDC */
+  if (tmp_table == NO_TMP_TABLE)
+    mysql_mutex_destroy(&LOCK_ha_data);
+  my_hash_free(&name_hash);
+
+  plugin_unlock(NULL, db_plugin);
+  db_plugin= NULL;
+
+  /* Release fulltext parsers */
+  info_it= key_info;
+  for (idx= keys; idx; idx--, info_it++)
+  {
+    if (info_it->flags & HA_USES_PARSER)
+    {
+      plugin_unlock(NULL, info_it->parser);
+      info_it->flags= 0;
+    }
+  }
+
+  if (ha_data_destroy)
+  {
+    ha_data_destroy(ha_data);
+    ha_data_destroy= NULL;
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (ha_part_data_destroy)
+  {
+    ha_part_data_destroy(ha_part_data);
+    ha_part_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && m_psi))
+    PSI_server->release_table_share(m_psi);
+#endif
+
+  /*
+    Make a copy since the share is allocated in its own root,
+    and free_root() updates its argument after freeing the memory.
+  */
+  MEM_ROOT own_root= mem_root;
+  free_root(&own_root, MYF(0));
+}
 
 /*
   Free table share and memory used by it
@@ -402,41 +479,43 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   SYNOPSIS
     free_table_share()
     share		Table share
-
-  NOTES
-    share->mutex must be locked when we come here if it's not a temp table
 */
 
 void free_table_share(TABLE_SHARE *share)
 {
-  MEM_ROOT mem_root;
-  uint idx;
-  KEY *key_info;
   DBUG_ENTER("free_table_share");
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
   DBUG_ASSERT(share->ref_count == 0);
 
-  /* The mutex is initialized only for shares that are part of the TDC */
-  if (share->tmp_table == NO_TMP_TABLE)
-    mysql_mutex_destroy(&share->LOCK_ha_data);
-  my_hash_free(&share->name_hash);
-
-  plugin_unlock(NULL, share->db_plugin);
-  share->db_plugin= NULL;
-
-  /* Release fulltext parsers */
-  key_info= share->key_info;
-  for (idx= share->keys; idx; idx--, key_info++)
+  if (share->m_flush_tickets.is_empty())
   {
-    if (key_info->flags & HA_USES_PARSER)
-    {
-      plugin_unlock(NULL, key_info->parser);
-      key_info->flags= 0;
-    }
+    /*
+      No threads are waiting for this share to be flushed (the
+      share is not old, is for a temporary table, or just nobody
+      happens to be waiting for it). Destroy it.
+    */
+    share->destroy();
   }
-  /* We must copy mem_root from share because share is allocated through it */
-  memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
-  free_root(&mem_root, MYF(0));                 // Free's share
+  else
+  {
+    Wait_for_flush_list::Iterator it(share->m_flush_tickets);
+    Wait_for_flush *ticket;
+    /*
+      We're about to iterate over a list that is used
+      concurrently. Make sure this never happens without a lock.
+    */
+    mysql_mutex_assert_owner(&LOCK_open);
+
+    while ((ticket= it++))
+      (void) ticket->get_ctx()->m_wait.set_status(MDL_wait::GRANTED);
+    /*
+      If there are threads waiting for this share to be flushed,
+      the last one to receive the notification will destroy the
+      share. At this point the share is removed from the table
+      definition cache, so is OK to proceed here without waiting
+      for this thread to do the work.
+    */
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -543,7 +622,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   int error, table_type;
   bool error_given;
   File file;
-  uchar head[64], *disk_buff;
+  uchar head[64];
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
@@ -552,7 +631,6 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   error= 1;
   error_given= 0;
-  disk_buff= NULL;
 
   strxmov(path, share->normalized_path.str, reg_ext, NullS);
   if ((file= mysql_file_open(key_file_frm,
@@ -673,6 +751,10 @@ err_not_open:
 
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
+
+  NOTE: Much of the logic here is duplicated in create_tmp_table()
+  (see sql_select.cc). Hence, changes to this function may have to be
+  repeated there.
 */
 
 static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
@@ -1450,7 +1532,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
           keyinfo->flags|=HA_NULL_PART_KEY;
-          keyinfo->extra_length+= HA_KEY_NULL_LENGTH;
           keyinfo->key_length+= HA_KEY_NULL_LENGTH;
         }
         if (field->type() == MYSQL_TYPE_BLOB ||
@@ -1462,7 +1543,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             key_part->key_part_flag|= HA_BLOB_PART;
           else
             key_part->key_part_flag|= HA_VAR_LENGTH_PART;
-          keyinfo->extra_length+=HA_KEY_BLOB_LENGTH;
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
           keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
@@ -1535,21 +1615,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                 share->table_name.str,
                                 share->table_name.str);
             share->crashed= 1;                // Marker for CHECK TABLE
-            goto to_be_deleted;
+            continue;
           }
 #endif
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
-
-	to_be_deleted:
-
-        /*
-          If the field can be NULL, don't optimize away the test
-          key_part_column = expression from the WHERE clause
-          as we need to test for NULL = NULL.
-        */
-        if (field->real_maybe_null())
-          key_part->key_part_flag|= HA_NULL_PART;
       }
       keyinfo->usable_key_parts= usable_parts; // Filesort
 
@@ -1665,11 +1735,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
+  {
     share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->ha_part_data_destroy)
+  {
     share->ha_part_data_destroy(share->ha_part_data);
-#endif
+    share->ha_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -2033,7 +2109,7 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
-    error=table->file->close();
+    error=table->file->ha_close();
   my_free((void *) table->alias);
   table->alias= 0;
   if (table->field)
@@ -2736,16 +2812,18 @@ uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
   SYNPOSIS
     check_db_name()
     org_name		Name of database and length
+    preserve_lettercase Preserve lettercase if true
 
   NOTES
-    If lower_case_table_names is set then database is converted to lower case
+    If lower_case_table_names is true and preserve_lettercase is false then
+    database is converted to lower case
 
   RETURN
     0	ok
     1   error
 */
 
-bool check_db_name(LEX_STRING *org_name)
+bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
@@ -2760,7 +2838,7 @@ bool check_db_name(LEX_STRING *org_name)
     name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
   }
 
-  if (lower_case_table_names && name != any_db)
+  if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
   return check_table_name(name, name_length, check_for_path_chars);
@@ -2996,6 +3074,251 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     table->s->table_field_def_cache= table_def;
 
   DBUG_RETURN(error);
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through edge
+  represented by this flush ticket in search for deadlocks.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE Success, no deadlocks.
+*/
+
+bool Wait_for_flush::accept_visitor(MDL_wait_for_graph_visitor *gvisitor)
+{
+  return m_share->visit_subgraph(this, gvisitor);
+}
+
+
+uint Wait_for_flush::get_deadlock_weight() const
+{
+  return m_deadlock_weight;
+}
+
+
+/**
+  Traverse portion of wait-for graph which is reachable through this
+  table share in search for deadlocks.
+
+  @param waiting_ticket  Ticket representing wait for this share.
+  @param dvisitor        Deadlock detection visitor.
+
+  @retval TRUE  A deadlock is found. A victim is remembered
+                by the visitor.
+  @retval FALSE No deadlocks, it's OK to begin wait.
+*/
+
+bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
+                                 MDL_wait_for_graph_visitor *gvisitor)
+{
+  TABLE *table;
+  MDL_context *src_ctx= wait_for_flush->get_ctx();
+  bool result= TRUE;
+
+  /*
+    To protect used_tables list from being concurrently modified
+    while we are iterating through it we acquire LOCK_open.
+    This does not introduce deadlocks in the deadlock detector
+    because we won't try to acquire LOCK_open while
+    holding a write-lock on MDL_lock::m_rwlock.
+  */
+  if (gvisitor->m_lock_open_count++ == 0)
+    mysql_mutex_lock(&LOCK_open);
+
+  I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
+
+  /*
+    In case of multiple searches running in parallel, avoid going
+    over the same loop twice and shortcut the search.
+    Do it after taking the lock to weed out unnecessary races.
+  */
+  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY)
+  {
+    result= FALSE;
+    goto end;
+  }
+
+  if (gvisitor->enter_node(src_ctx))
+    goto end;
+
+  while ((table= tables_it++))
+  {
+    if (gvisitor->inspect_edge(&table->in_use->mdl_context))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  tables_it.rewind();
+  while ((table= tables_it++))
+  {
+    if (table->in_use->mdl_context.visit_subgraph(gvisitor))
+    {
+      goto end_leave_node;
+    }
+  }
+
+  result= FALSE;
+
+end_leave_node:
+  gvisitor->leave_node(src_ctx);
+
+end:
+  if (gvisitor->m_lock_open_count-- == 1)
+    mysql_mutex_unlock(&LOCK_open);
+
+  return result;
+}
+
+
+/**
+  Wait until the subject share is removed from the table
+  definition cache and make sure it's destroyed.
+
+  @param mdl_context     MDL context for thread which is going to wait.
+  @param abstime         Timeout for waiting as absolute time value.
+  @param deadlock_weight Weight of this wait for deadlock detector.
+
+  @pre LOCK_open is write locked, the share is used (has
+       non-zero reference count), is marked for flush and
+       this connection does not reference the share.
+       LOCK_open will be unlocked temporarily during execution.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Error (OOM, deadlock, timeout, etc...).
+*/
+
+bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
+                                       uint deadlock_weight)
+{
+  MDL_context *mdl_context= &thd->mdl_context;
+  Wait_for_flush ticket(mdl_context, this, deadlock_weight);
+  MDL_wait::enum_wait_status wait_status;
+
+  mysql_mutex_assert_owner(&LOCK_open);
+  /*
+    We should enter this method only when share's version is not
+    up to date and the share is referenced. Otherwise our
+    thread will never be woken up from wait.
+  */
+  DBUG_ASSERT(version != refresh_version && ref_count != 0);
+
+  m_flush_tickets.push_front(&ticket);
+
+  mdl_context->m_wait.reset_status();
+
+  mysql_mutex_unlock(&LOCK_open);
+
+  mdl_context->will_wait_for(&ticket);
+
+  mdl_context->find_deadlock();
+
+  wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
+                                              "Waiting for table flush");
+
+  mdl_context->done_waiting_for();
+
+  mysql_mutex_lock(&LOCK_open);
+
+  m_flush_tickets.remove(&ticket);
+
+  if (m_flush_tickets.is_empty() && ref_count == 0)
+  {
+    /*
+      If our thread was the last one using the share,
+      we must destroy it here.
+    */
+    destroy();
+  }
+
+  /*
+    In cases when our wait was aborted by KILL statement,
+    a deadlock or a timeout, the share might still be referenced,
+    so we don't delete it. Note, that we can't determine this
+    condition by checking wait_status alone, since, for example,
+    a timeout can happen after all references to the table share
+    were released, but before the share is removed from the
+    cache and we receive the notification. This is why
+    we first destroy the share, and then look at
+    wait_status.
+  */
+  switch (wait_status)
+  {
+  case MDL_wait::GRANTED:
+    return FALSE;
+  case MDL_wait::VICTIM:
+    my_error(ER_LOCK_DEADLOCK, MYF(0));
+    return TRUE;
+  case MDL_wait::TIMEOUT:
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return TRUE;
+  case MDL_wait::KILLED:
+    return TRUE;
+  default:
+    DBUG_ASSERT(0);
+    return TRUE;
+  }
+}
+
+
+/**
+  Initialize TABLE instance (newly created, or coming either from table
+  cache or THD::temporary_tables list) and prepare it for further use
+  during statement execution. Set the 'alias' attribute from the specified
+  TABLE_LIST element. Remember the TABLE_LIST element in the
+  TABLE::pos_in_table_list member.
+
+  @param thd  Thread context.
+  @param tl   TABLE_LIST element.
+*/
+
+void TABLE::init(THD *thd, TABLE_LIST *tl)
+{
+  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+
+  if (thd->lex->need_correct_ident())
+    alias_name_used= my_strcasecmp(table_alias_charset,
+                                   s->table_name.str,
+                                   tl->alias);
+  /* Fix alias if table name changes. */
+  if (strcmp(alias, tl->alias))
+  {
+    uint length= (uint) strlen(tl->alias)+1;
+    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    memcpy((char*) alias, tl->alias, length);
+  }
+
+  tablenr= thd->current_tablenr++;
+  used_fields= 0;
+  const_table= 0;
+  null_row= 0;
+  maybe_null= 0;
+  force_index= 0;
+  force_index_order= 0;
+  force_index_group= 0;
+  status= STATUS_NO_RECORD;
+  insert_values= 0;
+  fulltext_searched= 0;
+  file->ft_handler= 0;
+  reginfo.impossible_range= 0;
+
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!auto_increment_field_not_null);
+  auto_increment_field_not_null= FALSE;
+
+  if (timestamp_field)
+    timestamp_field_type= timestamp_field->get_auto_set_type();
+
+  pos_in_table_list= tl;
+
+  clear_column_bitmaps();
+
+  DBUG_ASSERT(key_read == 0);
+
+  /* Tables may be reused in a sub statement. */
+  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 }
 
 
@@ -3790,11 +4113,8 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot_no_password(view_sctx,
-                                definer.user.str,
-                                definer.host.str,
-                                definer.host.str,
-                                thd->db))
+    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
+                                definer.host.str, thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -3813,10 +4133,15 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
         }
         else
         {
-           my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                    thd->security_ctx->priv_user,
-                    thd->security_ctx->priv_host,
-                    (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+          if (thd->password == 2)
+            my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host);
+          else
+            my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host,
+                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -4543,6 +4868,8 @@ void TABLE::mark_auto_increment_column()
 
 void TABLE::mark_columns_needed_for_delete()
 {
+  mark_columns_per_binlog_row_image();
+
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
@@ -4557,18 +4884,27 @@ void TABLE::mark_columns_needed_for_delete()
   }
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
+
     /*
-      If the handler has no cursor capabilites, we have to read either
-      the primary key, the hidden primary key or all columns to be
-      able to do an delete
+      If the handler has no cursor capabilites we have to read
+      either the primary key, the hidden primary key or all columns to
+      be able to do an delete
     */
     if (s->primary_key == MAX_KEY)
-      file->use_hidden_primary_key();
-    else
     {
-      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-      file->column_bitmaps_signal();
+      /*
+        If in RBR, we have alreay marked the full before image
+        in mark_columns_per_binlog_row_image, if not, then use
+        the hidden primary key
+      */
+      if (!(mysql_bin_log.is_open() && in_use &&
+          in_use->is_current_stmt_binlog_format_row()))
+        file->use_hidden_primary_key();
     }
+    else
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+
+    file->column_bitmaps_signal();
   }
 }
 
@@ -4593,7 +4929,9 @@ void TABLE::mark_columns_needed_for_delete()
 
 void TABLE::mark_columns_needed_for_update()
 {
+
   DBUG_ENTER("mark_columns_needed_for_update");
+  mark_columns_per_binlog_row_image();
   if (triggers)
     triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
@@ -4608,21 +4946,126 @@ void TABLE::mark_columns_needed_for_update()
     }
     file->column_bitmaps_signal();
   }
+
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
     /*
-      If the handler has no cursor capabilites, we have to read either
+      If the handler has no cursor capabilites we have to read either
       the primary key, the hidden primary key or all columns to be
       able to do an update
     */
     if (s->primary_key == MAX_KEY)
-      file->use_hidden_primary_key();
-    else
     {
-      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-      file->column_bitmaps_signal();
+      /*
+        If in RBR, we have alreay marked the full before image
+        in mark_columns_per_binlog_row_image, if not, then use
+        the hidden primary key
+      */
+      if (!(mysql_bin_log.is_open() && in_use &&
+          in_use->is_current_stmt_binlog_format_row()))
+        file->use_hidden_primary_key();
     }
+    else
+      mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+
+    file->column_bitmaps_signal();
   }
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Mark columns according the binlog row image option.
+
+  When logging in RBR, the user can select whether to
+  log partial or full rows, depending on the table
+  definition, and the value of binlog_row_image.
+
+  Semantics of the binlog_row_image are the following 
+  (PKE - primary key equivalent, ie, PK fields if PK 
+  exists, all fields otherwise):
+
+  binlog_row_image= MINIMAL
+    - This marks the PKE fields in the read_set
+    - This marks all fields where a value was specified
+      in the write_set
+
+  binlog_row_image= NOBLOB
+    - This marks PKE + all non-blob fields in the read_set
+    - This marks all fields where a value was specified
+      and all non-blob fields in the write_set
+
+  binlog_row_image= FULL
+    - all columns in the read_set
+    - all columns in the write_set
+    
+  This marking is done without resetting the original 
+  bitmaps. This means that we will strip extra fields in
+  the read_set at binlogging time (for those cases that 
+  we only want to log a PK and we needed other fields for
+  execution).
+ */
+void TABLE::mark_columns_per_binlog_row_image()
+{
+  DBUG_ENTER("mark_columns_per_binlog_row_image");
+  DBUG_ASSERT(read_set->bitmap);
+  DBUG_ASSERT(write_set->bitmap);
+
+  /**
+    If in RBR we may need to mark some extra columns,
+    depending on the binlog-row-image command line argument.
+   */
+  if ((mysql_bin_log.is_open() && in_use &&
+       in_use->is_current_stmt_binlog_format_row() &&
+       !ha_check_storage_engine_flag(s->db_type(), HTON_NO_BINLOG_ROW_OPT)))
+  {
+
+    THD *thd= current_thd;
+
+    /* if there is no PK, then mark all columns for the BI. */
+    if (s->primary_key >= MAX_KEY)
+      bitmap_set_all(read_set);
+
+    switch (thd->variables.binlog_row_image)
+    {
+      case BINLOG_ROW_IMAGE_FULL:
+        if (s->primary_key < MAX_KEY)
+          bitmap_set_all(read_set);
+        bitmap_set_all(write_set);
+        break;
+      case BINLOG_ROW_IMAGE_NOBLOB:
+        /* for every field that is not set, mark it unless it is a blob */
+        for (Field **ptr=field ; *ptr ; ptr++)
+        {
+          Field *field= *ptr;
+          /* 
+            bypass blob fields. These can be set or not set, we don't care.
+            Later, at binlogging time, if we don't need them in the before 
+            image, we will discard them.
+
+            If set in the AI, then the blob is really needed, there is 
+            nothing we can do about it.
+           */
+          if ((s->primary_key < MAX_KEY) && 
+              ((field->flags & PRI_KEY_FLAG) || 
+              (field->type() != MYSQL_TYPE_BLOB)))
+            bitmap_set_bit(read_set, field->field_index);
+
+          if (field->type() != MYSQL_TYPE_BLOB)
+            bitmap_set_bit(write_set, field->field_index);
+        }
+        break;
+      case BINLOG_ROW_IMAGE_MINIMAL:
+        /* mark the primary key if available in the read_set */
+        if (s->primary_key < MAX_KEY)
+          mark_columns_used_by_index_no_reset(s->primary_key, read_set);
+        break;
+
+      default: 
+        DBUG_ASSERT(FALSE);
+    }
+    file->column_bitmaps_signal();
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -4825,6 +5268,7 @@ void TABLE::use_index(int key_to_save)
 
 void TABLE::mark_columns_needed_for_insert()
 {
+  mark_columns_per_binlog_row_image();
   if (triggers)
   {
     /*
@@ -4952,22 +5396,14 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
   /* index hint list processing */
   if (index_hints)
   {
+    /* Temporary variables used to collect hints of each kind. */
     key_map index_join[INDEX_HINT_FORCE + 1];
     key_map index_order[INDEX_HINT_FORCE + 1];
     key_map index_group[INDEX_HINT_FORCE + 1];
     Index_hint *hint;
-    int type;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;
     List_iterator <Index_hint> iter(*index_hints);
-
-    /* initialize temporary variables used to collect hints of each kind */
-    for (type= INDEX_HINT_IGNORE; type <= INDEX_HINT_FORCE; type++)
-    {
-      index_join[type].clear_all();
-      index_order[type].clear_all();
-      index_group[type].clear_all();
-    }
 
     /* iterate over the hints list */
     while ((hint= iter++))
@@ -5105,7 +5541,8 @@ void init_mdl_requests(TABLE_LIST *table_list)
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ,
+                                 MDL_TRANSACTION);
 }
 
 
@@ -5416,7 +5853,7 @@ st_select_lex_unit *TABLE_LIST::get_unit()
     the WHERE expression.
 */
 
-bool TABLE::update_const_key_parts(COND *conds)
+bool TABLE::update_const_key_parts(Item *conds)
 {
   bzero((char*) const_key_parts, sizeof(key_part_map) * s->keys);
 

@@ -6,19 +6,19 @@ show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	5.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294968;
-ERROR HY000: The requested value for the heartbeat period  is negative or exceeds the maximum  4294967 seconds
+ERROR HY000: The requested value for the heartbeat period is either negative or exceeds the maximum allowed (4294967 seconds).
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	5.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 0.0009999;
 Warnings:
-Warning	1624	The requested value for the heartbeat period  is less than 1 msec.  The period is reset to zero which means no heartbeats will be sending
+Warning	1716	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	0.000
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 4294967;
 Warnings:
-Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+Warning	1717	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	4294967.000
@@ -30,7 +30,7 @@ reset slave;
 set @@global.slave_net_timeout= 5;
 change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root', master_heartbeat_period= 5.001;
 Warnings:
-Warning	1624	The requested value for the heartbeat period  exceeds the value of `slave_net_timeout' sec.  A sensible value for the period should be less than the timeout.
+Warning	1717	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	5.001
@@ -42,7 +42,7 @@ Variable_name	Slave_heartbeat_period
 Value	4.000
 set @@global.slave_net_timeout= 3 /* must be a warning */;
 Warnings:
-Warning	1624	The current value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+Warning	1717	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 reset slave;
 drop table if exists t1;
 set @@global.slave_net_timeout= 10;

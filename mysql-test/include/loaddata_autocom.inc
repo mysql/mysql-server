@@ -1,7 +1,7 @@
 # Test if the engine does autocommit in LOAD DATA INFILE, or not
 # (NDB wants to do, others don't).
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t1;

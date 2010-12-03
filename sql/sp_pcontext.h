@@ -279,7 +279,7 @@ public:
   inline bool
   push_case_expr_id(int case_expr_id)
   {
-    return insert_dynamic(&m_case_expr_id_lst, (uchar*) &case_expr_id);
+    return insert_dynamic(&m_case_expr_id_lst, &case_expr_id);
   }
 
   inline void
@@ -332,13 +332,6 @@ public:
   int
   push_cond(LEX_STRING *name, sp_cond_type_t *val);
 
-  inline void
-  pop_cond(uint num)
-  {
-    while (num--)
-      pop_dynamic(&m_conds);
-  }
-
   sp_cond_type_t *
   find_cond(LEX_STRING *name, my_bool scoped=0);
 
@@ -349,7 +342,7 @@ public:
   inline void
   push_handler(sp_cond_type_t *cond)
   {
-    insert_dynamic(&m_handlers, (uchar*)&cond);
+    insert_dynamic(&m_handlers, &cond);
   }
 
   bool

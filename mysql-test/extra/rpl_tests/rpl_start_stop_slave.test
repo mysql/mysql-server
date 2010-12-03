@@ -15,7 +15,7 @@ sync_slave_with_master;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 connection master;
-let $1=5000;
+let $1=2500;
 disable_query_log;
 while ($1)
 {
@@ -120,6 +120,62 @@ source include/start_slave.inc;
 connection master;
 drop table t1i, t2m;
 
+sync_slave_with_master;
+
+--echo #
+--echo # Bug#56096 STOP SLAVE hangs if executed in parallel with user sleep
+--echo #
+
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT );
+
+sync_slave_with_master;
+
+--connection slave1
+--echo # Slave1: lock table for synchronization
+LOCK TABLES t1 WRITE;
+
+--connection master
+--echo # Master: insert into the table
+INSERT INTO t1 SELECT SLEEP(4);
+
+--connection slave
+--echo # Slave: wait for the insert
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE STATE = "Waiting for table metadata lock"
+  AND INFO = "INSERT INTO t1 SELECT SLEEP(4)";
+--source include/wait_condition.inc
+
+--echo # Slave: send slave stop
+--send STOP SLAVE
+
+--connection slave1
+--echo # Slave1: wait for stop slave
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE INFO = "STOP SLAVE";
+--source include/wait_condition.inc
+
+--echo # Slave1: unlock the table
+UNLOCK TABLES;
+
+--connection slave
+--echo # Slave: wait for the slave to stop
+--reap
+--source include/wait_for_slave_to_stop.inc
+
+--echo # Start slave again
+--source include/start_slave.inc
+
+--echo # Clean up
+--connection master
+DROP TABLE t1;
 sync_slave_with_master;
 
 # End of tests

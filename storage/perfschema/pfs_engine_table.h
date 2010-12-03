@@ -46,6 +46,8 @@ public:
   int update_row(TABLE *table, const unsigned char *old_buf,
                  unsigned char *new_buf, Field **fields);
 
+  int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
+
   /** Fetch the next row in this cursor. */
   virtual int rnd_next(void)= 0;
   /**
@@ -61,6 +63,17 @@ public:
   /** Destructor. */
   virtual ~PFS_engine_table()
   {}
+
+  static void set_field_ulong(Field *f, ulong value);
+  static void set_field_ulonglong(Field *f, ulonglong value);
+  static void set_field_char_utf8(Field *f, const char *str, uint len);
+  static void set_field_varchar_utf8(Field *f, const char *str, uint len);
+  static void set_field_longtext_utf8(Field *f, const char *str, uint len);
+  static void set_field_enum(Field *f, ulonglong value);
+
+  static ulonglong get_field_enum(Field *f);
+  static String *get_field_char_utf8(Field *f, String *val);
+  static String *get_field_varchar_utf8(Field *f, String *val);
 
 protected:
   /**
@@ -84,6 +97,15 @@ protected:
                                 unsigned char *new_buf, Field **fields);
 
   /**
+    Delete a row.
+    @param table            Table handle
+    @param buf              Row buffer
+    @param fields           Table fields
+  */
+  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
+                                Field **fields);
+
+  /**
     Constructor.
     @param share            table share
     @param pos              address of the m_pos position member
@@ -91,13 +113,6 @@ protected:
   PFS_engine_table(const PFS_engine_table_share *share, void *pos)
     : m_share_ptr(share), m_pos_ptr(pos)
   {}
-
-  void set_field_ulong(Field *f, ulong value);
-  void set_field_ulonglong(Field *f, ulonglong value);
-  void set_field_varchar_utf8(Field *f, const char* str, uint len);
-  void set_field_enum(Field *f, ulonglong value);
-
-  ulonglong get_field_enum(Field *f);
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
@@ -112,6 +127,8 @@ typedef int (*pfs_write_row_t)(TABLE *table,
                                unsigned char *buf, Field **fields);
 /** Callback to delete all rows. */
 typedef int (*pfs_delete_all_rows_t)(void);
+/** Callback to get a row count. */
+typedef ha_rows (*pfs_get_row_count_t)(void);
 
 /**
   A PERFORMANCE_SCHEMA table share.
@@ -123,6 +140,8 @@ struct PFS_engine_table_share
   void check_one_table(THD *thd);
   static void init_all_locks(void);
   static void delete_all_locks(void);
+  ha_rows get_row_count(void) const;
+  int write_row(TABLE *table, unsigned char *buf, Field **fields) const;
 
   /** Table name. */
   LEX_STRING m_name;
@@ -134,6 +153,8 @@ struct PFS_engine_table_share
   pfs_write_row_t m_write_row;
   /** Delete all rows function. */
   pfs_delete_all_rows_t m_delete_all_rows;
+  /** Get rows count function. */
+  pfs_get_row_count_t m_get_row_count;
   /**
     Number or records.
     This number does not need to be precise,
@@ -291,22 +312,6 @@ struct PFS_triple_index
     m_index_2= other->m_index_2;
     m_index_3= other->m_index_3 + 1;
   }
-};
-
-struct PFS_instrument_view_constants
-{
-  static const uint VIEW_MUTEX= 1;
-  static const uint VIEW_RWLOCK= 2;
-  static const uint VIEW_COND= 3;
-  static const uint VIEW_FILE= 4;
-};
-
-struct PFS_object_view_constants
-{
-  static const uint VIEW_TABLE= 1;
-  static const uint VIEW_EVENT= 2;
-  static const uint VIEW_PROCEDURE= 3;
-  static const uint VIEW_FUNCTION= 4;
 };
 
 bool pfs_show_status(handlerton *hton, THD *thd,

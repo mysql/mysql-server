@@ -45,4 +45,11 @@ typedef struct tab_node_struct		tab_node_t;
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
 #define	DICT_HDR_PAGE_NO	FSP_DICT_HDR_PAGE_NO
 
+/* The ibuf table and indexes's ID are assigned as the number
+DICT_IBUF_ID_MIN plus the space id */
+#define DICT_IBUF_ID_MIN        0xFFFFFFFF00000000ULL
+
+typedef ib_id_t		table_id_t;
+typedef ib_id_t		index_id_t;
+
 #endif

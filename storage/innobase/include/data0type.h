@@ -128,7 +128,7 @@ columns, and for them the precise type is usually not used at all.
 /* Precise data types for system columns and the length of those columns;
 NOTE: the values must run from 0 up in the order given! All codes must
 be less than 256 */
-#define	DATA_ROW_ID	0	/* row id: a dulint */
+#define	DATA_ROW_ID	0	/* row id: a 48-bit integer */
 #define DATA_ROW_ID_LEN	6	/* stored length for row id */
 
 #define DATA_TRX_ID	1	/* transaction id: 6 bytes */
@@ -168,6 +168,20 @@ SQL null*/
 store the charset-collation number; one byte is left unused, though */
 #define DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE	6
 
+/* Maximum multi-byte character length in bytes, plus 1 */
+#define DATA_MBMAX	5
+
+/* Pack mbminlen, mbmaxlen to mbminmaxlen. */
+#define DATA_MBMINMAXLEN(mbminlen, mbmaxlen)	\
+	((mbmaxlen) * DATA_MBMAX + (mbminlen))
+/* Get mbminlen from mbminmaxlen. Cast the result of UNIV_EXPECT to ulint
+because in GCC it returns a long. */
+#define DATA_MBMINLEN(mbminmaxlen) ((ulint) \
+                                    UNIV_EXPECT(((mbminmaxlen) % DATA_MBMAX), \
+                                                1))
+/* Get mbmaxlen from mbminmaxlen. */
+#define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Gets the MySQL type code from a dtype.
@@ -187,10 +201,8 @@ ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
 	ulint		prtype,		/*!< in: precise type */
-	ulint		mbminlen,	/*!< in: minimum length of a
-					multi-byte character */
-	ulint		mbmaxlen,	/*!< in: maximum length of a
-					multi-byte character */
+	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
+					a multi-byte character */
 	ulint		prefix_len,	/*!< in: length of the requested
 					prefix, in characters, multiplied by
 					dtype_get_mbmaxlen(dtype) */
@@ -335,6 +347,19 @@ dtype_get_mbmaxlen(
 /*===============*/
 	const dtype_t*	type);	/*!< in: type */
 /*********************************************************************//**
+Sets the minimum and maximum length of a character, in bytes. */
+UNIV_INLINE
+void
+dtype_set_mbminmaxlen(
+/*==================*/
+	dtype_t*	type,		/*!< in/out: type */
+	ulint		mbminlen,	/*!< in: minimum length of a char,
+					in bytes, or 0 if this is not
+					a character type */
+	ulint		mbmaxlen);	/*!< in: maximum length of a char,
+					in bytes, or 0 if this is not
+					a character type */
+/*********************************************************************//**
 Gets the padding character code for the type.
 @return	padding character code, or ULINT_UNDEFINED if no padding specified */
 UNIV_INLINE
@@ -354,8 +379,8 @@ dtype_get_fixed_size_low(
 	ulint	mtype,		/*!< in: main type */
 	ulint	prtype,		/*!< in: precise type */
 	ulint	len,		/*!< in: length */
-	ulint	mbminlen,	/*!< in: minimum length of a multibyte char */
-	ulint	mbmaxlen,	/*!< in: maximum length of a multibyte char */
+	ulint	mbminmaxlen,	/*!< in: minimum and maximum length of a
+				multibyte character, in bytes */
 	ulint	comp);		/*!< in: nonzero=ROW_FORMAT=COMPACT  */
 #ifndef UNIV_HOTBACKUP
 /***********************************************************************//**
@@ -368,8 +393,8 @@ dtype_get_min_size_low(
 	ulint	mtype,		/*!< in: main type */
 	ulint	prtype,		/*!< in: precise type */
 	ulint	len,		/*!< in: length */
-	ulint	mbminlen,	/*!< in: minimum length of a multibyte char */
-	ulint	mbmaxlen);	/*!< in: maximum length of a multibyte char */
+	ulint	mbminmaxlen);	/*!< in: minimum and maximum length of a
+				multibyte character */
 /***********************************************************************//**
 Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information.
@@ -425,6 +450,20 @@ dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/*!< in: type struct */
 	const byte*	buf);	/*!< in: buffer for stored type order info */
+
+/*********************************************************************//**
+Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
+@return the SQL type name */
+UNIV_INLINE
+char*
+dtype_sql_name(
+/*===========*/
+	unsigned	mtype,	/*!< in: mtype */
+	unsigned	prtype,	/*!< in: prtype */
+	unsigned	len,	/*!< in: len */
+	char*		name,	/*!< out: SQL name */
+	unsigned	name_sz);/*!< in: size of the name buffer */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
@@ -472,10 +511,11 @@ struct dtype_struct{
 					the string, MySQL uses 1 or 2
 					bytes to store the string length) */
 #ifndef UNIV_HOTBACKUP
-	unsigned	mbminlen:2;	/*!< minimum length of a
-					character, in bytes */
-	unsigned	mbmaxlen:3;	/*!< maximum length of a
-					character, in bytes */
+	unsigned	mbminmaxlen:5;	/*!< minimum and maximum length of a
+					character, in bytes;
+					DATA_MBMINMAXLEN(mbminlen,mbmaxlen);
+					mbminlen=DATA_MBMINLEN(mbminmaxlen);
+					mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
 #endif /* !UNIV_HOTBACKUP */
 };
 

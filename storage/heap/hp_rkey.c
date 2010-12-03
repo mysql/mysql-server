@@ -63,7 +63,12 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
       info->update= 0;
       DBUG_RETURN(my_errno);
     }
-    if (!(keyinfo->flag & HA_NOSAME))
+    /*
+      If key is unique and can accept NULL values, we still
+      need to copy it to info->lastkey, which in turn is used
+      to search subsequent records.
+    */
+    if (!(keyinfo->flag & HA_NOSAME) || (keyinfo->flag & HA_NULL_PART_KEY))
       memcpy(info->lastkey, key, (size_t) keyinfo->length);
   }
   memcpy(record, pos, (size_t) share->reclength);

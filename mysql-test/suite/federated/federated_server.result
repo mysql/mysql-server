@@ -5,7 +5,7 @@ create database second_db;
 use first_db;
 DROP TABLE IF EXISTS first_db.t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'first_db.t1'
 CREATE TABLE first_db.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -13,7 +13,7 @@ CREATE TABLE first_db.t1 (
 DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS first_db.t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'first_db.t2'
 CREATE TABLE first_db.t2 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -22,7 +22,7 @@ DEFAULT CHARSET=latin1;
 use second_db;
 DROP TABLE IF EXISTS second_db.t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'second_db.t1'
 CREATE TABLE second_db.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -30,7 +30,7 @@ CREATE TABLE second_db.t1 (
 DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS second_db.t2;
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'second_db.t2'
 CREATE TABLE second_db.t2 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -54,13 +54,13 @@ PASSWORD '',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 server_one	127.0.0.1	first_db	root		SLAVE_PORT		mysql	root
 server_two	127.0.0.1	second_db	root		SLAVE_PORT		mysql	root
 DROP TABLE IF EXISTS federated.old;
 Warnings:
-Note	1051	Unknown table 'old'
+Note	1051	Unknown table 'federated.old'
 CREATE TABLE federated.old (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -73,7 +73,7 @@ id	name
 1	federated.old-> first_db.t1, url format
 DROP TABLE IF EXISTS federated.old2;
 Warnings:
-Note	1051	Unknown table 'old2'
+Note	1051	Unknown table 'federated.old2'
 CREATE TABLE federated.old2 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -86,7 +86,7 @@ id	name
 1	federated.old2-> first_db.t2, url format
 DROP TABLE IF EXISTS federated.urldb2t1;
 Warnings:
-Note	1051	Unknown table 'urldb2t1'
+Note	1051	Unknown table 'federated.urldb2t1'
 CREATE TABLE federated.urldb2t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -99,7 +99,7 @@ id	name
 1	federated.urldb2t1 -> second_db.t1, url format
 DROP TABLE IF EXISTS federated.urldb2t2;
 Warnings:
-Note	1051	Unknown table 'urldb2t2'
+Note	1051	Unknown table 'federated.urldb2t2'
 CREATE TABLE federated.urldb2t2 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -112,7 +112,7 @@ id	name
 1	federated.urldb2t2 -> second_db.t2, url format
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'federated.t1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -126,7 +126,7 @@ id	name
 1	server_one, new scheme, first_db.t1
 DROP TABLE IF EXISTS federated.whatever;
 Warnings:
-Note	1051	Unknown table 'whatever'
+Note	1051	Unknown table 'federated.whatever'
 CREATE TABLE federated.whatever (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
@@ -154,7 +154,7 @@ id	name
 drop table federated.t1;
 drop server 'server_one';
 drop server 'server_two';
-select * from mysql.servers;
+select * from mysql.servers order by Server_name;
 Server_name	Host	Db	Username	Password	Port	Socket	Wrapper	Owner
 drop table first_db.t1;
 drop table second_db.t1;
@@ -254,6 +254,8 @@ password '', socket '', owner '', port 3306);
 drop server 's1';
 # End of 5.1 tests
 use test;
+create table t1(a int);
+insert into t1 values (1);
 create procedure p1 ()
 begin
 DECLARE v INT DEFAULT 0;
@@ -268,11 +270,13 @@ ALTER SERVER s OPTIONS (USER 'Remote');
 DROP SERVER s;
 SET v = v + 1;
 END WHILE;
+select a into @a from t1; # Just reset warnings
 END//
 use test;
 call p1();
 call p1();
 drop procedure p1;
+drop table t1;
 drop server if exists s;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE federated;

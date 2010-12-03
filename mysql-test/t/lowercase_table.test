@@ -105,3 +105,12 @@ drop table İİ;
 set names latin1;
 
 --echo End of 5.0 tests
+
+#
+# Bug#21317: SHOW CREATE DATABASE does not obey to lower_case_table_names
+#
+create database mysql_TEST;
+show create database mysql_TEST;
+drop database mysql_TEST;
+
+--echo End of 6.0 tests

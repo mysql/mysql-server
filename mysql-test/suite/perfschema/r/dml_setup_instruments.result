@@ -1,5 +1,5 @@
-select * from performance_schema.SETUP_INSTRUMENTS;
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Mutex/sql/%'
   and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
 order by name limit 10;
@@ -14,7 +14,7 @@ wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 wait/synch/mutex/sql/LOCK_crypt	YES	YES
 wait/synch/mutex/sql/LOCK_delayed_create	YES	YES
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
 order by name limit 10;
@@ -29,7 +29,7 @@ wait/synch/rwlock/sql/MDL_context::LOCK_waiting_for	YES	YES
 wait/synch/rwlock/sql/MDL_lock::rwlock	YES	YES
 wait/synch/rwlock/sql/Query_cache_query::lock	YES	YES
 wait/synch/rwlock/sql/THR_LOCK_servers	YES	YES
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
 'wait/synch/cond/sql/COND_handler_count',
@@ -37,38 +37,38 @@ where name like 'Wait/Synch/Cond/sql/%'
 order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/cond/sql/COND_flush_thread_cache	YES	YES
-wait/synch/cond/sql/COND_global_read_lock	YES	YES
 wait/synch/cond/sql/COND_manager	YES	YES
 wait/synch/cond/sql/COND_queue_state	YES	YES
-wait/synch/cond/sql/COND_refresh	YES	YES
 wait/synch/cond/sql/COND_server_started	YES	YES
 wait/synch/cond/sql/COND_thread_cache	YES	YES
 wait/synch/cond/sql/COND_thread_count	YES	YES
 wait/synch/cond/sql/Delayed_insert::cond	YES	YES
 wait/synch/cond/sql/Delayed_insert::cond_client	YES	YES
-select * from performance_schema.SETUP_INSTRUMENTS
+wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
+wait/synch/cond/sql/Item_func_sleep::cond	YES	YES
+select * from performance_schema.setup_instruments
 where name='Wait';
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
 where enabled='YES';
-insert into performance_schema.SETUP_INSTRUMENTS
+insert into performance_schema.setup_instruments
 set name='FOO', enabled='YES', timed='YES';
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
-update performance_schema.SETUP_INSTRUMENTS
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_instruments'
+update performance_schema.setup_instruments
 set name='FOO';
 ERROR HY000: Invalid performance_schema usage.
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
 set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
 set timed='NO';
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments
 set enabled='YES', timed='YES';
-delete from performance_schema.SETUP_INSTRUMENTS;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
-delete from performance_schema.SETUP_INSTRUMENTS
+delete from performance_schema.setup_instruments;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_instruments'
+delete from performance_schema.setup_instruments
 where name like 'Wait/Synch/%';
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
-LOCK TABLES performance_schema.SETUP_INSTRUMENTS READ;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'setup_instruments'
+LOCK TABLES performance_schema.setup_instruments READ;
 UNLOCK TABLES;
-LOCK TABLES performance_schema.SETUP_INSTRUMENTS WRITE;
+LOCK TABLES performance_schema.setup_instruments WRITE;
 UNLOCK TABLES;

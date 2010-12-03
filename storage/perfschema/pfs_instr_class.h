@@ -42,6 +42,7 @@
 #include <mysql/psi/psi.h>
 #include "pfs_lock.h"
 #include "pfs_stat.h"
+#include "pfs_column_types.h"
 
 /**
   @addtogroup Performance_schema_buffers
@@ -134,10 +135,10 @@ struct PFS_table_share_key
   /**
     Hash search key.
     This has to be a string for LF_HASH,
-    the format is "<schema_name><0x00><object_name><0x00>"
+    the format is "<enum_object_type><schema_name><0x00><object_name><0x00>"
     @see create_table_def_key
   */
-  char m_hash_key[NAME_LEN + 1 + NAME_LEN + 1];
+  char m_hash_key[1 + NAME_LEN + 1 + NAME_LEN + 1];
   /** Length in bytes of @c m_hash_key. */
   uint m_key_length;
 };
@@ -145,6 +146,11 @@ struct PFS_table_share_key
 /** Instrumentation metadata for a table share. */
 struct PFS_table_share
 {
+  enum_object_type get_object_type()
+  {
+    return (enum_object_type) m_key.m_hash_key[0];
+  }
+
   /** Internal lock. */
   pfs_lock m_lock;
   /** Search key. */
@@ -163,8 +169,9 @@ struct PFS_table_share
   bool m_enabled;
   /** True if this table instrument is timed. */
   bool m_timed;
-  /** True if this table instrument is aggregated. */
-  bool m_aggregated;
+  bool m_purge;
+  /** Number of opened table handles. */
+  uint m_refcount;
 };
 
 /**
@@ -222,12 +229,17 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
+const char *sanitize_table_schema_name(const char *unsafe);
+const char *sanitize_table_object_name(const char *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
-                                            const char *schema_name,
-                                            uint schema_name_length,
-                                            const char *table_name,
-                                            uint table_name_length);
+                                            bool temporary,
+                                            const TABLE_SHARE *share);
+void purge_table_share(PFS_thread *thread, PFS_table_share *pfs);
+void drop_table_share(PFS_thread *thread,
+                      bool temporary,
+                      const char *schema_name, uint schema_name_length,
+                      const char *table_name, uint table_name_length);
 
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe);
 

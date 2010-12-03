@@ -27,6 +27,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "dict0stats.h"
+
 /* Structure defines translation table between mysql index and innodb
 index structures */
 typedef struct innodb_idx_translate_struct {
@@ -109,6 +111,7 @@ class ha_innobase: public handler
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
+	int info_low(uint flag, dict_stats_upd_option_t stats_upd_option);
 
 	/* Init values for the class: */
  public:
@@ -178,13 +181,15 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
-	int delete_all_rows();
+	int truncate();
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
+	int get_parent_foreign_key_list(THD *thd,
+					List<FOREIGN_KEY_INFO> *f_key_list);
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
@@ -207,7 +212,7 @@ class ha_innobase: public handler
 					   uint key_length,
 					   qc_engine_callback *call_back,
 					   ulonglong *engine_data);
-	static char *get_mysql_bin_log_name();
+	static const char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
 	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
@@ -219,6 +224,75 @@ class ha_innobase: public handler
 	/** @} */
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
+private:
+	/** Builds a 'template' to the prebuilt struct.
+
+	The template is used in fast retrieval of just those column
+	values MySQL needs in its processing.
+	@param whole_row true if access is needed to a whole row,
+	false if accessing individual fields is enough */
+	void build_template(bool whole_row);
+	/** Resets a query execution 'template'.
+	@see build_template() */
+	inline void reset_template();
+
+public:
+	/** @name Multi Range Read interface @{ */
+	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param mode
+	* @param buf
+	*/
+	int multi_range_read_init(RANGE_SEQ_IF* seq,
+				  void* seq_init_param,
+				  uint n_ranges, uint mode,
+				  HANDLER_BUFFER* buf);
+	/** Process next multi range read @see DsMrr_impl::dsmrr_next
+	* @param range_info
+	*/
+	int multi_range_read_next(char** range_info);
+	/** Initialize multi range read and get information.
+	* @see ha_myisam::multi_range_read_info_const
+	* @see DsMrr_impl::dsmrr_info_const
+	* @param keyno
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param bufsz
+	* @param flags
+	* @param cost
+	*/
+	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
+					   void* seq_init_param,
+					   uint n_ranges, uint* bufsz,
+					   uint* flags, COST_VECT* cost);
+	/** Initialize multi range read and get information.
+	* @see DsMrr_impl::dsmrr_info
+	* @param keyno
+	* @param seq
+	* @param seq_init_param
+	* @param n_ranges
+	* @param bufsz
+	* @param flags
+	* @param cost
+	*/
+	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+				      uint* bufsz, uint* flags,
+				      COST_VECT* cost);
+
+	/** Attempt to push down an index condition.
+	* @param[in] keyno	MySQL key number
+	* @param[in] idx_cond	Index condition to be checked
+	* @return idx_cond if pushed; NULL if not pushed
+	*/
+	class Item* idx_cond_push(uint keyno, class Item* idx_cond);
+
+private:
+	/** The multi range read session object */
+	DsMrr_impl ds_mrr;
+	/* @} */
 };
 
 /* Some accessor functions which the InnoDB plugin needs, but which
@@ -273,14 +347,13 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
-#endif /* MYSQL_VERSION_ID > 50140 */
+
 /**
   Check if the query may generate row changes which
   may end up in the binary.

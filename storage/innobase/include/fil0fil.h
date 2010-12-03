@@ -26,6 +26,7 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef fil0fil_h
 #define fil0fil_h
 
+#include "univ.i"
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
@@ -156,6 +157,8 @@ extern ulint	fil_n_pending_log_flushes;
 /** Number of pending tablespace flushes */
 extern ulint	fil_n_pending_tablespace_flushes;
 
+/** Number of files currently open */
+extern ulint	fil_n_file_opened;
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
@@ -716,6 +719,14 @@ fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 
+/*******************************************************************//**
+Returns TRUE if a single-table tablespace is being deleted.
+@return TRUE if being deleted */
+UNIV_INTERN
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+	ulint		id);	/*!< in: space id */
 
 typedef	struct fil_space_struct	fil_space_t;
 

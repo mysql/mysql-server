@@ -33,7 +33,7 @@
 
 #include "sql_priv.h"
 #include "unireg.h"
-#include "sql_base.h"                           // close_thread_tables
+#include "sql_base.h"                           // close_mysql_tables
 #include "sql_parse.h"                        // check_identifier_name
 #include "sql_table.h"                        // write_bin_log
 #include "records.h"          // init_read_record, end_read_record
@@ -251,7 +251,7 @@ void udf_init()
   table->m_needs_reopen= TRUE;                  // Force close to free memory
 
 end:
-  close_thread_tables(new_thd);
+  close_mysql_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
   my_pthread_setspecific_ptr(THR_THD,  0);
@@ -606,10 +606,10 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
-  if (!table->file->index_read_idx_map(table->record[0], 0,
-                                       (uchar*) table->field[0]->ptr,
-                                       HA_WHOLE_KEY,
-                                       HA_READ_KEY_EXACT))
+  if (!table->file->ha_index_read_idx_map(table->record[0], 0,
+                                          (uchar*) table->field[0]->ptr,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT))
   {
     int error;
     if ((error = table->file->ha_delete_row(table->record[0])))

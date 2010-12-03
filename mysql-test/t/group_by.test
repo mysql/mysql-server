@@ -288,14 +288,14 @@ SELECT a,count(*) FROM t1 GROUP BY binary a;
 SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
-SET SQL_BIG_TABLES=1;
+SET BIG_TABLES=1;
 SELECT a FROM t1 GROUP BY a;
 SELECT a,count(*) FROM t1 GROUP BY a;
 SELECT a FROM t1 GROUP BY binary a;
 SELECT a,count(*) FROM t1 GROUP BY binary a;
 SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
-SET SQL_BIG_TABLES=0;
+SET BIG_TABLES=0;
 drop table t1;
 
 #
@@ -389,7 +389,7 @@ drop table t1,t2,t3;
 create table t1 (a blob null);
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(""),(""),(""),("b");
 select a,count(*) from t1 group by a;
-set option sql_big_tables=1;
+set option big_tables=1;
 select a,count(*) from t1 group by a;
 drop table t1;
 
@@ -1222,6 +1222,31 @@ DROP TABLE t1, t2;
 
 
 --echo #
+--echo # Bug#55188: GROUP BY, GROUP_CONCAT and TEXT - inconsistent results
+--echo #
+
+CREATE TABLE t1 (a text, b varchar(10));
+INSERT INTO t1 VALUES (repeat('1', 1300),'one'), (repeat('1', 1300),'two');
+
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a), GROUP_CONCAT(b) FROM t1 GROUP BY a;
+query_vertical EXPLAIN 
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (16777214),(0);
+
+SELECT COUNT(*) FROM t1 LEFT JOIN t1 t2
+ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
+
+DROP TABLE t1;
 
 --echo # End of 5.1 tests
 

@@ -1,5 +1,4 @@
 drop table if exists t1,t2;
-set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
@@ -7,6 +6,7 @@ set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
 set @my_max_binlog_cache_size     =@@global.max_binlog_cache_size;
+set @my_binlog_cache_size         =@@global.binlog_cache_size;
 set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
@@ -563,11 +563,9 @@ select @@sql_auto_is_null;
 @@sql_auto_is_null
 0
 set sql_big_selects=1;
-set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_low_priority_updates=1;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -765,9 +763,6 @@ select ifnull(@@character_set_results,"really null");
 ifnull(@@character_set_results,"really null")
 really null
 set names latin1;
-select @@have_innodb;
-@@have_innodb
-#
 *** Various tests with LC_TIME_NAMES
 *** LC_TIME_NAMES: testing case insensitivity
 set @@lc_time_names='ru_ru';
@@ -1035,7 +1030,6 @@ Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '1'
 set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size=@save_join_buffer_size;
-set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 set global delayed_queue_size        =@my_delayed_queue_size;
@@ -1043,6 +1037,7 @@ set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
 set global max_binlog_cache_size     =@my_max_binlog_cache_size;
+set global binlog_cache_size         =@my_binlog_cache_size;
 set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
@@ -1504,6 +1499,41 @@ SELECT @@skip_name_resolve;
 SHOW VARIABLES LIKE 'skip_name_resolve';
 Variable_name	Value
 skip_name_resolve	OFF
+#
+# Bug #43233 : Some server variables are clipped during "update,"
+#              not "check" stage
+#
+SET @kbs=@@global.key_buffer_size;
+SET @kcbs=@@global.key_cache_block_size;
+throw errors in STRICT mode
+SET SQL_MODE=STRICT_ALL_TABLES;
+SET @@global.max_binlog_cache_size=-1;
+ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
+SET @@global.max_join_size=0;
+ERROR 42000: Variable 'max_join_size' can't be set to the value of '0'
+SET @@global.key_buffer_size=0;
+ERROR HY000: Cannot drop default keycache
+SET @@global.key_cache_block_size=0;
+ERROR 42000: Variable 'key_cache_block_size' can't be set to the value of '0'
+throw warnings in default mode
+SET SQL_MODE=DEFAULT;
+SET @@global.max_binlog_cache_size=-1;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_cache_size value: '-1'
+Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+SET @@global.max_join_size=0;
+Warnings:
+Warning	1292	Truncated incorrect max_join_size value: '0'
+SET @@global.key_buffer_size=0;
+ERROR HY000: Cannot drop default keycache
+SET @@global.key_cache_block_size=0;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_block_size value: '0'
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
 End of 5.1 tests
 
 #
@@ -1670,3 +1700,31 @@ SET @@sql_quote_show_create = @sql_quote_show_create_saved;
 
 # End of Bug#34828.
 
+# Make sure we can manipulate with autocommit in the
+# along with other variables.
+drop table if exists t1;
+drop function if exists t1_max;
+drop function if exists t1_min;
+create table t1 (a int) engine=innodb;
+insert into t1(a) values (0), (1);
+create function t1_max() returns int return (select max(a) from t1);
+create function t1_min() returns int return (select min(a) from t1);
+select t1_min();
+t1_min()
+0
+select t1_max();
+t1_max()
+1
+set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
+@@session.autocommit=t1_min(), @@session.autocommit=t1_max();
+# Cleanup.
+drop table t1;
+drop function t1_min;
+drop function t1_max;
+#
+# Bug#57035 'ulonglong sql_mode' stored into ulong, is risky and causes
+#           compiler warning
+#
+SET @@sql_mode= 4294967296;
+ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'

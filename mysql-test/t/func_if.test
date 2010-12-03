@@ -165,3 +165,15 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+
+--echo #
+--echo # Bug#55077: Assertion failed: width > 0 && to != ((void *)0), file .\dtoa.c
+--echo # 
+
+CREATE TABLE t1 (a LONGBLOB, b DOUBLE);
+INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
+
+SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
+
+DROP TABLE t1;

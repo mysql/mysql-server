@@ -37,3 +37,9 @@ insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
 1
 drop table t1;
 End of 5.1 tests
+CREATE TABLE t1 (f1 INT NOT NULL);
+CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
+SELECT * FROM v1;
+a
+drop view v1;
+drop table t1;

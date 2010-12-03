@@ -27,7 +27,6 @@
 #include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
-#include "sql_base.h"                           // close_thread_tables
 #include "sql_locale.h"                         // my_locale_by_number,
                                                 // my_locale_by_name
 #include "strfunc.h"      // find_set_from_flags, find_set
@@ -109,7 +108,7 @@ void sys_var_end()
   my_hash_free(&system_variable_hash);
 
   for (sys_var *var=all_sys_vars.first; var; var= var->next)
-    var->~sys_var();
+    var->cleanup();
 
   DBUG_VOID_RETURN;
 }
@@ -134,7 +133,6 @@ void sys_var_end()
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
                    any post-update activity should happen here
-  @param deprecated_version if not 0 - when this variable will go away
   @param substitute if not 0 - what one should use instead when this
                    deprecated variable
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
@@ -146,14 +144,24 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  PolyLock *lock, enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func,
-                 uint deprecated_version, const char *substitute,
-                 int parse_flag) :
+                 const char *substitute, int parse_flag) :
   next(0),
   binlog_status(binlog_status_arg),
   flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
   is_os_charset(FALSE)
 {
+  /*
+    There is a limitation in handle_options() related to short options:
+    - either all short options should be declared when parsing in multiple stages,
+    - or none should be declared.
+    Because a lot of short options are used in the normal parsing phase
+    for mysqld, we enforce here that no short option is present
+    in the first (PARSE_EARLY) stage.
+    See handle_options() for details.
+  */
+  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+
   name.str= name_arg;
   name.length= strlen(name_arg);
   DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
@@ -166,11 +174,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   option.value= (uchar **)global_var_ptr();
   option.def_value= def_val;
 
-  deprecated.version= deprecated_version;
-  deprecated.substitute= substitute;
-  DBUG_ASSERT((deprecated_version != 0) || (substitute == 0));
-  DBUG_ASSERT(deprecated_version % 100 == 0);
-  DBUG_ASSERT(!deprecated_version || MYSQL_VERSION_ID < deprecated_version);
+  deprecation_substitute= substitute;
 
   if (chain->last)
     chain->last->next= this;
@@ -266,21 +270,25 @@ bool sys_var::set_default(THD *thd, enum_var_type type)
 
 void sys_var::do_deprecated_warning(THD *thd)
 {
-  if (deprecated.version)
+  if (deprecation_substitute)
   {
-    char buf1[NAME_CHAR_LEN + 3], buf2[10];
+    char buf1[NAME_CHAR_LEN + 3];
     strxnmov(buf1, sizeof(buf1)-1, "@@", name.str, 0);
-    my_snprintf(buf2, sizeof(buf2), "%d.%d", deprecated.version/100/100,
-                deprecated.version/100%100);
-    uint errmsg= deprecated.substitute
-                        ? ER_WARN_DEPRECATED_SYNTAX_WITH_VER
+
+    /* 
+       if deprecation_substitute is an empty string,
+       there is no replacement for the syntax
+    */
+    uint errmsg= deprecation_substitute[0]
+                        ? ER_WARN_DEPRECATED_SYNTAX
                         : ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT;
     if (thd)
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(errmsg),
-                          buf1, buf2, deprecated.substitute);
+                          buf1, deprecation_substitute);
     else
-      sql_print_warning(ER_DEFAULT(errmsg), buf1, buf2, deprecated.substitute);
+      sql_print_warning(ER_DEFAULT(errmsg), buf1, 
+                        deprecation_substitute);
   }
 }
 
@@ -736,9 +744,9 @@ int set_var_password::check(THD *thd)
   }
   if (!user->user.str)
   {
-    DBUG_ASSERT(thd->security_ctx->priv_user);
-    user->user.str= (char *) thd->security_ctx->priv_user;
-    user->user.length= strlen(thd->security_ctx->priv_user);
+    DBUG_ASSERT(thd->security_ctx->user);
+    user->user.str= (char *) thd->security_ctx->user;
+    user->user.length= strlen(thd->security_ctx->user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,

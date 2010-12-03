@@ -36,6 +36,7 @@ let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
 let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
 --disable_query_log
 eval SELECT $read = $exec into @check;
+let $error= `SELECT SUBSTRING("$error" FROM 17)`;
 --enable_query_log
 eval SELECT "NO$error" AS Last_SQL_Error, @check as `true`;
 select count(*) as one from tm;
@@ -89,6 +90,7 @@ let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
 let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
 --disable_query_log
 eval SELECT $read - $exec > 0 into @check;
+let $error= `SELECT SUBSTRING("$error" FROM 17)`;
 --enable_query_log
 eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
 select count(*) as one  from tm;
@@ -128,6 +130,7 @@ let $read = query_get_value("SHOW SLAVE STATUS", Read_Master_Log_Pos, 1);
 let $exec = query_get_value("SHOW SLAVE STATUS", Exec_Master_Log_Pos, 1);
 --disable_query_log
 eval SELECT $read - $exec > 0 into @check;
+let $error= `SELECT SUBSTRING("$error" FROM 17)`;
 --enable_query_log
 eval SELECT "$error" AS Last_SQL_Error, @check as `true`;
 select max(a) as two from tm;

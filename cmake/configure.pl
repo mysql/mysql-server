@@ -179,11 +179,6 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DMYSQL_DATADIR=".substr($option,14); 
     next;
   }
-  if ($option =~ /with-debug=full/)
-  {
-    $cmakeargs = $cmakeargs." -DWITH_DEBUG_FULL=1"; 
-    next;
-  }
   if ($option =~ /with-comment=/)
   {
     $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
@@ -193,6 +188,11 @@ foreach my $option (@ARGV)
   {
     $cmakeargs = $cmakeargs." -DMYSQL_MAINTAINER_MODE=" .
                  ($option =~ /enable/ ? "1" : "0");
+    next;
+  }
+  if ($option =~ /with-comment=/)
+  {
+    $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
     next;
   }
 

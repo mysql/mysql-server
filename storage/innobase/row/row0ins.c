@@ -51,6 +51,15 @@ Created 4/20/1996 Heikki Tuuri
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
 
 /*********************************************************************//**
 Creates an insert node struct.
@@ -78,7 +87,7 @@ ins_node_create(
 
 	node->select = NULL;
 
-	node->trx_id = ut_dulint_zero;
+	node->trx_id = 0;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -198,7 +207,7 @@ ins_node_set_new_row(
 	/* As we allocated a new trx id buf, the trx id should be written
 	there again: */
 
-	node->trx_id = ut_dulint_zero;
+	node->trx_id = 0;
 }
 
 /*******************************************************************//**
@@ -506,8 +515,7 @@ row_ins_cascade_calc_update_vec(
 
 				if (!dfield_is_null(&ufield->new_val)
 				    && dtype_get_at_most_n_mbchars(
-					col->prtype,
-					col->mbminlen, col->mbmaxlen,
+					col->prtype, col->mbminmaxlen,
 					col->len,
 					ufield_len,
 					dfield_get_data(&ufield->new_val))
@@ -530,49 +538,37 @@ row_ins_cascade_calc_update_vec(
 
 				if (min_size > ufield_len) {
 
-					char*		pad_start;
-					const char*	pad_end;
-					char*		padded_data
-						= mem_heap_alloc(
-							heap, min_size);
-					pad_start = padded_data + ufield_len;
-					pad_end = padded_data + min_size;
+					byte*	pad;
+					ulint	pad_len;
+					byte*	padded_data;
+					ulint	mbminlen;
+
+					padded_data = mem_heap_alloc(
+						heap, min_size);
+
+					pad = padded_data + ufield_len;
+					pad_len = min_size - ufield_len;
 
 					memcpy(padded_data,
 					       dfield_get_data(&ufield
 							       ->new_val),
-					       dfield_get_len(&ufield
-							      ->new_val));
+					       ufield_len);
 
-					switch (UNIV_EXPECT(col->mbminlen,1)) {
-					default:
-						ut_error;
+					mbminlen = dict_col_get_mbminlen(col);
+
+					ut_ad(!(ufield_len % mbminlen));
+					ut_ad(!(min_size % mbminlen));
+
+					if (mbminlen == 1
+					    && dtype_get_charset_coll(
+						    col->prtype)
+					    == DATA_MYSQL_BINARY_CHARSET_COLL) {
+						/* Do not pad BINARY columns */
 						return(ULINT_UNDEFINED);
-					case 1:
-						if (UNIV_UNLIKELY
-						    (dtype_get_charset_coll(
-							    col->prtype)
-						     == DATA_MYSQL_BINARY_CHARSET_COLL)) {
-							/* Do not pad BINARY
-							columns. */
-							return(ULINT_UNDEFINED);
-						}
-
-						/* space=0x20 */
-						memset(pad_start, 0x20,
-						       pad_end - pad_start);
-						break;
-					case 2:
-						/* space=0x0020 */
-						ut_a(!(ufield_len % 2));
-						ut_a(!(min_size % 2));
-						do {
-							*pad_start++ = 0x00;
-							*pad_start++ = 0x20;
-						} while (pad_start < pad_end);
-						break;
 					}
 
+					row_mysql_pad_col(mbminlen,
+							  pad, pad_len);
 					dfield_set_data(&ufield->new_val,
 							padded_data, min_size);
 				}
@@ -635,11 +631,16 @@ row_ins_foreign_report_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -689,11 +690,17 @@ row_ins_foreign_report_add_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(":\n", ef);
@@ -799,8 +806,8 @@ row_ins_foreign_check_on_constraint(
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table. A deadlock of threads is not possible
 	here because the caller of this function does not hold any latches with
-	the sync0sync.h rank above the kernel mutex. The query cache mutex has
-	a rank just above the kernel mutex. */
+	the sync0sync.h rank above the lock_sys_t::mutex. The query cache mutex
+       	has a rank just above the lock_sys_t::mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
@@ -1278,11 +1285,17 @@ run_again:
 
 			row_ins_set_detailed(trx, foreign);
 
+			rw_lock_s_lock(&trx_sys->lock);
+
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
 			ut_print_timestamp(ef);
 			fputs(" Transaction:\n", ef);
+
 			trx_print(ef, trx, 600);
+
+			rw_lock_s_unlock(&trx_sys->lock);
+
 			fputs("Foreign key constraint fails for table ", ef);
 			ut_print_name(ef, trx, TRUE,
 				      foreign->foreign_table_name);
@@ -1483,7 +1496,7 @@ do_possible_lock_wait:
 
 		que_thr_stop_for_mysql(thr);
 
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state == DB_SUCCESS) {
 
@@ -1527,10 +1540,12 @@ row_ins_check_foreign_constraints(
 
 	while (foreign) {
 		if (foreign->foreign_index == index) {
+			dict_table_t*	ref_table = NULL;
 
 			if (foreign->referenced_table == NULL) {
-				dict_table_get(foreign->referenced_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->referenced_table_name, FALSE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -1540,12 +1555,9 @@ row_ins_check_foreign_constraints(
 			}
 
 			if (foreign->referenced_table) {
-				mutex_enter(&(dict_sys->mutex));
-
-				(foreign->referenced_table
-				 ->n_foreign_key_checks_running)++;
-
-				mutex_exit(&(dict_sys->mutex));
+				os_inc_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
@@ -1557,21 +1569,21 @@ row_ins_check_foreign_constraints(
 				TRUE, foreign, table, entry, thr);
 
 			if (foreign->referenced_table) {
-				mutex_enter(&(dict_sys->mutex));
-
-				ut_a(foreign->referenced_table
-				     ->n_foreign_key_checks_running > 0);
-				(foreign->referenced_table
-				 ->n_foreign_key_checks_running)--;
-
-				mutex_exit(&(dict_sys->mutex));
+				os_dec_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
 			}
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
 			}
 
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
+			}
+
 			if (err != DB_SUCCESS) {
+
 				return(err);
 			}
 		}
@@ -1772,7 +1784,7 @@ ulint
 row_ins_duplicate_error_in_clust(
 /*=============================*/
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
-	dtuple_t*	entry,	/*!< in: entry to insert */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1968,7 +1980,7 @@ row_ins_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -2154,9 +2166,10 @@ ulint
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints
+				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;
@@ -2223,7 +2236,7 @@ row_ins_index_entry_set_vals(
 				= dict_field_get_col(ind_field);
 
 			len = dtype_get_at_most_n_mbchars(
-				col->prtype, col->mbminlen, col->mbmaxlen,
+				col->prtype, col->mbminmaxlen,
 				ind_field->prefix_len,
 				len, dfield_get_data(row_field));
 
@@ -2270,7 +2283,7 @@ row_ins_alloc_row_id_step(
 /*======================*/
 	ins_node_t*	node)	/*!< in: row insert node */
 {
-	dulint	row_id;
+	row_id_t	row_id;
 
 	ut_ad(node->state == INS_NODE_ALLOC_ROW_ID);
 
@@ -2427,7 +2440,7 @@ row_ins_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 
@@ -2457,7 +2470,7 @@ row_ins_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		if (UT_DULINT_EQ(trx->id, node->trx_id)) {
+		if (trx->id == node->trx_id) {
 			/* No need to do IX-locking */
 
 			goto same_trx;

@@ -20,6 +20,8 @@
 
 #include "my_global.h"
 #include "my_sys.h"
+#include "structs.h"
+#include "table.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
@@ -106,15 +108,24 @@ PFS_table_share *table_share_array= NULL;
 
 PFS_instr_class global_table_class=
 {
-  "wait/table", /* name */
-  10, /* name length */
+  "wait/io/table/sql/handler", /* name */
+  25, /* name length */
   0, /* flags */
   true, /* enabled */
   true, /* timed */
   { &flag_events_waits_current, NULL, 0, 0, 0, 0} /* wait stat chain */
 };
 
-/** Hash table for instrumented tables.  */
+/**
+  Hash index for instrumented table shares.
+  This index is searched by table fully qualified name (@c PFS_table_share_key),
+  and points to instrumented table shares (@c PFS_table_share).
+  @sa table_share_array
+  @sa PFS_table_share_key
+  @sa PFS_table_share
+  @sa table_share_hash_get_key
+  @sa get_table_share_hash_pins
+*/
 static LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
@@ -258,6 +269,9 @@ void cleanup_table_share(void)
   table_share_max= 0;
 }
 
+/**
+  get_key function for @c table_share_hash.
+*/
 static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
                                        my_bool)
 {
@@ -293,6 +307,51 @@ void cleanup_table_share_hash(void)
     lf_hash_destroy(&table_share_hash);
     table_share_hash_inited= false;
   }
+}
+
+/**
+  Get the hash pins for @table_share_hash.
+  @param thread The running thread.
+  @returns The LF_HASH pins for the thread.
+*/
+LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
+{
+  if (! table_share_hash_inited)
+    return NULL;
+  if (unlikely(thread->m_table_share_hash_pins == NULL))
+    thread->m_table_share_hash_pins= lf_hash_get_pins(&table_share_hash);
+  return thread->m_table_share_hash_pins;
+}
+
+/**
+  Set a table share hash key.
+  @param [out] key The key to polulate.
+  @param temporary True for TEMPORARY TABLE.
+  @param schema_name The table schema name.
+  @param schema_name_length The table schema name length.
+  @param table_name The table name.
+  @param table_name_length The table name length.
+*/
+static void set_table_share_key(PFS_table_share_key *key,
+                                bool temporary,
+                                const char *schema_name, uint schema_name_length,
+                                const char *table_name, uint table_name_length)
+{
+  DBUG_ASSERT(schema_name_length <= NAME_LEN);
+  DBUG_ASSERT(table_name_length <= NAME_LEN);
+
+  char *ptr= &key->m_hash_key[0];
+  ptr[0]= (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE);
+  ptr++;
+  memcpy(ptr, schema_name, schema_name_length);
+  ptr+= schema_name_length;
+  ptr[0]= 0;
+  ptr++;
+  memcpy(ptr, table_name, table_name_length);
+  ptr+= table_name_length;
+  ptr[0]= 0;
+  ptr++;
+  key->m_key_length= ptr - &key->m_hash_key[0];
 }
 
 /**
@@ -543,15 +602,9 @@ PFS_mutex_class *find_mutex_class(PFS_sync_key key)
   FIND_CLASS_BODY(key, mutex_class_allocated_count, mutex_class_array);
 }
 
-#define SANITIZE_ARRAY_BODY(ARRAY, MAX, UNSAFE) \
-  if ((&ARRAY[0] <= UNSAFE) &&                  \
-      (UNSAFE < &ARRAY[MAX]))                   \
-    return UNSAFE;                              \
-  return NULL
-
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(mutex_class_array, mutex_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_mutex_class, mutex_class_array, mutex_class_max, unsafe);
 }
 
 /**
@@ -566,7 +619,7 @@ PFS_rwlock_class *find_rwlock_class(PFS_sync_key key)
 
 PFS_rwlock_class *sanitize_rwlock_class(PFS_rwlock_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(rwlock_class_array, rwlock_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_rwlock_class, rwlock_class_array, rwlock_class_max, unsafe);
 }
 
 /**
@@ -581,7 +634,7 @@ PFS_cond_class *find_cond_class(PFS_sync_key key)
 
 PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(cond_class_array, cond_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_cond_class, cond_class_array, cond_class_max, unsafe);
 }
 
 /**
@@ -636,7 +689,7 @@ PFS_thread_class *find_thread_class(PFS_sync_key key)
 
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(thread_class_array, thread_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_thread_class, thread_class_array, thread_class_max, unsafe);
 }
 
 /**
@@ -687,70 +740,71 @@ PFS_file_class *find_file_class(PFS_file_key key)
 
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(file_class_array, file_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
 }
 
 /**
-  Find or create a table instance by name.
+  Find or create a table share instrumentation.
   @param thread                       the executing instrumented thread
-  @param schema_name                  the table schema name
-  @param schema_name_length           the table schema name length
-  @param table_name                   the table name
-  @param table_name_length            the table name length
-  @return a table instance, or NULL
+  @param temporary                    true for TEMPORARY TABLE
+  @param share                        table share
+  @return a table share, or NULL
 */
 PFS_table_share* find_or_create_table_share(PFS_thread *thread,
-                                            const char *schema_name,
-                                            uint schema_name_length,
-                                            const char *table_name,
-                                            uint table_name_length)
+                                            bool temporary,
+                                            const TABLE_SHARE *share)
 {
   /* See comments in register_mutex_class */
   int pass;
   PFS_table_share_key key;
 
-  if (! table_share_hash_inited)
+  LF_PINS *pins= get_table_share_hash_pins(thread);
+  if (unlikely(pins == NULL))
   {
-    /* Table instrumentation can be turned off. */
     table_share_lost++;
     return NULL;
   }
 
-  if (unlikely(thread->m_table_share_hash_pins == NULL))
-  {
-    thread->m_table_share_hash_pins= lf_hash_get_pins(&table_share_hash);
-    if (unlikely(thread->m_table_share_hash_pins == NULL))
-    {
-      table_share_lost++;
-      return NULL;
-    }
-  }
+  const char *schema_name= share->db.str;
+  uint schema_name_length= share->db.length;
+  const char *table_name= share->table_name.str;
+  uint table_name_length= share->table_name.length;
 
-  DBUG_ASSERT(schema_name_length <= NAME_LEN);
-  DBUG_ASSERT(table_name_length <= NAME_LEN);
-
-  char *ptr= &key.m_hash_key[0];
-  memcpy(ptr, schema_name, schema_name_length);
-  ptr+= schema_name_length;
-  ptr[0]= 0; ptr++;
-  memcpy(ptr, table_name, table_name_length);
-  ptr+= table_name_length;
-  ptr[0]= 0; ptr++;
-  key.m_key_length= ptr - &key.m_hash_key[0];
+  set_table_share_key(&key, temporary,
+                      schema_name, schema_name_length,
+                      table_name, table_name_length);
 
   PFS_table_share **entry;
   uint retry_count= 0;
   const uint retry_max= 3;
+  bool enabled= true;
+  bool timed= true;
+
 search:
   entry= reinterpret_cast<PFS_table_share**>
-    (lf_hash_search(&table_share_hash, thread->m_table_share_hash_pins,
-                    &key.m_hash_key[0], key.m_key_length));
+    (lf_hash_search(&table_share_hash, pins,
+                    key.m_hash_key, key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
     PFS_table_share *pfs;
     pfs= *entry;
-    lf_hash_search_unpin(thread->m_table_share_hash_pins);
+    pfs->m_refcount++ ;
+    lf_hash_search_unpin(pins);
     return pfs;
+  }
+
+  if (retry_count == 0)
+  {
+    /* No per object lokup yet */
+    enabled= global_table_class.m_enabled;
+    timed= global_table_class.m_timed;
+
+    /*
+      Even when enabled is false, a record is added in the dictionary:
+      - It makes enabling a table already in the table cache possible,
+      - It improves performances for the next time a TABLE_SHARE is reloaded
+        in the table cache.
+    */
   }
 
   /* table_name is not constant, just using it for noise on create */
@@ -771,21 +825,20 @@ search:
         if (pfs->m_lock.free_to_dirty())
         {
           pfs->m_key= key;
-          pfs->m_schema_name= &pfs->m_key.m_hash_key[0];
+          pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
           pfs->m_schema_name_length= schema_name_length;
-          pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 1];
+          pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
           pfs->m_table_name_length= table_name_length;
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;
           pfs->m_wait_stat.m_parent= NULL;
           reset_single_stat_link(&pfs->m_wait_stat);
-          pfs->m_enabled= true;
-          pfs->m_timed= true;
-          pfs->m_aggregated= false;
+          pfs->m_enabled= enabled;
+          pfs->m_timed= timed;
+          pfs->m_refcount= 1;
 
           int res;
-          res= lf_hash_insert(&table_share_hash,
-                              thread->m_table_share_hash_pins, &pfs);
+          res= lf_hash_insert(&table_share_hash, pins, &pfs);
           if (likely(res == 0))
           {
             pfs->m_lock.dirty_to_allocated();
@@ -818,9 +871,118 @@ search:
   return NULL;
 }
 
+/**
+  Purge an instrumented table share from the performance schema buffers.
+  The table share is removed from the hash index, and freed.
+  @param thread The running thread
+  @param pfs The table share to purge
+*/
+void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
+{
+  if (pfs->m_refcount == 1)
+  {
+    LF_PINS* pins= get_table_share_hash_pins(thread);
+    if (likely(pins != NULL))
+      lf_hash_delete(&table_share_hash, pins,
+                     pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
+    pfs->m_lock.allocated_to_free();
+  }
+}
+
+/**
+  Drop the instrumented table share associated with a table.
+  @param thread The running thread
+  @param temporary True for TEMPORARY TABLE
+  @param schema_name The table schema name
+  @param schema_name_length The table schema name length
+  @param table_name The table name
+  @parem table_name_length The table name length
+*/
+void drop_table_share(PFS_thread *thread,
+                      bool temporary,
+                      const char *schema_name, uint schema_name_length,
+                      const char *table_name, uint table_name_length)
+{
+  PFS_table_share_key key;
+  LF_PINS* pins= get_table_share_hash_pins(thread);
+  if (unlikely(pins == NULL))
+    return;
+  set_table_share_key(&key, temporary, schema_name, schema_name_length,
+                      table_name, table_name_length);
+  PFS_table_share **entry;
+  entry= reinterpret_cast<PFS_table_share**>
+    (lf_hash_search(&table_share_hash, pins,
+                    key.m_hash_key, key.m_key_length));
+  if (entry && (entry != MY_ERRPTR))
+  {
+    PFS_table_share *pfs= *entry;
+    lf_hash_search_unpin(pins);
+    lf_hash_delete(&table_share_hash, pins,
+                   pfs->m_key.m_hash_key, pfs->m_key.m_key_length);
+    pfs->m_lock.allocated_to_free();
+  }
+}
+
+/**
+  Sanitize an unsafe table_share pointer.
+  @param unsafe The possibly corrupt pointer.
+  @return A valid table_safe_pointer, or NULL.
+*/
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
-  SANITIZE_ARRAY_BODY(table_share_array, table_share_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_table_share, table_share_array, table_share_max, unsafe);
+}
+
+const char *sanitize_table_schema_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &table_share_array[0];
+  intptr last= (intptr) &table_share_array[table_share_max];
+
+  PFS_table_share dummy;
+
+  /* Check if unsafe points inside table_share_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    intptr offset= (ptr - first) % sizeof(PFS_table_share);
+    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
+    intptr len= sizeof(dummy.m_key.m_hash_key);
+    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
+    if (likely((from <= offset) && (offset < from + len)))
+    {
+      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
+      /* Check if unsafe really is the schema name */
+      if (likely(base->m_schema_name == unsafe))
+        return unsafe;
+    }
+  }
+  return NULL;
+}
+
+const char *sanitize_table_object_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &table_share_array[0];
+  intptr last= (intptr) &table_share_array[table_share_max];
+
+  PFS_table_share dummy;
+
+  /* Check if unsafe points inside table_share_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    intptr offset= (ptr - first) % sizeof(PFS_table_share);
+    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
+    intptr len= sizeof(dummy.m_key.m_hash_key);
+    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
+    if (likely((from <= offset) && (offset < from + len)))
+    {
+      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
+      /* Check if unsafe really is the table name */
+      if (likely(base->m_table_name == unsafe))
+        return unsafe;
+    }
+  }
+  return NULL;
 }
 
 static void reset_mutex_class_waits(void)

@@ -262,8 +262,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx,	/*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr);	/*!< in: mtr */
 /******************************************************************//**
@@ -370,8 +368,8 @@ struct trx_undo_struct{
 					TRX_UNDO_UPDATE */
 	ulint		state;		/*!< state of the corresponding undo log
 					segment */
-	ibool		del_marks;	/*!< relevant only in an update undo log:
-					this is TRUE if the transaction may
+	ibool		del_marks;	/*!< relevant only in an update undo
+					log: this is TRUE if the transaction may
 					have delete marked records, because of
 					a delete of a row or an update of an
 					indexed field; purge is then
@@ -383,7 +381,7 @@ struct trx_undo_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification */
 	ibool		dict_operation;	/*!< TRUE if a dict operation trx */
-	dulint		table_id;	/*!< if a dict operation, then the table
+	table_id_t	table_id;	/*!< if a dict operation, then the table
 					id */
 	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
 	/*-----------------------------*/
@@ -393,8 +391,8 @@ struct trx_undo_struct{
 					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/*!< page number of the header page in
 					the undo log */
-	ulint		hdr_offset;	/*!< header offset of the undo log on the
-					page */
+	ulint		hdr_offset;	/*!< header offset of the undo log on
+				       	the page */
 	ulint		last_page_no;	/*!< page number of the last page in the
 					undo log; this may differ from
 					top_page_no during a rollback */
@@ -540,8 +538,8 @@ quite a large overhead. */
 #define	TRX_UNDO_XA_XID		(TRX_UNDO_XA_BQUAL_LEN + 4)
 /*--------------------------------------------------------------*/
 #define TRX_UNDO_LOG_XA_HDR_SIZE (TRX_UNDO_XA_XID + XIDDATASIZE)
-				/*!< Total size of the undo log header
-				with the XA XID */
+					/*!< Total size of the undo log header
+					with the XA XID */
 /* @} */
 
 #ifndef UNIV_NONINL

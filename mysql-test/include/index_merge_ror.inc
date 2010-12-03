@@ -17,7 +17,7 @@
 
 --echo #---------------- ROR-index_merge tests -----------------------
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists  t0,t1,t2;

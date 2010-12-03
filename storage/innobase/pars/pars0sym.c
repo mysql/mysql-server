@@ -59,6 +59,7 @@ sym_tab_create(
 	return(sym_tab);
 }
 
+
 /******************************************************************//**
 Frees the memory allocated dynamically AFTER parsing phase for variables
 etc. in the symbol table. Does not free the mem heap where the table was
@@ -72,9 +73,23 @@ sym_tab_free_private(
 	sym_node_t*	sym;
 	func_node_t*	func;
 
-	sym = UT_LIST_GET_FIRST(sym_tab->sym_list);
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	while (sym) {
+	for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list);
+	     sym != NULL;
+	     sym = UT_LIST_GET_NEXT(sym_list, sym)) {
+
+		/* Close the tables opened in pars_retrieve_table_def(). */
+
+		if (sym->token_type == SYM_TABLE_REF_COUNTED) {
+
+			dict_table_close(sym->table, TRUE);
+
+			sym->table = NULL;
+			sym->resolved = FALSE;
+			sym->token_type = SYM_UNSET;
+		}
+
 		eval_node_free_val_buf(sym);
 
 		if (sym->prefetch_buf) {
@@ -84,16 +99,13 @@ sym_tab_free_private(
 		if (sym->cursor_def) {
 			que_graph_free_recursive(sym->cursor_def);
 		}
-
-		sym = UT_LIST_GET_NEXT(sym_list, sym);
 	}
 
-	func = UT_LIST_GET_FIRST(sym_tab->func_node_list);
+	for (func = UT_LIST_GET_FIRST(sym_tab->func_node_list);
+	     func != NULL;
+	     func = UT_LIST_GET_NEXT(func_node_list, func)) {
 
-	while (func) {
 		eval_node_free_val_buf(func);
-
-		func = UT_LIST_GET_NEXT(func_node_list, func);
 	}
 }
 
@@ -114,6 +126,7 @@ sym_tab_add_int_lit(
 
 	node->common.type = QUE_NODE_SYMBOL;
 
+	node->table = NULL;
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
@@ -156,6 +169,7 @@ sym_tab_add_str_lit(
 
 	node->common.type = QUE_NODE_SYMBOL;
 
+	node->table = NULL;
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
@@ -206,6 +220,7 @@ sym_tab_add_bound_lit(
 
 	node->common.type = QUE_NODE_SYMBOL;
 
+	node->table = NULL;
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
@@ -275,6 +290,7 @@ sym_tab_add_null_lit(
 
 	node->common.type = QUE_NODE_SYMBOL;
 
+	node->table = NULL;
 	node->resolved = TRUE;
 	node->token_type = SYM_LIT;
 
@@ -308,12 +324,9 @@ sym_tab_add_id(
 {
 	sym_node_t*	node;
 
-	node = mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t));
+	node = mem_heap_zalloc(sym_tab->heap, sizeof(*node));
 
 	node->common.type = QUE_NODE_SYMBOL;
-
-	node->resolved = FALSE;
-	node->indirection = NULL;
 
 	node->name = mem_heap_strdupl(sym_tab->heap, (char*) name, len);
 	node->name_len = len;
@@ -321,10 +334,6 @@ sym_tab_add_id(
 	UT_LIST_ADD_LAST(sym_list, sym_tab->sym_list, node);
 
 	dfield_set_null(&node->common.val);
-
-	node->common.val_buf_size = 0;
-	node->prefetch_buf = NULL;
-	node->cursor_def = NULL;
 
 	node->sym_table = sym_tab;
 
@@ -337,7 +346,7 @@ Add a bound identifier to a symbol table.
 UNIV_INTERN
 sym_node_t*
 sym_tab_add_bound_id(
-/*===========*/
+/*=================*/
 	sym_tab_t*	sym_tab,	/*!< in: symbol table */
 	const char*	name)		/*!< in: name of bound id */
 {
@@ -351,7 +360,9 @@ sym_tab_add_bound_id(
 
 	node->common.type = QUE_NODE_SYMBOL;
 
+	node->table = NULL;
 	node->resolved = FALSE;
+	node->token_type = SYM_UNSET;
 	node->indirection = NULL;
 
 	node->name = mem_heap_strdup(sym_tab->heap, bid->id);

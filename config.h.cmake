@@ -220,7 +220,6 @@
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
-#cmakedefine HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP 1
 #cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
@@ -308,7 +307,7 @@
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
-
+#cmakedefine HAVE_VALGRIND
 
 /* Types we may use */
 #ifdef __APPLE__
@@ -602,6 +601,8 @@
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+
+#cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""

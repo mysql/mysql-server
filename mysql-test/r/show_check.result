@@ -1466,3 +1466,75 @@ t1	CREATE TABLE `t1` (
 # Switching to connection 'default'.
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#54905 Connection with WRITE lock cannot ALTER table due to
+#           concurrent SHOW CREATE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+# Connection con1
+LOCK TABLE t1 WRITE;
+# Connection default
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# Connection con1
+ALTER TABLE t1 CHARACTER SET = utf8;
+UNLOCK TABLES;
+# Connection default
+COMMIT;
+DROP TABLE t1;
+#
+# Bug#55498 SHOW CREATE TRIGGER takes wrong type of metadata lock.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
+# Test 1: SHOW CREATE TRIGGER with WRITE locked table.
+# Connection con1
+LOCK TABLE t1 WRITE;
+# Connection default
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci
+# Connection con1
+UNLOCK TABLES;
+# Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
+# Connection default
+START TRANSACTION;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1	utf8	utf8_general_ci	latin1_swedish_ci
+# Connection con1
+ALTER TABLE t1 CHARACTER SET = utf8;
+# Connection default
+COMMIT;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+#
+# Bug#57306 SHOW PROCESSLIST does not display string literals well.
+#
+SET NAMES latin1;
+SELECT GET_LOCK('t', 1000);
+GET_LOCK('t', 1000)
+1
+SET NAMES latin1;
+SELECT GET_LOCK('t',1000) AS 'óóóó';;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'óóóó'
+SET NAMES utf8;
+SHOW PROCESSLIST;
+Id	User	Host	db	Command	Time	State	Info
+###	root	###	test	Query	###	###	SHOW PROCESSLIST
+###	root	###	test	Query	###	###	SELECT GET_LOCK('t',1000) AS 'Ã³Ã³Ã³Ã³'
+SELECT RELEASE_LOCK('t');
+RELEASE_LOCK('t')
+1
+óóóó
+1
+SET NAMES latin1;

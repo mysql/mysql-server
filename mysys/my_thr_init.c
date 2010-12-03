@@ -302,6 +302,8 @@ void my_thread_global_end(void)
 #ifndef HAVE_GETHOSTBYNAME_R
   mysql_mutex_destroy(&LOCK_gethostbyname_r);
 #endif
+
+  my_thread_basic_global_init_done= 0;
 }
 
 static my_thread_id thread_id= 0;

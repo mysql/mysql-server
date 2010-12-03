@@ -128,7 +128,8 @@ connection mdl_con2;
 --echo # Check that the above RENAME is blocked because of S lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -158,7 +159,8 @@ connection mdl_con2;
 --echo # Check that the above ALTER TABLE is blocked because of S lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -190,7 +192,8 @@ connection mdl_con2;
 --echo # because of S lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -245,7 +248,8 @@ connection mdl_con2;
 --echo # Check that the above RENAME is blocked because of SH lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 set debug_sync= 'now SIGNAL finish';
@@ -280,7 +284,8 @@ connection mdl_con2;
 --echo # Check that the above ALTER TABLE is blocked because of SH lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 set debug_sync= 'now SIGNAL finish';
@@ -316,7 +321,8 @@ connection mdl_con2;
 --echo # because of S lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 set debug_sync= 'now SIGNAL finish';
@@ -367,7 +373,8 @@ connection default;
 --echo # Check that the above LOCK TABLES is blocked because of SR lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
+  where state = "Waiting for table metadata lock" and 
+        info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Unblock LOCK TABLES.
 commit;
@@ -395,7 +402,8 @@ connection mdl_con2;
 --echo # Check that the above RENAME is blocked because of SR lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -426,7 +434,8 @@ connection mdl_con2;
 --echo # Check that the above ALTER TABLE is blocked because of SR lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -479,7 +488,8 @@ connection default;
 --echo # Check that the above ALTER TABLE is blocked because of SW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE.
 commit;
@@ -506,7 +516,8 @@ connection default;
 --echo # Check that the above LOCK TABLES is blocked because of SW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Unblock LOCK TABLES.
 commit;
@@ -534,7 +545,8 @@ connection mdl_con2;
 --echo # Check that the above RENAME is blocked because of SW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -583,7 +595,8 @@ connection mdl_con2;
 --echo # Check that the above DELETE is blocked because of SNW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "delete from t1 limit 2";
+  where state = "Waiting for table metadata lock" and
+        info = "delete from t1 limit 2";
 --source include/wait_condition.inc
 --echo # Unblock ALTER and thus DELETE.
 set debug_sync= 'now SIGNAL finish';
@@ -617,7 +630,8 @@ connection mdl_con2;
 --echo # Check that the above ALTER is blocked because of SNW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTERs.
 set debug_sync= 'now SIGNAL finish';
@@ -652,7 +666,8 @@ connection mdl_con2;
 --echo # Check that the above LOCK TABLES is blocked because of SNW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Unblock ALTER and thus LOCK TABLES.
 set debug_sync= 'now SIGNAL finish';
@@ -688,7 +703,8 @@ connection mdl_con2;
 --echo # Check that the above RENAME is blocked because of SNW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Unblock ALTER and thus RENAME TABLE.
 set debug_sync= 'now SIGNAL finish';
@@ -735,7 +751,8 @@ connection default;
 --echo # Check that the above SELECT is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "select count(*) from t1";
+  where state = "Waiting for table metadata lock" and
+        info = "select count(*) from t1";
 --source include/wait_condition.inc
 --echo # Unblock SELECT.
 unlock tables;
@@ -760,7 +777,8 @@ connection default;
 --echo # Check that the above DELETE is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "delete from t1 limit 1";
+  where state = "Waiting for table metadata lock" and
+        info = "delete from t1 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock DELETE.
 unlock tables;
@@ -785,7 +803,8 @@ connection default;
 --echo # Check that the above ALTER is blocked because of UNWR lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER.
 unlock tables;
@@ -811,7 +830,8 @@ connection default;
 --echo # Check that the above LOCK TABLES is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Unblock waiting LOCK TABLES.
 unlock tables;
@@ -838,7 +858,8 @@ connection default;
 --echo # Check that the above RENAME is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -879,7 +900,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that S lock in incompatible with X lock.
 --echo # Sending:
@@ -890,7 +912,8 @@ connection mdl_con2;
 --echo # Check that the above HANDLER statement is blocked because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "handler t1 open";
+where state = "Waiting for table metadata lock" and
+      info = "handler t1 open";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -922,7 +945,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SH lock in incompatible with X lock.
 --echo # Sending:
@@ -934,7 +958,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info like "select column_name from information_schema.columns%";
+where state = "Waiting for table metadata lock" and
+      info like "select column_name from information_schema.columns%";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -965,7 +990,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SR lock in incompatible with X lock.
 --echo # Sending:
@@ -977,7 +1003,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t1";
+where state = "Waiting for table metadata lock" and 
+      info = "select count(*) from t1";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -1008,7 +1035,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SW lock in incompatible with X lock.
 --echo # Sending:
@@ -1020,7 +1048,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "delete from t1 limit 1";
+where state = "Waiting for table metadata lock" and
+      info = "delete from t1 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -1051,7 +1080,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SNW lock is incompatible with X lock.
 --echo # Sending:
@@ -1063,7 +1093,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -1095,7 +1126,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SNRW lock is incompatible with X lock.
 --echo # Sending:
@@ -1107,7 +1139,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -1139,7 +1172,8 @@ connection mdl_con1;
 --echo # Check that RENAME has acquired X lock on t1 and is waiting for t2.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that X lock is incompatible with X lock.
 --echo # Sending:
@@ -1151,7 +1185,8 @@ connection mdl_con2;
 --echo # because of X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t3";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t3";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE
 unlock tables;
@@ -1195,7 +1230,8 @@ connection mdl_con1;
 --echo # Check that ALTER TABLE is waiting with pending SNW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Check that S, SH and SR locks are compatible with pending SNW
 handler t1 open t;
@@ -1212,7 +1248,8 @@ connection mdl_con2;
 --echo # Check that the above DELETE is blocked because of pending SNW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "delete from t1 limit 1";
+where state = "Waiting for table metadata lock" and
+      info = "delete from t1 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE.
 commit;
@@ -1252,7 +1289,8 @@ connection mdl_con1;
 --echo # Check that LOCK TABLE is waiting with pending SNRW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Check that S and SH locks are compatible with pending SNRW
 handler t1 open t;
@@ -1268,7 +1306,8 @@ connection mdl_con2;
 --echo # Check that the above SELECT is blocked because of pending SNRW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t1";
+where state = "Waiting for table metadata lock" and
+      info = "select count(*) from t1";
 --source include/wait_condition.inc
 --echo # Unblock LOCK TABLE.
 commit;
@@ -1300,7 +1339,8 @@ connection mdl_con1;
 --echo # Check that LOCK TABLE is waiting with pending SNRW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Check that SW is incompatible with pending SNRW
 --echo # Sending:
@@ -1311,7 +1351,8 @@ connection mdl_con2;
 --echo # Check that the above INSERT is blocked because of pending SNRW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "insert into t1 values (1)";
+where state = "Waiting for table metadata lock" and
+      info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 --echo # Unblock LOCK TABLE.
 commit;
@@ -1343,7 +1384,8 @@ connection mdl_con1;
 --echo # Check that LOCK TABLE is waiting with pending SNRW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Check that SNW is compatible with pending SNRW
 --echo # So ALTER TABLE statements are not starved by LOCK TABLEs.
@@ -1385,7 +1427,8 @@ connection mdl_con1;
 --echo # Check that RENAME TABLE is waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SH locks are compatible with pending X
 select column_name from information_schema.columns where
@@ -1399,7 +1442,8 @@ connection mdl_con2;
 --echo # Check that the above HANDLER OPEN is blocked because of pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "handler t1 open";
+where state = "Waiting for table metadata lock" and
+      info = "handler t1 open";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -1433,7 +1477,8 @@ connection mdl_con1;
 --echo # Check that RENAME TABLE is waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SR is incompatible with pending X
 --echo # Sending:
@@ -1444,7 +1489,8 @@ connection mdl_con2;
 --echo # Check that the above SELECT is blocked because of pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t1";
+where state = "Waiting for table metadata lock" and
+      info = "select count(*) from t1";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -1477,7 +1523,8 @@ connection mdl_con1;
 --echo # Check that RENAME TABLE is waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SW is incompatible with pending X
 --echo # Sending:
@@ -1488,7 +1535,8 @@ connection mdl_con2;
 --echo # Check that the above DELETE is blocked because of pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "delete from t1 limit 1";
+where state = "Waiting for table metadata lock" and
+      info = "delete from t1 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -1521,7 +1569,8 @@ connection mdl_con1;
 --echo # Check that RENAME TABLE is waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SNW is incompatible with pending X
 --echo # Sending:
@@ -1532,7 +1581,8 @@ connection mdl_con2;
 --echo # Check that the above ALTER TABLE is blocked because of pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -1565,7 +1615,8 @@ connection mdl_con1;
 --echo # Check that RENAME TABLE is waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that SNRW is incompatible with pending X
 --echo # Sending:
@@ -1576,7 +1627,8 @@ connection mdl_con3;
 --echo # Check that the above LOCK TABLES is blocked because of pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'mdl_con2'.
@@ -1642,7 +1694,8 @@ connection mdl_con2;
 --echo # Check that the above INSERT is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "insert into t2 values (1)";
+where state = "Waiting for table metadata lock" and
+      info = "insert into t2 values (1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE and thus INSERT.
 set debug_sync= 'now SIGNAL finish';
@@ -1691,7 +1744,8 @@ connection mdl_con2;
 --echo # Check that the above INSERT is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "insert into t1 values (1)";
+where state = "Waiting for table metadata lock" and
+      info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE and thus INSERT.
 set debug_sync= 'now SIGNAL finish';
@@ -1726,7 +1780,8 @@ connection default;
 --echo # Wait until ALTER TABLE starts waiting for SNW lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t1 add primary key (c1)";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t1 add primary key (c1)";
 --source include/wait_condition.inc
 --echo # We should still be able to get both SW and SR locks without waiting.
 select count(*) from t1;
@@ -1769,7 +1824,8 @@ connection default;
 --echo # Wait until ALTER TABLE starts waiting X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t2 add column c2 int";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t2 add column c2 int";
 --source include/wait_condition.inc
 --echo # Check that attempt to acquire SR lock on t2 causes waiting.
 --echo # Sending:
@@ -1780,7 +1836,8 @@ connection mdl_con2;
 --echo # Check that the above SELECT is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t2";
+where state = "Waiting for table metadata lock" and
+      info = "select count(*) from t2";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE.
 commit;
@@ -1817,7 +1874,8 @@ connection default;
 --echo # Wait until ALTER TABLE starts waiting X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t2 drop column c2";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t2 drop column c2";
 --source include/wait_condition.inc
 --echo # Check that attempt to acquire SW lock on t2 causes waiting.
 --echo # Sending:
@@ -1828,7 +1886,8 @@ connection mdl_con2;
 --echo # Check that the above INSERT is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "insert into t2 values (1)";
+where state = "Waiting for table metadata lock" and
+      info = "insert into t2 values (1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE.
 commit;
@@ -1861,7 +1920,8 @@ connection default;
 --echo # Wait until ALTER TABLE starts waiting X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "alter table t1 add column c2 int";
+where state = "Waiting for table metadata lock" and
+      info = "alter table t1 add column c2 int";
 --source include/wait_condition.inc
 --echo # Check that transaction is still able to acquire SR lock.
 select count(*) from t1;
@@ -1904,7 +1964,8 @@ connection mdl_con1;
 --echo # Check that the above SELECT is blocked 
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t2";
+where state = "Waiting for table metadata lock" and
+      info = "select count(*) from t2";
 --source include/wait_condition.inc
 --echo # Unblock SELECT.
 unlock tables;
@@ -1934,7 +1995,8 @@ connection mdl_con1;
 --echo # Check that the above DELETE is blocked 
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "delete from t2 limit 1";
+where state = "Waiting for table metadata lock" and
+      info = "delete from t2 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock DELETE.
 unlock tables;
@@ -1964,7 +2026,8 @@ connection default;
 --echo # Wait until LOCK TABLE is blocked creating pending request for X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Check that another instance of SR lock is granted without waiting.
 select count(*) from t1;
@@ -1999,7 +2062,8 @@ connection default;
 --echo # Wait until LOCK TABLE is blocked creating pending request for X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "lock table t1 write";
+where state = "Waiting for table metadata lock" and
+      info = "lock table t1 write";
 --source include/wait_condition.inc
 --echo # Check that both SR and SW locks are granted without waiting
 --echo # and errors.
@@ -2043,7 +2107,8 @@ connection default;
 --echo # Wait until RENAME TABLE starts waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t2 to t3";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # Check that attempt to acquire SR lock on t2 causes waiting.
 --echo # Sending:
@@ -2054,7 +2119,8 @@ connection mdl_con2;
 --echo # Check that the above SELECT is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "select count(*) from t2";
+where state = "Waiting for table metadata lock" and
+      info = "select count(*) from t2";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -2093,7 +2159,8 @@ connection default;
 --echo # Wait until RENAME TABLE starts waiting with pending X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t2 to t3";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # Check that attempt to acquire SW lock on t2 causes waiting.
 --echo # Sending:
@@ -2104,7 +2171,8 @@ connection mdl_con2;
 --echo # Check that the above DELETE is blocked.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "delete from t2 limit 1";
+where state = "Waiting for table metadata lock" and
+      info = "delete from t2 limit 1";
 --source include/wait_condition.inc
 --echo # Unblock RENAME TABLE.
 commit;
@@ -2141,7 +2209,8 @@ connection default;
 --echo # Wait until RENAME TABLE is blocked creating pending request for X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that another instance of SR lock is granted without waiting.
 select count(*) from t1;
@@ -2176,7 +2245,8 @@ connection default;
 --echo # Wait until RENAME TABLE is blocked creating pending request for X lock.
 let $wait_condition=
 select count(*) = 1 from information_schema.processlist
-where state = "Waiting for table" and info = "rename table t1 to t2";
+where state = "Waiting for table metadata lock" and
+      info = "rename table t1 to t2";
 --source include/wait_condition.inc
 --echo # Check that both SR and SW locks are granted without waiting
 --echo # and errors.
@@ -2236,7 +2306,8 @@ connection handler_con2;
 --echo # Wait until ALTER is blocked during upgrade.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column j int";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column j int";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -2279,7 +2350,8 @@ connection handler_con1;
 --echo # Wait until INSERT is blocked on table-level lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "insert into t2 values (1)";
+  where state = "Waiting for table level lock" and
+        info = "insert into t2 values (1)";
 --source include/wait_condition.inc
 --echo # Sending 'alter table t1 drop column j'. It should not cause
 --echo # deadlock.
@@ -2289,7 +2361,8 @@ connection handler_con2;
 --echo # Wait until ALTER is blocked during upgrade.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 drop column j";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 drop column j";
 --source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
@@ -2328,7 +2401,8 @@ connection handler_con1;
 --echo # Wait until INSERT is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "insert into t1 values (1)";
+  where state = "Waiting for table metadata lock" and
+        info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 --echo # The below ALTER TABLE will be blocked because of presence of HANDLER.
 --echo # Sending:
@@ -2374,7 +2448,8 @@ connection handler_con1;
 --echo # Wait until INSERT is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "insert into t2 values (1)";
+  where state = "Waiting for table metadata lock" and
+        info = "insert into t2 values (1)";
 --source include/wait_condition.inc
 --echo # The below ALTER TABLE will be blocked because of presence of HANDLER.
 --echo # Sending:
@@ -2451,7 +2526,8 @@ connection deadlock_con1;
 --echo # for 'deadlock_con2' which holds shared metadata lock on 't2'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t2 to t0, t3 to t2, t0 to t3";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t2 to t0, t3 to t2, t0 to t3";
 --source include/wait_condition.inc
 --echo # The below statement should wait for exclusive metadata lock
 --echo # on 't2' to go away and should not produce ER_LOCK_DEADLOCK
@@ -2466,7 +2542,8 @@ connection deadlock_con2;
 --echo # for an exclusive metadata lock to go away.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "select * from t2";
+  where state = "Waiting for table metadata lock" and
+        info = "select * from t2";
 --source include/wait_condition.inc
 --echo #
 --echo # Unblock RENAME TABLE by releasing shared metadata lock on t2.
@@ -2502,7 +2579,8 @@ connection deadlock_con1;
 --echo # table 't1'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t0, t3 to t1, t0 to t3";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t0, t3 to t1, t0 to t3";
 --source include/wait_condition.inc
 --echo # Commit transaction to unblock RENAME TABLE.
 commit;
@@ -2536,7 +2614,8 @@ connection deadlock_con1;
 --echo # for 'deadlock_con1' which holds shared metadata lock on 't2'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t2 to t0, t1 to t2, t0 to t1";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t2 to t0, t1 to t2, t0 to t1";
 --source include/wait_condition.inc
 --echo # 
 --echo # The below statement should not wait as doing so will cause deadlock.
@@ -2549,7 +2628,8 @@ select * from t1;
 --echo # metadata lock on table 't1', i.e. that RENAME TABLE is still blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t2 to t0, t1 to t2, t0 to t1";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t2 to t0, t1 to t2, t0 to t1";
 --source include/wait_condition.inc
 --echo # Commit transaction to unblock RENAME TABLE.
 commit;
@@ -2590,7 +2670,7 @@ connection deadlock_con2;
 --echo # for an UNRW metadata lock to go away.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "select * from t1";
+  where state = "Waiting for table metadata lock" and info = "select * from t1";
 --source include/wait_condition.inc
 
 --echo # Send RENAME TABLE statement that will deadlock with the
@@ -2604,7 +2684,8 @@ connection default;
 --echo # pending X lock on t1.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t0, t2 to t1, t0 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t0, t2 to t1, t0 to t2";
 --source include/wait_condition.inc
 --echo # Allow the above RENAME TABLE to acquire lock on t1 and
 --echo # create pending lock on t2 thus creating deadlock.
@@ -2626,7 +2707,8 @@ connection deadlock_con1;
 --echo # is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t0, t2 to t1, t0 to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t0, t2 to t1, t0 to t2";
 --source include/wait_condition.inc
 --echo # Commit transaction to unblock this RENAME TABLE.
 commit;
@@ -2674,7 +2756,8 @@ connection deadlock_con1;
 --echo # 'deadlock_con1' which holds shared lock on 't1'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column j int, rename to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column j int, rename to t2";
 --source include/wait_condition.inc
 
 --echo # The below statement should not wait as it will cause deadlock.
@@ -2687,7 +2770,8 @@ select * from t2;
 --echo # so ALTER TABLE ... RENAME is still blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column j int, rename to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column j int, rename to t2";
 --source include/wait_condition.inc
 
 --echo # Commit transaction to unblock ALTER TABLE ... RENAME.
@@ -2732,7 +2816,8 @@ connection deadlock_con2;
 --echo # while trying to acquire SNRW lock on 't1'.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock tables t1 write, t2 write";
+  where state = "Waiting for table metadata lock" and
+        info = "lock tables t1 write, t2 write";
 --source include/wait_condition.inc
 --echo # Resume SELECT execution, this should eventually unblock LOCK TABLES.
 set debug_sync= 'now SIGNAL finish';
@@ -2801,7 +2886,8 @@ connection deadlock_con2;
 --echo # Wait until ALTER is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 drop column j";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 drop column j";
 --source include/wait_condition.inc
 --echo # Resume INSERT so it can start deadlock detection.
 --echo #
@@ -2829,11 +2915,262 @@ connection default;
 
 drop table t1;
 
+--echo #
+--echo # Now, test for a situation in which deadlock involves waiting not
+--echo # only in MDL subsystem but also for TDC. Such deadlocks should be
+--echo # successfully detected. If possible, they should be resolved without
+--echo # resorting to ER_LOCK_DEADLOCK error.
+--echo #
+create table t1(i int);
+create table t2(j int);
+
+--echo #
+--echo # First, let us check how we handle a simple scenario involving
+--echo # waits in MDL and TDC.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Start a statement, which will acquire SR metadata lock on t1, open it
+--echo # and then stop, before trying to acquire SW lock on t2 and opening it.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+--send select * from t1 where i in (select j from t2 for update)
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2 and wait till SELECT closes t1.
+--echo # Sending:
+send flush tables t1, t2 with read lock;
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait until FLUSH TABLES WITH t1, t2 READ LOCK starts waiting
+--echo # for SELECT to close t1.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush" and
+        info = "flush tables t1, t2 with read lock";
+--source include/wait_condition.inc
+
+--echo # Resume SELECT, so it tries to acquire SW lock on t1 and blocks,
+--echo # creating a deadlock. This deadlock should be detected and resolved
+--echo # by backing-off SELECT. As a result FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+reap;
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT.
+reap;
+
+--echo #
+--echo # The same scenario with a slightly different order of events
+--echo # which emphasizes that setting correct deadlock detector weights
+--echo # for flush waits is important.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+set debug_sync='flush_tables_with_read_lock_after_acquire_locks SIGNAL parked WAIT_FOR go';
+
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2 and wait on debug sync point.
+--echo # Sending:
+send flush tables t1, t2 with read lock;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Wait till FLUSH TABLE WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+
+--echo # Start statement which will acquire SR metadata lock on t1, open
+--echo # it and then will block while trying to acquire SW lock on t2.
+--echo # Sending:
+send select * from t1 where i in (select j from t2 for update);
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait till the above SELECT blocks.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "select * from t1 where i in (select j from t2 for update)";
+--source include/wait_condition.inc
+
+--echo # Resume FLUSH TABLES, so it tries to flush t1, thus creating
+--echo # a deadlock. This deadlock should be detected and resolved by
+--echo # backing-off SELECT. As a result FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+reap;
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT.
+reap;
+
+--echo #
+--echo # Now a more complex scenario involving two connections
+--echo # waiting for MDL and one for TDC.
+--echo #
+set debug_sync= 'RESET';
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Start a statement which will acquire SR metadata lock on t2, open it
+--echo # and then stop, before trying to acquire SR on t1 and opening it.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+--echo # Sending:
+send select * from t2, t1;
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+--echo # The below FLUSH TABLES WITH READ LOCK should acquire
+--echo # SNW locks on t2 and wait till SELECT closes t2.
+--echo # Sending:
+send flush tables t2 with read lock;
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Wait until FLUSH TABLES WITH READ LOCK starts waiting
+--echo # for SELECT to close t2.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush" and
+        info = "flush tables t2 with read lock";
+--source include/wait_condition.inc
+
+--echo # The below DROP TABLES should acquire X lock on t1 and start
+--echo # waiting for X lock on t2.
+--echo # Sending:
+send drop tables t1, t2;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until DROP TABLES starts waiting for X lock on t2.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "drop tables t1, t2";
+--source include/wait_condition.inc
+
+--echo # Resume SELECT, so it tries to acquire SR lock on t1 and blocks,
+--echo # creating a deadlock. This deadlock should be detected and resolved
+--echo # by backing-off SELECT. As a result, FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'deadlock_con2'.
+connection deadlock_con2;
+--echo # Reap FLUSH TABLES WITH READ LOCK.
+reap;
+--echo # Unblock DROP TABLES.
+unlock tables;
+
+--echo # Switching to connection 'deadlock_con3'.
+connection deadlock_con3;
+--echo # Reap DROP TABLES.
+reap;
+
+--echo # Switching to connection 'deadlock_con1'.
+connection deadlock_con1;
+--echo # Reap SELECT. It should emit error about missing table.
+--error ER_NO_SUCH_TABLE
+reap;
+
+--echo # Switching to connection 'default'.
+connection default;
+
 set debug_sync= 'RESET';
 
 disconnect deadlock_con1;
 disconnect deadlock_con2;
 disconnect deadlock_con3;
+
+
+--echo #
+--echo # Test for a scenario in which FLUSH TABLES <list> WITH READ LOCK
+--echo # used to erroneously release metadata locks.
+--echo # 
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connection default;
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+set debug_sync= 'RESET';
+create table t1(i int);
+create table t2(j int);
+
+--echo # Switching to connection 'con2'.
+connection con2;
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+
+--echo # The below FLUSH TABLES <list> WITH READ LOCK should acquire
+--echo # SNW locks on t1 and t2, open table t1 and block on the debug
+--echo # sync point.
+--echo # Sending:
+send flush tables t1, t2 with read lock;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Wait till FLUSH TABLES <list> WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+
+--echo # Start a statement which will flush all tables and thus
+--echo # invalidate table t1 open by FLUSH TABLES <list> WITH READ LOCK.
+--echo # Sending:
+send flush tables;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait till the above FLUSH TABLES blocks.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush" and
+        info = "flush tables";
+--source include/wait_condition.inc
+
+--echo # Resume FLUSH TABLES <list> WITH READ LOCK, so it tries to open t2
+--echo # discovers that its t1 is obsolete and tries to reopen all tables.
+--echo # Such reopen should not cause releasing of SNW metadata locks
+--echo # which would result in assertion failures.
+set debug_sync='now SIGNAL go';
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Reap FLUSH TABLES <list> WITH READ LOCK.
+reap;
+unlock tables;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Reap FLUSH TABLES.
+reap;
+
+--echo # Clean-up.
+--echo # Switching to connection 'default'.
+connection default;
+drop tables t1, t2;
+set debug_sync= 'RESET';
+disconnect con1;
+disconnect con2;
 
 
 --echo #
@@ -2873,7 +3210,7 @@ connection default;
 --echo # metadata lock on its tables and blocks due to 't4' being used by LOCK
 --echo # TABLES.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                       where state= 'Waiting for table' and
+                       where state= 'Waiting for table metadata lock' and
                              info='rename table t3 to t5, t4 to t3';
 --source include/wait_condition.inc
 --echo # Send :
@@ -2884,7 +3221,7 @@ connection con1root;
 --echo # Wait until INSERT statement waits due to encountering pending
 --echo # exclusive metadata lock on 't3'.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                       where state= 'Waiting for table' and
+                       where state= 'Waiting for table metadata lock' and
                              info='insert into t1 values (1)';
 --source include/wait_condition.inc
 unlock tables;
@@ -3026,7 +3363,8 @@ connection default;
 --echo # Waiting until CREATE TABLE ... SELECT ... is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "create table t2 select * from t1 for update";
+  where state = "Waiting for table level lock" and
+        info = "create table t2 select * from t1 for update";
 --source include/wait_condition.inc
 
 --echo # First let us check that SHOW FIELDS/DESCRIBE doesn't
@@ -3079,7 +3417,8 @@ connection default;
 --echo # Waiting until CREATE TABLE ... SELECT ... is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "create table t2 select * from t1 for update";
+  where state = "Waiting for table level lock" and
+        info = "create table t2 select * from t1 for update";
 --source include/wait_condition.inc
 
 --echo # Let us check that SHOW FIELDS/DESCRIBE gets blocked.
@@ -3091,7 +3430,8 @@ connection con46044_2;
 --echo # Wait until SHOW FIELDS gets blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "show fields from t2";
+  where state = "Waiting for table metadata lock" and
+        info = "show fields from t2";
 --source include/wait_condition.inc
 
 unlock tables;
@@ -3121,7 +3461,8 @@ connection default;
 --echo # Waiting until CREATE TABLE ... SELECT ... is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "create table t2 select * from t1 for update";
+  where state = "Waiting for table level lock" and
+        info = "create table t2 select * from t1 for update";
 --source include/wait_condition.inc
 
 --echo # Check that I_S query which reads only .FRMs gets blocked.
@@ -3133,7 +3474,7 @@ connection con46044_2;
 --echo # Wait until SELECT COLUMN_NAME FROM I_S.COLUMNS  gets blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info like "select column_name from information_schema.columns%";
 --source include/wait_condition.inc
 
@@ -3164,7 +3505,8 @@ connection default;
 --echo # Waiting until CREATE TABLE ... SELECT ... is blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "create table t2 select * from t1 for update";
+  where state = "Waiting for table level lock" and
+        info = "create table t2 select * from t1 for update";
 --source include/wait_condition.inc
 
 --echo # Finally, check that I_S query which does full-blown table open
@@ -3177,7 +3519,7 @@ connection con46044_2;
 --echo # Wait until SELECT ... FROM I_S.TABLES gets blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and
+  where state = "Waiting for table metadata lock" and
         info like "select table_name, table_type, auto_increment, table_comment from information_schema.tables%";
 --source include/wait_condition.inc
 
@@ -3240,7 +3582,8 @@ update t1 set c3=c3+1 where c2 = 3;
 --echo # metadata lock on table 't1', i.e. that ALTER TABLE is still blocked.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "alter table t1 add column e int, rename to t2";
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add column e int, rename to t2";
 --source include/wait_condition.inc
 
 --echo # Unblock ALTER TABLE by commiting transaction and thus releasing
@@ -3318,7 +3661,7 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
@@ -3346,15 +3689,22 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
 connection default;
+--echo # Once FLUSH TABLES WITH READ LOCK starts waiting
+--echo # DROP PROCEDURE will be waked up and will drop
+--echo # procedure. Global read lock will be granted after
+--echo # this statement ends.
+--echo #
+--echo # Reaping DROP PROCEDURE.
 --reap
 
 --echo # Connection 2
 connection con2;
+--echo # Reaping FTWRL.
 --reap
 UNLOCK TABLES;
 
@@ -3425,7 +3775,7 @@ connection con1;
 connection con3;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Table lock" and info = "SELECT 1";
+  WHERE state = "Waiting for table level lock" and info = "SELECT 1";
 --source include/wait_condition.inc
 # The ALTER below will try to abort the statement in connection con1,
 # since the latter waits on a table-level lock while having a HANDLER
@@ -3495,7 +3845,8 @@ connection con50913_2;
 --echo # Wait until TRUNCATE TABLE is blocked on MDL lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "truncate table t1";
+  where state = "Waiting for table metadata lock" and
+        info = "truncate table t1";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE.
 set debug_sync= 'now SIGNAL go';
@@ -3568,7 +3919,8 @@ connection con3;
 --echo # SW lock on the table.
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where state = "Waiting for table" and info = "insert into t1 values (1)";
+  where state = "Waiting for table metadata lock" and
+        info = "insert into t1 values (1)";
 --source include/wait_condition.inc
 --echo # Unblock ALTER TABLE. Since it will try to upgrade SNW to X lock
 --echo # deadlock with two loops in waiting graph will occur. Both loops
@@ -3624,7 +3976,8 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo # Connection: con1
 connection con1;
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 send TRUNCATE TABLE t1;
 
 connection default;
@@ -3649,15 +4002,17 @@ connection default;
 --echo # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
+--echo # Ensure that truncate waits for a exclusive lock
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
+--source include/wait_condition.inc
+SET debug_sync= 'now SIGNAL go_show';
 
 connection con1;
---echo # Connection: con1
+--echo # Connection: con1 (TRUNCATE)
 --echo # Reaping...
 reap;
-
-connection default;
---echo # Connection: default
-SET debug_sync= 'now SIGNAL go_show';
+UNLOCK TABLES;
 
 connection con2;
 --echo # Connection: con2 (SHOW FIELDS FROM t1)
@@ -3703,6 +4058,550 @@ connection con1;
 connection default;
 DROP TABLE t1;
 disconnect con1;
+
+
+--echo #
+--echo # Tests for schema-scope locks
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+--enable_warnings
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Test 1: 
+--echo # CREATE DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send CREATE DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send CREATE DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND info='CREATE DATABASE db1';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CREATE DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: CREATE DATABASE db1
+--error ER_DB_CREATE_EXISTS
+--reap
+
+--echo # Test 2:
+--echo # ALTER DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should also block.
+--send DROP DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP DATABASE db1
+--reap
+# Recreate the database
+CREATE DATABASE db1;
+
+--echo # Test 3:
+--echo # Two ALTER..UPGRADE of the same database are mutually exclusive, but
+--echo # two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+# Manually make a 5.0 database from the template
+--mkdir $MYSQLD_DATADIR/a-b-c
+--copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c/db.opt
+--mkdir $MYSQLD_DATADIR/a-b-c-d
+--copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c-d/db.opt
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock'
+  AND info='ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME';
+--source include/wait_condition.inc
+# This should not block.
+ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+--error ER_BAD_DB_ERROR
+--reap
+DROP DATABASE `a-b-c`;
+DROP DATABASE `a-b-c-d`;
+
+--echo # Test 4:
+--echo # DROP DATABASE blocks database DDL on the same database, but
+--echo # not database DDL on different databases. Tests X vs X lock.
+--echo #
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send DROP DATABASE db1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND info='DROP DATABASE db1';
+--source include/wait_condition.inc
+# This should not block.
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP DATABASE db1
+--error ER_DB_DROP_EXISTS
+--reap
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should also block.
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Error 1 is from ALTER DATABASE when the database does not exist.
+# Listing the error twice to prevent result diffences based on filename.
+--error 1,1
+--reap
+
+
+--echo # Test 5:
+--echo # Locked database name prevents CREATE of tables in that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send CREATE TABLE db1.t1 (a INT)
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND
+        info='CREATE TABLE db1.t1 (a INT)';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: CREATE TABLE db1.t1 (a INT)
+--error ER_BAD_DB_ERROR
+--reap
+
+--echo # Test 6:
+--echo # Locked database name prevents RENAME of tables to/from that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send RENAME TABLE db1.t1 TO test.t1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND
+        info='RENAME TABLE db1.t1 TO test.t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: RENAME TABLE db1.t1 TO test.t1
+--error ER_FILE_NOT_FOUND, ER_FILE_NOT_FOUND
+--reap
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE test.t2 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send RENAME TABLE test.t2 TO db1.t2
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND
+        info='RENAME TABLE test.t2 TO db1.t2';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: RENAME TABLE test.t2 TO db1.t2
+# Error 7 is from RENAME TABLE where the target database does not exist.
+# Listing the error twice to prevent result diffences based on filename.
+--error 7, 7
+--reap
+DROP TABLE test.t2;
+
+
+--echo # Test 7:
+--echo # Locked database name prevents DROP of tables in that database.
+--echo # Tests X vs IX lock.
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+--echo # Sending:
+--send DROP DATABASE db1
+
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--echo # Sending:
+# This should block.
+--send DROP TABLE db1.t1
+
+--echo # Connection con3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for schema metadata lock' AND info='DROP TABLE db1.t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP DATABASE db1
+--reap
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DROP TABLE db1.t1
+--error ER_BAD_TABLE_ERROR
+--reap
+
+--echo # Connection default
+connection default;
+disconnect con2;
+disconnect con3;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--echo # End of tests for schema-scope locks
+--echo #
+
+--echo #
+--echo # Tests of granted global S lock (FLUSH TABLE WITH READ LOCK)
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a INT);
+connect(con2, localhost, root);
+connect(con3, localhost, root);
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# IX global lock should block
+--send CREATE TABLE db1.t2(a INT)
+
+--echo # Connection default
+connection default;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for global read lock'
+  AND info='CREATE TABLE db1.t2(a INT)';
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping CREATE TABLE db1.t2(a INT)
+--reap
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# X global lock should block
+--send ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+
+--echo # Connection default
+connection default;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for global read lock'
+  AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
+--source include/wait_condition.inc
+UNLOCK TABLES;
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+--reap
+
+--echo # Connection default
+connection default;
+FLUSH TABLE WITH READ LOCK;
+
+--echo # Connection con2
+connection con2;
+# S global lock should not block
+FLUSH TABLE WITH READ LOCK;
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+DROP DATABASE db1;
+disconnect con2;
+disconnect con3;
+
+
+--echo #
+--echo # Bug#56292 Deadlock with ALTER TABLE and MERGE tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=MyISAM;
+CREATE TABLE t2(a INT) engine=MyISAM;
+CREATE TABLE m1(a INT) engine=MERGE UNION=(t1, t2);
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4);
+
+connect(con1, localhost, root);
+connect(con2, localhost, root);
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= 'mdl_upgrade_shared_lock_to_exclusive SIGNAL upgrade WAIT_FOR continue';
+--echo # Sending:
+--send ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for ALTER TABLE to try lock upgrade
+SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
+--echo # Sending:
+--send DELETE FROM t2 WHERE a = 3
+
+--echo # Connection default
+connection default;
+--echo # Check that DELETE is waiting on a metadata lock and not a table lock.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "DELETE FROM t2 WHERE a = 3";
+--source include/wait_condition.inc
+--echo # Now that DELETE blocks on a metadata lock, we should be able to do
+--echo # SELECT * FROM m1 here. SELECT used to be blocked by a DELETE table
+--echo # lock request.
+SELECT * FROM m1;
+--echo # Resuming ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+--reap
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DELETE FROM t2 WHERE a = 3
+--reap
+--echo # Connection default
+connection default;
+DROP TABLE m1, t1, t2;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
 
 
 # Check that all connections opened by test cases in this file are really

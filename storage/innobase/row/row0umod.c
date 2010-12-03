@@ -58,12 +58,22 @@ delete marked clustered index record was delete unmarked and possibly also
 some of its fields were changed. Now, it is possible that the delete marked
 version has become obsolete at the time the undo is started. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if also the previous version of the clustered index record was
 modified or inserted by the same transaction, and its undo number is such
 that it should be undone in the same rollback.
 @return	TRUE if also previous modify or insert of this row should be undone */
-UNIV_INLINE
+static
 ibool
 row_undo_mod_undo_also_prev_vers(
 /*=============================*/
@@ -75,9 +85,9 @@ row_undo_mod_undo_also_prev_vers(
 
 	trx = node->trx;
 
-	if (0 != ut_dulint_cmp(node->new_trx_id, trx->id)) {
+	if (node->new_trx_id != trx->id) {
 
-		*undo_no = ut_dulint_zero;
+		*undo_no = 0;
 		return(FALSE);
 	}
 
@@ -85,7 +95,7 @@ row_undo_mod_undo_also_prev_vers(
 
 	*undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	return(ut_dulint_cmp(trx->roll_limit, *undo_no) <= 0);
+	return(trx->roll_limit <= *undo_no);
 }
 
 /***********************************************************//**
@@ -104,12 +114,17 @@ row_undo_mod_clust_low(
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ulint		err;
+#ifdef UNIV_DEBUG
 	ibool		success;
+#endif /* UNIV_DEBUG */
 
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
-	success = btr_pcur_restore_position(mode, pcur, mtr);
+#ifdef UNIV_DEBUG
+	success =
+#endif /* UNIV_DEBUG */
+	btr_pcur_restore_position(mode, pcur, mtr);
 
 	ut_ad(success);
 
@@ -230,6 +245,8 @@ row_undo_mod_clust(
 	undo_no_t	new_undo_no;
 
 	ut_ad(node && thr);
+
+	log_free_check();
 
 	/* Check if also the previous version of the clustered index record
 	should be undone in this same rollback operation */
@@ -502,7 +519,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, btr_pcur_get_rec(&pcur), index);
 		putc('\n', stderr);
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
+		rw_lock_s_unlock(&trx_sys->lock);
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
@@ -772,13 +791,14 @@ static
 void
 row_undo_mod_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr)	/*!< in: query thread */
+	undo_node_t*	node,		/*!< in: row undo node */
+	que_thr_t*	thr,		/*!< in: query thread */
+	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	trx_id_t	trx_id;
 	roll_ptr_t	roll_ptr;
 	ulint		info_bits;
@@ -793,7 +813,7 @@ row_undo_mod_parse_undo_rec(
 				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
-	node->table = dict_table_get_on_id(table_id, trx);
+	node->table = dict_table_open_on_id(table_id, dict_locked);
 
 	/* TODO: other fixes associated with DROP TABLE + rollback in the
 	same table by another user */
@@ -804,6 +824,8 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
+		dict_table_close(node->table, dict_locked);
+
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
 
@@ -824,6 +846,13 @@ row_undo_mod_parse_undo_rec(
 	node->new_roll_ptr = roll_ptr;
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;
+
+	if (!row_undo_search_clust_to_pcur(node)) {
+
+		dict_table_close(node->table, dict_locked);
+
+		node->table = NULL;
+	}
 }
 
 /***********************************************************//**
@@ -836,14 +865,17 @@ row_undo_mod(
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err;
+	ulint		err;
+	ibool		dict_locked;
 
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
 
-	row_undo_mod_parse_undo_rec(node, thr);
+	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
-	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+	row_undo_mod_parse_undo_rec(node, thr, dict_locked);
+
+	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 
@@ -868,12 +900,14 @@ row_undo_mod(
 		err = row_undo_mod_upd_del_sec(node, thr);
 	}
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_SUCCESS) {
 
-		return(err);
+		err = row_undo_mod_clust(node, thr);
 	}
 
-	err = row_undo_mod_clust(node, thr);
+	dict_table_close(node->table, dict_locked);
+
+	node->table = NULL;
 
 	return(err);
 }

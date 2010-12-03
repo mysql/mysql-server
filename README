@@ -1,58 +1,56 @@
-This is a release of MySQL, a dual-license SQL database server.
-MySQL is brought to you by the MySQL team at Oracle Corporation.
+MySQL Server
 
-************************************************************
-LICENSE
-************************************************************
-License information and use restrictions of this software can
-be found in these files:
-- For GPL (free) distributions, see the COPYING file and
-  the EXCEPTIONS-CLIENT file.
-- For commercial distributions, see the LICENSE.mysql file.
+This is a release of MySQL, a dual-license SQL database server.
+For the avoidance of doubt, this particular copy of the software 
+is released under the version 2 of the GNU General Public License. 
+MySQL is brought to you by the MySQL team at Oracle.
+
+Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+
+License information can be found in the COPYING file.
+
+This distribution may include materials developed by third
+parties. For license and attribution notices for these
+materials, please refer to the documentation that accompanies
+this distribution (see the Licenses for Third-Party Components
+appendix). A copy of the license/notices is also reproduced 
+below. 
 
 GPLv2 Disclaimer
 For the avoidance of doubt, except that if any license choice
-other than GPL or LGPL is available it will apply instead, Oracle
-elects to use only the General Public License version 2 (GPLv2)
-at this time for any software where a choice of GPL license versions
-is made available with the language indicating that GPLv2 or any
-later version may be used, or where a choice of which version of
-the GPL is applied is otherwise unspecified.
+other than GPL or LGPL is available it will apply instead, 
+Oracle elects to use only the General Public License version 2 
+(GPLv2) at this time for any software where a choice of GPL 
+license versions is made available with the language indicating 
+that GPLv2 or any later version may be used, or where a choice 
+of which version of the GPL is applied is otherwise unspecified.
 
-************************************************************
-FURTHER INFORMATION
-************************************************************
-For further information about MySQL or additional documentation, see:
-- The latest information about MySQL: http://dev.mysql.com/
-- The current MySQL documentation: http://dev.mysql.com/doc/
+For further information about MySQL or additional documentation, 
+see:
+- The latest information about MySQL: http://www.mysql.com
+- The current MySQL documentation: http://dev.mysql.com/doc
 
-Some manual sections of special interest:
-- If you are migrating from an older version of MySQL, please read 
-the "Upgrading from..." section first!
+Some Reference Manual sections of special interest:
+- If you are migrating from an older version of MySQL, please 
+  read the "Upgrading from..." section.
 - To see what MySQL can do, take a look at the features section.
 - For installation instructions, see the Installing and Upgrading
-chapter.
-- For the new features/bugfix history, see the Change History appendix.
-- For the currently known bugs/misfeatures (known errors) see the
-Problems and Common Errors appendix.
-- For a list of developers and other contributors, see the Credits
-appendix.
+  chapter.
+- For the new features/bugfix history, see the MySQL Change History 
+  appendix.
+- For currently known bugs, see the Errors and Common Problems
+  appendix.
 
-A local copy of the MySQL Reference Manual can be found in the Docs
-directory in GNU Info format. You can also browse the manual online or
-download it in any of several formats at the URL given earlier in this
-file.
+You can browse the MySQL Reference Manual online or download it 
+in any of several formats at the URL given earlier in this file.
+Source distributions include a local copy of the manual in the
+Docs directory.
 
-************************************************************
-IMPORTANT:
+********************************************************************
 
-Bug or error reports should be sent to http://bugs.mysql.com.
-************************************************************
+Third-Party Component Notices
 
-
-************************************************************
-THIRD-PARTY SOFTWARE
-************************************************************
+*********************************************************************
 
 %%The following software may be included in this product:
 FindGTest.cmake (part of CMake 2.8.0)
@@ -2301,4 +2299,4 @@ Use of any of this software is governed by the terms of the license below:
 02111-1307, USA.
 */
 
-***************************************************************************
+**********************************************************************

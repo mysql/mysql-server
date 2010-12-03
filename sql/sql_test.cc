@@ -57,7 +57,7 @@ static const char *lock_descriptions[] =
 #ifndef DBUG_OFF
 
 void
-print_where(COND *cond,const char *info, enum_query_type query_type)
+print_where(Item *cond,const char *info, enum_query_type query_type)
 {
   char buff[256];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
@@ -118,7 +118,7 @@ static void print_cached_tables(void)
 	printf("unused_links isn't linked properly\n");
 	return;
       }
-    } while (count++ < table_cache_count && (lnk=lnk->next) != start_link);
+    } while (count++ < cached_open_tables() && (lnk=lnk->next) != start_link);
     if (lnk != start_link)
     {
       printf("Unused_links aren't connected\n");
@@ -215,7 +215,7 @@ TEST_join(JOIN *join)
     if (tab->select)
     {
       char buf[MAX_KEY/8+1];
-      if (tab->use_quick == 2)
+      if (tab->use_quick == QS_DYNAMIC_RANGE)
 	fprintf(DBUG_FILE,
 		"                  quick select checked for each record (keys: %s)\n",
 		tab->select->quick_keys.print(buf));
@@ -235,6 +235,45 @@ TEST_join(JOIN *join)
   }
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;
+}
+
+#define FT_KEYPART   (MAX_REF_PARTS+10)
+
+void print_keyuse(Key_use *keyuse)
+{
+  char buff[256];
+  char buf2[64]; 
+  const char *fieldname;
+  String str(buff,(uint32) sizeof(buff), system_charset_info);
+  str.length(0);
+  //TODO fix QT_
+  keyuse->val->print(&str, QT_ORDINARY);
+  str.append('\0');
+  if (keyuse->keypart == FT_KEYPART)
+    fieldname= "FT_KEYPART";
+  else
+    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
+  longlong2str(keyuse->used_tables, buf2, 16); 
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "Key_use: %s.%s=%s  optimize= %d used_tables=%s "
+          "ref_table_rows= %lu keypart_map= %0lx\n",
+          keyuse->table->alias, fieldname, str.ptr(),
+          keyuse->optimize, buf2, (ulong)keyuse->ref_table_rows, 
+          keyuse->keypart_map);
+  DBUG_UNLOCK_FILE;
+  //key_part_map keypart_map; --?? there can be several? 
+}
+
+
+/* purecov: begin inspected */
+void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
+{
+  DBUG_LOCK_FILE;
+  fprintf(DBUG_FILE, "Key_use array (%d elements)\n", keyuse_array->elements);
+  DBUG_UNLOCK_FILE;
+  for(uint i=0; i < keyuse_array->elements; i++)
+    print_keyuse(reinterpret_cast<Key_use *>
+                 (dynamic_array_ptr(keyuse_array, i)));
 }
 
 
@@ -298,7 +337,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
     pos = join->positions[i];
     table= pos.table->table;
     if (table)
-      fputs(table->s->table_name.str, DBUG_FILE);
+      fputs(table->alias, DBUG_FILE);
     fputc(' ', DBUG_FILE);
   }
   fputc('\n', DBUG_FILE);
@@ -315,7 +354,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
       pos= join->best_positions[i];
       table= pos.table->table;
       if (table)
-        fputs(table->s->table_name.str, DBUG_FILE);
+        fputs(table->alias, DBUG_FILE);
       fputc(' ', DBUG_FILE);
     }
   }
@@ -338,6 +377,28 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
+
+void print_sjm(TABLE_LIST *emb_sj_nest)
+{
+  DBUG_LOCK_FILE;
+  Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
+  fprintf(DBUG_FILE, "\nsemi-join nest{\n");
+  fprintf(DBUG_FILE, "  tables { \n");
+  for (uint i= 0;i < sjm->table_count; i++)
+  {
+    fprintf(DBUG_FILE, "    %s%s\n", 
+            emb_sj_nest->nested_join->sjm.positions[i].table->table->alias,
+            (i == sjm->table_count -1)? "": ",");
+  }
+  fprintf(DBUG_FILE, "  }\n");
+  fprintf(DBUG_FILE, "  materialize_cost= %g\n",
+          emb_sj_nest->nested_join->sjm.materialization_cost.total_cost());
+  fprintf(DBUG_FILE, "  rows= %g\n",
+          emb_sj_nest->nested_join->sjm.expected_rowcount);
+  fprintf(DBUG_FILE, "}\n");
+  DBUG_UNLOCK_FILE;
+}
+/* purecov: end */
 #endif
 
 C_MODE_START
@@ -416,7 +477,7 @@ static void display_table_locks(void)
   void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), table_cache_count + 20,50);
+  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), cached_open_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
@@ -587,3 +648,205 @@ Estimated memory (with thread stack):    %ld\n",
 #endif
   puts("");
 }
+
+
+#ifndef DBUG_OFF
+#ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
+
+
+/*
+  A fixed-size FIFO pointer queue that also doesn't allow one to put an
+  element that has previously been put into it. 
+  
+  There is a hard-coded limit of the total number of queue put operations.
+  The implementation is trivial and is intended for use in debug dumps only.
+*/
+
+template <class T> class Unique_fifo_queue
+{
+public:
+  /* Add an element to the queue */
+  void push_back(T *tbl)
+  {
+    if (!tbl)
+      return;
+    // check if we've already scheduled and/or dumped the element
+    for (int i= 0; i < last; i++)
+    {
+      if (elems[i] == tbl)
+        return;
+    }
+    elems[last++]=  tbl;
+  }
+
+  bool pop_first(T **elem)
+  {
+    if (first < last)
+    {
+      *elem= elems[first++];
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  void reset()
+  {
+    first= last= 0;
+  }
+  enum { MAX_ELEMS=1000};
+  T *elems[MAX_ELEMS];
+  int first; // First undumped table
+  int last;  // Last undumped element
+};
+
+class Dbug_table_list_dumper
+{
+  FILE *out;
+  Unique_fifo_queue<TABLE_LIST> tables_fifo;
+  Unique_fifo_queue<List<TABLE_LIST> > tbl_lists;
+public:
+  void dump_one_struct(TABLE_LIST *tbl);
+
+  int dump_graph(st_select_lex *select_lex, TABLE_LIST *first_leaf);
+};
+
+
+void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl)
+{
+  Dbug_table_list_dumper dumper;
+  dumper.dump_graph(select_lex, tl);
+}
+
+
+/* 
+  - Dump one TABLE_LIST objects and its outgoing edges
+  - Schedule that other objects seen along the edges are dumped too.
+*/
+
+void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl)
+{
+  fprintf(out, "\"%p\" [\n", tbl);
+  fprintf(out, "  label = \"%p|", tbl);
+  fprintf(out, "alias=%s|", tbl->alias? tbl->alias : "NULL");
+  fprintf(out, "<next_leaf>next_leaf=%p|", tbl->next_leaf);
+  fprintf(out, "<next_local>next_local=%p|", tbl->next_local);
+  fprintf(out, "<next_global>next_global=%p|", tbl->next_global);
+  fprintf(out, "<embedding>embedding=%p", tbl->embedding);
+
+  if (tbl->nested_join)
+    fprintf(out, "|<nested_j>nested_j=%p", tbl->nested_join);
+  if (tbl->join_list)
+    fprintf(out, "|<join_list>join_list=%p", tbl->join_list);
+  if (tbl->on_expr)
+    fprintf(out, "|<on_expr>on_expr=%p", tbl->on_expr);
+  fprintf(out, "\"\n");
+  fprintf(out, "  shape = \"record\"\n];\n\n");
+ 
+  if (tbl->next_leaf)
+  {
+    fprintf(out, "\n\"%p\":next_leaf -> \"%p\"[ color = \"#000000\" ];\n",  
+            tbl, tbl->next_leaf);
+    tables_fifo.push_back(tbl->next_leaf);
+  }
+  if (tbl->next_local)
+  {
+    fprintf(out, "\n\"%p\":next_local -> \"%p\"[ color = \"#404040\" ];\n",  
+            tbl, tbl->next_local);
+    tables_fifo.push_back(tbl->next_local);
+  }
+  if (tbl->next_global)
+  {
+    fprintf(out, "\n\"%p\":next_global -> \"%p\"[ color = \"#808080\" ];\n",  
+            tbl, tbl->next_global);
+    tables_fifo.push_back(tbl->next_global);
+  }
+
+  if (tbl->embedding)
+  {
+    fprintf(out, "\n\"%p\":embedding -> \"%p\"[ color = \"#FF0000\" ];\n",  
+            tbl, tbl->embedding);
+    tables_fifo.push_back(tbl->embedding);
+  }
+
+  if (tbl->join_list)
+  {
+    fprintf(out, "\n\"%p\":join_list -> \"%p\"[ color = \"#0000FF\" ];\n",  
+            tbl, tbl->join_list);
+    tbl_lists.push_back(tbl->join_list);
+  }
+}
+
+
+int Dbug_table_list_dumper::dump_graph(st_select_lex *select_lex, 
+                                       TABLE_LIST *first_leaf)
+{
+  DBUG_ENTER("Dbug_table_list_dumper::dump_graph");
+  char filename[500];
+  int no = 0;
+  do
+  {
+    sprintf(filename, "tlist_tree%.3d.g", no);
+    if ((out= fopen(filename, "rt")))
+    {
+      /* File exists, try next name */
+      fclose(out);
+    }
+    no++;
+  } while (out);
+ 
+  /* Ok, found an unoccupied name, create the file */
+  if (!(out= fopen(filename, "wt")))
+  {
+    DBUG_PRINT("tree_dump", ("Failed to create output file"));
+    DBUG_RETURN(1);
+  }
+ 
+  DBUG_PRINT("tree_dump", ("dumping tree to %s", filename));
+     
+  fputs("digraph g {\n", out);
+  fputs("graph [", out);
+  fputs("  rankdir = \"LR\"", out);
+  fputs("];", out);
+   
+  TABLE_LIST *tbl;
+  tables_fifo.reset();
+  dump_one_struct(first_leaf);   
+  while (tables_fifo.pop_first(&tbl))
+  {
+    dump_one_struct(tbl);
+  }
+
+  List<TABLE_LIST> *plist;
+  tbl_lists.push_back(&select_lex->top_join_list);
+  while (tbl_lists.pop_first(&plist))
+  {
+    fprintf(out, "\"%p\" [\n", plist);
+    fprintf(out, "  bgcolor = \"\"");
+    fprintf(out, "  label = \"L %p\"", plist);
+    fprintf(out, "  shape = \"record\"\n];\n\n");
+  }
+
+  fprintf(out, " { rank = same; ");
+  for (TABLE_LIST *tl=first_leaf; tl; tl= tl->next_leaf)
+    fprintf(out, " \"%p\"; ", tl);
+  fprintf(out, "};\n");
+  fputs("}", out);
+  fclose(out);
+ 
+  char filename2[500];
+  filename[strlen(filename) - 1]= 0;
+  filename[strlen(filename) - 1]= 0;
+  sprintf(filename2, "%s.query", filename);
+  
+  if ((out= fopen(filename2, "wt")))
+  {
+//    fprintf(out, "%s", current_thd->query);
+    fclose(out);
+  }
+  DBUG_RETURN(0);
+}
+
+#endif
+
+#endif 
+

@@ -1,0 +1,20 @@
+--source include/have_innodb.inc
+
+#
+# show the global and session values;
+#
+select @@global.innodb_page_hash_mutexes;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_page_hash_mutexes;
+show global variables like 'innodb_page_hash_mutexes';
+show session variables like 'innodb_page_hash_mutexes';
+select * from information_schema.global_variables where variable_name='innodb_page_hash_mutexes';
+select * from information_schema.session_variables where variable_name='innodb_page_hash_mutexes';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_page_hash_mutexes=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_page_hash_mutexes=1;

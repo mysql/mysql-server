@@ -1794,77 +1794,6 @@ static int my_strnncollsp_cp932(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-#define max_sort_char ((char) 255)
-
-static my_bool my_like_range_cp932(CHARSET_INFO *cs __attribute__((unused)),
-                                   const char *ptr,size_t ptr_length,
-                                   pbool escape, pbool w_one, pbool w_many,
-                                   size_t res_length,
-                                   char *min_str,char *max_str,
-                                   size_t *min_length, size_t *max_length)
-{
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-
-  while (ptr < end && min_str < min_end) {
-    if (ismbchar_cp932(cs, ptr, end)) {
-      *min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == escape && ptr+1 < end) {
-      ptr++;				/* Skip escape */
-      if (ismbchar_cp932(cs, ptr, end))
-	*min_str++ = *max_str++ = *ptr++;
-      if (min_str < min_end)
-	*min_str++ = *max_str++ = *ptr++;
-      continue;
-    }
-    if (*ptr == w_one) {		/* '_' in SQL */
-      *min_str++ = '\0';		/* This should be min char */
-      *max_str++ = max_sort_char;
-      ptr++;
-      continue;
-    }
-    if (*ptr == w_many)
-    {						/* '%' in SQL */
-      *min_length = (size_t)(min_str - min_org);
-      *max_length = res_length;
-      do
-      {
-	*min_str++= 0;
-	*max_str++= max_sort_char;
-      } while (min_str < min_end);
-      return 0;
-    }
-    *min_str++ = *max_str++ = *ptr++;
-  }
-  *min_length = *max_length = (size_t) (min_str - min_org);
-  while (min_str < min_end)
-    *min_str++ = *max_str++ = ' ';	/* Because if key compression */
-  return 0;
-}
-
-
 static uint16 cp932_to_unicode[65536]=
 {
       0x0000,      0x0001,      0x0002,      0x0003, /* 0000 */
@@ -34834,7 +34763,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler =
   my_strnncollsp_cp932,
   my_strnxfrm_mb,
   my_strnxfrmlen_simple,
-  my_like_range_cp932,
+  my_like_range_mb,
   my_wildcmp_mb,	/* wildcmp  */
   my_strcasecmp_8bit,
   my_instr_mb,
@@ -34899,7 +34828,7 @@ CHARSET_INFO my_charset_cp932_japanese_ci=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */
@@ -34932,7 +34861,7 @@ CHARSET_INFO my_charset_cp932_bin=
     1,			/* mbminlen   */
     2,			/* mbmaxlen */
     0,			/* min_sort_char */
-    255,		/* max_sort_char */
+    0xFCFC,		/* max_sort_char */
     ' ',                /* pad char      */
     1,                  /* escape_with_backslash_is_dangerous */
     1,                  /* levels_for_compare */

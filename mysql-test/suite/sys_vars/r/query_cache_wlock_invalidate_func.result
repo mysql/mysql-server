@@ -11,7 +11,6 @@ CREATE TABLE t1(id int, value varchar(10));
 INSERT INTO t1 VALUES(1, 'val1');
 INSERT INTO t1 VALUES(2, 'val2');
 INSERT INTO t1 VALUES(3, 'val3');
-CREATE VIEW v1 AS SELECT * FROM t1;
 SET GLOBAL query_cache_size = 131072;
 FLUSHING CACHE
 SET GLOBAL query_cache_size = 0;
@@ -33,11 +32,11 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
 1 Expected
-LOCK TABLE v1 WRITE;
+LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	0
 0 Expected
 '#----------------------------FN_DYNVARS_136_02-----------------------#'
 SELECT * FROM t1;
@@ -49,13 +48,12 @@ id	value
 2	val2
 3	val3
 ** Connection con0 **
-LOCK TABLE v1 WRITE;
+LOCK TABLE t1 WRITE;
 ** Connection con1 **
 ** Asynchronous Execution **
 SELECT * FROM t1;
 ** Connection con0 **
 wait until table is locked
-Timeout in wait_condition.inc for SELECT count(*) > 0 FROM information_schema.processlist WHERE state= 'Table lock'
 UNLOCK TABLES;
 ** Connection con1 **
 ** Asynchronous Result **
@@ -79,7 +77,7 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
 1 Expected
-LOCK TABLE v1 WRITE;
+LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
@@ -102,7 +100,7 @@ id	value
 2	val2
 3	val3
 ** Connection con0 **
-LOCK TABLE v1 WRITE;
+LOCK TABLE t1 WRITE;
 ** Connection con1 **
 ** Should not be blocked **
 SELECT * FROM t1;
@@ -165,4 +163,3 @@ SET @@GLOBAL.query_cache_type = @old_cache_type;
 ** Connection default **
 Disconnecting Connections con0, con1
 DROP TABLE t1;
-DROP VIEW v1;

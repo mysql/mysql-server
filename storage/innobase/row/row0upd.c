@@ -92,6 +92,16 @@ the x-latch freed? The most efficient way for performing a
 searched delete is obviously to keep the x-latch for several
 steps of query graph execution. */
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
@@ -227,18 +237,18 @@ row_upd_check_references_constraints(
 				entry, index, node->update,
 				foreign->n_fields))) {
 
+			dict_table_t*	ref_table = NULL;
+
 			if (foreign->foreign_table == NULL) {
-				dict_table_get(foreign->foreign_table_name,
-					       FALSE);
+
+				ref_table = dict_table_open_on_name(
+					foreign->foreign_table_name, FALSE);
 			}
 
 			if (foreign->foreign_table) {
-				mutex_enter(&(dict_sys->mutex));
-
-				(foreign->foreign_table
-				 ->n_foreign_key_checks_running)++;
-
-				mutex_exit(&(dict_sys->mutex));
+				os_inc_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
 			}
 
 			/* NOTE that if the thread ends up waiting for a lock
@@ -250,15 +260,13 @@ row_upd_check_references_constraints(
 				FALSE, foreign, table, entry, thr);
 
 			if (foreign->foreign_table) {
-				mutex_enter(&(dict_sys->mutex));
+				os_dec_counter(dict_sys->mutex,
+					       foreign->foreign_table
+					       ->n_foreign_key_checks_running);
+			}
 
-				ut_a(foreign->foreign_table
-				     ->n_foreign_key_checks_running > 0);
-
-				(foreign->foreign_table
-				 ->n_foreign_key_checks_running)--;
-
-				mutex_exit(&(dict_sys->mutex));
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -361,13 +369,13 @@ UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	const dtuple_t*	entry,	/*!< in: index entry, where the memory buffers
-				for sys fields are already allocated:
+	dtuple_t*	entry,	/*!< in/out: index entry, where the memory
+				buffers for sys fields are already allocated:
 				the function just copies the new values to
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint		type,	/*!< in: DATA_TRX_ID or DATA_ROLL_PTR */
-	dulint		val)	/*!< in: value to write */
+	ib_uint64_t	val)	/*!< in: value to write */
 {
 	dfield_t*	dfield;
 	byte*		field;
@@ -456,8 +464,11 @@ row_upd_changes_field_size_or_external(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
-Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. */
+Replaces the new column values stored in the update vector to the
+record given. No field size changes are allowed. This function is
+usually invoked on a clustered index. The only use case for a
+secondary index is row_ins_sec_index_entry_by_modify() or its
+counterpart in ibuf_insert_to_index_page(). */
 UNIV_INTERN
 void
 row_upd_rec_in_place(
@@ -526,7 +537,7 @@ row_upd_write_sys_vals_to_log(
 	trx_write_roll_ptr(log_ptr, roll_ptr);
 	log_ptr += DATA_ROLL_PTR_LEN;
 
-	log_ptr += mach_dulint_write_compressed(log_ptr, trx->id);
+	log_ptr += mach_ull_write_compressed(log_ptr, trx->id);
 
 	return(log_ptr);
 }
@@ -560,7 +571,7 @@ row_upd_parse_sys_vals(
 	*roll_ptr = trx_read_roll_ptr(ptr);
 	ptr += DATA_ROLL_PTR_LEN;
 
-	ptr = mach_dulint_parse_compressed(ptr, end_ptr, trx_id);
+	ptr = mach_ull_parse_compressed(ptr, end_ptr, trx_id);
 
 	return(ptr);
 }
@@ -939,7 +950,7 @@ row_upd_index_replace_new_col_val(
 		}
 
 		len = dtype_get_at_most_n_mbchars(col->prtype,
-						  col->mbminlen, col->mbmaxlen,
+						  col->mbminmaxlen,
 						  field->prefix_len, len,
 						  (const char*) data);
 
@@ -1388,6 +1399,7 @@ row_upd_store_row(
 	dict_index_t*	clust_index;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
+	row_ext_t**	ext;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	const ulint*	offsets;
 	rec_offs_init(offsets_);
@@ -1404,8 +1416,22 @@ row_upd_store_row(
 
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
+
+	if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+		/* In DYNAMIC or COMPRESSED format, there is no prefix
+		of externally stored columns in the clustered index
+		record. Build a cache of column prefixes. */
+		ext = &node->ext;
+	} else {
+		/* REDUNDANT and COMPACT formats store a local
+		768-byte prefix of each externally stored column.
+		No cache is needed. */
+		ext = NULL;
+		node->ext = NULL;
+	}
+
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      NULL, &node->ext, node->heap);
+			      NULL, ext, node->heap);
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;
@@ -1454,7 +1480,6 @@ row_upd_sec_index_entry(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	log_free_check();
 	mtr_start(&mtr);
 
 	/* Set the query thread, so that ibuf_insert_low() will be
@@ -1495,7 +1520,9 @@ row_upd_sec_index_entry(
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
 
+		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
@@ -1557,7 +1584,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-UNIV_INLINE
+static
 ulint
 row_upd_sec_step(
 /*=============*/
@@ -1588,12 +1615,12 @@ static
 ulint
 row_upd_clust_rec_by_insert(
 /*========================*/
-	upd_node_t*	node,	/*!< in: row update node */
+	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
 	ibool		referenced,/*!< in: TRUE if index may be referenced in
 				a foreign key constraint */
-	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
+	mtr_t*		mtr)	/*!< in/out: mtr; gets committed here */
 {
 	mem_heap_t*	heap	= NULL;
 	btr_pcur_t*	pcur;
@@ -1602,6 +1629,7 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	ulint		err;
+	ibool		change_ownership = FALSE;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1634,10 +1662,11 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		btr_cur_mark_extern_inherited_fields(
+		change_ownership = btr_cur_mark_extern_inherited_fields(
 			btr_cur_get_page_zip(btr_cur),
 			rec, index, offsets, node->update, mtr);
 		if (referenced) {
+
 			/* NOTE that the following call loses
 			the position of pcur ! */
 
@@ -1670,10 +1699,11 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (node->upd_ext) {
+	if (change_ownership) {
 		/* If we return from a lock wait, for example, we may have
 		extern fields marked as not-owned in entry (marked in the
-		if-branch above). We must unmark them. */
+		if-branch above). We must unmark them, take the ownership
+		back. */
 
 		btr_cur_unmark_dtuple_extern_fields(entry);
 
@@ -1903,8 +1933,7 @@ row_upd_clust_step(
 	then we have to free the file segments of the index tree associated
 	with the index */
 
-	if (node->is_delete
-	    && ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->is_delete && node->table->id == DICT_INDEXES_ID) {
 
 		dict_drop_index_tree(btr_pcur_get_rec(pcur), mtr);
 
@@ -2049,6 +2078,7 @@ row_upd(
 	if (node->state == UPD_NODE_UPDATE_CLUSTERED
 	    || node->state == UPD_NODE_INSERT_CLUSTERED) {
 
+		log_free_check();
 		err = row_upd_clust_step(node, thr);
 
 		if (err != DB_SUCCESS) {
@@ -2063,6 +2093,8 @@ row_upd(
 	}
 
 	while (node->index != NULL) {
+
+		log_free_check();
 		err = row_upd_sec_step(node, thr);
 
 		if (err != DB_SUCCESS) {
@@ -2111,7 +2143,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 

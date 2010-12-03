@@ -123,6 +123,8 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table : public PFS_instr
 {
+  /** Owner. */
+  PFS_thread *m_opening_thread;
   /** Table share. */
   PFS_table_share *m_share;
   /** Table identity, typically a handler. */
@@ -180,18 +182,24 @@ private:
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_thread
 {
+  static PFS_thread* get_current_thread(void);
+
   /** Internal lock. */
   pfs_lock m_lock;
   /** Pins for filename_hash. */
   LF_PINS *m_filename_hash_pins;
   /** Pins for table_share_hash. */
   LF_PINS *m_table_share_hash_pins;
+  /** Pins for setup_actor_hash. */
+  LF_PINS *m_setup_actor_hash_pins;
   /** Event ID counter */
   ulonglong m_event_id;
   /** Thread instrumentation flag. */
   bool m_enabled;
   /** Internal thread identifier, unique. */
   ulong m_thread_internal_id;
+  /** Parent internal thread identifier. */
+  ulong m_parent_thread_internal_id;
   /** External (SHOW PROCESSLIST) thread identifier, not unique. */
   ulong m_thread_id;
   /** Thread class. */
@@ -224,9 +232,35 @@ struct PFS_thread
     PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
   */
   PFS_single_stat_chain *m_instr_class_wait_stats;
+
+  /** User name. */
+  char m_username[USERNAME_LENGTH];
+  /** Length of @c m_username. */
+  uint m_username_length;
+  /** Host name. */
+  char m_hostname[HOSTNAME_LENGTH];
+  /** Length of @c m_hostname. */
+  uint m_hostname_length;
+  /** Database name. */
+  char m_dbname[NAME_LEN];
+  /** Length of @c m_dbname. */
+  uint m_dbname_length;
+  /** Current command. */
+  int m_command;
+  /** Start time. */
+  time_t m_start_time;
+  /** Processlist state. */
+  const char *m_processlist_state_ptr;
+  /** Length of @c m_processlist_state_ptr. */
+  uint m_processlist_state_length;
+  /** Processlist info. */
+  const char *m_processlist_info_ptr;
+  /** Length of @c m_processlist_info_length. */
+  uint m_processlist_info_length;
 };
 
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
+const char *sanitize_file_name(const char *unsafe);
 
 PFS_single_stat_chain*
 find_per_thread_mutex_class_wait_stat(PFS_thread *thread,
@@ -265,7 +299,8 @@ PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);
-PFS_table* create_table(PFS_table_share *share, const void *identity);
+PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
+                        const void *identity);
 void destroy_table(PFS_table *pfs);
 
 /* For iterators and show status. */

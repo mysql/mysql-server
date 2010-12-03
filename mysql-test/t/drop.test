@@ -273,3 +273,40 @@ DROP TABLE t1, t1;
 
 UNLOCK TABLES;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#34750: Print database name in Unknown Table error message
+--echo #
+
+--echo 
+--echo # Test error message when droping table/view
+
+--error ER_BAD_TABLE_ERROR
+DROP TABLE table1;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE table1,table2;
+--error ER_BAD_TABLE_ERROR
+DROP VIEW view1,view2,view3,view4;
+--echo
+DROP TABLE IF EXISTS table1;
+DROP TABLE IF EXISTS table1,table2;
+DROP VIEW IF EXISTS view1,view2,view3,view4;
+
+--echo
+--echo # Test error message when trigger does not find table
+
+CREATE TABLE table1(a int);
+CREATE TABLE table2(b int);
+
+# Database name is only available (for printing) if specified in 
+# the trigger definition
+CREATE TRIGGER trg1 AFTER INSERT ON table1
+FOR EACH ROW
+  INSERT INTO table2 SELECT t.notable.*;
+
+--error ER_BAD_TABLE_ERROR
+INSERT INTO table1 VALUES (1);
+
+DROP TABLE table1,table2;
+
+--echo # End BUG#34750

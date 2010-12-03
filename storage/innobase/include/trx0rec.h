@@ -108,7 +108,7 @@ trx_undo_rec_get_pars(
 	ibool*		updated_extern,	/*!< out: TRUE if we updated an
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
-	dulint*		table_id);	/*!< out: table id */
+	table_id_t*	table_id);	/*!< out: table id */
 /*******************************************************************//**
 Builds a row reference from an undo log record.
 @return	pointer to remaining part of undo record */
@@ -227,7 +227,7 @@ trx_undo_report_row_operation(
 					index, otherwise NULL */
 	roll_ptr_t*	roll_ptr);	/*!< out: rollback pointer to the
 					inserted undo log record,
-					ut_dulint_zero if BTR_NO_UNDO_LOG
+					0 if BTR_NO_UNDO_LOG
 					flag was specified */
 /******************************************************************//**
 Copies an undo record to heap. This function can be called if we know that
@@ -238,24 +238,6 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
-/******************************************************************//**
-Copies an undo record to heap.
-
-NOTE: the caller must have latches on the clustered index page and
-purge_view.
-
-@return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
-truncated and we cannot fetch the old version */
-UNIV_INTERN
-ulint
-trx_undo_get_undo_rec(
-/*==================*/
-	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	trx_id_t	trx_id,		/*!< in: id of the trx that generated
-					the roll pointer: it points to an
-					undo log of this transaction */
-	trx_undo_rec_t** undo_rec,	/*!< out, own: copy of the record */
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 /*******************************************************************//**
 Build a previous version of a clustered index record. This function checks

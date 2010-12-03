@@ -338,7 +338,7 @@ row_merge_buf_add(
 		if (ifield->prefix_len) {
 			len = dtype_get_at_most_n_mbchars(
 				col->prtype,
-				col->mbminlen, col->mbmaxlen,
+				col->mbminmaxlen,
 				ifield->prefix_len,
 				len, dfield_get_data(field));
 			dfield_set_len(field, len);
@@ -1779,6 +1779,11 @@ row_merge_copy_blobs(
 		(below). */
 		data = btr_rec_copy_externally_stored_field(
 			mrec, offsets, zip_size, i, &len, heap);
+		/* Because we have locked the table, any records
+		written by incomplete transactions must have been
+		rolled back already. There must not be any incomplete
+		BLOB columns. */
+		ut_a(data);
 
 		dfield_set_data(field, data, len);
 	}
@@ -1924,7 +1929,8 @@ row_merge_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2023,9 +2029,9 @@ row_merge_drop_index(
 
 	ut_ad(index && table && trx);
 
-	pars_info_add_dulint_literal(info, "indexid", index->id);
+	pars_info_add_ull_literal(info, "indexid", index->id);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 	trx->op_info = "dropping index";
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2037,7 +2043,7 @@ row_merge_drop_index(
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
@@ -2093,7 +2099,7 @@ row_merge_drop_temp_indexes(void)
 		const rec_t*	rec;
 		const byte*	field;
 		ulint		len;
-		dulint		table_id;
+		table_id_t	table_id;
 		dict_table_t*	table;
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -2123,7 +2129,7 @@ row_merge_drop_temp_indexes(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_table_get_on_id_low(table_id);
+		table = dict_table_open_on_id(table_id, TRUE);
 
 		if (table) {
 			dict_index_t*	index;
@@ -2139,11 +2145,12 @@ row_merge_drop_temp_indexes(void)
 					trx_commit_for_mysql(trx);
 				}
 			}
+
+			dict_table_close(table, TRUE);
 		}
 
 		mtr_start(&mtr);
-		btr_pcur_restore_position(BTR_SEARCH_LEAF,
-					  &pcur, &mtr);
+		btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
 	}
 
 	btr_pcur_close(&pcur);
@@ -2285,6 +2292,16 @@ row_merge_create_temporary_table(
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
 		new_table = NULL;
+	} else {
+		dict_table_t*	temp_table;
+
+		/* We need to bump up the table ref count and before we can
+		use it we need to open the table. */
+
+		temp_table = dict_table_open_on_name_no_stats(
+			new_table->name, TRUE);
+
+		ut_a(new_table == temp_table);
 	}
 
 	return(new_table);
@@ -2322,7 +2339,7 @@ row_merge_rename_indexes(
 
 	trx->op_info = "renaming indexes";
 
-	pars_info_add_dulint_literal(info, "tableid", table->id);
+	pars_info_add_ull_literal(info, "tableid", table->id);
 
 	err = que_eval_sql(info, rename_indexes, FALSE, trx);
 
@@ -2359,13 +2376,25 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	const char*	old_name= old_table->name;
+	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
+	ut_ad(trx->mysql_thd == NULL
+	      || trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	/* store the old/current name to an automatic variable */
+	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
+		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
+	} else {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "InnoDB: too long table name: '%s', "
+			"max length is %d\n", old_table->name,
+			MAX_TABLE_NAME_LEN);
+		ut_error;
+	}
 
 	trx->op_info = "renaming tables";
 
@@ -2402,7 +2431,7 @@ row_merge_rename_tables(
 		goto err_exit;
 	}
 
-	err = dict_load_foreigns(old_name, TRUE);
+	err = dict_load_foreigns(old_name, FALSE, TRUE);
 
 	if (err != DB_SUCCESS) {
 err_exit:
@@ -2499,8 +2528,7 @@ row_merge_create_index(
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = (ib_uint64_t)
-			ut_conv_dulint_to_longlong(trx->id);
+		index->trx_id = trx->id;
 	} else {
 		index = NULL;
 	}
@@ -2517,10 +2545,8 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	return(!trx->read_view || read_view_sees_trx_id(
-		       trx->read_view,
-		       ut_dulint_create((ulint) (index->trx_id >> 32),
-					(ulint) index->trx_id & 0xFFFFFFFF)));
+	return(!trx->read_view
+	       || read_view_sees_trx_id(trx->read_view, index->trx_id));
 }
 
 /*********************************************************************//**
@@ -2534,7 +2560,7 @@ row_merge_drop_table(
 	dict_table_t*	table)		/*!< in: table to drop */
 {
 	/* There must be no open transactions on the table. */
-	ut_a(table->n_mysql_handles_opened == 0);
+	ut_a(table->n_ref_count == 0);
 
 	return(row_drop_table_for_mysql(table->name, trx, FALSE));
 }
@@ -2573,7 +2599,7 @@ row_merge_build_indexes(
 	ut_ad(indexes);
 	ut_ad(n_indexes);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */

@@ -54,6 +54,7 @@ typedef struct st_lock_param_type
   HA_CREATE_INFO *create_info;
   Alter_info *alter_info;
   TABLE *table;
+  TABLE *old_table;
   KEY *key_info_buffer;
   const char *db;
   const char *table_name;
@@ -75,7 +76,7 @@ typedef struct {
 } part_id_range;
 
 struct st_partition_iter;
-#define NOT_A_PARTITION_ID ((uint32)-1)
+#define NOT_A_PARTITION_ID UINT_MAX32
 
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 char *are_partitions_in_table(partition_info *new_part_info,
@@ -110,7 +111,7 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
                                KEY *key_info,
                                const key_range *key_spec,
                                part_id_range *part_spec);
-bool mysql_unpack_partition(THD *thd, const char *part_buf,
+bool mysql_unpack_partition(THD *thd, char *part_buf,
                             uint part_info_len,
                             TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type,
@@ -252,19 +253,26 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                 TABLE_LIST *table_list,
                                 char *db,
                                 const char *table_name,
-                                uint fast_alter_partition);
+                                TABLE  *fast_alter_table);
 uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
                     enum partition_state part_state);
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            handlerton *old_db_type,
                            bool *partition_changed,
-                           uint *fast_alter_partition);
+                           char *db,
+                           const char *table_name,
+                           const char *path,
+                           TABLE **fast_alter_table);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info);
+bool verify_data_with_partition(TABLE *table, TABLE *part_table,
+                                uint32 part_id);
+bool compare_partition_options(HA_CREATE_INFO *table_create_info,
+                               partition_element *part_elem);
 #endif
 
 void create_partition_name(char *out, const char *in1,

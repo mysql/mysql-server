@@ -1246,6 +1246,112 @@ UNLOCK TABLES;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug#54905 Connection with WRITE lock cannot ALTER table due to
+--echo #           concurrent SHOW CREATE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+
+--echo # Connection con1
+connect (con1,localhost,root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TABLE t1;
+
+--echo # Connection con1
+connection con1;
+# Used to block
+ALTER TABLE t1 CHARACTER SET = utf8;
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+COMMIT;
+disconnect con1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#55498 SHOW CREATE TRIGGER takes wrong type of metadata lock.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a = 1;
+
+--echo # Test 1: SHOW CREATE TRIGGER with WRITE locked table.
+
+--echo # Connection con1
+connect (con1, localhost, root);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection default
+connection default;
+# Should not block.
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+UNLOCK TABLES;
+
+--echo # Test 2: ALTER TABLE with SHOW CREATE TRIGGER in transaction
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SHOW CREATE TRIGGER t1_bi;
+
+--echo # Connection con1
+connection con1;
+# Should not block.
+ALTER TABLE t1 CHARACTER SET = utf8;
+
+--echo # Connection default
+connection default;
+COMMIT;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+disconnect con1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#57306 SHOW PROCESSLIST does not display string literals well.
+--echo #
+
+SET NAMES latin1;
+SELECT GET_LOCK('t', 1000);
+--connect (con1,localhost,root,,)
+--connection con1
+SET NAMES latin1;
+--send SELECT GET_LOCK('t',1000) AS 'óóóó';
+--connection default
+# Make sure con1 has switched from "SET NAMES" to "SELECT GET_LOCK"
+let $wait_timeout= 10;
+let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
+--source include/wait_condition.inc
+--replace_column 1 ### 3 ### 6 ### 7 ###
+SHOW PROCESSLIST;
+SET NAMES utf8;
+--replace_column 1 ### 3 ### 6 ### 7 ###
+SHOW PROCESSLIST;
+SELECT RELEASE_LOCK('t');
+--connection con1
+--reap
+--disconnect con1
+--connection default
+SET NAMES latin1;
 

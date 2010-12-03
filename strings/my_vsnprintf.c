@@ -255,7 +255,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
   if ((to_length= (size_t) (end-to)) < 16 || length)
     store_start= buff;
 
-  if (arg_type == 'd')
+  if (arg_type == 'd' || arg_type == 'i')
     store_end= longlong10_to_str(par, store_start, -10);
   else if (arg_type == 'u')
     store_end= longlong10_to_str(par, store_start, 10);
@@ -399,6 +399,7 @@ start:
         args_arr[i].double_arg= va_arg(ap, double);
         break;
       case 'd':
+      case 'i':
       case 'u':
       case 'x':
       case 'X':
@@ -406,7 +407,7 @@ start:
       case 'p':
         if (args_arr[i].have_longlong)
           args_arr[i].longlong_arg= va_arg(ap,longlong);
-        else if (args_arr[i].arg_type == 'd')
+        else if (args_arr[i].arg_type == 'd' || args_arr[i].arg_type == 'i')
           args_arr[i].longlong_arg= va_arg(ap, int);
         else
           args_arr[i].longlong_arg= va_arg(ap, uint);
@@ -458,6 +459,7 @@ start:
         break;
       }
       case 'd':
+      case 'i':
       case 'u':
       case 'x':
       case 'X':
@@ -472,7 +474,7 @@ start:
 
         if (args_arr[print_arr[i].arg_idx].have_longlong)
           larg = args_arr[print_arr[i].arg_idx].longlong_arg;
-        else if (print_arr[i].arg_type == 'd')
+        else if (print_arr[i].arg_type == 'd' || print_arr[i].arg_type == 'i' )
           larg = (int) args_arr[print_arr[i].arg_idx].longlong_arg;
         else
           larg= (uint) args_arr[print_arr[i].arg_idx].longlong_arg;
@@ -511,7 +513,7 @@ start:
     arg_count= max(arg_count, arg_index);
     goto start;
   }
-  DBUG_ASSERT(0);
+
   return 0;
 }
 
@@ -615,8 +617,8 @@ size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
       to= process_dbl_arg(to, end, width, d, *fmt);
       continue;
     }
-    else if (*fmt == 'd' || *fmt == 'u' || *fmt == 'x' || *fmt == 'X' ||
-             *fmt == 'p' || *fmt == 'o')
+    else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u' || *fmt == 'x' || 
+             *fmt == 'X' || *fmt == 'p' || *fmt == 'o')
     {
       /* Integer parameter */
       longlong larg;
@@ -625,7 +627,7 @@ size_t my_vsnprintf_ex(CHARSET_INFO *cs, char *to, size_t n,
 
       if (have_longlong)
         larg = va_arg(ap,longlong);
-      else if (*fmt == 'd')
+      else if (*fmt == 'd' || *fmt == 'i')
         larg = va_arg(ap, int);
       else
         larg= va_arg(ap, uint);

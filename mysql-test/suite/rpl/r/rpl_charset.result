@@ -101,22 +101,6 @@ set global character_set_server=latin2;
 set global character_set_server=latin1;
 set global character_set_server=latin2;
 set global character_set_server=latin1;
-set one_shot @@character_set_server=latin5;
-set @@max_join_size=1000;
-select @@character_set_server;
-@@character_set_server
-latin5
-select @@character_set_server;
-@@character_set_server
-latin1
-set @@character_set_server=latin5;
-select @@character_set_server;
-@@character_set_server
-latin5
-select @@character_set_server;
-@@character_set_server
-latin5
-set one_shot max_join_size=1000000;
 set character_set_client=9999999;
 ERROR 42000: Unknown character set: '9999999'
 set collation_server=9999998;

@@ -23,7 +23,7 @@
 # Reset DEBUG_SYNC facility for safety.
 set debug_sync= "RESET";
 
-if (`SELECT '$restore_table' <> ''`)
+if ($restore_table)
 {
 --eval create temporary table t_backup select * from $restore_table;
 }
@@ -43,7 +43,8 @@ connection default;
 # of our statement.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Table lock" and info = "insert into $table (i) values (0)";
+  where state = "Waiting for table level lock" and
+        info = "insert into $table (i) values (0)";
 --source include/wait_condition.inc
 
 --disable_result_log
@@ -67,7 +68,7 @@ if (!$success)
 
 --eval delete from $table where i = 0;
 
-if (`SELECT '$restore_table' <> ''`)
+if ($restore_table)
 {
 --eval truncate table $restore_table;
 --eval insert into $restore_table select * from t_backup;

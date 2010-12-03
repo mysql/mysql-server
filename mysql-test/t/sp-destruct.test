@@ -222,3 +222,33 @@ SHOW WARNINGS;
 --echo # Restore the procs_priv table
 RENAME TABLE procs_priv_backup TO mysql.procs_priv;
 FLUSH TABLE mysql.procs_priv;
+
+
+--echo #
+--echo # Bug #56137 "Assertion `thd->lock == 0' failed on upgrading from
+--echo #             5.1.50 to 5.5.6".
+--echo #
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+--echo # Backup mysql.proc.
+flush table mysql.proc;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/proc.MYD
+--copy_file $MYSQLD_DATADIR/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/proc.MYI
+
+create database mysqltest;
+--echo # Corrupt mysql.proc to make it unusable by current version of server.
+alter table mysql.proc drop column type;
+--echo # The below statement should not cause assertion failure.
+drop database mysqltest;
+
+--echo # Restore mysql.proc.
+drop table mysql.proc;
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.frm $MYSQLD_DATADIR/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYD $MYSQLD_DATADIR/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/proc.MYI $MYSQLD_DATADIR/mysql/proc.MYI 
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
+--remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI

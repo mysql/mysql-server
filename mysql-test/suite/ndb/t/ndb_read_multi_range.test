@@ -338,3 +338,35 @@ select * from t2 order by id;
 
 drop trigger kaboom;
 drop table t1, t2;
+
+
+
+#
+# bug#42593: batched key access join employing a hash table
+#
+
+create table t1 (
+  uid int, fid int, index(uid)
+) engine=ndb;
+insert into t1 values
+  (1,1), (1,2), (1,3), (1,4),
+  (2,5), (2,6), (2,7), (2,8),
+  (3,1), (3,2), (3,9);
+
+create table t2 (
+  uid int primary key, name varchar(128), index(name)
+) engine=ndb;
+insert into t2 values 
+  (1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+  (6, "F"), (7, "G"), (8, "H"), (9, "I");
+
+set optimizer_join_cache_level=7;
+
+--sorted_result
+select name from t2, t1 
+  where t1.uid in (select t2.uid from t2, t1 where t1.uid=1 and t2.uid=t1.fid)
+        and t2.uid=t1.fid;
+
+set optimizer_join_cache_level=default;
+
+drop table t1,t2;

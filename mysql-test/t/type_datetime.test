@@ -359,6 +359,12 @@ create table t2 (id int(10) not null, cur_date date not null);
 insert into t1 (id, cur_date) values (1, '2007-04-25 18:30:22');
 insert into t2 (id, cur_date) values (1, '2007-04-25');
 
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='semijoin=off';
+}
+--enable_query_log
 explain extended
 select * from t1
 where id in (select id from t1 as x1 where (t1.cur_date is null));
@@ -385,7 +391,7 @@ select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
-
+set @@optimizer_switch=default;
 drop table t1,t2;
 
 
@@ -460,6 +466,39 @@ INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'
 EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
 DROP TABLE t1;
 SET NAMES latin1;
+
+--echo #
+--echo # Bug#56271: Wrong comparison result with STR_TO_DATE function
+--echo #
+CREATE TABLE t1 (
+  `year` int(4) NOT NULL,
+  `month` int(2) NOT NULL
+);
+
+INSERT INTO t1 VALUES (2010,3),(2010,4),(2009,8),(2008,9);
+
+SELECT *
+FROM t1
+WHERE STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') >=
+STR_TO_DATE('1/1/2010', '%m/%d/%Y');
+
+create table t2(f1 datetime primary key);
+insert into t2 select STR_TO_DATE(CONCAT_WS('/01/',`month`,`year`), '%m/%d/%Y') from t1;
+select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+--echo t2 should be const
+explain select * from t2 where f1=STR_TO_DATE('4/1/2010', '%m/%d/%Y');
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#57095: Wrongly chosen expression cache type led to a wrong
+--echo #            result.
+--echo #
+CREATE TABLE t1 (`b` datetime );
+INSERT INTO t1 VALUES ('2010-01-01 00:00:00'), ('2010-01-01 00:00:00');
+SELECT * FROM t1 WHERE b <= coalesce(NULL, now());
+DROP TABLE t1;
+--echo #
 
 --echo #
 --echo # End of 5.5 tests

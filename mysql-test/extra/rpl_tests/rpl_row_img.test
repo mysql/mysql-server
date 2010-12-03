@@ -1,0 +1,258 @@
+#  WL#5096
+#  
+#  Description 
+#  ===========
+#
+#  This test case checks replication between hosts with same index
+#  structure but may differ on engines.
+#
+#  Usage
+#  =====
+#
+#  Before including this file the following variables should be set:
+#    * $mysqld_a_engine
+#    * $mysqld_b_engine
+#    * $mysqld_c_engine
+#
+#  Example:
+#
+#     -- let $mysqld_a_engine= Falcon
+#     -- let $mysqld_b_engine= MyISAM
+#     -- let $mysqld_c_engine= InnoDB
+#
+#     -- source extra/rpl_tests/rpl_row_img.test
+# 
+
+-- connection mysqld_a
+
+-- disable_warnings
+DROP TABLE IF EXISTS t;
+-- enable_warnings
+-- source include/rpl_chained_3_hosts_sync.inc
+
+-- connection mysqld_a
+
+-- let $diff_table=test.t
+
+let $i= 12;
+while($i)
+{
+  let $step= "";
+
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=0;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=0;
+
+  if ($i == 1) {
+    let $step= No keys;
+    --echo ******* TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1)) engine= $mysqld_c_engine;
+
+  }
+  if ($i == 2)
+  { 
+    let $step= One key;
+    --echo ******* TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1)) engine= $mysqld_c_engine;
+
+  }
+  if ($i == 3)
+  {
+    let $step= One Composite key;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c2)) engine= $mysqld_c_engine;
+  }  
+  if ($i == 4)
+  {
+    let $step= One Unique key;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1)) engine= $mysqld_c_engine;
+
+  }  
+  if ($i == 5)
+  {
+    let $step= One Composite Unique key;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c2)) engine= $mysqld_c_engine;
+
+  }  
+  if ($i == 6)
+  {
+    let $step= One Primary key;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1)) engine= $mysqld_c_engine;
+  }  
+  if ($i == 7)
+  {
+    let $step= One Composite Primary Key;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c2)) engine= $mysqld_c_engine;
+  } 
+  if ($i == 8)
+  {
+    let $step= One Composite key with holes;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), key(c1,c3)) engine= $mysqld_c_engine;
+  }  
+  if ($i == 9)
+  {
+    let $step= One Composite Unique key with holes;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= $mysqld_c_engine;
+  }  
+  if ($i == 10)
+  {
+    let $step= One Composite Primary Key with holes;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), primary key(c1,c3)) engine= $mysqld_c_engine;
+  } 
+  if ($i == 11)
+  {
+    let $step= One Composite NOT NULL Unique key with holes;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_c_engine;
+  }  
+  if ($i == 12)
+  {
+    let $step= One Composite NOT NULL Unique key with holes in master, but NULLABLE on first slave;
+    --echo ****** TEST: $step
+    -- connection mysqld_a
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_a_engine;
+    -- connection mysqld_b
+    --eval CREATE TABLE t (c1 int, c2 char(1), c3 char(1), c4 char(1), unique key(c1,c3)) engine= $mysqld_b_engine;
+    -- connection mysqld_c
+    --eval CREATE TABLE t (c1 int NOT NULL, c2 char(1), c3 char(1) NOT NULL, c4 char(1), unique key(c1,c3)) engine= $mysqld_c_engine;
+  }  
+
+  -- connection mysqld_a
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_b
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_c
+  SET SQL_LOG_BIN=1;
+
+  -- connection mysqld_a
+  INSERT INTO t VALUES (1, '1', '1', '1' );
+  INSERT INTO t VALUES (4, '4', '4', '4' );
+  INSERT INTO t VALUES (7, '7', '7', '7' );
+
+  INSERT INTO t VALUES (9, '9', '9', NULL );
+
+  INSERT INTO t VALUES (2, '1', '2', '2' );
+  INSERT INTO t VALUES (3, '1', '3', '2' );
+ 
+  -- source include/rpl_chained_3_hosts_sync.inc
+
+  -- connection mysqld_a
+  UPDATE t SET c4 = '7';
+
+  UPDATE t SET c4 = '5' WHERE c1 = 1;
+  UPDATE t SET c2 = '5' WHERE c1 = 1;
+  UPDATE t SET c1 = '5' WHERE c1 = 1;
+
+  UPDATE t SET c4 = '8' WHERE c2 = '4';
+  UPDATE t SET c1 = '8' WHERE c2 = '4';
+  UPDATE t SET c2 = '8' WHERE c2 = '4';
+
+  UPDATE t SET c3 = '0' WHERE c4 = NULL;
+  UPDATE t SET c2 = '0' WHERE c4 = '0';
+
+  UPDATE t SET c2 = '2' WHERE c4 = '2';
+
+  -- source include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table_1=mysqld_a:$diff_table
+  -- let $diff_table_2=mysqld_b:$diff_table
+  -- source include/diff_tables.inc
+
+  -- let $diff_table_1=mysqld_b:$diff_table
+  -- let $diff_table_2=mysqld_c:$diff_table
+  -- source include/diff_tables.inc
+
+
+  -- connection mysqld_a
+
+  DELETE FROM t WHERE c1 = 7;
+  DELETE FROM t WHERE c1 = 8;
+  DELETE FROM t;
+
+  -- source include/rpl_chained_3_hosts_sync.inc
+
+  -- let $diff_table_1=mysqld_a:$diff_table
+  -- let $diff_table_2=mysqld_b:$diff_table
+  -- source include/diff_tables.inc
+
+  -- let $diff_table_1=mysqld_b:$diff_table
+  -- let $diff_table_2=mysqld_c:$diff_table
+  -- source include/diff_tables.inc
+
+  -- connection mysqld_a
+
+  DROP TABLE t;
+
+  -- source include/rpl_chained_3_hosts_sync.inc
+
+  dec $i;
+}

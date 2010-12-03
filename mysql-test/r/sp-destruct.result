@@ -134,3 +134,19 @@ Warning	1405	Failed to revoke all privileges to dropped routine
 # Restore the procs_priv table
 RENAME TABLE procs_priv_backup TO mysql.procs_priv;
 FLUSH TABLE mysql.procs_priv;
+#
+# Bug #56137 "Assertion `thd->lock == 0' failed on upgrading from
+#             5.1.50 to 5.5.6".
+#
+drop database if exists mysqltest;
+# Backup mysql.proc.
+flush table mysql.proc;
+create database mysqltest;
+# Corrupt mysql.proc to make it unusable by current version of server.
+alter table mysql.proc drop column type;
+# The below statement should not cause assertion failure.
+drop database mysqltest;
+Warnings:
+Error	1701	Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
+# Restore mysql.proc.
+drop table mysql.proc;

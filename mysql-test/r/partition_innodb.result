@@ -1,5 +1,129 @@
 drop table if exists t1, t2;
 #
+# Bug#56287: crash when using Partition datetime in sub in query
+#
+CREATE TABLE t1
+(c1 bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(40) not null default '',
+c3 datetime not  NULL,
+PRIMARY KEY (c1,c3),
+KEY partidx(c3))
+ENGINE=InnoDB
+PARTITION BY RANGE (TO_DAYS(c3))
+(PARTITION p200912 VALUES LESS THAN (to_days('2010-01-01')),
+PARTITION p201103 VALUES LESS THAN (to_days('2011-04-01')),
+PARTITION p201912 VALUES LESS THAN MAXVALUE);
+insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+PARTITION_NAME	TABLE_ROWS
+p200912	0
+p201103	1
+p201912	0
+SELECT count(*) FROM t1 p where c3 in
+(select c3 from t1 t where t.c3 < date '2011-04-26 19:19:44'
+ and t.c3 > date '2011-04-26 19:18:44') ;
+count(*)
+0
+DROP TABLE t1;
+#
+# Bug#54747: Deadlock between REORGANIZE PARTITION and
+#            SELECT is not detected
+#
+SET @old_innodb_thread_concurrency:= @@innodb_thread_concurrency;
+SET GLOBAL innodb_thread_concurrency = 1;
+CREATE TABLE t1
+(user_num BIGINT,
+hours SMALLINT,
+KEY user_num (user_num))
+ENGINE = InnoDB   
+PARTITION BY RANGE COLUMNS (hours)
+(PARTITION hour_003 VALUES LESS THAN (3),
+PARTITION hour_004 VALUES LESS THAN (4),
+PARTITION hour_005 VALUES LESS THAN (5),
+PARTITION hour_last VALUES LESS THAN (MAXVALUE));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+BEGIN;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+# con1
+# SEND a ALTER PARTITION which waits on the ongoing transaction.
+ALTER TABLE t1
+REORGANIZE PARTITION hour_003, hour_004 INTO
+(PARTITION oldest VALUES LESS THAN (4));
+# Connection default wait until the ALTER is in 'waiting for table...'
+# state and then continue the transaction by trying a SELECT
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+COMMIT;
+# con1, reaping ALTER.
+# Disconnecting con1 and switching to default. Cleaning up.
+SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+DROP TABLE t1;
+#
+# Bug#50418: DROP PARTITION does not interact with transactions
+#
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT NOT NULL,
+name CHAR(50) NOT NULL,
+myDate DATE NOT NULL,
+PRIMARY KEY (id, myDate),
+INDEX idx_date (myDate)
+) ENGINE=InnoDB
+PARTITION BY RANGE ( TO_DAYS(myDate) ) (
+PARTITION p0 VALUES LESS THAN (734028),
+PARTITION p1 VALUES LESS THAN (734029),
+PARTITION p2 VALUES LESS THAN (734030),
+PARTITION p3 VALUES LESS THAN MAXVALUE
+) ;
+INSERT INTO t1 VALUES 
+(NULL, 'Lachlan', '2009-09-13'),
+(NULL, 'Clint', '2009-09-13'),
+(NULL, 'John', '2009-09-14'),
+(NULL, 'Dave', '2009-09-14'),
+(NULL, 'Jeremy', '2009-09-15'),
+(NULL, 'Scott', '2009-09-15'),
+(NULL, 'Jeff', '2009-09-16'),
+(NULL, 'Joe', '2009-09-16');
+SET AUTOCOMMIT=0;
+SELECT * FROM t1 FOR UPDATE;
+id	name	myDate
+1	Lachlan	2009-09-13
+2	Clint	2009-09-13
+3	John	2009-09-14
+4	Dave	2009-09-14
+5	Jeremy	2009-09-15
+6	Scott	2009-09-15
+7	Jeff	2009-09-16
+8	Joe	2009-09-16
+UPDATE t1 SET name = 'Mattias' WHERE id = 7;
+SELECT * FROM t1 WHERE id = 7;
+id	name	myDate
+7	Mattias	2009-09-16
+# Connection con1
+SET lock_wait_timeout = 1;
+# After the patch it will wait and fail on timeout.
+ALTER TABLE t1 DROP PARTITION p3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+# Connection default
+SELECT * FROM t1;
+id	name	myDate
+1	Lachlan	2009-09-13
+2	Clint	2009-09-13
+3	John	2009-09-14
+4	Dave	2009-09-14
+5	Jeremy	2009-09-15
+6	Scott	2009-09-15
+7	Mattias	2009-09-16
+8	Joe	2009-09-16
+# No changes.
+COMMIT;
+DROP TABLE t1;
+#
 # Bug#51830: Incorrect partition pruning on range partition (regression)
 #
 CREATE TABLE t1 (a INT NOT NULL)
@@ -22,31 +146,31 @@ insert INTO t1 VALUES (110);
 ERROR HY000: Table has no partition for value 110
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	p90	ALL	NULL	NULL	NULL	NULL	3	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 89;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 DROP TABLE t1;
 #
 # Bug#50104: Partitioned table with just 1 partion works with fk
@@ -390,4 +514,32 @@ Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
 Error	1067	Invalid default value for 'b'
 SET SESSION sql_mode = @old_mode;
+DROP TABLE t1;
+#
+# Bug#57985 "ONLINE/FAST ALTER PARTITION can fail and leave the
+#            table unusable".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a bigint not null, b int not null, PRIMARY KEY (a))
+ENGINE = InnoDB PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t1 values (0,1), (1,2);
+# The below ALTER should fail. It should leave the
+# table in its original, non-corrupted, usable state.
+ALTER TABLE t1 ADD UNIQUE KEY (b);
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+# The below statements should succeed, as ALTER should
+# have left table intact.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) NOT NULL,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 2 */
+SELECT * FROM t1;
+a	b
+1	2
+0	1
 DROP TABLE t1;

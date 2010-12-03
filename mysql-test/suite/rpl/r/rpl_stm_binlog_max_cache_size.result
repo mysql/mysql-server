@@ -5,6 +5,11 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Option binlog_cache_size ");
+SET GLOBAL max_binlog_cache_size = 4096;
+Warnings:
+Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+SET GLOBAL binlog_cache_size = 4096;
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -15,13 +20,14 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 Got one of the listed errors
 *** Single statement on non-transactional table ***
 Got one of the listed errors
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
+--source include/wait_for_slave_sql_error_and_skip.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+include/start_slave.inc
 *** Single statement on both transactional and non-transactional tables. ***
 Got one of the listed errors
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
-source include/diff_master_slave.inc;
+--source include/wait_for_slave_sql_error_and_skip.inc
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 1;
+include/start_slave.inc
 ########################################################################################
 #                             2 - BEGIN - IMPLICIT COMMIT by DDL
 ########################################################################################
@@ -119,6 +125,67 @@ BEGIN;
 Got one of the listed errors
 COMMIT;
 source include/diff_master_slave.inc;
+########################################################################
+#      8 - Bug#55375(Regression Bug) Transaction bigger than
+#          max_binlog_cache_size crashes slave
+########################################################################
+# [ On Slave ]
+SET GLOBAL max_binlog_cache_size = 4096;
+Warnings:
+Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+SET GLOBAL binlog_cache_size = 4096;
+include/stop_slave.inc
+include/start_slave.inc
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+TRUNCATE t1;
+SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+BEGIN;
+Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
+COMMIT;
+SELECT count(*) FROM t1;
+count(*)
+0
+show binlog events in 'slave-bin.000001' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+include/stop_slave.inc
+include/start_slave.inc
+SELECT count(*) FROM t1;
+count(*)
+128
+########################################################################################
+#                       CHECK MAX_BINLOG_CACHE_SIZE and BINLOG_CACHE_SIZE
+########################################################################################
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 8192;
+Warnings:
+Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	8192
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	8192
+SET @@GLOBAL.BINLOG_CACHE_SIZE= 16384;
+Warnings:
+Warning	1712	Option binlog_cache_size (16384) is greater than max_binlog_cache_size (8192); setting binlog_cache_size equal to max_binlog_cache_size.
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	8192
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	8192
+SET @@GLOBAL.MAX_BINLOG_CACHE_SIZE= 4096;
+Warnings:
+Warning	1712	Option binlog_cache_size (8192) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
+SHOW VARIABLES LIKE 'MAX_BINLOG_CACHE_SIZE';
+Variable_name	Value
+max_binlog_cache_size	4096
+SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
+Variable_name	Value
+binlog_cache_size	4096
 ########################################################################################
 #                                        CLEAN
 ########################################################################################
@@ -129,5 +196,5 @@ DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 Warnings:
-Note	1051	Unknown table 't6'
+Note	1051	Unknown table 'test.t6'
 DROP PROCEDURE p1;

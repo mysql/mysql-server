@@ -1,11 +1,11 @@
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_consumers set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
 drop table if exists test.t1;
-truncate table performance_schema.EVENTS_WAITS_CURRENT;
-truncate table performance_schema.EVENTS_WAITS_HISTORY;
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_current;
+truncate table performance_schema.events_waits_history;
+truncate table performance_schema.events_waits_history_long;
 show variables like "thread_handling";
 Variable_name	Value
 thread_handling	no-threads
@@ -17,27 +17,28 @@ show variables like "performance_schema_max_thread%";
 Variable_name	Value
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	10
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.threads
 where name like "thread/sql/main";
 count(*)
 1
-select count(*) from performance_schema.PROCESSLIST
+select count(*) from performance_schema.threads
 where name like "thread/sql/OneConnection";
 count(*)
 0
 select event_name, operation,
 left(source, locate(":", source)) as short_source
-from performance_schema.EVENTS_WAITS_CURRENT;
+from performance_schema.events_waits_current;
 event_name	operation	short_source
 wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
 select event_name, operation,
 left(source, locate(":", source)) as short_source
-from performance_schema.EVENTS_WAITS_HISTORY;
+from performance_schema.events_waits_history;
 event_name	operation	short_source
 wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
 select event_name, operation,
 left(source, locate(":", source)) as short_source
-from performance_schema.EVENTS_WAITS_HISTORY_LONG;
+from performance_schema.events_waits_history_long;
 event_name	operation	short_source
 wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
+update performance_schema.setup_instruments set enabled='YES';
 drop table test.t1;

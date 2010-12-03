@@ -16,7 +16,7 @@ connection: con1
 connection: default
 unlock tables;
 connection: con2
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 drop table t3;
 SET DEBUG_SYNC= 'RESET';
 #
@@ -2034,6 +2034,155 @@ set debug_sync='now SIGNAL go2';
 # Switching to connection 'default'.
 # Reaping ALTER. It should succeed and not produce ER_LOCK_DEADLOCK.
 drop table t1;
+#
+# Now, test for a situation in which deadlock involves waiting not
+# only in MDL subsystem but also for TDC. Such deadlocks should be
+# successfully detected. If possible, they should be resolved without
+# resorting to ER_LOCK_DEADLOCK error.
+#
+create table t1(i int);
+create table t2(j int);
+#
+# First, let us check how we handle a simple scenario involving
+# waits in MDL and TDC.
+#
+set debug_sync= 'RESET';
+# Switching to connection 'deadlock_con1'.
+# Start a statement, which will acquire SR metadata lock on t1, open it
+# and then stop, before trying to acquire SW lock on t2 and opening it.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+# Sending:
+select * from t1 where i in (select j from t2 for update);
+# Switching to connection 'deadlock_con2'.
+# Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+# The below FLUSH TABLES WITH READ LOCK should acquire
+# SNW locks on t1 and t2 and wait till SELECT closes t1.
+# Sending:
+flush tables t1, t2 with read lock;
+# Switching to connection 'deadlock_con3'.
+# Wait until FLUSH TABLES WITH t1, t2 READ LOCK starts waiting
+# for SELECT to close t1.
+# Resume SELECT, so it tries to acquire SW lock on t1 and blocks,
+# creating a deadlock. This deadlock should be detected and resolved
+# by backing-off SELECT. As a result FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'deadlock_con2'.
+# Reap FLUSH TABLES WITH READ LOCK.
+unlock tables;
+# Switching to connection 'deadlock_con1'.
+# Reap SELECT.
+i
+#
+# The same scenario with a slightly different order of events
+# which emphasizes that setting correct deadlock detector weights
+# for flush waits is important.
+#
+set debug_sync= 'RESET';
+# Switching to connection 'deadlock_con2'.
+set debug_sync='flush_tables_with_read_lock_after_acquire_locks SIGNAL parked WAIT_FOR go';
+# The below FLUSH TABLES WITH READ LOCK should acquire
+# SNW locks on t1 and t2 and wait on debug sync point.
+# Sending:
+flush tables t1, t2 with read lock;
+# Switching to connection 'deadlock_con1'.
+# Wait till FLUSH TABLE WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+# Start statement which will acquire SR metadata lock on t1, open
+# it and then will block while trying to acquire SW lock on t2.
+# Sending:
+select * from t1 where i in (select j from t2 for update);
+# Switching to connection 'deadlock_con3'.
+# Wait till the above SELECT blocks.
+# Resume FLUSH TABLES, so it tries to flush t1, thus creating
+# a deadlock. This deadlock should be detected and resolved by
+# backing-off SELECT. As a result FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'deadlock_con2'.
+# Reap FLUSH TABLES WITH READ LOCK.
+unlock tables;
+# Switching to connection 'deadlock_con1'.
+# Reap SELECT.
+i
+#
+# Now a more complex scenario involving two connections
+# waiting for MDL and one for TDC.
+#
+set debug_sync= 'RESET';
+# Switching to connection 'deadlock_con1'.
+# Start a statement which will acquire SR metadata lock on t2, open it
+# and then stop, before trying to acquire SR on t1 and opening it.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+# Sending:
+select * from t2, t1;
+# Switching to connection 'deadlock_con2'.
+# Wait till the above SELECT stops.
+set debug_sync='now WAIT_FOR parked';
+# The below FLUSH TABLES WITH READ LOCK should acquire
+# SNW locks on t2 and wait till SELECT closes t2.
+# Sending:
+flush tables t2 with read lock;
+# Switching to connection 'deadlock_con3'.
+# Wait until FLUSH TABLES WITH READ LOCK starts waiting
+# for SELECT to close t2.
+# The below DROP TABLES should acquire X lock on t1 and start
+# waiting for X lock on t2.
+# Sending:
+drop tables t1, t2;
+# Switching to connection 'default'.
+# Wait until DROP TABLES starts waiting for X lock on t2.
+# Resume SELECT, so it tries to acquire SR lock on t1 and blocks,
+# creating a deadlock. This deadlock should be detected and resolved
+# by backing-off SELECT. As a result, FTWRL should be able to finish.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'deadlock_con2'.
+# Reap FLUSH TABLES WITH READ LOCK.
+# Unblock DROP TABLES.
+unlock tables;
+# Switching to connection 'deadlock_con3'.
+# Reap DROP TABLES.
+# Switching to connection 'deadlock_con1'.
+# Reap SELECT. It should emit error about missing table.
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Switching to connection 'default'.
+set debug_sync= 'RESET';
+#
+# Test for a scenario in which FLUSH TABLES <list> WITH READ LOCK
+# used to erroneously release metadata locks.
+# 
+drop tables if exists t1, t2;
+set debug_sync= 'RESET';
+create table t1(i int);
+create table t2(j int);
+# Switching to connection 'con2'.
+set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
+# The below FLUSH TABLES <list> WITH READ LOCK should acquire
+# SNW locks on t1 and t2, open table t1 and block on the debug
+# sync point.
+# Sending:
+flush tables t1, t2 with read lock;
+# Switching to connection 'con1'.
+# Wait till FLUSH TABLES <list> WITH READ LOCK stops.
+set debug_sync='now WAIT_FOR parked';
+# Start a statement which will flush all tables and thus
+# invalidate table t1 open by FLUSH TABLES <list> WITH READ LOCK.
+# Sending:
+flush tables;
+# Switching to connection 'default'.
+# Wait till the above FLUSH TABLES blocks.
+# Resume FLUSH TABLES <list> WITH READ LOCK, so it tries to open t2
+# discovers that its t1 is obsolete and tries to reopen all tables.
+# Such reopen should not cause releasing of SNW metadata locks
+# which would result in assertion failures.
+set debug_sync='now SIGNAL go';
+# Switching to connection 'con2'.
+# Reap FLUSH TABLES <list> WITH READ LOCK.
+unlock tables;
+# Switching to connection 'con1'.
+# Reap FLUSH TABLES.
+# Clean-up.
+# Switching to connection 'default'.
+drop tables t1, t2;
 set debug_sync= 'RESET';
 #
 # Test for bug #46748 "Assertion in MDL_context::wait_for_locks()
@@ -2322,7 +2471,7 @@ CREATE PROCEDURE p1() SELECT 1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
 # Connection 2
@@ -2337,10 +2486,17 @@ DROP PROCEDURE p1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
+# Once FLUSH TABLES WITH READ LOCK starts waiting
+# DROP PROCEDURE will be waked up and will drop
+# procedure. Global read lock will be granted after
+# this statement ends.
+#
+# Reaping DROP PROCEDURE.
 # Connection 2
+# Reaping FTWRL.
 UNLOCK TABLES;
 # Connection 1
 SET DEBUG_SYNC= 'RESET';
@@ -2483,7 +2639,8 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3);
 # Connection: con1
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 TRUNCATE TABLE t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_truncate';
@@ -2498,10 +2655,11 @@ FLUSH TABLES t1;
 # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
-# Connection: con1
-# Reaping...
-# Connection: default
+# Ensure that truncate waits for a exclusive lock
 SET debug_sync= 'now SIGNAL go_show';
+# Connection: con1 (TRUNCATE)
+# Reaping...
+UNLOCK TABLES;
 # Connection: con2 (SHOW FIELDS FROM t1)
 # Reaping...
 Field	Type	Null	Key	Default	Extra
@@ -2527,3 +2685,278 @@ SET DEBUG_SYNC= "now SIGNAL completed";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	char(255)	latin1_swedish_ci	YES		NULL		#	
 DROP TABLE t1;
+#
+# Tests for schema-scope locks
+#
+DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
+# Test 1: 
+# CREATE DATABASE blocks database DDL on the same database, but
+# not database DDL on different databases. Tests X vs X lock.
+#
+# Connection default
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+CREATE DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+CREATE DATABASE db1;
+# Connection con3
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: CREATE DATABASE db1
+# Connection con2
+# Reaping: CREATE DATABASE db1
+ERROR HY000: Can't create database 'db1'; database exists
+# Test 2:
+# ALTER DATABASE blocks database DDL on the same database, but
+# not database DDL on different databases. Tests X vs X lock.
+#
+# Connection default
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+# Connection con3
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Connection con2
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Connection default
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+DROP DATABASE db1;
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Connection con2
+# Reaping: DROP DATABASE db1
+CREATE DATABASE db1;
+# Test 3:
+# Two ALTER..UPGRADE of the same database are mutually exclusive, but
+# two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
+#
+# Connection default
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME;
+# Connection con3
+ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+# Connection con2
+# Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
+ERROR 42000: Unknown database '#mysql50#a-b-c'
+DROP DATABASE `a-b-c`;
+DROP DATABASE `a-b-c-d`;
+# Test 4:
+# DROP DATABASE blocks database DDL on the same database, but
+# not database DDL on different databases. Tests X vs X lock.
+#
+# Connection default
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+DROP DATABASE db1;
+# Connection con3
+CREATE DATABASE db2;
+ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
+DROP DATABASE db2;
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: DROP DATABASE db1
+ERROR HY000: Can't drop database 'db1'; database doesn't exist
+# Connection default
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+Got one of the listed errors
+# Test 5:
+# Locked database name prevents CREATE of tables in that database.
+# Tests X vs IX lock.
+#
+# Connection default
+CREATE DATABASE db1;
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+CREATE TABLE db1.t1 (a INT);
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: CREATE TABLE db1.t1 (a INT)
+ERROR 42000: Unknown database 'db1'
+# Test 6:
+# Locked database name prevents RENAME of tables to/from that database.
+# Tests X vs IX lock.
+#
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+RENAME TABLE db1.t1 TO test.t1;
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: RENAME TABLE db1.t1 TO test.t1
+Got one of the listed errors
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE test.t2 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+RENAME TABLE test.t2 TO db1.t2;
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: RENAME TABLE test.t2 TO db1.t2
+Got one of the listed errors
+DROP TABLE test.t2;
+# Test 7:
+# Locked database name prevents DROP of tables in that database.
+# Tests X vs IX lock.
+#
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT);
+SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
+# Sending:
+DROP DATABASE db1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# Sending:
+DROP TABLE db1.t1;
+# Connection con3
+SET DEBUG_SYNC= 'now SIGNAL blocked';
+# Connection default
+# Reaping: DROP DATABASE db1
+# Connection con2
+# Reaping: DROP TABLE db1.t1
+ERROR 42S02: Unknown table 'db1.t1'
+# Connection default
+SET DEBUG_SYNC= 'RESET';
+#
+# End of tests for schema-scope locks
+#
+#
+# Tests of granted global S lock (FLUSH TABLE WITH READ LOCK)
+#
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(a INT);
+# Connection default
+FLUSH TABLE WITH READ LOCK;
+# Connection con2
+CREATE TABLE db1.t2(a INT);
+# Connection default
+UNLOCK TABLES;
+# Connection con2
+# Reaping CREATE TABLE db1.t2(a INT)
+# Connection default
+FLUSH TABLE WITH READ LOCK;
+# Connection con2
+ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
+# Connection default
+UNLOCK TABLES;
+# Connection con2
+# Reaping ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
+# Connection default
+FLUSH TABLE WITH READ LOCK;
+# Connection con2
+FLUSH TABLE WITH READ LOCK;
+UNLOCK TABLES;
+# Connection default
+UNLOCK TABLES;
+DROP DATABASE db1;
+#
+# Bug#56292 Deadlock with ALTER TABLE and MERGE tables
+#
+DROP TABLE IF EXISTS t1, t2, m1;
+CREATE TABLE t1(a INT) engine=MyISAM;
+CREATE TABLE t2(a INT) engine=MyISAM;
+CREATE TABLE m1(a INT) engine=MERGE UNION=(t1, t2);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4);
+# Connection con1
+SET DEBUG_SYNC= 'mdl_upgrade_shared_lock_to_exclusive SIGNAL upgrade WAIT_FOR continue';
+# Sending:
+ALTER TABLE m1 engine=MERGE UNION=(t2, t1);
+# Connection con2
+# Waiting for ALTER TABLE to try lock upgrade
+SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
+# Sending:
+DELETE FROM t2 WHERE a = 3;
+# Connection default
+# Check that DELETE is waiting on a metadata lock and not a table lock.
+# Now that DELETE blocks on a metadata lock, we should be able to do
+# SELECT * FROM m1 here. SELECT used to be blocked by a DELETE table
+# lock request.
+SELECT * FROM m1;
+a
+1
+2
+3
+4
+# Resuming ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+# Connection con1
+# Reaping: ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+# Connection con2
+# Reaping: DELETE FROM t2 WHERE a = 3
+# Connection default
+DROP TABLE m1, t1, t2;
+SET DEBUG_SYNC= 'RESET';

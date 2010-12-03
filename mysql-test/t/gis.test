@@ -404,6 +404,7 @@ create table t1 (a int, b blob);
 insert into t1 values (1, ''), (2, NULL), (3, '1');
 select * from t1;
 
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 select
   geometryfromtext(b) IS NULL, geometryfromwkb(b) IS NULL, astext(b) IS NULL, 
   aswkb(b) IS NULL, geometrytype(b) IS NULL, centroid(b) IS NULL,
@@ -422,6 +423,7 @@ select
   intersects(b, b) IS NULL, crosses(b, b) IS NULL
 from t1;
 
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 select 
   point(b, b) IS NULL, linestring(b) IS NULL, polygon(b) IS NULL, multipoint(b) IS NULL, 
   multilinestring(b) IS NULL, multipolygon(b) IS NULL, 
@@ -705,25 +707,45 @@ drop table t1;
 # Bug#44684: valgrind reports invalid reads in 
 # Item_func_spatial_collection::val_str
 #
+--error ER_ILLEGAL_VALUE_FOR_TYPE
 SELECT MultiPoint(12345,'');
-SELECT MultiPoint(123451,'');
-SELECT MultiPoint(1234512,'');
-SELECT MultiPoint(12345123,'');
+#SELECT MultiPoint(123451,'');
+#SELECT MultiPoint(1234512,'');
+#SELECT MultiPoint(12345123,'');
 
-SELECT MultiLineString(12345,'');
-SELECT MultiLineString(123451,'');
-SELECT MultiLineString(1234512,'');
-SELECT MultiLineString(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT MultiLineString(12345,'');
+#SELECT MultiLineString(123451,'');
+#SELECT MultiLineString(1234512,'');
+#SELECT MultiLineString(12345123,'');
 
-SELECT LineString(12345,'');
-SELECT LineString(123451,'');
-SELECT LineString(1234512,'');
-SELECT LineString(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT LineString(12345,'');
+#SELECT LineString(123451,'');
+#SELECT LineString(1234512,'');
+#SELECT LineString(12345123,'');
 
-SELECT Polygon(12345,'');
-SELECT Polygon(123451,'');
-SELECT Polygon(1234512,'');
-SELECT Polygon(12345123,'');
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+#SELECT Polygon(12345,'');
+#SELECT Polygon(123451,'');
+#SELECT Polygon(1234512,'');
+#SELECT Polygon(12345123,'');
+
+#
+# Bug55531 crash with conversions of geometry types / strings
+#
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT 1 FROM (SELECT GREATEST(1,GEOMETRYCOLLECTION('00000','00000')) b FROM DUAL) AS d WHERE (LINESTRING(d.b));
+
+
+--echo #
+--echo # BUG#51875: crash when loading data into geometry function polyfromwkb
+--echo #
+SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
+SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
+SET @a=POLYFROMWKB(@a);
+
 
 --echo End of 5.1 tests
 
@@ -771,3 +793,528 @@ CREATE TABLE t3 (
 DROP TABLE t1;
 DROP TABLE t2;
 
+# Conformance tests
+#
+# C.3.3 Geometry types and functions 
+#
+
+--disable_warnings
+DROP DATABASE IF EXISTS gis_ogs;
+--enable_warnings
+
+CREATE DATABASE gis_ogs;
+USE gis_ogs;
+
+--echo #
+--echo # C.3.3.1 Geometry types and functions schema construction 
+--echo #
+
+# TODO: WL#2377
+#CREATE TABLE spatial_ref_sys ( 
+#srid INTEGER NOT NULL PRIMARY KEY, 
+#auth_name CHARACTER VARYING, 
+#auth_srid INTEGER, 
+#srtext CHARACTER VARYING(2048)); 
+
+CREATE TABLE lakes ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  shore POLYGON); 
+
+CREATE TABLE road_segments ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  aliases CHARACTER VARYING(64), 
+  num_lanes INTEGER, 
+  centerline LINESTRING);
+
+CREATE TABLE divided_routes ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  num_lanes INTEGER, 
+  centerlines MULTILINESTRING); 
+
+CREATE TABLE forests ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  boundary MULTIPOLYGON); 
+
+CREATE TABLE bridges ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  position POINT); 
+
+CREATE TABLE streams ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  centerline LINESTRING); 
+
+CREATE TABLE buildings ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  address CHARACTER VARYING(64), 
+  position POINT, 
+  footprint POLYGON); 
+
+CREATE TABLE ponds ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  type CHARACTER VARYING(64), 
+  shores MULTIPOLYGON); 
+
+CREATE TABLE named_places ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  name CHARACTER VARYING(64), 
+  boundary POLYGON); 
+
+CREATE TABLE map_neatlines ( 
+  fid INTEGER NOT NULL PRIMARY KEY, 
+  neatline POLYGON); 
+
+--echo #
+--echo # C.3.3.2 Geometry types and functions schema data loading 
+--echo #
+
+# TODO: WL#2377
+#-- Spatial Reference System 
+#INSERT INTO spatial_ref_sys VALUES 
+#(101, 'POSC', 32214, 'PROJCS["UTM_ZONE_14N", 
+#GEOGCS["World Geodetic System 72", 
+#DATUM["WGS_72", 
+#ELLIPSOID["NWL_10D", 6378135, 298.26]], 
+#PRIMEM["Greenwich", 0], 
+#UNIT["Meter", 1.0]], 
+#PROJECTION["Transverse_Mercator"], 
+#PARAMETER["False_Easting", 500000.0], 
+#PARAMETER["False_Northing", 0.0], 
+#PARAMETER["Central_Meridian", -99.0], 
+#PARAMETER["Scale_Factor", 0.9996], 
+#PARAMETER["Latitude_of_origin", 0.0], 
+#UNIT["Meter", 1.0]]'); 
+
+--echo # Lakes
+INSERT INTO lakes VALUES ( 
+101, 'BLUE LAKE', 
+PolyFromText( 
+'POLYGON( 
+(52 18,66 23,73 9,48 6,52 18), 
+(59 18,67 18,67 13,59 13,59 18) 
+)', 
+101)); 
+
+
+--echo # Road Segments
+
+INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
+LineFromText( 
+'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101)); 
+
+INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
+LineFromText( 
+'LINESTRING( 44 31, 56 34, 70 38 )' ,101)); 
+
+INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
+LineFromText( 
+'LINESTRING( 70 38, 72 48 )' ,101)); 
+
+INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
+LineFromText( 
+'LINESTRING( 70 38, 84 42 )' ,101)); 
+
+INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
+1, 
+LineFromText( 
+'LINESTRING( 28 26, 28 0 )',101)); 
+
+--echo # DividedRoutes 
+
+INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
+MLineFromText( 
+'MULTILINESTRING((10 48,10 21,10 0), 
+(16 0,16 23,16 48))', 101)); 
+
+--echo # Forests 
+
+INSERT INTO forests VALUES(109, 'Green Forest', 
+MPolyFromText( 
+'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
+(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
+101)); 
+
+--echo # Bridges 
+
+INSERT INTO bridges VALUES(110, 'Cam Bridge', PointFromText( 
+'POINT( 44 31 )', 101)); 
+
+--echo # Streams 
+
+INSERT INTO streams VALUES(111, 'Cam Stream', 
+LineFromText( 
+'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101)); 
+
+INSERT INTO streams VALUES(112, NULL, 
+LineFromText( 
+'LINESTRING( 76 0, 78 4, 73 9 )', 101)); 
+
+--echo # Buildings 
+
+INSERT INTO buildings VALUES(113, '123 Main Street', 
+PointFromText( 
+'POINT( 52 30 )', 101), 
+PolyFromText( 
+'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101)); 
+
+INSERT INTO buildings VALUES(114, '215 Main Street', 
+PointFromText( 
+'POINT( 64 33 )', 101), 
+PolyFromText( 
+'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101)); 
+
+
+--echo # Ponds 
+
+INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
+MPolyFromText( 
+'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
+( ( 26 44, 26 40, 28 42, 26 44) ) )', 101)); 
+
+--echo # Named Places 
+
+INSERT INTO named_places VALUES(117, 'Ashton', 
+PolyFromText( 
+'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101)); 
+
+INSERT INTO named_places VALUES(118, 'Goose Island', 
+PolyFromText( 
+'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101)); 
+
+--echo # Map Neatlines 
+
+INSERT INTO map_neatlines VALUES(115, 
+PolyFromText( 
+'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101)); 
+
+--echo #
+--echo # C.3.3.3 Geometry types and functions schema test queries 
+--echo 
+
+# TODO: WL#2377
+#--echo # Conformance Item T1 
+#SELECT f_table_name 
+#FROM geometry_columns; 
+#
+#--echo # Conformance Item T2 
+#SELECT f_geometry_column 
+#FROM geometry_columns 
+#WHERE f_table_name = 'streams'; 
+#
+#--echo # Conformance Item T3 
+#SELECT coord_dimension 
+#FROM geometry_columns 
+#WHERE f_table_name = 'streams'; 
+#
+#--echo # Conformance Item T4 
+#
+#SELECT srid 
+#FROM geometry_columns 
+#WHERE f_table_name = 'streams'; 
+#
+#--echo # Conformance Item T5 
+#
+#SELECT srtext 
+#FROM SPATIAL_REF_SYS 
+#WHERE SRID = 101; 
+#
+
+
+--echo # Conformance Item T6 
+# TODO: ST_Dimension() alias
+SELECT Dimension(shore) 
+FROM lakes 
+WHERE name = 'Blue Lake'; 
+
+--echo # Conformance Item T7 
+# TODO: ST_GeometryType() alias
+SELECT GeometryType(centerlines) 
+FROM divided_routes
+WHERE name = 'Route 75'; 
+
+--echo # Conformance Item T8 
+# TODO: ST_AsText() alias
+SELECT AsText(boundary) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T9 
+# TODO: ST_AsBinary(), ST_PolyFromWKB() aliases
+SELECT AsText(PolyFromWKB(AsBinary(boundary),101)) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T10 
+# TODO: ST_SRID() alias
+SELECT SRID(boundary) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T11 
+# TODO: ST_IsEmpty() alias
+SELECT IsEmpty(centerline) 
+FROM road_segments 
+WHERE name = 'Route 5' 
+AND aliases = 'Main Street'; 
+
+# FIXME: get wrong result:0, expected 1.
+#--echo # Conformance Item T12 
+# TODO: ST_IsSimple() alias
+#SELECT IsSimple(shore) 
+#FROM lakes 
+#WHERE name = 'Blue Lake'; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T13 
+#SELECT AsText(Boundary((boundary),101) 
+#FROM named_places 
+#WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T14 
+# TODO: ST_Envelope( ) alias
+# FIXME: we get anticlockwise, GIS suggests clockwise
+SELECT AsText(Envelope(boundary)) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T15 
+# TODO: ST_X() alias
+SELECT X(position) 
+FROM bridges 
+WHERE name = 'Cam Bridge'; 
+
+--echo # Conformance Item T16 
+# TODO: ST_Y() alias
+SELECT Y(position) 
+FROM bridges 
+WHERE name = 'Cam Bridge'; 
+
+--echo # Conformance Item T17 
+# TODO: ST_StartPoint() alias
+SELECT AsText(StartPoint(centerline)) 
+FROM road_segments 
+WHERE fid = 102; 
+
+--echo # Conformance Item T18 
+# TODO: ST_EndPoint
+SELECT AsText(EndPoint(centerline)) 
+FROM road_segments 
+WHERE fid = 102; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T19 
+# TODO: ST_LineFromWKB() alias
+#SELECT IsClosed(LineFromWKB(AsBinary(Boundary(boundary)),SRID(boundary))) 
+#FROM named_places 
+#WHERE name = 'Goose Island'; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T20 
+#SELECT IsRing(LineFromWKB(AsBinary(Boundary(boundary)),SRID(boundary))) 
+#FROM named_places 
+#WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T21 
+# TODO: ST_Length() alias
+SELECT GLength(centerline) 
+FROM road_segments 
+WHERE fid = 106; 
+
+--echo # Conformance Item T22 
+# TODO: ST_NumPoints() alias
+SELECT NumPoints(centerline) 
+FROM road_segments 
+WHERE fid = 102; 
+
+--echo # Conformance Item T23 
+# TODO: ST_PointN() alias
+SELECT AsText(PointN(centerline, 1)) 
+FROM road_segments 
+WHERE fid = 102; 
+
+--echo # Conformance Item T24 
+# TODO: ST_Centroid() alias
+SELECT AsText(Centroid(boundary)) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T25 
+#SELECT Contains(boundary, PointOnSurface(boundary)) 
+#FROM named_places 
+#WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T26 
+# TODO: ST_Area() alias
+SELECT Area(boundary) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T27 
+# TODO: ST_ExteriorRing() alias
+SELECT AsText(ExteriorRing(shore)) 
+FROM lakes 
+WHERE name = 'Blue Lake'; 
+
+--echo # Conformance Item T28 
+# TODO: ST_NumInteriorRings() alias
+SELECT NumInteriorRings(shore) 
+FROM lakes 
+WHERE name = 'Blue Lake'; 
+
+--echo # Conformance Item T29 
+# TODO: ST_InteriorRingN() alias
+SELECT AsText(InteriorRingN(shore, 1)) 
+FROM lakes 
+WHERE name = 'Blue Lake'; 
+
+--echo # Conformance Item T30 
+# TODO: ST_NumGeometries() alias
+SELECT NumGeometries(centerlines) 
+FROM divided_routes 
+WHERE name = 'Route 75'; 
+
+--echo # Conformance Item T31 
+# TODO: ST_GeometryN() alias
+SELECT AsText(GeometryN(centerlines, 2)) 
+FROM divided_routes 
+WHERE name = 'Route 75'; 
+
+--echo # Conformance Item T32 
+# TODO: ST_IsClosed() alias
+SELECT IsClosed(centerlines) 
+FROM divided_routes 
+WHERE name = 'Route 75'; 
+
+--echo # Conformance Item T33 
+# TODO: ST_Length() alias
+SELECT GLength(centerlines) 
+FROM divided_routes 
+WHERE name = 'Route 75'; 
+
+--echo # Conformance Item T34 
+# TODO: ST_Centroid() alias
+SELECT AsText(Centroid(shores)) 
+FROM ponds 
+WHERE fid = 120; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T35 
+#SELECT Contains(shores, PointOnSurface(shores)) 
+#FROM ponds 
+#WHERE fid = 120; 
+
+--echo # Conformance Item T36 
+# TODO: ST_Area() alias
+SELECT Area(shores) 
+FROM ponds 
+WHERE fid = 120; 
+
+--echo # Conformance Item T37 
+# TODO: ST_PolyFromText() alias
+SELECT ST_Equals(boundary, 
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
+FROM named_places 
+WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T38 
+SELECT ST_Disjoint(centerlines, boundary) 
+FROM divided_routes, named_places 
+WHERE divided_routes.name = 'Route 75' 
+AND named_places.name = 'Ashton'; 
+
+--echo # Conformance Item T39 
+SELECT ST_Touches(centerline, shore) 
+FROM streams, lakes 
+WHERE streams.name = 'Cam Stream' 
+AND lakes.name = 'Blue Lake'; 
+
+# FIXME: wrong result: get 0, expected 1
+#--echo # Conformance Item T40 
+#SELECT ST_Within(boundary, footprint) 
+#FROM named_places, buildings 
+#WHERE named_places.name = 'Ashton' 
+#AND buildings.address = '215 Main Street'; 
+
+# FIXME: wrong result: get 0, expected 1
+#--echo # Conformance Item T41 
+#SELECT ST_Overlaps(forests.boundary, named_places.boundary) 
+#FROM forests, named_places 
+#WHERE forests.name = 'Green Forest' 
+#AND named_places.name = 'Ashton'; 
+
+--echo # Conformance Item T42
+# FIXME: TODO: ST_Crosses() alias
+SELECT Crosses(road_segments.centerline, divided_routes.centerlines)
+FROM road_segments, divided_routes 
+WHERE road_segments.fid = 102 
+AND divided_routes.name = 'Route 75'; 
+
+--echo # Conformance Item T43 
+SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
+FROM road_segments, divided_routes 
+WHERE road_segments.fid = 102 
+AND divided_routes.name = 'Route 75'; 
+
+--echo # Conformance Item T44 
+SELECT ST_Contains(forests.boundary, named_places.boundary) 
+FROM forests, named_places 
+WHERE forests.name = 'Green Forest' 
+AND named_places.name = 'Ashton'; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T45 
+#SELECT Relate(forests.boundary, named_places.boundary, 'TTTTTTTTT') 
+#FROM forests, named_places 
+#WHERE forests.name = 'Green Forest' 
+#AND named_places.name = 'Ashton'; 
+
+--echo # Conformance Item T46 
+SELECT ST_Distance(position, boundary) 
+FROM bridges, named_places 
+WHERE bridges.name = 'Cam Bridge' 
+AND named_places.name = 'Ashton'; 
+
+# FIXME: wrong result: NULL, expected 12
+#--echo # Conformance Item T47 
+#SELECT AsText(ST_Intersection(centerline, shore)) 
+#FROM streams, lakes 
+#WHERE streams.name = 'Cam Stream' 
+#AND lakes.name = 'Blue Lake'; 
+
+--echo # Conformance Item T48 
+SELECT AsText(ST_Difference(named_places.boundary, forests.boundary)) 
+FROM named_places, forests 
+WHERE named_places.name = 'Ashton' 
+AND forests.name = 'Green Forest'; 
+
+#--echo # Conformance Item T49 
+SELECT AsText(ST_Union(shore, boundary)) 
+FROM lakes, named_places 
+WHERE lakes.name = 'Blue Lake' 
+AND named_places.name = 'Goose Island'; 
+
+--echo # Conformance Item T50 
+SELECT AsText(ST_SymDifference(shore, boundary)) 
+FROM lakes, named_places 
+WHERE lakes.name = 'Blue Lake' 
+AND named_places.name = 'Ashton'; 
+
+--echo # Conformance Item T51 
+SELECT count(*) 
+FROM buildings, bridges 
+WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 
+
+# TODO: WL#2377
+#--echo # Conformance Item T52 
+#SELECT AsText(ConvexHull(shore)) 
+#FROM lakes 
+#WHERE lakes.name = 'Blue Lake'; 
+
+DROP DATABASE gis_ogs;

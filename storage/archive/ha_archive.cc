@@ -613,6 +613,34 @@ int ha_archive::close(void)
 }
 
 
+/**
+  Copy a frm blob between streams.
+
+  @param  src   The source stream.
+  @param  dst   The destination stream.
+
+  @return Zero on success, non-zero otherwise.
+*/
+
+int ha_archive::frm_copy(azio_stream *src, azio_stream *dst)
+{
+  int rc= 0;
+  char *frm_ptr;
+
+  if (!(frm_ptr= (char *) my_malloc(src->frm_length, MYF(0))))
+    return HA_ERR_OUT_OF_MEM;
+
+  /* Write file offset is set to the end of the file. */
+  if (azread_frm(src, frm_ptr) ||
+      azwrite_frm(dst, frm_ptr, src->frm_length))
+    rc= my_errno ? my_errno : HA_ERR_INTERNAL_ERROR;
+
+  my_free(frm_ptr);
+
+  return rc;
+}
+
+
 /*
   We create our data file here. The format is pretty simple. 
   You can read about the format of the data file above.
@@ -1347,10 +1375,10 @@ int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 */
 int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  DBUG_ENTER("ha_archive::optimize");
   int rc= 0;
   azio_stream writer;
   char writer_filename[FN_REFLEN];
+  DBUG_ENTER("ha_archive::optimize");
 
   init_archive_reader();
 
@@ -1367,6 +1395,13 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
 
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE); 
+
+  /*
+    Transfer the embedded FRM so that the file can be discoverable.
+    Write file offset is set to the end of the file.
+  */
+  if ((rc= frm_copy(&archive, &writer)))
+    goto error;
 
   /* 
     An extended rebuild is a lot more effort. We open up each row and re-record it. 
@@ -1617,9 +1652,9 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::delete_all_rows()
+int ha_archive::truncate()
 {
-  DBUG_ENTER("ha_archive::delete_all_rows");
+  DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -1711,6 +1746,20 @@ void ha_archive::destroy_record_buffer(archive_record_buffer *r)
   my_free(r);
   DBUG_VOID_RETURN;
 }
+
+bool ha_archive::check_if_incompatible_data(HA_CREATE_INFO *info,
+                                            uint table_changes)
+{
+  if (info->auto_increment_value != stats.auto_increment_value ||
+      (info->used_fields & HA_CREATE_USED_DATADIR) ||
+      info->data_file_name ||
+      (info->used_fields & HA_CREATE_USED_COMMENT) ||
+      table_changes != IS_EQUAL_YES)
+    return COMPATIBLE_DATA_NO;
+
+  return COMPATIBLE_DATA_YES;
+}
+
 
 struct st_mysql_storage_engine archive_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

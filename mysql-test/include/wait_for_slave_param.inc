@@ -25,7 +25,7 @@
 #
 # $slave_timeout
 #   The default timeout is 5 minutes. You can change the timeout by
-#   setting $slave_timeout. The unit is tenths of seconds.
+#   setting $slave_timeout. The unit is seconds.
 #
 # $master_connection
 #   If the timeout is reached, debug info is given by calling SHOW
@@ -47,13 +47,15 @@
 let $_slave_timeout_counter= $slave_timeout;
 if (!$_slave_timeout_counter)
 {
-  let $_slave_timeout_counter= 3000;
+  let $_slave_timeout_counter= 300;
 }
 # Save resulting counter for later use.
 let $slave_tcnt= $_slave_timeout_counter;
+# Convert to deci-seconds
+let $_slave_timeout_counter= `SELECT 10 * $_slave_timeout_counter`;
 
 let $_slave_param_comparison= $slave_param_comparison;
-if (`SELECT '$_slave_param_comparison' = ''`)
+if (!$_slave_param_comparison)
 {
   let $_slave_param_comparison= =;
 }
@@ -73,12 +75,12 @@ while (`SELECT NOT('$_show_slave_status_value' $_slave_param_comparison '$slave_
 if (!$_slave_timeout_counter)
 {
   --echo **** ERROR: timeout after $slave_tcnt deci-seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
-  if (`SELECT '$slave_error_message' != ''`)
+  if ($slave_error_message)
   {
     --echo Message: $slave_error_message
   }
   --echo Current connection is '$CURRENT_CONNECTION'
   echo Note: the following output may have changed since the failure was detected;
   source include/show_rpl_debug_info.inc;
-  die;
+  die timeout in wait_for_slave_param.inc;
 }

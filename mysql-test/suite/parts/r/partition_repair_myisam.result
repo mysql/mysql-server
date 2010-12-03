@@ -1,4 +1,65 @@
 # REPAIR USE_FRM is not implemented for partitioned tables.
+# Test what happens if we exchange a crashed partition with a table
+SHOW VARIABLES LIKE 'myisam_recover_options';
+Variable_name	Value
+myisam_recover_options	OFF
+CREATE TABLE t (a INT, KEY (a)) ENGINE=MyISAM;
+CREATE TABLE tp (a INT, KEY (a)) ENGINE=MyISAM
+PARTITION BY RANGE (a)
+(PARTITION pCrashed VALUES LESS THAN (15),
+PARTITION pMAX VALUES LESS THAN MAXVALUE);
+INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+INSERT INTO tp VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+FLUSH TABLES;
+# replacing tp#P#pCrashed.MYI with a corrupt + unclosed one created by doing:
+# 'create table t1 (a int key(a))' head -c1024 t1.MYI > corrupt_t1.MYI 
+CHECK TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	check	warning	1 client is using or hasn't closed the table properly
+test.tp	check	error	Size of indexfile is: 1024        Should be: 2048
+test.tp	check	warning	Size of datafile is: 77       Should be: 7
+test.tp	check	error	Partition pCrashed returned error
+test.tp	check	error	Corrupt
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+ERROR HY000: Table './test/tp#P#pCrashed' is marked as crashed and should be repaired
+REPAIR TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	repair	warning	Number of rows changed from 1 to 11
+test.tp	repair	status	OK
+CHECK TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	check	status	OK
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+CHECK TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	check	status	OK
+FLUSH TABLES;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	warning	1 client is using or hasn't closed the table properly
+test.t	check	error	Size of indexfile is: 1024        Should be: 2048
+test.t	check	warning	Size of datafile is: 77       Should be: 7
+test.t	check	error	Corrupt
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+ERROR HY000: Table './test/t' is marked as crashed and should be repaired
+REPAIR TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	repair	warning	Number of rows changed from 1 to 11
+test.t	repair	status	OK
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
+CHECK TABLE tp;
+Table	Op	Msg_type	Msg_text
+test.tp	check	status	OK
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t, tp;
 # test of non partitioned myisam for reference
 CREATE TABLE t1_will_crash (a INT, KEY (a)) ENGINE=MyISAM;
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);

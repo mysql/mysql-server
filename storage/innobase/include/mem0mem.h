@@ -62,6 +62,12 @@ buffer pool; the latter method is used for very big heaps */
 					allocation functions can return
 					NULL. */
 
+/* Different type of heaps in terms of which datastructure is using them */
+#define MEM_HEAP_FOR_BTR_SEARCH		(MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER)
+#define MEM_HEAP_FOR_PAGE_HASH		(MEM_HEAP_DYNAMIC)
+#define MEM_HEAP_FOR_RECV_SYS		(MEM_HEAP_BUFFER)
+#define MEM_HEAP_FOR_LOCK_HEAP		(MEM_HEAP_BUFFER)
+
 /* The following start size is used for the first block in the memory heap if
 the size is not specified, i.e., 0 is given as the parameter in the call of
 create. The standard size is the maximum (payload) size of the blocks used for
@@ -99,16 +105,8 @@ heap creation. */
 Use this macro instead of the corresponding function! Macro for memory
 heap creation. */
 
-#define mem_heap_create_in_buffer(N)	mem_heap_create_func(\
-		(N), MEM_HEAP_BUFFER, __FILE__, __LINE__)
-/**************************************************************//**
-Use this macro instead of the corresponding function! Macro for memory
-heap creation. */
-
-#define mem_heap_create_in_btr_search(N)	mem_heap_create_func(\
-		(N), MEM_HEAP_BTR_SEARCH | MEM_HEAP_BUFFER,\
-		__FILE__, __LINE__)
-
+#define mem_heap_create_typed(N, T)	mem_heap_create_func(\
+		(N), (T), __FILE__, __LINE__)
 /**************************************************************//**
 Use this macro instead of the corresponding function! Macro for memory
 heap freeing. */

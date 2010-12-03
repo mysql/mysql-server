@@ -8,33 +8,32 @@ test
 use performance_schema;
 show tables;
 Tables_in_performance_schema
-COND_INSTANCES
-EVENTS_WAITS_CURRENT
-EVENTS_WAITS_HISTORY
-EVENTS_WAITS_HISTORY_LONG
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME
-EVENTS_WAITS_SUMMARY_BY_INSTANCE
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
-FILE_INSTANCES
-FILE_SUMMARY_BY_EVENT_NAME
-FILE_SUMMARY_BY_INSTANCE
-MUTEX_INSTANCES
-PERFORMANCE_TIMERS
-PROCESSLIST
-RWLOCK_INSTANCES
-SETUP_CONSUMERS
-SETUP_INSTRUMENTS
-SETUP_OBJECTS
-SETUP_TIMERS
-show create table COND_INSTANCES;
+cond_instances
+events_waits_current
+events_waits_history
+events_waits_history_long
+events_waits_summary_by_instance
+events_waits_summary_by_thread_by_event_name
+events_waits_summary_global_by_event_name
+file_instances
+file_summary_by_event_name
+file_summary_by_instance
+mutex_instances
+performance_timers
+rwlock_instances
+setup_consumers
+setup_instruments
+setup_timers
+threads
+show create table cond_instances;
 Table	Create Table
-COND_INSTANCES	CREATE TABLE `COND_INSTANCES` (
+cond_instances	CREATE TABLE `cond_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_CURRENT;
+show create table events_waits_current;
 Table	Create Table
-EVENTS_WAITS_CURRENT	CREATE TABLE `EVENTS_WAITS_CURRENT` (
+events_waits_current	CREATE TABLE `events_waits_current` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -52,9 +51,9 @@ EVENTS_WAITS_CURRENT	CREATE TABLE `EVENTS_WAITS_CURRENT` (
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_HISTORY;
+show create table events_waits_history;
 Table	Create Table
-EVENTS_WAITS_HISTORY	CREATE TABLE `EVENTS_WAITS_HISTORY` (
+events_waits_history	CREATE TABLE `events_waits_history` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -72,9 +71,9 @@ EVENTS_WAITS_HISTORY	CREATE TABLE `EVENTS_WAITS_HISTORY` (
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_HISTORY_LONG;
+show create table events_waits_history_long;
 Table	Create Table
-EVENTS_WAITS_HISTORY_LONG	CREATE TABLE `EVENTS_WAITS_HISTORY_LONG` (
+events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -92,19 +91,9 @@ EVENTS_WAITS_HISTORY_LONG	CREATE TABLE `EVENTS_WAITS_HISTORY_LONG` (
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
+show create table events_waits_summary_by_instance;
 Table	Create Table
-EVENTS_WAITS_SUMMARY_BY_EVENT_NAME	CREATE TABLE `EVENTS_WAITS_SUMMARY_BY_EVENT_NAME` (
-  `EVENT_NAME` varchar(128) NOT NULL,
-  `COUNT_STAR` bigint(20) unsigned NOT NULL,
-  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
-  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
-  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
-  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_SUMMARY_BY_INSTANCE;
-Table	Create Table
-EVENTS_WAITS_SUMMARY_BY_INSTANCE	CREATE TABLE `EVENTS_WAITS_SUMMARY_BY_INSTANCE` (
+events_waits_summary_by_instance	CREATE TABLE `events_waits_summary_by_instance` (
   `EVENT_NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
@@ -113,9 +102,9 @@ EVENTS_WAITS_SUMMARY_BY_INSTANCE	CREATE TABLE `EVENTS_WAITS_SUMMARY_BY_INSTANCE`
   `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+show create table events_waits_summary_by_thread_by_event_name;
 Table	Create Table
-EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	CREATE TABLE `EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME` (
+events_waits_summary_by_thread_by_event_name	CREATE TABLE `events_waits_summary_by_thread_by_event_name` (
   `THREAD_ID` int(11) NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
@@ -124,25 +113,35 @@ EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME	CREATE TABLE `EVENTS_WAITS_SUMMARY_
   `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table FILE_INSTANCES;
+show create table events_waits_summary_global_by_event_name;
 Table	Create Table
-FILE_INSTANCES	CREATE TABLE `FILE_INSTANCES` (
+events_waits_summary_global_by_event_name	CREATE TABLE `events_waits_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table file_instances;
+Table	Create Table
+file_instances	CREATE TABLE `file_instances` (
   `FILE_NAME` varchar(512) NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `OPEN_COUNT` int(10) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table FILE_SUMMARY_BY_EVENT_NAME;
+show create table file_summary_by_event_name;
 Table	Create Table
-FILE_SUMMARY_BY_EVENT_NAME	CREATE TABLE `FILE_SUMMARY_BY_EVENT_NAME` (
+file_summary_by_event_name	CREATE TABLE `file_summary_by_event_name` (
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_READ` bigint(20) unsigned NOT NULL,
   `COUNT_WRITE` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table FILE_SUMMARY_BY_INSTANCE;
+show create table file_summary_by_instance;
 Table	Create Table
-FILE_SUMMARY_BY_INSTANCE	CREATE TABLE `FILE_SUMMARY_BY_INSTANCE` (
+file_summary_by_instance	CREATE TABLE `file_summary_by_instance` (
   `FILE_NAME` varchar(512) NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_READ` bigint(20) unsigned NOT NULL,
@@ -150,62 +149,52 @@ FILE_SUMMARY_BY_INSTANCE	CREATE TABLE `FILE_SUMMARY_BY_INSTANCE` (
   `SUM_NUMBER_OF_BYTES_READ` bigint(20) unsigned NOT NULL,
   `SUM_NUMBER_OF_BYTES_WRITE` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table MUTEX_INSTANCES;
+show create table mutex_instances;
 Table	Create Table
-MUTEX_INSTANCES	CREATE TABLE `MUTEX_INSTANCES` (
+mutex_instances	CREATE TABLE `mutex_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table PERFORMANCE_TIMERS;
+show create table performance_timers;
 Table	Create Table
-PERFORMANCE_TIMERS	CREATE TABLE `PERFORMANCE_TIMERS` (
+performance_timers	CREATE TABLE `performance_timers` (
   `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK') NOT NULL,
   `TIMER_FREQUENCY` bigint(20) DEFAULT NULL,
   `TIMER_RESOLUTION` bigint(20) DEFAULT NULL,
   `TIMER_OVERHEAD` bigint(20) DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table PROCESSLIST;
+show create table rwlock_instances;
 Table	Create Table
-PROCESSLIST	CREATE TABLE `PROCESSLIST` (
-  `THREAD_ID` int(11) NOT NULL,
-  `ID` int(11) NOT NULL,
-  `NAME` varchar(64) NOT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table RWLOCK_INSTANCES;
-Table	Create Table
-RWLOCK_INSTANCES	CREATE TABLE `RWLOCK_INSTANCES` (
+rwlock_instances	CREATE TABLE `rwlock_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `WRITE_LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL,
   `READ_LOCKED_BY_COUNT` int(10) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table SETUP_CONSUMERS;
+show create table setup_consumers;
 Table	Create Table
-SETUP_CONSUMERS	CREATE TABLE `SETUP_CONSUMERS` (
+setup_consumers	CREATE TABLE `setup_consumers` (
   `NAME` varchar(64) NOT NULL,
   `ENABLED` enum('YES','NO') NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table SETUP_INSTRUMENTS;
+show create table setup_instruments;
 Table	Create Table
-SETUP_INSTRUMENTS	CREATE TABLE `SETUP_INSTRUMENTS` (
+setup_instruments	CREATE TABLE `setup_instruments` (
   `NAME` varchar(128) NOT NULL,
   `ENABLED` enum('YES','NO') NOT NULL,
   `TIMED` enum('YES','NO') NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table SETUP_OBJECTS;
+show create table setup_timers;
 Table	Create Table
-SETUP_OBJECTS	CREATE TABLE `SETUP_OBJECTS` (
-  `OBJECT_TYPE` varchar(64) DEFAULT NULL,
-  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
-  `OBJECT_NAME` varchar(64) DEFAULT NULL,
-  `ENABLED` enum('YES','NO') NOT NULL,
-  `TIMED` enum('YES','NO') NOT NULL,
-  `AGGREGATED` enum('YES','NO') NOT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table SETUP_TIMERS;
-Table	Create Table
-SETUP_TIMERS	CREATE TABLE `SETUP_TIMERS` (
+setup_timers	CREATE TABLE `setup_timers` (
   `NAME` varchar(64) NOT NULL,
   `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK') NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table threads;
+Table	Create Table
+threads	CREATE TABLE `threads` (
+  `THREAD_ID` int(11) NOT NULL,
+  `PROCESSLIST_ID` int(11) DEFAULT NULL,
+  `NAME` varchar(128) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8

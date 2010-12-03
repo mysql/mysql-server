@@ -1,0 +1,339 @@
+#
+# BUG#49100: RBR: Unexpected behavior when AI contains no usable data 
+#            for slave columns
+
+-- connection mysqld_c
+-- source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_b
+-- source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_a
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_c
+-- source include/start_slave.inc
+
+-- connection mysqld_b
+-- source include/start_slave.inc
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_a
+
+-- let $row_img_set=mysqld_a:MINIMAL:N,mysqld_b:MINIMAL:Y,mysqld_c:MINIMAL:Y
+-- source include/rpl_row_img_set.inc
+
+-- echo #### case #1: AI: no values logged
+
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+INSERT INTO t1 VALUES ();
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+DROP TABLE t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+
+-- echo #### case #2: AI: not empty but slave does not have usable data for its columns (INSERT)
+
+-- connection mysqld_c
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+
+-- connection mysqld_b
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+-- connection mysqld_a
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100, c2 int, primary key(c2)) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+INSERT INTO t1(c2) VALUES (1);
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+DROP TABLE t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+
+-- echo #### case #3: BI: usable columns on the slave, AI: no usable columns on the slave
+
+-- connection mysqld_c
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+
+-- connection mysqld_b
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+-- connection mysqld_a
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100, c2 int) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+INSERT INTO t1 VALUES (1,1);
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+UPDATE t1 SET c2=2 WHERE c1=1 AND c2=1;
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+DROP TABLE t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+
+-- echo #### case #4: AI, BI: no usable columns on the slave (NOOP UPDATE).
+-- echo ####          
+
+if ($verbose)
+{
+  ## CLEAN LOGS (to show clean events later)
+
+  -- connection mysqld_c
+  -- source include/stop_slave.inc
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_b
+  -- source include/stop_slave.inc
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_a
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_c
+  -- source include/start_slave.inc
+
+  -- connection mysqld_b
+  -- source include/start_slave.inc
+
+  ## CLEANED
+}
+
+-- connection mysqld_c
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+
+-- connection mysqld_b
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+-- connection mysqld_a
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 int DEFAULT 100, c2 int, c3 int, primary key(c2)) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+INSERT INTO t1 VALUES (1,1,1);
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+UPDATE t1 SET c3=300 WHERE c2=1;
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+DROP TABLE t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+
+if ($verbose)
+{
+  # show that 2nd slave does not log the update (see: BUG#52473)
+  -- connection mysqld_a
+  -- echo # Master events
+  -- source include/show_binlog_events.inc
+  -- connection mysqld_b
+  -- echo # First slave events
+  -- source include/show_binlog_events.inc
+  -- connection mysqld_a
+}
+
+-- echo #### case #5: BI: no usable columns on the slave, AI: usable columns on the slave (slave must stop).
+-- echo #### 
+
+
+if ($verbose)
+{
+  ## CLEAN LOGS
+
+  -- connection mysqld_c
+  -- source include/stop_slave.inc
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_b
+  -- source include/stop_slave.inc
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_a
+  RESET MASTER;
+  RESET SLAVE;
+
+  -- connection mysqld_c
+  -- source include/start_slave.inc
+
+  -- connection mysqld_b
+  -- source include/start_slave.inc
+
+  ## CLEANED
+}
+
+-- connection mysqld_c
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=$engine
+
+-- connection mysqld_b
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 INT DEFAULT 100) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+-- connection mysqld_a
+SET SQL_LOG_BIN=0;
+-- replace_result $engine ENGINE
+-- eval CREATE TABLE t1 (c1 INT DEFAULT 100, c2 INT PRIMARY KEY) Engine=$engine
+SET SQL_LOG_BIN=1;
+
+INSERT INTO t1 VALUES (1,1);
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- source include/rpl_chained_3_hosts_sync.inc
+-- connection mysqld_b
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_c
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+
+-- connection mysqld_a
+UPDATE t1 SET c1=300 WHERE c2=1;
+SHOW VARIABLES LIKE 'server_id';
+SELECT * FROM t1;
+-- connection mysqld_b
+
+-- let $lower_engine= `SELECT LOWER('$engine')`
+if ($lower_engine == ndb)
+{
+  if ($verbose)
+  {
+    -- echo # scenario #5 skipped in NDB  (see: BUG#52473).
+    # show events logged in mysqld_a. There will be two Write_rows events
+    # instead of one Write_rows and one Update_rows log events.
+    -- connection mysqld_a
+    -- source include/show_binlog_events.inc
+  }
+}
+
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+SET SQL_LOG_BIN=1;
+
+# NOTE: Because of BUG#52473, when using NDB this will make the test
+#       wait forever.
+-- source include/wait_for_slave_sql_to_stop.inc
+-- let $errno=query_get_value("show slave status", Last_SQL_Errno, 1)
+if ($errno != 1032)
+{
+  -- echo ### UNEXPECTED ERROR AT THE SLAVE: $errno
+  SHOW SLAVE STATUS;
+  -- die
+}
+-- echo ### SLAVE STOPPED AS EXPECTED!
+
+## CLEAN UP
+
+-- connection mysqld_c
+-- source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_b
+-- source include/stop_slave.inc
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_a
+RESET MASTER;
+RESET SLAVE;
+
+-- connection mysqld_c
+-- source include/start_slave.inc
+
+-- connection mysqld_b
+-- source include/start_slave.inc
+
+-- connection mysqld_a
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+-- source include/rpl_chained_3_hosts_sync.inc
+
+-- let $row_img_set=mysqld_a:FULL:N,mysqld_b:FULL:Y,mysqld_c:FULL:Y
+-- source include/rpl_row_img_set.inc
+

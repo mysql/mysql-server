@@ -361,6 +361,7 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_length_and_dec()
   {
+    maybe_null= TRUE;
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
@@ -733,7 +734,6 @@ public:
 
 class Item_extract :public Item_int_func
 {
-  String value;
   bool date_value;
  public:
   const interval_type int_type; // keep it public
@@ -949,6 +949,8 @@ public:
       return save_date_in_field(field);
     return Item_str_func::save_in_field(field, no_conversions);
   }
+  longlong val_int();
+  MYSQL_TIME *val_datetime(MYSQL_TIME *time, date_time_format_types *format);
 };
 
 class Item_func_timediff :public Item_str_timefunc
@@ -1039,6 +1041,7 @@ class Item_func_str_to_date :public Item_str_func
   date_time_format_types cached_format_type;
   timestamp_type cached_timestamp_type;
   bool const_item;
+  sql_mode_t sql_mode;
 public:
   Item_func_str_to_date(Item *a, Item *b)
     :Item_str_func(a, b), const_item(false)
@@ -1052,6 +1055,8 @@ public:
   {
     return tmp_table_field_from_field_type(table, 1);
   }
+  longlong val_int();
+  bool result_as_longlong() { return TRUE; }
 };
 
 

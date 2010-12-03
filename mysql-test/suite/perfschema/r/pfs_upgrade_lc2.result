@@ -1,0 +1,153 @@
+drop table if exists test.user_table;
+drop procedure if exists test.user_proc;
+drop function if exists test.user_func;
+drop event if exists test.user_event;
+"Testing mysql_upgrade with TABLE performance_schema.user_table"
+create table test.user_table(a int);
+use performance_schema;
+show tables like "user_table";
+Tables_in_performance_schema (user_table)
+user_table
+ERROR 1050 (42S01) at line 70: Table 'cond_instances' already exists
+ERROR 1050 (42S01) at line 92: Table 'events_waits_current' already exists
+ERROR 1050 (42S01) at line 114: Table 'events_waits_history' already exists
+ERROR 1050 (42S01) at line 136: Table 'events_waits_history_long' already exists
+ERROR 1050 (42S01) at line 149: Table 'events_waits_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 162: Table 'events_waits_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 174: Table 'events_waits_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 183: Table 'file_instances' already exists
+ERROR 1050 (42S01) at line 194: Table 'file_summary_by_event_name' already exists
+ERROR 1050 (42S01) at line 206: Table 'file_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 215: Table 'mutex_instances' already exists
+ERROR 1050 (42S01) at line 225: Table 'performance_timers' already exists
+ERROR 1050 (42S01) at line 235: Table 'rwlock_instances' already exists
+ERROR 1050 (42S01) at line 244: Table 'setup_actors' already exists
+ERROR 1050 (42S01) at line 252: Table 'setup_consumers' already exists
+ERROR 1050 (42S01) at line 261: Table 'setup_instruments' already exists
+ERROR 1050 (42S01) at line 269: Table 'setup_timers' already exists
+ERROR 1050 (42S01) at line 289: Table 'threads' already exists
+ERROR 1644 (HY000) at line 707: Unexpected content found in the performance_schema database.
+FATAL ERROR: Upgrade failed
+show tables like "user_table";
+Tables_in_performance_schema (user_table)
+user_table
+use test;
+drop table test.user_table;
+"Testing mysql_upgrade with VIEW performance_schema.user_view"
+create view test.user_view as select "Not supposed to be here";
+use performance_schema;
+show tables like "user_view";
+Tables_in_performance_schema (user_view)
+user_view
+ERROR 1050 (42S01) at line 70: Table 'cond_instances' already exists
+ERROR 1050 (42S01) at line 92: Table 'events_waits_current' already exists
+ERROR 1050 (42S01) at line 114: Table 'events_waits_history' already exists
+ERROR 1050 (42S01) at line 136: Table 'events_waits_history_long' already exists
+ERROR 1050 (42S01) at line 149: Table 'events_waits_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 162: Table 'events_waits_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 174: Table 'events_waits_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 183: Table 'file_instances' already exists
+ERROR 1050 (42S01) at line 194: Table 'file_summary_by_event_name' already exists
+ERROR 1050 (42S01) at line 206: Table 'file_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 215: Table 'mutex_instances' already exists
+ERROR 1050 (42S01) at line 225: Table 'performance_timers' already exists
+ERROR 1050 (42S01) at line 235: Table 'rwlock_instances' already exists
+ERROR 1050 (42S01) at line 244: Table 'setup_actors' already exists
+ERROR 1050 (42S01) at line 252: Table 'setup_consumers' already exists
+ERROR 1050 (42S01) at line 261: Table 'setup_instruments' already exists
+ERROR 1050 (42S01) at line 269: Table 'setup_timers' already exists
+ERROR 1050 (42S01) at line 289: Table 'threads' already exists
+ERROR 1644 (HY000) at line 707: Unexpected content found in the performance_schema database.
+FATAL ERROR: Upgrade failed
+show tables like "user_view";
+Tables_in_performance_schema (user_view)
+user_view
+use test;
+drop view test.user_view;
+"Testing mysql_upgrade with PROCEDURE performance_schema.user_proc"
+create procedure test.user_proc()
+select "Not supposed to be here";
+update mysql.proc set db='performance_schema' where name='user_proc';
+ERROR 1050 (42S01) at line 70: Table 'cond_instances' already exists
+ERROR 1050 (42S01) at line 92: Table 'events_waits_current' already exists
+ERROR 1050 (42S01) at line 114: Table 'events_waits_history' already exists
+ERROR 1050 (42S01) at line 136: Table 'events_waits_history_long' already exists
+ERROR 1050 (42S01) at line 149: Table 'events_waits_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 162: Table 'events_waits_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 174: Table 'events_waits_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 183: Table 'file_instances' already exists
+ERROR 1050 (42S01) at line 194: Table 'file_summary_by_event_name' already exists
+ERROR 1050 (42S01) at line 206: Table 'file_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 215: Table 'mutex_instances' already exists
+ERROR 1050 (42S01) at line 225: Table 'performance_timers' already exists
+ERROR 1050 (42S01) at line 235: Table 'rwlock_instances' already exists
+ERROR 1050 (42S01) at line 244: Table 'setup_actors' already exists
+ERROR 1050 (42S01) at line 252: Table 'setup_consumers' already exists
+ERROR 1050 (42S01) at line 261: Table 'setup_instruments' already exists
+ERROR 1050 (42S01) at line 269: Table 'setup_timers' already exists
+ERROR 1050 (42S01) at line 289: Table 'threads' already exists
+ERROR 1644 (HY000) at line 707: Unexpected content found in the performance_schema database.
+FATAL ERROR: Upgrade failed
+select name from mysql.proc where db='performance_schema';
+name
+user_proc
+update mysql.proc set db='test' where name='user_proc';
+drop procedure test.user_proc;
+"Testing mysql_upgrade with FUNCTION performance_schema.user_func"
+create function test.user_func() returns integer
+return 0;
+update mysql.proc set db='performance_schema' where name='user_func';
+ERROR 1050 (42S01) at line 70: Table 'cond_instances' already exists
+ERROR 1050 (42S01) at line 92: Table 'events_waits_current' already exists
+ERROR 1050 (42S01) at line 114: Table 'events_waits_history' already exists
+ERROR 1050 (42S01) at line 136: Table 'events_waits_history_long' already exists
+ERROR 1050 (42S01) at line 149: Table 'events_waits_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 162: Table 'events_waits_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 174: Table 'events_waits_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 183: Table 'file_instances' already exists
+ERROR 1050 (42S01) at line 194: Table 'file_summary_by_event_name' already exists
+ERROR 1050 (42S01) at line 206: Table 'file_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 215: Table 'mutex_instances' already exists
+ERROR 1050 (42S01) at line 225: Table 'performance_timers' already exists
+ERROR 1050 (42S01) at line 235: Table 'rwlock_instances' already exists
+ERROR 1050 (42S01) at line 244: Table 'setup_actors' already exists
+ERROR 1050 (42S01) at line 252: Table 'setup_consumers' already exists
+ERROR 1050 (42S01) at line 261: Table 'setup_instruments' already exists
+ERROR 1050 (42S01) at line 269: Table 'setup_timers' already exists
+ERROR 1050 (42S01) at line 289: Table 'threads' already exists
+ERROR 1644 (HY000) at line 707: Unexpected content found in the performance_schema database.
+FATAL ERROR: Upgrade failed
+select name from mysql.proc where db='performance_schema';
+name
+user_func
+update mysql.proc set db='test' where name='user_func';
+drop function test.user_func;
+"Testing mysql_upgrade with EVENT performance_schema.user_event"
+create event test.user_event on schedule every 1 day do
+select "not supposed to be here";
+update mysql.event set db='performance_schema' where name='user_event';
+ERROR 1050 (42S01) at line 70: Table 'cond_instances' already exists
+ERROR 1050 (42S01) at line 92: Table 'events_waits_current' already exists
+ERROR 1050 (42S01) at line 114: Table 'events_waits_history' already exists
+ERROR 1050 (42S01) at line 136: Table 'events_waits_history_long' already exists
+ERROR 1050 (42S01) at line 149: Table 'events_waits_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 162: Table 'events_waits_summary_by_thread_by_event_name' already exists
+ERROR 1050 (42S01) at line 174: Table 'events_waits_summary_global_by_event_name' already exists
+ERROR 1050 (42S01) at line 183: Table 'file_instances' already exists
+ERROR 1050 (42S01) at line 194: Table 'file_summary_by_event_name' already exists
+ERROR 1050 (42S01) at line 206: Table 'file_summary_by_instance' already exists
+ERROR 1050 (42S01) at line 215: Table 'mutex_instances' already exists
+ERROR 1050 (42S01) at line 225: Table 'performance_timers' already exists
+ERROR 1050 (42S01) at line 235: Table 'rwlock_instances' already exists
+ERROR 1050 (42S01) at line 244: Table 'setup_actors' already exists
+ERROR 1050 (42S01) at line 252: Table 'setup_consumers' already exists
+ERROR 1050 (42S01) at line 261: Table 'setup_instruments' already exists
+ERROR 1050 (42S01) at line 269: Table 'setup_timers' already exists
+ERROR 1050 (42S01) at line 289: Table 'threads' already exists
+ERROR 1644 (HY000) at line 707: Unexpected content found in the performance_schema database.
+FATAL ERROR: Upgrade failed
+select name from mysql.event where db='performance_schema';
+name
+user_event
+update mysql.event set db='test' where name='user_event';
+drop event test.user_event;

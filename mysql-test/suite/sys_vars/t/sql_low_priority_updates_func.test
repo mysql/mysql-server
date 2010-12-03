@@ -86,7 +86,9 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
-let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Table lock' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist
+                      WHERE state='Waiting for table level lock' AND
+                            info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
 --echo ** Asynchronous Execution **
@@ -102,7 +104,8 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
-let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Table lock';
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist
+                     WHERE state LIKE 'Waiting for table level lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -157,7 +160,9 @@ delimiter ;|
 --echo ** Connection con0 **
 connection con0;
 
-let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist WHERE state='Table lock' AND info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
+let $wait_condition = SELECT COUNT(*) > 0 FROM information_schema.processlist
+                      WHERE state='Waiting for table level lock' AND
+                            info LIKE  'UPDATE t1 SET a = CONCAT(a,"-updated")';
 --source include/wait_condition.inc
 
 --echo ** Asynchronous Execution **
@@ -173,7 +178,8 @@ delimiter ;|
 --echo ** Connection default **
 connection default;
 
-let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist WHERE state LIKE 'Table lock';
+let $wait_condition= SELECT count(*) = 2 FROM information_schema.processlist
+                     WHERE state LIKE 'Waiting for table level lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 

@@ -1,0 +1,127 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA table io
+#       Show the impact of an index
+
+# Setup
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+let $engine_type= MyISAM;
+
+--disable_warnings
+drop table if exists test.no_index_tab;
+drop table if exists test.index_tab;
+--enable_warnings
+
+let $table_io_select= select COUNT(*)
+from performance_schema.events_waits_history_long
+where event_name like 'wait/io/table/%'
+and object_schema = 'test'
+and object_name = ;
+
+--source ../include/table_io_setup_helper.inc
+
+# Code to test
+
+eval create table test.no_index_tab
+  ( a int, b char(30) default 'Default') engine = $engine_type;
+eval create table test.index_tab
+  ( a int, b char(30) default 'Default', unique key uidx(a)) engine = $engine_type;
+# Make sure the proper engine is used
+show create table test.no_index_tab;
+show create table test.index_tab;
+
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+--echo # Printing of 100 inserts per table is suppressed
+--disable_query_log
+let $run= 100;
+while ($run)
+{
+   eval insert into test.no_index_tab set a = $run;
+   eval insert into test.index_tab    set a = $run;
+   dec $run;
+}
+--enable_query_log
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'no_index_tab';
+# Attention: There is no visible impact of index maintenance on table io
+#            because the maintenance is handled by the storage engine themself.
+eval $table_io_select 'index_tab';
+
+select count(*) from test.no_index_tab;
+select count(*) from test.index_tab;
+
+# Testing Code
+
+# For getting avg(a) inspection of
+# - all rows (test.no_index_tab)
+# - all unique index values (test.index_tab, assuming the optimizer decides to
+#   process only the unique index)
+# --> No difference between numvber of accesses for no_index_tab and index_tab
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+select avg(a) from test.no_index_tab;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'no_index_tab';
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+select avg(a) from test.index_tab;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'index_tab';
+
+# With where a = 50 inspection of
+# - all rows (test.no_index_tab)
+# - 1 up to maybe a few unique index values (test.index_tab, assuming that the
+#   optimizer decides to exploit the unique index)
+# --> index_tab requires much less accesses than no_index_tab
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+select 1 as my_column from test.no_index_tab where a = 50;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'no_index_tab';
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+select 1 as my_column from test.index_tab where a = 50;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'index_tab';
+
+# With where a = 50 inspection of
+# - all rows (test.no_index_tab)
+# - 1 up to maybe a few unique index values (test.index_tab, assuming that the
+#   optimizer decides to exploit the unique index)
+# and remove one row for both cases
+# --> index_tab requires much less accesses than no_index_tab
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+delete from test.no_index_tab where a = 51;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'no_index_tab';
+truncate table performance_schema.events_waits_history_long;
+update performance_schema.setup_consumers set enabled='YES';
+delete from test.index_tab where a = 51;
+update performance_schema.setup_consumers set enabled='NO';
+eval $table_io_select 'index_tab';
+
+# In case of failures, this will tell if table io are lost.
+show status like 'performance_schema_%';
+
+# Cleanup
+drop table test.no_index_tab;
+drop table test.index_tab;
+--source ../include/table_io_cleanup_helper.inc

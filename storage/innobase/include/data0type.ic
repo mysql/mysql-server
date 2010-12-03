@@ -23,6 +23,8 @@ Data types
 Created 1/16/1996 Heikki Tuuri
 *******************************************************/
 
+#include <string.h> /* strlen() */
+
 #include "mach0data.h"
 #ifndef UNIV_HOTBACKUP
 # include "ha_prototypes.h"
@@ -93,11 +95,32 @@ dtype_get_mblen(
 		innobase_get_cset_width(dtype_get_charset_coll(prtype),
 					mbminlen, mbmaxlen);
 		ut_ad(*mbminlen <= *mbmaxlen);
-		ut_ad(*mbminlen <= 2); /* mbminlen in dtype_t is 0..3 */
-		ut_ad(*mbmaxlen < 1 << 3); /* mbmaxlen in dtype_t is 0..7 */
+		ut_ad(*mbminlen < DATA_MBMAX);
+		ut_ad(*mbmaxlen < DATA_MBMAX);
 	} else {
 		*mbminlen = *mbmaxlen = 0;
 	}
+}
+
+/*********************************************************************//**
+Sets the minimum and maximum length of a character, in bytes. */
+UNIV_INLINE
+void
+dtype_set_mbminmaxlen(
+/*==================*/
+	dtype_t*	type,		/*!< in/out: type */
+	ulint		mbminlen,	/*!< in: minimum length of a char,
+					in bytes, or 0 if this is not
+					a character type */
+	ulint		mbmaxlen)	/*!< in: maximum length of a char,
+					in bytes, or 0 if this is not
+					a character type */
+{
+	ut_ad(mbminlen < DATA_MBMAX);
+	ut_ad(mbmaxlen < DATA_MBMAX);
+	ut_ad(mbminlen <= mbmaxlen);
+
+	type->mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
 }
 
 /*********************************************************************//**
@@ -112,8 +135,7 @@ dtype_set_mblen(
 	ulint	mbmaxlen;
 
 	dtype_get_mblen(type->mtype, type->prtype, &mbminlen, &mbmaxlen);
-	type->mbminlen = mbminlen;
-	type->mbmaxlen = mbmaxlen;
+	dtype_set_mbminmaxlen(type, mbminlen, mbmaxlen);
 
 	ut_ad(dtype_validate(type));
 }
@@ -210,7 +232,7 @@ dtype_get_mbminlen(
 	const dtype_t*	type)	/*!< in: type */
 {
 	ut_ad(type);
-	return(type->mbminlen);
+	return(DATA_MBMINLEN(type->mbminmaxlen));
 }
 /*********************************************************************//**
 Gets the maximum length of a character, in bytes.
@@ -223,7 +245,7 @@ dtype_get_mbmaxlen(
 	const dtype_t*	type)	/*!< in: type */
 {
 	ut_ad(type);
-	return(type->mbmaxlen);
+	return(DATA_MBMAXLEN(type->mbminmaxlen));
 }
 
 /*********************************************************************//**
@@ -392,6 +414,99 @@ dtype_new_read_for_order_and_null_size(
 	}
 	dtype_set_mblen(type);
 }
+
+/*********************************************************************//**
+Returns the type's SQL name (e.g. BIGINT UNSIGNED) from mtype,prtype,len
+@return the SQL type name */
+UNIV_INLINE
+char*
+dtype_sql_name(
+/*===========*/
+	unsigned	mtype,	/*!< in: mtype */
+	unsigned	prtype,	/*!< in: prtype */
+	unsigned	len,	/*!< in: len */
+	char*		name,	/*!< out: SQL name */
+	unsigned	name_sz)/*!< in: size of the name buffer */
+{
+
+#define APPEND_UNSIGNED()					\
+	do {							\
+		if (prtype & DATA_UNSIGNED) {			\
+			ut_snprintf(name + strlen(name),	\
+				    name_sz - strlen(name),	\
+				    " UNSIGNED");		\
+		}						\
+	} while (0)
+
+	ut_snprintf(name, name_sz, "UNKNOWN");
+
+	switch (mtype) {
+	case DATA_INT:
+		switch (len) {
+		case 1:
+			ut_snprintf(name, name_sz, "TINYINT");
+			break;
+		case 2:
+			ut_snprintf(name, name_sz, "SMALLINT");
+			break;
+		case 3:
+			ut_snprintf(name, name_sz, "MEDIUMINT");
+			break;
+		case 4:
+			ut_snprintf(name, name_sz, "INT");
+			break;
+		case 8:
+			ut_snprintf(name, name_sz, "BIGINT");
+			break;
+		}
+		APPEND_UNSIGNED();
+		break;
+	case DATA_FLOAT:
+		ut_snprintf(name, name_sz, "FLOAT");
+		APPEND_UNSIGNED();
+		break;
+	case DATA_DOUBLE:
+		ut_snprintf(name, name_sz, "DOUBLE");
+		APPEND_UNSIGNED();
+		break;
+	case DATA_FIXBINARY:
+		ut_snprintf(name, name_sz, "BINARY(%u)", len);
+		break;
+	case DATA_CHAR:
+		ut_snprintf(name, name_sz, "CHAR(%u)", len);
+		break;
+	case DATA_VARCHAR:
+		ut_snprintf(name, name_sz, "VARCHAR(%u)", len);
+		break;
+	case DATA_BINARY:
+		ut_snprintf(name, name_sz, "VARBINARY(%u)", len);
+		break;
+	case DATA_BLOB:
+		switch (len) {
+		case 9:
+			ut_snprintf(name, name_sz, "TINYBLOB");
+			break;
+		case 10:
+			ut_snprintf(name, name_sz, "BLOB");
+			break;
+		case 11:
+			ut_snprintf(name, name_sz, "MEDIUMBLOB");
+			break;
+		case 12:
+			ut_snprintf(name, name_sz, "LONGBLOB");
+			break;
+		}
+	}
+
+	if (prtype & DATA_NOT_NULL) {
+		ut_snprintf(name + strlen(name),
+			    name_sz - strlen(name),
+			    " NOT NULL");
+	}
+
+	return(name);
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
@@ -404,8 +519,8 @@ dtype_get_fixed_size_low(
 	ulint	mtype,		/*!< in: main type */
 	ulint	prtype,		/*!< in: precise type */
 	ulint	len,		/*!< in: length */
-	ulint	mbminlen,	/*!< in: minimum length of a multibyte char */
-	ulint	mbmaxlen,	/*!< in: maximum length of a multibyte char */
+	ulint	mbminmaxlen,	/*!< in: minimum and maximum length of
+				a multibyte character, in bytes */
 	ulint	comp)		/*!< in: nonzero=ROW_FORMAT=COMPACT  */
 {
 	switch (mtype) {
@@ -453,8 +568,9 @@ dtype_get_fixed_size_low(
 				dtype_get_charset_coll(prtype),
 				&i_mbminlen, &i_mbmaxlen);
 
-			if (UNIV_UNLIKELY(mbminlen != i_mbminlen)
-			    || UNIV_UNLIKELY(mbmaxlen != i_mbmaxlen)) {
+			if (UNIV_UNLIKELY
+			    (DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
+			     != mbminmaxlen)) {
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr, "  InnoDB: "
@@ -464,10 +580,10 @@ dtype_get_fixed_size_low(
 					"type->mbmaxlen=%lu\n",
 					(ulong) i_mbminlen,
 					(ulong) i_mbmaxlen,
-					(ulong) mbminlen,
-					(ulong) mbmaxlen);
+					(ulong) DATA_MBMINLEN(mbminmaxlen),
+					(ulong) DATA_MBMAXLEN(mbminmaxlen));
 			}
-			if (mbminlen == mbmaxlen) {
+			if (i_mbminlen == i_mbmaxlen) {
 				return(len);
 			}
 		}
@@ -499,8 +615,8 @@ dtype_get_min_size_low(
 	ulint	mtype,		/*!< in: main type */
 	ulint	prtype,		/*!< in: precise type */
 	ulint	len,		/*!< in: length */
-	ulint	mbminlen,	/*!< in: minimum length of a multibyte char */
-	ulint	mbmaxlen)	/*!< in: maximum length of a multibyte char */
+	ulint	mbminmaxlen)	/*!< in: minimum and maximum length of a
+				multi-byte character */
 {
 	switch (mtype) {
 	case DATA_SYS:
@@ -527,14 +643,22 @@ dtype_get_min_size_low(
 	case DATA_DOUBLE:
 		return(len);
 	case DATA_MYSQL:
-		if ((prtype & DATA_BINARY_TYPE) || mbminlen == mbmaxlen) {
+		if (prtype & DATA_BINARY_TYPE) {
 			return(len);
+		} else {
+			ulint	mbminlen = DATA_MBMINLEN(mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(mbminmaxlen);
+
+			if (mbminlen == mbmaxlen) {
+				return(len);
+			}
+
+			/* this is a variable-length character set */
+			ut_a(mbminlen > 0);
+			ut_a(mbmaxlen > mbminlen);
+			ut_a(len % mbmaxlen == 0);
+			return(len * mbminlen / mbmaxlen);
 		}
-		/* this is a variable-length character set */
-		ut_a(mbminlen > 0);
-		ut_a(mbmaxlen > mbminlen);
-		ut_a(len % mbmaxlen == 0);
-		return(len * mbminlen / mbmaxlen);
 	case DATA_VARCHAR:
 	case DATA_BINARY:
 	case DATA_DECIMAL:
@@ -595,9 +719,9 @@ dtype_get_sql_null_size(
 {
 #ifndef UNIV_HOTBACKUP
 	return(dtype_get_fixed_size_low(type->mtype, type->prtype, type->len,
-					type->mbminlen, type->mbmaxlen, comp));
+					type->mbminmaxlen, comp));
 #else /* !UNIV_HOTBACKUP */
 	return(dtype_get_fixed_size_low(type->mtype, type->prtype, type->len,
-					0, 0, 0));
+					0, 0));
 #endif /* !UNIV_HOTBACKUP */
 }

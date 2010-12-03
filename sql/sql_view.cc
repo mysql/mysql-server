@@ -18,10 +18,10 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_view.h"
-#include "sql_base.h"                     // find_table_in_global_list
+#include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock, lock_table_names
+#include "lock.h"        // MYSQL_OPEN_SKIP_TEMPORARY 
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -432,8 +432,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_strategy= TABLE_LIST::OPEN_STUB;
-  view->lock_strategy= TABLE_LIST::OTLS_NONE;
   view->open_type= OT_BASE_ONLY;
 
   if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
@@ -650,14 +648,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    res= TRUE;
-    goto err;
-  }
-
-  mysql_mutex_lock(&LOCK_open);
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -704,10 +694,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       res= TRUE;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 
@@ -848,7 +836,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view_query.length(0);
   is_query.length(0);
   {
-    ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
+    sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
     lex->unit.print(&view_query, QT_ORDINARY);
@@ -1233,7 +1221,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong saved_mode= thd->variables.sql_mode;
+    sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing
@@ -1651,13 +1639,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     DBUG_RETURN(TRUE);
   }
 
-  if (lock_table_names(thd, views))
+  if (lock_table_names(thd, views, 0, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY))
     DBUG_RETURN(TRUE);
 
-  mysql_mutex_lock(&LOCK_open);
   for (view= views; view; view= view->next_local)
   {
-    TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path) - 1,
                          view->db, view->table_name, reg_ext, 0);
@@ -1665,13 +1652,15 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
-      char name[FN_REFLEN];
-      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
       if (thd->lex->drop_if_exists)
       {
+        String tbl_name;
+        tbl_name.append(String(view->db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(view->table_name,system_charset_info));
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    name);
+			    tbl_name.c_ptr());
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1686,6 +1675,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
+
+        non_existant_views.append(String(view->db,system_charset_info));
+        non_existant_views.append('.');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
       continue;
@@ -1696,16 +1688,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     some_views_deleted= TRUE;
 
     /*
-      For a view, there is only one table_share object which should never
-      be used outside of LOCK_open
+      For a view, there is a TABLE_SHARE object, but its
+      ref_count never goes above 1. Remove it from the table
+      definition cache, in case the view was cached.
     */
-    if ((share= get_cached_table_share(view->db, view->table_name)))
-    {
-      DBUG_ASSERT(share->ref_count == 0);
-      share->ref_count++;
-      share->version= 0;
-      release_table_share(share);
-    }
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
+                     FALSE);
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
   }
@@ -1730,8 +1718,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       something_wrong= 1;
   }
 
-  mysql_mutex_unlock(&LOCK_open);
-  
   if (something_wrong)
   {
     DBUG_RETURN(TRUE);

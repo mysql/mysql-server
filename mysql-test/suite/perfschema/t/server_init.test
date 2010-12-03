@@ -28,227 +28,170 @@ use performance_schema;
 
 # Verify that these global mutexes have been properly initilized in mysys
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_threads";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_malloc";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_open";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_isam";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
 
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam_log";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_heap";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_net";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_charset";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_time";
 
 # There are no global rwlock in mysys
 
 # Verify that these global conditions have been properly initilized in mysys
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/mysys/THR_COND_threads";
 
 # Verify that these global mutexes have been properly initilized in sql
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_mysql_create_db";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_open";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_lock_db";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_thread_count";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_status";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_error_log";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_delayed_insert";
 
-# Named LOCK_uuid_short in 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/LOCK_uuid_short";
-
-# Named LOCK_uuid_generator in 5.5, LOCK_uuid_short in 6.0
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_delayed_status";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_delayed_create";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_crypt";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_slave_list";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_active_mi";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_manager";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_global_read_lock";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_global_system_variables";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_user_conn";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_prepared_stmt_count";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_connection_count";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_server_started";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOG_INFO::lock";
+# LOG_INFO object are created on demand, and are not global.
+# select count(name) from mutex_instances
+#  where name like "wait/synch/mutex/sql/LOG_INFO::lock";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/Query_cache::structure_guard_mutex";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
+# The event scheduler may be disabled
+# select count(name) from mutex_instances
+#  where name like "wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_event_metadata";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_event_queue";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_user_locks";
 
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/LOCK_mdl";
-
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/Cversion_lock";
 
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/LOCK_audit_mask";
+select count(name) from mutex_instances
+ where name like "wait/synch/mutex/sql/LOCK_audit_mask";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_xid_cache";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_plugin";
 
-select count(name) from MUTEX_INSTANCES
- where name like "wait/synch/mutex/sql/LOCK_gdl";
+# Not a global variable, may be destroyed already.
+# select count(name) from mutex_instances
+#  where name like "wait/synch/mutex/sql/LOCK_gdl";
 
-select count(name) from MUTEX_INSTANCES
+select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/tz_LOCK";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/slave_start";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/BML_class::THR_LOCK_BML";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/BML_class::THR_LOCK_BML_active";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from MUTEX_INSTANCES
-#  where name like "wait/synch/mutex/sql/BML_class::THR_LOCK_BML_get";
 
 # Verify that these global rwlocks have been properly initilized in sql
 
-select count(name) from RWLOCK_INSTANCES
+select count(name) from rwlock_instances
  where name like "wait/synch/rwlock/sql/LOCK_grant";
 
-select count(name) from RWLOCK_INSTANCES
+select count(name) from rwlock_instances
  where name like "wait/synch/rwlock/sql/LOCK_sys_init_connect";
 
-select count(name) from RWLOCK_INSTANCES
+select count(name) from rwlock_instances
  where name like "wait/synch/rwlock/sql/LOCK_sys_init_slave";
 
-select count(name) from RWLOCK_INSTANCES
+select count(name) from rwlock_instances
  where name like "wait/synch/rwlock/sql/LOCK_system_variables_hash";
 
 # Verify that these global conditions have been properly initilized in sql
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_server_started";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_refresh";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_thread_count";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_manager";
 
-select count(name) from COND_INSTANCES
- where name like "wait/synch/cond/sql/COND_global_read_lock";
-
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_thread_cache";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_flush_thread_cache";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/Query_cache::COND_cache_status_changed";
 
-select count(name) from COND_INSTANCES
- where name like "wait/synch/cond/sql/Event_scheduler::COND_state";
+# The event scheduler may be disabled
+# select count(name) from cond_instances
+#  where name like "wait/synch/cond/sql/Event_scheduler::COND_state";
 
-select count(name) from COND_INSTANCES
+select count(name) from cond_instances
  where name like "wait/synch/cond/sql/COND_queue_state";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from COND_INSTANCES
-#  where name like "wait/synch/cond/sql/COND_mdl";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from COND_INSTANCES
-#  where name like "wait/synch/cond/sql/BML_class::COND_BML";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from COND_INSTANCES
-#  where name like "wait/synch/cond/sql/BML_class::COND_BML_registered";
-
-# Does not exist in mysql 5.5, 6.0 only
-# select count(name) from COND_INSTANCES
-#  where name like "wait/synch/cond/sql/BML_class::COND_BML_release";
 

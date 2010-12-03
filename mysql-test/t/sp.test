@@ -5432,6 +5432,8 @@ drop procedure if exists bug15231_1|
 drop procedure if exists bug15231_2|
 drop procedure if exists bug15231_3|
 drop procedure if exists bug15231_4|
+drop procedure if exists bug15231_5|
+drop procedure if exists bug15231_6|
 --enable_warnings
 
 create table t3 (id int not null)|
@@ -5461,7 +5463,7 @@ end|
 create procedure bug15231_3()
 begin
   declare exit handler for sqlwarning
-    select 'Caught it (wrong)' as 'Result';
+    select 'Caught it (correct)' as 'Result';
 
   call bug15231_4();
 end|
@@ -5472,16 +5474,37 @@ begin
 
   set x = 'zap';
   select 'Missed it (correct)' as 'Result';
+  show warnings;
+end|
+
+create procedure bug15231_5()
+begin
+  declare exit handler for sqlwarning
+    select 'Caught it (wrong)' as 'Result';
+
+  call bug15231_6();
+end|
+
+create procedure bug15231_6()
+begin
+  declare x decimal(2,1);
+
+  set x = 'zap';
+  select 'Missed it (correct)' as 'Result';
+  select id from t3;
 end|
 
 call bug15231_1()|
 call bug15231_3()|
+call bug15231_5()|
 
-drop table if exists t3|
-drop procedure if exists bug15231_1|
-drop procedure if exists bug15231_2|
-drop procedure if exists bug15231_3|
-drop procedure if exists bug15231_4|
+drop table t3|
+drop procedure bug15231_1|
+drop procedure bug15231_2|
+drop procedure bug15231_3|
+drop procedure bug15231_4|
+drop procedure bug15231_5|
+drop procedure bug15231_6|
 
 
 #

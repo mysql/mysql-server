@@ -20,7 +20,6 @@
 #include "my_sys.h"                             // pthread_mutex_t
 
 class Alter_info;
-class Alter_info;
 class Create_field;
 struct TABLE_LIST;
 class THD;
@@ -28,11 +27,12 @@ struct TABLE;
 struct handlerton;
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
+typedef struct st_key KEY;
 typedef struct st_key_cache KEY_CACHE;
-typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
+class Alter_table_change_level;
 
 enum ddl_log_entry_code
 {
@@ -64,10 +64,19 @@ enum ddl_log_action_code
     DDL_LOG_REPLACE_ACTION:
       Rename an entity after removing the previous entry with the
       new name, that is replace this entry.
+    DDL_LOG_EXCHANGE_ACTION:
+      Exchange two entities by renaming them a -> tmp, b -> a, tmp -> b.
   */
   DDL_LOG_DELETE_ACTION = 'd',
   DDL_LOG_RENAME_ACTION = 'r',
-  DDL_LOG_REPLACE_ACTION = 's'
+  DDL_LOG_REPLACE_ACTION = 's',
+  DDL_LOG_EXCHANGE_ACTION = 'e'
+};
+
+enum enum_ddl_log_exchange_phase {
+  EXCH_PHASE_NAME_TO_TEMP= 0,
+  EXCH_PHASE_FROM_TO_NAME= 1,
+  EXCH_PHASE_TEMP_TO_FROM= 2
 };
 
 
@@ -76,6 +85,7 @@ typedef struct st_ddl_log_entry
   const char *name;
   const char *from_name;
   const char *handler_name;
+  const char *tmp_name;
   uint next_entry;
   uint entry_pos;
   enum ddl_log_entry_code entry_type;
@@ -84,7 +94,7 @@ typedef struct st_ddl_log_entry
     Most actions have only one phase. REPLACE does however have two
     phases. The first phase removes the file with the new name if
     there was one there before and the second phase renames the
-    old name to the new name.
+    old name to the new name. EXCHANGE have three phases.
   */
   char phase;
 } DDL_LOG_ENTRY;
@@ -138,13 +148,27 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
-                                bool tmp_table, uint select_field_count);
-
+                                bool tmp_table, uint select_field_count,
+                                bool *is_trans);
+bool mysql_prepare_alter_table(THD *thd, TABLE *table,
+                               HA_CREATE_INFO *create_info,
+                               Alter_info *alter_info);
+bool mysql_trans_prepare_alter_copy_data(THD *thd);
+bool mysql_trans_commit_alter_copy_data(THD *thd);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        Alter_info *alter_info,
                        uint order_num, ORDER *order, bool ignore);
+bool mysql_compare_tables(TABLE *table,
+                          Alter_info *alter_info,
+                          HA_CREATE_INFO *create_info,
+                          uint order_num,
+                          Alter_table_change_level *need_copy_table,
+                          KEY **key_info_buffer,
+                          uint **index_drop_buffer, uint *index_drop_count,
+                          uint **index_add_buffer, uint *index_add_count,
+                          uint *candidate_key_count, bool exact_match);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
@@ -158,23 +182,11 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
-bool mysql_check_table(THD* thd, TABLE_LIST* table_list,
-                       HA_CHECK_OPT* check_opt);
-bool mysql_repair_table(THD* thd, TABLE_LIST* table_list,
-                        HA_CHECK_OPT* check_opt);
-bool mysql_analyze_table(THD* thd, TABLE_LIST* table_list,
-                         HA_CHECK_OPT* check_opt);
-bool mysql_optimize_table(THD* thd, TABLE_LIST* table_list,
-                          HA_CHECK_OPT* check_opt);
-bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
-                              LEX_STRING *key_cache_name);
-bool mysql_preload_keys(THD* thd, TABLE_LIST* table_list);
-int reassign_keycache_tables(THD* thd, KEY_CACHE *src_cache,
-                             KEY_CACHE *dst_cache);
 bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary);
-int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
-                         bool drop_temporary, bool drop_view, bool log_query);
+int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
+                            bool drop_temporary, bool drop_view,
+                            bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
@@ -210,7 +222,6 @@ uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
 
 
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
-extern int creating_table;    // How many mysql_create_table() are running
 extern mysql_mutex_t LOCK_gdl;
 
 #endif /* SQL_TABLE_INCLUDED */

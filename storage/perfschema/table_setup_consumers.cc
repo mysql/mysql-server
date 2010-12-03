@@ -84,11 +84,12 @@ table_setup_consumers::m_field_def=
 PFS_engine_table_share
 table_setup_consumers::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_CONSUMERS") },
+  { C_STRING_WITH_LEN("setup_consumers") },
   &pfs_updatable_acl,
   &table_setup_consumers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   COUNT_SETUP_CONSUMERS, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,

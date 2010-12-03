@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"
+#include "ut0bh.h"
 
 /** In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. */
@@ -129,11 +130,17 @@ void
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates and initializes the transaction system at the database creation. */
+Creates the trx_sys instance and initializes its mutex only. */
 UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
+/*****************************************************************//**
+Creates and initializes the transaction system at the database creation. */
+UNIV_INTERN
+void
+trx_sys_create_sys_pages(void);
+/*==========================*/
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return	slot index or ULINT_UNDEFINED if not found */
@@ -221,13 +228,6 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void);
-/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
@@ -255,12 +255,30 @@ Looks for the trx handle with the given id in trx_list.
 @return	the trx handle or NULL if not found */
 UNIV_INLINE
 trx_t*
+trx_get_on_id_low(
+/*==============*/
+	trx_id_t	trx_id);/*!< in: trx id to search for */
+/****************************************************************//**
+Looks for the trx handle with the given id in trx_list.
+@return	the trx handle or NULL if not found */
+UNIV_INLINE
+trx_t*
 trx_get_on_id(
 /*==========*/
 	trx_id_t	trx_id);/*!< in: trx id to search for */
 /****************************************************************//**
 Returns the minumum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->conc_state to
+the trx can possibly be active. (But, you must look at the trx->lock.state
+to find out if the minimum trx id transaction itself is active, or already
+committed.). The caller must be holding the trx_sys_t::lock in shared mode.
+@return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
+UNIV_INLINE
+trx_id_t
+trx_list_get_min_trx_id_low(void);
+/*=============================*/
+/****************************************************************//**
+Returns the minumum trx id in trx list. This is the smallest id for which
+the trx can possibly be active. (But, you must look at the trx->state to
 find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
@@ -269,13 +287,24 @@ trx_id_t
 trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
-Checks if a transaction with the given id is active.
-@return	TRUE if active */
+Checks if a transaction with the given id is active. Caller must hold
+the trx_sys_t::lock in shared mode.
+@return	transaction instance if active or NULL */
 UNIV_INLINE
-ibool
+trx_t*
+trx_is_active_low(
+/*==============*/
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt);	/*!< out: TRUE if corrupt */
+/****************************************************************//**
+Checks if a transaction with the given id is active.
+@return	transaction instance if active */
+UNIV_INLINE
+trx_t*
 trx_is_active(
 /*==========*/
 	trx_id_t	trx_id);/*!< in: trx id of the transaction */
+#ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
 @return	TRUE if is in */
@@ -284,6 +313,7 @@ ibool
 trx_in_trx_list(
 /*============*/
 	trx_t*	in_trx);/*!< in: trx */
+#endif /* UNIV_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
@@ -431,6 +461,7 @@ trx_sys_file_format_id_to_name(
 	const ulint	id);	/*!< in: id of the file format */
 
 #endif /* !UNIV_HOTBACKUP */
+
 /*********************************************************************
 Creates the rollback segments */
 UNIV_INTERN
@@ -438,6 +469,30 @@ void
 trx_sys_create_rsegs(
 /*=================*/
 	ulint	n_rsegs);	/*!< number of rollback segments to create */
+/*****************************************************************//**
+Get the number of transaction in the system, independent of their state.
+@return count of transactions in trx_sys_t::trx_list */
+UNIV_INLINE
+ulint
+trx_sys_get_n_trx(void);
+/*===================*/
+
+/*********************************************************************
+Check if there are any active transactions.
+@return total number of active transactions or 0 if none */
+UNIV_INTERN
+ulint
+trx_sys_any_active_transactions(void);
+/*=================================*/
+
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Validate the trx_sys_t::trx_list. */
+UNIV_INTERN
+ibool
+trx_sys_validate_trx_list(void);
+/*===========================*/
+#endif /* UNIV_DEBUG */
 
 /* The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
@@ -568,11 +623,16 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 (TRX_SYS_PAGE_NO of TRX_SYS_SPACE) */
 #define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
 
-/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid.  The file format
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid. The file format
 identifier is added to this constant. */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
 /** Contents of TRX_SYS_FILE_FORMAT_TAG+4 when valid */
 #define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+/** Contents of TRX_SYS_FILE_FORMAT_TAG when valid. The file format
+identifier is added to this 64-bit constant. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N					\
+	((ib_uint64_t) TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH << 32	\
+	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
 /** Doublewrite control struct */
@@ -595,9 +655,13 @@ struct trx_doublewrite_struct{
 				blocks which have been cached to write_buf */
 };
 
-/** The transaction system central memory data structure; protected by the
-kernel mutex */
+/** The transaction system central memory data structure. */
 struct trx_sys_struct{
+
+	rw_lock_t	lock;		/*!< read-write lock protecting all
+				       	the fields in this structure except
+				       	rseg_list. That is protected by the
+				       	purge_sys mutex */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
@@ -608,10 +672,7 @@ struct trx_sys_struct{
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
-	UT_LIST_BASE_NODE_T(trx_rseg_t) rseg_list;
-					/*!< List of rollback segment
-					objects */
-	trx_rseg_t*	latest_rseg;	/*!< Latest rollback segment in the
+	ulint		latest_rseg;	/*!< Latest rollback segment in the
 					round-robin assignment of rollback
 					segments to transactions */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
@@ -621,6 +682,10 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
+	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
+					rseg_queue_t::trx_no. It is protected
+					by the purge mutex */
+	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted
 					on trx no, biggest first */

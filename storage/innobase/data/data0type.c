@@ -49,10 +49,8 @@ ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
 	ulint		prtype,		/*!< in: precise type */
-	ulint		mbminlen,	/*!< in: minimum length of a
-					multi-byte character */
-	ulint		mbmaxlen,	/*!< in: maximum length of a
-					multi-byte character */
+	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
+					a multi-byte character */
 	ulint		prefix_len,	/*!< in: length of the requested
 					prefix, in characters, multiplied by
 					dtype_get_mbmaxlen(dtype) */
@@ -60,6 +58,9 @@ dtype_get_at_most_n_mbchars(
 	const char*	str)		/*!< in: the string whose prefix
 					length is being determined */
 {
+	ulint	mbminlen = DATA_MBMINLEN(mbminmaxlen);
+	ulint	mbmaxlen = DATA_MBMAXLEN(mbminmaxlen);
+
 	ut_a(data_len != UNIV_SQL_NULL);
 	ut_ad(!mbmaxlen || !(prefix_len % mbmaxlen));
 
@@ -180,7 +181,7 @@ dtype_validate(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	ut_a(type->mbminlen <= type->mbmaxlen);
+	ut_a(dtype_get_mbminlen(type) <= dtype_get_mbmaxlen(type));
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);

@@ -245,20 +245,20 @@ lock tables mysql.slow_log READ;
 ERROR HY000: You can't use locks with log tables.
 set global general_log='OFF';
 set global slow_query_log='OFF';
-set @save_storage_engine= @@session.storage_engine;
-set storage_engine= MEMORY;
+set @save_storage_engine= @@session.default_storage_engine;
+set default_storage_engine= MEMORY;
 alter table mysql.slow_log engine=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 alter table mysql.slow_log engine=memory;
 ERROR HY000: This storage engine cannot be used for log tables"
-set storage_engine= @save_storage_engine;
+set default_storage_engine= @save_storage_engine;
 drop table mysql.slow_log;
 drop table mysql.general_log;
 drop table mysql.general_log;
-ERROR 42S02: Unknown table 'general_log'
+ERROR 42S02: Unknown table 'mysql.general_log'
 drop table mysql.slow_log;
-ERROR 42S02: Unknown table 'slow_log'
+ERROR 42S02: Unknown table 'mysql.slow_log'
 use mysql;
 CREATE TABLE `general_log` (
 `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -363,6 +363,7 @@ Tables_in_mysql (%log%)
 general_log
 general_log_new
 ndb_binlog_index
+slave_relay_log_info
 slow_log
 slow_log_new
 drop table slow_log_new, general_log_new;
@@ -896,6 +897,16 @@ TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1
 TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2
 DROP TABLE t1;
 TRUNCATE TABLE mysql.slow_log;
+use mysql;
+drop table if exists renamed_general_log;
+drop table if exists renamed_slow_log;
+RENAME TABLE general_log TO renamed_general_log;
+ERROR HY000: Cannot rename 'general_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'general_log'
+RENAME TABLE slow_log TO renamed_slow_log;
+ERROR HY000: Cannot rename 'slow_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'slow_log'
+use test;
+flush tables with read lock;
+unlock tables;
 SET @@session.long_query_time= @old_long_query_time;
 SET @@global.log_output=       @old_log_output;
 SET @@global.slow_query_log=   @old_slow_query_log;

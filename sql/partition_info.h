@@ -166,7 +166,6 @@ public:
   key_map some_fields_in_PF;
 
   handlerton *default_engine_type;
-  Item_result part_result_type;
   partition_type part_type;
   partition_type subpart_type;
 
@@ -226,7 +225,6 @@ public:
     curr_part_elem(NULL), current_partition(NULL),
     curr_list_object(0), num_columns(0),
     default_engine_type(NULL),
-    part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
     part_info_len(0),
     part_func_len(0), subpart_func_len(0),
@@ -242,10 +240,6 @@ public:
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
     has_null_value(FALSE), column_list(FALSE)
   {
-    all_fields_in_PF.clear_all();
-    all_fields_in_PPF.clear_all();
-    all_fields_in_SPF.clear_all();
-    some_fields_in_PF.clear_all();
     partitions.empty();
     temp_partitions.empty();
     part_field_list.empty();
@@ -279,10 +273,10 @@ public:
   void print_no_partition_found(TABLE *table);
   void print_debug(const char *str, uint*);
   Item* get_column_item(Item *item, Field *field);
-  int fix_func_partition(THD *thd,
-                         part_elem_value *val,
-                         partition_element *part_elem,
-                         uint part_id);
+  int fix_partition_values(THD *thd,
+                           part_elem_value *val,
+                           partition_element *part_elem,
+                           uint part_id);
   bool fix_column_value_functions(THD *thd,
                                   part_elem_value *val,
                                   uint part_id);
@@ -299,6 +293,10 @@ public:
   bool init_column_part();
   bool add_column_list_value(THD *thd, Item *item);
   void set_show_version_string(String *packet);
+  partition_element *get_part_elem(const char *partition_name,
+                                   char *file_name,
+                                   uint32 *part_id);
+  void report_part_expr_error(bool use_subpart_expr);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -306,7 +304,8 @@ private:
   bool set_up_default_subpartitions(handler *file, HA_CREATE_INFO *info);
   char *create_default_partition_names(uint part_no, uint num_parts,
                                        uint start_no);
-  char *create_subpartition_name(uint subpart_no, const char *part_name);
+  char *create_default_subpartition_name(uint subpart_no,
+                                         const char *part_name);
   bool has_unique_name(partition_element *element);
 };
 

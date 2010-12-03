@@ -50,7 +50,7 @@ HANDLER t1 CLOSE;
 ERROR 42S02: Table 'test.t1' doesn't exist
 UNLOCK TABLES;
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 SET DEBUG_SYNC='RESET';
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);

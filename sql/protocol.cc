@@ -349,24 +349,6 @@ static bool write_eof_packet(THD *thd, NET *net,
 }
 
 /**
-  Please client to send scrambled_password in old format.
-     
-  @param thd thread handle
-
-  @retval
-    0  ok
-  @retval
-   !0  error
-*/
-
-bool send_old_password_request(THD *thd)
-{
-  NET *net= &thd->net;
-  return my_net_write(net, eof_buff, 1) || net_flush(net);
-}
-
-
-/**
   @param thd Thread handler
   @param sql_errno The error code to send
   @param err A pointer to the error message
@@ -523,11 +505,11 @@ void Protocol::end_statement()
                       thd->stmt_da->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
-    error= send_eof(thd->stmt_da->server_status(),
+    error= send_eof(thd->server_status,
                     thd->stmt_da->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
-    error= send_ok(thd->stmt_da->server_status(),
+    error= send_ok(thd->server_status,
                    thd->stmt_da->statement_warn_count(),
                    thd->stmt_da->affected_rows(),
                    thd->stmt_da->last_insert_id(),
@@ -658,7 +640,11 @@ void Protocol::end_partial_result_set(THD *thd_arg)
 bool Protocol::flush()
 {
 #ifndef EMBEDDED_LIBRARY
-  return net_flush(&thd->net);
+  bool error;
+  thd->stmt_da->can_overwrite_status= TRUE;
+  error= net_flush(&thd->net);
+  thd->stmt_da->can_overwrite_status= FALSE;
+  return error;
 #else
   return 0;
 #endif
@@ -698,7 +684,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   if (flags & SEND_NUM_ROWS)
   {				// Packet with number of elements
     uchar *pos= net_store_length(buff, list->elements);
-    (void) my_net_write(&thd->net, buff, (size_t) (pos-buff));
+    if (my_net_write(&thd->net, buff, (size_t) (pos-buff)))
+      DBUG_RETURN(1);
   }
 
 #ifndef DBUG_OFF
@@ -803,7 +790,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
     if (flags & SEND_DEFAULTS)
       item->send(&prot, &tmp);			// Send default value
     if (prot.write())
-      break;					/* purecov: inspected */
+      DBUG_RETURN(1);
 #ifndef DBUG_OFF
     field_types[count++]= field.type;
 #endif
@@ -816,8 +803,9 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       to show that there is no cursor.
       Send no warning information, as it will be sent at statement end.
     */
-    write_eof_packet(thd, &thd->net, thd->server_status,
-                     thd->warning_info->statement_warn_count());
+    if (write_eof_packet(thd, &thd->net, thd->server_status,
+                         thd->warning_info->statement_warn_count()))
+      DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));
 

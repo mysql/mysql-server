@@ -315,7 +315,8 @@ recv_sys_init(
 
 	mutex_enter(&(recv_sys->mutex));
 
-	recv_sys->heap = mem_heap_create_in_buffer(256);
+	recv_sys->heap = mem_heap_create_typed(256,
+					MEM_HEAP_FOR_RECV_SYS);
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;
@@ -569,10 +570,8 @@ recv_synchronize_groups(
 	ib_uint64_t	start_lsn;
 	ib_uint64_t	end_lsn;
 	ib_uint64_t	recovered_lsn;
-	ib_uint64_t	limit_lsn;
 
 	recovered_lsn = recv_sys->recovered_lsn;
-	limit_lsn = recv_sys->limit_lsn;
 
 	/* Read the last recovered log block to the recovery system buffer:
 	the block is always incomplete */
@@ -704,11 +703,11 @@ recv_find_max_checkpoint(
 
 			group->state = LOG_GROUP_OK;
 
-			group->lsn = mach_read_ull(
+			group->lsn = mach_read_from_8(
 				buf + LOG_CHECKPOINT_LSN);
 			group->lsn_offset = mach_read_from_4(
 				buf + LOG_CHECKPOINT_OFFSET);
-			checkpoint_no = mach_read_ull(
+			checkpoint_no = mach_read_from_8(
 				buf + LOG_CHECKPOINT_NO);
 
 #ifdef UNIV_DEBUG
@@ -778,14 +777,14 @@ recv_read_cp_info_for_backup(
 	cp_buf = hdr + LOG_CHECKPOINT_1;
 
 	if (recv_check_cp_is_consistent(cp_buf)) {
-		max_cp_no = mach_read_ull(cp_buf + LOG_CHECKPOINT_NO);
+		max_cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 		max_cp = LOG_CHECKPOINT_1;
 	}
 
 	cp_buf = hdr + LOG_CHECKPOINT_2;
 
 	if (recv_check_cp_is_consistent(cp_buf)) {
-		if (mach_read_ull(cp_buf + LOG_CHECKPOINT_NO) > max_cp_no) {
+		if (mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO) > max_cp_no) {
 			max_cp = LOG_CHECKPOINT_2;
 		}
 	}
@@ -796,7 +795,7 @@ recv_read_cp_info_for_backup(
 
 	cp_buf = hdr + max_cp;
 
-	*lsn = mach_read_ull(cp_buf + LOG_CHECKPOINT_LSN);
+	*lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
 	*offset = mach_read_from_4(cp_buf + LOG_CHECKPOINT_OFFSET);
 
 	/* If the user is running a pre-3.23.50 version of InnoDB, its
@@ -816,9 +815,9 @@ recv_read_cp_info_for_backup(
 
 	/*	fprintf(stderr, "fsp limit %lu MB\n", *fsp_limit); */
 
-	*cp_no = mach_read_ull(cp_buf + LOG_CHECKPOINT_NO);
+	*cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 
-	*first_header_lsn = mach_read_ull(hdr + LOG_FILE_START_LSN);
+	*first_header_lsn = mach_read_from_8(hdr + LOG_FILE_START_LSN);
 
 	return(TRUE);
 }
@@ -1541,7 +1540,7 @@ recv_recover_page_func(
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Read the newest modification lsn from the page */
-	page_lsn = mach_read_ull(page + FIL_PAGE_LSN);
+	page_lsn = mach_read_from_8(page + FIL_PAGE_LSN);
 
 #ifndef UNIV_HOTBACKUP
 	/* It may be that the page has been modified in the buffer
@@ -1616,14 +1615,14 @@ recv_recover_page_func(
 							 block, &mtr);
 
 			end_lsn = recv->start_lsn + recv->len;
-			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
-			mach_write_ull(UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM
-				       + page, end_lsn);
+			mach_write_to_8(FIL_PAGE_LSN + page, end_lsn);
+			mach_write_to_8(UNIV_PAGE_SIZE
+					- FIL_PAGE_END_LSN_OLD_CHKSUM
+					+ page, end_lsn);
 
 			if (page_zip) {
-				mach_write_ull(FIL_PAGE_LSN
-					       + page_zip->data, end_lsn);
+				mach_write_to_8(FIL_PAGE_LSN
+						+ page_zip->data, end_lsn);
 			}
 		}
 
@@ -1659,11 +1658,7 @@ recv_recover_page_func(
 
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
-		buf_pool_t*	buf_pool;
-
 		ut_a(block);
-
-		buf_pool = buf_pool_from_block(block);
 
 		log_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
@@ -1995,7 +1990,7 @@ recv_apply_log_recs_for_backup(void)
 
 			buf_flush_init_for_writing(
 				block->frame, buf_block_get_page_zip(block),
-				mach_read_ull(block->frame + FIL_PAGE_LSN));
+				mach_read_from_8(block->frame + FIL_PAGE_LSN));
 
 			if (zip_size) {
 				error = fil_io(OS_FILE_WRITE, TRUE,
@@ -2908,7 +2903,9 @@ recv_recovery_from_checkpoint_start_func(
 	ib_uint64_t	old_scanned_lsn;
 	ib_uint64_t	group_scanned_lsn;
 	ib_uint64_t	contiguous_lsn;
+#ifdef UNIV_LOG_ARCHIVE
 	ib_uint64_t	archived_lsn;
+#endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
 	ulint		err;
@@ -2961,9 +2958,11 @@ recv_recovery_from_checkpoint_start_func(
 
 	buf = log_sys->checkpoint_buf;
 
-	checkpoint_lsn = mach_read_ull(buf + LOG_CHECKPOINT_LSN);
-	checkpoint_no = mach_read_ull(buf + LOG_CHECKPOINT_NO);
-	archived_lsn = mach_read_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN);
+	checkpoint_lsn = mach_read_from_8(buf + LOG_CHECKPOINT_LSN);
+	checkpoint_no = mach_read_from_8(buf + LOG_CHECKPOINT_NO);
+#ifdef UNIV_LOG_ARCHIVE
+	archived_lsn = mach_read_from_8(buf + LOG_CHECKPOINT_ARCHIVED_LSN);
+#endif /* UNIV_LOG_ARCHIVE */
 
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */
@@ -3613,8 +3612,8 @@ ask_again:
 		return(TRUE);
 	}
 
-	start_lsn = mach_read_ull(buf + LOG_FILE_START_LSN);
-	file_end_lsn = mach_read_ull(buf + LOG_FILE_END_LSN);
+	start_lsn = mach_read_from_8(buf + LOG_FILE_START_LSN);
+	file_end_lsn = mach_read_from_8(buf + LOG_FILE_END_LSN);
 
 	if (!recv_sys->scanned_lsn) {
 

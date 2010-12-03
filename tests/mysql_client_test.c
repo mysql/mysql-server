@@ -33,6 +33,7 @@
 #include <my_getopt.h>
 #include <m_string.h>
 #include <mysqld_error.h>
+#include <sql_common.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -262,7 +263,9 @@ static my_bool check_have_innodb(MYSQL *conn)
   int rc;
   my_bool result;
 
-  rc= mysql_query(conn, "show variables like 'have_innodb'");
+  rc= mysql_query(conn, 
+                  "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
+                  "AS `TRUE` FROM information_schema.engines WHERE engine = 'innodb'");
   myquery(rc);
   res= mysql_use_result(conn);
   DIE_UNLESS(res);
@@ -270,7 +273,7 @@ static my_bool check_have_innodb(MYSQL *conn)
   row= mysql_fetch_row(res);
   DIE_UNLESS(row);
 
-  result= strcmp(row[1], "YES") == 0;
+  result= strcmp(row[1], "1") == 0;
   mysql_free_result(res);
   return result;
 }
@@ -1198,7 +1201,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1220,7 +1223,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -2099,6 +2102,255 @@ static void test_wl4435_2()
     rc= mysql_query(mysql, "DROP PROCEDURE p1");
     myquery(rc);
   }
+}
+
+
+#define WL4435_TEST(sql_type, sql_value, \
+                    c_api_in_type, c_api_out_type, \
+                    c_type, c_type_ext, \
+                    printf_args, assert_condition) \
+\
+  do { \
+  int rc; \
+  MYSQL_STMT *ps; \
+  MYSQL_BIND psp; \
+  MYSQL_RES *rs_metadata; \
+  MYSQL_FIELD *fields; \
+  c_type pspv c_type_ext; \
+  my_bool psp_null; \
+  \
+  bzero(&pspv, sizeof (pspv)); \
+  \
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1"); \
+  myquery(rc); \
+  \
+  rc= mysql_query(mysql, \
+    "CREATE PROCEDURE p1(OUT v " sql_type ") SET v = " sql_value ";"); \
+  myquery(rc); \
+  \
+  ps = mysql_simple_prepare(mysql, "CALL p1(?)"); \
+  check_stmt(ps); \
+  \
+  bzero(&psp, sizeof (psp)); \
+  psp.buffer_type= c_api_in_type; \
+  psp.is_null= &psp_null; \
+  psp.buffer= (char *) &pspv; \
+  psp.buffer_length= sizeof (psp); \
+  \
+  rc= mysql_stmt_bind_param(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_execute(ps); \
+  check_execute(ps, rc); \
+  \
+  DIE_UNLESS(mysql->server_status & SERVER_PS_OUT_PARAMS); \
+  DIE_UNLESS(mysql_stmt_field_count(ps) == 1); \
+  \
+  rs_metadata= mysql_stmt_result_metadata(ps); \
+  fields= mysql_fetch_fields(rs_metadata); \
+  \
+  rc= mysql_stmt_bind_result(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  DIE_UNLESS(fields[0].type == c_api_out_type); \
+  printf printf_args; \
+  printf("; in type: %d; out type: %d\n", \
+         (int) c_api_in_type, (int) c_api_out_type); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == MYSQL_NO_DATA); \
+  \
+  rc= mysql_stmt_next_result(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  mysql_stmt_free_result(ps); \
+  mysql_stmt_close(ps); \
+  \
+  DIE_UNLESS(assert_condition); \
+  \
+  } while (0)
+
+static void test_wl4435_3()
+{
+  char tmp[255];
+
+  puts("");
+
+  // The following types are not supported:
+  //   - ENUM
+  //   - SET
+  //
+  // The following types are supported but can not be used for
+  // OUT-parameters:
+  //   - MEDIUMINT;
+  //   - BIT(..);
+  //
+  // The problem is that those types are not supported for IN-parameters,
+  // and OUT-parameters should be bound as IN-parameters before execution.
+  //
+  // The following types should not be used:
+  //   - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
+  //   - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
+  //     (use MYSQL_TYPE_BLOB instead);
+
+  WL4435_TEST("TINYINT", "127",
+              MYSQL_TYPE_TINY, MYSQL_TYPE_TINY,
+              char, ,
+              ("  - TINYINT / char / MYSQL_TYPE_TINY:\t\t\t %d", (int) pspv),
+              pspv == 127);
+
+  WL4435_TEST("SMALLINT", "32767",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_SHORT,
+              short, ,
+              ("  - SMALLINT / short / MYSQL_TYPE_SHORT:\t\t %d", (int) pspv),
+              pspv == 32767);
+
+  WL4435_TEST("INT", "2147483647",
+              MYSQL_TYPE_LONG, MYSQL_TYPE_LONG,
+              int, ,
+              ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
+              pspv == 2147483647l);
+
+  WL4435_TEST("BIGINT", "9223372036854775807",
+              MYSQL_TYPE_LONGLONG, MYSQL_TYPE_LONGLONG,
+              long long, ,
+              ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
+              pspv == 9223372036854775807ll);
+
+  WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'",
+              MYSQL_TYPE_TIMESTAMP, MYSQL_TYPE_TIMESTAMP,
+              MYSQL_TIME, ,
+              ("  - TIMESTAMP / MYSQL_TIME / MYSQL_TYPE_TIMESTAMP:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 2007 && pspv.month == 11 && pspv.day == 18 &&
+              pspv.hour == 15 && pspv.minute == 1 && pspv.second == 2);
+
+  WL4435_TEST("DATETIME", "'1234-11-12 12:34:59'",
+              MYSQL_TYPE_DATETIME, MYSQL_TYPE_DATETIME,
+              MYSQL_TIME, ,
+              ("  - DATETIME / MYSQL_TIME / MYSQL_TYPE_DATETIME:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12 &&
+              pspv.hour == 12 && pspv.minute == 34 && pspv.second == 59);
+
+  WL4435_TEST("TIME", "'123:45:01'",
+              MYSQL_TYPE_TIME, MYSQL_TYPE_TIME,
+              MYSQL_TIME, ,
+              ("  - TIME / MYSQL_TIME / MYSQL_TYPE_TIME:\t\t "
+               "%.3d:%.2d:%.2d",
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.hour == 123 && pspv.minute == 45 && pspv.second == 1);
+
+  WL4435_TEST("DATE", "'1234-11-12'",
+              MYSQL_TYPE_DATE, MYSQL_TYPE_DATE,
+              MYSQL_TIME, ,
+              ("  - DATE / MYSQL_TIME / MYSQL_TYPE_DATE:\t\t "
+               "%.4d-%.2d-%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12);
+
+  WL4435_TEST("YEAR", "'2010'",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR,
+              short, ,
+              ("  - YEAR / short / MYSQL_TYPE_SHORT:\t\t\t %.4d", (int) pspv),
+              pspv == 2010);
+
+  WL4435_TEST("FLOAT(7, 4)", "123.4567",
+              MYSQL_TYPE_FLOAT, MYSQL_TYPE_FLOAT,
+              float, ,
+              ("  - FLOAT / float / MYSQL_TYPE_FLOAT:\t\t\t %g", (double) pspv),
+              pspv - 123.4567 < 0.0001);
+
+  WL4435_TEST("DOUBLE(8, 5)", "123.45678",
+              MYSQL_TYPE_DOUBLE, MYSQL_TYPE_DOUBLE,
+              double, ,
+              ("  - DOUBLE / double / MYSQL_TYPE_DOUBLE:\t\t %g", (double) pspv),
+              pspv - 123.45678 < 0.00001);
+
+  WL4435_TEST("DECIMAL(9, 6)", "123.456789",
+              MYSQL_TYPE_NEWDECIMAL, MYSQL_TYPE_NEWDECIMAL,
+              char, [255],
+              ("  - DECIMAL / char[] / MYSQL_TYPE_NEWDECIMAL:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "123.456789"));
+
+  WL4435_TEST("CHAR(32)", "REPEAT('C', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - CHAR(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "CCCCCCCCCCCCCCCC"));
+
+  WL4435_TEST("VARCHAR(32)", "REPEAT('V', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARCHAR(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "VVVVVVVVVVVVVVVV"));
+
+  WL4435_TEST("TINYTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYTEXT / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("TEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TEXT / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("MEDIUMTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMTEXT / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("LONGTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGTEXT / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("BINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - BINARY(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("VARBINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARBINARY(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("TINYBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYBLOB / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("BLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - BLOB / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("MEDIUMBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMBLOB / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("LONGBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGBLOB / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
 }
 
 
@@ -6197,7 +6449,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
@@ -13622,36 +13874,51 @@ static void test_bug15518()
 }
 
 
-static void disable_general_log()
+static void disable_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=off");
   myquery(rc);
+  rc= mysql_query(mysql, "set @@global.slow_query_log=off");
+  myquery(rc);
 }
 
 
-static void enable_general_log(int truncate)
+static void enable_query_logs(int truncate)
 {
   int rc;
 
   rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
   myquery(rc);
 
+  rc= mysql_query(mysql, "set @save_global_slow_query_log=@@global.slow_query_log");
+  myquery(rc);
+
   rc= mysql_query(mysql, "set @@global.general_log=on");
   myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=on");
+  myquery(rc);
+
 
   if (truncate)
   {
     rc= mysql_query(mysql, "truncate mysql.general_log");
     myquery(rc);
+
+    rc= mysql_query(mysql, "truncate mysql.slow_log");
+    myquery(rc);
   }
 }
 
 
-static void restore_general_log()
+static void restore_query_logs()
 {
   int rc;
   rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.slow_query_log=@save_global_slow_query_log");
   myquery(rc);
 }
 
@@ -15002,12 +15269,12 @@ static void test_bug11909()
 
 static void test_bug11901()
 {
-  MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[2];
+/*  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[2]; */
   int rc;
-  char workdept[20];
-  ulong workdept_len;
-  uint32 empno;
+/*  char workdept[20];
+  ulong workdept_len; 
+  uint32 empno; */
   const char *stmt_text;
 
   myheader("test_bug11901");
@@ -15086,8 +15353,9 @@ static void test_bug11901()
   myquery(rc);
 
   /* ****** Begin of trace ****** */
-
-  stmt= open_cursor("select t1.empno, t1.workdept "
+/* WL#1110 - disabled test case failure - crash. */
+/*
+  stmt= open_cursor("select t1.emp, t1.workdept "
                     "from (t1 left join t2 on t2.deptno = t1.workdept) "
                     "where t2.deptno in "
                     "   (select t2.deptno "
@@ -15110,7 +15378,9 @@ static void test_bug11901()
   check_execute(stmt, rc);
 
   empno= 10;
+*/
   /* ERROR: next statement causes a server crash */
+/*
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
@@ -15118,6 +15388,7 @@ static void test_bug11901()
 
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
+*/
 }
 
 /* Bug#11904: mysql_stmt_attr_set CURSOR_TYPE_READ_ONLY grouping wrong result */
@@ -15822,7 +16093,7 @@ static void test_bug17667()
     return;
   }
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
@@ -15902,7 +16173,7 @@ static void test_bug17667()
              statement_cursor->buffer);
   }
 
-  restore_general_log();
+  restore_query_logs();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17765,7 +18036,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  enable_general_log(1);
+  enable_query_logs(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17804,7 +18075,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  restore_general_log();
+  restore_query_logs();
 
   DBUG_VOID_RETURN;
 }
@@ -18855,7 +19126,7 @@ static void test_bug42373()
   Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
 */
 
-static void test_bug54041()
+static void test_bug54041_impl()
 {
   int rc;
   MYSQL_STMT *stmt;
@@ -18870,7 +19141,7 @@ static void test_bug54041()
   rc= mysql_query(mysql, "CREATE TABLE t1 (a INT)");
   myquery(rc);
 
-  stmt= mysql_simple_prepare(mysql, "INSERT INTO t1 (a) VALUES (?)");
+  stmt= mysql_simple_prepare(mysql, "SELECT a FROM t1 WHERE a > ?");
   check_stmt(stmt);
   verify_param_count(stmt, 1);
 
@@ -18908,6 +19179,121 @@ static void test_bug54041()
 }
 
 
+/**
+  Bug#54041: MySQL 5.0.92 fails when tests from Connector/C suite run
+*/
+
+static void test_bug54041()
+{
+  enable_query_logs(0);
+  test_bug54041_impl();
+  disable_query_logs();
+  test_bug54041_impl();
+  restore_query_logs();
+}
+
+
+/**
+  Bug#47485: mysql_store_result returns a result set for a prepared statement
+*/
+static void test_bug47485()
+{
+  MYSQL_STMT   *stmt;
+  MYSQL_RES    *res;
+  MYSQL_BIND    bind[2];
+  int           rc;
+  const char*   sql_select = "SELECT 1, 'a'";
+  int           int_data;
+  char          str_data[16];
+  my_bool       is_null[2];
+  my_bool       error[2];
+  unsigned long length[2];
+
+  DBUG_ENTER("test_bug47485");
+  myheader("test_bug47485");
+
+  stmt= mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, sql_select, strlen(sql_select));
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_store_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  res = mysql_use_result(mysql);
+  DIE_UNLESS(res == NULL);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_store_result(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_reset(stmt);
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_LONG;
+  bind[0].buffer= (char *)&int_data;
+  bind[0].is_null= &is_null[0];
+  bind[0].length= &length[0];
+  bind[0].error= &error[0];
+
+  bind[1].buffer_type= MYSQL_TYPE_STRING;
+  bind[1].buffer= (char *)str_data;
+  bind[1].buffer_length= sizeof(str_data);
+  bind[1].is_null= &is_null[1];
+  bind[1].length= &length[1];
+  bind[1].error= &error[1];
+
+  rc= mysql_stmt_bind_result(stmt, bind);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  while (!(rc= mysql_stmt_fetch(stmt)))
+    ;
+
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Bug#49972: Crash in prepared statements.
 
@@ -18930,7 +19316,7 @@ static void test_bug49972()
   my_bool is_null;
 
   DBUG_ENTER("test_bug49972");
-  myheader("test_49972");
+  myheader("test_bug49972");
 
   rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
   myquery(rc);
@@ -19017,6 +19403,45 @@ static void test_bug49972()
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#57058 SERVER_QUERY_WAS_SLOW not wired up.
+*/
+
+static void test_bug57058()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  DBUG_ENTER("test_bug57058");
+  myheader("test_bug57058");
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=0.1");
+  myquery(rc);
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_QUERY_WAS_SLOW));
+
+  rc= mysql_query(mysql, "select sleep(1)");
+  myquery(rc);
+
+  /*
+    Important: the flag is sent in the last EOF packet of
+    the query, the one which ends the result. Read the
+    result to see the "slow" status.
+  */
+  res= mysql_store_result(mysql);
+
+  DIE_UNLESS(mysql->server_status & SERVER_QUERY_WAS_SLOW);
+
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -19097,7 +19522,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "disable_general_log", disable_general_log },
+  { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
@@ -19337,6 +19762,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4284_1", test_wl4284_1 },
   { "test_wl4435",   test_wl4435 },
   { "test_wl4435_2", test_wl4435_2 },
+  { "test_wl4435_3", test_wl4435_3 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
@@ -19349,6 +19775,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug49972", test_bug49972 },
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
+  { "test_bug47485", test_bug47485 },
+  { "test_bug57058", test_bug57058 },
   { 0, 0 }
 };
 

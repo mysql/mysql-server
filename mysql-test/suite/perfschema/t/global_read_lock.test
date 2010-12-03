@@ -15,12 +15,16 @@
 
 # Tests for PERFORMANCE_SCHEMA
 #
-# Test the effect of a flush tables with read lock on SETUP_ tables.
+# Test the effect of a flush tables with read lock on setup_ tables.
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
 use performance_schema;
+
+# Make test robust against errors in other tests.
+# Ensure that instrumentation is turned on when we create new connection.
+update performance_schema.setup_instruments set enabled='YES';
 
 grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
 flush privileges;
@@ -28,15 +32,15 @@ flush privileges;
 --echo connect (con1, localhost, pfsuser, , test);
 connect (con1, localhost, pfsuser, , test);
 
-lock tables performance_schema.SETUP_INSTRUMENTS read;
+lock tables performance_schema.setup_instruments read;
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
+select * from performance_schema.setup_instruments;
 --enable_result_log
 unlock tables;
 
-lock tables performance_schema.SETUP_INSTRUMENTS write;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+lock tables performance_schema.setup_instruments write;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 unlock tables;
 
 --echo connection default;
@@ -47,20 +51,20 @@ flush tables with read lock;
 --echo connection con1;
 connection con1;
 
-lock tables performance_schema.SETUP_INSTRUMENTS read;
+lock tables performance_schema.setup_instruments read;
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
+select * from performance_schema.setup_instruments;
 --enable_result_log
 unlock tables;
 
 # This will block
 --send
-lock tables performance_schema.SETUP_INSTRUMENTS write;
+lock tables performance_schema.setup_instruments write;
 
 --echo connection default;
 connection default;
 
-let $wait_condition= select 1 from performance_schema.EVENTS_WAITS_CURRENT where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+let $wait_condition= select 1 from performance_schema.events_waits_current where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 
 --source include/wait_condition.inc
 
@@ -68,19 +72,20 @@ let $wait_condition= select 1 from performance_schema.EVENTS_WAITS_CURRENT where
 select event_name,
   left(source, locate(":", source)) as short_source,
   timer_end, timer_wait, operation
-  from performance_schema.EVENTS_WAITS_CURRENT
-  where event_name like "wait/synch/cond/sql/COND_global_read_lock";
+  from performance_schema.events_waits_current
+  where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 
 unlock tables;
 
 connection con1;
 --reap
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 unlock tables;
 
 disconnect con1;
+--source include/wait_until_disconnected.inc
 
 --echo connection default;
 connection default;

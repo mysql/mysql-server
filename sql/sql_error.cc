@@ -154,7 +154,7 @@ This file contains the implementation of error and warnings related
   This is implemented by using 'String MYSQL_ERROR::m_message_text'.
 
   The UTF8 -> error_message_charset_info conversion is implemented in
-  Signal_common::eval_signal_informations() (for path #B and #C).
+  Sql_cmd_common_signal::eval_signal_informations() (for path #B and #C).
 
   Future work
   -----------
@@ -333,7 +333,6 @@ Diagnostics_area::reset_diagnostics_area()
   /** Don't take chances in production */
   m_message[0]= '\0';
   m_sql_errno= 0;
-  m_server_status= 0;
   m_affected_rows= 0;
   m_last_insert_id= 0;
   m_statement_warn_count= 0;
@@ -364,7 +363,6 @@ Diagnostics_area::set_ok_status(THD *thd, ulonglong affected_rows_arg,
   if (is_error() || is_disabled())
     return;
 
-  m_server_status= thd->server_status;
   m_statement_warn_count= thd->warning_info->statement_warn_count();
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
@@ -394,7 +392,6 @@ Diagnostics_area::set_eof_status(THD *thd)
   if (is_error() || is_disabled())
     return;
 
-  m_server_status= thd->server_status;
   /*
     If inside a stored procedure, do not return the total
     number of warnings, since they are not available to the client
@@ -491,14 +488,6 @@ void Warning_info::clear_warning_info(ulonglong warn_id_arg)
   m_warn_list.empty();
   m_statement_warn_count= 0;
   m_current_row_for_warning= 1; /* Start counting from the first row */
-}
-
-void Warning_info::reserve_space(THD *thd, uint count)
-{
-  /* Make room for count conditions */
-  while ((m_warn_list.elements > 0) &&
-        ((m_warn_list.elements + count) > thd->variables.max_error_count))
-    m_warn_list.pop();
 }
 
 /**

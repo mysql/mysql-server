@@ -41,31 +41,47 @@ send insert into t2 values (null, null), (null, get_lock("a", 10));
 
 connection con1;
 
-disable_abort_on_error;
-disable_query_log;
-disable_result_log;
+--disable_abort_on_error
+--disable_warnings
 
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where info like "%insert into t2 values%" and state like 'User lock';
+--source include/wait_condition.inc
+
+--replace_regex /[0-9]+/ID/
 eval kill query $ID;
 
 connection con2;
 --error 0,ER_QUERY_INTERRUPTED
 reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
-
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=175 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
+
+--let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--disable_result_log
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
 is not null;
+--enable_result_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 let $error_code= `select @a like "%#%error_code=0%" /* must return 1 or 0*/`;
 let $insert_binlogged= `select @a like "%insert into%" /* must return 1 or 0 */`;
-eval set @result= $rows- $error_code - $insert_binlogged;
+eval set @result= $rows - $error_code - $insert_binlogged;
 
-enable_abort_on_error;
-enable_query_log;
-enable_result_log;
+--enable_warnings
+--enable_abort_on_error
+
+if (`SELECT @result != 0`)
+{
+  -- echo error_code:$error_code, insert:$insert_binlogged, rows:$rows
+  SELECT * FROM t2;
+  
+  -- die
+}
 
 select @result /* must be zero either way */;
 
@@ -259,19 +275,21 @@ connection con2;
 reap;
 select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
---echo must have the update query event more to FD
+--echo must have the update query event on the 4th line
 source include/show_binlog_events.inc;
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
 
-# a proof the query is binlogged with an error
+--echo *** a proof the query is binlogged with an error ***
 
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
-eval select $error_code /* must return 0 to mean the killed query is in */;
+eval select $error_code /* must return 0 to mean the killed update is in */;
 
 # cleanup for the sub-case
 connection con1;
@@ -305,19 +323,21 @@ connection con2;
 reap;
 select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
---echo must have the delete query event more to FD
+--echo must have the delete query event on the 4th line
 source include/show_binlog_events.inc;
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
 
 # a proof the query is binlogged with an error
 
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 let $error_code= `select @a like "%#%error_code=0%" /* must return 0*/`;
-eval select $error_code /* must return 0 to mean the killed query is in */;
+eval select $error_code /* must return 0 to mean the killed delete is in */;
 
 # cleanup for the sub-case
 connection con1;

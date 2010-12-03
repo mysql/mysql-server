@@ -266,3 +266,22 @@ SELECT 1 FROM t1 WHERE ROW(a, b) >=
 ROW('1', (SELECT 1 FROM t1 WHERE a > 1234));
 --enable_warnings
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #54190: Comparison to row subquery produces incorrect result
+--echo # 
+
+SELECT ROW(1,2) = (SELECT 1,2 FROM DUAL WHERE 1 = 0);
+SELECT ROW(1,2) = (SELECT 1,3 FROM DUAL WHERE 1 = 0);
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 () VALUES (1), (2), (3);
+
+SELECT ROW(1,2) = (SELECT 1,2 FROM t1 WHERE 1 = 0);
+SELECT ROW(1,2) = (SELECT 1,3 FROM t1 WHERE 1 = 0);
+SELECT i FROM t1 WHERE ROW(1,2) = (SELECT 1,2 FROM DUAL WHERE 1 = 0);
+SELECT i FROM t1 WHERE ROW(1,2) = (SELECT 1,3 FROM DUAL WHERE 1 = 0);
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests

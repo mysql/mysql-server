@@ -67,12 +67,15 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
-	dulint*	table_id,	/*!< out: table id (not assigned if NULL) */
-	dulint*	index_id,	/*!< out: index id (not assigned if NULL) */
-	ulint*	space_id)	/*!< out: space id (not assigned if NULL) */
+	table_id_t*	table_id,	/*!< out: table id
+					(not assigned if NULL) */
+	index_id_t*	index_id,	/*!< out: index id
+					(not assigned if NULL) */
+	ulint*		space_id)	/*!< out: space id
+					(not assigned if NULL) */
 {
 	dict_hdr_t*	dict_hdr;
-	dulint		id;
+	ib_id_t		id;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
@@ -80,16 +83,16 @@ dict_hdr_get_new_id(
 	dict_hdr = dict_hdr_get(&mtr);
 
 	if (table_id) {
-		id = mtr_read_dulint(dict_hdr + DICT_HDR_TABLE_ID, &mtr);
-		id = ut_dulint_add(id, 1);
-		mlog_write_dulint(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
+		id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
+		id++;
+		mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
 		*table_id = id;
 	}
 
 	if (index_id) {
-		id = mtr_read_dulint(dict_hdr + DICT_HDR_INDEX_ID, &mtr);
-		id = ut_dulint_add(id, 1);
-		mlog_write_dulint(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
+		id = mach_read_from_8(dict_hdr + DICT_HDR_INDEX_ID);
+		id++;
+		mlog_write_ull(dict_hdr + DICT_HDR_INDEX_ID, id, &mtr);
 		*index_id = id;
 	}
 
@@ -114,7 +117,7 @@ dict_hdr_flush_row_id(void)
 /*=======================*/
 {
 	dict_hdr_t*	dict_hdr;
-	dulint		id;
+	row_id_t	id;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -125,7 +128,7 @@ dict_hdr_flush_row_id(void)
 
 	dict_hdr = dict_hdr_get(&mtr);
 
-	mlog_write_dulint(dict_hdr + DICT_HDR_ROW_ID, id, &mtr);
+	mlog_write_ull(dict_hdr + DICT_HDR_ROW_ID, id, &mtr);
 
 	mtr_commit(&mtr);
 }
@@ -157,14 +160,14 @@ dict_hdr_create(
 
 	/* Start counting row, table, index, and tree ids from
 	DICT_HDR_FIRST_ID */
-	mlog_write_dulint(dict_header + DICT_HDR_ROW_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_ROW_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
-	mlog_write_dulint(dict_header + DICT_HDR_TABLE_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
-	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
-			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
+	mlog_write_ull(dict_header + DICT_HDR_INDEX_ID,
+		       DICT_HDR_FIRST_ID, mtr);
 
 	mlog_write_ulint(dict_header + DICT_HDR_MAX_SPACE_ID,
 			 0, MLOG_4BYTES, mtr);
@@ -273,11 +276,9 @@ dict_boot(void)
 	..._MARGIN, it will immediately be updated to the disk-based
 	header. */
 
-	dict_sys->row_id = ut_dulint_add(
-		ut_dulint_align_up(mtr_read_dulint(dict_hdr + DICT_HDR_ROW_ID,
-						   &mtr),
-				   DICT_HDR_ROW_ID_WRITE_MARGIN),
-		DICT_HDR_ROW_ID_WRITE_MARGIN);
+	dict_sys->row_id = DICT_HDR_ROW_ID_WRITE_MARGIN
+		+ ut_uint64_align_up(mach_read_from_8(dict_hdr + DICT_HDR_ROW_ID),
+				     DICT_HDR_ROW_ID_WRITE_MARGIN);
 
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
@@ -301,7 +302,7 @@ dict_boot(void)
 
 	table->id = DICT_TABLES_ID;
 
-	dict_table_add_to_cache(table, heap);
+	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_tables = table;
 	mem_heap_empty(heap);
 
@@ -346,7 +347,7 @@ dict_boot(void)
 
 	table->id = DICT_COLUMNS_ID;
 
-	dict_table_add_to_cache(table, heap);
+	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_columns = table;
 	mem_heap_empty(heap);
 
@@ -391,7 +392,8 @@ dict_boot(void)
 #endif
 
 	table->id = DICT_INDEXES_ID;
-	dict_table_add_to_cache(table, heap);
+
+	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_indexes = table;
 	mem_heap_empty(heap);
 
@@ -418,7 +420,8 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "COL_NAME", DATA_BINARY, 0, 0);
 
 	table->id = DICT_FIELDS_ID;
-	dict_table_add_to_cache(table, heap);
+
+	dict_table_add_to_cache(table, FALSE, heap);
 	dict_sys->sys_fields = table;
 	mem_heap_free(heap);
 

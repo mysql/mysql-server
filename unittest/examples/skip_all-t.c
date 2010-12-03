@@ -31,9 +31,9 @@ int main() {
   if (!has_feature())
     skip_all("Example of skipping an entire test");
   plan(4);
-  ok(1, NULL);
-  ok(1, NULL);
-  ok(1, NULL);
-  ok(1, NULL);
+  ok1(1);
+  ok1(1);
+  ok1(1);
+  ok1(1);
   return exit_status();
 }

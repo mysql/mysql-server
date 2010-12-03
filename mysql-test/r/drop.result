@@ -2,7 +2,7 @@ drop table if exists t1;
 drop database if exists mysqltest;
 drop database if exists client_test_db;
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 create table t1(n int);
 insert into t1 values(1);
 create temporary table t1( n int);
@@ -30,13 +30,13 @@ table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28;
-ERROR 42S02: Unknown table 'table1,table2,table3,table4,table5,table6,table7,table8,table9,table10,table11,table12,table13,table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
 drop table table1, table2, table3, table4, table5, table6,
 table7, table8, table9, table10, table11, table12, table13,
 table14, table15, table16, table17, table18, table19, table20,
 table21, table22, table23, table24, table25, table26, table27,
 table28, table29, table30;
-ERROR 42S02: Unknown table 'table1,table2,table3,table4,table5,table6,table7,table8,table9,table10,table11,table12,table13,table'
+ERROR 42S02: Unknown table 'mysqltest.table1,mysqltest.table2,mysqltest.table3,mysqltest.table4,mysqltest.table5,mysqltest.table'
 use test;
 drop database mysqltest;
 flush tables with read lock;
@@ -149,10 +149,10 @@ End of 5.1 tests
 # --
 DROP TABLE IF EXISTS t1;
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1051	Unknown table 't1'
+Error	1051	Unknown table 'test.t1'
 
 # --
 # -- End of Bug#37431.
@@ -167,3 +167,39 @@ DROP TABLE t1, t1;
 ERROR 42000: Not unique table/alias: 't1'
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# BUG#34750: Print database name in Unknown Table error message
+#
+
+# Test error message when droping table/view
+DROP TABLE table1;
+ERROR 42S02: Unknown table 'test.table1'
+DROP TABLE table1,table2;
+ERROR 42S02: Unknown table 'test.table1,test.table2'
+DROP VIEW view1,view2,view3,view4;
+ERROR 42S02: Unknown table 'test.view1,test.view2,test.view3,test.view4'
+
+DROP TABLE IF EXISTS table1;
+Warnings:
+Note	1051	Unknown table 'test.table1'
+DROP TABLE IF EXISTS table1,table2;
+Warnings:
+Note	1051	Unknown table 'test.table1'
+Note	1051	Unknown table 'test.table2'
+DROP VIEW IF EXISTS view1,view2,view3,view4;
+Warnings:
+Note	1051	Unknown table 'test.view1'
+Note	1051	Unknown table 'test.view2'
+Note	1051	Unknown table 'test.view3'
+Note	1051	Unknown table 'test.view4'
+
+# Test error message when trigger does not find table
+CREATE TABLE table1(a int);
+CREATE TABLE table2(b int);
+CREATE TRIGGER trg1 AFTER INSERT ON table1
+FOR EACH ROW
+INSERT INTO table2 SELECT t.notable.*;
+INSERT INTO table1 VALUES (1);
+ERROR 42S02: Unknown table 't.notable'
+DROP TABLE table1,table2;
+# End BUG#34750

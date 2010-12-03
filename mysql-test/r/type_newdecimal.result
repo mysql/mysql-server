@@ -680,7 +680,7 @@ select 0.8 = 0.7 + 0.1;
 1
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (col1 decimal(38));
 insert into t1 values (12345678901234567890123456789012345678);
 select * from t1;
@@ -1908,4 +1908,16 @@ group by PAY.id + 1;
 mult	v_net_with_discount	v_total
 1.0000	27.18	27.180000
 DROP TABLE currencies, payments, sub_tasks;
+#
+# BUG#52171: distinct aggregates on unsigned decimal fields trigger assertions
+#
+CREATE TABLE t1 (a DECIMAL(4,4) UNSIGNED);
+INSERT INTO t1 VALUES (0);
+SELECT AVG(DISTINCT a) FROM t1;
+AVG(DISTINCT a)
+0.00000000
+SELECT SUM(DISTINCT a) FROM t1;
+SUM(DISTINCT a)
+0.0000
+DROP TABLE t1;
 End of 5.1 tests

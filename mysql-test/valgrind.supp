@@ -745,3 +745,46 @@
    Memcheck:Addr1
    fun:buf_buddy_relocate
 }
+
+#
+# See related Bug#56666
+# Race condition between the server main thread and the kill server thread.
+#
+# Because of this race condition, the call to shutdown_performance_schema()
+# was commented in sql/mysqld.cc, causing the reported leaks.
+#
+
+{
+   missing shutdown_performance_schema 1
+   Memcheck:Leak
+   fun:malloc
+   fun:_Z10pfs_mallocmi
+}
+
+{
+   missing shutdown_performance_schema 2
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_alloc_new
+   fun:lf_hash_insert
+}
+
+{
+   missing shutdown_performance_schema 3
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:initialize_bucket
+   fun:lf_hash_search
+}
+
+{
+   missing shutdown_performance_schema 4
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
+   fun:lf_hash_insert
+}
+

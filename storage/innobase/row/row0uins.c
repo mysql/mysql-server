@@ -46,6 +46,16 @@ Created 2/25/1997 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "log0log.h"
 
+/*************************************************************************
+IMPORTANT NOTE: Any operation that generates redo MUST check that there
+is enough space in the redo log before for that operation. This is
+done by calling log_free_check(). The reason for checking the
+availability of the redo log space before the start of the operation is
+that we MUST not hold any synchonization objects when performing the
+check.
+If you make a change in this module make sure that no codepath is
+introduced where a call to log_free_check() is bypassed. */
+
 /***************************************************************//**
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
@@ -68,7 +78,7 @@ row_undo_ins_remove_clust_rec(
 					    &mtr);
 	ut_a(success);
 
-	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
+	if (node->table->id == DICT_INDEXES_ID) {
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
@@ -151,7 +161,6 @@ row_undo_ins_remove_sec_low(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
-	log_free_check();
 	mtr_start(&mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -246,12 +255,13 @@ static
 void
 row_undo_ins_parse_undo_rec(
 /*========================*/
-	undo_node_t*	node)	/*!< in/out: row undo node */
+	undo_node_t*	node,		/*!< in/out: row undo node */
+	ibool		dict_locked)	/*!< in: TRUE if own dict_sys->mutex */
 {
 	dict_index_t*	clust_index;
 	byte*		ptr;
 	undo_no_t	undo_no;
-	dulint		table_id;
+	table_id_t	table_id;
 	ulint		type;
 	ulint		dummy;
 	ibool		dummy_extern;
@@ -264,18 +274,27 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_get_on_id(table_id, node->trx);
+	node->table = dict_table_open_on_id(table_id, dict_locked);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+		dict_table_close(node->table, dict_locked);
 		node->table = NULL;
 	} else {
 		clust_index = dict_table_get_first_index(node->table);
 
 		if (clust_index != NULL) {
-			ptr = trx_undo_rec_get_row_ref(
+			trx_undo_rec_get_row_ref(
 				ptr, clust_index, &node->ref, node->heap);
+
+			if (!row_undo_search_clust_to_pcur(node)) {
+
+				dict_table_close(node->table, dict_locked);
+
+				node->table = NULL;
+			}
+
 		} else {
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: table ");
@@ -283,6 +302,8 @@ row_undo_ins_parse_undo_rec(
 				      node->table->name);
 			fprintf(stderr, " has no indexes, "
 				"ignoring the table\n");
+
+			dict_table_close(node->table, dict_locked);
 
 			node->table = NULL;
 		}
@@ -302,12 +323,17 @@ row_undo_ins(
 /*=========*/
 	undo_node_t*	node)	/*!< in: row undo node */
 {
+	ulint		err;
+	ibool		dict_locked;
+
 	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
-	row_undo_ins_parse_undo_rec(node);
+	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
+	row_undo_ins_parse_undo_rec(node, dict_locked);
+
+	if (node->table == NULL) {
 		trx_undo_rec_release(node->trx, node->undo_no);
 
 		return(DB_SUCCESS);
@@ -321,7 +347,6 @@ row_undo_ins(
 
 	while (node->index != NULL) {
 		dtuple_t*	entry;
-		ulint		err;
 
 		entry = row_build_index_entry(node->row, node->ext,
 					      node->index, node->heap);
@@ -337,9 +362,15 @@ row_undo_ins(
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
 		} else {
+			log_free_check();
+
 			err = row_undo_ins_remove_sec(node->index, entry);
 
 			if (err != DB_SUCCESS) {
+
+				dict_table_close(node->table, dict_locked);
+
+				node->table = NULL;
 
 				return(err);
 			}
@@ -348,5 +379,13 @@ row_undo_ins(
 		node->index = dict_table_get_next_index(node->index);
 	}
 
-	return(row_undo_ins_remove_clust_rec(node));
+	log_free_check();
+
+	err = row_undo_ins_remove_clust_rec(node);
+
+	dict_table_close(node->table, dict_locked);
+
+	node->table = NULL;
+
+	return(err);
 }

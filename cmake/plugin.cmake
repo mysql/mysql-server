@@ -28,7 +28,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # [DEPENDENCIES target1...targetN]
 
 MACRO(MYSQL_ADD_PLUGIN)
-  CMAKE_PARSE_ARGUMENTS(ARG
+  MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
     "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;RECOMPILE_FOR_EMBEDDED"
     ${ARGN}
@@ -57,11 +57,17 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET(WITHOUT_NDBCLUSTER 1)
   ENDIF()
 
+  IF(ARG_DEFAULT)
+    IF(NOT DEFINED WITH_${plugin} AND 
+       NOT DEFINED WITH_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin} 1)
+    ENDIF()
+  ENDIF()
+  
   IF(WITH_${plugin}_STORAGE_ENGINE 
     OR WITH_{$plugin}
     OR WITH_ALL 
     OR WITH_MAX 
-    OR ARG_DEFAULT 
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE
     AND NOT WITHOUT_${plugin}
     AND NOT ARG_MODULE_ONLY)
@@ -88,6 +94,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   IF(NOT ARG_DEPENDENCIES)
     SET(ARG_DEPENDENCIES)
   ENDIF()
+  SET(BUILD_PLUGIN 1)
   # Build either static library or module
   IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
     ADD_LIBRARY(${target} STATIC ${SOURCES})
@@ -116,7 +123,7 @@ MACRO(MYSQL_ADD_PLUGIN)
 
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
-      ${target} CACHE INTERNAL "" FORCE)
+      ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
     IF(ARG_MANDATORY)
       SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
@@ -149,9 +156,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     DTRACE_INSTRUMENT(${target})
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
-    IF(ARG_LINK_LIBRARIES)
-      TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
-    ENDIF()
     TARGET_LINK_LIBRARIES (${target} mysqlservices)
 
     # Plugin uses symbols defined in mysqld executable.
@@ -166,17 +170,30 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
-	IF(NOT ARG_MODULE_ONLY)
+     IF(NOT ARG_MODULE_ONLY)
       # set cached variable, e.g with checkbox in GUI
       SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server" 
        FORCE)
-	ENDIF()
+     ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
     # Install dynamic library
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${INSTALL_PLUGINDIR} COMPONENT Server)
     INSTALL_DEBUG_TARGET(${target} DESTINATION ${INSTALL_PLUGINDIR}/debug)
+  ELSE()
+    IF(WITHOUT_${plugin})
+      # Update cache variable
+      STRING(REPLACE "WITH_" "WITHOUT_" without_var ${with_var})
+      SET(${without_var} ON CACHE BOOL "Don't build ${plugin}" 
+       FORCE)
+    ENDIF()
+    SET(BUILD_PLUGIN 0)
   ENDIF()
+
+  IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
+    TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
 ENDMACRO()
 
 

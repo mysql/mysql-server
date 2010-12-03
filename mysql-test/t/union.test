@@ -253,7 +253,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 
 create temporary table t1 select a from t1 union select a from t2;
 drop temporary table t1;
---error 1093
+--error ER_TABLE_EXISTS_ERROR
 create table t1 select a from t1 union select a from t2;
 --error 1054
 select a from t1 union select a from t2 order by t2.a;
@@ -1062,7 +1062,7 @@ SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO DUMPFILE 'union.out.file4' FROM t1;
 
 DROP TABLE t1;
-
+remove_files_wildcard $MYSQLTEST_VARDIR/mysqld.1/data/test union.out.fil*;
 
 --echo # 
 --echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 

@@ -183,8 +183,8 @@ cp ChangeLog              $DESTDIR/Docs/ || /bin/true
 cp support-files/my-*.ini $DESTDIR/
 
 if [ -f COPYING ] ; then
-  cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
-  cp COPYING                   $DESTDIR/Docs/
+  cp COPYING $DESTDIR/
+  cp COPYING $DESTDIR/Docs/
 fi
 
 # ----------------------------------------------------------------------
@@ -260,6 +260,7 @@ cp include/mysql.h \
    include/keycache.h \
    include/m_ctype.h \
    include/my_attribute.h \
+   include/my_compiler.h \
    include/mysqld_error.h \
    include/sql_state.h \
    include/mysqld_ername.h \

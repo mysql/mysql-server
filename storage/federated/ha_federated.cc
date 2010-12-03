@@ -3042,6 +3042,16 @@ int ha_federated::delete_all_rows()
 
 
 /*
+  Used to manually truncate the table via a delete of all rows in a table.
+*/
+
+int ha_federated::truncate()
+{
+  return delete_all_rows();
+}
+
+
+/*
   The idea with handler::store_lock() is the following:
 
   The statement decided which locks we should need for the table
@@ -3280,7 +3290,7 @@ MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
   DBUG_ENTER("ha_federated::store_result");
   if (result)
   {
-    (void) insert_dynamic(&results, (uchar*) &result);
+    (void) insert_dynamic(&results, &result);
   }
   position_called= FALSE;
   DBUG_RETURN(result);

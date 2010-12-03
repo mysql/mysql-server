@@ -34,7 +34,7 @@
 #
 
 connection slave;
-if (`SELECT $debug_sync_action = ''`)
+if (!$debug_sync_action)
 {
     --die Cannot continue. Please set value for debug_sync_action.
 }
@@ -53,9 +53,7 @@ source include/wait_for_slave_to_start.inc;
 connection master;
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Send shutdown to the connected server and give
 # it 10 seconds to die before zapping it
@@ -85,9 +83,7 @@ source include/wait_for_slave_io_error.inc;
 eval set @@global.debug = "-d,$dbug_sync_point";
 
 # Write file to make mysql-test-run.pl start up the server again
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 connection master;
 # Turn on reconnect

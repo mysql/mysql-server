@@ -1,0 +1,76 @@
+SELECT @@GLOBAL.binlog_rows_query_log_events;
+@@GLOBAL.binlog_rows_query_log_events
+0
+'#---------------------BS_STVARS_002_01----------------------#'
+SET @start_value= @@global.binlog_rows_query_log_events;
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+COUNT(@@GLOBAL.binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+COUNT(@@SESSION.binlog_rows_query_log_events)
+1
+1 Expected
+'#---------------------BS_STVARS_002_02----------------------#'
+SET @@GLOBAL.binlog_rows_query_log_events=TRUE;
+SELECT @@GLOBAL.binlog_rows_query_log_events;
+@@GLOBAL.binlog_rows_query_log_events
+1
+SET @@SESSION.binlog_rows_query_log_events=TRUE;
+SELECT @@SESSION.binlog_rows_query_log_events;
+@@SESSION.binlog_rows_query_log_events
+1
+'#---------------------BS_STVARS_002_03----------------------#'
+SELECT
+IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+COUNT(@@GLOBAL.binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_002_04----------------------#'
+SELECT
+IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+COUNT(@@SESSION.binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='binlog_rows_query_log_events';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_002_05----------------------#'
+SELECT COUNT(@@binlog_rows_query_log_events);
+COUNT(@@binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(@@local.binlog_rows_query_log_events);
+COUNT(@@local.binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
+COUNT(@@SESSION.binlog_rows_query_log_events)
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
+COUNT(@@GLOBAL.binlog_rows_query_log_events)
+1
+1 Expected
+SET @@global.binlog_rows_query_log_events= @start_value;

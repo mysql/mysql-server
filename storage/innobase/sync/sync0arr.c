@@ -250,7 +250,7 @@ sync_array_create(
 
 	/* Then create the mutex to protect the wait array complex */
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
-		arr->os_mutex = os_mutex_create(NULL);
+		arr->os_mutex = os_mutex_create();
 	} else if (protection == SYNC_ARRAY_MUTEX) {
 		mutex_create(syn_arr_mutex_key,
 			     &arr->mutex, SYNC_NO_ORDER_CHECK);
@@ -967,7 +967,7 @@ sync_array_print_long_waits(void)
 			(ulong)os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 
 		os_thread_sleep(30000000);
 

@@ -98,6 +98,49 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   matches with one of the options in struct 'my_option'.
   Check that option was given an argument if it requires one
   Call the optional 'get_one_option()' function once for each option.
+
+  Note that handle_options() can be invoked multiple times to
+  parse a command line in several steps.
+  In this case, use the global flag @c my_getopt_skip_unknown to indicate
+  that options unknown in the current step should be preserved in the
+  command line for later parsing in subsequent steps.
+
+  For 'long' options (--a_long_option), @c my_getopt_skip_unknown is
+  fully supported. Command line parameters such as:
+  - "--a_long_option"
+  - "--a_long_option=value"
+  - "--a_long_option value"
+  will be preserved as is when the option is not known.
+
+  For 'short' options (-S), support for @c my_getopt_skip_unknown
+  comes with some limitation, because several short options
+  can also be specified together in the same command line argument,
+  as in "-XYZ".
+
+  The first use case supported is: all short options are declared.
+  handle_options() will be able to interpret "-XYZ" as one of:
+  - an unknown X option
+  - "-X -Y -Z", three short options with no arguments
+  - "-X -YZ", where Y is a short option with argument Z
+  - "-XYZ", where X is a short option with argument YZ
+  based on the full short options specifications.
+
+  The second use case supported is: no short option is declared.
+  handle_options() will reject "-XYZ" as unknown, to be parsed later.
+
+  The use case that is explicitly not supported is to provide
+  only a partial list of short options to handle_options().
+  This function can not be expected to extract some option Y
+  in the middle of the string "-XYZ" in these conditions,
+  without knowing if X will be declared an option later.
+
+  Note that this limitation only impacts parsing of several
+  short options from the same command line argument,
+  as in "mysqld -anW5".
+  When each short option is properly separated out in the command line
+  argument, for example in "mysqld -a -n -w5", the code would actually
+  work even with partial options specs given at each stage.
+
   @param [in, out] argc      command line options (count)
   @param [in, out] argv      command line options (values)
   @param [in] longopts       descriptor of all valid options
@@ -110,7 +153,7 @@ int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  uint opt_found, argvpos= 0, length;
+  uint UNINIT_VAR(opt_found), argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
           option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
@@ -120,7 +163,6 @@ int handle_options(int *argc, char ***argv,
   int error, i;
   my_bool is_cmdline_arg= 1;
 
-  LINT_INIT(opt_found);
   /* handle_options() assumes arg0 (program name) always exists */
   DBUG_ASSERT(argc && *argc >= 1);
   DBUG_ASSERT(argv && *argv);
@@ -145,6 +187,7 @@ int handle_options(int *argc, char ***argv,
   {
     char **first= pos;
     char *cur_arg= *pos;
+    opt_found= 0;
     if (!is_cmdline_arg && (cur_arg == args_separator))
     {
       is_cmdline_arg= 1;
@@ -317,14 +360,6 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  return EXIT_OPTION_DISABLED;
 	}
-	if (must_be_var && optp->arg_type == NO_ARG)
-	{
-	  if (my_getopt_print_errors)
-            my_getopt_error_reporter(ERROR_LEVEL, 
-                                     "%s: option '%s' cannot take an argument",
-                                     my_progname, optp->name);
-	  return EXIT_NO_ARGUMENT_ALLOWED;
-	}
         error= 0;
 	value= optp->var_type & GET_ASK_ADDR ?
 	  (*getopt_get_addr)(key_name, (uint) strlen(key_name), optp, &error) :
@@ -334,6 +369,11 @@ int handle_options(int *argc, char ***argv,
 
 	if (optp->arg_type == NO_ARG)
 	{
+	  /*
+	    Due to historical reasons GET_BOOL var_types still accepts arguments
+	    despite the NO_ARG arg_type attribute. This can seems a bit unintuitive
+	    and care should be taken when refactoring this code.
+	  */
 	  if (optend && (optp->var_type & GET_TYPE_MASK) != GET_BOOL)
 	  {
 	    if (my_getopt_print_errors)
@@ -348,7 +388,7 @@ int handle_options(int *argc, char ***argv,
 	      Set bool to 1 if no argument or if the user has used
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
-	      */
+	    */
 	    (*argc)--;
 	    if (!optend || *optend == '1' ||
 		!my_strcasecmp(&my_charset_latin1, optend, "true"))
@@ -375,10 +415,9 @@ int handle_options(int *argc, char ***argv,
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one,
-
-             Note: options loaded from config file that requires value
-             should always be in the form '--option=value'.
-           */
+       Note: options loaded from config file that requires value
+       should always be in the form '--option=value'.
+    */
 	  if (!is_cmdline_arg || !*++pos)
 	  {
 	    if (my_getopt_print_errors)
@@ -464,14 +503,40 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  if (!opt_found)
 	  {
-	    if (my_getopt_print_errors)
-              my_getopt_error_reporter(ERROR_LEVEL,
-                                       "%s: unknown option '-%c'", 
-                                       my_progname, *optend);
-	    return EXIT_UNKNOWN_OPTION;
+            if (my_getopt_skip_unknown)
+            {
+              /*
+                We are currently parsing a single argv[] argument
+                of the form "-XYZ".
+                One or the argument found (say Y) is not an option.
+                Hack the string "-XYZ" to make a "-YZ" substring in it,
+                and push that to the output as an unrecognized parameter.
+              */
+              DBUG_ASSERT(optend > *pos);
+              DBUG_ASSERT(optend >= cur_arg);
+              DBUG_ASSERT(optend <= *pos + strlen(*pos));
+              DBUG_ASSERT(*optend);
+              optend--;
+              optend[0]= '-'; /* replace 'X' or '-' by '-' */
+              (*argv)[argvpos++]= optend;
+              /*
+                Do not continue to parse at the current "-XYZ" argument,
+                skip to the next argv[] argument instead.
+              */
+              optend= (char*) " ";
+            }
+            else
+            {
+              if (my_getopt_print_errors)
+                my_getopt_error_reporter(ERROR_LEVEL,
+                                         "%s: unknown option '-%c'",
+                                         my_progname, *optend);
+              return EXIT_UNKNOWN_OPTION;
+            }
 	  }
 	}
-	(*argc)--; /* option handled (short), decrease argument count */
+        if (opt_found)
+          (*argc)--; /* option handled (short), decrease argument count */
 	continue;
       }
       if ((error= setval(optp, value, argument, set_maximum_value)))
@@ -479,7 +544,7 @@ int handle_options(int *argc, char ***argv,
       if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
 
-      (*argc)--; /* option handled (short or long), decrease argument count */
+      (*argc)--; /* option handled (long), decrease argument count */
     }
     else /* non-option found */
       (*argv)[argvpos++]= cur_arg;
@@ -537,6 +602,25 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   }
 }
 
+
+/**
+   Parse a boolean command line argument
+
+   "ON", "TRUE" and "1" will return true,
+   other values will return false.
+
+   @param[in] argument The value argument
+   @return boolean value
+*/
+static my_bool get_bool_argument(const char *argument)
+{
+  if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "on"))
+    return 1;
+  else
+    return (my_bool) atoi(argument);
+}
+
 /*
   function: setval
 
@@ -564,7 +648,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= (my_bool) atoi(argument) != 0;
+      *((my_bool*) value)= get_bool_argument(argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);
@@ -603,18 +687,24 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       };
       break;
     case GET_ENUM:
-      if (((*(uint*)value)=
-             find_type(argument, opts->typelib, 2) - 1) == (uint)-1)
       {
-        /* Accept an integer representation of the enumerated item */
-        char *endptr;
-        uint arg= (uint) strtol(argument, &endptr, 10);
-        if (*endptr || arg >= opts->typelib->count)
+        int type= find_type(argument, opts->typelib, 2);
+        if (type == 0)
         {
-          res= EXIT_ARGUMENT_INVALID;
-          goto ret;
-        };
-        *(uint*)value= arg;
+          /*
+            Accept an integer representation of the enumerated item.
+          */
+          char *endptr;
+          ulong arg= strtoul(argument, &endptr, 10);
+          if (*endptr || arg >= opts->typelib->count)
+          {
+            res= EXIT_ARGUMENT_INVALID;
+            goto ret;
+          }
+          *(ulong*)value= arg;
+        }
+        else
+          *(ulong*)value= type - 1;
       }
       break;
     case GET_SET:
@@ -1010,7 +1100,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((int*) variable)= (int) getopt_ll_limit_value((int) value, option, NULL);
     break;
   case GET_ENUM:
-    *((uint*) variable)= (uint) value;
+    *((ulong*) variable)= (ulong) value;
     break;
   case GET_UINT:
     *((uint*) variable)= (uint) getopt_ull_limit_value((uint) value, option, NULL);
@@ -1286,7 +1376,7 @@ void my_print_variables(const struct my_option *options)
         printf("\n");
 	break;
       case GET_ENUM:
-        printf("%s\n", get_type(optp->typelib, *(uint*) value));
+        printf("%s\n", get_type(optp->typelib, *(ulong*) value));
 	break;
       case GET_STR:
       case GET_STR_ALLOC:                    /* fall through */

@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
   {
     if (!error)
       pos--;
-    if (i-- == 0)
+    if (!error && (i-- == 0))
     {
       bmove(record3,record,reclength);
       position=heap_position(file);
@@ -593,6 +593,7 @@ end:
   printf("\nFollowing test have been made:\n");
   printf("Write records: %d\nUpdate records: %d\nDelete records: %d\n", write_count,update,opt_delete);
   heap_clear(file);
+  heap_clear(file2);
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
   heap_delete_table(filename2);

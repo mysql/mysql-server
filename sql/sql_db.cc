@@ -21,15 +21,15 @@
 #include "unireg.h"
 #include "sql_db.h"
 #include "sql_cache.h"                   // query_cache_*
-#include "lock.h"                        // wait_if_global_read_lock,
-                                         // start_waiting_global_read_lock
+#include "lock.h"                        // lock_schema_name
 #include "sql_table.h"                   // build_table_filename,
                                          // filename_to_tablename
 #include "sql_rename.h"                  // mysql_rename_tables
 #include "sql_acl.h"                     // SELECT_ACL, DB_ACLS,
                                          // acl_get, check_grant_db
-#include "sql_base.h"                    // wait_for_condition
 #include "log_event.h"                   // Query_log_event
+#include "sql_base.h"                    // lock_table_names, tdc_remove_table
+#include "sql_handler.h"                 // mysql_ha_rm_tables
 #include <mysys_err.h>
 #include "sp.h"
 #include "events.h"
@@ -47,116 +47,18 @@ const char *del_exts[]= {".frm", ".BAK", ".TMD",".opt", NullS};
 static TYPELIB deletable_extentions=
 {array_elements(del_exts)-1,"del_exts", del_exts, NULL};
 
-static long mysql_rm_known_files(THD *thd, MY_DIR *dirp,
-				 const char *db, const char *path, uint level, 
-                                 TABLE_LIST **dropped_tables);
-         
+static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
+                                              const char *db,
+                                              const char *path,
+                                              TABLE_LIST **tables,
+                                              bool *found_other_files);
+
 long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static my_bool rm_dir_w_symlink(const char *org_path, my_bool send_error);
 static void mysql_change_db_impl(THD *thd,
                                  LEX_STRING *new_db_name,
                                  ulong new_db_access,
                                  CHARSET_INFO *new_db_charset);
-
-
-/* Database lock hash */
-HASH lock_db_cache;
-mysql_mutex_t LOCK_lock_db;
-int creating_database= 0;  // how many database locks are made
-
-
-/* Structure for database lock */
-typedef struct my_dblock_st
-{
-  char *name;        /* Database name        */
-  uint name_length;  /* Database length name */
-} my_dblock_t;
-
-
-/*
-  lock_db key.
-*/
-
-extern "C" uchar* lock_db_get_key(my_dblock_t *, size_t *, my_bool not_used);
-
-uchar* lock_db_get_key(my_dblock_t *ptr, size_t *length,
-                       my_bool not_used __attribute__((unused)))
-{
-  *length= ptr->name_length;
-  return (uchar*) ptr->name;
-}
-
-
-/*
-  Free lock_db hash element.
-*/
-
-extern "C" void lock_db_free_element(void *ptr);
-
-void lock_db_free_element(void *ptr)
-{
-  my_free(ptr);
-}
-
-
-/*
-  Put a database lock entry into the hash.
-  
-  DESCRIPTION
-    Insert a database lock entry into hash.
-    LOCK_db_lock must be previously locked.
-  
-  RETURN VALUES
-    0 on success.
-    1 on error.
-*/
-
-static my_bool lock_db_insert(const char *dbname, uint length)
-{
-  my_dblock_t *opt;
-  my_bool error= 0;
-  DBUG_ENTER("lock_db_insert");
-  
-  mysql_mutex_assert_owner(&LOCK_lock_db);
-
-  if (!(opt= (my_dblock_t*) my_hash_search(&lock_db_cache,
-                                           (uchar*) dbname, length)))
-  { 
-    /* Db is not in the hash, insert it */
-    char *tmp_name;
-    if (!my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
-                         &opt, (uint) sizeof(*opt), &tmp_name, (uint) length+1,
-                         NullS))
-    {
-      error= 1;
-      goto end;
-    }
-    
-    opt->name= tmp_name;
-    strmov(opt->name, dbname);
-    opt->name_length= length;
-    
-    if ((error= my_hash_insert(&lock_db_cache, (uchar*) opt)))
-      my_free(opt);
-  }
-
-end:
-  DBUG_RETURN(error);
-}
-
-
-/*
-  Delete a database lock entry from hash.
-*/
-
-void lock_db_delete(const char *name, uint length)
-{
-  my_dblock_t *opt;
-  mysql_mutex_assert_owner(&LOCK_lock_db);
-  if ((opt= (my_dblock_t *)my_hash_search(&lock_db_cache,
-                                          (const uchar*) name, length)))
-    my_hash_delete(&lock_db_cache, (uchar*) opt);
-}
 
 
 /* Database options hash */
@@ -234,21 +136,16 @@ static void init_database_names_psi_keys(void)
 }
 #endif
 
-/* 
-  Initialize database option hash and locked database hash.
+/**
+  Initialize database option cache.
 
-  SYNOPSIS
-    my_database_names()
+  @note Must be called before any other database function is called.
 
-  NOTES
-    Must be called before any other database function is called.
-
-  RETURN
-    0	ok
-    1	Fatal error
+  @retval  0	ok
+  @retval  1	Fatal error
 */
 
-bool my_database_names_init(void)
+bool my_dboptions_cache_init(void)
 {
 #ifdef HAVE_PSI_INTERFACE
   init_database_names_psi_keys();
@@ -262,36 +159,30 @@ bool my_database_names_init(void)
     error= my_hash_init(&dboptions, lower_case_table_names ?
                         &my_charset_bin : system_charset_info,
                         32, 0, 0, (my_hash_get_key) dboptions_get_key,
-                        free_dbopt,0) ||
-           my_hash_init(&lock_db_cache, lower_case_table_names ?
-                        &my_charset_bin : system_charset_info,
-                        32, 0, 0, (my_hash_get_key) lock_db_get_key,
-                        lock_db_free_element,0);
-
+                        free_dbopt,0);
   }
   return error;
 }
 
 
 
-/* 
+/**
   Free database option hash and locked databases hash.
 */
 
-void my_database_names_free(void)
+void my_dboptions_cache_free(void)
 {
   if (dboptions_init)
   {
     dboptions_init= 0;
     my_hash_free(&dboptions);
     mysql_rwlock_destroy(&LOCK_dboptions);
-    my_hash_free(&lock_db_cache);
   }
 }
 
 
-/*
-  Cleanup cached options
+/**
+  Cleanup cached options.
 */
 
 void my_dbopt_cleanup(void)
@@ -396,7 +287,7 @@ end:
   Deletes database options from the hash.
 */
 
-void del_dbopt(const char *path)
+static void del_dbopt(const char *path)
 {
   my_dbopt_t *opt;
   mysql_rwlock_wrlock(&LOCK_dboptions);
@@ -665,25 +556,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
 
-  /*
-    Do not create database if another thread is holding read lock.
-    Wait for global read lock before acquiring LOCK_mysql_create_db.
-    After wait_if_global_read_lock() we have protection against another
-    global read lock. If we would acquire LOCK_mysql_create_db first,
-    another thread could step in and get the global read lock before we
-    reach wait_if_global_read_lock(). If this thread tries the same as we
-    (admin a db), it would then go and wait on LOCK_mysql_create_db...
-    Furthermore wait_if_global_read_lock() checks if the current thread
-    has the global read lock and refuses the operation with
-    ER_CANT_UPDATE_WITH_READLOCK if applicable.
-  */
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    error= -1;
-    goto exit2;
-  }
-
-  mysql_mutex_lock(&LOCK_mysql_create_db);
+  if (lock_schema_name(thd, db))
+    DBUG_RETURN(-1);
 
   /* Check directory */
   path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
@@ -787,7 +661,10 @@ not_silent:
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
 
-      /* These DDL methods and logging protected with LOCK_mysql_create_db */
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema
+      */
       if (mysql_bin_log.write(&qinfo))
       {
         error= -1;
@@ -798,9 +675,6 @@ not_silent:
   }
 
 exit:
-  mysql_mutex_unlock(&LOCK_mysql_create_db);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
-exit2:
   DBUG_RETURN(error);
 }
 
@@ -814,22 +688,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   int error= 0;
   DBUG_ENTER("mysql_alter_db");
 
-  /*
-    Do not alter database if another thread is holding read lock.
-    Wait for global read lock before acquiring LOCK_mysql_create_db.
-    After wait_if_global_read_lock() we have protection against another
-    global read lock. If we would acquire LOCK_mysql_create_db first,
-    another thread could step in and get the global read lock before we
-    reach wait_if_global_read_lock(). If this thread tries the same as we
-    (admin a db), it would then go and wait on LOCK_mysql_create_db...
-    Furthermore wait_if_global_read_lock() checks if the current thread
-    has the global read lock and refuses the operation with
-    ER_CANT_UPDATE_WITH_READLOCK if applicable.
-  */
-  if ((error= thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE)))
-    goto exit2;
-
-  mysql_mutex_lock(&LOCK_mysql_create_db);
+  if (lock_schema_name(thd, db))
+    DBUG_RETURN(TRUE);
 
   /* 
      Recreate db options file: /dbpath/.db.opt
@@ -867,66 +727,51 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db     = db;
     qinfo.db_len = strlen(db);
 
-    /* These DDL methods and logging protected with LOCK_mysql_create_db */
+    /*
+      These DDL methods and logging are protected with the exclusive
+      metadata lock on the schema.
+    */
     if ((error= mysql_bin_log.write(&qinfo)))
       goto exit;
   }
   my_ok(thd, result);
 
 exit:
-  mysql_mutex_unlock(&LOCK_mysql_create_db);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
-exit2:
   DBUG_RETURN(error);
 }
 
 
-/*
-  Drop all tables in a database and the database itself
+/**
+  Drop all tables, routines and events in a database and the database itself.
 
-  SYNOPSIS
-    mysql_rm_db()
-    thd			Thread handle
-    db			Database name in the case given by user
-		        It's already validated and set to lower case
-                        (if needed) when we come here
-    if_exists		Don't give error if database doesn't exists
-    silent		Don't generate errors
+  @param  thd        Thread handle
+  @param  db         Database name in the case given by user
+                     It's already validated and set to lower case
+                     (if needed) when we come here
+  @param  if_exists  Don't give error if database doesn't exists
+  @param  silent     Don't write the statement to the binary log and don't
+                     send ok packet to the client
 
-  RETURN
-    FALSE ok (Database dropped)
-    ERROR Error
+  @retval  false  OK (Database dropped)
+  @retval  true   Error
 */
 
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
-  long deleted=0;
-  int error= 0;
+  ulong deleted_tables= 0;
+  bool error= true;
   char	path[FN_REFLEN+16];
   MY_DIR *dirp;
   uint length;
-  TABLE_LIST* dropped_tables= 0;
+  bool found_other_files= false;
+  TABLE_LIST *tables= NULL;
+  TABLE_LIST *table;
+  Drop_table_error_handler err_handler;
   DBUG_ENTER("mysql_rm_db");
 
-  /*
-    Do not drop database if another thread is holding read lock.
-    Wait for global read lock before acquiring LOCK_mysql_create_db.
-    After wait_if_global_read_lock() we have protection against another
-    global read lock. If we would acquire LOCK_mysql_create_db first,
-    another thread could step in and get the global read lock before we
-    reach wait_if_global_read_lock(). If this thread tries the same as we
-    (admin a db), it would then go and wait on LOCK_mysql_create_db...
-    Furthermore wait_if_global_read_lock() checks if the current thread
-    has the global read lock and refuses the operation with
-    ER_CANT_UPDATE_WITH_READLOCK if applicable.
-  */
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    error= -1;
-    goto exit2;
-  }
 
-  mysql_mutex_lock(&LOCK_mysql_create_db);
+  if (lock_schema_name(thd, db))
+    DBUG_RETURN(true);
 
   length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
@@ -938,20 +783,72 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     if (!if_exists)
     {
-      error= -1;
       my_error(ER_DB_DROP_EXISTS, MYF(0), db);
-      goto exit;
+      DBUG_RETURN(true);
     }
     else
+    {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
+      error= false;
+      goto update_binlog;
+    }
+  }
+
+  thd->push_internal_handler(&err_handler);
+
+  if (find_db_tables_and_rm_known_files(thd, dirp, db, path, &tables,
+                                        &found_other_files))
+  {
+    thd->pop_internal_handler();
+    goto exit;
+  }
+
+  /*
+    Disable drop of enabled log tables, must be done before name locking.
+    This check is only needed if we are dropping the "mysql" database.
+  */
+  if ((my_strcasecmp(system_charset_info, MYSQL_SCHEMA_NAME.str, db) == 0))
+  {
+    for (table= tables; table; table= table->next_local)
+    {
+      if (check_if_log_table(table->db_length, table->db,
+                             table->table_name_length, table->table_name, true))
+      {
+        my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
+        thd->pop_internal_handler();
+        goto exit;
+      }
+    }
+  }
+
+  /* Lock all tables and stored routines about to be dropped. */
+  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_TEMPORARY) ||
+      lock_db_routines(thd, db))
+  {
+    thd->pop_internal_handler();
+    goto exit;
+  }
+
+  /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
+  if (tables)
+    mysql_ha_rm_tables(thd, tables);
+
+  for (table= tables; table; table= table->next_local)
+  {
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
+                     false);
+    deleted_tables++;
+  }
+
+  if (thd->killed ||
+      (tables && mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
+  {
+    tables= NULL;
   }
   else
   {
-    Drop_table_error_handler err_handler;
-    thd->push_internal_handler(&err_handler);
-
-    error= -1;
     /*
       We temporarily disable the binary log while dropping the objects
       in the database. Since the DROP DATABASE statement is always
@@ -969,23 +866,30 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       ha_drop_database(), since NDB otherwise detects the binary log
       as disabled and will not log the drop database statement on any
       other connected server.
-     */
-    if ((deleted= mysql_rm_known_files(thd, dirp, db, path, 0,
-                                       &dropped_tables)) >= 0)
-    {
-      ha_drop_database(path);
-      tmp_disable_binlog(thd);
-      query_cache_invalidate1(db);
-      (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
+    */
+
+    ha_drop_database(path);
+    tmp_disable_binlog(thd);
+    query_cache_invalidate1(db);
+    (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
 #ifdef HAVE_EVENT_SCHEDULER
-      Events::drop_schema_events(thd, db);
+    Events::drop_schema_events(thd, db);
 #endif
-      error = 0;
-      reenable_binlog(thd);
-    }
-    thd->pop_internal_handler();
+    reenable_binlog(thd);
+
+    /*
+      If the directory is a symbolic link, remove the link first, then
+      remove the directory the symbolic link pointed at
+    */
+    if (found_other_files)
+      my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+    else
+      error= rm_dir_w_symlink(path, true);
   }
-  if (!silent && deleted>=0)
+  thd->pop_internal_handler();
+
+update_binlog:
+  if (!silent && !error)
   {
     const char *query;
     ulong query_length;
@@ -1014,17 +918,19 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
 
-      /* These DDL methods and logging protected with LOCK_mysql_create_db */
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema.
+      */
       if (mysql_bin_log.write(&qinfo))
       {
-        error= -1;
+        error= true;
         goto exit;
       }
     }
     thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
-    my_ok(thd, (ulong) deleted);
-    thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
+    my_ok(thd, deleted_tables);
   }
   else if (mysql_bin_log.is_open())
   {
@@ -1038,7 +944,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
 
-    for (tbl= dropped_tables; tbl; tbl= tbl->next_local)
+    for (tbl= tables; tbl; tbl= tbl->next_local)
     {
       uint tbl_name_len;
 
@@ -1046,10 +952,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       tbl_name_len= strlen(tbl->table_name) + 3;
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
-        /* These DDL methods and logging protected with LOCK_mysql_create_db */
+        /*
+          These DDL methods and logging are protected with the exclusive
+          metadata lock on the schema.
+        */
         if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
         {
-          error= -1;
+          error= true;
           goto exit;
         }
         query_pos= query_data_start;
@@ -1063,10 +972,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     if (query_pos != query_data_start)
     {
-      /* These DDL methods and logging protected with LOCK_mysql_create_db */
+      /*
+        These DDL methods and logging are protected with the exclusive
+        metadata lock on the schema.
+      */
       if (write_to_binlog(thd, query, query_pos -1 - query, db, db_len))
       {
-        error= -1;
+        error= true;
         goto exit;
       }
     }
@@ -1079,33 +991,25 @@ exit:
     SELECT DATABASE() in the future). For this we free() thd->db and set
     it to 0.
   */
-  if (thd->db && !strcmp(thd->db, db) && error == 0)
+  if (thd->db && !strcmp(thd->db, db) && !error)
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
-  mysql_mutex_unlock(&LOCK_mysql_create_db);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
-exit2:
+  my_dirend(dirp);
   DBUG_RETURN(error);
 }
 
-/*
-  Removes files with known extensions plus all found subdirectories that
-  are 2 hex digits (raid directories).
-  thd MUST be set when calling this function!
-*/
 
-static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
-				 const char *org_path, uint level,
-                                 TABLE_LIST **dropped_tables)
+static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
+                                              const char *db,
+                                              const char *path,
+                                              TABLE_LIST **tables,
+                                              bool *found_other_files)
 {
-  long deleted=0;
-  ulong found_other_files=0;
   char filePath[FN_REFLEN];
-  TABLE_LIST *tot_list=0, **tot_list_next;
-  List<String> raid_dirs;
-  DBUG_ENTER("mysql_rm_known_files");
-  DBUG_PRINT("enter",("path: %s", org_path));
+  TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
+  DBUG_ENTER("find_db_tables_and_rm_known_files");
+  DBUG_PRINT("enter",("path: %s", path));
 
-  tot_list_next= &tot_list;
+  tot_list_next_local= tot_list_next_global= &tot_list;
 
   for (uint idx=0 ;
        idx < (uint) dirp->number_off_files && !thd->killed ;
@@ -1120,36 +1024,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
        (file->name[1] == '.' &&  !file->name[2])))
       continue;
 
-    /* Check if file is a raid directory */
-    if ((my_isdigit(system_charset_info, file->name[0]) ||
-	 (file->name[0] >= 'a' && file->name[0] <= 'f')) &&
-	(my_isdigit(system_charset_info, file->name[1]) ||
-	 (file->name[1] >= 'a' && file->name[1] <= 'f')) &&
-	!file->name[2] && !level)
-    {
-      char newpath[FN_REFLEN], *copy_of_path;
-      MY_DIR *new_dirp;
-      String *dir;
-      uint length;
-
-      strxmov(newpath,org_path,"/",file->name,NullS);
-      length= unpack_filename(newpath,newpath);
-      if ((new_dirp = my_dir(newpath,MYF(MY_DONT_SORT))))
-      {
-	DBUG_PRINT("my",("New subdir found: %s", newpath));
-	if ((mysql_rm_known_files(thd, new_dirp, NullS, newpath,1,0)) < 0)
-	  goto err;
-	if (!(copy_of_path= (char*) thd->memdup(newpath, length+1)) ||
-	    !(dir= new (thd->mem_root) String(copy_of_path, length,
-					       &my_charset_bin)) ||
-	    raid_dirs.push_back(dir))
-	  goto err;
-	continue;
-      }
-      found_other_files++;
-      continue;
-    }
-    else if (file->name[0] == 'a' && file->name[1] == 'r' &&
+    if (file->name[0] == 'a' && file->name[1] == 'r' &&
              file->name[2] == 'c' && file->name[3] == '\0')
     {
       /* .frm archive:
@@ -1158,16 +1033,16 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       */
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
-      strxmov(newpath, org_path, "/", "arc", NullS);
+      strxmov(newpath, path, "/", "arc", NullS);
       (void) unpack_filename(newpath, newpath);
       if ((new_dirp = my_dir(newpath, MYF(MY_DONT_SORT))))
       {
 	DBUG_PRINT("my",("Archive subdir found: %s", newpath));
 	if ((mysql_rm_arc_files(thd, new_dirp, newpath)) < 0)
-	  goto err;
+	  DBUG_RETURN(true);
 	continue;
       }
-      found_other_files++;
+      *found_other_files= true;
       continue;
     }
     if (!(extension= strrchr(file->name, '.')))
@@ -1175,7 +1050,7 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     if (find_type(extension, &deletable_extentions,1+2) <= 0)
     {
       if (find_type(extension, ha_known_exts(),1+2) <= 0)
-	found_other_files++;
+	*found_other_files= true;
       continue;
     }
     /* just for safety we use files_charset_info */
@@ -1191,73 +1066,41 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
                                           strlen(file->name) + 1);
 
       if (!table_list)
-        goto err;
+        DBUG_RETURN(true);
       table_list->db= (char*) (table_list+1);
-      table_list->table_name= strmov(table_list->db, db) + 1;
-      (void) filename_to_tablename(file->name, table_list->table_name,
-                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH +
-                                 strlen(file->name) + 1);
+      table_list->db_length= strmov(table_list->db, db) - table_list->db;
+      table_list->table_name= table_list->db + table_list->db_length + 1;
+      table_list->table_name_length= filename_to_tablename(file->name,
+                                       table_list->table_name,
+                                       MYSQL50_TABLE_NAME_PREFIX_LENGTH +
+                                       strlen(file->name) + 1);
+      table_list->open_type= OT_BASE_ONLY;
 
       /* To be able to correctly look up the table in the table cache. */
       if (lower_case_table_names)
-        my_casedn_str(files_charset_info, table_list->table_name);
+        table_list->table_name_length= my_casedn_str(files_charset_info,
+                                                     table_list->table_name);
 
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
       table_list->mdl_request.init(MDL_key::TABLE, table_list->db,
-                                   table_list->table_name, MDL_EXCLUSIVE);
+                                   table_list->table_name, MDL_EXCLUSIVE,
+                                   MDL_TRANSACTION);
       /* Link into list */
-      (*tot_list_next)= table_list;
-      tot_list_next= &table_list->next_local;
-      deleted++;
+      (*tot_list_next_local)= table_list;
+      (*tot_list_next_global)= table_list;
+      tot_list_next_local= &table_list->next_local;
+      tot_list_next_global= &table_list->next_global;
     }
     else
     {
-      strxmov(filePath, org_path, "/", file->name, NullS);
+      strxmov(filePath, path, "/", file->name, NullS);
       if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME)))
-      {
-	goto err;
-      }
+	DBUG_RETURN(true);
     }
   }
-  if (thd->killed ||
-      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
-    goto err;
-
-  /* Remove RAID directories */
-  {
-    List_iterator<String> it(raid_dirs);
-    String *dir;
-    while ((dir= it++))
-      if (rmdir(dir->c_ptr()) < 0)
-	found_other_files++;
-  }
-  my_dirend(dirp);  
-  
-  if (dropped_tables)
-    *dropped_tables= tot_list;
-  
-  /*
-    If the directory is a symbolic link, remove the link first, then
-    remove the directory the symbolic link pointed at
-  */
-  if (found_other_files)
-  {
-    my_error(ER_DB_DROP_RMDIR, MYF(0), org_path, EEXIST);
-    DBUG_RETURN(-1);
-  }
-  else
-  {
-    /* Don't give errors if we can't delete 'RAID' directory */
-    if (rm_dir_w_symlink(org_path, level == 0))
-      DBUG_RETURN(-1);
-  }
-
-  DBUG_RETURN(deleted);
-
-err:
-  my_dirend(dirp);
-  DBUG_RETURN(-1);
+  *tables= tot_list;
+  DBUG_RETURN(false);
 }
 
 
@@ -1649,7 +1492,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     in this case to be sure.
   */
 
-  if (check_db_name(&new_db_file_name))
+  if (check_and_convert_db_name(&new_db_file_name, FALSE))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
     my_free(new_db_file_name.str);
@@ -1770,60 +1613,6 @@ bool mysql_opt_change_db(THD *thd,
 }
 
 
-static int
-lock_databases(THD *thd, const char *db1, uint length1,
-                         const char *db2, uint length2)
-{
-  mysql_mutex_lock(&LOCK_lock_db);
-  while (!thd->killed &&
-         (my_hash_search(&lock_db_cache,(uchar*) db1, length1) ||
-          my_hash_search(&lock_db_cache,(uchar*) db2, length2)))
-  {
-    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    mysql_mutex_lock(&LOCK_lock_db);
-  }
-
-  if (thd->killed)
-  {
-    mysql_mutex_unlock(&LOCK_lock_db);
-    return 1;
-  }
-
-  lock_db_insert(db1, length1);
-  lock_db_insert(db2, length2);
-  creating_database++;
-
-  /*
-    Wait if a concurent thread is creating a table at the same time.
-    The assumption here is that it will not take too long until
-    there is a point in time when a table is not created.
-  */
-
-  while (!thd->killed && creating_table)
-  {
-    wait_for_condition(thd, &LOCK_lock_db, &COND_refresh);
-    mysql_mutex_lock(&LOCK_lock_db);
-  }
-
-  if (thd->killed)
-  {
-    lock_db_delete(db1, length1);
-    lock_db_delete(db2, length2);
-    creating_database--;
-    mysql_mutex_unlock(&LOCK_lock_db);
-    mysql_cond_signal(&COND_refresh);
-    return(1);
-  }
-
-  /*
-    We can unlock now as the hash will protect against anyone creating a table
-    in the databases we are using
-  */
-  mysql_mutex_unlock(&LOCK_lock_db);
-  return 0;
-}
-
-
 /**
   Upgrade a 5.0 database.
   This function is invoked whenever an ALTER DATABASE UPGRADE query is executed:
@@ -1865,9 +1654,9 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
   new_db.str= old_db->str + MYSQL50_TABLE_NAME_PREFIX_LENGTH;
   new_db.length= old_db->length - MYSQL50_TABLE_NAME_PREFIX_LENGTH;
 
-  if (lock_databases(thd, old_db->str, old_db->length,
-                          new_db.str, new_db.length))
-    DBUG_RETURN(1);
+  /* Lock the old name, the new name will be locked by mysql_create_db().*/
+  if (lock_schema_name(thd, old_db->str))
+    DBUG_RETURN(-1);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.
@@ -2034,15 +1823,6 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
     error|= mysql_change_db(thd, & new_db, FALSE);
 
 exit:
-  mysql_mutex_lock(&LOCK_lock_db);
-  /* Remove the databases from db lock cache */
-  lock_db_delete(old_db->str, old_db->length);
-  lock_db_delete(new_db.str, new_db.length);
-  creating_database--;
-  /* Signal waiting CREATE TABLE's to continue */
-  mysql_cond_signal(&COND_refresh);
-  mysql_mutex_unlock(&LOCK_lock_db);
-
   DBUG_RETURN(error);
 }
 

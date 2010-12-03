@@ -111,7 +111,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl)
   server_id_type save_id= m_thd->server_id;
   m_thd->set_server_id(sid);
   error= m_thd->binlog_write_table_map(tbl.get_table(),
-                                       tbl.is_transactional());
+                                       tbl.is_transactional(), FALSE);
   m_thd->set_server_id(save_id);
   DBUG_RETURN(error);
 }
@@ -129,8 +129,10 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
+   table::save_sets saveset(tbl, cols, cols);
+
    error= m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(), 
-                                  cols, colcnt, record);
+                                  record);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
@@ -148,8 +150,9 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
+   table::save_sets saveset(tbl, cols, cols);
    error= m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(), 
-                                   cols, colcnt, record);
+                                   record);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }
@@ -167,8 +170,11 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
 
    server_id_type save_id= m_thd->server_id;
    m_thd->set_server_id(sid);
-   error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
-                                   cols, colcnt, before, after);
+   // The read- and write sets with autorestore (in the destructor)
+   table::save_sets saveset(tbl, cols, cols);
+
+   error= m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(), 
+                                   before, after);
    m_thd->set_server_id(save_id);
    DBUG_RETURN(error);
 }

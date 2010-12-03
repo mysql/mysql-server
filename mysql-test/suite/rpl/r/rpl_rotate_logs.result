@@ -1,5 +1,7 @@
 drop table if exists t1, t2, t3, t4;
 drop table if exists t1, t2, t3, t4;
+CALL mtr.add_suppression("Failed to open the existing info file");
+CALL mtr.add_suppression("Error while reading from master info file");
 start slave;
 Got one of the listed errors
 start slave;
@@ -72,7 +74,7 @@ insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
 select count(*) from t3 where n >= 4;
 count(*)
-100
+90
 create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
@@ -94,7 +96,7 @@ Checking that both slave threads are running.
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)
-100
+90
 unlock tables;
 drop table if exists t1,t2,t3,t4;
 End of 4.1 tests

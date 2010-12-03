@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* By Jani Tolonen, 2001-04-20, MySQL Development Team */
-
 #define CHECK_VERSION "2.5.0"
 
 #include "client_priv.h"
@@ -22,6 +20,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -47,8 +46,9 @@ DYNAMIC_ARRAY tables4repair;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static char *opt_bind_addr = NULL;
 
-enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 static struct my_option my_long_options[] =
 {
@@ -66,6 +66,9 @@ static struct my_option my_long_options[] =
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -215,9 +218,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
-  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
@@ -244,6 +245,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
+  int orig_what_to_do= what_to_do;
+
   switch(optid) {
   case 'a':
     what_to_do = DO_ANALYZE;
@@ -317,6 +320,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
+  }
+
+  if (orig_what_to_do && (what_to_do != orig_what_to_do))
+  {
+    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+            my_progname);
+    return 1;
   }
   return 0;
 }
@@ -744,7 +754,7 @@ static void print_result()
       */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
 	  strcmp(row[3],"OK"))
-	insert_dynamic(&tables4repair, (uchar*) prev);
+	insert_dynamic(&tables4repair, prev);
       found_error=0;
       if (opt_silent)
 	continue;
@@ -764,7 +774,7 @@ static void print_result()
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
-    insert_dynamic(&tables4repair, (uchar*) prev);
+    insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }
 
@@ -786,6 +796,8 @@ static int dbConnect(char *host, char *user, char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

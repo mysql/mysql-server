@@ -1,25 +1,19 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-#
+# 
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+# 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Install sql-bench files
-FILE(GLOB all_files 
-${CMAKE_SOURCE_DIR}/sql-bench/* 
-${CMAKE_SOURCE_DIR}/sql-bench/Data/ATIS/*
-${CMAKE_SOURCE_DIR}/sql-bench/Data/Wisconsin/*
-${CMAKE_SOURCE_DIR}/sql-bench/limits/*
-)
 
 IF(NOT INSTALL_SQLBENCHDIR)
  RETURN()
@@ -31,30 +25,39 @@ ELSE()
  SET(prefix ${INSTALL_SQLBENCHDIR}/)
 ENDIF()
 
-GET_FILENAME_COMPONENT(basedir ${CMAKE_SOURCE_DIR} ABSOLUTE)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Data/ATIS
+  DESTINATION  ${prefix}sql-bench/Data COMPONENT SqlBench)
+
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Data/Wisconsin
+  DESTINATION  ${prefix}sql-bench/Data COMPONENT SqlBench)
+
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/limits
+  DESTINATION  ${prefix}sql-bench COMPONENT SqlBench)
+
+FILE(GLOB all_files ${CMAKE_CURRENT_SOURCE_DIR}/*)
+
 FOREACH(file ${all_files})
   IF(NOT IS_DIRECTORY ${file} AND NOT ${file} MATCHES "Make|as3ap|/example$" )
-  FILE(RELATIVE_PATH relpath ${basedir} ${file})
-  SET(target_relpath ${relpath})
   GET_FILENAME_COMPONENT(ext ${file} EXT)
-  GET_FILENAME_COMPONENT(dir ${relpath} PATH)
+  GET_FILENAME_COMPONENT(name ${file} NAME)
+  SET(target ${name})
   IF(ext MATCHES ".sh$")
     # Those are perl files actually
-    STRING(REPLACE ".sh" "" target_relpath ${target_relpath} )
+    STRING(REPLACE ".sh" "" target ${target} )
     IF(WIN32)
       IF(NOT ext MATCHES ".pl")
-        SET(target_relpath "${target_relpath}.pl")
+        SET(target "${target}.pl")
       ENDIF()
     ENDIF()
   ENDIF()
-  SET(target "${CMAKE_BINARY_DIR}/${target_relpath}")
+  SET(target "${CMAKE_CURRENT_BINARY_DIR}/${target}")
   CONFIGURE_FILE(${file} ${target} COPYONLY)
   IF (ext MATCHES ".bat")
     IF(WIN32) 
-      INSTALL(FILES ${target} DESTINATION ${prefix}${dir})
+      INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
     ENDIF()
   ELSE()
-    INSTALL(FILES ${target} DESTINATION ${prefix}${dir})
+    INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
   ENDIF()
   ENDIF()
 ENDFOREACH()

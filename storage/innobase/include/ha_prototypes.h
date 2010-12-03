@@ -247,6 +247,15 @@ innobase_get_at_most_n_mbchars(
 	ulint data_len,		/*!< in: length of the string in bytes */
 	const char* str);	/*!< in: character string */
 
+/*************************************************************//**
+InnoDB index push-down condition check
+@return ICP_NO_MATCH, ICP_MATCH, or ICP_OUT_OF_RANGE */
+UNIV_INTERN
+enum icp_result
+innobase_index_cond(
+/*================*/
+	void*	file)	/*!< in/out: pointer to ha_innobase */
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Returns true if the thread supports XA,
 global value of innodb_supports_xa if thd is NULL.
@@ -267,5 +276,22 @@ thd_lock_wait_timeout(
 /*==================*/
 	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
 			the global innodb_lock_wait_timeout */
+/******************************************************************//**
+Add up the time waited for the lock for the current query. */
+UNIV_INTERN
+void
+thd_set_lock_wait_time(
+/*===================*/
+	void*	thd,	/*!< in: thread handle (THD*) */
+	ulint	value);	/*!< in: time waited for the lock */
 
+/**********************************************************************//**
+Get the current seting of the table_cache_size global parameter. We do
+a dirty read because for one there is no synchronization object and
+secondly there is little harm in doing so even if we get a torn read.
+@return	SQL statement string */
+UNIV_INTERN
+ulint
+innobase_get_table_cache_size(void);
+/*===============================*/
 #endif

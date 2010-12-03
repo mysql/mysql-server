@@ -31,7 +31,7 @@
 # $master_connection
 #   See wait_for_slave_param.inc for description.
 
-if (`SELECT '$slave_sql_errno' = ''`) {
+if (!$slave_sql_errno) {
   --die !!!ERROR IN TEST: you must set \$slave_sql_errno before sourcing wait_for_slave_sql_error.inc
 }
 
@@ -50,6 +50,9 @@ if (`SELECT $_error NOT IN ($slave_sql_errno)`) {
 
 if ($show_slave_sql_error)
 {
-  let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-  echo Last_SQL_Error = $error;
+  --let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
+  --let $error= `SELECT SUBSTR("$error", 17)`
+  --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+  --replace_regex /[0-9]{6} [0-9]{2}:[0-9]{2}:[0-9]{2} //
+  --echo Last_SQL_Error = $error
 }

@@ -141,6 +141,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   let $tb_id= 1;
   let $stmt_id= 1;
   let $commands= '';
+  let $sn= 0;
 
   SET @commands= '';
 }
@@ -183,8 +184,11 @@ while (`SELECT HEX(@commands) != HEX('')`)
   {
     let $commands= `SELECT @commands`;
   }
-  --echo -b-b-b-b-b-b-b-b-b-b-b- >> $command << -b-b-b-b-b-b-b-b-b-b-b-
-  let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+  if (`SELECT HEX(@verbose) != HEX('N')`)
+  {
+    --echo -b-b-b-b-b-b-b-b-b-b-b- >> $command << -b-b-b-b-b-b-b-b-b-b-b-
+    let $pos_command= query_get_value("SHOW MASTER STATUS", Position, 1);
+  }
   --enable_query_log
   if (`SELECT HEX(@command) = HEX('B')`)
   {
@@ -524,21 +528,37 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --error 0, ER_GET_ERRMSG
     eval ROLLBACK;
   }
-  if (`SELECT HEX(@command) = HEX('S1')`)
+  if (`SELECT HEX(@command) = HEX('Sn')`)
   {
-    eval SAVEPOINT s1; 
+    eval SAVEPOINT S_$sn;
+    --inc $sn 
   }
-  if (`SELECT HEX(@command) = HEX('R1')`)
+  if (`SELECT HEX(@command) = HEX('Rn')`)
   {
-    eval ROLLBACK TO s1; 
+    if ($sn)
+    {
+      --dec $sn
+    }
+     eval ROLLBACK TO S_$sn;
+  }
+  if (`SELECT HEX(@command) = HEX('Cn')`)
+  {
+    if ($sn)
+    {
+      --dec $sn
+    }
+    eval RELEASE SAVEPOINT S_$sn;
   }
   --disable_query_log
   SET @commands= LTRIM(SUBSTRING(@commands, LENGTH(@command) + 1));
   inc $stmt_id;
 
   let $binlog_start= $pos_command;
-  --source include/show_binlog_events.inc
-  --echo -e-e-e-e-e-e-e-e-e-e-e- >> $command << -e-e-e-e-e-e-e-e-e-e-e-
+  if (`SELECT HEX(@verbose) != HEX('N')`)
+  {
+    --source include/show_binlog_events.inc
+    --echo -e-e-e-e-e-e-e-e-e-e-e- >> $command << -e-e-e-e-e-e-e-e-e-e-e-
+  }
   if (`SELECT HEX(@commands) = HEX('')`)
   {
     let $binlog_start= $pos_trans_command;

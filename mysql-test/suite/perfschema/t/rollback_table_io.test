@@ -1,0 +1,62 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA table io
+#       Show the impact of a rollback in case of the transactional engine InnoDB
+
+# Setup
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/have_innodb.inc
+
+--disable_warnings
+drop table  if exists test.t1;
+--enable_warnings
+
+let $engine_type= InnoDB;
+eval create table test.t1 (col1 bigint, col2 varchar(30)) engine = $engine_type;
+show create table test.t1;
+insert into test.t1 values(1,'One');
+
+--source ../include/table_io_setup_helper.inc
+let $schema_to_dump= 'test';
+
+# Start recording of events
+update performance_schema.setup_consumers set enabled = 'YES';
+
+set autocommit = off;
+
+# Code to test
+
+delete from test.t1 where col1 = 1;
+insert into marker set a = 1;
+rollback;
+insert into marker set a = 1;
+update test.t1 set col2 = 'Updated' where col1 = 1;
+insert into marker set a = 1;
+rollback;
+insert into marker set a = 1;
+insert into test.t1 values(2,'Two');
+insert into marker set a = 1;
+rollback;
+
+# Stop recording of events + pull results
+--source ../include/table_io_result_helper.inc
+
+# Cleanup
+drop table test.t1;
+--source ../include/table_io_cleanup_helper.inc
+

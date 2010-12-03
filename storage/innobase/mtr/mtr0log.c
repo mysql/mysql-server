@@ -133,7 +133,7 @@ mlog_parse_initial_log_record(
 }
 
 /********************************************************//**
-Parses a log record written by mlog_write_ulint or mlog_write_dulint.
+Parses a log record written by mlog_write_ulint or mlog_write_ull.
 @return	parsed record end, NULL if not a complete record or a corrupt record */
 UNIV_INTERN
 byte*
@@ -145,9 +145,9 @@ mlog_parse_nbytes(
 	byte*	page,	/*!< in: page where to apply the log record, or NULL */
 	void*	page_zip)/*!< in/out: compressed page, or NULL */
 {
-	ulint	offset;
-	ulint	val;
-	dulint	dval;
+	ulint		offset;
+	ulint		val;
+	ib_uint64_t	dval;
 
 	ut_a(type <= MLOG_8BYTES);
 	ut_a(!page || !page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
@@ -167,7 +167,7 @@ mlog_parse_nbytes(
 	}
 
 	if (type == MLOG_8BYTES) {
-		ptr = mach_dulint_parse_compressed(ptr, end_ptr, &dval);
+		ptr = mach_ull_parse_compressed(ptr, end_ptr, &dval);
 
 		if (ptr == NULL) {
 
@@ -290,11 +290,11 @@ Writes 8 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
 UNIV_INTERN
 void
-mlog_write_dulint(
-/*==============*/
-	byte*	ptr,	/*!< in: pointer where to write */
-	dulint	val,	/*!< in: value to write */
-	mtr_t*	mtr)	/*!< in: mini-transaction handle */
+mlog_write_ull(
+/*===========*/
+	byte*		ptr,	/*!< in: pointer where to write */
+	ib_uint64_t	val,	/*!< in: value to write */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
@@ -316,7 +316,7 @@ mlog_write_dulint(
 	mach_write_to_2(log_ptr, page_offset(ptr));
 	log_ptr += 2;
 
-	log_ptr += mach_dulint_write_compressed(log_ptr, val);
+	log_ptr += mach_ull_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
 }
