@@ -96,6 +96,7 @@ static bool _preserve_trailing_spaces = false;
 static bool ga_disable_indexes = false;
 static bool ga_rebuild_indexes = false;
 bool ga_skip_unknown_objects = false;
+bool ga_skip_broken_objects = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
@@ -272,6 +273,9 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "skip-unknown-objects", 256, "Skip unknown object when parsing backup",
     (uchar**) &ga_skip_unknown_objects, (uchar**) &ga_skip_unknown_objects, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "skip-broken-objects", 256, "Skip broken object when parsing backup",
+    (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -956,6 +960,9 @@ checkDoRestore(const TableS* table)
 static inline bool
 checkDbAndTableName(const TableS* table)
 {
+  if (table->isBroken())
+    return false;
+
   // If new options are given, ignore the old format
   if (opt_include_tables || opt_exclude_tables ||
       opt_include_databases || opt_exclude_databases ) {
@@ -1107,6 +1114,10 @@ main(int argc, char** argv)
   if (ga_rebuild_indexes)
     g_options.append(" --rebuild-indexes");
   g_options.appfmt(" -p %d", ga_nParallelism);
+  if (ga_skip_unknown_objects)
+    g_options.append(" --skip-unknown-objects");
+  if (ga_skip_broken_objects)
+    g_options.append(" --skip-broken-objects");
 
   init_progress();
 
