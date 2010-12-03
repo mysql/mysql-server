@@ -552,7 +552,7 @@ protected:
       m_sendREQ = &LocalProxy::sendDROP_TRIG_IMPL_REQ;
       m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
     }
-    enum { poolSize = 3 };
+    enum { poolSize = 21 };
     static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
       return proxy->c_ss_DROP_TRIG_IMPL_REQ;
     }
