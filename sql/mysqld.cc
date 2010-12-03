@@ -410,7 +410,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
-my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
+my_bool read_only= 0, opt_readonly= 0;
+my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -7341,6 +7342,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.engine_condition_pushdown=
     test(global_system_variables.optimizer_switch &
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+
+  opt_readonly= read_only;
 
   return 0;
 }
