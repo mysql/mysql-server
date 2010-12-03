@@ -384,7 +384,7 @@ UNIV_INTERN lock_sys_t*	lock_sys	= NULL;
 /* We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
 UNIV_INTERN ibool	lock_deadlock_found = FALSE;
-UNIV_INTERN FILE*	lock_latest_err_file;
+static FILE*		lock_latest_err_file;
 
 /* Flags for recursive deadlock search */
 enum lock_victim_enum {
