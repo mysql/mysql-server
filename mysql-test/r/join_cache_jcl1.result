@@ -2250,3 +2250,4 @@ col_int_key	col_datetime
 2	2003-02-11 21:19:41
 drop table t1,t2;
 set optimizer_join_cache_level = default;
+set optimizer_switch = default;

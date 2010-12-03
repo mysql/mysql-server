@@ -500,7 +500,7 @@ explain (select * from t1 where a=1 and b=10) union (select straight_join t1.a,t
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	UNION	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (BNL, regular buffers)
+2	UNION	t2	index	PRIMARY	PRIMARY	4	NULL	4	Using where; Using index; Using join buffer (BNL, incremental buffers)
 NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -878,11 +878,11 @@ create table t1 (   RID int(11) not null default '0',   IID int(11) not null def
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
 select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
 NAME	PHONE	NAME	PHONE
+NULL	NULL	f	666
+NULL	NULL	g	777
 a	111	NULL	NULL
 b	222	NULL	NULL
 d	444	d	454
-NULL	NULL	f	666
-NULL	NULL	g	777
 drop  table t1;
 create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
 insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);

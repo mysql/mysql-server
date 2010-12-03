@@ -1011,6 +1011,19 @@ protected:
 };
 
 
+class Create_func_from_base64 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_from_base64 s_singleton;
+
+protected:
+  Create_func_from_base64() {}
+  virtual ~Create_func_from_base64() {}
+};
+
+
 class Create_func_from_days : public Create_func_arg1
 {
 public:
@@ -2227,6 +2240,19 @@ public:
 protected:
   Create_func_timediff() {}
   virtual ~Create_func_timediff() {}
+};
+
+
+class Create_func_to_base64 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_to_base64 s_singleton;
+
+protected:
+  Create_func_to_base64() {}
+  virtual ~Create_func_to_base64() {}
 };
 
 
@@ -3648,6 +3674,15 @@ Create_func_found_rows::create(THD *thd)
 }
 
 
+Create_func_from_base64 Create_func_from_base64::s_singleton;
+
+Item*
+Create_func_from_base64::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_from_base64(arg1);
+}
+
+
 Create_func_from_days Create_func_from_days::s_singleton;
 
 Item*
@@ -4867,6 +4902,15 @@ Create_func_timediff::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
+Create_func_to_base64 Create_func_to_base64::s_singleton;
+
+Item*
+Create_func_to_base64::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_to_base64(arg1);
+}
+
+
 Create_func_to_days Create_func_to_days::s_singleton;
 
 Item*
@@ -5214,6 +5258,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
   { { C_STRING_WITH_LEN("FORMAT") }, BUILDER(Create_func_format)},
   { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
+  { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
   { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, BUILDER(Create_func_from_unixtime)},
   { { C_STRING_WITH_LEN("GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5398,6 +5443,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TIME_FORMAT") }, BUILDER(Create_func_time_format)},
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
   { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
   { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},

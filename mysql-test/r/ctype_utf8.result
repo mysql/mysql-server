@@ -1591,7 +1591,7 @@ explain
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 substr(Z.a,-1)	a
 3	123
@@ -4969,6 +4969,29 @@ DROP TABLE t1;
 #
 # End of Bug#54916
 #
+#
+# WL#5510 Functions to_base64 and from_base64
+#
+CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `to_base64` varchar(16) CHARACTER SET utf8 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT to_base64, LENGTH(to_base64), HEX(to_base64) FROM t1;
+to_base64	LENGTH(to_base64)	HEX(to_base64)
+dGVzdA==	8	6447567A64413D3D
+CREATE TABLE t2 AS SELECT FROM_BASE64(to_base64) AS from_base64 FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `from_base64` varbinary(36) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT CAST(from_base64 AS CHAR), LENGTH(from_base64), HEX(from_base64) FROM t2;
+CAST(from_base64 AS CHAR)	LENGTH(from_base64)	HEX(from_base64)
+test	4	74657374
+DROP TABLE t2;
+DROP TABLE t1;
 #
 # Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
 #

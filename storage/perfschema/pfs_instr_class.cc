@@ -26,6 +26,7 @@
 #include "pfs_instr.h"
 #include "pfs_global.h"
 #include "pfs_events_waits.h"
+#include "pfs_setup_object.h"
 #include "pfs_atomic.h"
 #include "mysql/psi/mysql_thread.h"
 #include "lf.h"
@@ -106,15 +107,7 @@ static PFS_thread_class *thread_class_array= NULL;
 */
 PFS_table_share *table_share_array= NULL;
 
-PFS_instr_class global_table_class=
-{
-  "wait/io/table/sql/handler", /* name */
-  25, /* name length */
-  0, /* flags */
-  true, /* enabled */
-  true, /* timed */
-  { &flag_events_waits_current, NULL, 0, 0, 0, 0} /* wait stat chain */
-};
+PFS_instr_class global_table_io_class;
 
 /**
   Hash index for instrumented table shares.
@@ -138,6 +131,31 @@ static volatile uint32 file_class_dirty_count= 0;
 static volatile uint32 file_class_allocated_count= 0;
 
 static PFS_file_class *file_class_array= NULL;
+
+uint mutex_class_start= 0;
+uint rwlock_class_start= 0;
+uint cond_class_start= 0;
+uint file_class_start= 0;
+uint table_class_start= 0;
+uint max_instrument_class= 0;
+
+void init_event_name_sizing(const PFS_global_param *param)
+{
+  mutex_class_start= 0;
+  rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
+  cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
+  file_class_start= cond_class_start + param->m_cond_class_sizing;
+  table_class_start= file_class_start + param->m_file_class_sizing;
+  max_instrument_class= table_class_start + 1; /* global table io */
+
+  memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
+  global_table_io_class.m_name_length= 25;
+  global_table_io_class.m_flags= 0;
+  global_table_io_class.m_enabled= true;
+  global_table_io_class.m_timed= true;
+  global_table_io_class.m_event_name_index= table_class_start;
+}
+
 
 /**
   Initialize the instrument synch class buffers.
@@ -325,7 +343,7 @@ LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 
 /**
   Set a table share hash key.
-  @param [out] key The key to polulate.
+  @param [out] key The key to populate.
   @param temporary True for TEMPORARY TABLE.
   @param schema_name The table schema name.
   @param schema_name_length The table schema name length.
@@ -339,19 +357,29 @@ static void set_table_share_key(PFS_table_share_key *key,
 {
   DBUG_ASSERT(schema_name_length <= NAME_LEN);
   DBUG_ASSERT(table_name_length <= NAME_LEN);
+  char *saved_schema_name;
+  char *saved_table_name;
 
   char *ptr= &key->m_hash_key[0];
   ptr[0]= (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE);
   ptr++;
+  saved_schema_name= ptr;
   memcpy(ptr, schema_name, schema_name_length);
   ptr+= schema_name_length;
   ptr[0]= 0;
   ptr++;
+  saved_table_name= ptr;
   memcpy(ptr, table_name, table_name_length);
   ptr+= table_name_length;
   ptr[0]= 0;
   ptr++;
   key->m_key_length= ptr - &key->m_hash_key[0];
+
+  if (lower_case_table_names)
+  {
+    my_casedn_str(files_charset_info, saved_schema_name);
+    my_casedn_str(files_charset_info, saved_table_name);
+  }
 }
 
 /**
@@ -464,15 +492,10 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     */
     entry= &mutex_class_array[index];
     init_instr_class(entry, name, name_length, flags);
-    entry->m_wait_stat.m_control_flag=
-      &flag_events_waits_summary_by_event_name;
-    entry->m_wait_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_wait_stat);
-    entry->m_lock_stat.m_control_flag=
-      &flag_events_locks_summary_by_event_name;
-    entry->m_lock_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_lock_stat);
+    entry->m_lock_stat.reset();
     entry->m_index= index;
+    entry->m_event_name_index= mutex_class_start + index;
+    entry->m_singleton= NULL;
     /*
       Now that this entry is populated, advertise it
 
@@ -530,19 +553,11 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   {
     entry= &rwlock_class_array[index];
     init_instr_class(entry, name, name_length, flags);
-    entry->m_wait_stat.m_control_flag=
-      &flag_events_waits_summary_by_event_name;
-    entry->m_wait_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_wait_stat);
-    entry->m_read_lock_stat.m_control_flag=
-      &flag_events_locks_summary_by_event_name;
-    entry->m_read_lock_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_read_lock_stat);
-    entry->m_write_lock_stat.m_control_flag=
-      &flag_events_locks_summary_by_event_name;
-    entry->m_write_lock_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_write_lock_stat);
+    entry->m_read_lock_stat.reset();
+    entry->m_write_lock_stat.reset();
     entry->m_index= index;
+    entry->m_event_name_index= rwlock_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&rwlock_class_allocated_count, 1);
     return (index + 1);
   }
@@ -574,11 +589,9 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   {
     entry= &cond_class_array[index];
     init_instr_class(entry, name, name_length, flags);
-    entry->m_wait_stat.m_control_flag=
-      &flag_events_waits_summary_by_event_name;
-    entry->m_wait_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_wait_stat);
     entry->m_index= index;
+    entry->m_event_name_index= cond_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&cond_class_allocated_count, 1);
     return (index + 1);
   }
@@ -715,11 +728,9 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   {
     entry= &file_class_array[index];
     init_instr_class(entry, name, name_length, flags);
-    entry->m_wait_stat.m_control_flag=
-      &flag_events_waits_summary_by_event_name;
-    entry->m_wait_stat.m_parent= NULL;
-    reset_single_stat_link(&entry->m_wait_stat);
     entry->m_index= index;
+    entry->m_event_name_index= file_class_start + index;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&file_class_allocated_count, 1);
     return (index + 1);
   }
@@ -743,6 +754,63 @@ PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
   SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
 }
 
+PFS_instr_class *find_table_class(uint index)
+{
+  if (index == 1)
+    return & global_table_io_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_table_io_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
+static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
+{
+  int len;
+  KEY *key_info= share->key_info;
+  PFS_table_key *pfs_key= pfs->m_keys;
+  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
+  pfs->m_key_count= share->keys;
+
+  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
+  {
+    len= strlen(key_info->name);
+    memcpy(pfs_key->m_name, key_info->name, len);
+    pfs_key->m_name_length= len;
+  }
+
+  pfs_key_last= pfs->m_keys + MAX_KEY;
+  for ( ; pfs_key < pfs_key_last; pfs_key++)
+    pfs_key->m_name_length= 0;
+}
+
+static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
+{
+  uint len;
+  KEY *key_info= share->key_info;
+  PFS_table_key *pfs_key= pfs->m_keys;
+  PFS_table_key *pfs_key_last= pfs->m_keys + share->keys;
+
+  if (pfs->m_key_count != share->keys)
+    return 1;
+
+  for ( ; pfs_key < pfs_key_last; pfs_key++, key_info++)
+  {
+    len= strlen(key_info->name);
+    if (len != pfs_key->m_name_length)
+      return 1;
+
+    if (memcmp(pfs_key->m_name, key_info->name, len) != 0)
+      return 1;
+  }
+
+  return 0;
+}
+
 /**
   Find or create a table share instrumentation.
   @param thread                       the executing instrumented thread
@@ -755,7 +823,6 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
                                             const TABLE_SHARE *share)
 {
   /* See comments in register_mutex_class */
-  int pass;
   PFS_table_share_key key;
 
   LF_PINS *pins= get_table_share_hash_pins(thread);
@@ -776,6 +843,7 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
 
   PFS_table_share **entry;
   uint retry_count= 0;
+  uint version= 0;
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
@@ -789,15 +857,24 @@ search:
     PFS_table_share *pfs;
     pfs= *entry;
     pfs->inc_refcount() ;
+    if (compare_keys(pfs, share) != 0)
+    {
+      set_keys(pfs, share);
+      /* FIXME: aggregate to table_share sink ? */
+      pfs->m_table_stat.reset();
+    }
     lf_hash_search_unpin(pins);
     return pfs;
   }
 
   if (retry_count == 0)
   {
-    /* No per object lokup yet */
-    enabled= global_table_class.m_enabled;
-    timed= global_table_class.m_timed;
+    version= setup_objects_version;
+    lookup_setup_object(thread,
+                        OBJECT_TYPE_TABLE,
+                        schema_name, schema_name_length,
+                        table_name, table_name_length,
+                        &enabled, &timed);
 
     /*
       Even when enabled is false, a record is added in the dictionary:
@@ -807,35 +884,32 @@ search:
     */
   }
 
-  /* table_name is not constant, just using it for noise on create */
-  uint i= randomized_index(table_name, table_share_max);
+  PFS_scan scan;
+  uint random= randomized_index(table_name, table_share_max);
 
-  /*
-    Pass 1: [random, table_share_max - 1]
-    Pass 2: [0, table_share_max - 1]
-  */
-  for (pass= 1; pass <= 2; i=0, pass++)
+  for (scan.init(random, table_share_max);
+       scan.has_pass();
+       scan.next_pass())
   {
-    PFS_table_share *pfs= table_share_array + i;
-    PFS_table_share *pfs_last= table_share_array + table_share_max;
+    PFS_table_share *pfs= table_share_array + scan.first();
+    PFS_table_share *pfs_last= table_share_array + scan.last();
     for ( ; pfs < pfs_last; pfs++)
     {
       if (pfs->m_lock.is_free())
       {
         if (pfs->m_lock.free_to_dirty())
         {
+          pfs->m_setup_objects_version= version;
           pfs->m_key= key;
           pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
           pfs->m_schema_name_length= schema_name_length;
           pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
           pfs->m_table_name_length= table_name_length;
-          pfs->m_wait_stat.m_control_flag=
-            &flag_events_waits_summary_by_instance;
-          pfs->m_wait_stat.m_parent= NULL;
-          reset_single_stat_link(&pfs->m_wait_stat);
           pfs->m_enabled= enabled;
           pfs->m_timed= timed;
           pfs->init_refcount();
+          pfs->m_table_stat.reset();
+          set_keys(pfs, share);
 
           int res;
           res= lf_hash_insert(&table_share_hash, pins, &pfs);
@@ -869,6 +943,12 @@ search:
 
   table_share_lost++;
   return NULL;
+}
+
+void release_table_share(PFS_table_share *pfs)
+{
+  DBUG_ASSERT(pfs->get_refcount() > 0);
+  pfs->dec_refcount();
 }
 
 /**
@@ -985,51 +1065,6 @@ const char *sanitize_table_object_name(const char *unsafe)
   return NULL;
 }
 
-static void reset_mutex_class_waits(void)
-{
-  PFS_mutex_class *pfs= mutex_class_array;
-  PFS_mutex_class *pfs_last= mutex_class_array + mutex_class_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-    reset_single_stat_link(&pfs->m_wait_stat);
-}
-
-static void reset_rwlock_class_waits(void)
-{
-  PFS_rwlock_class *pfs= rwlock_class_array;
-  PFS_rwlock_class *pfs_last= rwlock_class_array + rwlock_class_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-    reset_single_stat_link(&pfs->m_wait_stat);
-}
-
-static void reset_cond_class_waits(void)
-{
-  PFS_cond_class *pfs= cond_class_array;
-  PFS_cond_class *pfs_last= cond_class_array + cond_class_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-    reset_single_stat_link(&pfs->m_wait_stat);
-}
-
-static void reset_file_class_waits(void)
-{
-  PFS_file_class *pfs= file_class_array;
-  PFS_file_class *pfs_last= file_class_array + file_class_max;
-
-  for ( ; pfs < pfs_last; pfs++)
-    reset_single_stat_link(&pfs->m_wait_stat);
-}
-
-/** Reset the wait statistics for every instrument class. */
-void reset_instrument_class_waits(void)
-{
-  reset_mutex_class_waits();
-  reset_rwlock_class_waits();
-  reset_cond_class_waits();
-  reset_file_class_waits();
-}
-
 /** Reset the io statistics per file class. */
 void reset_file_class_io(void)
 {
@@ -1037,7 +1072,7 @@ void reset_file_class_io(void)
   PFS_file_class *pfs_last= file_class_array + file_class_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    reset_file_stat(&pfs->m_file_stat);
+    pfs->m_file_stat.m_io_stat.reset();
 }
 
 /** @} */
