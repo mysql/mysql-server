@@ -712,9 +712,11 @@ Dbtux::execACCKEYREF(Signal* signal)
     if (scan.m_state == ScanOp::Blocked) {
       jam();
       // can happen when Dropping
-      const Frag& frag = *c_fragPool.getPtr(scan.m_fragId);
+#ifdef VM_TRACE
+      const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
       const Index& index = *c_indexPool.getPtr(frag.m_indexId);
       ndbassert(index.m_state != Index::Online);
+#endif
       scan.m_state = ScanOp::Next;
     }
     // LQH has the ball

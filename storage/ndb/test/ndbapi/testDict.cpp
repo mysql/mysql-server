@@ -4353,6 +4353,11 @@ runBug58277(NDBT_Context* ctx, NDBT_Step* step)
         c.setNullable(false);
         tab.addColumn(c);
       }
+      if (rand() % 3 != 0)
+      {
+        g_info << "set FragAllLarge" << endl;
+        tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
+      }
       CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
       CHK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
 
