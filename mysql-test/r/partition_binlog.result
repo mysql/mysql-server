@@ -41,13 +41,6 @@ ALTER TABLE t1 TRUNCATE PARTITION p0;
 ALTER TABLE t1 DROP PARTITION p0;
 show binlog events in 'master-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(id INT)
-PARTITION BY RANGE (id)
-(PARTITION p0 VALUES LESS THAN (100),
-PARTITION pmax VALUES LESS THAN (MAXVALUE))
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1), (10), (100), (1000)
-master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 ANALYZE PARTITION p0
 master-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 OPTIMIZE PARTITION p0
 master-bin.000001	#	Query	#	#	use `test`; ALTER TABLE t1 REPAIR PARTITION p0
