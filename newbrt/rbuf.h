@@ -135,7 +135,7 @@ static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((_
 // Don't try to use the same space, malloc it
 static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
     filenums->num = rbuf_int(r);
-    filenums->filenums = toku_malloc( filenums->num * sizeof(FILENUM) );
+    filenums->filenums = (FILENUM *) toku_malloc( filenums->num * sizeof(FILENUM) );
     assert(filenums->filenums != NULL);
     for (u_int32_t i=0; i < filenums->num; i++) {
         rbuf_FILENUM(r, &(filenums->filenums[i]));
@@ -145,7 +145,7 @@ static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
 // 2954
 static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
     rbuf_ma_u_int32_t(r, ma, &(filenums->num));
-    filenums->filenums = malloc_in_memarena(ma, filenums->num * sizeof(FILENUM) );
+    filenums->filenums = (FILENUM *) malloc_in_memarena(ma, filenums->num * sizeof(FILENUM) );
     assert(filenums->filenums != NULL);
     for (u_int32_t i=0; i < filenums->num; i++) {
         rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
