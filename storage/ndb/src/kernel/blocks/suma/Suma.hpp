@@ -542,7 +542,8 @@ private:
   } c_restart;
 
   Uint32 c_current_seq; // Sequence no on subscription(s)
-  
+  Uint32 c_outstanding_drop_trig_req;
+
   NodeBitmask c_connected_nodes;  // (NODE/API) START REP / (API/NODE) FAIL REQ
   NodeBitmask c_subscriber_nodes; // 
 
@@ -643,8 +644,7 @@ private:
 
   Uint64 get_current_gci(Signal*);
 
-  void checkMaxBufferedEpochs
-(Signal *signal);
+  void checkMaxBufferedEpochs(Signal *signal);
 
   Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
