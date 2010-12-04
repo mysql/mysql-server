@@ -388,6 +388,10 @@ private:
    * An unfinished scan is always linked to some tree node, and has
    * current position and direction (see comments at scanNext).  There
    * is also a copy of latest entry found.
+   *
+   * Error handling:  An error code (independent of scan state) is set
+   * and returned to LQH.  No more result rows are returned but normal
+   * protocol is still followed until scan close.
    */
   struct ScanOp;
   friend struct ScanOp;
@@ -401,11 +405,11 @@ private:
       Locked = 5,               // found and locked or no lock needed
       Next = 6,                 // looking for next extry
       Last = 7,                 // after last entry
-      Aborting = 8,             // lock wait at scan close
-      Invalid = 9               // cannot return REF to LQH currently
+      Aborting = 8
     };
-    Uint16 m_state;
-    Uint16 m_lockwait;
+    Uint8 m_state;
+    Uint8 m_lockwait;
+    Uint16 m_errorCode;
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
@@ -988,6 +992,7 @@ inline
 Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_state(Undef),
   m_lockwait(false),
+  m_errorCode(0),
   m_userPtr(RNIL),
   m_userRef(RNIL),
   m_tableId(RNIL),
