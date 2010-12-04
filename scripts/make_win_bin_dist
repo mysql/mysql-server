@@ -163,9 +163,7 @@ if [ -f "storage/pbxt/bin/xtstat.exe" ] ; then
   cp storage/pbxt/bin/xtstat.{exe,pdb} $DESTDIR/bin
 fi
 
-
-cp server-tools/instance-manager/$TARGET/*.exe     $DESTDIR/bin/
-
+cp server-tools/instance-manager/$TARGET/*.exe           $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
   cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/

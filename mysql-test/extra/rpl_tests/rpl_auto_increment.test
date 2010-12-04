@@ -251,6 +251,7 @@ connection master;
 CREATE TABLE t1(s VARCHAR(10)) ENGINE=myisam;
 # -slave.opt has --replicate-ignore-table=test.t_ignored1
 CREATE TABLE t_ignored1(id INT AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+sync_slave_with_master;
 
 connection slave;
 

@@ -168,7 +168,7 @@ int main(int argc __attribute__((unused)), char *argv[])
                     PAGECACHE_PIN_LEFT_UNPINNED,
                     PAGECACHE_WRITE_DELAY,
                     0, LSN_IMPOSSIBLE);
-    flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
+    flush_pagecache_blocks(&pagecache, &file1, FLUSH_RELEASE);
   }
   my_close(file1.file, MYF(MY_WME));
   if ((file1.file= my_open(first_translog_file, O_RDONLY, MYF(MY_WME))) < 0)
