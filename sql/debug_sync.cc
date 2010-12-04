@@ -1719,6 +1719,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
   if (action->execute)
   {
     const char  *old_proc_info;
+    LINT_INIT(old_proc_info);
 
     action->execute--;
 

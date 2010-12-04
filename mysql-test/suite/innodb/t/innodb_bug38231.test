@@ -76,6 +76,11 @@ UNLOCK TABLES;
 UNLOCK TABLES;
 
 -- connection con3
+#
+# We may get a timeout error here if the tables are locked in a different
+# order than expected. This is ok as the purpose of this patch is to ensure
+# we don't get a crash in the previous unlock tables.
+-- error 0, 1205
 -- reap
 UNLOCK TABLES;
 
