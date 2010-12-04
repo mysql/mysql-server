@@ -2466,14 +2466,6 @@ my_bool translog_prev_buffer_flush_wait(struct st_translog_buffer *buffer)
                        LSN_IN_PARTS(buffer->prev_sent_to_disk),
                        LSN_IN_PARTS(buffer->prev_buffer_offset)));
   translog_buffer_lock_assert_owner(buffer);
-  /*
-    if prev_sent_to_disk == LSN_IMPOSSIBLE then
-    prev_buffer_offset should be LSN_IMPOSSIBLE
-    because it means that this buffer was never used
-  */
-  DBUG_ASSERT((buffer->prev_sent_to_disk == LSN_IMPOSSIBLE &&
-               buffer->prev_buffer_offset == LSN_IMPOSSIBLE) ||
-              buffer->prev_sent_to_disk != LSN_IMPOSSIBLE);
   if (buffer->prev_buffer_offset != buffer->prev_sent_to_disk)
   {
     do {
