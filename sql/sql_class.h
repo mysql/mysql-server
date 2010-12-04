@@ -2983,7 +2983,8 @@ public:
   {
     DBUG_ENTER("unique_add");
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush())
+    if (!(tree.flag & TREE_ONLY_DUPS) && 
+        tree.elements_in_tree >= max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
   }

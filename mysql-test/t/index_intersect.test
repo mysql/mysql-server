@@ -44,7 +44,7 @@ SELECT COUNT(*) FROM City;
 SELECT COUNT(*) FROM City WHERE Name LIKE 'C%';
 SELECT COUNT(*) FROM City WHERE Name LIKE 'M%';
 SELECT COUNT(*) FROM City WHERE Population > 1000000;
-SELECT COUNT(*) FROM City WHERE Population > 500000;
+SELECT COUNT(*) FROM City WHERE Population > 1500000;
 SELECT COUNT(*) FROM City WHERE Population > 300000;
 SELECT COUNT(*) FROM City WHERE Population > 5000000;
 
@@ -60,7 +60,7 @@ SELECT * FROM City WHERE
 
 EXPLAIN
 SELECT * FROM City WHERE
-  Name LIKE 'M%' AND Population > 500000; 
+  Name LIKE 'M%' AND Population > 1500000; 
 
 EXPLAIN
 SELECT * FROM City 
@@ -84,10 +84,10 @@ SELECT * FROM City
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE Name LIKE 'M%' AND Population > 500000; 
+  WHERE Name LIKE 'M%' AND Population > 1500000; 
 
 SELECT * FROM City 
-  WHERE Name LIKE 'M%' AND Population > 500000; 
+  WHERE Name LIKE 'M%' AND Population > 1500000; 
 
 
 SELECT * FROM City USE INDEX ()
@@ -104,16 +104,15 @@ SELECT * FROM City
   WHERE Name LIKE 'M%' AND Population > 5000000;
 
 
-# The output of the next 7 queries tells us about selectivities
+# The output of the next 6 queries tells us about selectivities
 # of the conditions utilized in 3 queries following after them  
 
 SELECT COUNT(*) FROM City WHERE Name BETWEEN 'M' AND 'N';
 SELECT COUNT(*) FROM City WHERE Name BETWEEN 'G' AND 'J'; 
 SELECT COUNT(*) FROM City WHERE Population > 1000000;
-SELECT COUNT(*) FROM City WHERE Population > 700000;
 SELECT COUNT(*) FROM City WHERE Population > 500000;
 SELECT COUNT(*) FROM City WHERE Country LIKE 'C%';
-SELECT COUNT(*) FROM City WHERE Country LIKE 'L%';
+SELECT COUNT(*) FROM City WHERE Country LIKE 'B%';
 
 
 # The pattern of the WHERE condition used in the following 3 queries is
@@ -129,7 +128,7 @@ SELECT * FROM City
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'L%';
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
 EXPLAIN
 SELECT * FROM City 
@@ -149,10 +148,10 @@ SELECT * FROM City
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'M%';
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
 SELECT * FROM City 
-  WHERE Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'M%';
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
 
 SELECT * FROM City USE INDEX ()
@@ -162,17 +161,20 @@ SELECT * FROM City
   WHERE Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
 
 
-# The output of the next 9 queries tells us about selectivities
+# The output of the next 12 queries tells us about selectivities
 # of the conditions utilized in 5 queries following after them  
 
-SELECT COUNT(*) FROM City WHERE ID BETWEEN 500 AND 999;
-SELECT COUNT(*) FROM City WHERE ID BETWEEN 3500 AND 3999;
-SELECT COUNT(*) FROM City WHERE ID BETWEEN 1 AND 1000;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 501 AND 1000;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 1 AND 500;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 2001 AND 2500;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 3701 AND 4000;
 SELECT COUNT(*) FROM City WHERE Population > 700000;
 SELECT COUNT(*) FROM City WHERE Population > 1000000;
 SELECT COUNT(*) FROM City WHERE Population > 300000;
+SELECT COUNT(*) FROM City WHERE Population > 600000;
 SELECT COUNT(*) FROM City WHERE Country LIKE 'C%';
 SELECT COUNT(*) FROM City WHERE Country LIKE 'A%';
+SELECT COUNT(*) FROM City WHERE Country LIKE 'L%';
 SELECT COUNT(*) FROM City WHERE Country BETWEEN 'S' AND 'Z';
 
 
@@ -181,7 +183,7 @@ SELECT COUNT(*) FROM City WHERE Country BETWEEN 'S' AND 'Z';
 # with key1 happens to be a primary key (it matters only for InnoDB)
 # Varying values of the constants in the  conjuncts of the condition
 # we can get index intersection  either over all three keys, or over
-# different pairs, or a range sacn over one of these keys.
+# different pairs, or a range scan over one of these keys.
 # Bear in mind that the condition (Country LIKE 'A%') is actually
 # equivalent to the condition (Country BETWEEN 'A' AND 'B') for the
 # tested instance the table City. 
@@ -189,24 +191,24 @@ SELECT COUNT(*) FROM City WHERE Country BETWEEN 'S' AND 'Z';
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 700000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 1000000 AND Country LIKE 'A%';
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ID BETWEEN 500 AND 999 AND Population > 300000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ID BETWEEN 3500 AND 3999 AND Population > 700000
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 1000000
         AND Country BETWEEN 'S' AND 'Z';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ID BETWEEN 1 AND 1000 AND Population > 700000
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z' ;
 
 
@@ -216,41 +218,41 @@ SELECT * FROM City
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE ID BETWEEN 500 AND 999 AND Population > 700000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 700000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE ID BETWEEN 500 AND 999 AND Population > 1000000 AND Country LIKE 'A%';
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 1000000 AND Country LIKE 'A%';
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE ID BETWEEN 500 AND 999 AND Population > 300000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
 
 SELECT * FROM City 
-  WHERE ID BETWEEN 500 AND 999 AND Population > 300000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE ID BETWEEN 3500 AND 3999 AND Population > 700000
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
         AND Country BETWEEN 'S' AND 'Z';
 
 SELECT * FROM City 
-  WHERE ID BETWEEN 3500 AND 3999 AND Population > 700000
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
         AND Country BETWEEN 'S' AND 'Z';
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE ID BETWEEN 1 AND  1000 AND Population > 700000
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z' ;
 
 SELECT * FROM City 
-  WHERE ID BETWEEN 1 AND  1000 AND Population > 700000
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z' ;
 
 
@@ -267,16 +269,12 @@ SELECT * FROM City WHERE
 
 EXPLAIN
 SELECT * FROM City WHERE
-  Name LIKE 'M%' AND Population > 500000; 
+  Name LIKE 'M%' AND Population > 1500000; 
 
-
-EXPLAIN
-SELECT * FROM City
-  WHERE Name LIKE 'C%' AND Population > 1000000 AND Country LIKE 'C%';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'M%';
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
 EXPLAIN
 SELECT * FROM City 
@@ -285,11 +283,12 @@ SELECT * FROM City
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 1000000 AND Country LIKE 'A%';
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ID < 1000 AND Population > 700000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z';
 
 
 #Yet the query themselves return the correct results in this case as well
@@ -299,24 +298,22 @@ SELECT * FROM City WHERE
   Name LIKE 'C%' AND Population > 1000000; 
 
 SELECT * FROM City WHERE
-  Name LIKE 'M%' AND Population > 500000; 
+  Name LIKE 'M%' AND Population > 1500000; 
 
-
-SELECT * FROM City
-  WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
 
 SELECT * FROM City 
-  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'M%';
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'B%';
 
 SELECT * FROM City 
   WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
 
 
 SELECT * FROM City
-  WHERE ID BETWEEN 500 AND 999 AND Population > 1000000 AND Country LIKE 'A%';
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
 SELECT * FROM City 
-  WHERE ID < 1000 AND Population > 700000 AND Country LIKE 'C%';
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z';
 
 
 SET SESSION sort_buffer_size = default;
@@ -343,39 +340,39 @@ ANALYZE TABLE City;
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE Country LIKE 'M%' AND Population > 700000;
+  WHERE Country LIKE 'M%' AND Population > 1000000;
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE Country='CHN' AND Population > 1000000;
+  WHERE Country='CHN' AND Population > 1500000;
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE Country='CHN' AND Population > 1000000 AND Name LIKE 'C%';
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
 
 # Check that the previous 3 plans return the right results when executed
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE Country LIKE 'M%' AND Population > 700000;
+  WHERE Country LIKE 'M%' AND Population > 1000000;
 
 SELECT * FROM City 
   WHERE Country LIKE 'M%' AND Population > 700000;
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE Country='CHN' AND Population > 1000000;
+  WHERE Country='CHN' AND Population > 1500000;
 
 SELECT * FROM City 
-  WHERE Country='CHN' AND Population > 1000000;
+  WHERE Country='CHN' AND Population > 1500000;
 
 
 SELECT * FROM City USE INDEX ()
-  WHERE Country='CHN' AND Population > 1000000 AND Name LIKE 'C%';
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
 SELECT * FROM City 
-  WHERE Country='CHN' AND Population > 1000000 AND Name LIKE 'C%';
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 
 
 DROP DATABASE world;

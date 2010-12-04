@@ -5112,7 +5112,7 @@ double get_unique_intersect_cost(COMMON_INDEX_INTERSECTION_INFO *common,
                                common->max_memory_size,
                                common->compare_factor,
                                TRUE, in_memory);
-    if (in_memory)
+    if (*in_memory)
       *in_memory_cost= cost;
   }
   return cost;
@@ -5124,7 +5124,7 @@ double get_cpk_filter_cost(INDEX_SCAN_INFO *index_scan,
                            INDEX_SCAN_INFO *cpk_scan,
                            double compare_factor)
 {
-  return log((double) cpk_scan->range_count) / (compare_factor * M_LN2) *
+  return log((double) (cpk_scan->range_count+1)) / (compare_factor * M_LN2) *
          index_scan->records;
 }
 
@@ -5174,7 +5174,8 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
     return FALSE; 
 
   records_in_scans= curr->records_in_scans + index_scan_records;
-  next->in_memory= curr->in_memory;
+  if ((next->in_memory= curr->in_memory))
+    next->in_memory_cost= curr->in_memory_cost;
 
   records= records_in_index_intersect_extension(curr, ext_index_scan);
   if (idx && records > curr->records)
@@ -5207,7 +5208,7 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
   {
     double cost2;
     bool in_memory_save= next->in_memory;
-    if (!idx)
+    if (idx)
     {
       next->length= curr->length+1;
       records2= records_in_index_intersect_extension(next, cpk_scan);
