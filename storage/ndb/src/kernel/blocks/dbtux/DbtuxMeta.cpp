@@ -418,6 +418,10 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
     switch(req->requestType){
     case AlterIndxImplReq::AlterIndexOffline:
       jam();
+      /*
+       * This happens at failed index build, and before dropping an
+       * Online index.  It causes scans to terminate.
+       */
       indexPtr.p->m_state = Index::Dropping;
       break;
     case AlterIndxImplReq::AlterIndexBuilding:
@@ -493,13 +497,20 @@ void
 Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData)
 {
   jam();
-  indexPtr.p->m_state = Index::Dropping;
+  ndbrequire(indexPtr.p->m_state == Index::Dropping);
   // drop fragments
   while (indexPtr.p->m_numFrags > 0) {
     jam();
     Uint32 i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
     c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
+    /*
+     * Verify that LQH has terminated scans.  (If not, then drop order
+     * must change from TUP,TUX to TUX,TUP and we must wait for scans).
+     */
+    ScanOpPtr scanPtr;
+    bool b = fragPtr.p->m_scanList.first(scanPtr);
+    ndbrequire(!b);
     c_fragPool.release(fragPtr);
   }
   // drop attributes
