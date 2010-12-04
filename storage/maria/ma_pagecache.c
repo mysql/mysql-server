@@ -1046,7 +1046,6 @@ static inline void dec_counter_for_resize_op(PAGECACHE *pagecache)
                         ("thread %ld", last_thread->next->id));
     pagecache_pthread_cond_signal(&last_thread->next->suspend);
   }
-  DBUG_ASSERT(((longlong) pagecache->cnt_for_resize_op) >= 0);
 #else
   pagecache->cnt_for_resize_op--;
 #endif
