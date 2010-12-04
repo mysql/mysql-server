@@ -127,9 +127,8 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
-
 #ifndef ETIMEDOUT
-#define ETIMEDOUT 145
+#define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #endif
 #define getpid() GetCurrentThreadId()
 #define HAVE_LOCALTIME_R		1

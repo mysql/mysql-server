@@ -42,7 +42,7 @@ fseg_alloc_free_page) */
 /* @} */
 
 /** File space extent size (one megabyte) in pages */
-#define	FSP_EXTENT_SIZE		(1u << (20 - UNIV_PAGE_SIZE_SHIFT))
+#define	FSP_EXTENT_SIZE		(1ULL << (20 - UNIV_PAGE_SIZE_SHIFT))
 
 /** On a page of any file segment, data may be put starting from this
 offset */

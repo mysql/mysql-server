@@ -40,12 +40,19 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 		    ${CMAKE_SOURCE_DIR}/zlib
 		    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
-# Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
-# due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
-IF (MSVC AND $(WIN64))
-	SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
-				    PROPERTIES COMPILE_FLAGS -Od)
-ENDIF (MSVC AND $(WIN64))
+IF(MSVC)
+	# Removing compiler optimizations for innodb/mem/* files on 64-bit Windows
+	# due to 64-bit compiler error, See MySQL Bug #19424, #36366, #34297
+	IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+		SET_SOURCE_FILES_PROPERTIES(mem/mem0mem.c mem/mem0pool.c
+			PROPERTIES COMPILE_FLAGS -Od)
+	ENDIF()
+	# Avoid "unreferenced label" warning in generated file 
+	SET_SOURCE_FILES_PROPERTIES(pars/pars0grm.c
+		PROPERTIES COMPILE_FLAGS "/wd4102")
+	SET_SOURCE_FILES_PROPERTIES(pars/lexyy.c
+		PROPERTIES COMPILE_FLAGS "/wd4003")
+ENDIF()
 
 SET(INNODB_PLUGIN_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
