@@ -1046,6 +1046,7 @@ static inline void dec_counter_for_resize_op(PAGECACHE *pagecache)
                         ("thread %ld", last_thread->next->id));
     pagecache_pthread_cond_signal(&last_thread->next->suspend);
   }
+  DBUG_ASSERT((longlong) pagecache->cnt_for_resize_op >= 0);
 #else
   pagecache->cnt_for_resize_op--;
 #endif
@@ -3626,6 +3627,8 @@ my_bool pagecache_delete_by_link(PAGECACHE *pagecache,
     */
     DBUG_ASSERT((block->status &
                  (PCBLOCK_IN_SWITCH | PCBLOCK_REASSIGNED)) == 0);
+
+    inc_counter_for_resize_op(pagecache);
     /*
       make_lock_and_pin() can't fail here, because we are keeping pin on the
       block and it can't be evicted (which is cause of lock fail and retry)
