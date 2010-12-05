@@ -202,7 +202,7 @@ public:
 
   bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
-  void set_write_error(THD *thd);
+  void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
@@ -298,6 +298,7 @@ bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 void check_binlog_cache_size(THD *thd);
+void check_binlog_stmt_cache_size(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
