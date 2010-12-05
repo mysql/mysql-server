@@ -1,4 +1,4 @@
-set optimizer_switch='mrr=on';
+set optimizer_switch='mrr=on,mrr_cost_based=off';
 set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=79;
 select @@read_rnd_buffer_size;

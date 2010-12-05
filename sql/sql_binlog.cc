@@ -184,7 +184,8 @@ void mysql_client_binlog_statement(THD* thd)
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
   {
     char const *endptr= 0;
-    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
+    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
+                                     MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
 #ifndef HAVE_purify
       /*
@@ -248,7 +249,8 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec);
+                                    rli->relay_log.description_event_for_exec,
+                                    0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));
       if (!ev)

@@ -3095,7 +3095,7 @@ int ha_partition::write_row(uchar * buf)
   my_bitmap_map *old_map;
   THD *thd= ha_thd();
   timestamp_auto_set_type saved_timestamp_type= table->timestamp_field_type;
-  ulong saved_sql_mode= thd->variables.sql_mode;
+  sql_mode_t saved_sql_mode= thd->variables.sql_mode;
   bool saved_auto_inc_field_not_null= table->auto_increment_field_not_null;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
@@ -3429,7 +3429,7 @@ int ha_partition::truncate()
   ALTER TABLE t TRUNCATE PARTITION ...
 */
 
-int ha_partition::truncate_partition(Alter_info *alter_info)
+int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
 {
   int error= 0;
   List_iterator<partition_element> part_it(m_part_info->partitions);
@@ -3440,6 +3440,9 @@ int ha_partition::truncate_partition(Alter_info *alter_info)
   uint num_parts_found= set_part_state(alter_info, m_part_info,
                                         PART_ADMIN);
   DBUG_ENTER("ha_partition::truncate_partition");
+
+  /* Only binlog when it starts any call to the partitions handlers */
+  *binlog_stmt= false;
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
@@ -3453,6 +3456,8 @@ int ha_partition::truncate_partition(Alter_info *alter_info)
   if (num_parts_set != num_parts_found &&
       (!(alter_info->flags & ALTER_ALL_PARTITION)))
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+  *binlog_stmt= true;
 
   do
   {

@@ -1,0 +1,67 @@
+#
+# Bug 35333 "If a Federated table can't connect to the remote hose, can't retrieve metadata"
+#
+# Queries such as SHOW TABLE STATUS and SELECT * FROM INFORMATION_SCHEMA.TABLES fail
+# when encountering a federated table that cannot connect to its remote table.
+#
+# The fix is to store the error text in the TABLE COMMENTS column of I_S.TABLES, clear
+# the remote connection error and push a warning instead. This allows the SELECT operation
+# to complete while still indicating a problem. This fix applies to any non-fatal system
+# error that occurs during a query against I_S.TABLES.de
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+CREATE DATABASE IF NOT EXISTS realdb;
+DROP TABLE IF EXISTS realdb.t0;
+DROP TABLE IF EXISTS federated.t0;
+#
+# Create the base table to be referenced
+#
+CREATE TABLE realdb.t0 (a text, b text) ENGINE=MYISAM;
+#
+# Create a federated table with a bogus port number
+#
+CREATE TABLE federated.t0 (a text, b text) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:63333/realdb/t0';
+#
+# Trigger a federated system error during a INFORMATION_SCHEMA.TABLES query
+#
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'realdb' or TABLE_SCHEMA = 'federated';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
+federated	t0	BASE TABLE	FEDERATED		NULL	0	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+realdb	t0	BASE TABLE	MyISAM	Dynamic	0	0	
+Warnings:
+Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1429	Unable to connect to foreign data source: Can't connect to MySQL server on '127.0.0.1' (socket errno)
+#
+# Create a MyISAM table then corrupt the file
+#
+USE realdb;
+CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
+#
+# Corrupt the MyISAM table by deleting the base file
+#
+#
+# Trigger a MyISAM system error during an INFORMATION_SCHEMA.TABLES query
+#
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
+realdb	t1	BASE TABLE	NULL	NULL	NULL	NULL	Can't find file: 't1' (errno: 2)
+Warnings:
+Warning	1017	Can't find file: 't1' (errno: 2)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1017	Can't find file: 't1' (errno: 2)
+#
+# Cleanup
+#
+DROP TABLE IF EXISTS realdb.t0;
+DROP TABLE IF EXISTS federated.t0;
+DROP DATABASE realdb;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;

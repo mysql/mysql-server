@@ -206,6 +206,14 @@ static Sys_var_ulong Sys_pfs_setup_actors_size(
        DEFAULT(PFS_MAX_SETUP_ACTOR),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_setup_objects_size(
+       "performance_schema_setup_objects_size",
+       "Maximum number of rows in SETUP_OBJECTS.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_setup_object_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_SETUP_OBJECT),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -897,9 +905,9 @@ static Sys_var_ulong Sys_optimizer_join_cache_level(
 #ifdef OPTIMIZER_SWITCH_ALL
        VALID_RANGE(0, 8),
 #else
-       VALID_RANGE(0, 1),
+       VALID_RANGE(0, 4),
 #endif
-       DEFAULT(1), BLOCK_SIZE(1));
+       DEFAULT(4), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -1878,8 +1886,52 @@ static Sys_var_set Slave_type_conversions(
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
        slave_type_conversions_name,
        DEFAULT(0));
+
+static Sys_var_mybool Sys_slave_sql_verify_checksum(
+       "slave_sql_verify_checksum",
+       "Force checksum verification of replication events after reading them "
+       "from relay log. Note: Events are always checksum-verified by slave on "
+       "receiving them from the network before writing them to the relay "
+       "log. Enabled by default.",
+       GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 #endif
 
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  if(mysql_bin_log.is_open())
+  {
+    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
+       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
+    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+      mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
+    mysql_bin_log.rotate_and_purge(flags);
+  }
+  else
+  {
+    binlog_checksum_options= var->save_result.ulonglong_value;
+  }
+  DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  return 0;
+}
+
+static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
+       "binlog_checksum", "Type of BINLOG_CHECKSUM_ALG. Include checksum for "
+       "log events in the binary log. Possible values are NONE and CRC32; "
+       "default is NONE.",
+       GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
+       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_mybool Sys_master_verify_checksum(
+       "master_verify_checksum",
+       "Force checksum verification of logged events in binary log before "
+       "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_master_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_slow_launch_time(
        "slow_launch_time",
@@ -1895,7 +1947,7 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
        BLOCK_SIZE(1));
 
-export ulong expand_sql_mode(ulonglong sql_mode)
+export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)
   {
@@ -1981,7 +2033,7 @@ static const char *sql_mode_names[]=
   "PAD_CHAR_TO_FULL_LENGTH",
   0
 };
-export bool sql_mode_string_representation(THD *thd, ulong sql_mode,
+export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
   set_to_string(thd, ls, sql_mode, sql_mode_names);

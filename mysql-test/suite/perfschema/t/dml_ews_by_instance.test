@@ -18,28 +18,25 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
+--disable_result_log
 select * from performance_schema.events_waits_summary_by_instance
   where event_name like 'Wait/Synch/%' limit 1;
 
 select * from performance_schema.events_waits_summary_by_instance
   where event_name='FOO';
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
 select * from performance_schema.events_waits_summary_by_instance
   order by count_star limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
 select * from performance_schema.events_waits_summary_by_instance
   order by count_star desc limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
 select * from performance_schema.events_waits_summary_by_instance
   where min_timer_wait > 0 order by count_star limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
 select * from performance_schema.events_waits_summary_by_instance
   where min_timer_wait > 0 order by count_star desc limit 1;
+--enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
 insert into performance_schema.events_waits_summary_by_instance

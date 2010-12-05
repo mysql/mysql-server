@@ -25,6 +25,7 @@ class Time_zone;
 struct LEX;
 struct TABLE;
 typedef struct st_changed_table_list CHANGED_TABLE_LIST;
+typedef ulonglong sql_mode_t;
 
 /* Query cache */
 
@@ -532,7 +533,7 @@ struct Query_cache_query_flags
   uint collation_connection_num;
   ha_rows limit;
   Time_zone *time_zone;
-  ulong sql_mode;
+  sql_mode_t sql_mode;
   ulong max_sort_length;
   ulong group_concat_max_len;
   ulong default_week_format;
