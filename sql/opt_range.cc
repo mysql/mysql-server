@@ -4992,10 +4992,11 @@ bool prepare_search_best_index_intersect(PARAM *param,
   common->best_uses_cpk= FALSE;
   common->best_cost= cutoff_cost + 0.01;
   common->best_length= 0;
-  
+
   if (!(common->best_intersect=
 	(INDEX_SCAN_INFO **) alloc_root (param->mem_root,
-                                         sizeof(INDEX_SCAN_INFO *) * i)))
+                                         sizeof(INDEX_SCAN_INFO *) *
+                                         (i + test(cpk_scan != NULL)))))
     return TRUE;
 
   uint calc_cost_buff_size=

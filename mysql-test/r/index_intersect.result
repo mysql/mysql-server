@@ -1013,4 +1013,40 @@ ID	Name	Country	Population
 1910	Changsha	CHN	1809800
 DROP DATABASE world;
 use test;
+CREATE TABLE t1 (
+f1 int,
+f4 varchar(32),
+f5 int,
+PRIMARY KEY (f1),
+KEY (f4)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1286	Unknown table engine 'InnoDB'
+Warning	1266	Using storage engine MyISAM for table 't1'
+INSERT INTO t1 VALUES 
+(5,'H',1), (9,'g',0), (527,'i',0), (528,'y',1), (529,'S',6),
+(530,'m',7), (531,'b',2), (532,'N',1), (533,'V',NULL), (534,'l',1),
+(535,'M',0), (536,'w',1), (537,'j',5), (538,'l',0), (539,'n',2),
+(540,'m',2), (541,'r',2), (542,'l',2), (543,'h',3),(544,'o',0),
+(956,'h',0), (957,'g',0), (958,'W',5), (959,'s',3), (960,'w',0),
+(961,'q',0), (962,'e',NULL), (963,'u',7), (964,'q',1), (965,'N',NULL),
+(966,'e',0), (967,'t',3), (968,'e',6), (969,'f',NULL), (970,'j',0),
+(971,'s',3), (972,'I',0), (973,'h',4), (974,'g',1), (975,'s',0),
+(976,'r',3), (977,'x',1), (978,'v',8), (979,'j',NULL), (980,'z',7),
+(981,'t',9), (982,'j',5), (983,'u',NULL), (984,'g',6), (985,'w',1),
+(986,'h',1), (987,'v',0), (988,'v',0), (989,'c',2), (990,'b',7),
+(991,'z',0), (992,'M',1), (993,'u',2), (994,'r',2), (995,'b',4),
+(996,'A',2), (997,'u',0), (998,'a',0), (999,'j',2), (1,'I',2);
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,f4	f4	35	NULL	5	Using where
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+f1	f4	f5
+996	A	2
+998	a	0
+994	r	2
+DROP TABLE t1;
 SET SESSION optimizer_switch='index_merge_sort_intersection=on';
