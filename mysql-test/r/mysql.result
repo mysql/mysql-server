@@ -492,16 +492,14 @@ Tables_in_test
 # Checking --one-database option with non_existent_db 
 # specified with USE command
 #
-SHOW TABLES IN test;
-Tables_in_test
-table_in_test
-DROP DATABASE test;
+CREATE DATABASE connected_db;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
 
-CREATE DATABASE test;
-SHOW TABLES IN test;
-Tables_in_test
-table_in_test
-DROP DATABASE test;
-CREATE DATABASE test;
+SHOW TABLES IN connected_db;
+Tables_in_connected_db
+table_in_connected_db
+DROP DATABASE connected_db;
 
 End of tests
