@@ -18,3 +18,15 @@ UNINSTALL PLUGIN example;
 disconnect con1;
 connection default;
 DROP USER bug51770@localhost;
+
+# 
+# BUG#58246: INSTALL PLUGIN not secure & crashable
+#
+# The bug consisted of not recognizing / on Windows, so checking / on
+# all platforms should cover this case.
+
+let $path = `select CONCAT_WS('/', '..', $HA_EXAMPLE_SO)`;
+--replace_regex /\.dll/.so/
+--error ER_UDF_NO_PATHS
+eval INSTALL PLUGIN example SONAME '$path';
+
