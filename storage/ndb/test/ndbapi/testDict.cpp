@@ -7936,8 +7936,429 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
   }
 }
 
-/** telco-6.4 **/
- 
+// Bug58277
+
+#define CHK2(b, e) \
+  if (!(b)) { \
+    g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+          << ": " << e << endl; \
+    result = NDBT_FAILED; \
+    break; \
+  }
+
+// allow list of expected error codes which do not cause NDBT_FAILED
+#define CHK3(b, e, x) \
+  if (!(b)) { \
+    errcode = e.code; \
+    int n = sizeof(x)/sizeof(x[0]); \
+    int i; \
+    for (i = 0; i < n; i++) { \
+      if (errcode == x[i]) { \
+        g_info << "OK: " << #b << " failed at line " << __LINE__ \
+              << ": " << e << endl; \
+        break; \
+      } \
+    } \
+    if (i == n) { \
+      g_err << "ERR: " << #b << " failed at line " << __LINE__ \
+            << ": " << e << endl; \
+      result = NDBT_FAILED; \
+    } \
+    break; \
+  }
+
+const char* tabName_Bug58277 = "TBug58277";
+const char* indName_Bug58277 = "TBug58277X1";
+
+int
+runBug58277drop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  const char* tabname = tabName_Bug58277;
+  const char* indname = indName_Bug58277;
+  int dropms = 0;
+
+  while (!ctx->isTestStopped())
+  {
+    dropms = ctx->getProperty("DropMs", (Uint32)0);
+    if (dropms == 0)
+    {
+      NdbSleep_MilliSleep(10);
+      continue;
+    }
+    NdbSleep_MilliSleep(dropms);
+    ctx->setProperty("DropMs", (Uint32)0);
+
+    g_info << "drop index " << indname << endl;
+    CHK2(pDic->dropIndex(indname, tabname) == 0, pDic->getNdbError());
+    g_info << "drop done" << endl;
+  }
+
+  if (result != NDBT_OK)
+  {
+    g_info << "stop test at line " << __LINE__ << endl;
+    ctx->stopTest();
+  }
+  return result;
+}
+
+int
+runBug58277scan(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  const int rows = ctx->getNumRecords();
+  const char* tabname = tabName_Bug58277;
+  const char* indname = indName_Bug58277;
+  int dropms = 0;
+
+  while (!ctx->isTestStopped())
+  {
+    CHK2(rows > 0, "cannot use -r 0");
+    dropms = ctx->getProperty("DropMs", (Uint32)0);
+    if (dropms == 0)
+    {
+      NdbSleep_MilliSleep(10);
+      continue;
+    }
+    g_info << "start scan loop" << endl;
+    int errcode = 0; // expected error
+
+    while (!ctx->isTestStopped() && errcode == 0)
+    {
+      const NdbDictionary::Index* pInd = 0;
+      {
+        int x[] = {
+          4243  // Index not found
+        };
+        pDic->invalidateIndex(indname, tabname);
+        CHK3((pInd = pDic->getIndex(indname, tabname)) != 0, pDic->getNdbError(), x);
+      }
+
+      NdbTransaction* pSTx = 0;
+      CHK2((pSTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
+      NdbIndexScanOperation* pSOp = 0;
+      CHK2((pSOp = pSTx->getNdbIndexScanOperation(pInd)) != 0, pSTx->getNdbError());
+      NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
+      Uint32 flags = 0;
+      CHK2(pSOp->readTuples(lm, flags) == 0, pSOp->getNdbError());
+
+      Uint32 aVal = 0;
+      CHK2(pSOp->getValue("a", (char*)&aVal) != 0, pSOp->getNdbError());
+      CHK2(pSTx->execute(NoCommit) == 0, pSTx->getNdbError());
+
+      int cnt = 0;
+      while (!ctx->isTestStopped() && errcode == 0)
+      {
+        int ret;
+        {
+          int x[] = {
+            241,  // Invalid schema object version
+            274,  // Time-out in NDB, probably caused by deadlock
+            283,  // Table is being dropped
+            284,  // Table not defined in transaction coordinator
+            910,  // Index is being dropped
+            1226  // Table is being dropped
+          };
+          CHK3((ret = pSOp->nextResult(true)) != -1, pSOp->getNdbError(), x);
+        }
+
+        CHK2(ret == 0 || ret == 1, "impossible ret " << ret);
+        if (ret == 1)
+          break;
+
+        NdbTransaction* pTx = 0;
+        CHK2((pTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
+        int cntbatch = 0;
+
+        while (!ctx->isTestStopped() && errcode == 0)
+        {
+          NdbOperation* pOp = 0;
+          CHK2((pOp = pSOp->updateCurrentTuple(pTx)) != 0, pSOp->getNdbError());
+          Uint32 bVal = (Uint32)(rand() % rows);
+          CHK2(pOp->setValue("b", bVal) == 0, pOp->getNdbError());
+          {
+            int x[] = {
+              266,  // Time-out in NDB, probably caused by deadlock
+              499,  // Scan take over error
+              631   // 631
+            };
+            CHK3(pTx->execute(NoCommit) == 0, pTx->getNdbError(), x);
+            cntbatch++;
+          }
+
+          CHK2((ret = pSOp->nextResult(false)) != -1, pSOp->getNdbError());
+          CHK2(ret == 0 || ret == 2, "impossible ret " << ret);
+          if (ret == 2)
+            break;
+        }
+        CHK2(result == NDBT_OK, "batch failed");
+        //g_info << "batch ops " << cntbatch << endl;
+        cnt += cntbatch;
+        {
+          int x[] = {
+            266,  // Time-out in NDB, probably caused by deadlock
+            4350  // Transaction already aborted
+          };
+          CHK3(pTx->execute(Commit) == 0, pTx->getNdbError(), x);
+        }
+        pNdb->closeTransaction(pTx);
+      }
+
+      CHK2(result == NDBT_OK, "scan failed");
+      pNdb->closeTransaction(pSTx);
+      g_info << "scan ops " << cnt << endl;
+    }
+    CHK2(result == NDBT_OK, "scan loop failed");
+  }
+
+  if (result != NDBT_OK)
+  {
+    g_info << "stop test at line " << __LINE__ << endl;
+    ctx->stopTest();
+  }
+  return result;
+}
+
+int
+runBug58277pk(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  const int rows = ctx->getNumRecords();
+  const char* tabname = tabName_Bug58277;
+  int dropms = 0;
+
+  while (!ctx->isTestStopped())
+  {
+    CHK2(rows > 0, "cannot use -r 0");
+    dropms = ctx->getProperty("DropMs", (Uint32)0);
+    if (dropms == 0)
+    {
+      NdbSleep_MilliSleep(10);
+      continue;
+    }
+    g_info << "start pk loop" << endl;
+    int errcode = 0; // expected error
+
+    while (!ctx->isTestStopped() && errcode == 0)
+    {
+      const NdbDictionary::Table* pTab = 0;
+      CHK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
+
+      int cnt[1+3] = { 0, 0, 0, 0 };
+      while (!ctx->isTestStopped() && errcode == 0)
+      {
+        NdbTransaction* pTx = 0;
+        CHK2((pTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
+        NdbOperation* pOp = 0;
+        CHK2((pOp = pTx->getNdbOperation(pTab)) != 0, pTx->getNdbError());
+        int type = 1 + rand() % 3;
+        Uint32 aVal = rand() % rows;
+        Uint32 bVal = rand() % rows;
+
+        while (1)
+        {
+          if (type == 1)
+          {
+            CHK2(pOp->updateTuple() == 0, pOp->getNdbError());
+            CHK2(pOp->equal("a", (char*)&aVal) == 0, pOp->getNdbError());
+            CHK2(pOp->setValue("b", bVal) == 0, pOp->getNdbError());
+            int x[] = {
+              266,  // Time-out in NDB, probably caused by deadlock
+              626   // Tuple did not exist
+            };
+            CHK3(pTx->execute(Commit) == 0, pTx->getNdbError(), x);
+          }
+          if (type == 2)
+          {
+            CHK2(pOp->insertTuple() == 0, pOp->getNdbError());
+            CHK2(pOp->equal("a", (char*)&aVal) == 0, pOp->getNdbError());
+            CHK2(pOp->setValue("b", bVal) == 0, pOp->getNdbError());
+            int x[] = {
+              266,  // Time-out in NDB, probably caused by deadlock
+              630   // Tuple already existed when attempting to insert
+            };
+            CHK3(pTx->execute(Commit) == 0, pTx->getNdbError(), x);
+          }
+          if (type == 3)
+          {
+            CHK2(pOp->deleteTuple() == 0, pOp->getNdbError());
+            CHK2(pOp->equal("a", (char*)&aVal) == 0, pOp->getNdbError());
+            int x[] = {
+              266,  // Time-out in NDB, probably caused by deadlock
+              626   // Tuple did not exist
+            };
+            CHK3(pTx->execute(Commit) == 0, pTx->getNdbError(), x);
+          }
+          break;
+        }
+        CHK2(result == NDBT_OK, "pk op failed");
+
+        if (errcode == 0)
+          cnt[type]++;
+        errcode = 0;  // ignore expected error
+        if (pTx != 0)
+          pNdb->closeTransaction(pTx);
+
+        int n = rows / 5;
+        if (n == 0 || rand() % n == 0)
+          break;
+      }
+      g_info << "pk ops " << cnt[1] << "/" << cnt[2] << "/" << cnt[3] << endl;
+      CHK2(result == NDBT_OK, "pk ops failed");
+
+      NdbSleep_MilliSleep(10);
+      dropms = ctx->getProperty("DropMs", (Uint32)0);
+      if (dropms == 0)
+        break;
+    }
+    CHK2(result == NDBT_OK, "pk loop failed");
+  }
+
+  if (result != NDBT_OK)
+  {
+    g_info << "stop test at line " << __LINE__ << endl;
+    ctx->stopTest();
+  }
+  return result;
+}
+
+int
+runBug58277(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int loops = ctx->getNumLoops();
+  int result = NDBT_OK;
+  const int rows = ctx->getNumRecords();
+  NdbRestarter restarter;
+  const char* tabname = tabName_Bug58277;
+  const char* indname = indName_Bug58277;
+  (void)pDic->dropTable(tabname);
+
+  int loop = 0;
+  int preloop = 0; // test some general stuff before bug itself
+  while (!ctx->isTestStopped() && loop < loops)
+  {
+    g_info << "loop " << loop << endl;
+    if (loop == 0)
+      g_info << "preloop " << preloop << endl;
+
+    if (loop == 0)
+    {
+      const NdbDictionary::Table* pTab = 0;
+      if ((pTab = pDic->getTable(tabname)) == 0)
+      {
+        CHK2(pDic->getNdbError().code == 723, pDic->getNdbError());
+      }
+      else
+      {
+        g_info << "drop table " << tabname << endl;
+        CHK2(pDic->dropTable(tabname) == 0, pDic->getNdbError());
+      }
+
+      g_info << "create table " << tabname << endl;
+      NdbDictionary::Table tab(tabname);
+      const char* name[] = { "a", "b" };
+      for (int i = 0; i <= 1; i++)
+      {
+        NdbDictionary::Column c(name[i]);
+        c.setType(NdbDictionary::Column::Unsigned);
+        c.setPrimaryKey(i == 0);
+        c.setNullable(false);
+        tab.addColumn(c);
+      }
+      if (rand() % 3 != 0)
+      {
+        g_info << "set FragAllLarge" << endl;
+        tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
+      }
+      CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+      CHK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
+
+      g_info << "insert records" << endl;
+      HugoTransactions trans(*pTab);
+      CHK2(trans.loadTable(pNdb, rows) == 0, trans.getNdbError());
+    }
+
+    g_info << "create index " << indname << endl;
+    NdbDictionary::Index ind(indname);
+    ind.setTable(tabname);
+    ind.setType(NdbDictionary::Index::OrderedIndex);
+    ind.setLogging(false);
+    ind.addColumn("b");
+    CHK2(pDic->createIndex(ind) == 0, pDic->getNdbError());
+
+    const NdbDictionary::Index* pInd = 0;
+    CHK2((pInd = pDic->getIndex(indname, tabname)) != 0, pDic->getNdbError());
+
+    if (loop == 0)
+    {
+      g_info << "test error handling" << endl;
+      int errins[] = {
+        12008, 909,     // TuxNoFreeScanOp
+        12009, 4259,    // InvalidBounds
+        0, 0
+      };
+
+      int i = 0;
+      while (errins[i] != 0)
+      {
+        const int ei = errins[i++];
+        const int ec = errins[i++];
+        CHK2(restarter.insertErrorInAllNodes(ei) == 0, "value " << ei);
+
+        NdbTransaction* pSTx = 0;
+        CHK2((pSTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
+        NdbIndexScanOperation* pSOp = 0;
+        CHK2((pSOp = pSTx->getNdbIndexScanOperation(pInd)) != 0, pSTx->getNdbError());
+
+        NdbOperation::LockMode lm = NdbOperation::LM_Exclusive;
+        Uint32 flags = 0;
+        CHK2(pSOp->readTuples(lm, flags) == 0, pSOp->getNdbError());
+
+        Uint32 aVal = 0;
+        CHK2(pSOp->getValue("a", (char*)&aVal) != 0, pSOp->getNdbError());
+        CHK2(pSTx->execute(NoCommit) == 0, pSTx->getNdbError());
+        // before fixes 12009 failed to fail at once here
+        CHK2(pSOp->nextResult(true) == -1, "failed to fail on " << ei);
+        CHK2(pSOp->getNdbError().code == ec, "expect " << ec << " got " << pSOp->getNdbError());
+        pNdb->closeTransaction(pSTx);
+
+        g_info << "error " << ei << " " << ec << " ok" << endl;
+        CHK2(restarter.insertErrorInAllNodes(0) == 0, "value " << 0);
+      }
+      CHK2(result == NDBT_OK, "test error handling failed");
+    }
+
+    if (loop == 0 && preloop++ < 2)
+      continue;
+
+    int dropmin = 1000;
+    int dropmax = 5000;
+    int dropms = dropmin + rand() % (dropmax - dropmin + 1);
+    g_info << "drop in " << dropms << " ms" << endl;
+    ctx->setProperty("DropMs", dropms);
+    NdbSleep_MilliSleep(dropms + 5000);
+
+    loop++;
+    if (loop == loops)
+    {
+      g_info << "drop table " << tabname << endl;
+      CHK2(pDic->dropTable(tabname) == 0, pDic->getNdbError());
+    }
+  }
+
+  g_info << "stop test at line " << __LINE__ << endl;
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -8198,7 +8619,22 @@ TESTCASE("Bug53944", "")
 {
   INITIALIZER(runBug53944);
 }
-/** telco-6.4 **/
+TESTCASE("Bug58277",
+         "Dropping busy ordered index can crash data node.\n"
+         "Give any tablename as argument (T1)"){
+  STEP(runBug58277);
+  STEP(runBug58277drop);
+  /*
+   * A single scan update can show the bug but this is not likely.
+   * Add more scan updates.  Also add PK ops for other asserts.
+   */
+  STEP(runBug58277scan);
+  STEP(runBug58277scan);
+  STEP(runBug58277scan);
+  STEP(runBug58277scan);
+  STEP(runBug58277pk);
+  STEP(runBug58277pk);
+}
 NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
