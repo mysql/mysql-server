@@ -690,6 +690,8 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     error|=my_close(new_file,MYF(MY_WME));
     if (!result_table)
     {
+      (void) flush_pagecache_blocks(isam_file->s->pagecache, &isam_file->dfile,
+                                    FLUSH_RELEASE);
       error|=my_close(isam_file->dfile.file, MYF(MY_WME));
       isam_file->dfile.file= -1;	/* Tell maria_close file is closed */
       isam_file->s->bitmap.file.file= -1;
@@ -763,13 +765,13 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   DBUG_RETURN(0);
 
  err:
-  end_pagecache(maria_pagecache, 1);
   free_counts_and_tree_and_queue(huff_trees,trees,huff_counts,fields);
   if (new_file >= 0)
     VOID(my_close(new_file,MYF(0)));
   if (join_maria_file >= 0)
     VOID(my_close(join_maria_file,MYF(0)));
   mrg_close(mrg);
+  end_pagecache(maria_pagecache, 1);
   VOID(fprintf(stderr, "Aborted: %s is not compressed\n", org_name));
   DBUG_RETURN(-1);
 }
