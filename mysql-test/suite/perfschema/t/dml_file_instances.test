@@ -18,11 +18,12 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 #
+--disable_result_log
 select * from performance_schema.file_instances limit 1;
 
 select * from performance_schema.file_instances
   where file_name='FOO';
+--enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
 insert into performance_schema.file_instances

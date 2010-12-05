@@ -290,7 +290,6 @@ Event_basic::load_time_zone(THD *thd, const LEX_STRING tz_name)
 */
 
 Event_queue_element::Event_queue_element():
-  status_changed(FALSE), last_executed_changed(FALSE),
   on_completion(Event_parse_data::ON_COMPLETION_DROP),
   status(Event_parse_data::ENABLED), expression(0), dropped(FALSE),
   execution_count(0)
@@ -431,7 +430,7 @@ Event_job_data::load_from_row(THD *thd, TABLE *table)
   definer_host.str= strmake_root(&mem_root, ptr + 1, len);
   definer_host.length= len;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }
@@ -539,7 +538,6 @@ Event_queue_element::load_from_row(THD *thd, TABLE *table)
                                                    TIME_NO_ZERO_DATE);
     last_executed= my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
   }
-  last_executed_changed= FALSE;
 
   if ((ptr= get_field(&mem_root, table->field[ET_FIELD_STATUS])) == NullS)
     DBUG_RETURN(TRUE);
@@ -638,7 +636,7 @@ Event_timed::load_from_row(THD *thd, TABLE *table)
   else
     comment.length= 0;
 
-  sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[ET_FIELD_SQL_MODE]->val_int();
 
   DBUG_RETURN(FALSE);
 }
@@ -935,7 +933,6 @@ Event_queue_element::compute_next_execution_time()
       DBUG_PRINT("info",("One-time event will be dropped: %d.", dropped));
 
       status= Event_parse_data::DISABLED;
-      status_changed= TRUE;
     }
     goto ret;
   }
@@ -955,7 +952,6 @@ Event_queue_element::compute_next_execution_time()
       dropped= TRUE;
     DBUG_PRINT("info", ("Dropped: %d", dropped));
     status= Event_parse_data::DISABLED;
-    status_changed= TRUE;
 
     goto ret;
   }
@@ -1018,7 +1014,6 @@ Event_queue_element::compute_next_execution_time()
         if (on_completion == Event_parse_data::ON_COMPLETION_DROP)
           dropped= TRUE;
         status= Event_parse_data::DISABLED;
-        status_changed= TRUE;
       }
       else
       {
@@ -1108,7 +1103,6 @@ Event_queue_element::compute_next_execution_time()
           execute_at= 0;
           execute_at_null= TRUE;
           status= Event_parse_data::DISABLED;
-          status_changed= TRUE;
           if (on_completion == Event_parse_data::ON_COMPLETION_DROP)
             dropped= TRUE;
         }
@@ -1144,47 +1138,8 @@ void
 Event_queue_element::mark_last_executed(THD *thd)
 {
   last_executed= (my_time_t) thd->query_start();
-  last_executed_changed= TRUE;
 
   execution_count++;
-}
-
-
-/*
-  Saves status and last_executed_at to the disk if changed.
-
-  SYNOPSIS
-    Event_queue_element::update_timing_fields()
-      thd - thread context
-
-  RETURN VALUE
-    FALSE   OK
-    TRUE    Error while opening mysql.event for writing or during
-            write on disk
-*/
-
-bool
-Event_queue_element::update_timing_fields(THD *thd)
-{
-  Event_db_repository *db_repository= Events::get_db_repository();
-  int ret;
-
-  DBUG_ENTER("Event_queue_element::update_timing_fields");
-
-  DBUG_PRINT("enter", ("name: %*s", (int) name.length, name.str));
-
-  /* No need to update if nothing has changed */
-  if (!(status_changed || last_executed_changed))
-    DBUG_RETURN(0);
-
-  ret= db_repository->update_timing_fields_for_event(thd,
-                                                     dbname, name,
-                                                     last_executed_changed,
-                                                     last_executed,
-                                                     status_changed,
-                                                     (ulonglong) status);
-  last_executed_changed= status_changed= FALSE;
-  DBUG_RETURN(ret);
 }
 
 
@@ -1526,7 +1481,7 @@ end:
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
 
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", dbname.str, name.str, ret));
 

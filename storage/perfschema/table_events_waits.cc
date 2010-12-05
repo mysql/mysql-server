@@ -198,6 +198,9 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   PFS_instr_class *safe_class;
   const char *base;
   const char *safe_source_file;
+  const char *safe_table_schema_name;
+  const char *safe_table_object_name;
+  const char *safe_file_name;
 
   m_row_exists= false;
   safe_thread= sanitize_thread(pfs_thread);
@@ -257,15 +260,19 @@ void table_events_waits_common::make_row(bool thread_own_wait,
       m_row.m_object_type_length= 15;
     }
     m_row.m_object_schema_length= wait->m_schema_name_length;
+    safe_table_schema_name= sanitize_table_schema_name(wait->m_schema_name);
     if (unlikely((m_row.m_object_schema_length == 0) ||
-                 (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))))
+                 (m_row.m_object_schema_length > sizeof(m_row.m_object_schema)) ||
+                 (safe_table_schema_name == NULL)))
       return;
-    memcpy(m_row.m_object_schema, wait->m_schema_name, m_row.m_object_schema_length);
+    memcpy(m_row.m_object_schema, safe_table_schema_name, m_row.m_object_schema_length);
     m_row.m_object_name_length= wait->m_object_name_length;
+    safe_table_object_name= sanitize_table_object_name(wait->m_object_name);
     if (unlikely((m_row.m_object_name_length == 0) ||
-                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name)) ||
+                 (safe_table_object_name == NULL)))
       return;
-    memcpy(m_row.m_object_name, wait->m_object_name, m_row.m_object_name_length);
+    memcpy(m_row.m_object_name, safe_table_object_name, m_row.m_object_name_length);
     safe_class= sanitize_table_class(wait->m_class);
     break;
   case WAIT_CLASS_FILE:
@@ -273,10 +280,12 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     m_row.m_object_type_length= 4;
     m_row.m_object_schema_length= 0;
     m_row.m_object_name_length= wait->m_object_name_length;
+    safe_file_name= sanitize_file_name(wait->m_object_name);
     if (unlikely((m_row.m_object_name_length == 0) ||
-                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name)) ||
+                 (safe_file_name == NULL)))
       return;
-    memcpy(m_row.m_object_name, wait->m_object_name, m_row.m_object_name_length);
+    memcpy(m_row.m_object_name, safe_file_name, m_row.m_object_name_length);
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
     break;
   case NO_WAIT_CLASS:

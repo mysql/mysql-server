@@ -279,6 +279,7 @@ PFS_mutex *sanitize_mutex(PFS_mutex *unsafe);
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe);
 PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
+const char *sanitize_file_name(const char *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
 
 int init_instruments(const PFS_global_param *param);

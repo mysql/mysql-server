@@ -840,6 +840,8 @@ show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	0	0	0	#	1024	0	NULL	#	#	NULL	latin1_swedish_ci	NULL		
 v1	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 drop table t1;
 create view v1 as select 99999999999999999999999999999999999999999999999999999 as col1;
@@ -1416,8 +1418,8 @@ a	a	b
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 create view v1 (a) as select a from t1;
@@ -1431,8 +1433,8 @@ a	a	b
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
@@ -1680,6 +1682,7 @@ WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1687,13 +1690,13 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v1 a LEFT JOIN t2 b ON a.col1=b.col1
 WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1701,7 +1704,6 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 CREATE VIEW v2 AS SELECT * FROM t2;
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
@@ -1709,6 +1711,7 @@ WHERE b.col2 IS NULL OR
 b.col2=(SELECT MAX(col2) FROM v2 b WHERE b.col1=a.col1);
 col1	col2	col2	col3
 1	trudy	2	y
+10	matt	NULL	NULL
 2	peter	1	n
 3	sanja	1	n
 4	monty	3	n
@@ -1716,7 +1719,6 @@ col1	col2	col2	col3
 6	kent	1	n
 7	carsten	NULL	NULL
 8	ranger	1	y
-10	matt	NULL	NULL
 SELECT a.col1,a.col2,b.col2,b.col3
 FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
 WHERE a.col1 IN (1,5,9) AND
@@ -2351,7 +2353,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT * FROM v2 WHERE a=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	5	const	1	Using index
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 DROP VIEW v1,v2;
 DROP TABLE t1,t2,t3;
 create table t1 (f1 int);

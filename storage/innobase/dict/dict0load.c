@@ -172,9 +172,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -209,9 +209,9 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	mutex_enter(&kernel_mutex);
+	server_mutex_enter();
 	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	server_mutex_exit();
 }
 
 
@@ -1355,7 +1355,8 @@ dict_load_indexes(
 
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
-		ut_ad((index == NULL) == (err_msg != NULL));
+		ut_ad((index == NULL && err_msg != NULL)
+		      || (index != NULL && err_msg == NULL));
 
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have

@@ -23,7 +23,7 @@ source include/stop_slave.inc;
 
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos = $exec_pos`)
+if ($read_pos == $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
@@ -32,7 +32,7 @@ if (`SELECT $read_pos = $exec_pos`)
 change master to master_user='root';
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos <> $exec_pos`)
+if ($read_pos != $exec_pos)
 {
   source include/show_rpl_debug_info.inc;
   echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';
@@ -141,7 +141,7 @@ if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 
 -- let $retry_count2= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it shows no changes
-if (`SELECT $retry_count2 <> $retry_count1`)
+if ($retry_count2 != $retry_count1)
 {
   -- echo Unexpected retry count value! Got: $retry_count2, expected: $retry_count1
   -- die
@@ -156,7 +156,7 @@ CHANGE MASTER TO master_retry_count=1;
 
 -- let $retry_count3= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it should show 1
-if (`SELECT $retry_count3 <> 1`)
+if ($retry_count3 != 1)
 {
   -- echo Unexpected retry count value! Got: $retry_count3, expected: 1
   -- die
@@ -171,7 +171,7 @@ if (`SELECT $retry_count3 <> 1`)
 
 -- let $retry_count4= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 # assertion: it should show 1
-if (`SELECT $retry_count4 <> $retry_count0`)
+if ($retry_count4 != $retry_count0)
 {
   -- echo Unexpected retry count value! Got: $retry_count4, expected: $retry_count0
   -- die
@@ -200,7 +200,7 @@ if (`SELECT $retry_count4 <> $retry_count0`)
 -- let $retry_count_before= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 -- eval CHANGE MASTER TO master_connect_retry= $connect_retry_new
 -- let $retry_count_after= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
-if (`SELECT $retry_count_before <> $retry_count_after`)
+if ($retry_count_before != $retry_count_after)
 {
   -- echo Unexpected retry count value! Got: $retry_count_after, expected: $retry_count_before
   -- die
@@ -209,16 +209,12 @@ if (`SELECT $retry_count_before <> $retry_count_after`)
 
 ## Server restart persisting test
 --echo ### stop slave server
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
   
 --echo ### start slave server
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -226,11 +222,15 @@ EOF
 -- source include/start_slave.inc
 
 -- let $retry_count5= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
-if (`SELECT $retry_count5 <> $retry_count_expected`)
+if ($retry_count5 != $retry_count_expected)
 {
   -- echo Unexpected retry count value! Got: $retry_count5, expected: $retry_count_expected
   -- die
 }
+
+# action: change the value back to the original one
+-- source include/stop_slave.inc
+-- eval CHANGE MASTER TO master_retry_count=$retry_count0
 
 ## assert that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
@@ -239,6 +239,16 @@ CHANGE MASTER TO master_retry_count='a';
 ## assert that there is a parse error if using a negative number
 -- error ER_PARSE_ERROR
 CHANGE MASTER TO master_retry_count=-1;
+
+-- source include/start_slave.inc
+
+## assert that the test has cleaned itself up
+-- let $retry_count6= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
+if (`SELECT $retry_count6 <> $retry_count0`)
+{
+  -- echo Unexpected retry count value! Got: $retry_count6, expected: $retry_count0
+  -- die
+}
 
 ## Checks if Replicate_Ignore_Server_Ids is correctly written to a repository.
 
@@ -254,16 +264,12 @@ CHANGE MASTER TO master_retry_count=-1;
 -- let $ignore_new_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
 
 --echo ### stop slave server
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
 --echo ### start slave server
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -279,6 +285,39 @@ if (`SELECT "$ignore_new_value" <> "$ignore_crash_value" || $connect_new_value <
   -- echo Unexpected values: "$ignore_new_value" <> "$ignore_crash_value" or $connect_new_value <> $connect_crash_value
   -- die
 }
+
+#
+# WL#3127 slave side TCP address binding
+# - CHANGE MASTER ... MASTER_BIND='interface'
+# - SHOW SLAVE STATUS has new column Master_Bind
+#
+
+let $check_ipv6_just_check=1;
+source include/check_ipv6.inc;
+let $check_ipv6_just_check=0;
+
+# Test valid IPv4 address
+let $master_bind='127.0.0.1';
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test invalid IPv4 address
+let $master_bind='1.1.1.1';
+let $master_bind_error_expected=2003;
+--source extra/rpl_tests/rpl_change_master_bind.inc
+let $master_bind_error_expected=0;
+
+# Test valid IPv6 address
+let $master_bind='::1';
+if (!$check_ipv6_supported)
+{
+  # No IPv6 support, fallback to IPv4
+  let $master_bind='127.0.0.1';
+}
+--source extra/rpl_tests/rpl_change_master_bind.inc
+
+# Test with no bind address(check that reset works)
+let $master_bind='';
+--source extra/rpl_tests/rpl_change_master_bind.inc
 
 -- source include/master-slave-reset.inc
 -- source include/master-slave-end.inc

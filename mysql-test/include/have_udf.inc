@@ -8,7 +8,7 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable UDF_EXAMPLE_LIB is set
 #
-if (`SELECT LENGTH('$UDF_EXAMPLE_LIB') = 0`) {
+if (!$UDF_EXAMPLE_LIB) {
   --skip UDF requires the environment variable \$UDF_EXAMPLE_LIB to be set (normally done by mtr)
 }
 

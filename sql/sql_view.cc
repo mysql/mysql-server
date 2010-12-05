@@ -21,7 +21,7 @@
 #include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock
+#include "lock.h"        // MYSQL_OPEN_SKIP_TEMPORARY 
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -648,13 +648,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    res= TRUE;
-    goto err;
-  }
-
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -703,7 +696,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 
@@ -844,7 +836,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view_query.length(0);
   is_query.length(0);
   {
-    ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
+    sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
     lex->unit.print(&view_query, QT_ORDINARY);
@@ -1229,7 +1221,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong saved_mode= thd->variables.sql_mode;
+    sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing

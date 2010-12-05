@@ -187,9 +187,30 @@ struct PFS_table_key
 /** Instrumentation metadata for a table share. */
 struct PFS_table_share
 {
+public:
   enum_object_type get_object_type()
   {
     return (enum_object_type) m_key.m_hash_key[0];
+  }
+
+  inline void init_refcount(void)
+  {
+    PFS_atomic::store_32(& m_refcount, 1);
+  }
+
+  inline int get_refcount(void)
+  {
+    return PFS_atomic::load_32(& m_refcount);
+  }
+
+  inline void inc_refcount(void)
+  {
+    PFS_atomic::add_32(& m_refcount, 1);
+  }
+
+  inline void dec_refcount(void)
+  {
+    PFS_atomic::add_32(& m_refcount, -1);
   }
 
   /** Setup object refresh version. */
@@ -211,14 +232,16 @@ struct PFS_table_share
   /** True if this table instrument is timed. */
   bool m_timed;
   bool m_purge;
-  /** Number of opened table handles. */
-  uint m_refcount;
   /** Table io statistics. */
   PFS_table_stat m_table_stat;
   /** Number of indexes. */
   uint m_key_count;
   /** Index names. */
   PFS_table_key m_keys[MAX_KEY];
+
+private:
+  /** Number of opened table handles. */
+  int m_refcount;
 };
 
 /**
@@ -281,6 +304,8 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
+const char *sanitize_table_schema_name(const char *unsafe);
+const char *sanitize_table_object_name(const char *unsafe);
 PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
 

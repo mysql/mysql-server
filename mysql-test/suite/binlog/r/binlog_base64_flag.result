@@ -46,7 +46,8 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int) engine= myisam
 /*!*/;
-DELIMITER ;
+# at 203
+<#>DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
@@ -97,7 +98,8 @@ drop table t1, char63_utf8, char128_utf8;
 BINLOG '';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 BINLOG '123';
+ERROR HY000: Decoding of base64 string failed
 BINLOG '-2079193929';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR HY000: Decoding of base64 string failed
 BINLOG 'xç↓%~∙D╒ƒ╡';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+ERROR HY000: Decoding of base64 string failed

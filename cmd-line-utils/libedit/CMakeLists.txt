@@ -26,6 +26,21 @@ int main()
   tgoto(0,0,0);
   return 0;
 }" HAVE_DECL_TGOTO)
+IF(NOT HAVE_DECL_TGOTO)
+  # On Solaris 11, term.h is broken, curses.h is also required.
+  CHECK_CXX_SOURCE_COMPILES("
+  #include <curses.h>
+  #include <term.h>
+  int main()
+  {
+    tgoto(0,0,0);
+    return 0;
+  }" HAVE_DECL_TGOTO2)
+  IF(HAVE_DECL_TGOTO2)
+    SET(HAVE_DECL_TGOTO 1 CACHE INTERNAL "" FORCE)
+  ENDIF()
+ENDIF()
+
 SET(CMAKE_REQUIRED_LIBRARIES)
 
 

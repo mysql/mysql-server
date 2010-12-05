@@ -1011,6 +1011,19 @@ protected:
 };
 
 
+class Create_func_from_base64 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_from_base64 s_singleton;
+
+protected:
+  Create_func_from_base64() {}
+  virtual ~Create_func_from_base64() {}
+};
+
+
 class Create_func_from_days : public Create_func_arg1
 {
 public:
@@ -1458,6 +1471,34 @@ protected:
   Create_func_length() {}
   virtual ~Create_func_length() {}
 };
+
+
+#ifndef DBUG_OFF
+class Create_func_like_range_min : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_min s_singleton;
+
+protected:
+  Create_func_like_range_min() {}
+  virtual ~Create_func_like_range_min() {}
+};
+
+
+class Create_func_like_range_max : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_like_range_max s_singleton;
+
+protected:
+  Create_func_like_range_max() {}
+  virtual ~Create_func_like_range_max() {}
+};
+#endif
 
 
 class Create_func_ln : public Create_func_arg1
@@ -2199,6 +2240,19 @@ public:
 protected:
   Create_func_timediff() {}
   virtual ~Create_func_timediff() {}
+};
+
+
+class Create_func_to_base64 : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_to_base64 s_singleton;
+
+protected:
+  Create_func_to_base64() {}
+  virtual ~Create_func_to_base64() {}
 };
 
 
@@ -3620,6 +3674,15 @@ Create_func_found_rows::create(THD *thd)
 }
 
 
+Create_func_from_base64 Create_func_from_base64::s_singleton;
+
+Item*
+Create_func_from_base64::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_from_base64(arg1);
+}
+
+
 Create_func_from_days Create_func_from_days::s_singleton;
 
 Item*
@@ -4088,6 +4151,26 @@ Create_func_length::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_length(arg1);
 }
+
+
+#ifndef DBUG_OFF
+Create_func_like_range_min Create_func_like_range_min::s_singleton;
+
+Item*
+Create_func_like_range_min::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_min(arg1, arg2);
+}
+
+
+Create_func_like_range_max Create_func_like_range_max::s_singleton;
+
+Item*
+Create_func_like_range_max::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_like_range_max(arg1, arg2);
+}
+#endif
 
 
 Create_func_ln Create_func_ln::s_singleton;
@@ -4819,6 +4902,15 @@ Create_func_timediff::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
+Create_func_to_base64 Create_func_to_base64::s_singleton;
+
+Item*
+Create_func_to_base64::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_to_base64(arg1);
+}
+
+
 Create_func_to_days Create_func_to_days::s_singleton;
 
 Item*
@@ -5166,6 +5258,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("FLOOR") }, BUILDER(Create_func_floor)},
   { { C_STRING_WITH_LEN("FORMAT") }, BUILDER(Create_func_format)},
   { { C_STRING_WITH_LEN("FOUND_ROWS") }, BUILDER(Create_func_found_rows)},
+  { { C_STRING_WITH_LEN("FROM_BASE64") }, BUILDER(Create_func_from_base64)},
   { { C_STRING_WITH_LEN("FROM_DAYS") }, BUILDER(Create_func_from_days)},
   { { C_STRING_WITH_LEN("FROM_UNIXTIME") }, BUILDER(Create_func_from_unixtime)},
   { { C_STRING_WITH_LEN("GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5199,6 +5292,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
+#ifndef DBUG_OFF
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, BUILDER(Create_func_like_range_min)},
+  { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, BUILDER(Create_func_like_range_max)},
+#endif
   { { C_STRING_WITH_LEN("LINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("LINEFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("LINESTRINGFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5346,6 +5443,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TIME_FORMAT") }, BUILDER(Create_func_time_format)},
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
   { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
   { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},

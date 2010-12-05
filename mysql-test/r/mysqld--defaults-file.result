@@ -1,0 +1,12 @@
+Could not open required defaults file: /path/with/no/extension
+Fatal error in defaults handling. Program aborted
+Could not open required defaults file: /path/with.ext
+Fatal error in defaults handling. Program aborted
+Could not open required defaults file: MYSQL_TEST_DIR/relative/path/with.ext
+Fatal error in defaults handling. Program aborted
+Could not open required defaults file: MYSQL_TEST_DIR/relative/path/without/extension
+Fatal error in defaults handling. Program aborted
+Could not open required defaults file: MYSQL_TEST_DIR/with.ext
+Fatal error in defaults handling. Program aborted
+Could not open required defaults file: MYSQL_TEST_DIR/no_extension
+Fatal error in defaults handling. Program aborted

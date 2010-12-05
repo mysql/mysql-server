@@ -1072,6 +1072,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
+%token  MASTER_BIND_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
@@ -1893,6 +1894,10 @@ master_def:
           MASTER_HOST_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.host = $3.str;
+          }
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.bind_addr = $3.str;
           }
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
@@ -6595,7 +6600,6 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          opt_ignore
         ;
 
 remove_partitioning:
@@ -7483,7 +7487,6 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
             lex->safe_to_cache_query=0;
-            lex->protect_against_global_read_lock= TRUE;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
@@ -13334,9 +13337,6 @@ table_lock:
                                             MDL_SHARED_NO_READ_WRITE :
                                             MDL_SHARED_READ)))
               MYSQL_YYABORT;
-            /* If table is to be write locked, protect from a impending GRL. */
-            if (lock_for_write)
-              Lex->protect_against_global_read_lock= TRUE;
           }
         ;
 

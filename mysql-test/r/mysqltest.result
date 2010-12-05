@@ -308,6 +308,10 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+`select 42`
+drop table t1;
 mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
@@ -399,10 +403,43 @@ true-inner
 true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
+Counter should still be 10, is 10
 Counter is not 0, (counter=0)
+Not space var works
 Counter is true, (counter=alpha)
-Beta is true
 while with string, only once
+5<7
+5<7 again
+5<7 still
+5<6
+5>=5
+5>=5 again
+5>3
+5==5
+5!=8
+5!=five
+5==3+2
+5   ==   5
+hello == hello
+hello   ==   hello
+hello != goodbye
+'quoted' == ''quoted''
+two words
+'two words'
+"two words"
+two words are two words
+right answer
+anything goes
+0 != string
+mysqltest: At line 2: Only == and != are supported for string values
+mysqltest: At line 2: Found junk '~= 6' after $variable in condition
+mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+counter is 2
+counter is 3
+counter is 4
+counter is 5
+counter is 6
+counter is 7
 1
 Testing while with not
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
@@ -813,8 +850,6 @@ dir-list.txt
 SELECT 'c:\\a.txt' AS col;
 col
 z
-hej
-mysqltest: At line 1: Found junk ' != 143' after $variable in expression
 select 1;
 1
 1

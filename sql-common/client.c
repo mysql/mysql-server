@@ -1186,7 +1186,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   }
 
   if (!(tmp= my_strdup(cmd,MYF(MY_WME))) ||
-      insert_dynamic(options->init_commands, (uchar*)&tmp))
+      insert_dynamic(options->init_commands, &tmp))
   {
     my_free(tmp);
     return 1;

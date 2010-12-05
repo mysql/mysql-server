@@ -356,7 +356,7 @@ row_undo_step(
 
 	ut_ad(thr);
 
-	srv_activity_count++;
+	srv_inc_activity_count();
 
 	trx = thr_get_trx(thr);
 

@@ -75,6 +75,9 @@ Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
+const char *relay_log_index= 0;
+const char *relay_log_basename= 0;
+
 /*
   When slave thread exits, we need to remember the temporary tables so we
   can re-use them on slave start.
@@ -845,9 +848,17 @@ int start_slave_thread(
     while (start_id == *slave_run_id && thd != NULL)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char* old_msg = thd->enter_cond(start_cond,cond_lock,
-                                            "Waiting for slave thread to start");
-      mysql_cond_wait(start_cond, cond_lock);
+      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
+                                           "Waiting for slave thread to start");
+      /*
+        It is not sufficient to test this at loop bottom. We must test
+        it after registering the mutex in enter_cond(). If the kill
+        happens after testing of thd->killed and before the mutex is
+        registered, we could otherwise go waiting though thd->killed is
+        set.
+      */
+      if (!thd->killed)
+        mysql_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
@@ -2053,6 +2064,8 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Master_Bind",
+                                             sizeof(mi->bind_addr)));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2241,6 +2254,8 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store(slave_sql_running_state, &my_charset_bin);
     // Master_Retry_Count
     protocol->store((ulonglong) mi->retry_count);
+    // Master_Bind
+    protocol->store(mi->bind_addr, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -2956,7 +2971,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int temp_err;
+      int UNINIT_VAR(temp_err);
       if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
@@ -3468,7 +3483,7 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
   RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
   {
@@ -3629,8 +3644,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     Seconds_Behind_Master grows. No big deal.
   */
   rli->abort_slave = 0;
-  mysql_mutex_unlock(&rli->run_lock);
-  mysql_cond_broadcast(&rli->start_cond);
 
   /*
     Reset errors for a clean start (otherwise, if the master is idle, the SQL
@@ -3643,6 +3656,11 @@ pthread_handler_t handle_slave_sql(void *arg)
     But the master timestamp is reset by RESET SLAVE & CHANGE MASTER.
   */
   rli->clear_error();
+
+  mysql_mutex_unlock(&rli->run_lock);
+  mysql_cond_broadcast(&rli->start_cond);
+
+  DEBUG_SYNC(thd, "after_start_slave");
 
   //tell the I/O thread to take relay_log_space_limit into account from now on
   mysql_mutex_lock(&rli->log_space_lock);
@@ -3856,7 +3874,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
     variables is supposed to set them to 0 before terminating)).
   */
   thd->catalog= 0;
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   mysql_mutex_lock(&rli->run_lock);
@@ -4540,6 +4558,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       goto err;
     }
     mi->received_heartbeats++;
+    mi->last_heartbeat= my_time(0);
     /* 
        compare local and event's versions of log_file, log_pos.
        
@@ -4743,6 +4762,12 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
@@ -4868,6 +4893,12 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   */
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
+
+  if (mi->bind_addr[0])
+  {
+    DBUG_PRINT("info",("bind_addr: %s", mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
 
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
@@ -5803,7 +5834,7 @@ bool change_master(THD* thd, Master_info* mi)
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
-  char saved_host[HOSTNAME_LENGTH + 1];
+  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
@@ -5852,6 +5883,7 @@ bool change_master(THD* thd, Master_info* mi)
     Before processing the command, save the previous state.
   */
   strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+  strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
   saved_port= mi->port;
   strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
   saved_log_pos= mi->get_master_log_pos();
@@ -5885,6 +5917,8 @@ bool change_master(THD* thd, Master_info* mi)
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
+  if (lex_mi->bind_addr)
+    strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr)-1);
   if (lex_mi->user)
     strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
   if (lex_mi->password)
@@ -5924,7 +5958,7 @@ bool change_master(THD* thd, Master_info* mi)
                   mi->ignore_server_ids->server_ids.elements, sizeof(ulong),
                   (int (*) (const void*, const void*))
                   change_master_server_id_cmp) == NULL)
-        insert_dynamic(&mi->ignore_server_ids->server_ids, (uchar*) &s_id);
+        insert_dynamic(&mi->ignore_server_ids->server_ids, &s_id);
     }
   }
   sort_dynamic(&mi->ignore_server_ids->server_ids, (qsort_cmp) change_master_server_id_cmp);
@@ -6067,11 +6101,12 @@ bool change_master(THD* thd, Master_info* mi)
 
   sql_print_information("'CHANGE MASTER TO executed'. "
     "Previous state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'. "
+    "master_log_pos='%ld', master_bind='%s'. "
     "New state master_host='%s', master_port='%u', master_log_file='%s', "
-    "master_log_pos='%ld'.", saved_host, saved_port, saved_log_name,
-    (ulong) saved_log_pos, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos());
+    "master_log_pos='%ld', master_bind='%s'.", 
+    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+    (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   /*
     If we don't write new coordinates to disk now, then old will remain in
@@ -6130,7 +6165,7 @@ bool Server_ids::unpack_server_ids(char *param_server_ids)
     else
     {
       ulong val= atol(token);
-      insert_dynamic(&server_ids, (uchar *) &val);
+      insert_dynamic(&server_ids, &val);
     }
   }
   DBUG_RETURN(FALSE);

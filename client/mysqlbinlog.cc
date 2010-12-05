@@ -464,7 +464,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
      after Execute_load_query_log_event or Execute_load_log_event
      will have been processed, otherwise in Load_log_processor::destroy()
   */
-  if (set_dynamic(&file_names, (uchar*)&rec, file_id))
+  if (set_dynamic(&file_names, &rec, file_id))
   {
     error("Out of memory.");
     my_free(fname);
@@ -924,7 +924,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         passed --short-form, because --short-form disables printing
         row events.
       */
-      if (!print_event_info->printed_fd_event && !short_form)
+      if (!print_event_info->printed_fd_event && !short_form &&
+          ev_type != TABLE_MAP_EVENT && ev_type != ROWS_QUERY_LOG_EVENT)
       {
         const char* type_str= ev->get_type_str();
         if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
