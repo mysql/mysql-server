@@ -1314,4 +1314,16 @@ WHERE c  = 'i'  OR b IN ( 'Arkansas' , 'd' , 'pdib' , 'can' )  OR
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	PRIMARY,idx1,idx2,idx3	idx3,idx2,PRIMARY,idx1	67,13,4,3	NULL	8	Using sort_union(idx3,idx2,PRIMARY,idx1); Using where
 DROP TABLE t1;
+CREATE TABLE t1 (
+f1 int, f2 int, f3 int, f4 int, f5 int,
+PRIMARY KEY (f4), KEY (f1), KEY (f2), KEY (f3)
+) ;
+INSERT INTO t1 VALUES (0,0,NULL,9,5), (0,0,1,9425,NULL);
+SELECT f5 FROM t1
+WHERE f2 != 1 OR f1 IS NULL OR f4 = 4 OR
+f2 AND (f4 BETWEEN 6 AND 255 OR f3 IS NULL);
+f5
+5
+NULL
+DROP TABLE t1;
 set session optimizer_switch='index_merge_sort_intersection=default';
