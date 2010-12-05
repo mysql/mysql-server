@@ -2427,7 +2427,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
     fprintf(stderr, "Attempting backtrace. You can use the following "
                     "information to find out\nwhere mysqld died. If "
                     "you see no messages after this, something went\n"
@@ -2455,11 +2455,13 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
       kreason= "KILLED_NO_VALUE";
       break;
     }
-    fprintf(stderr, "Trying to get some variables.\n\
-Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query(), 1024);
-    fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "thd->killed=%s\n", kreason);
+    fprintf(stderr, "\nTrying to get some variables.\n"
+                    "Some pointers may be invalid and cause the dump to abort.\n");
+    fprintf(stderr, "Query (%p): ", thd->query());
+    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "Status: %s\n", kreason);
+    fputc('\n', stderr);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
