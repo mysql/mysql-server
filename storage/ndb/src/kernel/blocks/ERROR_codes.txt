@@ -10,7 +10,7 @@ Next DBTC 8088
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
-Next DBTUX 12008
+Next DBTUX 12010
 Next SUMA 13047
 Next LGMAN 15001
 Next TSMAN 16001
@@ -627,6 +627,8 @@ Test routing of signals:
 Ordered index:
 --------------
 12007: Make next alloc node fail with no memory error
+12008: Fail seize scan op
+12009: Cause InvalidBounds error
 
 Dbdict:
 -------
