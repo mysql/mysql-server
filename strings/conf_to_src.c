@@ -271,7 +271,7 @@ fprint_copyright(FILE *file)
 int
 main(int argc, char **argv  __attribute__((unused)))
 {
-  CHARSET_INFO  ncs;
+  struct charset_info_st ncs;
   CHARSET_INFO  *cs;
   char filename[256];
   FILE *f= stdout;
