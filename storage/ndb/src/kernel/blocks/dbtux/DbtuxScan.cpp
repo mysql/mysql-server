@@ -20,12 +20,18 @@
 #include "Dbtux.hpp"
 #include <my_sys.h>
 
+/*
+ * Error handling:  Any seized scan op is released.  ACC_SCANREF is sent
+ * to LQH.  LQH sets error code, and treats this like ZEMPTY_FRAGMENT.
+ * Therefore scan is now closed on both sides.
+ */
 void
 Dbtux::execACC_SCANREQ(Signal* signal)
 {
   jamEntry();
   const AccScanReq reqCopy = *(const AccScanReq*)signal->getDataPtr();
   const AccScanReq* const req = &reqCopy;
+  Uint32 errorCode = 0;
   ScanOpPtr scanPtr;
   scanPtr.i = RNIL;
   do {
@@ -45,6 +51,17 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     }
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
+    // check for index not Online (i.e. Dropping)
+    if (unlikely(indexPtr.p->m_state != Index::Online)) {
+      jam();
+#ifdef VM_TRACE
+      if (debugFlags & (DebugMeta | DebugScan)) {
+        debugOut << "Index dropping at ACC_SCANREQ " << indexPtr.i << " " << *indexPtr.p << endl;
+      }
+#endif
+      errorCode = AccScanRef::TuxIndexNotOnline;
+      break;
+    }
     // must be normal DIH/TC fragment
     TreeHead& tree = frag.m_tree;
     // check for empty fragment
@@ -59,8 +76,12 @@ Dbtux::execACC_SCANREQ(Signal* signal)
       return;
     }
     // seize from pool and link to per-fragment list
-    if (! frag.m_scanList.seize(scanPtr)) {
+    if (ERROR_INSERTED(12008) ||
+        ! frag.m_scanList.seize(scanPtr)) {
+      CLEAR_ERROR_INSERT_VALUE;
       jam();
+      // should never happen but can be used to test error handling
+      errorCode = AccScanRef::TuxNoFreeScanOp;
       break;
     }
     new (scanPtr.p) ScanOp(c_scanBoundPool);
@@ -101,10 +122,14 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     jam();
     releaseScanOp(scanPtr);
   }
-  // LQH does not handle REF
-  signal->theData[0] = 0x313;
+  // ref
+  ndbrequire(errorCode != 0);
+  AccScanRef* ref = (AccScanRef*)signal->getDataPtrSend();
+  ref->scanPtr = req->senderData;
+  ref->accPtr = RNIL;
+  ref->errorCode = errorCode;
   sendSignal(req->senderRef, GSN_ACC_SCANREF,
-      signal, 1, JBB);
+      signal, AccScanRef::SignalLength, JBB);
 }
 
 /*
@@ -118,6 +143,9 @@ Dbtux::execACC_SCANREQ(Signal* signal)
  * Finally save the sets of lower and upper bounds (i.e. start key and
  * end key).  Full bound type is included but only the strict bit is
  * used since lower and upper have now been separated.
+ *
+ * Error handling:  Error code is set in the scan and also returned in
+ * EXECUTE_DIRECT (the old way).
  */
 void
 Dbtux::execTUX_BOUND_INFO(Signal* signal)
@@ -154,8 +182,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     const Uint32 dataSize = ah->getDataSize();
     if (type > 4 || attrId >= index.m_numAttrs || dstPos + 2 + dataSize > dstSize) {
       jam();
-      scan.m_state = ScanOp::Invalid;
-      sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
+      scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
+      sig->errorCode = scan.m_errorCode;
       return;
     }
     // copy header
@@ -174,16 +202,16 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, maxBytes, lb, len);
       if (! ok) {
         jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidCharFormat;
+        scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
+        sig->errorCode = scan.m_errorCode;
         return;
       }
       Uint32 srcBytes = lb + len;
       Uint32 srcWords = (srcBytes + 3) / 4;
       if (srcBytes != byteSize) {
         jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
+        scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
+        sig->errorCode = scan.m_errorCode;
         return;
       }
       uchar* dstPtr = (uchar*)&xfrmData[dstPos + 2];
@@ -201,8 +229,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
         Uint32 dstLen = xmul * (maxBytes - lb);
         if (dstLen > ((dstSize - dstPos) << 2)) {
           jam();
-          scan.m_state = ScanOp::Invalid;
-          sig->errorCode = TuxBoundInfo::TooMuchAttrInfo;
+          scan.m_errorCode = TuxBoundInfo::TooMuchAttrInfo;
+          sig->errorCode = scan.m_errorCode;
           return;
         }
         int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
@@ -236,8 +264,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
             b.size != 2 + dstWords ||
             memcmp(&xfrmData[b.offset + 2], &xfrmData[dstPos + 2], dstWords << 2) != 0) {
           jam();
-          scan.m_state = ScanOp::Invalid;
-          sig->errorCode = TuxBoundInfo::InvalidBounds;
+          scan.m_errorCode = TuxBoundInfo::InvalidBounds;
+          sig->errorCode = scan.m_errorCode;
           return;
         }
       } else {
@@ -257,8 +285,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   }
   if (offset != req->boundAiLength) {
     jam();
-    scan.m_state = ScanOp::Invalid;
-    sig->errorCode = TuxBoundInfo::InvalidAttrInfo;
+    scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
+    sig->errorCode = scan.m_errorCode;
     return;
   }
   for (unsigned j = 0; j <= 1; j++) {
@@ -269,19 +297,26 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       // check for gap or strict bound before last
       if (b.type2 == -1 || (i + 1 < maxAttrId[j] && (b.type2 & 0x1))) {
         jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::InvalidBounds;
+        scan.m_errorCode = TuxBoundInfo::InvalidBounds;
+        sig->errorCode = scan.m_errorCode;
         return;
       }
       bool ok = scan.m_bound[j]->append(&xfrmData[b.offset], b.size);
       if (! ok) {
         jam();
-        scan.m_state = ScanOp::Invalid;
-        sig->errorCode = TuxBoundInfo::OutOfBuffers;
+        scan.m_errorCode = TuxBoundInfo::OutOfBuffers;
+        sig->errorCode = scan.m_errorCode;
         return;
       }
     }
     scan.m_boundCnt[j] = maxAttrId[j];
+  }
+  if (ERROR_INSERTED(12009)) {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    scan.m_errorCode = TuxBoundInfo::InvalidBounds;
+    sig->errorCode = scan.m_errorCode;
+    return;
   }
   // no error
   sig->errorCode = 0;
@@ -428,6 +463,18 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         signal, signalLength, JBB);
     return;     // stop
   }
+  // check index online
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  if (unlikely(index.m_state != Index::Online) &&
+      scanPtr.p->m_errorCode == 0) {
+    jam();
+#ifdef VM_TRACE
+    if (debugFlags & (DebugMeta | DebugScan)) {
+      debugOut << "Index dropping at execACC_CHECK_SCAN " << scanPtr.i << " " << *scanPtr.p << endl;
+    }
+#endif
+    scanPtr.p->m_errorCode = AccScanRef::TuxIndexNotOnline;
+  }
   if (scan.m_state == ScanOp::First) {
     jam();
     // search is done only once in single range scan
@@ -570,8 +617,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     return;
   }
   // XXX in ACC this is checked before req->checkLcpStop
-  if (scan.m_state == ScanOp::Last ||
-      scan.m_state == ScanOp::Invalid) {
+  if (scan.m_state == ScanOp::Last) {
     jam();
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
@@ -665,7 +711,12 @@ Dbtux::execACCKEYREF(Signal* signal)
     // scan position should already have been moved (assert only)
     if (scan.m_state == ScanOp::Blocked) {
       jam();
-      ndbassert(false);
+      // can happen when Dropping
+#ifdef VM_TRACE
+      const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+      const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+      ndbassert(index.m_state != Index::Online);
+#endif
       scan.m_state = ScanOp::Next;
     }
     // LQH has the ball
@@ -963,11 +1014,19 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
 
 /*
  * Check end key.  Return true if scan is still within range.
+ *
+ * Error handling:  If scan error code has been set, return false at
+ * once.  This terminates the scan and also avoids kernel crash on
+ * invalid data.
  */
 bool
 Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
 {
   ScanOp& scan = *scanPtr.p;
+  if (unlikely(scan.m_errorCode != 0)) {
+    jam();
+    return false;
+  }
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   const unsigned idir = scan.m_descending;
   const int jdir = 1 - 2 * (int)idir;
@@ -988,11 +1047,19 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
  * There is a special check to never accept same tuple twice in a row.
  * This is faster than asking TUP.  It also fixes some special cases
  * which are not analyzed or handled yet.
+ *
+ * Error handling:  If scan error code has been set, return false since
+ * no new result can be returned to LQH.  The scan will then look for
+ * next result and terminate via scanCheck():
  */
 bool
 Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
 {
   const ScanOp& scan = *scanPtr.p;
+  if (unlikely(scan.m_errorCode != 0)) {
+    jam();
+    return false;
+  }
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   Uint32 pageId = ent.m_tupLoc.getPageId();
@@ -1016,6 +1083,9 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
 /*
  * Finish closing of scan and send conf.  Any lock wait has been done
  * already.
+ *
+ * Error handling:  Every scan ends here.  If error code has been set,
+ * send a REF.
  */
 void
 Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
@@ -1027,14 +1097,26 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     jam();
     abortAccLockOps(signal, scanPtr);
   }
-  // send conf
-  NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-  conf->scanPtr = scanPtr.p->m_userPtr;
-  conf->accOperationPtr = RNIL;
-  conf->fragId = RNIL;
-  unsigned signalLength = 3;
-  sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-      signal, signalLength, JBB);
+  if (scanPtr.p->m_errorCode == 0) {
+    jam();
+    // send conf
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scanPtr.p->m_userPtr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = RNIL;
+    unsigned signalLength = 3;
+    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
+        signal, signalLength, JBB);
+  } else {
+    // send ref
+    NextScanRef* ref = (NextScanRef*)signal->getDataPtr();
+    ref->scanPtr = scanPtr.p->m_userPtr;
+    ref->accOperationPtr = RNIL;
+    ref->fragId = RNIL;
+    ref->errorCode = scanPtr.p->m_errorCode;
+    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANREF,
+               signal, NextScanRef::SignalLength, JBB);
+  }
   releaseScanOp(scanPtr);
 }
 

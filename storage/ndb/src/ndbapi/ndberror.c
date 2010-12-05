@@ -418,6 +418,8 @@ ErrorBundle ErrorCodes[] = {
   { 906,  DMEC, SE, "Unsupported attribute type in index" },
   { 907,  DMEC, SE, "Unsupported character set in table or index" },
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
+  { 909,  DMEC, IE, "No free index scan op" },
+  { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
   { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
   { 1226, DMEC, SE, "Table is being dropped" },

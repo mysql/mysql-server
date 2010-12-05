@@ -8346,7 +8346,23 @@ void Dblqh::execACC_SCANCONF(Signal* signal)
 void Dblqh::execACC_SCANREF(Signal* signal) 
 {
   jamEntry();
-  ndbrequire(false);
+  ndbrequire(refToBlock(signal->getSendersBlockRef()) == DBTUX);
+  const AccScanRef refCopy = *(const AccScanRef*)signal->getDataPtr();
+  const AccScanRef* ref = &refCopy;
+  ndbrequire(ref->errorCode != 0);
+
+  scanptr.i = ref->scanPtr;
+  c_scanRecordPool.getPtr(scanptr);
+  tcConnectptr.i = scanptr.p->scanTcrec;
+  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  tcConnectptr.p->errorCode = ref->errorCode;
+
+  AccScanConf* conf = (AccScanConf*)signal->getDataPtrSend();
+  conf->scanPtr = ref->scanPtr;
+  conf->accPtr = ref->accPtr;
+  conf->flag = AccScanConf::ZEMPTY_FRAGMENT;
+  sendSignal(reference(), GSN_ACC_SCANCONF,
+             signal, AccScanConf::SignalLength, JBB);
 }//Dblqh::execACC_SCANREF()
 
 /* ***************>> */
@@ -8358,7 +8374,7 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
   jamEntry();
   scanptr.i = nextScanConf->scanPtr;
   c_scanRecordPool.getPtr(scanptr);
-  if (likely(nextScanConf->localKeyLength == 1)) 
+  if (likely(nextScanConf->localKeyLength == 1)) //XXX signal length ?
   {
     jam();
     scanptr.p->m_row_id.assref(nextScanConf->localKey[0]);
@@ -8416,8 +8432,24 @@ void Dblqh::execNEXT_SCANCONF(Signal* signal)
 void Dblqh::execNEXT_SCANREF(Signal* signal) 
 {
   jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
+  ndbrequire(refToBlock(signal->getSendersBlockRef()) == DBTUX);
+  const NextScanRef refCopy = *(const NextScanRef*)signal->getDataPtr();
+  const NextScanRef* ref = &refCopy;
+  ndbrequire(ref->errorCode != 0);
+
+  scanptr.i = ref->scanPtr;
+  c_scanRecordPool.getPtr(scanptr);
+  tcConnectptr.i = scanptr.p->scanTcrec;
+  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  tcConnectptr.p->errorCode = ref->errorCode;
+
+  NextScanConf* conf = (NextScanConf*)signal->getDataPtr();
+  conf->scanPtr = ref->scanPtr;
+  // usual weird flags to indicate scan end
+  conf->accOperationPtr = RNIL;
+  conf->fragId = RNIL;
+  sendSignal(reference(), GSN_NEXT_SCANCONF,
+             signal, 3, JBB);
 }//Dblqh::execNEXT_SCANREF()
 
 /* ******************> */
