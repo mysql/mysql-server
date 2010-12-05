@@ -491,3 +491,155 @@ ORDER BY c1
 LIMIT 1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#42991 "invalid memory access and/or crash when using
+--echo #            index condition pushdown + InnoDB"
+--echo #
+
+# Note that you need to run with --valgrind to see the warnings
+# about invalid memory accesses.
+
+CREATE TABLE t1 (
+  c1 TINYTEXT NOT NULL,
+  c2 INT NOT NULL,
+  PRIMARY KEY (c2),
+  KEY id1 (c1(4))
+);
+
+INSERT INTO t1 VALUES ('Anastasia', 5);
+INSERT INTO t1 VALUES ('Karianne', 4);
+
+SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
+
+EXPLAIN SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#56529 - "Crash due to long semaphore wait in InnoDB 
+--echo #              with ICP and subqueries"
+--echo #
+
+CREATE TABLE t1 (
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+  col_varchar_key VARCHAR(1),
+
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1 VALUES (NULL,2,'w');
+INSERT INTO t1 VALUES (7,9,'m');
+INSERT INTO t1 VALUES (9,3,'m');
+INSERT INTO t1 VALUES (7,9,'k');
+INSERT INTO t1 VALUES (4,NULL,'r');
+INSERT INTO t1 VALUES (2,9,'t');
+INSERT INTO t1 VALUES (6,3,'j');
+INSERT INTO t1 VALUES (8,8,'u');
+INSERT INTO t1 VALUES (NULL,8,'h');
+INSERT INTO t1 VALUES (5,53,'o');
+INSERT INTO t1 VALUES (NULL,0,NULL);
+INSERT INTO t1 VALUES (6,5,'k');
+INSERT INTO t1 VALUES (188,166,'e');
+INSERT INTO t1 VALUES (2,3,'n');
+INSERT INTO t1 VALUES (1,0,'t');
+INSERT INTO t1 VALUES (1,1,'c');
+INSERT INTO t1 VALUES (0,9,'m');
+INSERT INTO t1 VALUES (9,5,'y');
+INSERT INTO t1 VALUES (NULL,6,'f');
+
+CREATE TABLE t2 (
+  c1 INTEGER NOT NULL
+);
+
+let query=
+SELECT table1.col_int_nokey
+FROM t1 AS table1 STRAIGHT_JOIN (
+                  t1 AS table2 INNER JOIN t1 AS table3
+                  ON table3.col_varchar_key = table2.col_varchar_key)
+     ON table3.col_int_nokey = table1.col_int_key
+WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#58243 "RQG test optimizer_subquery causes server crash
+--echo #            when running with ICP"
+--echo #
+
+# Test case 1: This test case makes item->const_item() return true
+#              in uses_index_fields_only() for an item tree
+#              containing a subquery. This triggered the subquery
+#              to be pushed down to InnoDB.
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  c1 INTEGER NOT NULL,
+  c2 INTEGER NOT NULL,
+
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,6,7);
+
+CREATE TABLE t2 (
+  c1 INTEGER NOT NULL
+);
+
+let query=
+SELECT t1.c1
+FROM t1
+WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
+                            FROM t2)
+ORDER BY t1.c2;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# Test case 2: This test case makes item->used_tables() return 0
+#              in uses_index_fields_only() for an item tree
+#              containg a subquery. This triggered the subquery
+#              to be pushed down to InnoDB.
+
+CREATE TABLE t1 (
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL
+);
+
+INSERT INTO t1 VALUES (2,'w');
+
+CREATE TABLE t2 (
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(1) NOT NULL,
+  c2 VARCHAR(1) NOT NULL,
+  KEY (c1, i1)
+);
+
+INSERT INTO t2 VALUES (8,'d','d');
+INSERT INTO t2 VALUES (4,'v','v');
+
+CREATE TABLE t3 (
+  c1 VARCHAR(1) NOT NULL
+);
+
+INSERT INTO t3 VALUES ('v');
+
+let query=
+SELECT i1
+FROM t1
+WHERE EXISTS (SELECT t2.c1
+              FROM (t2 INNER JOIN t3 ON (t3.c1 = t2.c1)) 
+              WHERE t2.c2 != t1.c1 AND t2.c2 = (SELECT MIN(t3.c1)
+                                                FROM t3)); 
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;

@@ -406,7 +406,7 @@ sync_slave_with_master;
 # Error reaction is up to sql_mode of the slave sql (bug#38173)
 #--echo *** Create t9 on slave  ***
 # Please, check BUG#47741 to see why you are not testing NDB.
-if (`SELECT $engine_type != 'NDB'`)
+if ($engine_type != NDB)
 {
   STOP SLAVE;
   RESET SLAVE;

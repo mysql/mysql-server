@@ -141,6 +141,14 @@ set collation_connection=utf32_unicode_ci;
 --source include/ctype_regex.inc
 
 
+#
+# Test my_like_range and contractions
+#
+SET collation_connection=utf32_czech_ci;
+--source include/ctype_czech.inc
+--source include/ctype_like_ignorable.inc
+
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

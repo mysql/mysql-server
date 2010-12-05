@@ -145,6 +145,13 @@ void mysql_client_binlog_statement(THD* thd)
   size_t decoded_len= base64_needed_decoded_length(coded_len);
 
   /*
+    option_bits will be changed when applying the event. But we don't expect
+    it be changed permanently after BINLOG statement, so backup it first.
+    It will be restored at the end of this function.
+  */
+  ulonglong thd_options= thd->variables.option_bits;
+
+  /*
     Allocation
   */
   int err= 0;
@@ -177,7 +184,8 @@ void mysql_client_binlog_statement(THD* thd)
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
   {
     char const *endptr= 0;
-    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
+    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
+                                     MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
 #ifndef HAVE_purify
       /*
@@ -309,6 +317,7 @@ end:
     delete rli->rows_query_ev;
     rli->rows_query_ev= NULL;
   }
+  thd->variables.option_bits= thd_options;
   rli->slave_close_thread_tables(thd);
   my_free(buf);
   DBUG_VOID_RETURN;

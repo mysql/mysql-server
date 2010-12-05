@@ -150,7 +150,7 @@ let $condition= = 'Slave has read all relay log; waiting for the slave I/O threa
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
-if (`SELECT $sbm <> 0`)
+if ($sbm != 0)
 {
   -- echo #### Seconds behind master must show '0', because SQL thread is now waiting for new events.
   -- echo #### SBM ($sbm seconds) != 0 !! SQL thread is waiting so should be zero.
@@ -187,7 +187,7 @@ let $condition= = 'INSERT INTO t1 VALUES (3)';
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
-if (`SELECT $sbm < 3600`)
+if ($sbm < 3600)
 {
   -- echo #### Seconds behind master must show > 3600 because the event that 
   -- echo #### is being processed was issued 3600 seconds ago.

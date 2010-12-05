@@ -152,3 +152,4 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 --remove_file $MYSQLD_SLAVE_DATADIR/master.backup
+--sync_slave_with_master

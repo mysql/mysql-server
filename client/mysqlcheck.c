@@ -754,7 +754,7 @@ static void print_result()
       */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
 	  strcmp(row[3],"OK"))
-	insert_dynamic(&tables4repair, (uchar*) prev);
+	insert_dynamic(&tables4repair, prev);
       found_error=0;
       if (opt_silent)
 	continue;
@@ -774,7 +774,7 @@ static void print_result()
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
-    insert_dynamic(&tables4repair, (uchar*) prev);
+    insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }
 

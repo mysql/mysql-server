@@ -190,7 +190,7 @@ void table_os_global_by_type::make_row(PFS_table_share *share)
 
   m_row_exists= true;
 
-  if (share->m_refcount > 0)
+  if (share->get_refcount() > 0)
   {
     /* For all the table handles still opened ... */
     PFS_table *table= table_array;

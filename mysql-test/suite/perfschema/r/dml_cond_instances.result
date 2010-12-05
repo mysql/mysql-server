@@ -1,9 +1,6 @@
 select * from performance_schema.cond_instances limit 1;
-NAME	OBJECT_INSTANCE_BEGIN
-#	#
 select * from performance_schema.cond_instances
 where name='FOO';
-NAME	OBJECT_INSTANCE_BEGIN
 insert into performance_schema.cond_instances
 set name='FOO', object_instance_begin=12;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'cond_instances'

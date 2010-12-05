@@ -86,11 +86,11 @@ trx_rsegf_undo_find_free(
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
-UNIV_INTERN
+UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-	ulint	id);	/*!< in: rollback segment id */
+	ulint	id);		/*!< in: rollback segment id */
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
@@ -142,7 +142,7 @@ struct trx_rseg_struct{
 				its slot in the trx system file copy */
 	mutex_t		mutex;	/*!< mutex protecting the fields in this
 				struct except id; NOTE that the latching
-				order must always be kernel mutex ->
+				order must always be trx_sys_t::mutex ->
 				rseg mutex */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */
@@ -176,11 +176,15 @@ struct trx_rseg_struct{
 					yet purged log */
 	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
 					needs purging */
-	/*--------------------------------------------------------*/
-	UT_LIST_NODE_T(trx_rseg_t) rseg_list;
-					/* the list of the rollback segment
-					memory objects */
 };
+
+/** For prioritising the rollback segments for purge. */
+struct rseg_queue_struct {
+        trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
+        trx_rseg_t*     rseg;           /*!< Rollback segment */
+};
+
+typedef struct rseg_queue_struct rseg_queue_t;
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/
