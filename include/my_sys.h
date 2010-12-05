@@ -456,7 +456,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_close;
   /*
     Counts the number of times, when we were forced to use disk. We use it to
-    increase the binlog_cache_disk_use status variable.
+    increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
+    variables.
   */
   ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
