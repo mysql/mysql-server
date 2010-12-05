@@ -1339,12 +1339,12 @@ static int maria_chk(HA_CHECK *param, char *filename)
   maria_lock_database(info, F_UNLCK);
 
 end2:
-  end_pagecache(maria_pagecache, 1);
   if (maria_close(info))
   {
     _ma_check_print_error(param, default_close_errmsg, my_errno, filename);
     DBUG_RETURN(1);
   }
+  end_pagecache(maria_pagecache, 1);
   if (error == 0)
   {
     if (param->out_flag & O_NEW_DATA)
