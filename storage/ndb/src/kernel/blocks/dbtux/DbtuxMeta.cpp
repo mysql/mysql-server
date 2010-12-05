@@ -497,7 +497,11 @@ void
 Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData)
 {
   jam();
-  ndbrequire(indexPtr.p->m_state == Index::Dropping);
+  /*
+   * Index state should be Defining or Dropping but in 7.0 it can also
+   * be NotDefined (due to double call).  The Index record is always
+   * consistent regardless of state so there is no state assert here.
+   */
   // drop fragments
   while (indexPtr.p->m_numFrags > 0) {
     jam();

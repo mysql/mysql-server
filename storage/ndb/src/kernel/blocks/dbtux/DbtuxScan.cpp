@@ -1050,7 +1050,7 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
  *
  * Error handling:  If scan error code has been set, return false since
  * no new result can be returned to LQH.  The scan will then look for
- * next result and terminate wia scanCheck():
+ * next result and terminate via scanCheck():
  */
 bool
 Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
