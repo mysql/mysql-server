@@ -6586,11 +6586,18 @@ public:
       best_loose_scan_records - same
       best_max_loose_keypart - same
       best_loose_scan_start_key - same
-      Not initializing them causes compiler warnings, but using UNINIT_VAR()
-      would cause a 2% CPU time loss in a 20-table plan search.
-      So, until UNINIT_VAR(x) doesn't do x=0 for any C++ code, it's not used
-      here.
+      Not initializing them causes compiler warnings with g++ at -O1 or higher,
+      but initializing them would cause a 2% CPU time loss in a 20-table plan
+      search. So we initialize only if warnings would stop the build.
     */
+#ifdef COMPILE_FLAG_WERROR
+    bound_sj_equalities=       0;
+    quick_max_loose_keypart=   0;
+    best_loose_scan_key=       0;
+    best_loose_scan_records=   0;
+    best_max_loose_keypart=    0;
+    best_loose_scan_start_key= NULL;
+#endif
   }
 
   void init(JOIN *join, JOIN_TAB *s, table_map remaining_tables)
@@ -10513,9 +10520,13 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
 
   /* No join buffering if prevented by no_jbuf_after */
-  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab)
+  if (i > no_jbuf_after)
     goto no_join_cache;
 
+  /* No join buffering if this semijoin nest is handled by loosescan */
+  if (tab_sj_strategy == SJ_OPT_LOOSE_SCAN)
+    goto no_join_cache;
+      
   /* Neither if semijoin Materialization */
   if (sj_is_materialize_strategy(tab_sj_strategy))
     goto no_join_cache;

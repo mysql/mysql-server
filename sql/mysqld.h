@@ -180,6 +180,10 @@ extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
+extern ulong binlog_checksum_options;
+extern const char *binlog_checksum_type_names[];
+extern my_bool opt_master_verify_checksum;
+extern my_bool opt_slave_sql_verify_checksum;
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
@@ -355,6 +359,7 @@ enum options_mysqld
 {
   OPT_to_set_the_start_number=256,
   OPT_BIND_ADDRESS,
+  OPT_BINLOG_CHECKSUM,
   OPT_BINLOG_DO_DB,
   OPT_BINLOG_FORMAT,
   OPT_BINLOG_IGNORE_DB,
@@ -371,6 +376,7 @@ enum options_mysqld
   OPT_LC_MESSAGES_DIRECTORY,
   OPT_LOWER_CASE_TABLE_NAMES,
   OPT_MASTER_RETRY_COUNT,
+  OPT_MASTER_VERIFY_CHECKSUM,
   OPT_POOL_OF_THREADS,
   OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_DO_TABLE,
@@ -387,6 +393,7 @@ enum options_mysqld
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
   OPT_SKIP_SYMLINKS,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
   OPT_SSL_CA,
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
