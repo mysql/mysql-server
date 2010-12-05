@@ -5935,8 +5935,8 @@ main(int argc,  char** argv)
       g_opt.m_noverify = true;
       continue;
     }
-    if (strcmp(arg, "-pctmrr") ==0 ) {
-      if (++argc, --argc > 0) {
+    if (strcmp(arg, "-pctmrr") == 0) {
+      if (++argv, --argc > 0) {
         g_opt.m_pctmrr = atoi(argv[0]);
         continue;
       }

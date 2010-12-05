@@ -32,6 +32,7 @@
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/TuxMaint.hpp>
+#include <signaldata/AlterIndxImpl.hpp>
 
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
@@ -219,7 +220,9 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
   const Uint32 tableId = req->tableId;
+  const Uint32 indexId = req->indexId;
   const Uint32 triggerId = req->triggerId;
+  const Uint32 triggerInfo = req->triggerInfo;
   const Uint32 receiverRef = req->receiverRef;
 
   // Find table
@@ -248,6 +251,24 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 
     sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
 	       signal, DropTrigImplConf::SignalLength, JBB);
+
+    // Set ordered index to Dropping in same timeslice
+    TriggerType::Value ttype = TriggerInfo::getTriggerType(triggerInfo);
+    if (ttype == TriggerType::ORDERED_INDEX)
+    {
+      jam();
+      AlterIndxImplReq* areq = (AlterIndxImplReq*)signal->getDataPtrSend();
+      areq->senderRef = 0; // no CONF
+      areq->senderData = 0;
+      areq->requestType = AlterIndxImplReq::AlterIndexOffline;
+      areq->tableId = tableId;
+      areq->tableVersion = 0;
+      areq->indexId = indexId; // index id
+      areq->indexVersion = 0;
+      areq->indexType = DictTabInfo::OrderedIndex;
+      EXECUTE_DIRECT(DBTUX, GSN_ALTER_INDX_IMPL_REQ,
+                     signal, AlterIndxImplReq::SignalLength);
+    }
   } else {
     // Send ref
     DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
