@@ -2321,7 +2321,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_transaction_nodes.clear();
   regApiPtr->singleUserMode = 0;
   // Trigger data
-  releaseFiredTriggerData(&regApiPtr->theFiredTriggers),
+  releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
   // Index data
   regApiPtr->indexOpReturn = false;
   regApiPtr->noIndexOp = 0;
