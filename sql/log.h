@@ -415,7 +415,7 @@ public:
   bool write_incident(THD *thd, bool lock);
 
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
-  void set_write_error(THD *thd);
+  void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
