@@ -5762,6 +5762,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
     m_thd_ndb->m_scan_count++;
     m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
+
+    DBUG_ASSERT(m_active_cursor==NULL);
     m_active_cursor= op;
 
     if (uses_blob_value(table->read_set) &&
@@ -7671,6 +7673,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
   DBUG_PRINT("enter", ("type: %d, sorted: %d, descending: %d", type, sorted, desc));
 
+  if (unlikely((error= close_scan())))
+    DBUG_RETURN(error);
+
   if (m_use_partition_pruning)
   {
     DBUG_ASSERT(!m_pushed_join);
@@ -7710,8 +7715,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->length == key_info->key_length &&
         start_key->flag == HA_READ_KEY_EXACT)
     {
-      if ((error= close_scan()))
-        DBUG_RETURN(error);
       if (!m_thd_ndb->trans)
         if (unlikely(!start_transaction_key(active_index,
                                             start_key->key, error)))
@@ -7727,9 +7730,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->flag == HA_READ_KEY_EXACT && 
         !check_null_in_key(key_info, start_key->key, start_key->length))
     {
-      if ((error= close_scan()))
-        DBUG_RETURN(error);
-
       if (!m_thd_ndb->trans)
         if (unlikely(!start_transaction_key(active_index,
                                             start_key->key, error)))
