@@ -116,7 +116,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
                                                  dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/crashed"))
+                    if (strstr(name, "crashed"))
                     {
                       my_errno= HA_ERR_CRASHED;
                       goto err;
