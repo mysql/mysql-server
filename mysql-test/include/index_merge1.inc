@@ -334,12 +334,12 @@ update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 --replace_column 9 #
 --replace_result "4,4,4,4,4,4,4" X "4,4,4,4,4,4" X "i6,i7" "i6,i7?" "i6" "i6,i7?"
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
- from t0 as A, t0 as B
+ from t0 as A straight_join t0 as B
  where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
   and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
- from t0 as A, t0 as B
+ from t0 as A straight_join t0 as B
  where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
   and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 
