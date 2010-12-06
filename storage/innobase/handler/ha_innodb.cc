@@ -2053,7 +2053,7 @@ innobase_invalidate_query_cache(
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
 	above the InnoDB trx_sys_t::mutex. The caller of this function must
-       	not have latches of a lower rank. */
+	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
@@ -2837,8 +2837,8 @@ innobase_start_trx_and_assign_read_view(
 
 	/* This is just to play safe: release a possible FIFO ticket and
 	search latch. Since we can potentially reserve the trx_sys_t::mutex,
-       	we have to release the search system latch first to obey the latching
-       	order. */
+	we have to release the search system latch first to obey the latching
+	order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3021,7 +3021,7 @@ innobase_rollback(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3061,7 +3061,7 @@ innobase_rollback_trx(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3102,7 +3102,7 @@ innobase_rollback_to_savepoint(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3173,7 +3173,7 @@ innobase_savepoint(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -10574,7 +10574,7 @@ innobase_xa_prepare(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
