@@ -59,7 +59,7 @@ Warnings:
 Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '42949672950'
 SELECT @@global.binlog_stmt_cache_size;
 @@global.binlog_stmt_cache_size
-4294963200
+42949668864
 'Bug: Errors are not coming on assigning invalid values to variable'
 SET @@global.binlog_stmt_cache_size = ON;
 ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
