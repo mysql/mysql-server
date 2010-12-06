@@ -32,6 +32,15 @@ buffer_page_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disa
 buffer_page_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read
 buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data read in bytes
 buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data written in bytes
+buffer_flush_adaptive_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of adaptive flush
+buffer_flush_adaptive_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of adaptive flushing
+buffer_flush_async_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of async flush
+buffer_flush_async_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of async flushing
+buffer_flush_sync_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of sync flush
+buffer_flush_sync_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of sync flushing
+buffer_flush_max_dirty_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of max dirty page flush
+buffer_flush_max_dirty_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of max dirty flushing
+buffer_flush_io_capacity_pct	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
 buf_page_read_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages read
 buf_page_read_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages read
 buf_page_read_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages read
@@ -92,7 +101,6 @@ log_num_log_io	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disable
 log_waits	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log waits due to small log buffer
 log_write_request	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log write requests
 log_writes	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log writes
-log_flush_io_capacity	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
 log_flush_dirty_page_exceed	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of flush calls when the max dirty page pct was hit
 compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages compressed
 compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages decompressed
@@ -137,6 +145,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -197,7 +214,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -243,6 +259,15 @@ buffer_page_written	enabled
 buffer_page_read	enabled
 buffer_byte_read	enabled
 buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
 buf_page_read_index_leaf	enabled
 buf_page_read_index_non_leaf	enabled
 buf_page_read_index_ibuf_leaf	enabled
@@ -303,7 +328,6 @@ log_num_log_io	enabled
 log_waits	enabled
 log_write_request	enabled
 log_writes	enabled
-log_flush_io_capacity	enabled
 log_flush_dirty_page_exceed	enabled
 compress_num_page_compressed	enabled
 compress_num_page_decompressed	enabled
@@ -351,6 +375,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -411,7 +444,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -457,6 +489,15 @@ buffer_page_written	0	disabled
 buffer_page_read	0	disabled
 buffer_byte_read	0	disabled
 buffer_byte_written	0	disabled
+buffer_flush_adaptive_flushes	0	disabled
+buffer_flush_adaptive_pages	0	disabled
+buffer_flush_async_flushes	0	disabled
+buffer_flush_async_pages	0	disabled
+buffer_flush_sync_flushes	0	disabled
+buffer_flush_sync_pages	0	disabled
+buffer_flush_max_dirty_flushes	0	disabled
+buffer_flush_max_dirty_pages	0	disabled
+buffer_flush_io_capacity_pct	0	disabled
 buf_page_read_index_leaf	0	disabled
 buf_page_read_index_non_leaf	0	disabled
 buf_page_read_index_ibuf_leaf	0	disabled
@@ -517,7 +558,6 @@ log_num_log_io	0	disabled
 log_waits	0	disabled
 log_write_request	0	disabled
 log_writes	0	disabled
-log_flush_io_capacity	0	disabled
 log_flush_dirty_page_exceed	0	disabled
 compress_num_page_compressed	0	disabled
 compress_num_page_decompressed	0	disabled
@@ -599,6 +639,15 @@ buffer_page_written	enabled
 buffer_page_read	enabled
 buffer_byte_read	enabled
 buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
 buf_page_read_index_leaf	enabled
 buf_page_read_index_non_leaf	enabled
 buf_page_read_index_ibuf_leaf	enabled
@@ -659,7 +708,6 @@ log_num_log_io	enabled
 log_waits	enabled
 log_write_request	enabled
 log_writes	enabled
-log_flush_io_capacity	enabled
 log_flush_dirty_page_exceed	enabled
 compress_num_page_compressed	enabled
 compress_num_page_decompressed	enabled
@@ -705,6 +753,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -765,7 +822,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -811,6 +867,15 @@ buffer_page_written	enabled
 buffer_page_read	enabled
 buffer_byte_read	enabled
 buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
 buf_page_read_index_leaf	enabled
 buf_page_read_index_non_leaf	enabled
 buf_page_read_index_ibuf_leaf	enabled
@@ -871,7 +936,6 @@ log_num_log_io	enabled
 log_waits	enabled
 log_write_request	enabled
 log_writes	enabled
-log_flush_io_capacity	enabled
 log_flush_dirty_page_exceed	enabled
 compress_num_page_compressed	enabled
 compress_num_page_decompressed	enabled
@@ -917,6 +981,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -977,7 +1050,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -1023,6 +1095,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -1083,7 +1164,6 @@ log_num_log_io	enabled
 log_waits	enabled
 log_write_request	enabled
 log_writes	enabled
-log_flush_io_capacity	enabled
 log_flush_dirty_page_exceed	enabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
