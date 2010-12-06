@@ -4383,10 +4383,18 @@ no_gap_lock:
 idx_cond_check:
 	if (prebuilt->idx_cond_func) {
 		int res;
+                ibool ib_res;
 		ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
 		offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-		row_sel_store_mysql_rec(buf, prebuilt, rec, FALSE,
-		                        offsets, 0, prebuilt->n_index_fields);
+		ib_res= row_sel_store_mysql_rec(buf, prebuilt, rec, FALSE,
+                                                offsets, 0, prebuilt->n_index_fields);
+                /* 
+                  The above call will fail and return FALSE when requested to
+                  store an "externally stored column" (afaiu, a blob). Index
+                  Condition Pushdown is not supported for indexes with blob
+                  columns, so we should never get this error.
+                */
+                ut_ad(ib_res);
 		res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
 		if (res == 0)
 			goto next_rec;
