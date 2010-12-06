@@ -18,8 +18,6 @@ INCLUDE("${PROJECT_SOURCE_DIR}/win/mysql_manifest.cmake")
 # any of the clients here would go beyond the client API and access the
 # Thread Local Storage directly.
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/zlib

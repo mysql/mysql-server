@@ -686,7 +686,7 @@ INSERT INTO t1 VALUES (1000000, 0, 0);
 SET SESSION sort_buffer_size = 1024*36;
 EXPLAIN
 SELECT COUNT(*) FROM 
-(SELECT * FROM t1 
+(SELECT * FROM t1 FORCE INDEX(primary,idx)
 WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
