@@ -527,8 +527,8 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
 
 
 int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
-			struct timespec *abstime,
-			const char *file, uint line)
+                        const struct timespec *abstime,
+                        const char *file, uint line)
 {
   int error;
   safe_mutex_t save_state;

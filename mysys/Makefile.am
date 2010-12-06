@@ -19,10 +19,11 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 pkglib_LIBRARIES =	libmysys.a
+noinst_LTLIBRARIES =	libmysys.la
 LDADD =			libmysys.a $(top_builddir)/strings/libmystrings.a $(top_builddir)/dbug/libdbug.a
 noinst_HEADERS =	mysys_priv.h my_static.h my_handler_errors.h \
 			my_safehash.h
-libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
+libmysys_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
 			my_open.c my_create.c my_dup.c my_seek.c my_read.c \
 			my_pread.c my_write.c my_getpagesize.c \
@@ -57,19 +58,22 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_memmem.c stacktrace.c \
 			my_windac.c my_access.c base64.c my_libwrap.c \
 		        wqueue.c
+libmysys_la_LDFLAGS =	$(AM_LDFLAGS) @WRAPLIBS@
+libmysys_la_LIBADD =	$(ZLIB_LIBS)
 
 if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
 # out of the non-threaded library.
 # In fact, it will currently not compile without thread support.
-libmysys_a_SOURCES +=   mf_keycache.c mf_keycaches.c
+libmysys_la_SOURCES +=	thr_alarm.c thr_lock.c thr_mutex.c thr_rwlock.c \
+			my_pthread.c my_thr_init.c waiting_threads.c \
+			mf_keycache.c mf_keycaches.c
 endif
 
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c waiting_threads.c \
 			CMakeLists.txt mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c
-libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)
 # test_charset_DEPENDENCIES=	$(LIBRARIES)
@@ -83,8 +87,6 @@ DEFS =			-DDEFAULT_BASEDIR='"$(prefix)"' \
 			-DDEFAULT_SYSCONFDIR='"$(sysconfdir)"' \
                         @DEFS@
 
-libmysys_a_DEPENDENCIES= @THREAD_LOBJECTS@
-
 # I hope this always does the right thing. Otherwise this is only test programs
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
@@ -94,6 +96,10 @@ CLEANFILES =		test_bitmap$(EXEEXT) test_priority_queue$(EXEEXT) \
 			test_dir$(EXEEXT) test_charset$(EXEEXT) \
 			testhash$(EXEEXT) test_gethwaddr$(EXEEXT) \
 			test_base64$(EXEEXT) test_thr_mutex$(EXEEXT)
+
+libmysys_a_SOURCES=
+libmysys.a: libmysys.la
+	$(CP) .libs/libmysys.a $@
 
 #
 # The CP .. RM stuff is to avoid problems with some compilers (like alpha ccc)

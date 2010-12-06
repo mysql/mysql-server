@@ -1519,9 +1519,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if (((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) &&
-             !bitmap_is_subset(table->write_set, table->read_set)) ||
-            compare_record(table))
+        if (!records_are_comparable(table) || compare_record(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&

@@ -492,7 +492,7 @@ static void _ma_bitmap_unpin_all(MARIA_SHARE *share)
   while (pinned_page-- != page_link)
     pagecache_unlock_by_link(share->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,
-                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, TRUE, TRUE);
+                             LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, FALSE, TRUE);
   bitmap->pinned_pages.elements= 0;
   DBUG_VOID_RETURN;
 }

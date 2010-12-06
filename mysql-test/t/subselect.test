@@ -4206,6 +4206,30 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 DROP TABLE t1,t2;
 --enable_result_log
 
+--echo # LP BUG#675248 - select->prep_where references on freed memory 
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(0,0);
+
+CREATE TABLE t2 (c int);
+insert into t2 values (1),(2);
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 where table1.b) as sub
+from t1 as table1 group by sub";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+prepare stmt1 from "select sum(a),(select sum(c) from t2 having table1.b) as sub
+from t1 as table1";
+
+execute stmt1;
+
+deallocate prepare stmt1;
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
 
 --echo #

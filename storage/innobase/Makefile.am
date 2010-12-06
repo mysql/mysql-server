@@ -122,9 +122,8 @@ noinst_HEADERS=		include/btr0btr.h include/btr0btr.ic		\
 			include/ut0list.ic include/ut0wqueue.h		\
 			include/ha_prototypes.h handler/ha_innodb.h
 
-EXTRA_LIBRARIES=	libinnobase.a
-noinst_LIBRARIES=	@plugin_innobase_static_target@
-libinnobase_a_SOURCES=	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
+noinst_LTLIBRARIES=	@plugin_innobase_static_target@
+libinnobase_la_SOURCES=	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			btr/btr0sea.c buf/buf0buf.c buf/buf0flu.c	\
 			buf/buf0lru.c buf/buf0rea.c data/data0data.c	\
 			data/data0type.c dict/dict0boot.c		\
@@ -156,10 +155,10 @@ libinnobase_a_SOURCES=	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c		\
 			handler/ha_innodb.cc
 
-libinnobase_a_CXXFLAGS=	$(AM_CXXFLAGS)
-libinnobase_a_CFLAGS=	$(AM_CFLAGS)
+libinnobase_la_CXXFLAGS=	$(AM_CXXFLAGS)
+libinnobase_la_CFLAGS=	$(AM_CFLAGS)
 
-EXTRA_LTLIBRARIES=	ha_innodb.la
+EXTRA_LTLIBRARIES=	libinnobase.la ha_innodb.la
 pkgplugin_LTLIBRARIES=	@plugin_innobase_shared_target@
 
 ha_innodb_la_LDFLAGS=	-module -rpath $(pkgplugindir)
@@ -170,6 +169,3 @@ ha_innodb_la_SOURCES=	$(libinnobase_a_SOURCES)
 EXTRA_DIST=		CMakeLists.txt plug.in \
 			pars/make_bison.sh pars/make_flex.sh \
 			pars/pars0grm.y pars/pars0lex.l
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

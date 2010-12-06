@@ -247,12 +247,11 @@ rw_lock_create_func(
 
 	lock->mutex.cmutex_name = cmutex_name;
 	ut_d(lock->mutex.mutex_type = 1);
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-# ifdef UNIV_DEBUG
-	UT_NOT_USED(cfile_name);
-	UT_NOT_USED(cline);
-# endif
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+#if defined(INNODB_RW_LOCKS_USE_ATOMICS) || !defined(UNIV_DEBUG)
+	(void) cfile_name;
+	(void) cline;
+#endif
 
 	lock->lock_word = X_LOCK_DECR;
 	lock->waiters = 0;

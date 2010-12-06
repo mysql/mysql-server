@@ -122,7 +122,7 @@ echo [on master];
 
 # This will block the execution of a statement at the DBUG_SYNC_POINT
 # with given lock name
-if (`SELECT '$debug_lock' != ''`)
+if ($debug_lock)
 {
   disable_query_log;
   disable_result_log;

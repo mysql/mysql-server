@@ -535,6 +535,10 @@ struct mysql_row_templ_struct {
 					Innobase record in the current index;
 					not defined if template_type is
 					ROW_MYSQL_WHOLE_ROW */
+	ulint	clust_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the clustered index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL

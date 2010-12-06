@@ -1012,6 +1012,7 @@ trx_i_s_common_fill_table(
 	deadlock occurs between the mysqld server and mysql client,
 	see http://bugs.mysql.com/29900 ; when that bug is resolved
 	we can enable the DBUG_RETURN(ret) above */
+	ret++;  // silence a gcc46 warning
 	DBUG_RETURN(0);
 #endif
 }

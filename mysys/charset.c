@@ -199,6 +199,7 @@ static my_bool simple_cs_is_full(CHARSET_INFO *cs)
 }
 
 
+#if defined(HAVE_UCA_COLLATIONS) && (defined(HAVE_CHARSET_ucs2) || defined(HAVE_CHARSET_utf8))
 static void
 copy_uca_collation(struct charset_info_st *to, CHARSET_INFO *from)
 {
@@ -212,6 +213,7 @@ copy_uca_collation(struct charset_info_st *to, CHARSET_INFO *from)
   to->state|= MY_CS_AVAILABLE | MY_CS_LOADED |
               MY_CS_STRNXFRM  | MY_CS_UNICODE;
 }
+#endif
 
 
 static int add_collation(struct charset_info_st *cs)

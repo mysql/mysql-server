@@ -2910,8 +2910,9 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
 insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
 analyze table t2;
-select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
+-- echo In next EXPLAIN, B.rows must be exactly 10 (when using MyISAM):
 
+# We mask out the 'rows' column because it may differ from run to run
 --replace_column 9 #
 explain select * from t2 A, t2 B where A.a=5 and A.b=5 and A.C<5
           and B.a=5 and B.b=A.e and (B.b =1 or B.b = 3 or B.b=5);

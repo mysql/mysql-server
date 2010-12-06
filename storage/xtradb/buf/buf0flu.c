@@ -129,11 +129,16 @@ buf_flush_delete_from_flush_rbt(
 	buf_page_t*	bpage)		/*!< in: bpage to be removed. */
 {
 
+#ifdef UNIV_DEBUG
 	ibool	ret = FALSE;
+#endif /* UNIV_DEBUG */
 
 	//ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(&flush_list_mutex));
-	ret = rbt_delete(buf_pool->flush_rbt, &bpage);
+#ifdef UNIV_DEBUG
+	ret =
+#endif /* UNIV_DEBUG */
+	rbt_delete(buf_pool->flush_rbt, &bpage);
 	ut_ad(ret);
 }
 
@@ -1059,6 +1064,82 @@ buf_flush_write_block_low(
 	}
 }
 
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool_mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_page().
+@return TRUE if the page was flushed and the mutexes released */
+UNIV_INTERN
+ibool
+buf_flush_page_try(
+/*===============*/
+	buf_block_t*	block)		/*!< in/out: buffer control block */
+{
+	ut_ad(buf_pool_mutex_own());
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+	ut_ad(mutex_own(&block->mutex));
+
+	if (!buf_flush_ready_for_flush(&block->page, BUF_FLUSH_LRU)) {
+		return(FALSE);
+	}
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] > 0
+	    || buf_pool->init_flush[BUF_FLUSH_LRU]) {
+		/* There is already a flush batch of the same type running */
+		return(FALSE);
+	}
+
+	buf_pool->init_flush[BUF_FLUSH_LRU] = TRUE;
+
+	buf_page_set_io_fix(&block->page, BUF_IO_WRITE);
+
+	buf_page_set_flush_type(&block->page, BUF_FLUSH_LRU);
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU]++ == 0) {
+
+		os_event_reset(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	/* VERY IMPORTANT:
+	Because any thread may call the LRU flush, even when owning
+	locks on pages, to avoid deadlocks, we must make sure that the
+	s-lock is acquired on the page without waiting: this is
+	accomplished because buf_flush_ready_for_flush() must hold,
+	and that requires the page not to be bufferfixed. */
+
+	rw_lock_s_lock_gen(&block->lock, BUF_IO_WRITE);
+
+	/* Note that the s-latch is acquired before releasing the
+	buf_pool mutex: this ensures that the latch is acquired
+	immediately. */
+
+	mutex_exit(&block->mutex);
+	buf_pool_mutex_exit();
+
+	/* Even though block is not protected by any mutex at this
+	point, it is safe to access block, because it is io_fixed and
+	oldest_modification != 0.  Thus, it cannot be relocated in the
+	buffer pool or removed from flush_list or LRU_list. */
+
+	buf_flush_write_block_low(&block->page);
+
+	buf_pool_mutex_enter();
+	buf_pool->init_flush[BUF_FLUSH_LRU] = FALSE;
+
+	if (buf_pool->n_flush[BUF_FLUSH_LRU] == 0) {
+		/* The running flush batch has ended */
+		os_event_set(buf_pool->no_flush[BUF_FLUSH_LRU]);
+	}
+
+	buf_pool_mutex_exit();
+	buf_flush_buffered_writes();
+
+	return(TRUE);
+}
+# endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /********************************************************************//**
 Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: in simulated aio we must call
@@ -1303,7 +1384,6 @@ buf_flush_batch(
 	buf_page_t*	bpage;
 	buf_page_t*	prev_bpage	= NULL;
 	ulint		page_count	= 0;
-	ulint		old_page_count;
 	ulint		space;
 	ulint		offset;
 	ulint		remaining	= 0;
@@ -1396,15 +1476,9 @@ flush_next:
 					mutex_exit(&LRU_list_mutex);
 				}
 
-				old_page_count = page_count;
-
 				/* Try to flush also all the neighbors */
 				page_count += buf_flush_try_neighbors(
 					space, offset, flush_type, srv_flush_neighbor_pages);
-				/* fprintf(stderr,
-				"Flush type %lu, page no %lu, neighb %lu\n",
-				flush_type, offset,
-				page_count - old_page_count); */
 
 				//buf_pool_mutex_enter();
 				if (flush_type == BUF_FLUSH_LRU) {

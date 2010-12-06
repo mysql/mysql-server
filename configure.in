@@ -109,7 +109,26 @@ AC_SUBST(SHARED_LIB_MAJOR_VERSION)
 AC_SUBST(SHARED_LIB_VERSION)
 AC_SUBST(AVAILABLE_LANGUAGES)
 
+# Check whether a debug mode should be enabled.
+AC_ARG_WITH([debug],
+    AS_HELP_STRING([--with-debug@<:@=full@:>@],
+      [Enable various amounts of debugging support (full adds a slow memory checker).]),
+    [with_debug=$withval],
+    [with_debug=no])
+
+AC_ARG_WITH([valgrind],
+  [AS_HELP_STRING([--with-valgrind],
+    [Valgrind instrumentation @<:@default=no@:>@])],
+    [], [with_valgrind=no])
+
+if test "$with_valgrind" != "no"
+then
+  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
+    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
+fi
+
 # Whether the maintainer mode should be enabled.
+# Note that this uses $with_debug and $with_valgrind
 MY_MAINTAINER_MODE
 
 # Canonicalize the configuration name.
@@ -255,7 +274,7 @@ AC_PROG_LIBTOOL
 
 # Ensure that we have --preserve-dup-deps defines, otherwise we get link
 # problems of 'mysql' with CXX=g++
-LIBTOOL="$LIBTOOL --preserve-dup-deps"
+#LIBTOOL="$LIBTOOL --preserve-dup-deps"
 AC_SUBST(LIBTOOL)dnl
 
 AC_SUBST(NM)dnl
@@ -1704,11 +1723,6 @@ then
   DEBUG_OPTIMIZE_CXX=""
 fi
 
-AC_ARG_WITH(debug,
-    [  --with-debug            Add debug code
-  --with-debug=full       Add debug code (adds memory checker, very slow)],
-    [with_debug=$withval],
-    [with_debug=no])
 if test "$with_debug" = "yes"
 then
   # Medium debug.
@@ -1729,17 +1743,6 @@ else
   AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
   CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
-fi
-
-AC_ARG_WITH([valgrind],
-  [AS_HELP_STRING([--with-valgrind],
-    [Valgrind instrumentation @<:@default=no@:>@])],
-    [], [with_valgrind=no])
-
-if test "$with_valgrind" != "no"
-then
-  AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h],
-    [AC_DEFINE([HAVE_VALGRIND], [1], [Define for Valgrind support])])
 fi
 
 # Debug Sync Facility. NOTE: depends on 'with_debug'. Must be behind it.
@@ -2110,6 +2113,13 @@ AC_TYPE_SIGNAL
 MYSQL_TYPE_QSORT
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
+
+AC_CHECK_DECLS([fdatasync],,,
+[
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
+#endif
+])
 
 AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   chsize cuserid fchmod fcntl \
@@ -2537,9 +2547,8 @@ MYSQL_CHECK_LIBEVENT
 MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
         [Traditional non-transactional MySQL tables])
 MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
-MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam_s.la], [libmyisam_embedded.la])
 MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
-MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(myisam, [ha_myisam.cc])
 
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
@@ -2862,9 +2871,6 @@ if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
             [Define if you want to have threaded code. This may be undef on client code])
-  # Avoid _PROGRAMS names
-  THREAD_LOBJECTS="thr_alarm.o thr_lock.o thr_mutex.o thr_rwlock.o my_pthread.o my_thr_init.o mf_keycache.o mf_keycaches.o waiting_threads.o"
-  AC_SUBST(THREAD_LOBJECTS)
 fi
 AM_CONDITIONAL(NEED_THREAD, test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no")
 
@@ -2893,6 +2899,7 @@ AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
 AC_SUBST(mysql_plugin_libs)
+AC_SUBST(mysql_embedded_plugin_libs)
 AC_SUBST(maria_plugin_defs)
 
 

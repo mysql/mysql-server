@@ -540,6 +540,8 @@ public:
   int8 marker;
   uint8 decimals;
   bool maybe_null;			/* If item may be null */
+  bool in_rollup;                       /* If used in GROUP BY list
+                                           of a query with ROLLUP */ 
   bool null_value;			/* if item is null */
   bool unsigned_flag;
   bool with_sum_func;
@@ -3211,7 +3213,8 @@ public:
   {
     return Item_field::save_in_field(field_arg, no_conversions);
   }
-  /* 
+  enum Type type() const { return INSERT_VALUE_ITEM; }
+  /*
    We use RAND_TABLE_BIT to prevent Item_insert_value from
    being treated as a constant and precalculated before execution
   */

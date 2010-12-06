@@ -135,6 +135,9 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define GETDATE_GMT		8
 #define GETDATE_FIXEDLENGTH	16
 
+/* Extra length needed for filename if one calls my_create_backup_name */
+#define MY_BACKUP_NAME_EXTRA_LENGTH 17
+
 	/* defines when allocating data */
 #ifdef SAFEMALLOC
 #define my_malloc(SZ,FLAG) _mymalloc((SZ), __FILE__, __LINE__, FLAG )
@@ -689,7 +692,10 @@ extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
-extern int my_redel(const char *from, const char *to, int MyFlags);
+extern int my_redel(const char *from, const char *to, time_t backup_time_stamp,
+                    myf MyFlags);
+void my_create_backup_name(char *to, const char *from,
+                           time_t backup_time_stamp);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
 

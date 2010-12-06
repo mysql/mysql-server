@@ -736,7 +736,6 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
                                       TABLE_LIST *haystack)
 {
   MYSQL_LOCK            *mylock;
-  TABLE                 **lock_tables;
   TABLE                 *table;
   TABLE                 *table2;
   THR_LOCK_DATA         **lock_locks;
@@ -765,12 +764,11 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
   if (mylock->table_count < 2)
     goto end;
 
-  lock_locks=  mylock->locks;
-  lock_tables= mylock->table;
+  lock_locks= mylock->locks;
 
   /* Prepare table related variables that don't change in loop. */
   DBUG_ASSERT((table->lock_position < mylock->table_count) &&
-              (table == lock_tables[table->lock_position]));
+              (table == mylock->table[table->lock_position]));
   table_lock_data= lock_locks + table->lock_data_start;
   end_data= table_lock_data + table->lock_count;
 
@@ -784,7 +782,7 @@ TABLE_LIST *mysql_lock_have_duplicate(THD *thd, TABLE_LIST *needle,
 
     /* All tables in list must be in lock. */
     DBUG_ASSERT((table2->lock_position < mylock->table_count) &&
-                (table2 == lock_tables[table2->lock_position]));
+                (table2 == mylock->table[table2->lock_position]));
 
     for (lock_data2=  lock_locks + table2->lock_data_start,
            end_data2= lock_data2 + table2->lock_count;

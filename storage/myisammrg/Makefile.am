@@ -27,18 +27,25 @@ LDADD =
 
 DEFS =                  @DEFS@
 pkglib_LIBRARIES =	libmyisammrg.a
+noinst_LTLIBRARIES =	libmyisammrg.la libmyisammrg_s.la \
+			@plugin_myisammrg_embedded_static_target@
+EXTRA_LTLIBRARIES =	libmyisammrg_embedded.la
 noinst_HEADERS =	myrg_def.h ha_myisammrg.h
-noinst_LIBRARIES =	libmyisammrg.a
-libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
+libmyisammrg_la_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_rrnd.c myrg_update.c myrg_delete.c myrg_rsame.c \
 			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \
 			myrg_rkey.c myrg_rfirst.c myrg_rlast.c myrg_rnext.c \
 			myrg_rprev.c myrg_queue.c myrg_write.c myrg_range.c \
-			ha_myisammrg.cc \
 			myrg_rnext_same.c myrg_records.c
+libmyisammrg_s_la_SOURCES = ha_myisammrg.cc
+libmyisammrg_s_la_CXXFLAGS = $(AM_CXXFLAGS)
+libmyisammrg_s_la_LIBADD = libmyisammrg.la
+libmyisammrg_embedded_la_SOURCES = ha_myisammrg.cc
+libmyisammrg_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
+libmyisammrg_embedded_la_LIBADD = libmyisammrg.la
 
+libmyisammrg_a_SOURCES=
+libmyisammrg.a: libmyisammrg.la
+	$(CP) .libs/libmyisammrg.a $@
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

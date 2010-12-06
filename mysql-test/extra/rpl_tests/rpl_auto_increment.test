@@ -241,3 +241,60 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
 sync_slave_with_master;
+
+#
+# Bug#54201: "SET INSERT_ID" event must be ignored if corresponding event is
+# ignored.
+#
+connection master;
+
+CREATE TABLE t1(s VARCHAR(10)) ENGINE=myisam;
+# -slave.opt has --replicate-ignore-table=test.t_ignored1
+CREATE TABLE t_ignored1(id INT AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+sync_slave_with_master;
+
+connection slave;
+
+CREATE TABLE test.slave_only(id INT AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+INSERT INTO slave_only VALUES(NULL);
+CREATE TRIGGER t1_update AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO slave_only VALUES(NULL);
+
+connection master;
+
+INSERT INTO t_ignored1 VALUES(NULL);
+INSERT INTO t1 VALUES('s');
+UPDATE t1 SET s='s1';
+
+# With Bug#54201, slave stops with duplicate key error here due to trigger
+# using the insert_id from insert on master into t1_ignored1
+sync_slave_with_master;
+connection slave;
+SELECT * FROM t1;
+
+connection master;
+CREATE TABLE t_ignored2(id INT AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+sync_slave_with_master;
+
+connection slave;
+STOP SLAVE;
+# Ignore the next INSERT into t_ignored2 and the INSERT_ID event just before it.
+SET GLOBAL sql_slave_skip_counter = 2;
+START SLAVE;
+
+connection master;
+INSERT INTO t_ignored2 VALUES(NULL);
+UPDATE t1 SET s='s2';
+sync_slave_with_master;
+
+connection slave;
+SELECT * FROM t1;
+SHOW TABLES LIKE 't\_ignored_';
+SELECT * FROM t_ignored2;
+DROP TABLE slave_only;
+
+connection master;
+DROP TABLE t1;
+DROP TABLE t_ignored1;
+DROP TABLE t_ignored2;
+
+sync_slave_with_master;

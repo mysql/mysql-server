@@ -129,7 +129,7 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #ifndef ETIMEDOUT
-#define ETIMEDOUT 145
+#define ETIMEDOUT 145		    /* Win32 doesn't have this */
 #endif
 #define getpid() GetCurrentThreadId()
 #define HAVE_LOCALTIME_R		1
@@ -517,7 +517,8 @@ int safe_mutex_destroy(safe_mutex_t *mp,const char *file, uint line);
 int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp,const char *file,
 		   uint line);
 int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
-			struct timespec *abstime, const char *file, uint line);
+                        const struct timespec *abstime,
+                        const char *file, uint line);
 void safe_mutex_global_init(void);
 void safe_mutex_end(FILE *file);
 void safe_mutex_free_deadlock_data(safe_mutex_t *mp);

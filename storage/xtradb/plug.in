@@ -17,7 +17,7 @@
 MYSQL_STORAGE_ENGINE(xtradb,  xtradb, [XtraDB Storage Engine],
         [XtraDB - a drop-in replacement for InnoDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(xtradb, [storage/xtradb])
-MYSQL_PLUGIN_STATIC(xtradb,   [libxtradb.a])
+MYSQL_PLUGIN_STATIC(xtradb,   [libxtradb.la])
 MYSQL_PLUGIN_DYNAMIC(xtradb,  [ha_xtradb.la])
 MYSQL_PLUGIN_ACTIONS(xtradb,  [
   with_plugin_innobase=$with_plugin_xtradb # for legacy code in configure.in
@@ -141,10 +141,11 @@ MYSQL_PLUGIN_ACTIONS(xtradb,  [
 
   AC_MSG_CHECKING(whether Solaris libc atomic functions are available)
   # either define HAVE_IB_SOLARIS_ATOMICS or not
-  AC_CHECK_FUNCS(atomic_add_long \
+  AC_CHECK_FUNCS(atomic_cas_ulong \
 		 atomic_cas_32 \
 		 atomic_cas_64 \
-		 atomic_cas_ulong,
+		 atomic_add_long_nv \
+		 atomic_swap_uchar,
 
 		 AC_DEFINE([HAVE_IB_SOLARIS_ATOMICS], [1],
 			   [Define to 1 if Solaris libc atomic functions \

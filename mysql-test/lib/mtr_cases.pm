@@ -678,6 +678,13 @@ sub process_opts {
       next;
     }
 
+    $value= mtr_match_prefix($opt, "--testcase-timeout=");
+    if ( defined $value ) {
+      # Overrides test case timeout for this test
+      $tinfo->{'case-timeout'}= $value;
+      next;
+    }
+
     # Ok, this was a real option, add it
     push(@{$tinfo->{$opt_name}}, $opt);
   }
@@ -687,6 +694,7 @@ sub process_opts {
     push @{$tinfo->{$opt_name}}, "--plugin-load=" .  join($sep, @plugins);
   }
 }
+
 
 ##############################################################################
 #
@@ -900,7 +908,7 @@ sub collect_one_test_case {
     {
       # Ndb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support";
+      $tinfo->{'comment'}= "No ndbcluster support or ndb tests not enabled";
       return $tinfo;
     }
     elsif ( $::opt_skip_ndbcluster )

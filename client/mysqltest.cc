@@ -110,6 +110,7 @@ static my_bool parsing_disabled= 0;
 static my_bool display_result_vertically= FALSE, display_result_lower= FALSE,
   display_metadata= FALSE, display_result_sorted= FALSE;
 static my_bool disable_query_log= 0, disable_result_log= 0;
+static my_bool disable_connect_log= 1;
 static my_bool disable_warnings= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
@@ -256,7 +257,9 @@ struct st_connection
   int cur_query_len;
   pthread_mutex_t mutex;
   pthread_cond_t cond;
+  pthread_t tid;
   int query_done;
+  my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
 };
 
@@ -287,6 +290,7 @@ enum enum_commands {
   Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
   Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
   Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
+  Q_ENABLE_CONNECT_LOG, Q_DISABLE_CONNECT_LOG,
   Q_WAIT_FOR_SLAVE_TO_STOP,
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
@@ -355,6 +359,8 @@ const char *command_names[]=
   /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
+  "enable_connect_log",
+  "disable_connect_log",
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
@@ -757,8 +763,6 @@ pthread_handler_t send_one_query(void *arg)
 static int do_send_query(struct st_connection *cn, const char *q, int q_len,
                          int flags)
 {
-  pthread_t tid;
-
   if (flags & QUERY_REAP_FLAG)
     return mysql_send_query(&cn->mysql, q, q_len);
 
@@ -769,9 +773,10 @@ static int do_send_query(struct st_connection *cn, const char *q, int q_len,
   cn->cur_query= q;
   cn->cur_query_len= q_len;
   cn->query_done= 0;
-  if (pthread_create(&tid, &cn_thd_attrib, send_one_query, (void*)cn))
+  if (pthread_create(&cn->tid, &cn_thd_attrib, send_one_query, (void*)cn))
     die("Cannot start new thread for query");
 
+  cn->has_thread= TRUE;
   return 0;
 }
 
@@ -783,6 +788,14 @@ static void wait_query_thread_end(struct st_connection *con)
     while (!con->query_done)
       pthread_cond_wait(&con->cond, &con->mutex);
     pthread_mutex_unlock(&con->mutex);
+  }
+  if (con->has_thread)
+  {
+#ifndef __WIN__
+    /* May hang on Windows, but the problem it solves is not seen there */
+    pthread_join(con->tid, NULL);
+#endif
+    con->has_thread= FALSE;
   }
 }
 
@@ -2223,8 +2236,14 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
+  /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
+  {
+    if (*end && (*end != ' ' && *end != '\t' && *end != '\n' && *end != ')'))
+      die("Spurious text after `query` expression");
     --end;
+  }
+
   if (query == end)
     die("Syntax error in query, missing '`'");
   ++query;
@@ -3891,7 +3910,18 @@ void do_perl(struct st_command *command)
     if (!error)
       my_delete(temp_file_path, MYF(MY_WME));
 
-    handle_command_error(command, WEXITSTATUS(error), my_errno);
+    /* Check for error code that indicates perl could not be started */
+    int exstat= WEXITSTATUS(error);
+#ifdef __WIN__
+    if (exstat == 1)
+      /* Text must begin 'perl not found' as mtr looks for it */
+      abort_not_supported_test("perl not found in path or did not start");
+#else
+    if (exstat == 127)
+      abort_not_supported_test("perl not found in path");
+#endif
+    else
+      handle_command_error(command, WEXITSTATUS(error), my_errno);
   }
   dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
@@ -4835,6 +4865,16 @@ void select_connection_name(const char *name)
 
   set_current_connection(con);
 
+  /* Connection logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    DYNAMIC_STRING *ds= &ds_res;
+
+    dynstr_append_mem(ds, "connection ", 11);
+    replace_dynstr_append(ds, name);
+    dynstr_append_mem(ds, ";\n", 2);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -4921,6 +4961,17 @@ void do_close_connection(struct st_command *command)
     var_set_int("$mysql_get_server_version", 0xFFFFFFFF);
     var_set_string("$CURRENT_CONNECTION", con->name);
   }
+
+  /* Connection logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    DYNAMIC_STRING *ds= &ds_res;
+
+    dynstr_append_mem(ds, "disconnect ", 11);
+    replace_dynstr_append(ds, ds_connection.str);
+    dynstr_append_mem(ds, ";\n", 2);
+  }
+
   dynstr_free(&ds_connection);
   DBUG_VOID_RETURN;
 }
@@ -5056,6 +5107,13 @@ int connect_n_handle_errors(struct st_command *command,
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+  /* Simlified logging if enabled */
+  if (!disable_connect_log && !disable_query_log)
+  {
+    replace_dynstr_append(ds, command->query);
+    dynstr_append_mem(ds, ";\n", 2);
+  }
+  
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
@@ -5246,6 +5304,7 @@ void do_connect(struct st_command *command)
 
 #ifdef EMBEDDED_LIBRARY
   con_slot->query_done= 1;
+  con_slot->has_thread= FALSE;
 #endif
   if (!mysql_init(&con_slot->mysql))
     die("Failed on mysql_init()");
@@ -5262,8 +5321,13 @@ void do_connect(struct st_command *command)
                   &opt_connect_timeout);
 
 #ifdef HAVE_OPENSSL
-  if (opt_use_ssl || con_ssl)
+  if (opt_use_ssl)
+    con_ssl= 1;
+#endif
+
+  if (con_ssl)
   {
+#ifdef HAVE_OPENSSL
     mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
@@ -5272,15 +5336,15 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
-  }
 #endif
+  }
 
-#ifdef __WIN__
   if (con_pipe)
   {
+#ifdef __WIN__
     opt_protocol= MYSQL_PROTOCOL_PIPE;
-  }
 #endif
+  }
 
   if (opt_protocol)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
@@ -5568,6 +5632,8 @@ int read_line(char *buf, int size)
   char c, UNINIT_VAR(last_quote);
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
+  my_bool have_slash= FALSE;
+  
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
         R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
@@ -5639,9 +5705,13 @@ int read_line(char *buf, int size)
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        last_quote= c;
-	state= R_Q;
+        if (! have_slash) 
+        {
+	  last_quote= c;
+	  state= R_Q;
+	}
       }
+      have_slash= (c == '\\');
       break;
 
     case R_COMMENT:
@@ -5716,7 +5786,7 @@ int read_line(char *buf, int size)
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
 #ifdef USE_MB
-      int charlen = my_mbcharlen(charset_info, c);
+      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
@@ -5728,16 +5798,16 @@ int read_line(char *buf, int size)
 
 	for (i= 1; i < charlen; i++)
 	{
+	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))
 	    goto found_eof;
-	  c= my_getc(cur_file->file);
 	  *p++ = c;
 	}
 	if (! my_ismbchar(charset_info, mb_start, p))
 	{
 	  /* It was not a multiline char, push back the characters */
 	  /* We leave first 'c', i.e. pretend it was a normal char */
-	  while (p > mb_start)
+	  while (p-1 > mb_start)
 	    my_ungetc(*--p);
 	}
       }
@@ -7385,11 +7455,13 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
 
-  init_dynamic_string(&ds_warnings, NULL, 0, 256);
-
   if (cn->pending && (flags & QUERY_SEND_FLAG))
     die ("Cannot run query on connection between send and reap");
 
+  if (!(flags & QUERY_SEND_FLAG) && !cn->pending)
+    die ("Cannot reap on a connection without pending send");
+  
+  init_dynamic_string(&ds_warnings, NULL, 0, 256);
   /*
     Evaluate query if this is an eval command
   */
@@ -8130,6 +8202,8 @@ int main(int argc, char **argv)
       case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
       case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
       case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
+      case Q_ENABLE_CONNECT_LOG:   disable_connect_log=0; break;
+      case Q_DISABLE_CONNECT_LOG:  disable_connect_log=1; break;
       case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
       case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
       case Q_ENABLE_PREPARE_WARNINGS:  prepare_warnings_enabled=1; break;
@@ -9796,6 +9870,7 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
+  char lower[512];
 #ifdef __WIN__
   fix_win_paths(val, len);
 #endif
@@ -9803,7 +9878,6 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   if (display_result_lower) 
   {
     /* Convert to lower case, and do this first */
-    char lower[512];
     char *c= lower;
     for (const char *v= val;  *v;  v++)
       *c++= my_tolower(charset_info, *v);

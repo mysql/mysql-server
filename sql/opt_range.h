@@ -620,13 +620,21 @@ public:
   void dbug_dump(int indent, bool verbose);
 #endif
   int init_ror_merged_scan(bool reuse_handler);
-  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
+  bool push_quick_back(MEM_ROOT *alloc, QUICK_RANGE_SELECT *quick_sel_range);
+
+  class QUICK_SELECT_WITH_RECORD : public Sql_alloc
+  {
+  public:
+    QUICK_RANGE_SELECT *quick;
+    uchar *key_tuple;
+    ~QUICK_SELECT_WITH_RECORD() { delete quick; }
+  };
 
   /*
     Range quick selects this intersection consists of, not including
     cpk_quick.
   */
-  List<QUICK_RANGE_SELECT> quick_selects;
+  List<QUICK_SELECT_WITH_RECORD> quick_selects;
 
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick

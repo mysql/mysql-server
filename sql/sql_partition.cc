@@ -6787,8 +6787,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
     }
   }
   else
-    assert(0);
-  
+    MY_ASSERT_UNREACHABLE();
+
   can_match_multiple_values= (flags || !min_value || !max_value ||
                               memcmp(min_value, max_value, field_len));
   if (can_match_multiple_values &&

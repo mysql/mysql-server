@@ -1085,7 +1085,7 @@ static int convert_file(REPLACE *rep, char * name)
   my_fclose(in,MYF(0)); my_fclose(out,MYF(0));
 
   if (updated && ! error)
-    my_redel(org_name,tempname,MYF(MY_WME | MY_LINK_WARNING));
+    my_redel(org_name, tempname, 0, MYF(MY_WME | MY_LINK_WARNING));
   else
     my_delete(tempname,MYF(MY_WME));
   if (!silent && ! error)

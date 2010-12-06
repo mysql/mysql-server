@@ -1030,4 +1030,76 @@ select t2.pk,
 
 drop table t1,t2,t3,t4;
 
+--echo #
+--echo # Bug#57024: Poor performance when conjunctive condition over the outer 
+--echo #            table is used in the on condition of an outer join
+--echo # 
+
+create table t1 (a int);
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 select * from t1; 
+insert into t1 values (4), (2), (1), (3);
+
+create table t2 like t1;
+insert into t2 select if(t1.a is null, 10, t1.a) from t1;
+
+create table t3 (a int, b int, index idx(a));  
+insert into t3 values (1, 100), (3, 301), (4, 402), (1, 102), (1, 101);
+
+analyze table t1,t2,t3;
+
+flush status;
+select sum(t3.b) from t1 left join t3 on t3.a=t1.a and t1.a is not null;
+show status like "handler_read%";
+flush status;
+select sum(t3.b) from t2 left join t3 on t3.a=t2.a and t2.a <> 10;
+show status like "handler_read%";
+
+drop table t1,t2,t3;
+
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY (f1, f2));
+
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (7, 7);
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.1 tests

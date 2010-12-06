@@ -116,18 +116,32 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_PLUGIN_STATIC
 dnl
 dnl SYNOPSIS
-dnl   MYSQL_PLUGIN_STATIC([name],[libmyplugin.a])
+dnl   MYSQL_PLUGIN_STATIC([name],[libmyplugin.a],[libmyplugin_embedded.a])
 dnl
 dnl DESCRIPTION
-dnl   Declare the name for the static library 
+dnl   Declare the name for the static library
+dnl
+dnl   Third argument is optional, only needed for special plugins that depend
+dnl   on server internals and have source files that must be compiled specially
+dnl   with -DEMBEDDED_LIBRARY for embedded server. If specified, the third
+dnl   argument is used to link embedded server instead of the second.
 dnl
 dnl ---------------------------------------------------------------------------
 
 AC_DEFUN([MYSQL_PLUGIN_STATIC],[
  MYSQL_REQUIRE_PLUGIN([$1])
  m4_define([MYSQL_PLUGIN_STATIC_]AS_TR_CPP([$1]), [$2])
+ ifelse($#, 3, [
+   m4_define([MYSQL_PLUGIN_EMBEDDED_]AS_TR_CPP([$1]), [$3])
+ ])
 ])
 
+dnl ---------------------------------------------------------------------------
+dnl Substitution variable to use to compile source files specially for
+dnl embedded server.
+dnl To be used by plugins that have sources that depend on server internals.
+dnl ---------------------------------------------------------------------------
+AC_SUBST([plugin_embedded_defs], ["-DEMBEDDED_LIBRARY -DMYSQL_SERVER"])
 
 dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_PLUGIN_DYNAMIC
@@ -222,7 +236,7 @@ AC_DEFUN([MYSQL_PLUGIN_WITHOUT],[
  if test "X[$with_plugin_]$1" = Xyes; then
    AC_MSG_ERROR([Plugin $1 cannot be built])
  else
-   [with_plugin_]$1=no
+   [mysql_plugin_]$1=no
  fi
 ])
 
@@ -276,28 +290,6 @@ AC_DEFUN([MYSQL_PLUGIN_ACTIONS],[
  ],[
    m4_define([MYSQL_PLUGIN_ACTIONS_]AS_TR_CPP([$1]), [$2])
  ])
-])
-
-dnl ---------------------------------------------------------------------------
-dnl Macro: MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS
-dnl
-dnl SYNOPSIS
-dnl   MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS([name],[file name])
-dnl
-dnl DESCRIPTION
-dnl   Some modules in plugins keep dependance on structures
-dnl   declared in sql/ (THD class usually)
-dnl   That has to be fixed in the future, but until then
-dnl   we have to recompile these modules when we want to
-dnl   to compile server parts with the different #defines
-dnl   Normally it happens when we compile the embedded server
-dnl   Thus one should mark such files in his handler using this macro
-dnl
-dnl ---------------------------------------------------------------------------
-
-AC_DEFUN([MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS],[
- MYSQL_REQUIRE_PLUGIN([$1])
- m4_define([MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS_]AS_TR_CPP([$1]), [$2])
 ])
 
 dnl ---------------------------------------------------------------------------
@@ -360,11 +352,25 @@ AC_DEFUN([_MYSQL_EMIT_CHECK_PLUGIN],[
   [MYSQL_PLUGIN_DYNAMIC_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_MANDATORY_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_DISABLED_]AS_TR_CPP([$1]),
-  [MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS_]AS_TR_CPP([$1]),
+  [MYSQL_PLUGIN_EMBEDDED_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_ACTIONS_]AS_TR_CPP([$1])
  )
 ])
 
+dnl __MYSQL_EMIT_CHECK_PLUGIN arguments:
+dnl
+dnl  1 - plugin identifying name
+dnl  2 - plugin identifying name, with `-' replaced by `_'
+dnl  3 - plugin long name
+dnl  4 - plugin description
+dnl  5 - mysql_plugin_define (eg. WITH_xxx_STORAGE_ENGINE)
+dnl  6 - directory
+dnl  7 - static target (if supports static build)
+dnl  8 - dynamic target (if supports dynamic build)
+dnl  9 - mandatory flag
+dnl 10 - disabled flag
+dnl 11 - static target for libmysqld (if different from $7)
+dnl 12 - actions
 AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  m4_ifdef([$5],[
   AH_TEMPLATE($5, [Include ]$3[ into mysqld])
@@ -380,6 +386,10 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
   fi
   __MYSQL_EMIT_CHECK_RESULT($3,[no])
  ],[
+
+  if test "X[$mysql_plugin_]$2" = Xno; then
+    [with_plugin_]$2=no
+  fi
 
   # Plugin is not disabled, determine if it should be built,
   # or only distributed
@@ -439,11 +449,12 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        ])
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
+       AC_SUBST([plugin_]$2[_embedded_static_target], [""])
        [with_plugin_]$2=yes
        __MYSQL_EMIT_CHECK_RESULT($3,[plugin])
        m4_ifdef([$6],[
          else
-           [mysql_plugin_]$2=no
+           [with_plugin_]$2=no
            __MYSQL_EMIT_CHECK_RESULT($3,[no])
          fi
        ])
@@ -453,32 +464,47 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
       ])
     else
       m4_ifdef([$7],[
-       ifelse(m4_bregexp($7, [^lib[^.]+\.a$]), -2, [
-dnl change above "-2" to "0" to enable this section
-dnl Although this is "pretty", it breaks libmysqld build
-        m4_ifdef([$6],[
-         mysql_use_plugin_dir="$6"
-         mysql_plugin_libs="$mysql_plugin_libs -L[\$(top_builddir)]/$6"
-        ])
-        mysql_plugin_libs="$mysql_plugin_libs dnl
-[-l]m4_bregexp($7, [^lib\([^.]+\)], [\1])"
-       ], m4_bregexp($7, [^\\\$]), 0, [
+       ifelse(m4_bregexp($7, [^\\\$]), 0, [
         m4_ifdef([$6],[
          mysql_use_plugin_dir="$6"
         ])
         mysql_plugin_libs="$mysql_plugin_libs $7"
+        m4_ifdef([$11],[
+          mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs $11"
+        ],[
+          mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs $7"
+        ])
        ], [
         m4_ifdef([$6],[
          mysql_use_plugin_dir="$6"
          mysql_plugin_libs="$mysql_plugin_libs \$(top_builddir)/$6/$7"
+         m4_ifdef([$11],[
+           mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs \$(top_builddir)/$6/$11"
+         ],[
+           mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs \$(top_builddir)/$6/$7"
+         ])
         ],[
          mysql_plugin_libs="$mysql_plugin_libs $7"
+         m4_ifdef([$11],[
+           mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs $11"
+         ],[
+           mysql_embedded_plugin_libs="$mysql_embedded_plugin_libs $7"
+         ])
         ])
        ])
        m4_ifdef([$5],[
         AC_DEFINE($5)
        ])
        AC_SUBST([plugin_]$2[_static_target], "$7")
+       m4_ifdef([$11], [
+         if test "$with_embedded_server" = "yes"; then
+           AC_SUBST([plugin_]$2[_embedded_static_target], "$11")
+         else
+           AC_SUBST([plugin_]$2[_embedded_static_target], [""])
+         fi
+       ], [
+         AC_SUBST([plugin_]$2[_embedded_static_target], [""])
+       ])
        AC_SUBST([plugin_]$2[_shared_target], [""])
       ],[
        m4_ifdef([$6],[
@@ -495,14 +521,6 @@ dnl Although this is "pretty", it breaks libmysqld build
       maria_plugin_defs="$maria_plugin_defs, [builtin_maria_]$2[_plugin]"
       [with_plugin_]$2=yes
       __MYSQL_EMIT_CHECK_RESULT($3,[yes])
-      m4_ifdef([$11], [
-        m4_foreach([plugin], [$11], [
-           condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp(plugin, [[^/]+$], [\&])"
-           condition_dependent_plugin_objects="$condition_dependent_plugin_objects m4_bregexp(plugin, [[^/]+\.], [\&o])"
-           condition_dependent_plugin_links="$condition_dependent_plugin_links $6/plugin"
-           condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp(plugin, [^.+[/$]], [\&])"
-        ])
-      ])
     fi
   fi
 
@@ -769,6 +787,10 @@ AC_DEFUN([_MYSQL_EMIT_PLUGINS],[
 ])
 
 AC_DEFUN([_MYSQL_EMIT_PLUGIN_ENABLE],[
+    if test "X[$mysql_plugin_]$2" = Xno -a \
+            "X[$with_plugin_]$2" != Xno; then
+      AC_MSG_ERROR([Plugin $1 cannot be built])
+    fi
     m4_ifdef([$5],m4_ifdef([$4],[
       [mysql_plugin_]$2=yes
     ],[

@@ -1,1 +1,1 @@
---skip-safemalloc
+--loose-skip-safemalloc --loose-mutex-deadlock-detector=0

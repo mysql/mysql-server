@@ -1380,9 +1380,13 @@ longlong Item_func_int_div::val_int()
     signal_divide_by_null();
     return 0;
   }
-  return (unsigned_flag ?
-	  (ulonglong) value / (ulonglong) val2 :
-	  value / val2);
+
+  if (unsigned_flag)
+    return  ((ulonglong) value / (ulonglong) val2);
+  else if (value == LONGLONG_MIN && val2 == -1)
+    return LONGLONG_MIN;
+  else
+    return value / val2;
 }
 
 
@@ -1416,9 +1420,9 @@ longlong Item_func_mod::int_op()
   if (args[0]->unsigned_flag)
     result= args[1]->unsigned_flag ? 
       ((ulonglong) value) % ((ulonglong) val2) : ((ulonglong) value) % val2;
-  else
-    result= args[1]->unsigned_flag ?
-      value % ((ulonglong) val2) : value % val2;
+  else result= args[1]->unsigned_flag ?
+         value % ((ulonglong) val2) :
+         (val2 == -1) ? 0 : value % val2;
 
   return result;
 }
@@ -4730,7 +4734,7 @@ void Item_func_get_user_var::fix_length_and_dec()
       decimals=0;
       break;
     case STRING_RESULT:
-      max_length= MAX_BLOB_WIDTH;
+      max_length= MAX_BLOB_WIDTH - 1;
       break;
     case DECIMAL_RESULT:
       max_length= DECIMAL_MAX_STR_LENGTH;
@@ -5365,7 +5369,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
@@ -6190,8 +6204,8 @@ void uuid_short_init()
 longlong Item_func_uuid_short::val_int()
 {
   ulonglong val;
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  pthread_mutex_lock(&LOCK_short_uuid_generator);
   val= uuid_value++;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  pthread_mutex_unlock(&LOCK_short_uuid_generator);
   return (longlong) val;
 }

@@ -1032,7 +1032,7 @@ static int myisamchk(HA_CHECK *param, char * filename)
 	{			/* Change temp file to org file */
 	  VOID(my_close(info->dfile,MYF(MY_WME))); /* Close new file */
 	  error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-				   raid_chunks,
+				   0, raid_chunks,
 				   MYF(0));
 	  if (mi_open_datafile(info,info->s, NULL, -1))
 	    error=1;
@@ -1165,12 +1165,9 @@ end2:
   {
     if (param->out_flag & O_NEW_DATA)
       error|=change_to_newfile(filename,MI_NAME_DEXT,DATA_TMP_EXT,
-			       raid_chunks,
+			       param->backup_time, raid_chunks,
 			       ((param->testflag & T_BACKUP_DATA) ?
 				MYF(MY_REDEL_MAKE_BACKUP) : MYF(0)));
-    if (param->out_flag & O_NEW_INDEX)
-      error|=change_to_newfile(filename,MI_NAME_IEXT,INDEX_TMP_EXT,0,
-			       MYF(0));
   }
   VOID(fflush(stdout)); VOID(fflush(stderr));
   if (param->error_printed)
@@ -1242,7 +1239,8 @@ static void descript(HA_CHECK *param, register MI_INFO *info, char * name)
     }
     pos=buff;
     if (share->state.changed & STATE_CRASHED)
-      strmov(buff,"crashed");
+      strmov(buff, share->state.changed & STATE_CRASHED_ON_REPAIR ?
+             "crashed on repair" : "crashed");
     else
     {
       if (share->state.open_count)

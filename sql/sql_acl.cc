@@ -1593,6 +1593,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
+  bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   DBUG_ENTER("change_password");
@@ -1627,6 +1628,14 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
     DBUG_RETURN(1);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  if ((save_binlog_row_based= thd->current_stmt_binlog_row_based))
+    thd->clear_current_stmt_binlog_row_based();
 
   VOID(pthread_mutex_lock(&acl_cache->lock));
   ACL_USER *acl_user;
@@ -1671,6 +1680,12 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 end:
   close_thread_tables(thd);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->current_stmt_binlog_row_based);
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_row_based();
+
   DBUG_RETURN(result);
 }
 
@@ -5509,7 +5524,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= grant_name->host.hostname;
       break;
     default:
-      DBUG_ASSERT(0);
+      MY_ASSERT_UNREACHABLE();
     }
     if (! user)
       user= "";

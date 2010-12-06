@@ -1,0 +1,22 @@
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set long_query_time=4;
+SELECT sleep(1);
+sleep(1)
+0
+SELECT sleep(3);
+sleep(3)
+0
+SELECT sleep(5);
+sleep(5)
+0
+set long_query_time=2;
+cat var/mysqld.1/data/percona_slow_query_log-long_query_time.log | grep Query_time | wc -l
+3

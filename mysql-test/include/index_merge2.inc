@@ -345,3 +345,55 @@ explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 4
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 drop table t1;
 
+--echo #
+--echo # Bug#56423: Different count with SELECT and CREATE SELECT queries
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  c INT,
+  d INT,
+  PRIMARY KEY (a),
+  KEY (c),
+  KEY bd (b,d)
+);
+
+INSERT INTO t1 VALUES
+(1, 0, 1, 0),
+(2, 1, 1, 1),
+(3, 1, 1, 1),
+(4, 0, 1, 1);
+
+EXPLAIN
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+
+CREATE TABLE t2 ( a INT )
+SELECT a
+FROM t1
+WHERE c = 1 AND b = 1 AND d = 1;
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+CREATE TABLE t1( a INT, b INT, KEY(a), KEY(b) );
+INSERT INTO t1 VALUES (1, 2), (1, 2), (1, 2), (1, 2);
+SELECT * FROM t1 FORCE INDEX(a, b) WHERE a = 1 AND b = 2;
+
+DROP TABLE t1;
+
+--echo # Code coverage of fix.
+CREATE TABLE t1 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 (b) VALUES (1);
+UPDATE t1 SET b = 2 WHERE a = 1;
+SELECT * FROM t1;
+
+CREATE TABLE t2 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1) );
+INSERT INTO t2 (b) VALUES ('a');
+UPDATE t2 SET b = 'b' WHERE a = 1;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;

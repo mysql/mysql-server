@@ -1430,3 +1430,14 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+#
+# Bug #36742
+#
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+host	user
+localhost	myuser
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;

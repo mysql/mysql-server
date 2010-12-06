@@ -476,6 +476,7 @@ int main(int argc __attribute__((unused)),
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
 
+  flush_pagecache_blocks(&pagecache, &file1, FLUSH_IGNORE_CHANGED);
   end_pagecache(&pagecache, 1);
   DBUG_PRINT("info", ("Page cache ended"));
 

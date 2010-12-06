@@ -360,6 +360,7 @@ translog_assign_id_to_share_from_recovery(struct st_maria_share *share,
 extern my_bool translog_walk_filenames(const char *directory,
                                        my_bool (*callback)(const char *,
                                                            const char *));
+extern void dump_page(uchar *buffer, File handler);
 extern my_bool translog_log_debug_info(TRN *trn,
                                        enum translog_debug_info_type type,
                                        uchar *info, size_t length);
@@ -386,8 +387,31 @@ void translog_set_group_commit_interval(uint32 interval);
   ma_loghandler_for_recovery.h ?
 */
 
+/*
+  Information from transaction log file header
+*/
+
+typedef struct st_loghandler_file_info
+{
+  /*
+    LSN_IMPOSSIBLE for current file (not finished file).
+    Maximum LSN of the record which parts stored in the
+    file.
+  */
+  LSN max_lsn;
+  ulonglong timestamp;   /* Time stamp */
+  ulong maria_version;   /* Version of maria loghandler */
+  ulong mysql_version;   /* Version of mysql server */
+  ulong server_id;       /* Server ID */
+  ulong page_size;       /* Loghandler page size */
+  ulong file_number;     /* Number of the file (from the file header) */
+} LOGHANDLER_FILE_INFO;
+
 #define SHARE_ID_MAX 65535 /* array's size */
 
+extern void translog_fill_overhead_table();
+extern void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
+                                           uchar *page_buff);
 extern LSN translog_first_lsn_in_log();
 extern LSN translog_first_theoretical_lsn();
 extern LSN translog_next_LSN(TRANSLOG_ADDRESS addr, TRANSLOG_ADDRESS horizon);

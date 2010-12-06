@@ -1,6 +1,6 @@
 MYSQL_STORAGE_ENGINE(sphinx,,[Sphinx Storage Engine],
         [SE client for Sphinx search daemon], [])
 MYSQL_PLUGIN_DIRECTORY(sphinx, [storage/sphinx])
-MYSQL_PLUGIN_STATIC(sphinx,  [libsphinx.a])
+MYSQL_PLUGIN_STATIC(sphinx,  [libsphinx.la])
 MYSQL_PLUGIN_DYNAMIC(sphinx, [ha_sphinx.la])
 

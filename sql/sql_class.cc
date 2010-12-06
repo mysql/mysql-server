@@ -92,7 +92,9 @@ extern "C" void free_user_var(user_var_entry *entry)
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
-  return length == other.length && !strcmp(field_name, other.field_name);
+  return length == other.length &&
+         !my_strcasecmp(system_charset_info, field_name,
+                        other.field_name);
 }
 
 /**
@@ -804,7 +806,7 @@ THD::THD()
 
   m_internal_handler= NULL;
   arena_for_cached_items= 0;
-  current_user_used= FALSE;
+  m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
 }
@@ -1434,7 +1436,7 @@ void THD::cleanup_after_query()
   where= THD::DEFAULT_WHERE;
   /* reset table map for multi-table update */
   table_map_for_update= 0;
-  clean_current_user_used();
+  m_binlog_invoker= FALSE;
 }
 
 
@@ -1741,6 +1743,36 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
   change->place= place;
   change->old_value= old_value;
   change_list.append(change);
+}
+
+/**
+  Check and register item change if needed
+
+  @param place           place where we should assign new value
+  @param new_value       place of the new value
+
+  @details
+    Let C be a reference to an item that changed the reference A
+    at the location (occurrence) L1 and this change has been registered.
+    If C is substituted for reference A another location (occurrence) L2
+    that is to be registered as well than this change has to be
+    consistent with the first change in order the procedure that rollback
+    changes to substitute the same reference at both locations L1 and L2.
+*/
+
+void THD::check_and_register_item_tree_change(Item **place, Item **new_value,
+                                              MEM_ROOT *runtime_memroot)
+{
+  Item_change_record *change;
+  I_List_iterator<Item_change_record> it(change_list);
+  while ((change= it++))
+  {
+    if (change->place == new_value)
+      break; // we need only very first value
+  }
+  if (change)
+    nocheck_register_item_tree_change(place, change->old_value,
+                                      runtime_memroot);
 }
 
 
@@ -3550,7 +3582,7 @@ void THD::set_query(char *query_arg, uint32 query_length_arg)
 
 void THD::get_definer(LEX_USER *definer)
 {
-  set_current_user_used();
+  binlog_invoker();
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
   if (slave_thread && has_invoker())
   {

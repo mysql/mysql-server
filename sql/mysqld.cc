@@ -728,7 +728,7 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
                 LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
-                LOCK_connection_count, LOCK_uuid_generator;
+                LOCK_connection_count, LOCK_short_uuid_generator;
 pthread_mutex_t LOCK_stats, LOCK_global_user_client_stats;
 pthread_mutex_t LOCK_global_table_stats, LOCK_global_index_stats;
 
@@ -1070,8 +1070,9 @@ static void close_connections(void)
   Events::deinit();
   end_slave();
 
-  if (thread_count)
-    sleep(2);					// Give threads time to die
+  /* Give threads time to die. */
+  for (int i= 0; thread_count && i < 100; i++)
+    my_sleep(20000);
 
   /*
     Force remaining threads to die by closing the connection to the client
@@ -1447,6 +1448,7 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
+  my_uuid_end();
   delete binlog_filter;
   delete rpl_filter;
 #ifndef EMBEDDED_LIBRARY
@@ -1559,7 +1561,7 @@ static void clean_up_mutexes()
   (void) rwlock_destroy(&LOCK_sys_init_connect);
   (void) rwlock_destroy(&LOCK_sys_init_slave);
   (void) pthread_mutex_destroy(&LOCK_global_system_variables);
-  (void) pthread_mutex_destroy(&LOCK_uuid_generator);
+  (void) pthread_mutex_destroy(&LOCK_short_uuid_generator);
   (void) rwlock_destroy(&LOCK_system_variables_hash);
   (void) pthread_mutex_destroy(&LOCK_global_read_lock);
   (void) pthread_mutex_destroy(&LOCK_prepared_stmt_count);
@@ -3813,7 +3815,7 @@ static int init_thread_environment()
   (void) my_rwlock_init(&LOCK_system_variables_hash, NULL);
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
-  (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_short_uuid_generator, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_stats, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_global_user_client_stats,
@@ -6532,7 +6534,7 @@ each time the SQL thread starts.",
    0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #endif
   {"myisam-recover", OPT_MYISAM_RECOVER,
-   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
+   "Syntax: myisam-recover=OFF or myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, BACKUP_ALL, FORCE or QUICK.",
    &myisam_recover_options_str, &myisam_recover_options_str, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -7598,7 +7600,11 @@ thread is in the relay logs.",
    1024, 0},
   {"thread_handling", OPT_THREAD_HANDLING,
    "Define threads usage for handling queries: "
-   "one-thread-per-connection or no-threads.",
+   "one-thread-per-connection"
+#if HAVE_POOL_OF_THREADS == 1
+  ", pool-of-threads"
+#endif
+   "or no-threads.",
    &opt_thread_handling, &opt_thread_handling,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"updatable_views_with_limit", OPT_UPDATABLE_VIEWS_WITH_LIMIT,

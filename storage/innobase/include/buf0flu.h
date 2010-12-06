@@ -38,6 +38,20 @@ buf_flush_init_for_writing(
 	dulint	newest_lsn,	/* in: newest modification lsn to the page */
 	ulint	space,		/* in: space id */
 	ulint	page_no);	/* in: page number */
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/**********************************************************************
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool_mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_try_page(). */
+
+ibool
+buf_flush_page_try(
+/*===============*/
+					/* out: TRUE if flushed and
+					mutexes released */
+	buf_block_t*	block);		/*!< in/out: buffer control block */
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to

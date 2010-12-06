@@ -1736,7 +1736,9 @@ err:
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
       if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+			    DATA_TMP_EXT,
+                            param->backup_time,
+                            share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -1997,8 +1999,8 @@ int mi_sort_index(HA_CHECK *param, register MI_INFO *info, char * name)
   VOID(my_close(share->kfile,MYF(MY_WME)));
   share->kfile = -1;
   VOID(my_close(new_file,MYF(MY_WME)));
-  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,0,
-			MYF(0)) ||
+  if (change_to_newfile(share->index_file_name,MI_NAME_IEXT,INDEX_TMP_EXT,
+                        0, 0, MYF(0)) ||
       mi_open_keyfile(share))
     goto err2;
   info->lock_type= F_UNLCK;			/* Force mi_readinfo to lock */
@@ -2127,6 +2129,7 @@ err:
 
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext,
+                      time_t backup_time,
 		      uint raid_chunks __attribute__((unused)),
 		      myf MyFlags)
 {
@@ -2142,7 +2145,7 @@ int change_to_newfile(const char * filename, const char * old_ext,
   (void) fn_format(old_filename,filename,"",old_ext,2+4+32);
   return my_redel(old_filename,
 		  fn_format(new_filename,old_filename,"",new_ext,2+4),
-		  MYF(MY_WME | MY_LINK_WARNING | MyFlags));
+                  backup_time, MYF(MY_WME | MY_LINK_WARNING | MyFlags));
 } /* change_to_newfile */
 
 
@@ -2551,7 +2554,8 @@ err:
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
       if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+			    DATA_TMP_EXT, param->backup_time,
+                            share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -3089,7 +3093,8 @@ err:
       my_close(new_file,MYF(0));
       info->dfile=new_file= -1;
       if (change_to_newfile(share->data_file_name,MI_NAME_DEXT,
-			    DATA_TMP_EXT, share->base.raid_chunks,
+			    DATA_TMP_EXT, param->backup_time,
+                            share->base.raid_chunks,
 			    (param->testflag & T_BACKUP_DATA ?
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
@@ -4750,4 +4755,11 @@ set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share)
     mi_setup_functions(&tmp);
     share->delete_record=tmp.delete_record;
   }
+}
+
+int mi_make_backup_of_index(MI_INFO *info, time_t backup_time, myf flags)
+{
+  char backup_name[FN_REFLEN + MY_BACKUP_NAME_EXTRA_LENGTH];
+  my_create_backup_name(backup_name, info->s->index_file_name, backup_time);
+  return my_copy(info->s->index_file_name, backup_name, flags);
 }

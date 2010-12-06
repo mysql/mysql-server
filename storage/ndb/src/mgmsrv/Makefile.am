@@ -57,9 +57,6 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
 ndb_mgmd_LDFLAGS = @ndb_bin_am_ldflags@
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: ndb_mgmd.dsp
 
 ndb_mgmd.dsp: Makefile \

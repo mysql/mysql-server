@@ -111,12 +111,24 @@ my $path_vardir_trace;          # unix formatted opt_vardir for trace files
 my $opt_tmpdir;                 # Path to use for tmp/ dir
 my $opt_tmpdir_pid;
 
+my $opt_start;
+my $opt_start_dirty;
+my $opt_start_exit;
+my $start_only;
+
 END {
   if ( defined $opt_tmpdir_pid and $opt_tmpdir_pid == $$ )
   {
-    # Remove the tempdir this process has created
-    mtr_verbose("Removing tmpdir '$opt_tmpdir");
-    rmtree($opt_tmpdir);
+    if (!$opt_start_exit)
+    {
+      # Remove the tempdir this process has created
+      mtr_verbose("Removing tmpdir $opt_tmpdir");
+      rmtree($opt_tmpdir);
+    }
+    else
+    {
+      mtr_warning("tmpdir $opt_tmpdir should be removed after the server has finished");
+    }
   }
 }
 
@@ -216,20 +228,16 @@ my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 360; # minutes
 my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
-sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
 sub check_timeout { return $opt_testcase_timeout * 6; };
 
-my $opt_start;
-my $opt_start_dirty;
-my $opt_start_exit;
-my $start_only;
 my $opt_wait_all;
 my $opt_user_args;
 my $opt_repeat= 1;
 my $opt_retry= 1;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 my $opt_reorder= 1;
+my $opt_force_restart= 0;
 
 my $opt_strace_client;
 
@@ -247,9 +255,21 @@ my $opt_callgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
+sub testcase_timeout ($) {
+  my ($tinfo)= @_;
+  if (exists $tinfo->{'case-timeout'}) {
+    # Return test specific timeout if *longer* that the general timeout
+    my $test_to= $tinfo->{'case-timeout'};
+    $test_to*= 10 if $opt_valgrind;
+    return $test_to * 60 if $test_to > $opt_testcase_timeout;
+  }
+  return $opt_testcase_timeout * 60;
+}
+
 our $opt_warnings= 1;
 
-our $opt_skip_ndbcluster= 0;
+our $opt_include_ndbcluster= 0;
+our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -611,13 +631,15 @@ sub run_test_server ($$$) {
 	  if ($test_has_failed and $retries <= $opt_retry){
 	    # Test should be run one more time unless it has failed
 	    # too many times already
+	    my $tname= $result->{name};
 	    my $failures= $result->{failures};
 	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
-	      mtr_report("\nTest has failed $failures times,",
+	      mtr_report("\nTest $tname has failed $failures times,",
 			 "no more retries!\n");
 	    }
 	    else {
-	      mtr_report("\nRetrying test, attempt($retries/$opt_retry)...\n");
+	      mtr_report("\nRetrying test $tname, ".
+			 "attempt($retries/$opt_retry)...\n");
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -903,6 +925,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -986,6 +1009,7 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
+	     'force-restart'            => \$opt_force_restart,
              'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
@@ -2178,6 +2202,12 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
+
+  # Add dir of this perl to aid mysqltest in finding perl
+  my $perldir= dirname($^X);
+  my $pathsep= ":";
+  $pathsep= ";" if IS_WINDOWS && ! IS_CYGWIN;
+  $ENV{'PATH'}= "$ENV{'PATH'}".$pathsep.$perldir;
 }
 
 
@@ -2483,14 +2513,12 @@ sub fix_vs_config_dir () {
   my $modified = 1e30;
   $opt_vs_config="";
 
-  for my $dir (qw(client/*.dir libmysql/libmysql.dir sql/mysqld.dir
-                  sql/udf_example.dir storage/*/*.dir plugin/*/*.dir)) {
-    for (<$basedir/$dir/*/BuildLog.htm>) {
-      if (-M $_ < $modified)
-      {
-        $modified = -M _;
-        $opt_vs_config = basename(dirname($_));
-      }
+
+  for (<$basedir/sql/*/mysqld.exe>) {
+    if (-M $_ < $modified)
+    {
+      $modified = -M _;
+      $opt_vs_config = basename(dirname($_));
     }
   }
 
@@ -2501,6 +2529,11 @@ sub fix_vs_config_dir () {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster)
   {
@@ -3341,7 +3374,8 @@ sub check_testcase($$)
 	    "\nMTR's internal check of the test case '$tname' failed.
 This means that the test case does not preserve the state that existed
 before the test case was executed.  Most likely the test case did not
-do a proper clean-up.
+do a proper clean-up. It could also be caused by the previous test run
+by this thread, if the server wasn't restarted.
 This is the diff of the states of the servers before and after the
 test case was executed:\n";
 	  $tinfo->{check}.= $report;
@@ -3386,6 +3420,10 @@ test case was executed:\n";
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
+
+    mtr_warning("Check-testcase failed, this could also be caused by the" .
+		" previous test run by this worker thread")
+      if $result > 1 && $mode eq "before";
 
     return $result;
   }
@@ -3841,7 +3879,7 @@ sub run_testcase ($$) {
     }
   }
 
-  my $test_timeout= start_timer(testcase_timeout());
+  my $test_timeout= start_timer(testcase_timeout($tinfo));
 
   do_before_run_mysqltest($tinfo);
 
@@ -3946,6 +3984,9 @@ sub run_testcase ($$) {
 	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
+	# Restart if skipped due to missing perl, it may have had side effects
+	stop_all_servers($opt_shutdown_timeout)
+	  if ($tinfo->{'comment'} =~ /^perl not found/);
       }
       elsif ( $res == 65 )
       {
@@ -4052,7 +4093,7 @@ sub run_testcase ($$) {
     {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
-        "Test case timeout after ".testcase_timeout().
+        "Test case timeout after ".testcase_timeout($tinfo).
 	  " seconds\n\n";
       # Add 20 last executed commands from test case log file
       if  (-e $log_file_name)
@@ -4061,7 +4102,7 @@ sub run_testcase ($$) {
 	   "== $log_file_name == \n".
 	     mtr_lastlinesfromfile($log_file_name, 20)."\n";
       }
-      $tinfo->{'timeout'}= testcase_timeout(); # Mark as timeout
+      $tinfo->{'timeout'}= testcase_timeout($tinfo); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
 
       report_failure_and_restart($tinfo);
@@ -4186,7 +4227,9 @@ sub get_log_from_proc ($$) {
   foreach my $mysqld (all_servers()) {
     if ($mysqld->{proc} eq $proc) {
       my @srv_lines= extract_server_log($mysqld->if_exist('#log-error'), $name);
-      $srv_log= "\nServer log from this test:\n" . join ("", @srv_lines);
+      $srv_log= "\nServer log from this test:\n" .
+	"----------SERVER LOG START-----------\n". join ("", @srv_lines) .
+	"----------SERVER LOG END-------------\n";
       last;
     }
   }
@@ -5017,6 +5060,11 @@ sub server_need_restart {
     return 1;
   }
 
+  if ( $opt_force_restart ) {
+    mtr_verbose_restart($server, "forced restart turned on");
+    return 1;
+  }
+
   if ( $tinfo->{template_path} ne $current_config_name)
   {
     mtr_verbose_restart($server, "using different config file");
@@ -5719,7 +5767,8 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
@@ -5843,7 +5892,8 @@ Misc options
                         servers to exit before finishing the process
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
-  parallel=N            Run tests in N parallel threads (default 1)
+  force-restart         Always restart servers between tests
+  parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail up to N times (default $opt_retry).

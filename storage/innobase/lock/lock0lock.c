@@ -4296,7 +4296,6 @@ lock_print_info_all_transactions(
 	lock_t*	lock;
 	ulint	space;
 	ulint	page_no;
-	page_t*	page;
 	ibool	load_page_first = TRUE;
 	ulint	nth_trx		= 0;
 	ulint	nth_lock	= 0;
@@ -4410,8 +4409,7 @@ loop:
 
 			mtr_start(&mtr);
 
-			page = buf_page_get_with_no_latch(
-				space, page_no, &mtr);
+			buf_page_get_with_no_latch(space, page_no, &mtr);
 
 			mtr_commit(&mtr);
 

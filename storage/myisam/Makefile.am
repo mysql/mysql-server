@@ -31,6 +31,10 @@ EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt plug.in
 pkgdata_DATA =		
 
 pkglib_LIBRARIES =	libmyisam.a
+noinst_LTLIBRARIES =	libmyisam.la libmyisam_s.la \
+			@plugin_myisam_embedded_static_target@
+EXTRA_LTLIBRARIES =	libmyisam_embedded.la
+
 bin_PROGRAMS =		myisamchk myisamlog myisampack myisam_ftdump
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
 myisamchk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
@@ -83,7 +87,8 @@ sp_test_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
+
+libmyisam_la_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \
 			mi_rrnd.c mi_scan.c mi_cache.c \
@@ -98,8 +103,19 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_keycache.c mi_preload.c \
 			ft_parser.c ft_stopwords.c ft_static.c \
 			ft_update.c ft_boolean_search.c ft_nlq_search.c \
-			sort.c ha_myisam.cc ft_myisam.c \
+			sort.c ft_myisam.c \
 			rt_index.c rt_key.c rt_mbr.c rt_split.c sp_key.c
+libmyisam_s_la_SOURCES =	ha_myisam.cc
+libmyisam_s_la_CXXFLAGS =	$(AM_CXXFLAGS)
+libmyisam_s_la_LIBADD =	libmyisam.la
+libmyisam_embedded_la_SOURCES =	ha_myisam.cc
+libmyisam_embedded_la_CXXFLAGS =	$(AM_CXXFLAGS) @plugin_embedded_defs@
+libmyisam_embedded_la_LIBADD =	libmyisam.la
+
+libmyisam_a_SOURCES=
+libmyisam.a: libmyisam.la
+	$(CP) .libs/libmyisam.a $@
+
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all rt_test.MY? sp_test.MY?
 
 # Move to automake rules ?
@@ -149,6 +165,3 @@ SUFFIXES = .sh
 	$< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

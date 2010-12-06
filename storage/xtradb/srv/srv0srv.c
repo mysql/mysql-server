@@ -211,11 +211,6 @@ UNIV_INTERN ulint	srv_buf_pool_curr_size	= 0;
 UNIV_INTERN ulint	srv_mem_pool_size	= ULINT_MAX;
 UNIV_INTERN ulint	srv_lock_table_size	= ULINT_MAX;
 
-/* key value for shm */
-UNIV_INTERN uint	srv_buffer_pool_shm_key	= 0;
-UNIV_INTERN ibool	srv_buffer_pool_shm_is_reused = FALSE;
-UNIV_INTERN ibool	srv_buffer_pool_shm_checksum = TRUE;
-
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 UNIV_INTERN ulint	srv_n_file_io_threads	= ULINT_MAX;
@@ -704,7 +699,7 @@ UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
-UNIV_INTERN os_event_t	srv_purge_thread_event;
+UNIV_INTERN os_event_t	srv_shutdown_event;
 
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
@@ -1011,7 +1006,7 @@ srv_init(void)
 	}
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
-	srv_purge_thread_event = os_event_create(NULL);
+	srv_shutdown_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -1130,7 +1125,7 @@ retry:
 			enter_innodb_with_tickets(trx);
 			return;
 		}
-		os_atomic_increment_lint(&srv_conc_n_threads, -1);
+		(void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	}
 	if (!has_yielded)
 	{
@@ -1160,7 +1155,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-	os_atomic_increment_lint(&srv_conc_n_threads, -1);
+        (void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1367,7 +1362,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
-		os_atomic_increment_lint(&srv_conc_n_threads, 1);
+                (void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;
@@ -2239,7 +2234,7 @@ loop:
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information. */
 
-	os_thread_sleep(5000000);
+	os_event_wait_time(srv_shutdown_event, 5000000);
 
 	current_time = time(NULL);
 
@@ -2381,7 +2376,7 @@ loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	srv_lock_timeout_active = TRUE;
 
@@ -2546,7 +2541,7 @@ loop:
 
 	fflush(stderr);
 
-	os_thread_sleep(1000000);
+	os_event_wait_time(srv_shutdown_event, 1000000);
 
 	if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
 
@@ -2590,7 +2585,7 @@ srv_LRU_dump_restore_thread(
 	last_dump_time = time(NULL);
 
 loop:
-	os_thread_sleep(5000000);
+	os_event_wait_time(srv_shutdown_event, 5000000);
 
 	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 		goto exit_func;
@@ -2754,7 +2749,7 @@ loop:
 
 		if (!skip_sleep) {
 
-			os_thread_sleep(1000000);
+			os_event_wait_time(srv_shutdown_event, 1000000);
 			srv_main_sleeps++;
 
 			/*
@@ -3340,10 +3335,10 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		sleep_ms = 10;
-		os_event_reset(srv_purge_thread_event);
+		os_event_reset(srv_shutdown_event);
 	}
 
-	os_event_wait_time(srv_purge_thread_event, sleep_ms * 1000);
+	os_event_wait_time(srv_shutdown_event, sleep_ms * 1000);
 
 	history_len = trx_sys->rseg_history_len;
 	if (history_len > 1000)

@@ -4,6 +4,3 @@ test_SOURCES = test.cpp
 test_LDADD    = $(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la
 test_CXXFLAGS = -DYASSL_PURE_C @yassl_thread_cxxflags@
 EXTRA_DIST = make.bat
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

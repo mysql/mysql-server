@@ -18,6 +18,3 @@
 ## Process this file with automake to create Makefile.in
 
 EXTRA_DIST =		mysql.fc mysql.te
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

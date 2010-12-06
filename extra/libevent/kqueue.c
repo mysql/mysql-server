@@ -95,7 +95,7 @@ const struct eventop kqops = {
 };
 
 static void *
-kq_init(struct event_base *base)
+kq_init(struct event_base *base __attribute__((unused)))
 {
 	int kq;
 	struct kqop *kqueueop;
@@ -203,13 +203,14 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 }
 
 static void
-kq_sighandler(int sig)
+kq_sighandler(int sig __attribute__((unused)))
 {
 	/* Do nothing here */
 }
 
 static int
-kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
+kq_dispatch(struct event_base *base __attribute__((unused)), void *arg,
+            struct timeval *tv)
 {
 	struct kqop *kqop = arg;
 	struct kevent *changes = kqop->changes;
@@ -408,7 +409,7 @@ kq_del(void *arg, struct event *ev)
 }
 
 static void
-kq_dealloc(struct event_base *base, void *arg)
+kq_dealloc(struct event_base *base __attribute__((unused)), void *arg)
 {
 	struct kqop *kqop = arg;
 

@@ -748,7 +748,7 @@ int ha_oqgraph::fill_record(byte *record, const open_query::row &row)
   if (row.latch_indicator)
   {
     field[0]->set_notnull();
-    field[0]->store((longlong) row.latch);
+    field[0]->store((longlong) row.latch, 0);
   }
 
   if (row.orig_indicator)
@@ -772,7 +772,7 @@ int ha_oqgraph::fill_record(byte *record, const open_query::row &row)
   if (row.seq_indicator)
   {
     field[4]->set_notnull();
-    field[4]->store((longlong) row.seq);
+    field[4]->store((longlong) row.seq, 0);
   }
 
   if (row.link_indicator)

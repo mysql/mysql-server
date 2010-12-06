@@ -1473,15 +1473,17 @@ failure:
 */
 int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
-  List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
-  QUICK_RANGE_SELECT* quick;
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> quick_it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *cur;
+  QUICK_RANGE_SELECT *quick;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan");
 
   /* Initialize all merged "children" quick selects */
   DBUG_ASSERT(!need_to_fetch_row || reuse_handler);
   if (!need_to_fetch_row && reuse_handler)
   {
-    quick= quick_it++;
+    cur= quick_it++;
+    quick= cur->quick;
     /*
       There is no use of this->file. Use it for the first of merged range
       selects.
@@ -1490,8 +1492,9 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
-  while ((quick= quick_it++))
+  while ((cur= quick_it++))
   {
+    quick= cur->quick;
     if (quick->init_ror_merged_scan(FALSE))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
@@ -1523,10 +1526,10 @@ int QUICK_ROR_INTERSECT_SELECT::reset()
   if (!scans_inited && init_ror_merged_scan(TRUE))
     DBUG_RETURN(1);
   scans_inited= TRUE;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
-  while ((quick= it++))
-    quick->reset();
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *qr;
+  while ((qr= it++))
+    qr->quick->reset();
   DBUG_RETURN(0);
 }
 
@@ -1536,6 +1539,7 @@ int QUICK_ROR_INTERSECT_SELECT::reset()
 
   SYNOPSIS
     QUICK_ROR_INTERSECT_SELECT::push_quick_back()
+      alloc Mem root to create auxiliary structures on
       quick Quick select to be added. The quick select must return
             rows in rowid order.
   NOTES
@@ -1547,10 +1551,16 @@ int QUICK_ROR_INTERSECT_SELECT::reset()
 */
 
 bool
-QUICK_ROR_INTERSECT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick)
+QUICK_ROR_INTERSECT_SELECT::push_quick_back(MEM_ROOT *alloc, QUICK_RANGE_SELECT *quick)
 {
-  return quick_selects.push_back(quick);
+  QUICK_SELECT_WITH_RECORD *qr;
+  if (!(qr= new QUICK_SELECT_WITH_RECORD) || 
+      !(qr->key_tuple= (uchar*)alloc_root(alloc, quick->max_used_key_length)))
+    return TRUE;
+  qr->quick= quick;
+  return quick_selects.push_back(qr);
 }
+
 
 QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
 {
@@ -5000,7 +5010,7 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
                                     (*first_scan)->sel_arg,
                                     HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED,
                                     0, alloc)) ||
-          quick_intrsect->push_quick_back(quick))
+          quick_intrsect->push_quick_back(alloc, quick))
       {
         delete quick_intrsect;
         DBUG_RETURN(NULL);
@@ -7861,11 +7871,11 @@ bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields)
 
 bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields)
 {
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick= it++))
+  QUICK_SELECT_WITH_RECORD *qr;
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
+  while ((qr= it++))
   {
-    if (is_key_used(head, quick->index, fields))
+    if (is_key_used(head, qr->quick->index, fields))
       return 1;
   }
   return 0;
@@ -8195,7 +8205,8 @@ int QUICK_INDEX_MERGE_SELECT::get_next()
 
 int QUICK_ROR_INTERSECT_SELECT::get_next()
 {
-  List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> quick_it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *qr;
   QUICK_RANGE_SELECT* quick;
   int error, cmp;
   uint last_rowid_count=0;
@@ -8204,7 +8215,8 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
   do
   {
     /* Get a rowid for first quick and save it as a 'candidate' */
-    quick= quick_it++;
+    qr= quick_it++;
+    quick= qr->quick;
     error= quick->get_next();
     if (cpk_quick)
     {
@@ -8214,17 +8226,22 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
     if (error)
       DBUG_RETURN(error);
 
+    /* Save the read key tuple */
+    key_copy(qr->key_tuple, record, head->key_info + quick->index,
+             quick->max_used_key_length);
+
     quick->file->position(quick->record);
     memcpy(last_rowid, quick->file->ref, head->file->ref_length);
     last_rowid_count= 1;
 
     while (last_rowid_count < quick_selects.elements)
     {
-      if (!(quick= quick_it++))
+      if (!(qr= quick_it++))
       {
         quick_it.rewind();
-        quick= quick_it++;
+        qr= quick_it++;
       }
+      quick= qr->quick;
 
       do
       {
@@ -8233,6 +8250,9 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
         quick->file->position(quick->record);
         cmp= head->file->cmp_ref(quick->file->ref, last_rowid);
       } while (cmp < 0);
+
+      key_copy(qr->key_tuple, record, head->key_info + quick->index,
+               quick->max_used_key_length);
 
       /* Ok, current select 'caught up' and returned ref >= cur_ref */
       if (cmp > 0)
@@ -8249,6 +8269,10 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
         }
         memcpy(last_rowid, quick->file->ref, head->file->ref_length);
         last_rowid_count= 1;
+
+        //save the fields here
+        key_copy(qr->key_tuple, record, head->key_info + quick->index,
+                 quick->max_used_key_length);
       }
       else
       {
@@ -8261,6 +8285,21 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
     if (need_to_fetch_row)
       error= head->file->ha_rnd_pos(head->record[0], last_rowid);
   } while (error == HA_ERR_RECORD_DELETED);
+
+  if (!need_to_fetch_row)
+  {
+    /* Restore the columns we've read/saved with other quick selects */
+    quick_it.rewind();
+    while ((qr= quick_it++))
+    {
+      if (qr->quick != quick)
+      {
+        key_restore(record, qr->key_tuple, head->key_info + qr->quick->index,
+                    qr->quick->max_used_key_length);
+      }
+    }
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -8341,9 +8380,14 @@ int QUICK_RANGE_SELECT::reset()
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE && (error= file->ha_index_init(index,1)))
-    DBUG_RETURN(error);
- 
+  if (file->inited == handler::NONE)
+  {
+    if (in_ror_merged_scan)
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    if ((error= file->ha_index_init(index,1)))
+        DBUG_RETURN(error);
+  }
+
   /* Allocate buffer if we need one but haven't allocated it yet */
   if (mrr_buf_size && !mrr_buf_desc)
   {
@@ -8812,12 +8856,12 @@ void QUICK_INDEX_MERGE_SELECT::add_info_string(String *str)
 void QUICK_ROR_INTERSECT_SELECT::add_info_string(String *str)
 {
   bool first= TRUE;
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *qr;
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
   str->append(STRING_WITH_LEN("intersect("));
-  while ((quick= it++))
+  while ((qr= it++))
   {
-    KEY *key_info= head->key_info + quick->index;
+    KEY *key_info= head->key_info + qr->quick->index;
     if (!first)
       str->append(',');
     else
@@ -8904,11 +8948,11 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
   char buf[64];
   uint length;
   bool first= TRUE;
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick= it++))
+  QUICK_SELECT_WITH_RECORD *qr;
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
+  while ((qr= it++))
   {
-    KEY *key_info= head->key_info + quick->index;
+    KEY *key_info= head->key_info + qr->quick->index;
     if (first)
       first= FALSE;
     else
@@ -8917,7 +8961,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
       used_lengths->append(',');
     }
     key_names->append(key_info->name);
-    length= longlong10_to_str(quick->max_used_key_length, buf, 10) - buf;
+    length= longlong10_to_str(qr->quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(buf, length);
   }
 
@@ -11285,13 +11329,13 @@ void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose)
 
 void QUICK_ROR_INTERSECT_SELECT::dbug_dump(int indent, bool verbose)
 {
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
+  List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
+  QUICK_SELECT_WITH_RECORD *qr;
   fprintf(DBUG_FILE, "%*squick ROR-intersect select, %scovering\n",
           indent, "", need_to_fetch_row? "":"non-");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  while ((quick= it++))
-    quick->dbug_dump(indent+2, verbose);
+  while ((qr= it++))
+    qr->quick->dbug_dump(indent+2, verbose);
   if (cpk_quick)
   {
     fprintf(DBUG_FILE, "%*sclustered PK quick:\n", indent, "");

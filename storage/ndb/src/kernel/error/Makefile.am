@@ -22,9 +22,6 @@ liberror_a_SOURCES = TimeModule.cpp \
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: liberror.dsp
 
 liberror.dsp: Makefile \

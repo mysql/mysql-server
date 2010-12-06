@@ -929,7 +929,7 @@ select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a'),(select c from t
 a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,2,'a')	(select c from t1 where a=t2.a)
 1	1	a
 2	0	b
-NULL	0	NULL
+NULL	NULL	NULL
 select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b'),(select c from t1 where a=t2.a) from t2;
 a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,3,'b')	(select c from t1 where a=t2.a)
 1	0	a
@@ -939,7 +939,7 @@ select a, (select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c'),(select c from t
 a	(select a,b,c from t1 where t1.a=t2.a) = ROW(a,4,'c')	(select c from t1 where a=t2.a)
 1	0	a
 2	0	b
-NULL	0	NULL
+NULL	NULL	NULL
 drop table t1,t2;
 create table t1 (a int, b real, c varchar(10));
 insert into t1 values (1, 1, 'a'), (2,2,'b'), (NULL, 2, 'b');
@@ -4941,6 +4941,25 @@ ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 SELECT * FROM t2 UNION SELECT * FROM t2
 ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 DROP TABLE t1,t2;
+# LP BUG#675248 - select->prep_where references on freed memory 
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(0,0);
+CREATE TABLE t2 (c int);
+insert into t2 values (1),(2);
+prepare stmt1 from "select sum(a),(select sum(c) from t2 where table1.b) as sub
+from t1 as table1 group by sub";
+execute stmt1;
+sum(a)	sub
+0	NULL
+1	3
+deallocate prepare stmt1;
+prepare stmt1 from "select sum(a),(select sum(c) from t2 having table1.b) as sub
+from t1 as table1";
+execute stmt1;
+sum(a)	sub
+1	3
+deallocate prepare stmt1;
+drop table t1,t2;
 End of 5.1 tests
 #
 # No BUG#, a case brought from 5.2's innodb_mysql_lock.test

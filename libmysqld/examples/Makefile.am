@@ -37,12 +37,13 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
 		$(openssl_includes)
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@ $(yassl_libs)
-LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @LIBDL@ $(CXXLDFLAGS) \
-                @NDB_SCI_LIBS@
+LDADD =		@CLIENT_EXTRA_LDFLAGS@ \
+		$(top_builddir)/libmysqld/libmysqld.la @LIBDL@ $(CXXLDFLAGS) \
+                @ndbcluster_libs@ @NDB_SCI_LIBS@
 
 mysqltest_embedded_LINK = $(CXXLINK)
 nodist_mysqltest_embedded_SOURCES =	mysqltest.cc
-mysqltest_embedded_LDADD =	$(LDADD) $(top_builddir)/regex/libregex.a \
+mysqltest_embedded_LDADD =	$(LDADD) $(top_builddir)/regex/libregex.la \
 				@MYSQLD_EXTRA_LDFLAGS@
 
 nodist_mysql_SOURCES = mysql.cc readline.cc completion_hash.cc \
@@ -51,6 +52,3 @@ mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 mysql_client_test_embedded_LINK = $(CXXLINK)
 nodist_mysql_client_test_embedded_SOURCES = mysql_client_test.c
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

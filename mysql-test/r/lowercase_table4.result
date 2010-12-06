@@ -1,0 +1,7 @@
+#
+# Bug#46941 crash with lower_case_table_names=2 and
+#           foreign data dictionary confusion
+#
+CREATE DATABASE XY;
+USE XY;
+DROP DATABASE XY;
