@@ -235,6 +235,11 @@ public:
   {
     if (!list->is_empty())
     {
+      if (is_empty())
+      {
+        *this= *list;
+        return;
+      }
       *last= list->first;
       last= list->last;
       elements+= list->elements;
