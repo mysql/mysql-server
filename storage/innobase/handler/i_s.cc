@@ -759,16 +759,7 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
-
-		/* note that the decoded database or table name is
-		never expected to be longer than NAME_LEN;
-		NAME_LEN for database name
-		2 for surrounding quotes around database name
-		NAME_LEN for table name
-		2 for surrounding quotes around table name
-		1 for the separating dot (.)
-		9 for the #mysql50# prefix */
-		char			buf[2 * NAME_LEN + 14];
+		char			buf[MAX_FULL_NAME_LEN];
 		const char*		bufend;
 
 		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
