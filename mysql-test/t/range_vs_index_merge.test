@@ -918,3 +918,20 @@ SELECT COUNT(*) FROM t1
   (pk BETWEEN 120 AND 79 + 255 OR a IN ( 4 , 179 , 1 ) ) AND a > 8 ;
 
 DROP TABLE t1;
+
+#
+# Bug #684117: ORing of two index merge that caused a crash
+#
+
+CREATE TABLE t1 (
+  f1 int, f2 int, f3 int, f4 int, f5 int,
+  PRIMARY KEY (f4), KEY (f1), KEY (f2), KEY (f3)
+) ;
+INSERT INTO t1 VALUES (0,0,NULL,9,5), (0,0,1,9425,NULL);
+
+SELECT f5 FROM t1
+  WHERE f2 != 1 OR f1 IS NULL OR f4 = 4 OR
+        f2 AND (f4 BETWEEN 6 AND 255 OR f3 IS NULL);
+
+DROP TABLE t1;
+ 

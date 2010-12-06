@@ -1187,7 +1187,8 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param,
 {
   *is_last_check_pass= TRUE;
   SEL_TREE** tree= imerge->trees;
-  for (uint i= 0; i < n_trees; i++, tree++)
+  SEL_TREE** tree_end= imerge->trees_next;
+  for ( ; tree < tree_end; tree++)
   {
     uint rc;
     bool is_last= TRUE; 
