@@ -289,13 +289,13 @@ dict_getnext_system(
 					to the record */
 	mtr_t*		mtr)		/*!< in: the mini-transaction */
 {
-        const rec_t*	rec;
+	const rec_t*	rec;
 
 	/* Restore the position */
-        btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
 	/* Get the next record */
-        rec = dict_getnext_system_low(pcur, mtr);
+	rec = dict_getnext_system_low(pcur, mtr);
 
 	return(rec);
 }
@@ -439,7 +439,6 @@ dict_process_sys_fields_rec(
 
 }
 
-#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
@@ -510,9 +509,7 @@ err_len:
 
 	return(NULL);
 }
-#endif  /* FOREIGN_NOT_USED */
 
-#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
@@ -576,7 +573,6 @@ err_len:
 
 	return(NULL);
 }
-#endif  /* FOREIGN_NOT_USED */
 
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
@@ -1001,7 +997,7 @@ dict_load_field_low(
 /*================*/
 	byte*		index_id,	/*!< in/out: index id (8 bytes)
 					an "in" value if index != NULL
-                                        and "out" if index == NULL */
+					and "out" if index == NULL */
 	dict_index_t*	index,		/*!< in/out: index, could be NULL
 					if we just populate a dict_field_t
 					struct with information from
