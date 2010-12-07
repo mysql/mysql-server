@@ -523,7 +523,8 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     if (flush_master_info(mi, TRUE, FALSE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
-    if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
+    if (mi->rli.relay_log.is_open() &&
+        my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->fd, MYF(MY_WME)))
