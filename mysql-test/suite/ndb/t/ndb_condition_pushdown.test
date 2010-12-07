@@ -2345,6 +2345,26 @@ group by t2.c;
 
 drop table tx;
 
+
+# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
+
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,0), (2,0), (3,0), (4,0);
+
+set engine_condition_pushdown=1;
+
+# Multiple instances of same table (t as table<n>, ) confused 
+# ha_ndbcluster::cond_push() which accepted
+# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
+# for 'table2'
+#
+select table1.pk1, table2.pk1, table1.pk2, table2.pk2
+ from t as table1, t as table2
+ where table2.pk1 in (0,3) and
+   (table1.pk1 = 7 or table2.pk1 = 3);
+
+drop table t;
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
 

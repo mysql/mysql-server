@@ -2285,5 +2285,18 @@ Note	1644	Table 't2' is not pushable: GROUP BY cannot be done using index on gro
 Note	1644	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
 Note	1003	select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 drop table tx;
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,0), (2,0), (3,0), (4,0);
+set engine_condition_pushdown=1;
+select table1.pk1, table2.pk1, table1.pk2, table2.pk2
+from t as table1, t as table2
+where table2.pk1 in (0,3) and
+(table1.pk1 = 7 or table2.pk1 = 3);
+pk1	pk1	pk2	pk2
+1	3	0	0
+4	3	0	0
+3	3	0	0
+2	3	0	0
+drop table t;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
