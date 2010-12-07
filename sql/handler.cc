@@ -1192,7 +1192,11 @@ int ha_commit_trans(THD *thd, bool all)
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     if (cookie)
-      tc_log->unlog(cookie, xid);
+      if(tc_log->unlog(cookie, xid))
+      {
+        error= 2;
+        goto end;
+      }
     DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
     if (rw_trans)
