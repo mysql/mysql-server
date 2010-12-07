@@ -1388,11 +1388,12 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
             uint64_t this_log_number;
             BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
             if (is_log) {
-                if (found) {
-                    highest_version = highest_version > this_log_version ? highest_version : this_log_version;
+                if (!found) {  // first log file found
+		    found = TRUE;
+		    highest_version = this_log_version;
                 }
-                found = TRUE;
-                highest_version = this_log_version;
+		else
+		    highest_version = highest_version > this_log_version ? highest_version : this_log_version;
             }
         }
     }
