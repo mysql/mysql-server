@@ -11661,6 +11661,16 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     }
 
     /*
+     Setting NESTED_LOOP_NO_MORE_ROWS (if not_exists_optimize) 
+     also implies a 'not found' condition. However we could not
+     set this inside the  loop above as it would prematurely
+     have terminated the 'first_unmatched' / 'first_unmatched->found'
+     calculations above.
+    */
+    if (rc == NESTED_LOOP_NO_MORE_ROWS)
+      found= false;
+
+    /*
       It was not just a return to lower loop level when one
       of the newly activated predicates is evaluated as false
       (See above join->return_tab= tab).
@@ -11673,7 +11683,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     if (found)
     {
       DBUG_PRINT("info", ("  found match"));
-      DBUG_ASSERT(rc==NESTED_LOOP_OK);
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
