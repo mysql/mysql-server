@@ -5111,7 +5111,7 @@ int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
          to the current log. 
       */
       if (!write_incident(current_thd, FALSE))
-        flush_and_sync();
+        flush_and_sync(0);
 
 #ifdef HAVE_REPLICATION
     check_purge= true;
