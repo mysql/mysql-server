@@ -101,6 +101,15 @@ public:
   */
   virtual void endup() = 0;
 
+  /** Decimal value of being-aggregated argument */
+  virtual my_decimal *arg_val_decimal(my_decimal * value) = 0;
+  /** Floating point value of being-aggregated argument */
+  virtual double arg_val_real() = 0;
+  /**
+     NULLness of being-aggregated argument; can be called only after
+     arg_val_decimal() or arg_val_real().
+  */
+  virtual bool arg_is_null() = 0;
 };
 
 
@@ -304,6 +313,7 @@ class st_select_lex;
 class Item_sum :public Item_result_field
 {
   friend class Aggregator_distinct;
+  friend class Aggregator_simple;
 
 protected:
   /**
@@ -600,6 +610,9 @@ public:
   void clear(); 
   bool add();
   void endup();
+  virtual my_decimal *arg_val_decimal(my_decimal * value);
+  virtual double arg_val_real();
+  virtual bool arg_is_null();
 
   bool unique_walk_function(void *element);
   static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
@@ -623,6 +636,9 @@ public:
   void clear() { item_sum->clear(); }
   bool add() { return item_sum->add(); }
   void endup() {};
+  virtual my_decimal *arg_val_decimal(my_decimal * value);
+  virtual double arg_val_real();
+  virtual bool arg_is_null();
 };
 
 
