@@ -38,7 +38,8 @@ struct PFS_instrument_view_constants
   static const uint VIEW_COND= 3;
   static const uint VIEW_FILE= 4;
   static const uint VIEW_TABLE= 5;
-  static const uint LAST_VIEW= 5;
+  static const uint VIEW_SOCKET= 6;
+  static const uint LAST_VIEW= 6;
 };
 
 struct PFS_object_view_constants

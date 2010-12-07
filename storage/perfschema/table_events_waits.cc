@@ -395,7 +395,19 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("fetch") },
   { C_STRING_WITH_LEN("insert") }, /* write row */
   { C_STRING_WITH_LEN("update") }, /* update row */
-  { C_STRING_WITH_LEN("delete") }  /* delete row */
+  { C_STRING_WITH_LEN("delete") },  /* delete row */
+
+  /* Socket operations */
+  { C_STRING_WITH_LEN("create") },
+  { C_STRING_WITH_LEN("connect") },
+  { C_STRING_WITH_LEN("bind") },
+  { C_STRING_WITH_LEN("close") },
+  { C_STRING_WITH_LEN("send") },
+  { C_STRING_WITH_LEN("receive") },
+  { C_STRING_WITH_LEN("seek") },
+  { C_STRING_WITH_LEN("opt") },
+  { C_STRING_WITH_LEN("stat") },
+  { C_STRING_WITH_LEN("shutdown") }
 };
 
 

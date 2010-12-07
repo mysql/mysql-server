@@ -59,6 +59,8 @@ typedef unsigned int PFS_sync_key;
 typedef unsigned int PFS_thread_key;
 /** Key, naming a file instrument. */
 typedef unsigned int PFS_file_key;
+/** Key, naming a socket instrument. */
+typedef unsigned int PFS_socket_key;
 
 struct PFS_thread;
 
@@ -67,6 +69,7 @@ extern uint rwlock_class_start;
 extern uint cond_class_start;
 extern uint file_class_start;
 extern uint table_class_start;
+extern uint socket_class_start;
 extern uint max_instrument_class;
 
 /** Information for all instrumentation. */
@@ -278,6 +281,8 @@ int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
 void cleanup_file_class();
+int init_socket_class(uint socket_class_sizing);
+void cleanup_socket_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
                                   int flags);
@@ -294,6 +299,9 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 PFS_file_key register_file_class(const char *name, uint name_length,
                                  int flags);
 
+PFS_socket_key register_socket_class(const char *name, uint name_length,
+                                     int flags);
+
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);
 PFS_rwlock_class *find_rwlock_class(PSI_rwlock_key key);
@@ -308,6 +316,8 @@ const char *sanitize_table_schema_name(const char *unsafe);
 const char *sanitize_table_object_name(const char *unsafe);
 PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
+PFS_socket_class *find_socket_class(PSI_socket_key key);
+PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,
@@ -331,6 +341,7 @@ extern ulong thread_class_max;
 extern ulong thread_class_lost;
 extern ulong file_class_max;
 extern ulong file_class_lost;
+extern ulong socket_class_max;
 extern ulong table_share_max;
 extern ulong table_share_lost;
 extern PFS_table_share *table_share_array;

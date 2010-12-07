@@ -83,6 +83,12 @@ struct PSI_thread;
 struct PSI_file;
 
 /**
+  Interface for an instrumented socket descriptor.
+  This is an opaque structure.
+*/
+struct PSI_socket;
+
+/**
   Interface for an instrumented table operation.
   This is an opaque structure.
 */
@@ -254,6 +260,40 @@ enum PSI_table_operation
   PSI_TABLE_DELETE_ROW= 5
 };
 
+/** Operation performed on an instrumented socket. */
+enum PSI_socket_operation
+{
+  /** Socket creation, as in @c socket() or @c socketpair(). */
+  PSI_SOCKET_CREATE= 0,
+
+  /** Socket connection, as in @c connect(), @c listen() and @c accept(). */
+  PSI_SOCKET_CONNECT= 1,
+
+  /** Socket bind, as in @c bind(), @c getsockname() and @c getpeername(). */
+  PSI_SOCKET_BIND= 2,
+
+  /** Socket close, as in @c shutdown(). */
+  PSI_SOCKET_CLOSE= 3,
+  /**
+    Generic socket send, such as @c send(), @c sendto(), @c sendmsg(). */
+  PSI_SOCKET_SEND= 4,
+  /**
+    Generic socket receive, such as @c recv(), @c recvfrom), @c recvmsg(). */
+  PSI_SOCKET_RECV= 5,
+
+  /** Generic socket seek, such as @c fseek() or @c seek(). */
+  PSI_SOCKET_SEEK= 6,
+
+  /** Socket options, as in @c getsockopt() and @c setsockopt(). */
+  PSI_SOCKET_OPT= 7,
+
+  /** Socket status, as in @c sockatmark() and @c isfdtype(). */
+  PSI_SOCKET_STAT= 8,
+
+  /** Socket shutdown, as in @c shutdown(). */
+  PSI_SOCKET_SHUTDOWN= 9
+};
+
 /**
   Instrumented mutex key.
   To instrument a mutex, a mutex key must be obtained using @c register_mutex.
@@ -291,6 +331,13 @@ typedef unsigned int PSI_thread_key;
   Using a zero key always disable the instrumentation.
 */
 typedef unsigned int PSI_file_key;
+
+/**
+  Instrumented socket key.
+  To instrument a socket, a socket key must be obtained using @c register_socket.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_socket_key;
 
 /**
   @def USE_PSI_1
@@ -436,6 +483,28 @@ struct PSI_file_info_v1
   const char *m_name;
   /**
     The flags of the file instrument to register.
+    @sa PSI_FLAG_GLOBAL
+  */
+  int m_flags;
+};
+
+/**
+  Socket instrument information.
+  @since PSI_VERSION_1
+  This structure is used to register an instrumented socket.
+*/
+struct PSI_socket_info_v1
+{
+  /**
+    Pointer to the key assigned to the registered socket.
+  */
+  PSI_socket_key *m_key;
+  /**
+    The name of the socket instrument to register.
+  */
+  const char *m_name;
+  /**
+    The flags of the socket instrument to register.
     @sa PSI_FLAG_GLOBAL
   */
   int m_flags;
@@ -610,6 +679,39 @@ struct PSI_table_locker_state_v1
   void *m_wait;
 };
 
+/**
+  State data storage for @c get_thread_socket_locker_v1_t.
+  This structure provide temporary storage to a socket locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa get_thread_socket_locker_v1_t
+*/
+struct PSI_socket_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current socket. */
+  struct PSI_socket *m_socket;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Operation number of bytes. */
+  size_t m_number_of_bytes;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Current operation. */
+  enum PSI_socket_operation m_operation;
+  /** Source file. */
+  const char* m_src_file;
+  /** Source line number. */
+  int m_src_line;
+  /** Internal data. */
+  void *m_wait;
+};
+
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
 
 /**
@@ -658,6 +760,15 @@ typedef void (*register_file_v1_t)
   (const char *category, struct PSI_file_info_v1 *info, int count);
 
 /**
+  Socket registration API.
+  @param category a category name (typically a plugin name)
+  @param info an array of socket info to register
+  @param count the size of the info array
+*/
+typedef void (*register_socket_v1_t)
+  (const char *category, struct PSI_socket_info_v1 *info, int count);
+
+/**
   Mutex instrumentation initialisation API.
   @param key the registered mutex key
   @param identity the address of the mutex itself
@@ -701,6 +812,21 @@ typedef struct PSI_cond* (*init_cond_v1_t)
   @param cond the rcond to destroy
 */
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
+
+/**
+  Socket instrumentation initialisation API.
+  @param key the registered mutex key
+  @param identity the address of the socket itself
+  @return an instrumented socket
+*/
+typedef struct PSI_socket* (*init_socket_v1_t)
+  (PSI_socket_key key, const void *identity);
+
+/**
+  socket instrumentation destruction API.
+  @param socket the socket to destroy
+*/
+typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
 
 /**
   Acquire a table share instrumentation.
@@ -942,6 +1068,16 @@ typedef struct PSI_file_locker* (*get_thread_file_stream_locker_v1_t)
 typedef struct PSI_file_locker* (*get_thread_file_descriptor_locker_v1_t)
   (struct PSI_file_locker_state_v1 *state,
    File file, enum PSI_file_operation op);
+/**
+  Get a socket instrumentation locker.
+  @param state data storage for the locker
+  @param socket the socket to access
+  @param op the operation to perform
+  @return a socket locker, or NULL
+*/
+typedef struct PSI_socket_locker* (*get_thread_socket_locker_v1_t)
+  (struct PSI_socket_locker_state_v1 *state,
+   struct PSI_socket *socket, enum PSI_socket_operation op);
 
 /**
   Record a mutex instrumentation unlock event.
@@ -1103,6 +1239,57 @@ typedef void (*end_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count);
 
 /**
+  Record a socket instrumentation start event.
+  @param locker a socket locker for the running thread
+  @param op socket operation to be performed
+  @param count the number of bytes requested, or 0 if not applicable
+  @param src_file the source file name
+  @param src_line the source line number
+*/
+typedef void (*start_socket_wait_v1_t)
+  (struct PSI_socket_locker *locker, size_t count,
+   const char *src_file, uint src_line);
+
+/**
+  Record a socket instrumentation end event.
+  Note that for socket close operations, the instrumented socket handle
+  associated with the socket (which was provided to obtain a locker)
+  is invalid after this call.
+  @param locker a socket locker for the running thread
+  @param count the number of bytes actually used in the operation,
+  or 0 if not applicable, or -1 if the operation failed
+  @sa get_thread_socket_locker
+*/
+typedef void (*end_socket_wait_v1_t)
+  (struct PSI_socket_locker *locker, size_t count);
+
+/**
+  Set the socket descriptor for an instrumented socket.
+    @param socket the instrumented socket
+    @param fd socket descriptor
+  */
+typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
+                                             uint fd);
+
+/**
+  Set the socket address for an instrumented socket.
+    @param socket the instrumented socket
+    @param addr socket address information
+  */
+typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
+                                         const struct sockaddr * addr);
+
+/**
+  Set the socket info for an instrumented socket.
+    @param socket the instrumented socket
+    @param fd the socket descriptor
+    @param addr the socket ip address
+*/
+typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
+                                      uint fd,
+                                      const struct sockaddr * addr);
+
+/**
   Performance Schema Interface, version 1.
   @since PSI_VERSION_1
 */
@@ -1118,6 +1305,8 @@ struct PSI_v1
   register_thread_v1_t register_thread;
   /** @sa register_file_v1_t. */
   register_file_v1_t register_file;
+  /** @sa register_socket_v1_t. */
+  register_socket_v1_t register_socket;
   /** @sa init_mutex_v1_t. */
   init_mutex_v1_t init_mutex;
   /** @sa destroy_mutex_v1_t. */
@@ -1130,6 +1319,10 @@ struct PSI_v1
   init_cond_v1_t init_cond;
   /** @sa destroy_cond_v1_t. */
   destroy_cond_v1_t destroy_cond;
+  /** @sa init_socket_v1_t. */
+  init_socket_v1_t init_socket;
+  /** @sa destroy_socket_v1_t. */
+  destroy_socket_v1_t destroy_socket;
   /** @sa get_table_share_v1_t. */
   get_table_share_v1_t get_table_share;
   /** @sa release_table_share_v1_t. */
@@ -1184,6 +1377,8 @@ struct PSI_v1
   get_thread_file_stream_locker_v1_t get_thread_file_stream_locker;
   /** @sa get_thread_file_descriptor_locker_v1_t. */
   get_thread_file_descriptor_locker_v1_t get_thread_file_descriptor_locker;
+  /** @sa get_thread_socket_locker_v1_t. */
+  get_thread_socket_locker_v1_t get_thread_socket_locker;
   /** @sa unlock_mutex_v1_t. */
   unlock_mutex_v1_t unlock_mutex;
   /** @sa unlock_rwlock_v1_t. */
@@ -1223,6 +1418,16 @@ struct PSI_v1
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */
   end_file_wait_v1_t end_file_wait;
+  /** @sa start_file_wait_v1_t. */
+  start_socket_wait_v1_t start_socket_wait;
+  /** @sa end_file_wait_v1_t. */
+  end_socket_wait_v1_t end_socket_wait;
+  /** @sa set_socket_descriptor_v1_t. */
+  set_socket_descriptor_v1_t set_socket_descriptor;
+  /** @sa set_socket_address_v1_t. */
+  set_socket_address_v1_t set_socket_address;
+  /** @sa set_socket_info_v1_t. */
+  set_socket_info_v1_t set_socket_info;
 };
 
 /** @} (end of group Group_PSI_v1) */
@@ -1318,6 +1523,12 @@ struct PSI_table_locker_state_v2
   int placeholder;
 };
 
+struct PSI_socket_locker_state_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
 /** @} (end of group Group_PSI_v2) */
 
 #endif /* HAVE_PSI_2 */
@@ -1361,11 +1572,13 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
+typedef struct PSI_socket_info_v1 PSI_socket_info;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
+typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 #endif
 
 #ifdef USE_PSI_2
@@ -1375,11 +1588,13 @@ typedef struct PSI_rwlock_info_v2 PSI_rwlock_info;
 typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
+typedef struct PSI_socket_info_v2 PSI_socket_info;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
+typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
 #endif
 
 #else /* HAVE_PSI_INTERFACE */

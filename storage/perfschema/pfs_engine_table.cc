@@ -35,6 +35,7 @@
 #include "table_file_instances.h"
 #include "table_file_summary.h"
 #include "table_threads.h"
+#include "table_socket_instances.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -73,6 +74,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_threads::m_share,
+  &table_socket_instances::m_share,
   NULL
 };
 
@@ -896,11 +898,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= max_instrument_class * sizeof(PFS_single_stat);
       total_memory+= size;
       break;
+    case 59:
+      name= "(PFS_SOCKET_CLASS).ROW_SIZE";
+      size= sizeof(PFS_socket_class);
+      break;
+    case 60:
+      name= "(PFS_SOCKET_CLASS).ROW_COUNT";
+      size= socket_class_max;
+      break;
+    case 61:
+      name= "(PFS_SOCKET_CLASS).MEMORY";
+      size= socket_class_max * sizeof(PFS_socket_class);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 59:
+    case 62:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
       /* This will fail if something is not advertised here */

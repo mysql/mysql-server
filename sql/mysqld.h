@@ -283,6 +283,7 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 extern PSI_file_key key_file_query_log, key_file_slow_log;
+extern PSI_socket_key key_socket_network_init, key_socket_handle_connection;
 
 void init_server_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */

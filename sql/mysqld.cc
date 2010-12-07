@@ -70,6 +70,7 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
+#include <mysql/psi/mysql_socket.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #include "keycaches.h"
@@ -838,7 +839,7 @@ C_MODE_END
 #endif /* !EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-static my_socket unix_sock,ip_sock;
+static MYSQL_SOCKET unix_sock, ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
 
 #ifndef EMBEDDED_LIBRARY
@@ -1026,11 +1027,11 @@ static void close_connections(void)
   DBUG_PRINT("quit",("Closing sockets"));
   if (!opt_disable_networking )
   {
-    if (ip_sock != INVALID_SOCKET)
+    if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
     {
-      (void) shutdown(ip_sock, SHUT_RDWR);
-      (void) closesocket(ip_sock);
-      ip_sock= INVALID_SOCKET;
+      (void) mysql_socket_shutdown(ip_sock, SHUT_RDWR);
+      (void) mysql_socket_close(ip_sock);
+      mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
     }
   }
 #ifdef _WIN32
@@ -1058,12 +1059,12 @@ static void close_connections(void)
   }
 #endif
 #ifdef HAVE_SYS_UN_H
-  if (unix_sock != INVALID_SOCKET)
+  if (mysql_socket_getfd(unix_sock) != INVALID_SOCKET)
   {
-    (void) shutdown(unix_sock, SHUT_RDWR);
-    (void) closesocket(unix_sock);
+    (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
+    (void) mysql_socket_close(unix_sock);
     (void) unlink(mysqld_unix_port);
-    unix_sock= INVALID_SOCKET;
+    mysql_socket_getfd(unix_sock)= INVALID_SOCKET;
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
@@ -1161,20 +1162,20 @@ static void close_server_sock()
 {
 #ifdef HAVE_CLOSE_SERVER_SOCK
   DBUG_ENTER("close_server_sock");
-  my_socket tmp_sock;
+  MYSQL_SOCKET tmp_sock;
   tmp_sock=ip_sock;
-  if (tmp_sock != INVALID_SOCKET)
+  if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    ip_sock=INVALID_SOCKET;
+    mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    (void) shutdown(tmp_sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
   }
   tmp_sock=unix_sock;
-  if (tmp_sock != INVALID_SOCKET)
+  if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    unix_sock=INVALID_SOCKET;
+    mysql_socket_getfd(unix_sock)= INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    (void) shutdown(tmp_sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
     (void) unlink(mysqld_unix_port);
   }
   DBUG_VOID_RETURN;
@@ -1783,12 +1784,12 @@ static void network_init(void)
 
     for (a= ai; a != NULL; a= a->ai_next)
     {
-      ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
-      if (ip_sock != INVALID_SOCKET)
+      ip_sock= mysql_socket_socket(key_socket_network_init, a->ai_family, a->ai_socktype, a->ai_protocol);
+      if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
         break;
     }
 
-    if (ip_sock == INVALID_SOCKET)
+    if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
     {
       DBUG_PRINT("error",("Got error: %d from socket()",socket_errno));
       sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
@@ -1801,7 +1802,7 @@ static void network_init(void)
       user to open two mysqld servers with the same TCP/IP port.
     */
     arg= 1;
-    (void) setsockopt(ip_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,sizeof(arg));
+    (void) mysql_socket_setsockopt(ip_sock, SOL_SOCKET, SO_REUSEADDR, (char*)&arg,sizeof(arg));
 #endif /* __WIN__ */
 
 #ifdef IPV6_V6ONLY
@@ -1817,7 +1818,7 @@ static void network_init(void)
     if (a->ai_family == AF_INET6)
     {
       arg= 0;
-      (void) setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
+      (void) mysql_socket_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
                 sizeof(arg));
     }
 #endif
@@ -1831,7 +1832,7 @@ static void network_init(void)
     */
     for (waited= 0, retry= 1; ; retry++, waited+= this_wait)
     {
-      if (((ret= bind(ip_sock, a->ai_addr, a->ai_addrlen)) >= 0 ) ||
+      if (((ret= mysql_socket_bind(ip_sock, a->ai_addr, a->ai_addrlen)) >= 0 ) ||
           (socket_errno != SOCKET_EADDRINUSE) ||
           (waited >= mysqld_port_timeout))
         break;
@@ -1847,7 +1848,7 @@ static void network_init(void)
       sql_print_error("Do you already have another mysqld server running on port: %d ?",mysqld_port);
       unireg_abort(1);
     }
-    if (listen(ip_sock,(int) back_log) < 0)
+    if (mysql_socket_listen(ip_sock, (int)back_log) < 0)
     {
       sql_perror("Can't start server: listen() on TCP/IP port");
       sql_print_error("listen() on TCP/IP failed with error %d",
@@ -1917,7 +1918,7 @@ static void network_init(void)
                       (uint) sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
-    if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+    if (mysql_socket_getfd((unix_sock= mysql_socket_socket(key_socket_network_init, AF_UNIX, SOCK_STREAM, 0))) < 0)
     {
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
@@ -1927,10 +1928,10 @@ static void network_init(void)
     strmov(UNIXaddr.sun_path, mysqld_unix_port);
     (void) unlink(mysqld_unix_port);
     arg= 1;
-    (void) setsockopt(unix_sock,SOL_SOCKET,SO_REUSEADDR,(char*)&arg,
+    (void) mysql_socket_setsockopt(unix_sock, SOL_SOCKET, SO_REUSEADDR, (char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(unix_sock, reinterpret_cast<struct sockaddr *>(&UNIXaddr),
+    if (bind(mysql_socket_getfd(unix_sock), reinterpret_cast<struct sockaddr *> (&UNIXaddr),
 	     sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
@@ -1941,7 +1942,7 @@ static void network_init(void)
 #if defined(S_IFSOCK) && defined(SECURE_SOCKETS)
     (void) chmod(mysqld_unix_port,S_IFSOCK);	/* Fix solaris 2.6 bug */
 #endif
-    if (listen(unix_sock,(int) back_log) < 0)
+    if (mysql_socket_listen(unix_sock, (int)back_log) < 0)
       sql_print_warning("listen() on Unix socket failed with error %d",
 		      socket_errno);
   }
@@ -4717,7 +4718,7 @@ int mysqld_main(int argc, char **argv)
     if (!opt_bootstrap)
       mysql_file_delete(key_file_pid, pidfile_name, MYF(MY_WME)); // Not needed anymore
 
-    if (unix_sock != INVALID_SOCKET)
+    if (mysql_socket_getfd(unix_sock) != INVALID_SOCKET)
       unlink(mysqld_unix_port);
     exit(1);
   }
@@ -4788,7 +4789,7 @@ int mysqld_main(int argc, char **argv)
   start_handle_manager();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),my_progname,server_version,
-                        ((unix_sock == INVALID_SOCKET) ? (char*) ""
+                        ((mysql_socket_getfd(unix_sock) == INVALID_SOCKET) ? (char*) ""
                                                        : mysqld_unix_port),
                          mysqld_port,
                          MYSQL_COMPILATION_COMMENT);
@@ -5267,7 +5268,7 @@ inline void kill_broken_server()
 {
   /* hack to get around signals ignored in syscalls for problem OS's */
   if (unix_sock == INVALID_SOCKET ||
-      (!opt_disable_networking && ip_sock == INVALID_SOCKET))
+      (!opt_disable_networking && mysql_socket_getfd(ip_sock) == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
     /* The following call will never return */
@@ -5285,7 +5286,8 @@ inline void kill_broken_server()
 
 void handle_connections_sockets()
 {
-  my_socket UNINIT_VAR(sock), UNINIT_VAR(new_sock);
+  //my_socket UNINIT_VAR(sock), UNINIT_VAR(new_sock);
+  MYSQL_SOCKET sock, new_sock;
   uint error_count=0;
   THD *thd;
   struct sockaddr_storage cAddr;
@@ -5296,7 +5298,7 @@ void handle_connections_sockets()
   struct pollfd fds[2]; // for ip_sock and unix_sock
 #else
   fd_set readFDs,clientFDs;
-  uint max_used_connection= (uint) (max(ip_sock,unix_sock)+1);
+  uint max_used_connection= (uint)(max(mysql_socket_getfd(ip_sock), mysql_socket_getfd(unix_sock))+1);
 #endif
 
   DBUG_ENTER("handle_connections_sockets");
@@ -5305,29 +5307,29 @@ void handle_connections_sockets()
   FD_ZERO(&clientFDs);
 #endif
 
-  if (ip_sock != INVALID_SOCKET)
+  if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
   {
 #ifdef HAVE_POLL
-    fds[socket_count].fd= ip_sock;
+    fds[socket_count].fd= mysql_socket_getfd(ip_sock);
     fds[socket_count].events= POLLIN;
     socket_count++;
 #else
-    FD_SET(ip_sock,&clientFDs);
-#endif    
+    FD_SET(mysql_socket_getfd(ip_sock), &clientFDs);
+#endif
 #ifdef HAVE_FCNTL
-    ip_flags = fcntl(ip_sock, F_GETFL, 0);
+    ip_flags = fcntl(mysql_socket_getfd(ip_sock), F_GETFL, 0);
 #endif
   }
 #ifdef HAVE_SYS_UN_H
 #ifdef HAVE_POLL
-  fds[socket_count].fd= unix_sock;
+  fds[socket_count].fd= mysql_socket_getfd(unix_sock);
   fds[socket_count].events= POLLIN;
   socket_count++;
 #else
-  FD_SET(unix_sock,&clientFDs);
+  FD_SET(mysql_socket_getfd(unix_sock), &clientFDs);
 #endif
 #ifdef HAVE_FCNTL
-  socket_flags=fcntl(unix_sock, F_GETFL, 0);
+  socket_flags=fcntl(mysql_socket_getfd(unix_sock), F_GETFL, 0);
 #endif
 #endif
 
@@ -5347,8 +5349,8 @@ void handle_connections_sockets()
     {
       if (socket_errno != SOCKET_EINTR)
       {
-	if (!select_errors++ && !abort_loop)	/* purecov: inspected */
-	  sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
+        if (!select_errors++ && !abort_loop)	/* purecov: inspected */
+          sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
       MAYBE_BROKEN_SYSCALL
       continue;
@@ -5362,13 +5364,13 @@ void handle_connections_sockets()
 
     /* Is this a new connection request ? */
 #ifdef HAVE_POLL
-    for (int i= 0; i < socket_count; ++i) 
+    for (int i= 0; i < socket_count; ++i)
     {
       if (fds[i].revents & POLLIN)
       {
-        sock= fds[i].fd;
+        mysql_socket_getfd(sock)= fds[i].fd;
 #ifdef HAVE_FCNTL
-        flags= fcntl(sock, F_GETFL, 0);
+        flags= fcntl(mysql_socket_getfd(sock), F_GETFL, 0);
 #else
         flags= 0;
 #endif // HAVE_FCNTL
@@ -5377,7 +5379,7 @@ void handle_connections_sockets()
     }
 #else  // HAVE_POLL
 #ifdef HAVE_SYS_UN_H
-    if (FD_ISSET(unix_sock,&readFDs))
+    if (FD_ISSET(mysql_socket_getfd(unix_sock), &readFDs))
     {
       sock = unix_sock;
       flags= socket_flags;
@@ -5394,51 +5396,52 @@ void handle_connections_sockets()
     if (!(test_flags & TEST_BLOCKING))
     {
 #if defined(O_NONBLOCK)
-      fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+      fcntl(mysql_socket_getfd(sock), F_SETFL, flags | O_NONBLOCK);
 #elif defined(O_NDELAY)
-      fcntl(sock, F_SETFL, flags | O_NDELAY);
+      fcntl(mysql_socket_getfd(sock), F_SETFL, flags | O_NDELAY);
 #endif
     }
 #endif /* NO_FCNTL_NONBLOCK */
     for (uint retry=0; retry < MAX_ACCEPT_RETRY; retry++)
     {
       size_socket length= sizeof(struct sockaddr_storage);
-      new_sock= accept(sock, (struct sockaddr *)(&cAddr),
-                       &length);
-      if (new_sock != INVALID_SOCKET ||
-	  (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
-	break;
+      new_sock= mysql_socket_accept(key_socket_handle_connection, sock,
+                                    (struct sockaddr *)(&cAddr), &length);
+      if (mysql_socket_getfd(new_sock) != INVALID_SOCKET ||
+          (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
+        break;
       MAYBE_BROKEN_SYSCALL;
 #if !defined(NO_FCNTL_NONBLOCK)
       if (!(test_flags & TEST_BLOCKING))
       {
-	if (retry == MAX_ACCEPT_RETRY - 1)
-	  fcntl(sock, F_SETFL, flags);		// Try without O_NONBLOCK
+        if (retry == MAX_ACCEPT_RETRY - 1)
+          fcntl(mysql_socket_getfd(sock), F_SETFL, flags);		// Try without O_NONBLOCK
       }
 #endif
     }
 #if !defined(NO_FCNTL_NONBLOCK)
     if (!(test_flags & TEST_BLOCKING))
-      fcntl(sock, F_SETFL, flags);
+      fcntl(mysql_socket_getfd(sock), F_SETFL, flags);
 #endif
-    if (new_sock == INVALID_SOCKET)
+    if (mysql_socket_getfd(new_sock) == INVALID_SOCKET)
     {
       if ((error_count++ & 255) == 0)		// This can happen often
-	sql_perror("Error in accept");
+        sql_perror("Error in accept");
       MAYBE_BROKEN_SYSCALL;
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
-	sleep(1);				// Give other threads some time
+        sleep(1);				// Give other threads some time
       continue;
     }
 
 #ifdef HAVE_LIBWRAP
     {
-      if (sock == ip_sock)
+      if (mysql_socket_getfd(sock) == mysql_socket_getfd(ip_sock))
       {
-	struct request_info req;
-	signal(SIGCHLD, SIG_DFL);
-	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	my_fromhost(&req);
+        struct request_info req;
+        signal(SIGCHLD, SIG_DFL);
+        request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, mysql_socket_getfd(new_sock), NULL); //TBD cwp
+        my_fromhost(&req);
+
 	if (!my_hosts_access(&req))
 	{
 	  /*
@@ -5458,10 +5461,10 @@ void handle_connections_sockets()
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
-	  (void) closesocket(new_sock);
-	  continue;
-	}
+          (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
+          (void) mysql_socket_ closesocket(new_sock);
+          continue;
+        }
       }
     }
 #endif /* HAVE_LIBWRAP */
@@ -5470,13 +5473,13 @@ void handle_connections_sockets()
       size_socket dummyLen;
       struct sockaddr_storage dummy;
       dummyLen = sizeof(dummy);
-      if (  getsockname(new_sock,(struct sockaddr *)&dummy, 
+      if (  mysql_socket_getsockname(new_sock, (struct sockaddr *)&dummy,
                   (SOCKET_SIZE_TYPE *)&dummyLen) < 0  )
       {
-	sql_perror("Error on new connection socket");
-	(void) shutdown(new_sock, SHUT_RDWR);
-	(void) closesocket(new_sock);
-	continue;
+        sql_perror("Error on new connection socket");
+        (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
+        (void) mysql_socket_close(new_sock);
+        continue;
       }
     }
 
@@ -5486,15 +5489,15 @@ void handle_connections_sockets()
 
     if (!(thd= new THD))
     {
-      (void) shutdown(new_sock, SHUT_RDWR);
-      (void) closesocket(new_sock);
+      (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
+      (void) mysql_socket_close(new_sock);
       continue;
     }
-    if (!(vio_tmp=vio_new(new_sock,
-			  sock == unix_sock ? VIO_TYPE_SOCKET :
-			  VIO_TYPE_TCPIP,
-			  sock == unix_sock ? VIO_LOCALHOST: 0)) ||
-	my_net_init(&thd->net,vio_tmp))
+    if (!(vio_tmp=mysql_socket_vio_new(new_sock,
+          mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock) ? VIO_TYPE_SOCKET :
+          VIO_TYPE_TCPIP,
+          mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock) ? VIO_LOCALHOST: 0)) ||
+          my_net_init(&thd->net,vio_tmp))
     {
       /*
         Only delete the temporary vio if we didn't already attach it to the
@@ -5505,13 +5508,13 @@ void handle_connections_sockets()
         vio_delete(vio_tmp);
       else
       {
-	(void) shutdown(new_sock, SHUT_RDWR);
-	(void) closesocket(new_sock);
+        (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
+        (void) mysql_socket_close(new_sock);
       }
       delete thd;
       continue;
     }
-    if (sock == unix_sock)
+    if (mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock))
       thd->security_ctx->host=(char*) my_localhost;
 
     create_new_thread(thd);
@@ -5880,7 +5883,7 @@ DYNAMIC_ARRAY all_options;
 
 struct my_option my_long_options[]=
 {
-  {"help", '?', "Display this help and exit.", 
+  {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
 #ifdef HAVE_REPLICATION
@@ -6942,7 +6945,7 @@ static int mysql_init_variables(void)
   character_set_filesystem= &my_charset_bin;
 
   opt_specialflag= SPECIAL_ENGLISH;
-  unix_sock= ip_sock= INVALID_SOCKET;
+  mysql_socket_getfd(unix_sock)= mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -8088,6 +8091,14 @@ static PSI_file_info all_server_files[]=
   { &key_file_trg, "trigger_name", 0},
   { &key_file_trn, "trigger", 0},
   { &key_file_init, "init", 0}
+};
+
+PSI_socket_key key_socket_network_init, key_socket_handle_connection;
+
+static PSI_socket_info all_server_sockets[]=
+{
+  { &key_socket_network_init, "network_init", 0},
+  { &key_socket_handle_connection, "handle_connection", 0}
 };
 
 /**

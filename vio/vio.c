@@ -165,6 +165,10 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   vio->is_connected     =vio_is_connected;
   vio->has_data=        (flags & VIO_BUFFERED_READ) ?
                             vio_buff_has_data : has_no_data;
+#ifdef HAVE_PSI_INTERFACE
+  vio->mysql_socket.fd= sd; // TBDs
+  vio->mysql_socket.m_psi= NULL;
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -178,6 +182,17 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   vio_init(vio, type, sd, hPipe, flags);
 }
 
+Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
+{
+  Vio *vio = vio_new(mysql_socket_getfd(mysql_socket), type, flags);
+
+  if (vio)
+  {
+    vio->mysql_socket= mysql_socket;
+  }
+
+  return (vio);
+}
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
 

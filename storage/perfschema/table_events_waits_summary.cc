@@ -188,6 +188,24 @@ void table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
   make_instr_row(pfs, safe_class, pfs);
 }
 
+/**
+  Build a row, for socket statistics in a thread.
+  @param pfs              the socket this cursor is reading
+*/
+void table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
+{
+  PFS_socket_class *safe_class;
+  safe_class= sanitize_socket_class(pfs->m_class);
+  if (unlikely(safe_class == NULL))
+    return;
+
+  /*
+    Files don't have a in memory structure associated to it,
+    so we use the address of the PFS_socket buffer as object_instance_begin
+  */
+  make_instr_row(pfs, safe_class, pfs);
+}
+
 int table_events_waits_summary_by_instance
 ::read_row_values(TABLE *table, unsigned char *, Field **fields,
                   bool read_all)

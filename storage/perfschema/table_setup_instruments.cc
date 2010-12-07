@@ -89,7 +89,7 @@ int table_setup_instruments::rnd_next(void)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
-  PFS_instr_class *table_class;
+  PFS_socket_class *socket_class;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -135,6 +135,15 @@ int table_setup_instruments::rnd_next(void)
         return 0;
       }
       break;
+    case pos_setup_instruments::VIEW_SOCKET:
+      socket_class= find_socket_class(m_pos.m_index_2);
+      if (socket_class)
+      {
+        make_row(socket_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      break;
     case pos_setup_instruments::VIEW_TABLE:
       table_class= find_table_class(m_pos.m_index_2);
       if (table_class)
@@ -157,7 +166,7 @@ int table_setup_instruments::rnd_pos(const void *pos)
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
   PFS_instr_class *table_class;
-
+  PFS_socket_class *socket_class;
   set_position(pos);
 
   switch (m_pos.m_index_1) {
@@ -193,6 +202,14 @@ int table_setup_instruments::rnd_pos(const void *pos)
     if (file_class)
     {
       make_row(file_class);
+      return 0;
+    }
+    break;
+  case pos_setup_instruments::VIEW_SOCKET:
+    socket_class= find_socket_class(m_pos.m_index_2);
+    if (socket_class)
+    {
+      make_row(socket_class);
       return 0;
     }
     break;

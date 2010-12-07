@@ -62,6 +62,7 @@ protected:
   virtual void make_rwlock_row(PFS_rwlock *pfs);
   virtual void make_cond_row(PFS_cond *pfs);
   virtual void make_file_row(PFS_file *pfs);
+  virtual void make_socket_row(PFS_socket *pfs);
 
   virtual int read_row_values(TABLE *table,
                               unsigned char *buf,

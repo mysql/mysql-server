@@ -374,6 +374,27 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE SOCKET_INSTANCES
+--
+
+SET @l1="CREATE TABLE performance_schema.socket_instances(";
+SET @l2="EVENT_NAME varchar(128) not null,";
+SET @l3="OBJECT_INSTANCE_BEGIN bigint(20) not null,";
+SET @l4="SOCKET_ID int(11) not null,";
+SET @l5="IP varchar(128) not null,";
+SET @l6="PORT int(11) not null,";
+SET @l7="BYTES_READ bigint(20) not null,";
+SET @l8="BYTES_WRITE bigint(20) not null";
+SET @l9=")ENGINE=PERFORMANCE_SCHEMA;";
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8,@l9);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+--
 -- TABLE MUTEX_INSTANCES
 --
 

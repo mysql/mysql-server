@@ -40,6 +40,7 @@ int table_all_instr::rnd_next(void)
   PFS_rwlock *rwlock;
   PFS_cond *cond;
   PFS_file *file;
+  PFS_socket *socket;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -94,6 +95,18 @@ int table_all_instr::rnd_next(void)
         }
       }
       break;
+    case pos_all_instr::VIEW_SOCKET:
+      for ( ; m_pos.m_index_2 < socket_instances_max; m_pos.m_index_2++)
+      {
+        socket= &socket_array[m_pos.m_index_2];
+        if (socket->m_lock.is_populated())
+        {
+          make_socket_row(socket);
+          m_next_pos.set_after(&m_pos);
+          return 0;
+        }
+      }
+      break;
     }
   }
 
@@ -106,6 +119,7 @@ int table_all_instr::rnd_pos(const void *pos)
   PFS_rwlock *rwlock;
   PFS_cond *cond;
   PFS_file *file;
+  PFS_socket *socket;
 
   set_position(pos);
 
@@ -146,8 +160,16 @@ int table_all_instr::rnd_pos(const void *pos)
       return 0;
     }
     break;
+  case pos_all_instr::VIEW_SOCKET:
+    DBUG_ASSERT(m_pos.m_index_2 < socket_instances_max);
+    socket= &socket_array[m_pos.m_index_2];
+    if (socket->m_lock.is_populated())
+    {
+      make_socket_row(socket);
+      return 0;
+    }
+    break;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
-

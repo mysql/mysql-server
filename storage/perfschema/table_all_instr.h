@@ -98,6 +98,11 @@ protected:
     @param pfs                        the file instance
   */
   virtual void make_file_row(PFS_file *pfs)= 0;
+  /**
+    Build a row in the socket instance view.
+    @param pfs                        the socket instance
+  */
+  virtual void make_socket_row(PFS_socket *pfs)= 0;
 
   /** Current position. */
   pos_all_instr m_pos;
