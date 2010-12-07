@@ -145,37 +145,78 @@ namespace AQP
   }
 
   /**
-   Determine join type between this table and its parent table.
+    Determine join type between this table access and some other table
+    access that preceeds it in the join plan..
   */
-  enum_join_type Table_access::get_join_type(const Table_access* parent) const
+  enum_join_type 
+  Table_access::get_join_type(const Table_access* predecessor) const
   {
-    const TABLE_LIST *this_table=   this->get_join_tab()->table->pos_in_table_list;
-    const TABLE_LIST *parent_table= parent->get_join_tab()->table->pos_in_table_list;
+    DBUG_ENTER("get_join_type");
+    DBUG_ASSERT(get_access_no() > predecessor->get_access_no());
 
-    /**
-     Itterate the join-nest until we reach the same join level as the parent.
-     If we find 'outer_join' inbetween, the join of this table wrt. parent
-     is reported as JT_OUTER_JOIN.
-    */
-    const TABLE_LIST *join_item = this_table;
-    for (join_item = this_table; join_item!=NULL; join_item = join_item->embedding)
+    if (get_join_tab()->table->pos_in_table_list->outer_join != 0)
     {
-      if (join_item->outer_join)
-      {
-        DBUG_PRINT("info", ("JT_OUTER_JOIN"));
-        return JT_OUTER_JOIN;
-      }
-      else if (join_item->embedding == parent_table->embedding)
-      {
-        DBUG_PRINT("info", ("at parent -> JT_INNER_JOIN"));
-        return JT_INNER_JOIN;
-      }
+      /*
+        This cover unnested outer joins such as 
+        'select * from t1 left join t2 on t1.attr=t1.pk'.
+       */
+      DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
+                          predecessor->get_join_tab()->table->alias,
+                          get_join_tab()->table->alias));
+      DBUG_RETURN(JT_OUTER_JOIN);
     }
 
-    /* Unable to determine jointype, default to OUTER which is the 'most covering' */
-    DBUG_PRINT("info", ("fall through -> JT_OUTER_JOIN"));
-    DBUG_ASSERT(false);
-    return JT_OUTER_JOIN;
+    const TABLE_LIST* const child_embedding= 
+      get_join_tab()->table->pos_in_table_list->embedding;;
+
+    if (child_embedding == NULL)
+    {
+      // 'this' is not on the inner side of any left join.
+      DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
+                          predecessor->get_join_tab()->table->alias,
+                          get_join_tab()->table->alias));
+      DBUG_RETURN(JT_INNER_JOIN);
+    }
+
+    DBUG_ASSERT(child_embedding->outer_join != 0);
+
+    const TABLE_LIST *predecessor_embedding= 
+      predecessor->get_join_tab()->table->pos_in_table_list->embedding;
+
+    /*
+      This covers the nested join case, i.e:
+      <table reference> LEFT JOIN (<joined table>).
+      
+      TABLE_LIST objects form a tree where TABLE_LIST::emebedding points to
+      the parent object. Now if child_embedding is non null and not an 
+      ancestor of predecessor_embedding in the embedding tree, then 'this'
+      must be on the inner side of some left join where 'predecessor' is on 
+      the outer side.
+     */
+    while (true)
+    {
+      if (predecessor_embedding == child_embedding)
+      {
+        DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
+                            predecessor->get_join_tab()->table->alias,
+                            get_join_tab()->table->alias));
+        DBUG_RETURN(JT_INNER_JOIN);
+      }
+      else if (predecessor_embedding == NULL)
+      {
+        /*
+           We reached the root of the tree without finding child_embedding,
+           so it must be in another branch and hence on the inner side of some
+           left join where 'predecessor' is on the outer side.
+         */
+        DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
+                            predecessor->get_join_tab()->table->alias,
+                            get_join_tab()->table->alias));
+        DBUG_RETURN(JT_OUTER_JOIN);
+      }
+      // Iterate through ancestors of predecessor_embedding.
+      predecessor_embedding = predecessor_embedding->embedding;
+    }
   }
 
   /**
