@@ -68,6 +68,9 @@ const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 const char *my_defaults_extra_file=0;
 
+static char my_defaults_file_buffer[FN_REFLEN];
+static char my_defaults_extra_file_buffer[FN_REFLEN];
+
 static my_bool defaults_already_read= FALSE;
 
 /* Which directories are searched for options (and in which order) */
@@ -152,22 +155,19 @@ static char *remove_end_comment(char *ptr);
  */
 
 static int
-fn_expand(const char *filename, const char **filename_var)
+fn_expand(const char *filename, char *result_buf)
 {
-  char dir[FN_REFLEN], buf[FN_REFLEN];
+  char dir[FN_REFLEN];
   const int flags= MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
-  const char *result_path= NULL;
   DBUG_ENTER("fn_expand");
-  DBUG_PRINT("enter", ("filename: %s, buf: 0x%lx", filename, (unsigned long) buf));
+  DBUG_PRINT("enter", ("filename: %s, result_buf: 0x%lx",
+                       filename, (unsigned long) result_buf));
   if (my_getwd(dir, sizeof(dir), MYF(0)))
     DBUG_RETURN(3);
   DBUG_PRINT("debug", ("dir: %s", dir));
-  if (fn_format(buf, filename, dir, NULL, flags) == NULL ||
-      (result_path= my_strdup(buf, MYF(0))) == NULL)
+  if (fn_format(result_buf, filename, dir, "", flags) == NULL)
     DBUG_RETURN(2);
-  DBUG_PRINT("return", ("result: %s", result_path));
-  DBUG_ASSERT(result_path != NULL);
-  *filename_var= result_path;
+  DBUG_PRINT("return", ("result: %s", result_buf));
   DBUG_RETURN(0);
 }
 
@@ -224,16 +224,18 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
   if (forced_extra_defaults && !defaults_already_read)
   {
-    int error= fn_expand(forced_extra_defaults, &my_defaults_extra_file);
+    int error= fn_expand(forced_extra_defaults, my_defaults_extra_file_buffer);
     if (error)
       DBUG_RETURN(error);
+    my_defaults_extra_file= my_defaults_extra_file_buffer;
   }
 
   if (forced_default_file && !defaults_already_read)
   {
-    int error= fn_expand(forced_default_file, &my_defaults_file);
+    int error= fn_expand(forced_default_file, my_defaults_file_buffer);
     if (error)
       DBUG_RETURN(error);
+    my_defaults_file= my_defaults_file_buffer;
   }
 
   defaults_already_read= TRUE;
@@ -366,7 +368,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, (uchar*) &tmp))
+    if (insert_dynamic(ctx->args, &tmp))
       return 1;
     strmov(tmp, option);
   }

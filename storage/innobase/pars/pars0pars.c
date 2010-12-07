@@ -1551,7 +1551,7 @@ commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
 {
-	return(commit_node_create(pars_sym_tab_global->heap));
+	return(trx_commit_node_create(pars_sym_tab_global->heap));
 }
 
 /*********************************************************************//**

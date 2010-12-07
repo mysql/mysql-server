@@ -339,6 +339,7 @@ drop table t1,t2;
 CREATE TABLE t1 (ID1 int, ID2 int, ID int NOT NULL AUTO_INCREMENT,PRIMARY KEY(ID
 ));
 insert into t1 values (1,244,NULL),(2,243,NULL),(134,223,NULL),(185,186,NULL);
+--sorted_result
 select S.ID as xID, S.ID1 as xID1 from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2;
 select S.ID as xID, S.ID1 as xID1, repeat('*',count(distinct yS.ID)) as Level from t1 as S left join t1 as yS  on S.ID1 between yS.ID1 and yS.ID2 group by xID order by xID1;
 drop table t1;
@@ -1236,6 +1237,17 @@ SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 SELECT SUBSTRING(a,1,10), LENGTH(a) FROM t1 GROUP BY a;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+--echo #
+
+CREATE TABLE t1(f1 INT NOT NULL);
+INSERT INTO t1 VALUES (16777214),(0);
+
+SELECT COUNT(*) FROM t1 LEFT JOIN t1 t2
+ON 1 WHERE t2.f1 > 1 GROUP BY t2.f1;
+
+DROP TABLE t1;
 
 --echo # End of 5.1 tests
 

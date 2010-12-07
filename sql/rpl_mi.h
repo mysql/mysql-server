@@ -96,6 +96,7 @@ class Master_info : public Rpl_info
   long clock_diff_with_master;
   float heartbeat_period;         // interface with CHANGE MASTER or master.info
   ulonglong received_heartbeats;  // counter of received heartbeat events
+  time_t last_heartbeat;
   Server_ids *ignore_server_ids;
   ulong master_id;
   /*
@@ -106,6 +107,7 @@ class Master_info : public Rpl_info
   uint8 checksum_alg_before_fd;
   ulong retry_count;
   char master_uuid[UUID_LENGTH+1];
+  char bind_addr[HOSTNAME_LENGTH+1];
 
   int init_info();
   void end_info();

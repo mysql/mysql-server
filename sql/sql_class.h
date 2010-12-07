@@ -108,6 +108,41 @@ extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
 
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd);
+extern "C" char **thd_query(MYSQL_THD thd);
+
+/**
+  @class CSET_STRING
+  @brief Character set armed LEX_STRING
+*/
+class CSET_STRING
+{
+private:
+  LEX_STRING string;
+  CHARSET_INFO *cs;
+public:
+  CSET_STRING() : cs(&my_charset_bin)
+  {
+    string.str= NULL;
+    string.length= 0;
+  }
+  CSET_STRING(char *str_arg, size_t length_arg, CHARSET_INFO *cs_arg) :
+  cs(cs_arg)
+  {
+    DBUG_ASSERT(cs_arg != NULL);
+    string.str= str_arg;
+    string.length= length_arg;
+  }
+
+  inline char *str() const { return string.str; }
+  inline uint32 length() const { return string.length; }
+  CHARSET_INFO *charset() const { return cs; }
+
+  friend LEX_STRING * thd_query_string (MYSQL_THD thd);
+  friend char **thd_query(MYSQL_THD thd);
+};
+
+
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
@@ -364,6 +399,8 @@ class Time_zone;
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
+typedef ulonglong sql_mode_t;
+
 typedef struct system_variables
 {
   /*
@@ -385,7 +422,7 @@ typedef struct system_variables
   ulonglong long_query_time;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
-  ulonglong sql_mode; ///< which non-standard SQL behaviour should be enabled
+  sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
   ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
   ha_rows max_join_size;
@@ -734,12 +771,24 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  LEX_STRING query_string;
+  CSET_STRING query_string;
 
-  inline char *query() { return query_string.str; }
-  inline uint32 query_length() { return query_string.length; }
-  void set_query_inner(char *query_arg, uint32 query_length_arg);
-
+  inline char *query() const { return query_string.str(); }
+  inline uint32 query_length() const { return query_string.length(); }
+  CHARSET_INFO *query_charset() const { return query_string.charset(); }
+  void set_query_inner(const CSET_STRING &string_arg)
+  {
+    query_string= string_arg;
+  }
+  void set_query_inner(char *query_arg, uint32 query_length_arg,
+                       CHARSET_INFO *cs_arg)
+  {
+    set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
+  }
+  void reset_query_inner()
+  {
+    set_query_inner(CSET_STRING());
+  }
   /**
     Name of the current (default) database.
 
@@ -834,8 +883,8 @@ struct st_savepoint {
   char                *name;
   uint                 length;
   Ha_trx_info         *ha_list;
-  /** Last acquired lock before this savepoint was set. */
-  MDL_ticket     *mdl_savepoint;
+  /** State of metadata locks before this savepoint was set. */
+  MDL_savepoint        mdl_savepoint;
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED, XA_ROLLBACK_ONLY};
@@ -1070,12 +1119,12 @@ class Open_tables_backup: public Open_tables_state
 public:
   /**
     When we backup the open tables state to open a system
-    table or tables, points at the last metadata lock
-    acquired before the backup. Is used to release
-    metadata locks on system tables after they are
+    table or tables, we want to save state of metadata
+    locks which were acquired before the backup. It is used
+    to release metadata locks on system tables after they are
     no longer used.
   */
-  MDL_ticket *mdl_system_tables_svp;
+  MDL_savepoint mdl_system_tables_svp;
 };
 
 /**
@@ -1348,26 +1397,43 @@ public:
   };
 
   Global_read_lock()
-    :m_protection_count(0), m_state(GRL_NONE), m_mdl_global_shared_lock(NULL)
+    : m_state(GRL_NONE),
+      m_mdl_global_shared_lock(NULL),
+      m_mdl_blocks_commits_lock(NULL)
   {}
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
-  bool wait_if_global_read_lock(THD *thd, bool abort_on_refresh,
-                                bool is_not_commit);
-  void start_waiting_global_read_lock(THD *thd);
+  /**
+    Check if this connection can acquire protection against GRL and
+    emit error if otherwise.
+  */
+  bool can_acquire_protection() const
+  {
+    if (m_state)
+    {
+      my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
+      return TRUE;
+    }
+    return FALSE;
+  }
   bool make_global_read_lock_block_commit(THD *thd);
   bool is_acquired() const { return m_state != GRL_NONE; }
-  bool has_protection() const { return m_protection_count > 0; }
-  MDL_ticket *global_shared_lock() const { return m_mdl_global_shared_lock; }
+  void set_explicit_lock_duration(THD *thd);
 private:
-  uint           m_protection_count;            // GRL protection count
+  enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must
-    acquire a global shared metadata lock, to prohibit all DDL.
+    acquire shared metadata lock in GLOBAL namespace, to prohibit
+    all DDL.
   */
-  enum_grl_state m_state;
   MDL_ticket *m_mdl_global_shared_lock;
+  /**
+    Also in order to acquire the global read lock, the connection
+    must acquire a shared metadata lock in COMMIT namespace, to
+    prohibit commits.
+  */
+  MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
 
@@ -1980,6 +2046,12 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  /*
+    If checking this in conjunction with a wait condition, please
+    include a check after enter_cond() if you want to avoid a race
+    condition. For details see the implementation of awake(),
+    especially the "broadcast" part.
+  */
   enum killed_state
   {
     NOT_KILLED=0,
@@ -2254,6 +2326,20 @@ public:
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
+  /**
+   Update server status after execution of a top level statement.
+
+   Currently only checks if a query was slow, and assigns
+   the status accordingly.
+   Evaluate the current time, and if it exceeds the long-query-time
+   setting, mark the query as slow.
+  */
+  void update_server_status()
+  {
+    ulonglong end_utime_of_query= current_utime();
+    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+      server_status|= SERVER_QUERY_WAS_SLOW;
+  }
   inline ulonglong found_rows(void)
   {
     return limit_found_rows;
@@ -2734,9 +2820,20 @@ public:
     Assign a new value to thd->query and thd->query_id and mysys_var.
     Protected with LOCK_thd_data mutex.
   */
-  void set_query(char *query_arg, uint32 query_length_arg);
+  void set_query(char *query_arg, uint32 query_length_arg,
+                 CHARSET_INFO *cs_arg)
+  {
+    set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
+  }
+  void set_query(char *query_arg, uint32 query_length_arg) /*Mutex protected*/
+  {
+    set_query(CSET_STRING(query_arg, query_length_arg, charset()));
+  }
+  void set_query(const CSET_STRING &str); /* Mutex protected */
+  void reset_query()               /* Mutex protected */
+  { set_query(CSET_STRING()); }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        query_id_t new_query_id);
+                        CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
   void set_open_tables(TABLE *open_tables_arg)
   {
@@ -2749,7 +2846,7 @@ public:
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
 
-    mdl_context.set_trans_sentinel();
+    mdl_context.set_explicit_duration_for_all_locks();
     locked_tables_mode= mode_arg;
   }
   void leave_locked_tables_mode();
@@ -3594,20 +3691,10 @@ public:
 #define CF_DIAGNOSTIC_STMT        (1U << 8)
 
 /**
-  SQL statements that must be protected against impending global read lock
-  to prevent deadlock. This deadlock could otherwise happen if the statement
-  starts waiting for the GRL to go away inside mysql_lock_tables while at the
-  same time having "old" opened tables. The thread holding the GRL can be
-  waiting for these "old" opened tables to be closed, causing a deadlock
-  (FLUSH TABLES WITH READ LOCK).
- */
-#define CF_PROTECT_AGAINST_GRL  (1U << 10)
-
-/**
   Identifies statements that may generate row events
   and that may end up in the binary log.
 */
-#define CF_CAN_GENERATE_ROW_EVENTS (1U << 11)
+#define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
 
 /**
   Identifies statements that can directly update a rpl info table.

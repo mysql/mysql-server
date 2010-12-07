@@ -73,8 +73,8 @@ ON t2.b=t4.b
 WHERE t3.a=1 OR t3.c IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` = 1) or isnull(`test`.`t3`.`c`))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
@@ -127,17 +127,17 @@ LEFT JOIN
 ON t2.b=t4.b;
 a	b	a	b	a	b	a	b
 3	3	NULL	NULL	NULL	NULL	NULL	NULL
-4	2	1	2	3	2	3	1
 4	2	1	2	3	2	2	2
+4	2	1	2	3	2	3	1
 4	2	1	2	3	2	3	3
-4	2	1	2	4	2	3	1
 4	2	1	2	4	2	2	2
+4	2	1	2	4	2	3	1
 4	2	1	2	4	2	3	3
-4	2	2	2	3	2	3	1
 4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
 4	2	2	2	3	2	3	3
-4	2	2	2	4	2	3	1
 4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
 4	2	2	2	4	2	3	3
 5	3	NULL	NULL	NULL	NULL	NULL	NULL
 EXPLAIN EXTENDED
@@ -149,9 +149,9 @@ ON t2.b=t4.b
 WHERE t3.a>1 OR t3.c IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where ((`test`.`t3`.`a` > 1) or isnull(`test`.`t3`.`c`))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
@@ -162,11 +162,11 @@ ON t2.b=t4.b
 WHERE t3.a>1 OR t3.c IS NULL;
 a	b	a	b	a	b	a	b
 3	3	NULL	NULL	NULL	NULL	NULL	NULL
-4	2	2	2	3	2	3	1
 4	2	2	2	3	2	2	2
+4	2	2	2	3	2	3	1
 4	2	2	2	3	2	3	3
-4	2	2	2	4	2	3	1
 4	2	2	2	4	2	2	2
+4	2	2	2	4	2	3	1
 4	2	2	2	4	2	3	3
 5	3	NULL	NULL	NULL	NULL	NULL	NULL
 EXPLAIN EXTENDED
@@ -179,9 +179,9 @@ WHERE (t3.a>1 OR t3.c IS NULL) AND
 (t5.a<3 OR t5.c IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b` from `test`.`t2` left join (`test`.`t3` join `test`.`t4` join `test`.`t5`) on((`test`.`t4`.`b` = `test`.`t2`.`b`)) where (((`test`.`t3`.`a` > 1) or isnull(`test`.`t3`.`c`)) and ((`test`.`t5`.`a` < 3) or isnull(`test`.`t5`.`c`)))
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
@@ -229,8 +229,8 @@ t8
 ON t7.b=t8.b AND t6.b < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, regular buffers)
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t7`.`b` = `test`.`t8`.`b`) and (`test`.`t6`.`b` < 10))) where 1
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
@@ -242,12 +242,12 @@ a	b	a	b	a	b
 3	2	1	1	NULL	NULL
 3	2	2	2	0	2
 3	2	2	2	1	2
-6	2	1	1	NULL	NULL
-6	2	2	2	0	2
-6	2	2	2	1	2
 6	1	1	1	NULL	NULL
 6	1	2	2	0	2
 6	1	2	2	1	2
+6	2	1	1	NULL	NULL
+6	2	2	2	0	2
+6	2	2	2	1	2
 SELECT t5.a,t5.b
 FROM t5;
 a	b
@@ -265,12 +265,12 @@ ON t7.b=t8.b AND t6.b < 10
 )
 ON t6.b >= 2 AND t5.b=t7.b;
 a	b	a	b	a	b	a	b
-3	1	3	2	1	1	NULL	NULL
-3	1	6	2	1	1	NULL	NULL
 2	2	3	2	2	2	0	2
 2	2	3	2	2	2	1	2
 2	2	6	2	2	2	0	2
 2	2	6	2	2	2	1	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
 3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 FROM t5 
@@ -284,10 +284,10 @@ ON t7.b=t8.b AND t6.b < 10
 ON t6.b >= 2 AND t5.b=t7.b AND
 (t8.a < 1 OR t8.c IS NULL);
 a	b	a	b	a	b	a	b
-3	1	3	2	1	1	NULL	NULL
-3	1	6	2	1	1	NULL	NULL
 2	2	3	2	2	2	0	2
 2	2	6	2	2	2	0	2
+3	1	3	2	1	1	NULL	NULL
+3	1	6	2	1	1	NULL	NULL
 3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t2
@@ -315,33 +315,33 @@ ON t7.b=t8.b AND t6.b < 10
 )
 ON t6.b >= 2 AND t5.b=t7.b;
 a	b	a	b	a	b	a	b	a	b	a	b	a	b
-3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
-4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
-4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
-4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
-4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
-5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
+3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 4	2	1	2	3	2	2	2	3	2	2	2	0	2
 4	2	1	2	3	2	2	2	3	2	2	2	1	2
 4	2	1	2	3	2	2	2	6	2	2	2	0	2
 4	2	1	2	3	2	2	2	6	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 4	2	1	2	4	2	2	2	3	2	2	2	0	2
 4	2	1	2	4	2	2	2	3	2	2	2	1	2
 4	2	1	2	4	2	2	2	6	2	2	2	0	2
 4	2	1	2	4	2	2	2	6	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
-3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
@@ -361,17 +361,17 @@ ON t6.b >= 2 AND t5.b=t7.b
 WHERE t2.a > 3 AND
 (t6.a < 6 OR t6.c IS NULL);
 a	b	a	b	a	b	a	b	a	b	a	b	a	b
-4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
-4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
-5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
 4	2	1	2	3	2	2	2	3	2	2	2	0	2
 4	2	1	2	3	2	2	2	3	2	2	2	1	2
+4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 4	2	1	2	4	2	2	2	3	2	2	2	0	2
 4	2	1	2	4	2	2	2	3	2	2	2	1	2
+4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
-4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
 5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t1.a,t1.b
 FROM t1;
@@ -402,12 +402,12 @@ ON (t3.b=2 OR t3.c IS NULL) AND (t6.b=2 OR t6.c IS NULL) AND
 (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
 (t1.a != 2);
 a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
-1	3	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-1	3	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 1	3	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 1	3	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 1	3	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
 1	3	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
@@ -415,41 +415,41 @@ a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
 1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
 1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-3	2	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 3	2	3	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 3	2	3	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	3	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	3	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
-3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
 3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
 3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
 3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
-3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
 3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
 3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
 3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
@@ -481,34 +481,34 @@ a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
 1	3	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
 1	3	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 1	3	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 1	3	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	3	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	3	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
-3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
 3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
 3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
 3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
-3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
 3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
 3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
 3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 SELECT t0.a,t0.b
 FROM t0;
@@ -544,14 +544,14 @@ t0.b=t1.b AND
 (t2.a >= 4 OR t2.c IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) where ((`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)))
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
@@ -581,26 +581,26 @@ t0.b=t1.b AND
 (t2.a >= 4 OR t2.c IS NULL);
 a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
 1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	2	3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
-1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	0	2
 1	2	3	2	4	2	1	2	3	2	2	2	3	2	2	2	1	2
 1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2
 1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-1	2	3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
-1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	0	2
 1	2	3	2	4	2	1	2	4	2	2	2	3	2	2	2	1	2
 1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2
 1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL
-1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
-1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	0	2
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	3	2	2	2	1	2
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	3	2	1	1	NULL	NULL
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL
 EXPLAIN EXTENDED
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
@@ -639,15 +639,15 @@ t0.b=t1.b AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t9.a,t9.b
@@ -692,21 +692,21 @@ t0.b=t1.b AND
 (t9.a=1);
 a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b	a	b
 1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	1
-1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
-1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
-1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
-1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
-1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
-1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
 1	2	2	2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	1	2
-1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
 1	2	3	2	4	2	1	2	3	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	3	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
 1	2	3	2	4	2	1	2	3	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
-1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
 1	2	3	2	4	2	1	2	4	2	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	4	2	1	2	4	2	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
 1	2	3	2	4	2	1	2	4	2	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
-1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	2	2	6	2	2	2	0	2	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	1
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	1	6	2	1	1	NULL	NULL	1	2
+1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	1
 1	2	3	2	5	3	NULL	NULL	NULL	NULL	3	3	NULL	NULL	NULL	NULL	NULL	NULL	1	2
 SELECT t1.a,t1.b
 FROM t1;
@@ -743,12 +743,12 @@ ON t2.b=t3.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b
 1	3	3	3	NULL	NULL
-2	2	3	3	NULL	NULL
 1	3	4	2	1	2
 1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
 2	2	4	2	1	2
 2	2	4	2	2	2
-1	3	5	3	NULL	NULL
 2	2	5	3	NULL	NULL
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
 FROM t1, t3 
@@ -758,12 +758,12 @@ ON t2.b=t3.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b
 1	3	3	3	NULL	NULL
-2	2	3	3	NULL	NULL
 1	3	4	2	1	2
 1	3	4	2	2	2
+1	3	5	3	NULL	NULL
+2	2	3	3	NULL	NULL
 2	2	4	2	1	2
 2	2	4	2	2	2
-1	3	5	3	NULL	NULL
 2	2	5	3	NULL	NULL
 SELECT t3.a,t3.b,t4.a,t4.b
 FROM t3,t4;
@@ -790,12 +790,12 @@ ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b	a	b
 1	3	3	3	NULL	NULL	NULL	NULL
-2	2	3	3	NULL	NULL	NULL	NULL
 1	3	4	2	1	2	3	2
 1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
 2	2	4	2	1	2	3	2
 2	2	4	2	1	2	4	2
-1	3	5	3	NULL	NULL	NULL	NULL
 2	2	5	3	NULL	NULL	NULL	NULL
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t1, (t3, t4) 
@@ -805,12 +805,12 @@ ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b	a	b
 1	3	3	3	NULL	NULL	NULL	NULL
-2	2	3	3	NULL	NULL	NULL	NULL
 1	3	4	2	1	2	3	2
 1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
 2	2	4	2	1	2	3	2
 2	2	4	2	1	2	4	2
-1	3	5	3	NULL	NULL	NULL	NULL
 2	2	5	3	NULL	NULL	NULL	NULL
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t1, (t3, t4)
@@ -820,12 +820,12 @@ ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 a	b	a	b	a	b	a	b
 1	3	3	3	NULL	NULL	NULL	NULL
-2	2	3	3	NULL	NULL	NULL	NULL
 1	3	4	2	1	2	3	2
 1	3	4	2	1	2	4	2
+1	3	5	3	NULL	NULL	NULL	NULL
+2	2	3	3	NULL	NULL	NULL	NULL
 2	2	4	2	1	2	3	2
 2	2	4	2	1	2	4	2
-1	3	5	3	NULL	NULL	NULL	NULL
 2	2	5	3	NULL	NULL	NULL	NULL
 EXPLAIN EXTENDED
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
@@ -836,9 +836,9 @@ ON t3.a=1 AND t2.b=t4.b
 WHERE t1.a <= 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, regular buffers)
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) where (`test`.`t1`.`a` <= 2)
 CREATE INDEX idx_b ON t2(b);
@@ -850,7 +850,7 @@ LEFT JOIN
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 1	SIMPLE	t2	ref	idx_b	idx_b	5	test.t3.b	2	100.00	Using where
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
@@ -906,15 +906,15 @@ t0.b=t1.b AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t4(b);
@@ -956,7 +956,7 @@ t0.b=t1.b AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ref	idx_b	idx_b	5	test.t2.b	2	100.00	Using where
@@ -964,7 +964,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t8	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t8(b);
@@ -1005,7 +1005,7 @@ t0.b=t1.b AND
 (t9.a=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t4	ref	idx_b	idx_b	5	test.t2.b	2	100.00	Using where
@@ -1013,7 +1013,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 CREATE INDEX idx_b ON t1(b);
@@ -1063,7 +1063,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t8	ref	idx_b	idx_b	5	test.t5.b	2	100.00	Using where
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b`,`test`.`t9`.`a` AS `a`,`test`.`t9`.`b` AS `b` from `test`.`t0` join `test`.`t1` left join (`test`.`t2` left join (`test`.`t3` join `test`.`t4`) on(((`test`.`t4`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = 1))) join `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2)))) on((((`test`.`t3`.`b` = 2) or isnull(`test`.`t3`.`c`)) and ((`test`.`t6`.`b` = 2) or isnull(`test`.`t6`.`c`)) and ((`test`.`t5`.`b` = `test`.`t0`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t6`.`c`) or isnull(`test`.`t8`.`c`)) and (`test`.`t1`.`a` <> 2))) join `test`.`t9` where ((`test`.`t9`.`a` = 1) and (`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t0`.`a` = 1) and ((`test`.`t2`.`a` >= 4) or isnull(`test`.`t2`.`c`)) and ((`test`.`t3`.`a` < 5) or isnull(`test`.`t3`.`c`)) and ((`test`.`t4`.`b` = `test`.`t3`.`b`) or isnull(`test`.`t3`.`c`) or isnull(`test`.`t4`.`c`)) and ((`test`.`t5`.`a` >= 2) or isnull(`test`.`t5`.`c`)) and ((`test`.`t6`.`a` >= 4) or isnull(`test`.`t6`.`c`)) and ((`test`.`t7`.`a` <= 2) or isnull(`test`.`t7`.`c`)) and ((`test`.`t8`.`a` < 1) or isnull(`test`.`t8`.`c`)) and ((`test`.`t9`.`b` = `test`.`t8`.`b`) or isnull(`test`.`t8`.`c`)))
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
@@ -1317,8 +1317,8 @@ c11	c21	c31
 EXPLAIN SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON c21=c31) ON c11=c21;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (goods int(12) NOT NULL, price varchar(128) NOT NULL);
 INSERT INTO t1 VALUES (23, 2340), (26, 9900);
@@ -1447,12 +1447,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
 1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	
 1	SIMPLE	t5	ref	a	a	5	test.t3.b	X	
-1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	Using where
+1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	Using index condition
 explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
 join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	X	
-1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	Using where
+1	SIMPLE	t3	ref	a	a	5	test.t2.b	X	Using index condition
 1	SIMPLE	t4	ref	a	a	5	test.t3.b	X	
 1	SIMPLE	t6	ref	a	a	5	test.t4.b	X	
 1	SIMPLE	t5	ref	a	a	5	test.t2.b	X	

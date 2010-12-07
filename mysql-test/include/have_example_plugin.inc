@@ -8,7 +8,7 @@ if (`SELECT @@have_dynamic_loading != 'YES'`) {
 #
 # Check if the variable EXAMPLE_PLUGIN is set
 #
-if (`SELECT LENGTH('$EXAMPLE_PLUGIN') = 0`) {
+if (!$EXAMPLE_PLUGIN) {
   --skip Example plugin requires the environment variable \$EXAMPLE_PLUGIN to be set (normally done by mtr)
 }
 

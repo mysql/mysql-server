@@ -356,6 +356,7 @@ create table t1 (s1 int);
 create table t2 (s2 int);
 insert into t1 values (5),(1),(0);
 insert into t2 values (0), (1);
+--sorted_result
 select s2 from t2 where s2 in (select s1 from t1);
 drop table t1, t2;
 
@@ -421,6 +422,7 @@ having a in (select c from t2 where d >= some(select e from t3 where max(b)=e));
 explain extended
 select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
+--sorted_result
 select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
 

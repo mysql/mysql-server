@@ -727,7 +727,7 @@ static void pad_max_char(CHARSET_INFO *cs, char *str, char *end)
   DBUG_ASSERT(buflen > 0);
   do
   {
-    if ((str + buflen) < end)
+    if ((str + buflen) <= end)
     {
       /* Enough space for the characer */
       memcpy(str, buf, buflen);
@@ -890,6 +890,192 @@ fill_max_and_min:
   while (min_str != min_end)
     *min_str++= *max_str++= ' ';           /* Because if key compression */
   return 0;
+}
+
+
+/**
+   Calculate min_str and max_str that ranges a LIKE string.
+   Generic function, currently used for ucs2, utf16, utf32,
+   but should be suitable for any other character sets with
+   cs->min_sort_char and cs->max_sort_char represented in
+   Unicode code points.
+
+   @param cs           Character set and collation pointer
+   @param ptr          Pointer to LIKE pattern.
+   @param ptr_length   Length of LIKE pattern.
+   @param escape       Escape character pattern,  typically '\'.
+   @param w_one        'One character' pattern,   typically '_'.
+   @param w_many       'Many characters' pattern, typically '%'.
+   @param res_length   Length of min_str and max_str.
+
+   @param[out] min_str Smallest string that ranges LIKE.
+   @param[out] max_str Largest string that ranges LIKE.
+   @param[out] min_len Length of min_str
+   @param[out] max_len Length of max_str
+
+   @return Optimization status.
+   @retval FALSE if LIKE pattern can be optimized
+   @rerval TRUE if LIKE can't be optimized.
+*/
+my_bool
+my_like_range_generic(CHARSET_INFO *cs,
+                      const char *ptr, size_t ptr_length,
+                      pbool escape, pbool w_one, pbool w_many,
+                      size_t res_length,
+                      char *min_str,char *max_str,
+                      size_t *min_length,size_t *max_length)
+{
+  const char *end= ptr + ptr_length;
+  const char *min_org= min_str;
+  const char *max_org= max_str;
+  char *min_end= min_str + res_length;
+  char *max_end= max_str + res_length;
+  size_t charlen= res_length / cs->mbmaxlen;
+  size_t res_length_diff;
+  my_bool have_contractions= cs->uca ? my_uca_have_contractions(cs->uca) : 0;
+
+  for ( ; charlen > 0; charlen--)
+  {
+    my_wc_t wc, wc2;
+    int res;
+    if ((res= cs->cset->mb_wc(cs, &wc, (uchar*) ptr, (uchar*) end)) <= 0)
+    {
+      if (res == MY_CS_ILSEQ) /* Bad sequence */
+        return TRUE; /* min_length and max_length are not important */
+      break; /* End of the string */
+    }
+    ptr+= res;
+
+    if (wc == (my_wc_t) escape)
+    {
+      if ((res= cs->cset->mb_wc(cs, &wc, (uchar*) ptr, (uchar*) end)) <= 0)
+      {
+        if (res == MY_CS_ILSEQ)
+          return TRUE; /* min_length and max_length are not important */
+        /*
+           End of the string: Escape is the last character.
+           Put escape as a normal character.
+           We'll will leave the loop on the next iteration.
+        */
+      }
+      else
+        ptr+= res;
+
+      /* Put escape character to min_str and max_str  */
+      if ((res= cs->cset->wc_mb(cs, wc,
+                                (uchar*) min_str, (uchar*) min_end)) <= 0)
+        goto pad_set_lengths; /* No space */
+      min_str+= res;
+
+      if ((res= cs->cset->wc_mb(cs, wc,
+                                (uchar*) max_str, (uchar*) max_end)) <= 0)
+        goto pad_set_lengths; /* No space */
+      max_str+= res;
+      continue;
+    }
+    else if (wc == (my_wc_t) w_one)
+    {
+      if ((res= cs->cset->wc_mb(cs, cs->min_sort_char,
+                                (uchar*) min_str, (uchar*) min_end)) <= 0)
+        goto pad_set_lengths;
+      min_str+= res;
+
+      if ((res= cs->cset->wc_mb(cs, cs->max_sort_char,
+                                (uchar*) max_str, (uchar*) max_end)) <= 0)
+        goto pad_set_lengths;
+      max_str+= res;
+      continue;
+    }
+    else if (wc == (my_wc_t) w_many)
+    {
+      /*
+        Calculate length of keys:
+        a\min\min... is the smallest possible string
+        a\max\max... is the biggest possible string
+      */
+      *min_length= ((cs->state & MY_CS_BINSORT) ?
+                    (size_t) (min_str - min_org) :
+                    res_length);
+      *max_length= res_length;
+      goto pad_min_max;
+    }
+
+    if (have_contractions &&
+        my_uca_can_be_contraction_head(cs->uca, wc) &&
+        (res= cs->cset->mb_wc(cs, &wc2, (uchar*) ptr, (uchar*) end)) > 0)
+    {
+      uint16 *weight;
+      if ((wc2 == (my_wc_t) w_one || wc2 == (my_wc_t) w_many))
+      {
+        /* Contraction head followed by a wildcard */
+        *min_length= *max_length= res_length;
+        goto pad_min_max;
+      }
+
+      if (my_uca_can_be_contraction_tail(cs->uca, wc2) &&
+          (weight= my_uca_contraction2_weight(cs->uca, wc, wc2)) && weight[0])
+      {
+        /* Contraction found */
+        if (charlen == 1)
+        {
+          /* contraction does not fit to result */
+          *min_length= *max_length= res_length;
+          goto pad_min_max;
+        }
+
+        ptr+= res;
+        charlen--;
+
+        /* Put contraction head */
+        if ((res= cs->cset->wc_mb(cs, wc,
+                                  (uchar*) min_str, (uchar*) min_end)) <= 0)
+          goto pad_set_lengths;
+        min_str+= res;
+
+        if ((res= cs->cset->wc_mb(cs, wc,
+                                  (uchar*) max_str, (uchar*) max_end)) <= 0)
+          goto pad_set_lengths;
+        max_str+= res;
+        wc= wc2; /* Prepare to put contraction tail */
+      }
+    }
+
+    /* Normal character, or contraction tail */
+    if ((res= cs->cset->wc_mb(cs, wc,
+                              (uchar*) min_str, (uchar*) min_end)) <= 0)
+      goto pad_set_lengths;
+    min_str+= res;
+    if ((res= cs->cset->wc_mb(cs, wc,
+                              (uchar*) max_str, (uchar*) max_end)) <= 0)
+      goto pad_set_lengths;
+    max_str+= res;
+  }
+
+pad_set_lengths:
+  *min_length= (size_t) (min_str - min_org);
+  *max_length= (size_t) (max_str - max_org);
+
+pad_min_max:
+  /*
+    Fill up max_str and min_str to res_length.
+    fill() cannot set incomplete characters and
+    requires that "length" argument is divisible to mbminlen.
+    Make sure to call fill() with proper "length" argument.
+  */
+  res_length_diff= res_length % cs->mbminlen;
+  cs->cset->fill(cs, min_str, min_end - min_str - res_length_diff,
+                 cs->min_sort_char);
+  cs->cset->fill(cs, max_str, max_end - max_str - res_length_diff,
+                 cs->max_sort_char);
+
+  /* In case of incomplete characters set the remainder to 0x00's */
+  if (res_length_diff)
+  {
+    /* Example: odd res_length for ucs2 */
+    memset(min_end - res_length_diff, 0, res_length_diff);
+    memset(max_end - res_length_diff, 0, res_length_diff);
+  }
+  return FALSE;
 }
 
 

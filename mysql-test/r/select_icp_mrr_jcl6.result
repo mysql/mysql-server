@@ -2,7 +2,7 @@ set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
 optimizer_join_cache_level	6
-set optimizer_switch='index_condition_pushdown=on,mrr=on';
+set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3,t4,t11;
 drop table if exists t1_1,t1_2,t9_1,t9_2,t1aa,t2aa;
 drop view if exists v1;
@@ -4950,6 +4950,3 @@ DROP TABLE t1;
 # End of test BUG#57203
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

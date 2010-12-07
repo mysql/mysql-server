@@ -78,12 +78,6 @@ public:
   const char* get_sqlstate() const
   { DBUG_ASSERT(m_status == DA_ERROR); return m_sqlstate; }
 
-  uint server_status() const
-  {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_server_status;
-  }
-
   ulonglong affected_rows() const
   { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
 
@@ -109,15 +103,6 @@ private:
 
   char m_sqlstate[SQLSTATE_LENGTH+1];
 
-  /**
-    Copied from thd->server_status when the diagnostics area is assigned.
-    We need this member as some places in the code use the following pattern:
-    thd->server_status|= ...
-    my_eof(thd);
-    thd->server_status&= ~...
-    Assigned by OK, EOF or ERROR.
-  */
-  uint m_server_status;
   /**
     The number of rows affected by the last statement. This is
     semantically close to thd->row_count_func, but has a different

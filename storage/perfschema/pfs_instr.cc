@@ -686,26 +686,17 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 
 PFS_mutex *sanitize_mutex(PFS_mutex *unsafe)
 {
-  if ((&mutex_array[0] <= unsafe) &&
-      (unsafe < &mutex_array[mutex_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_mutex, mutex_array, mutex_max, unsafe);
 }
 
 PFS_rwlock *sanitize_rwlock(PFS_rwlock *unsafe)
 {
-  if ((&rwlock_array[0] <= unsafe) &&
-      (unsafe < &rwlock_array[rwlock_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_rwlock, rwlock_array, rwlock_max, unsafe);
 }
 
 PFS_cond *sanitize_cond(PFS_cond *unsafe)
 {
-  if ((&cond_array[0] <= unsafe) &&
-      (unsafe < &cond_array[cond_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_cond, cond_array, cond_max, unsafe);
 }
 
 /**
@@ -719,18 +710,32 @@ PFS_cond *sanitize_cond(PFS_cond *unsafe)
 */
 PFS_thread *sanitize_thread(PFS_thread *unsafe)
 {
-  if ((&thread_array[0] <= unsafe) &&
-      (unsafe < &thread_array[thread_max]))
-    return unsafe;
+  SANITIZE_ARRAY_BODY(PFS_thread, thread_array, thread_max, unsafe);
+}
+
+const char *sanitize_file_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &file_array[0];
+  intptr last= (intptr) &file_array[file_max];
+
+  /* Check if unsafe points inside file_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    /* Check if unsafe points to PFS_file::m_filename */
+    intptr offset= (ptr - first) % sizeof(PFS_file);
+    intptr valid_offset= my_offsetof(PFS_file, m_filename[0]);
+    if (likely(offset == valid_offset))
+    {   
+      return unsafe;
+    }   
+  }
   return NULL;
 }
 
 PFS_file *sanitize_file(PFS_file *unsafe)
 {
-  if ((&file_array[0] <= unsafe) &&
-      (unsafe < &file_array[file_max]))
-    return unsafe;
-  return NULL;
+  SANITIZE_ARRAY_BODY(PFS_file, file_array, file_max, unsafe);
 }
 
 /**
@@ -1015,7 +1020,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         {
           pfs->m_identity= identity;
           pfs->m_share= share;
-          share->m_refcount++;
+          share->inc_refcount();
           pfs->m_table_stat.reset();
           pfs->m_opening_thread= opening_thread;
           pfs->m_lock.dirty_to_allocated();
@@ -1036,7 +1041,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
 void destroy_table(PFS_table *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
-  pfs->m_share->m_refcount--;
+  pfs->m_share->dec_refcount();
   pfs->m_lock.allocated_to_free();
 }
 
@@ -1158,8 +1163,6 @@ void aggregate_all_event_names(PFS_single_stat *from_array,
 
 void aggregate_thread(PFS_thread *thread)
 {
-  /* FIXME */
-
   PFS_single_stat *stat= thread->m_instr_class_wait_stats;
   PFS_single_stat *stat_last= stat + max_instrument_class;
   for ( ; stat < stat_last; stat++)
