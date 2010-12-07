@@ -2983,6 +2983,70 @@ select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 drop table t1;
 
+#######################################
+# Some tests for nested left joins.
+
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b int NOT NULL,
+  c int NOT NULL,
+  d int,
+  PRIMARY KEY (`a`,`b`),
+  unique key(c)
+) ENGINE=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), 
+(1,2,2,1), 
+(1,3,3,1), 
+(1,4,4,1), 
+(1,5,5,2), 
+(1,6,6,2), 
+(1,7,7,2), 
+(1,8,8,2);
+
+explain extended select count(*) from t1 as x1 
+   join (t1 as x2 
+      left join (t1 as x3 
+         cross join t1 as x4) 
+      on x2.d=x3.a) 
+   on x2.c is null or x1.a=x4.d;
+select count(*) from t1 as x1 
+   join (t1 as x2 
+      left join (t1 as x3 
+         cross join t1 as x4) 
+      on x2.d=x3.a) 
+   on x2.c is null or x1.a=x4.d;
+
+explain extended select count(*) from t1 as x1 
+   left join (t1 as x2 
+      cross join t1 as x3) 
+   on x1.d=x2.a;
+select count(*) from t1 as x1 
+   left join (t1 as x2 
+      cross join t1 as x3) 
+   on x1.d=x2.a;
+
+
+explain extended select count(*) from t1 as x0 
+   left join (t1 as x1 
+      join (t1 as x2 
+         left join (t1 as x3 
+            join t1 as x4 on x3.d=x4.a) 
+         on x2.d=x3.a) 
+      on x2.c is null or x1.a=x4.d) 
+   on x0.d=x1.a;
+select count(*) from t1 as x0 
+   left join (t1 as x1 
+      join (t1 as x2 
+         left join (t1 as x3 
+            join t1 as x4 on x3.d=x4.a) 
+         on x2.d=x3.a) 
+      on x2.c is null or x1.a=x4.d) 
+   on x0.d=x1.a;
+
+drop table t1;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 
