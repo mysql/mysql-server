@@ -15141,6 +15141,18 @@ COND*
 ha_ndbcluster::cond_push(const COND *cond) 
 { 
   DBUG_ENTER("cond_push");
+
+  if (cond->used_tables() & ~table->map)
+  {
+    /**
+     * 'cond' refers fields from other tables, or other instances 
+     * of this table, -> reject it.
+     * (Optimizer need to have a better understanding of what is 
+     *  pushable by each handler.)
+     */
+    DBUG_EXECUTE("where",print_where((COND *)cond, "Rejected cond_push", QT_ORDINARY););
+    DBUG_RETURN(NULL);
+  }
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)
