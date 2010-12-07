@@ -36,15 +36,17 @@ Created July 18, 2007 Vasil Dimov
 #include <mysql/innodb_priv.h>
 
 extern "C" {
+#include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
-#include "buf0buddy.h" /* for i_s_cmpmem */
-#include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "buf0buddy.h"	/* for i_s_cmpmem */
+#include "buf0buf.h"	/* for buf_pool and PAGE_ZIP_MIN_SIZE */
+#include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
-#include "srv0start.h" /* for srv_was_started */
+#include "srv0start.h"	/* for srv_was_started */
 #include "trx0i_s.h"
-#include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "trx0trx.h"	/* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "srv0mon.h"
 }
 
@@ -2126,8 +2128,7 @@ i_s_metrics_fill_table(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
 	i_s_metrics_fill(thd, tables->table);
@@ -2219,10 +2220,9 @@ i_s_common_deinit(
 
 	DBUG_RETURN(0);
 }
-#if 0
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
-static ST_FIELD_INFO    innodb_sys_tables_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 {
 #define SYS_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -2316,7 +2316,7 @@ i_s_sys_tables_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
@@ -2325,13 +2325,12 @@ i_s_sys_tables_fill_table(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&(dict_sys->mutex));
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&(dict_sys->mutex));
+	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
 
@@ -2384,18 +2383,18 @@ static
 int
 innodb_sys_tables_init(
 /*===================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*	p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_tables_init");
+	DBUG_ENTER("innodb_sys_tables_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_tables_fields_info;
-        schema->fill_table = i_s_sys_tables_fill_table;
+	schema->fields_info = innodb_sys_tables_fields_info;
+	schema->fill_table = i_s_sys_tables_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
@@ -2448,7 +2447,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
-static ST_FIELD_INFO    innodb_sys_tablestats_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 {
 #define SYS_TABLESTATS_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -2522,8 +2521,8 @@ static ST_FIELD_INFO    innodb_sys_tablestats_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLESTATS_MYSQL_OPEN_HANDLE	8
-	{STRUCT_FLD(field_name,		"MYSQL_HANDLES_OPENED"),
+#define SYS_TABLESTATS_TABLE_REF_COUNT	8
+	{STRUCT_FLD(field_name,		"REF_COUNT"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -2577,8 +2576,8 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 
-	OK(fields[SYS_TABLESTATS_MYSQL_OPEN_HANDLE]->store(
-		table->n_mysql_handles_opened));
+	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(
+		table->n_ref_count));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -2597,7 +2596,7 @@ i_s_sys_tables_fill_table_stats(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
@@ -2606,13 +2605,12 @@ i_s_sys_tables_fill_table_stats(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLES);
 
@@ -2659,18 +2657,18 @@ static
 int
 innodb_sys_tablestats_init(
 /*=======================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*	p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_tablestats_init");
+	DBUG_ENTER("innodb_sys_tablestats_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_tablestats_fields_info;
-        schema->fill_table = i_s_sys_tables_fill_table_stats;
+	schema->fields_info = innodb_sys_tablestats_fields_info;
+	schema->fill_table = i_s_sys_tables_fill_table_stats;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
@@ -2723,7 +2721,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
-static ST_FIELD_INFO    innodb_sysindex_fields_info[] =
+static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 {
 #define SYS_INDEX_ID		0
 	{STRUCT_FLD(field_name,		"INDEX_ID"),
@@ -2841,7 +2839,7 @@ i_s_sys_indexes_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t		pcur;
+	btr_pcur_t		pcur;
 	const rec_t*		rec;
 	mem_heap_t*		heap;
 	mtr_t			mtr;
@@ -2850,13 +2848,12 @@ i_s_sys_indexes_fill_table(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	/* Start scan the SYS_INDEXES table */
 	rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
@@ -2905,18 +2902,18 @@ static
 int
 innodb_sys_indexes_init(
 /*====================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*	p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_index_init");
+	DBUG_ENTER("innodb_sys_index_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sysindex_fields_info;
-        schema->fill_table = i_s_sys_indexes_fill_table;
+	schema->fields_info = innodb_sysindex_fields_info;
+	schema->fill_table = i_s_sys_indexes_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
@@ -2969,7 +2966,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
-static ST_FIELD_INFO    innodb_sys_columns_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
 {
 #define SYS_COLUMN_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -3077,7 +3074,7 @@ i_s_sys_columns_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	const char*	col_name;
 	mem_heap_t*	heap;
@@ -3087,13 +3084,12 @@ i_s_sys_columns_fill_table(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_COLUMNS);
 
@@ -3141,18 +3137,18 @@ static
 int
 innodb_sys_columns_init(
 /*====================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*	p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_columns_init");
+	DBUG_ENTER("innodb_sys_columns_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_columns_fields_info;
-        schema->fill_table = i_s_sys_columns_fill_table;
+	schema->fields_info = innodb_sys_columns_fields_info;
+	schema->fill_table = i_s_sys_columns_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
@@ -3204,7 +3200,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
 	STRUCT_FLD(__reserved1, NULL)
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
-static ST_FIELD_INFO    innodb_sys_fields_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
 {
 #define SYS_FIELD_INDEX_ID	0
 	{STRUCT_FLD(field_name,		"INDEX_ID"),
@@ -3279,7 +3275,7 @@ i_s_sys_fields_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	index_id_t	last_id;
@@ -3290,12 +3286,12 @@ i_s_sys_fields_fill_table(
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	/* will save last index id so that we know whether we move to
 	the next index. This is used to calculate prefix length */
@@ -3348,18 +3344,18 @@ static
 int
 innodb_sys_fields_init(
 /*===================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*   p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_field_init");
+	DBUG_ENTER("innodb_sys_field_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_fields_fields_info;
-        schema->fill_table = i_s_sys_fields_fill_table;
+	schema->fields_info = innodb_sys_fields_fields_info;
+	schema->fill_table = i_s_sys_fields_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
@@ -3412,7 +3408,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
-static ST_FIELD_INFO    innodb_sys_foreign_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
 {
 #define SYS_FOREIGN_ID		0
 	{STRUCT_FLD(field_name,		"ID"),
@@ -3509,7 +3505,7 @@ i_s_sys_foreign_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
@@ -3519,12 +3515,12 @@ i_s_sys_foreign_fill_table(
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
 
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_FOREIGN);
 
@@ -3569,18 +3565,18 @@ static
 int
 innodb_sys_foreign_init(
 /*====================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*   p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_foreign_init");
+	DBUG_ENTER("innodb_sys_foreign_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_foreign_fields_info;
-        schema->fill_table = i_s_sys_foreign_fill_table;
+	schema->fields_info = innodb_sys_foreign_fields_info;
+	schema->fill_table = i_s_sys_foreign_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
@@ -3632,7 +3628,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
 	STRUCT_FLD(__reserved1, NULL)
 };
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
-static ST_FIELD_INFO    innodb_sys_foreign_cols_fields_info[] =
+static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
 {
 #define SYS_FOREIGN_COL_ID		0
 	{STRUCT_FLD(field_name,		"ID"),
@@ -3720,7 +3716,7 @@ i_s_sys_foreign_cols_fill_table(
 	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
 	Item*		)	/*!< in: condition (not used) */
 {
-        btr_pcur_t	pcur;
+	btr_pcur_t	pcur;
 	const rec_t*	rec;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
@@ -3729,12 +3725,12 @@ i_s_sys_foreign_cols_fill_table(
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
-                DBUG_RETURN(0);
+		DBUG_RETURN(0);
 	}
 
-        heap = mem_heap_create(1000);
-        mutex_enter(&dict_sys->mutex);
-        mtr_start(&mtr);
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
 
 	rec = dict_startscan_system(&pcur, &mtr, SYS_FOREIGN_COLS);
 
@@ -3783,18 +3779,18 @@ static
 int
 innodb_sys_foreign_cols_init(
 /*========================*/
-        void*   p)	/*!< in/out: table schema object */
+	void*	p)	/*!< in/out: table schema object */
 {
-        ST_SCHEMA_TABLE*        schema;
+	ST_SCHEMA_TABLE*	schema;
 
-        DBUG_ENTER("innodb_sys_foreign_cols_init");
+	DBUG_ENTER("innodb_sys_foreign_cols_init");
 
-        schema = (ST_SCHEMA_TABLE*) p;
+	schema = (ST_SCHEMA_TABLE*) p;
 
-        schema->fields_info = innodb_sys_foreign_cols_fields_info;
-        schema->fill_table = i_s_sys_foreign_cols_fill_table;
+	schema->fields_info = innodb_sys_foreign_cols_fields_info;
+	schema->fill_table = i_s_sys_foreign_cols_fill_table;
 
-        DBUG_RETURN(0);
+	DBUG_RETURN(0);
 }
 
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
@@ -3846,4 +3842,3 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-#endif

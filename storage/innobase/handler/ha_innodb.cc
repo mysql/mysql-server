@@ -7423,7 +7423,7 @@ ha_innobase::create(
 				" table where referencing columns appear"
 				" as the first columns.\n", norm_name);
 			break;
-                }
+		}
 
 		error = convert_error_code_to_mysql(error, flags, NULL);
 
@@ -11809,9 +11809,9 @@ innodb_enable_monitor_at_startup(
 
 		/* The name is validated if ret == 0 */
 		if (!ret) {
-                        innodb_monitor_update(NULL, NULL, &option,
-                                              MONITOR_TURN_ON);
-                } else {
+			innodb_monitor_update(NULL, NULL, &option,
+					      MONITOR_TURN_ON);
+		} else {
 			sql_print_warning("Invalid monitor counter"
 					  " name: '%s'", option);
 		}
@@ -12340,7 +12340,14 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
-i_s_innodb_metrics
+i_s_innodb_metrics,
+i_s_innodb_sys_tables,
+i_s_innodb_sys_tablestats,
+i_s_innodb_sys_indexes,
+i_s_innodb_sys_columns,
+i_s_innodb_sys_fields,
+i_s_innodb_sys_foreign,
+i_s_innodb_sys_foreign_cols
 
 mysql_declare_plugin_end;
 
