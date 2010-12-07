@@ -245,7 +245,7 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     return result;
 }
 
-int brtloader_fi_close (struct file_infos *fi, FIDX idx)
+int brtloader_fi_close (struct file_infos *fi, FIDX idx, BOOL require_open)
 {
     int result = 0;
     { 
@@ -261,7 +261,7 @@ int brtloader_fi_close (struct file_infos *fi, FIDX idx)
         if (r)
             result = errno;
         cleanup_big_buffer(&fi->file_infos[idx.idx]);
-    } else 
+    } else if (require_open)
         result = EINVAL;
     { 
         int r = toku_pthread_mutex_unlock(&fi->lock); 
@@ -297,7 +297,7 @@ brtloader_fi_close_all(struct file_infos *fi) {
     for (int i = 0; i < fi->n_files; i++) {
 	int r;
         FIDX idx = { i };
-        r = brtloader_fi_close(fi, idx);
+        r = brtloader_fi_close(fi, idx, FALSE);  // ignore files that are already closed
 	if (rval == 0 && r)
 	    rval = r;  // capture first error
     }
@@ -1576,7 +1576,7 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
                 // write the sorted rowset into a new temp file
                 if (fs->have_sorted_output) {
                     fs->have_sorted_output = FALSE;
-                    result = brtloader_fi_close(&bl->file_infos, fs->sorted_output);
+                    result = brtloader_fi_close(&bl->file_infos, fs->sorted_output, TRUE);
                 }
                 if (result == 0) {
                     FIDX sfile = FIDX_NULL;
@@ -1940,7 +1940,7 @@ int merge_files (struct merge_fileset *fs,
 	    for (int i=0; i<n_to_merge; i++) {
 		if (!fidx_is_null(data_fidxs[i])) {
 		    {
-			int r = brtloader_fi_close(&bl->file_infos, data_fidxs[i]);
+			int r = brtloader_fi_close(&bl->file_infos, data_fidxs[i], TRUE);
 			if (r!=0 && result==0) result = r;
 		    }
 		    {
@@ -1953,7 +1953,7 @@ int merge_files (struct merge_fileset *fs,
 
 	    fs->n_temp_files -= n_to_merge;
 	    if (!to_queue && !fidx_is_null(merged_data)) {
-		int r = brtloader_fi_close(&bl->file_infos, merged_data);
+		int r = brtloader_fi_close(&bl->file_infos, merged_data, TRUE);
 		if (r!=0 && result==0) result = r;
 	    }
 	    toku_free(data_fidxs);
@@ -3277,7 +3277,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 	    result = brt_loader_get_error(&bl->error_callback);
 
 	// Now set things up for the next iteration.
-	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r;
+	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx, TRUE); if (r != 0 && result == 0) result = r;
 	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    if (r != 0 && result == 0) result = r;
 	pivots_fidx = next_pivots_file;
 	toku_free(sts->subtrees); sts->subtrees = NULL;
@@ -3287,7 +3287,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         if (result)
             break;
     }
-    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r; }
+    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx, TRUE); if (r != 0 && result == 0) result = r; }
     { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r; }
     return result;
 }

@@ -191,7 +191,7 @@ static void test_read_write_rows (char *template) {
     if (actual_size != dataoff) fprintf(stderr, "actual_size=%"PRIu64", dataoff=%"PRIu64"\n", actual_size, dataoff);
     assert(actual_size == dataoff);
 
-    r = brtloader_fi_close(&bl.file_infos, file);
+    r = brtloader_fi_close(&bl.file_infos, file, TRUE);
     CKERR(r);
 
     r = brtloader_fi_reopen(&bl.file_infos, file, "r");
@@ -213,7 +213,7 @@ static void test_read_write_rows (char *template) {
 	toku_free(key.data);
 	toku_free(val.data);
     }
-    r = brtloader_fi_close(&bl.file_infos, file);
+    r = brtloader_fi_close(&bl.file_infos, file, TRUE);
     CKERR(r);
 
     r = brtloader_fi_unlink(&bl.file_infos, file);
