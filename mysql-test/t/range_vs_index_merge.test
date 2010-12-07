@@ -935,3 +935,71 @@ SELECT f5 FROM t1
 
 DROP TABLE t1;
  
+#
+# Bug #685952: An invalid index merge union plan
+#
+
+CREATE TABLE t1 (
+  f1 int, f2 int, f3 int, f4 int,
+  PRIMARY KEY (f1), KEY (f3), KEY (f4)
+);
+
+INSERT INTO t1 VALUES (9,0,2,6), (9930,0,0,NULL);
+
+SET SESSION optimizer_switch='index_merge_intersection=off';
+SET SESSION optimizer_switch='index_merge_sort_union=off';
+
+SET SESSION optimizer_switch='index_merge_union=off';
+
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SET SESSION optimizer_switch='index_merge_union=on';
+
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+
+INSERT INTO t1 VALUES 
+  (93,0,3,6), (9933,0,3,3), (94,0,4,6), (9934,0,4,4),
+  (95,0,5,6), (9935,0,5,5), (96,0,6,6), (9936,0,6,6),
+  (97,0,7,6), (9937,0,7,7), (98,0,8,6), (9938,0,8,8),
+  (99,0,9,6), (9939,0,9,9);
+
+SET SESSION optimizer_switch='index_merge_union=off';
+
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SET SESSION optimizer_switch='index_merge_union=on';
+
+EXPLAIN
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
+  WHERE ( f3 = 1 OR f1 = 7 ) AND f1 < 10
+        OR f3 BETWEEN 2 AND 2 AND ( f3 = 1 OR f4 != 1 );
+
+SET SESSION optimizer_switch=DEFAULT;
+
+DROP TABLE t1;

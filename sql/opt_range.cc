@@ -1081,6 +1081,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
                                         bool is_first_check_pass,
                                         bool *is_last_check_pass)
 {
+  bool was_ored= FALSE;
   *is_last_check_pass= TRUE;
   SEL_TREE** or_tree = trees;
   for (uint i= 0; i < n_trees; i++, or_tree++)
@@ -1137,9 +1138,11 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
       *or_tree= result;
       if (is_first_check_pass)
         return 0;
+      else
+        was_ored= TRUE;
     }
   }
-  if (!is_first_check_pass)
+  if (was_ored)
     return 0;
 
   if (!*is_last_check_pass && 
