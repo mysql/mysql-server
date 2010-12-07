@@ -312,11 +312,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (BNL, incremental buffers)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -332,11 +332,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (BNL, incremental buffers)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (BNL, incremental buffers)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -688,8 +688,8 @@ a1	a2	b1	b2	c1	c2
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -1333,14 +1333,14 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tt1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
 #
@@ -1359,8 +1359,8 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 TA1
 RIGHT JOIN t2 TA2 JOIN t2 TA3 ON TA2.f1 ON TA3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TA2	ALL	NULL	NULL	NULL	NULL	20	Using where
-1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, regular buffers)
-1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (BNL, incremental buffers)
+1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 DROP TABLE t1, t2;
 #
 # Bug#48971 Segfault in add_found_match_trig_cond () at sql_select.cc:5990
@@ -1377,11 +1377,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
 EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
@@ -1394,14 +1394,44 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
-1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
+#
+# Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+#
+CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY (f1, f2));
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (7, 7);
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	1	Using index
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+f1	f1	f2
+4	NULL	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using filesort
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	1	Using where; Using index
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+f1	f1	f2
+DROP TABLE t1,t2;
 End of 5.1 tests
 #
 # Bug#54235 Extra rows with join_cache_level=4,6,8 and two LEFT JOIN
@@ -1415,8 +1445,8 @@ explain SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
 SELECT t1.a FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a)
 ON 0 WHERE t1.a OR t3.a;
 a
@@ -1425,9 +1455,9 @@ explain SELECT t1.a FROM t1 LEFT JOIN
 ON 0 WHERE t1.a OR t4.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (BNL, incremental buffers)
 SELECT t1.a FROM t1 LEFT JOIN
 (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a)
 ON 0 WHERE t1.a OR t4.a;

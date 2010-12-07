@@ -205,7 +205,7 @@ typedef struct st_lex_server_options
 */
 typedef struct st_lex_master_info
 {
-  char *host, *user, *password, *log_file_name;
+  char *host, *user, *password, *log_file_name, *bind_addr;
   uint port, connect_retry;
   float heartbeat_period;
   int sql_delay;
@@ -2289,22 +2289,6 @@ struct LEX: public Query_tables_list
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
-
-  /*
-    Special case for SELECT .. FOR UPDATE and LOCK TABLES .. WRITE.
-
-    Protect from a impending GRL as otherwise the thread might deadlock
-    if it starts waiting for the GRL in mysql_lock_tables.
-
-    The protection is needed because there is a race between setting
-    the global read lock and waiting for all open tables to be closed.
-    The problem is a circular wait where a thread holding "old" open
-    tables will wait for the global read lock to be released while the
-    thread holding the global read lock will wait for all "old" open
-    tables to be closed -- the flush part of flush tables with read
-    lock.
-  */
-  bool protect_against_global_read_lock;
 
   LEX();
 

@@ -244,9 +244,6 @@ INSERT INTO global_suppressions VALUES
   */
  ("Found lock of type 6 that is write and read locked"),
 
- /* After BUG#57840, we may restart master w/o restarting slave */
- ("The master.s UUID has changed, although this should not happen"),
-
  ("THE_LAST_SUPPRESSION")||
 
 

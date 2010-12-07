@@ -2,7 +2,7 @@ set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
 optimizer_join_cache_level	6
-set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
+set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -1236,7 +1236,7 @@ create table t1 (id int not null auto_increment primary key, salary int, key(sal
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using index condition
+1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`salary` = (select max(`test`.`t1`.`salary`) from `test`.`t1`))
@@ -6138,6 +6138,18 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
 DROP TABLE t2;
 DROP TABLE t1;
+#
+# Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
+#             Assertion `file' failed.
+#
+CREATE TABLE t1 (a INT);
+SELECT 1 FROM 
+(SELECT ROW(
+(SELECT 1 FROM t1 RIGHT JOIN 
+(SELECT 1 FROM t1, t1 t2) AS d ON 1),
+1) FROM t1) AS e;
+ERROR 21000: Operand should contain 1 column(s)
+DROP TABLE t1;
 End of 5.5 tests.
 #
 # BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
@@ -6294,6 +6306,3 @@ pk
 drop table t1;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

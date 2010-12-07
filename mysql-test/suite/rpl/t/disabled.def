@@ -10,9 +10,9 @@
 #
 ##############################################################################
 
-rpl_change_master         : Bug#58160 2010-11-12 alik Incorrect behaviour of rpl_chage_master
 rpl_row_create_table      : Bug#51574 2010-02-27 andrei failed different way than earlier with bug#45576
 rpl_spec_variables        : BUG#47661 2009-10-27 jasonh rpl_spec_variables fails on PB2 hpux
 rpl_row_event_max_size    : Bug#55675 2010-10-25 andrei mysql_binlog_send attempts to read events partly
 rpl_delayed_slave         : Bug#57514 2010-11-09 andrei rpl_delayed_slave fails sporadically in pb
 rpl_log_pos               : BUG#55675 2010-09-10 alfranio rpl.rpl_log_pos fails sporadically with error binlog truncated in the middle
+rpl_trigger               : BUG#58258 2010-11-17 VasilDimov Valgrind: possibly lost from ib_bh_create()

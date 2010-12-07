@@ -312,14 +312,20 @@ insert into t1 values(1),(2);
 insert into t2 values(2),(3);
 insert into t3 values (2),(4);
 
+--sorted_result
 select * from t1 natural left join t2;
+--sorted_result
 select * from t1 left join t2 on (t1.i=t2.i);
+--sorted_result
 select * from t1 natural left join t2 natural left join t3;
+--sorted_result
 select * from t1 left join t2 on (t1.i=t2.i) left join t3 on (t2.i=t3.i);
 
 select * from t3 natural right join t2;
 select * from t3 right join t2 on (t3.i=t2.i);
+--sorted_result
 select * from t3 natural right join t2 natural right join t1;
+--sorted_result
 select * from t3 right join t2 on (t3.i=t2.i) right join t1 on (t2.i=t1.i);
 
 select * from t1,t2 natural left join t3 order by t1.i,t2.i,t3.i;
@@ -419,9 +425,13 @@ select * from v2a natural join v3a;
 
 # Nested natural/using joins.
 select * from (t1 natural join t2) natural join (t3 natural join t4);
+--sorted_result
 select * from (t1 natural join t2) natural left join (t3 natural join t4);
+--sorted_result
 select * from (t3 natural join t4) natural right join (t1 natural join t2);
+--sorted_result
 select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
+--sorted_result
 select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
 select * from t1 natural join t2 natural join t3 natural join t4;
 select * from ((t1 natural join t2) natural join t3) natural join t4;
@@ -481,9 +491,11 @@ select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural
 select * from (select * from t1 natural join t2) as t12
               natural join
               (select * from t3 natural join t4) as t34;
+--sorted_result
 select * from (select * from t1 natural join t2) as t12
               natural left join
               (select * from t3 natural join t4) as t34;
+--sorted_result
 select * from (select * from t3 natural join t4) as t34
               natural right join
               (select * from t1 natural join t2) as t12;

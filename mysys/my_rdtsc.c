@@ -868,14 +868,8 @@ void my_timer_init(MY_TIMER_INFO *mti)
 
    clock() -- We don't use because it would overflow frequently.
 
-   clock_gettime() -- Often we don't use this even when it exists.
-   In configure.in, we use AC_CHECK_FUNCS(clock_gettime). Not
-   AC_CHECK_LIB(rc,clock_gettime)
-   AC_CHECK_FUNCS(clock_gettime)
-   If we had the above lines in configure.in, we'd have to use
-   /usr/lib/librt.so or /usr/lib64/librt.so when linking, and
-   the size of librt.so is 40KB. In tests, clock_gettime often
-   had resolution = 1000.
+   clock_gettime() -- In tests, clock_gettime often had
+   resolution = 1000.
 
    ftime() -- A "man ftime" says: "This function is obsolete.
    Don't use it." On every platform that we tested, if ftime()

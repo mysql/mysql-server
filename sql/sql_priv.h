@@ -140,6 +140,12 @@
 */
 #define OPTION_MASTER_SQL_ERROR (1ULL << 35)
 
+/*
+  Dont report errors for individual rows,
+  But just report error on commit (or read ofcourse)
+  Note! Reserved for use in MySQL Cluster
+*/
+#define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
@@ -150,47 +156,52 @@
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION    (1ULL << 2)
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
-#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 5)
-#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 6)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
-#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 8)
+#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 5)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 6)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 7)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 8)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 9)
 /** If this is off, MRR is never used. */
-#define OPTIMIZER_SWITCH_MRR                       (1ULL << 9)
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 10)
 /**
    If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
    cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
    off, MRR is "forced" (i.e. used as long as the storage engine is capable of
    doing it).
 */
-#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 10)
-#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 11)
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 11)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
-   optimizer features (semijoin, MRR, ICP) will be available.
+   optimizer features (semijoin, MRR) will be available.
  */
 #undef OPTIMIZER_SWITCH_ALL
 
-/* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
+/* 
+  The following must be kept in sync with optimizer_switch string in 
+  sys_vars.cc.
+*/
 #ifdef OPTIMIZER_SWITCH_ALL
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED)
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
 #endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

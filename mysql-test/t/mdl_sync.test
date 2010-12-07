@@ -3661,7 +3661,7 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
@@ -3689,15 +3689,22 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
 connection default;
+--echo # Once FLUSH TABLES WITH READ LOCK starts waiting
+--echo # DROP PROCEDURE will be waked up and will drop
+--echo # procedure. Global read lock will be granted after
+--echo # this statement ends.
+--echo #
+--echo # Reaping DROP PROCEDURE.
 --reap
 
 --echo # Connection 2
 connection con2;
+--echo # Reaping FTWRL.
 --reap
 UNLOCK TABLES;
 
@@ -4485,7 +4492,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for release of readlock'
+  WHERE state='Waiting for global read lock'
   AND info='CREATE TABLE db1.t2(a INT)';
 --source include/wait_condition.inc
 UNLOCK TABLES;
@@ -4507,7 +4514,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for release of readlock'
+  WHERE state='Waiting for global read lock'
   AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
 --source include/wait_condition.inc
 UNLOCK TABLES;

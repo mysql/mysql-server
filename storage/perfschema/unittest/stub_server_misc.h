@@ -17,6 +17,8 @@
   Minimal code to be able to link a unit test.
 */
 
+volatile bool ready_to_exit= false;
+
 uint lower_case_table_names= 0;
 CHARSET_INFO *files_charset_info= NULL;
 

@@ -304,8 +304,8 @@ mv $DEST/bin/mysql_install_db $DEST/scripts/
 
 # Copy readme and license files
 cp README Docs/INSTALL-BINARY  $DEST/
-if [ -f COPYING -a -f EXCEPTIONS-CLIENT ] ; then
-  cp COPYING EXCEPTIONS-CLIENT $DEST/
+if [ -f COPYING ] ; then
+  cp COPYING $DEST/
 elif [ -f LICENSE.mysql ] ; then
   cp LICENSE.mysql $DEST/
 else

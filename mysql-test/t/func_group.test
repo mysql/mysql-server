@@ -140,6 +140,7 @@ select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
+--sorted_result
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
 select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;

@@ -615,15 +615,9 @@ PFS_mutex_class *find_mutex_class(PFS_sync_key key)
   FIND_CLASS_BODY(key, mutex_class_allocated_count, mutex_class_array);
 }
 
-#define SANITIZE_ARRAY_BODY(ARRAY, MAX, UNSAFE) \
-  if ((&ARRAY[0] <= UNSAFE) &&                  \
-      (UNSAFE < &ARRAY[MAX]))                   \
-    return UNSAFE;                              \
-  return NULL
-
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(mutex_class_array, mutex_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_mutex_class, mutex_class_array, mutex_class_max, unsafe);
 }
 
 /**
@@ -638,7 +632,7 @@ PFS_rwlock_class *find_rwlock_class(PFS_sync_key key)
 
 PFS_rwlock_class *sanitize_rwlock_class(PFS_rwlock_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(rwlock_class_array, rwlock_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_rwlock_class, rwlock_class_array, rwlock_class_max, unsafe);
 }
 
 /**
@@ -653,7 +647,7 @@ PFS_cond_class *find_cond_class(PFS_sync_key key)
 
 PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(cond_class_array, cond_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_cond_class, cond_class_array, cond_class_max, unsafe);
 }
 
 /**
@@ -708,7 +702,7 @@ PFS_thread_class *find_thread_class(PFS_sync_key key)
 
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(thread_class_array, thread_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_thread_class, thread_class_array, thread_class_max, unsafe);
 }
 
 /**
@@ -757,7 +751,7 @@ PFS_file_class *find_file_class(PFS_file_key key)
 
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(file_class_array, file_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
 }
 
 PFS_instr_class *find_table_class(uint index)
@@ -862,7 +856,7 @@ search:
   {
     PFS_table_share *pfs;
     pfs= *entry;
-    pfs->m_refcount++ ;
+    pfs->inc_refcount() ;
     if (compare_keys(pfs, share) != 0)
     {
       set_keys(pfs, share);
@@ -913,7 +907,7 @@ search:
           pfs->m_table_name_length= table_name_length;
           pfs->m_enabled= enabled;
           pfs->m_timed= timed;
-          pfs->m_refcount= 1;
+          pfs->init_refcount();
           pfs->m_table_stat.reset();
           set_keys(pfs, share);
 
@@ -953,8 +947,8 @@ search:
 
 void release_table_share(PFS_table_share *pfs)
 {
-  DBUG_ASSERT(pfs->m_refcount > 0);
-  pfs->m_refcount--;
+  DBUG_ASSERT(pfs->get_refcount() > 0);
+  pfs->dec_refcount();
 }
 
 /**
@@ -965,7 +959,7 @@ void release_table_share(PFS_table_share *pfs)
 */
 void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
 {
-  if (pfs->m_refcount == 1)
+  if (pfs->get_refcount() == 1)
   {
     LF_PINS* pins= get_table_share_hash_pins(thread);
     if (likely(pins != NULL))
@@ -1016,7 +1010,59 @@ void drop_table_share(PFS_thread *thread,
 */
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
-  SANITIZE_ARRAY_BODY(table_share_array, table_share_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_table_share, table_share_array, table_share_max, unsafe);
+}
+
+const char *sanitize_table_schema_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &table_share_array[0];
+  intptr last= (intptr) &table_share_array[table_share_max];
+
+  PFS_table_share dummy;
+
+  /* Check if unsafe points inside table_share_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    intptr offset= (ptr - first) % sizeof(PFS_table_share);
+    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
+    intptr len= sizeof(dummy.m_key.m_hash_key);
+    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
+    if (likely((from <= offset) && (offset < from + len)))
+    {
+      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
+      /* Check if unsafe really is the schema name */
+      if (likely(base->m_schema_name == unsafe))
+        return unsafe;
+    }
+  }
+  return NULL;
+}
+
+const char *sanitize_table_object_name(const char *unsafe)
+{
+  intptr ptr= (intptr) unsafe;
+  intptr first= (intptr) &table_share_array[0];
+  intptr last= (intptr) &table_share_array[table_share_max];
+
+  PFS_table_share dummy;
+
+  /* Check if unsafe points inside table_share_array[] */
+  if (likely((first <= ptr) && (ptr < last)))
+  {
+    intptr offset= (ptr - first) % sizeof(PFS_table_share);
+    intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
+    intptr len= sizeof(dummy.m_key.m_hash_key);
+    /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
+    if (likely((from <= offset) && (offset < from + len)))
+    {
+      PFS_table_share *base= (PFS_table_share*) (ptr - offset);
+      /* Check if unsafe really is the table name */
+      if (likely(base->m_table_name == unsafe))
+        return unsafe;
+    }
+  }
+  return NULL;
 }
 
 /** Reset the io statistics per file class. */

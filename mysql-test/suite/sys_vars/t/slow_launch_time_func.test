@@ -84,7 +84,7 @@ let $value_before=
 CONNECT (conn2,localhost,root,,);
 let $value_after=
    query_get_value(show status like 'slow_launch_threads', Value, 1);
-if (!`SELECT $value_after = $value_before`)
+if ($value_after != $value_before)
 {
    --echo ERROR: Subtest FN_DYNVARS_124_02 failed
    --echo A new connect must not be counted as 'slow_launch_thread' if

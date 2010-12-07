@@ -39,36 +39,63 @@
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
 
-typedef struct keyuse_t {
-  TABLE *table;
-  Item	*val;				/**< or value if no field */
-  table_map used_tables;
-  uint	key, keypart;
-  uint optimize; // 0, or KEY_OPTIMIZE_*
-  key_part_map keypart_map;
-  ha_rows      ref_table_rows;
+/**
+  Information about usage of an index to satisfy an equality condition.
+
+  @note such objects are stored in DYNAMIC_ARRAY which uses sizeof(), so keep
+  this class as POD as possible.
+*/
+class Key_use {
+public:
+  Key_use(TABLE *table_arg, Item *val_arg, table_map used_tables_arg,
+          uint key_arg, uint keypart_arg, uint optimize_arg,
+          key_part_map keypart_map_arg, ha_rows ref_table_rows_arg,
+          bool null_rejecting_arg, bool *cond_guard_arg,
+          uint sj_pred_no_arg) :
+  table(table_arg), val(val_arg), used_tables(used_tables_arg),
+  key(key_arg), keypart(keypart_arg), optimize(optimize_arg),
+  keypart_map(keypart_map_arg), ref_table_rows(ref_table_rows_arg),
+  null_rejecting(null_rejecting_arg), cond_guard(cond_guard_arg),
+  sj_pred_no(sj_pred_no_arg)
+  {}
+  TABLE *table;            ///< table owning the index
+  Item	*val;              ///< other side of the equality, or value if no field
+  table_map used_tables;   ///< tables used on other side of equality
+  uint key;                ///< number of index
+  uint keypart;            ///< used part of the index
+  uint optimize;           ///< 0, or KEY_OPTIMIZE_*
+  key_part_map keypart_map;       ///< like keypart, but as a bitmap
+  ha_rows      ref_table_rows;    ///< Estimate of how many rows for a key value
   /**
     If true, the comparison this value was created from will not be
     satisfied if val has NULL 'value'.
+    Not used if the index is fulltext (such index cannot be used for
+    equalities).
   */
   bool null_rejecting;
-  /*
-    !NULL - This KEYUSE was created from an equality that was wrapped into
-            an Item_func_trig_cond. This means the equality (and validity of 
-            this KEYUSE element) can be turned on and off. The on/off state 
+  /**
+    !NULL - This Key_use was created from an equality that was wrapped into
+            an Item_func_trig_cond. This means the equality (and validity of
+            this Key_use element) can be turned on and off. The on/off state
             is indicted by the pointed value:
               *cond_guard == TRUE <=> equality condition is on
               *cond_guard == FALSE <=> equality condition is off
 
     NULL  - Otherwise (the source equality can't be turned off)
+
+    Not used if the index is fulltext (such index cannot be used for
+    equalities).
   */
   bool *cond_guard;
-  /*
+  /**
      0..64    <=> This was created from semi-join IN-equality # sj_pred_no.
      MAX_UINT  Otherwise
+
+     Not used if the index is fulltext (such index cannot be used for
+     semijoin).
   */
   uint         sj_pred_no;
-} KEYUSE;
+};
 
 class store_key;
 
@@ -208,7 +235,7 @@ typedef struct st_join_table : public Sql_alloc
   st_join_table();
 
   TABLE		*table;
-  KEYUSE	*keyuse;			/**< pointer to first used key */
+  Key_use	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
   Item		*select_cond;
   QUICK_SELECT_I *quick;
@@ -1409,7 +1436,7 @@ typedef struct st_position : public Sql_alloc
     NULL  -  'index' or 'range' or 'index_merge' or 'ALL' access is used.
     Other - [eq_]ref[_or_null] access is used. Pointer to {t.keypart1 = expr}
   */
-  KEYUSE *key;
+  Key_use *key;
 
   /* If ref-based access is used: bitmap of tables this table depends on  */
   table_map ref_depend_map;
@@ -2043,7 +2070,7 @@ public:
     enum store_key_result result;
     THD *thd= to_field->table->in_use;
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
-    ulonglong sql_mode= thd->variables.sql_mode;
+    sql_mode_t sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;

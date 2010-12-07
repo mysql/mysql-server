@@ -54,3 +54,4 @@ os_fast_mutex_trylock(
 	return((ulint) pthread_mutex_trylock(fast_mutex));
 #endif
 }
+
