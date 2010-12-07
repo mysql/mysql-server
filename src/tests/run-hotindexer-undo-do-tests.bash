@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+# $Id$
 # run a sequence of hotindexer undo tests.
 
 tests=""
@@ -7,7 +7,7 @@ verbose=0
 valgrind=""
 
 for arg in $* ; do 
-    if [[ $arg =~ "--(.*)=(.*)" ]] ; then
+    if [[ $arg =~ --(.*)=(.*) ]] ; then
 	eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
     else
 	tests="$tests $arg"
@@ -19,7 +19,7 @@ for t in $tests ; do
     testfile=`basename $t`
     testname=""
     resultfile=""
-    if [[ $testfile =~ "(.*)\.test$" ]] ; then
+    if [[ $testfile =~ (.*)\.test$ ]] ; then
 	testname=${BASH_REMATCH[1]}
         resultfile=$testname.result
     else
