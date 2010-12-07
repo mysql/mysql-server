@@ -32,6 +32,9 @@ int test_main (int argc, char * const argv[]) {
 
     r = env->txn_begin(env, NULL, &txnb, DB_TXN_SNAPSHOT);                                        CKERR(r);
     r = env->txn_begin(env, NULL, &txnc, DB_READ_COMMITTED);                                       CKERR(r);
+    r = db->cursor(db, txna, &c, 0); CKERR(r);
+    r = c->c_close(c); CKERR(r);
+    c = NULL;
     r = txna->commit(txna, 0);                                                      CKERR(r);
 
     r = db->cursor(db, txnb, &c, 0); assert(r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
