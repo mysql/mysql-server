@@ -1446,10 +1446,9 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
-  "index_condition_pushdown",
+  "index_condition_pushdown" , "mrr", "mrr_cost_based",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
-  "mrr", "mrr_cost_based",
 #endif
   "default", NullS
 };
@@ -1467,10 +1466,10 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, "
-       "index_condition_pushdown"
+       "index_condition_pushdown, mrr, mrr_cost_based"
 #ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, "
-       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based"
+       "semijoin, loosescan, firstmatch"
 #endif
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
