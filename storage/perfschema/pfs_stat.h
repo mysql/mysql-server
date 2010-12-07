@@ -222,6 +222,66 @@ struct PFS_table_stat
   }
 };
 
+/** Statistics for SOCKET usage. */
+struct PFS_socket_stat
+{
+  /** Number of current open sockets. */
+  ulong m_open_count;
+  /** Count of RECV operations. */
+  ulonglong m_count_recv;
+  /** Count of SEND operations. */
+  ulonglong m_count_send;
+  /** Number of bytes received. */
+  ulonglong m_recv_bytes;
+  /** Number of bytes sent. */
+  ulonglong m_send_bytes;
+
+  /** Reset socket statistics. */
+  inline void reset(void)
+  {
+    m_open_count= 0;
+    m_count_recv= 0;
+    m_count_send= 0;
+    m_count_recv_bytes= 0;
+    m_count_send_bytes= 0;
+  }
+
+  inline void aggregate(const PFS_file_io_stat *stat)
+  {
+    m_count_read+= stat->m_count_read;
+    m_count_write+= stat->m_count_write;
+    m_read_bytes+= stat->m_read_bytes;
+    m_write_bytes+= stat->m_write_bytes;
+  }
+
+  inline void aggregate_recv(ulonglong bytes)
+  {
+    m_count_recv++;
+    m_recv_bytes+= bytes;
+  }
+
+  inline void aggregate_send(ulonglong bytes)
+  {
+    m_count_send++;
+    m_send_bytes+= bytes;
+  }
+
+};
+
+/**
+  Reset socket statistic.
+  @param stat                         the statistics to reset
+*/
+inline void reset_socket_stat(PFS_socket_stat *stat)
+{
+  stat->m_open_count= 0;
+  stat->m_count_recv= 0;
+  stat->m_count_send= 0;
+  stat->m_recv_bytes= 0;
+  stat->m_send_bytes= 0;
+}
+
+
 /** @} */
 #endif
 

@@ -54,6 +54,12 @@
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
+#ifndef PFS_MAX_SOCKETS
+  #define PFS_MAX_SOCKETS 10000
+#endif
+#ifndef PFS_MAX_SOCKET_CLASS
+  #define PFS_MAX_SOCKET_CLASS 50
+#endif
 #ifndef PFS_MAX_TABLE_SHARE
   #define PFS_MAX_TABLE_SHARE 1000
 #endif
@@ -98,6 +104,8 @@ struct PFS_global_param
   ulong m_table_sizing;
   ulong m_file_sizing;
   ulong m_file_handle_sizing;
+  ulong m_socket_sizing;
+  ulong m_socket_class_sizing;
   ulong m_events_waits_history_sizing;
   ulong m_events_waits_history_long_sizing;
   ulong m_setup_actor_sizing;

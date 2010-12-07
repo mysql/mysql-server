@@ -39,3 +39,5 @@ LEX_STRING thread_instrument_prefix=
 LEX_STRING file_instrument_prefix=
 { C_STRING_WITH_LEN("wait/io/file/") };
 
+LEX_STRING socket_instrument_prefix=
+{ C_STRING_WITH_LEN("wait/io/socket/") };

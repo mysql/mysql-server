@@ -31,6 +31,7 @@ extern LEX_STRING rwlock_instrument_prefix;
 extern LEX_STRING cond_instrument_prefix;
 extern LEX_STRING thread_instrument_prefix;
 extern LEX_STRING file_instrument_prefix;
+extern LEX_STRING socket_instrument_prefix;
 
 #endif
 

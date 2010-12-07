@@ -27,7 +27,9 @@ struct PFS_cond_class;
 struct PFS_file_class;
 struct PFS_table_share;
 struct PFS_thread_class;
+struct PFS_socket_class;
 
+#include <netinet/in.h>
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
@@ -143,6 +145,25 @@ struct PFS_table
   PFS_table_stat m_table_stat;
 };
 
+/** Instrumented socket implementation. @see PSI_socket. */
+struct PFS_socket : public PFS_instr
+{
+  /** Socket identity, typically int */
+  const void *m_identity;
+  /** Socket file descriptor */
+  uint m_fd;
+  /** Socket ip address, IPV4 or IPV6 */
+  char m_ip[INET6_ADDRSTRLEN];
+  /** Socket ip address length in bytes */
+  uint m_ip_length;
+  /** Socket ip port */
+  uint m_port;
+  /** Socket class. */
+  PFS_socket_class *m_class;
+  /** Socket usage statistics. */
+  PFS_socket_stat m_socket_stat;
+};
+
 /**
   @def WAIT_STACK_SIZE
   Maximum number of nested waits.
@@ -176,7 +197,7 @@ public:
 
   void next_pass()
   { m_pass++; }
-  
+
   uint first() const
   { return m_first[m_pass]; }
 
@@ -307,6 +328,10 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
+PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
+void release_socket(PFS_socket *pfs);
+void destroy_socket(PFS_socket *pfs);
+
 /* For iterators and show status. */
 
 extern ulong mutex_max;
@@ -323,6 +348,8 @@ extern long file_handle_max;
 extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
+extern ulong socket_instances_max;
+extern ulong socket_instances_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong locker_lost;
 
@@ -335,6 +362,7 @@ extern PFS_thread *thread_array;
 extern PFS_file *file_array;
 extern PFS_file **file_handle_array;
 extern PFS_table *table_array;
+extern PFS_socket *socket_array;
 
 void reset_events_waits_by_instance();
 void reset_per_thread_wait_stat();

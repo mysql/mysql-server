@@ -30,6 +30,7 @@ struct PFS_cond;
 struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
+struct PFS_socket;
 struct PFS_instr_class;
 
 /** Class of a wait event. */
@@ -40,7 +41,8 @@ enum events_waits_class
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
-  WAIT_CLASS_FILE
+  WAIT_CLASS_FILE,
+  WAIT_CLASS_SOCKET
 };
 
 /** Target object a wait event is waiting on. */
@@ -56,6 +58,8 @@ union events_waits_target
   PFS_table *m_table;
   /** File waited on. */
   PFS_file *m_file;
+  /** Socket waited on. */
+  PFS_socket *m_socket;
 };
 
 /** A wait event record. */

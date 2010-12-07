@@ -83,6 +83,10 @@ ulong file_class_lost= 0;
 ulong table_share_max= 0;
 /** Number of table share lost. @sa table_share_array */
 ulong table_share_lost= 0;
+/** Size of the socket class array. @sa socket_class_array */
+ulong socket_class_max= 0;
+/** Number of socket class lost. @sa socket_class_array */
+ulong socket_class_lost= 0;
 
 static PFS_mutex_class *mutex_class_array= NULL;
 static PFS_rwlock_class *rwlock_class_array= NULL;
@@ -132,11 +136,17 @@ static volatile uint32 file_class_allocated_count= 0;
 
 static PFS_file_class *file_class_array= NULL;
 
+static volatile uint32 socket_class_dirty_count= 0;
+static volatile uint32 socket_class_allocated_count= 0;
+
+static PFS_socket_class *socket_class_array= NULL;
+
 uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
 uint cond_class_start= 0;
 uint file_class_start= 0;
 uint table_class_start= 0;
+uint socket_class_start= 0;
 uint max_instrument_class= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
@@ -146,7 +156,8 @@ void init_event_name_sizing(const PFS_global_param *param)
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
   table_class_start= file_class_start + param->m_file_class_sizing;
-  max_instrument_class= table_class_start + 1; /* global table io */
+  socket_class_start= table_class_start + param->m_table_class_sizing;
+  max_instrument_class= socket_class_start + 1; /* global table io */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -414,6 +425,39 @@ void cleanup_file_class(void)
   file_class_array= NULL;
   file_class_dirty_count= file_class_allocated_count= 0;
   file_class_max= 0;
+}
+
+/**
+  Initialize the socket class buffer.
+  @param socket_class_sizing            max number of socket class
+  @return 0 on success
+*/
+int init_socket_class(uint socket_class_sizing)
+{
+  int result= 0;
+  socket_class_dirty_count= socket_class_allocated_count= 0;
+  socket_class_max= socket_class_sizing;
+  socket_class_lost= 0;
+
+  if (socket_class_max > 0)
+  {
+    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class, MYF(MY_ZEROFILL));
+    if (unlikely(socket_class_array == NULL))
+      return 1;
+  }
+  else
+    socket_class_array= NULL;
+
+  return result;
+}
+
+/** Cleanup the socket class buffers. */
+void cleanup_socket_class(void)
+{
+  pfs_free(socket_class_array);
+  socket_class_array= NULL;
+  socket_class_dirty_count= socket_class_allocated_count= 0;
+  socket_class_max= 0;
 }
 
 static void init_instr_class(PFS_instr_class *klass,
@@ -752,6 +796,67 @@ PFS_file_class *find_file_class(PFS_file_key key)
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
+
+/**
+  Register a socket instrumentation metadata.
+  @param name                         the instrumented name
+  @param name_length                  length in bytes of name
+  @param flags                        the instrumentation flags
+  @return a socket instrumentation key
+*/
+PFS_socket_key register_socket_class(const char *name, uint name_length,
+                                     int flags)
+{
+  /* See comments in register_mutex_class */
+  uint32 index;
+  PFS_socket_class *entry;
+
+// TBD  REGISTER_CLASS_BODY_PART(index, socket_class_array, socket_class_max, name, name_length)
+
+  for (index= 0; index < socket_class_max; index++)
+  {
+    entry= &socket_class_array[index];
+    if ((entry->m_name_length == name_length) &&
+        (strncmp(entry->m_name, name, name_length) == 0))
+    {
+      DBUG_ASSERT(entry->m_flags == flags);
+      return (index + 1);
+    }
+  }
+
+  index= PFS_atomic::add_u32(&socket_class_dirty_count, 1);
+
+  if (index < socket_class_max)
+  {
+    entry= &socket_class_array[index];
+    init_instr_class(entry, name, name_length, flags);
+    entry->m_index= index;
+    entry->m_event_name_index= file_class_start + index;
+    entry->m_singleton- NULL;
+    PFS_atomic::add_u32(&socket_class_allocated_count, 1);
+    return (index + 1);
+  }
+
+  socket_class_lost++;
+  return 0;
+}
+
+/**
+  Find a socket instrumentation class by key.
+  @param key                          the instrument key
+  @return the instrument class, or NULL
+*/
+PFS_socket_class *find_socket_class(PFS_socket_key key)
+{
+//  FIND_CLASS_BODY(key, socket_class_allocated_count, socket_class_array);
+  if ((key == 0) || (key > socket_class_allocated_count))
+    return NULL;
+  return &socket_class_array[key - 1];
+}
+
+PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
+{
+  SANITIZE_ARRAY_BODY(socket_class_array, socket_class_max, unsafe);
 }
 
 PFS_instr_class *find_table_class(uint index)

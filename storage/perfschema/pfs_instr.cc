@@ -64,6 +64,10 @@ ulong file_handle_lost;
 ulong table_max;
 /** Number of table instances lost. @sa table_array */
 ulong table_lost;
+/** Size of the socket instances array. @sa socket_array */
+ulong socket_instances_max;
+/** Number of socket instances lost. @sa socket_array */
+ulong socket_instances_lost;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
 ulong events_waits_history_per_thread;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
@@ -119,6 +123,13 @@ PFS_file **file_handle_array= NULL;
 */
 PFS_table *table_array= NULL;
 
+/**
+  Socket instrumentation instances array.
+  @sa socket_instances_max
+  @sa socket_instances_lost
+*/
+PFS_socket *socket_array= NULL;
+
 PFS_single_stat *global_instr_class_waits_array= NULL;
 
 static volatile uint32 thread_internal_id_counter= 0;
@@ -164,6 +175,8 @@ int init_instruments(const PFS_global_param *param)
   table_lost= 0;
   thread_max= param->m_thread_sizing;
   thread_lost= 0;
+  socket_instances_max= param->m_socket_sizing;
+  socket_instances_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
   thread_history_sizing= param->m_thread_sizing
@@ -178,6 +191,7 @@ int init_instruments(const PFS_global_param *param)
   file_array= NULL;
   file_handle_array= NULL;
   table_array= NULL;
+  socket_array= NULL;
   thread_array= NULL;
   thread_history_array= NULL;
   thread_instr_class_waits_array= NULL;
@@ -222,6 +236,13 @@ int init_instruments(const PFS_global_param *param)
   {
     table_array= PFS_MALLOC_ARRAY(table_max, PFS_table, MYF(MY_ZEROFILL));
     if (unlikely(table_array == NULL))
+      return 1;
+  }
+
+  if (socket_instances_max > 0)
+  {
+    socket_array= PFS_MALLOC_ARRAY(socket_instances_max, PFS_socket, MYF(MY_ZEROFILL));
+    if (unlikely(socket_array == NULL))
       return 1;
   }
 
@@ -310,6 +331,9 @@ void cleanup_instruments(void)
   pfs_free(table_array);
   table_array= NULL;
   table_max= 0;
+  pfs_free(socket_array);
+  socket_array= NULL;
+  socket_instances_max= 0;
   pfs_free(thread_array);
   thread_array= NULL;
   thread_max= 0;
@@ -1045,6 +1069,65 @@ void destroy_table(PFS_table *pfs)
   pfs->m_lock.allocated_to_free();
 }
 
+/**
+  Create instrumentation for a socket instance.
+  @param klass                        the socket class
+  @param identity                     the socket address
+  @return a socket instance, or NULL
+*/
+PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
+{
+  PFS_scan scan;
+  uint random= randomized_index(identity, socket_instances_max);
+
+  for (scan.init(random, socket_instances_max);
+       scan.has_pass();
+       scan.next_pass())
+  {
+    PFS_socket *pfs= socket_array + scan.first();
+    PFS_socket *pfs_last= socket_array + scan.last();
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if (pfs->m_lock.is_free())
+      {
+        if (pfs->m_lock.free_to_dirty())
+        {
+          pfs->m_identity= identity;
+          pfs->m_class= klass;
+          pfs->m_wait_stat.reset();
+          // TBD socket_io_stat
+          pfs->m_lock.dirty_to_allocated();
+          return pfs;
+        }
+      }
+    }
+  }
+
+  socket_instances_lost++;
+  return NULL;
+}
+
+/**
+  Release instrumentation for a socket instance.
+  @param pfs                          the socket to release
+*/
+void release_socket(PFS_socket *pfs)
+{
+  DBUG_ASSERT(pfs != NULL);
+  pfs->m_socket_stat.m_open_count--;
+}
+
+/**
+  Destroy instrumentation for a socket instance.
+  @param pfs                          the socket to destroy
+*/
+void destroy_socket(PFS_socket *pfs)
+{
+  DBUG_ASSERT(pfs != NULL);
+  // TBD aggregate
+  pfs->m_lock.allocated_to_free();
+}
+
 static void reset_mutex_waits_by_instance(void)
 {
   PFS_mutex *pfs= mutex_array;
@@ -1081,6 +1164,15 @@ static void reset_file_waits_by_instance(void)
     pfs->m_wait_stat.reset();
 }
 
+static void reset_socket_waits_by_instance(void)
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + sockets_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_wait_stat.reset();
+}
+
 /** Reset the wait statistics per object instance. */
 void reset_events_waits_by_instance(void)
 {
@@ -1088,6 +1180,7 @@ void reset_events_waits_by_instance(void)
   reset_rwlock_waits_by_instance();
   reset_cond_waits_by_instance();
   reset_file_waits_by_instance();
+  reset_socket_waits_by_instance();
 }
 
 /** Reset the io statistics per file instance. */

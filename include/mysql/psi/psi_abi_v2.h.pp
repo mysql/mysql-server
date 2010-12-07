@@ -8,6 +8,7 @@ struct PSI_table_share;
 struct PSI_table;
 struct PSI_thread;
 struct PSI_file;
+struct PSI_socket;
 struct PSI_table_locker;
 struct PSI_bootstrap
 {
@@ -63,11 +64,25 @@ enum PSI_table_operation
   PSI_TABLE_UPDATE_ROW= 4,
   PSI_TABLE_DELETE_ROW= 5
 };
+enum PSI_socket_operation
+{
+  PSI_SOCKET_CREATE= 0,
+  PSI_SOCKET_CONNECT= 1,
+  PSI_SOCKET_BIND= 2,
+  PSI_SOCKET_CLOSE= 3,
+  PSI_SOCKET_SEND= 4,
+  PSI_SOCKET_RECV= 5,
+  PSI_SOCKET_SEEK= 6,
+  PSI_SOCKET_OPT= 7,
+  PSI_SOCKET_STAT= 8,
+  PSI_SOCKET_SHUTDOWN= 9
+};
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
 typedef unsigned int PSI_cond_key;
 typedef unsigned int PSI_thread_key;
 typedef unsigned int PSI_file_key;
+typedef unsigned int PSI_socket_key;
 struct PSI_v2
 {
   int placeholder;
@@ -112,16 +127,22 @@ struct PSI_table_locker_state_v2
 {
   int placeholder;
 };
+struct PSI_socket_locker_state_v2
+{
+  int placeholder;
+};
 typedef struct PSI_v2 PSI;
 typedef struct PSI_mutex_info_v2 PSI_mutex_info;
 typedef struct PSI_rwlock_info_v2 PSI_rwlock_info;
 typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
+typedef struct PSI_socket_info_v2 PSI_socket_info;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v2 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v2 PSI_table_locker_state;
+typedef struct PSI_socket_locker_state_v2 PSI_socket_locker_state;
 extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
 C_MODE_END
