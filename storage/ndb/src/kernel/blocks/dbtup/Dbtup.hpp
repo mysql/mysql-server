@@ -2040,6 +2040,10 @@ private:
 			 Uint32 * tmpArea,
 			 Uint32 tmpAreaSz);
 
+  const Uint32 * lookupInterpreterParameter(Uint32 paramNo,
+                                            const Uint32 * subptr,
+                                            Uint32 sublen) const;
+
 // *****************************************************************
 // Signal Sending methods.
 // *****************************************************************
