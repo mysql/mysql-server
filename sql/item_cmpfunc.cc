@@ -5894,12 +5894,15 @@ Item_field* Item_equal::get_first(Item_field *field)
       It's a field from an materialized semi-join. We can substitute it only
       for a field from the same semi-join.
     */
-    JOIN_TAB *first;
+    JOIN_TAB *first= field_tab;
     JOIN *join= field_tab->join;
     int tab_idx= field_tab - field_tab->join->join_tab;
 
+    DBUG_ASSERT(join->join_tab[tab_idx].table->map &
+                emb_nest->sj_inner_tables);
+
     /* Find the first table of this semi-join nest */
-    for (int i= tab_idx; i >= (int)join->const_tables; i--)
+    for (int i= tab_idx-1; i >= (int)join->const_tables; i--)
     {
       if (join->join_tab[i].table->map & emb_nest->sj_inner_tables)
         first= join->join_tab + i;
