@@ -115,7 +115,7 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
   }
 
   regOperPtr->m_any_value= 0;
-
+  
   return;
 }
 

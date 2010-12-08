@@ -36,7 +36,6 @@ libkernel_a_SOURCES = VMSignal.cpp \
                       RWPool.cpp \
                       DynArr256.cpp \
                       LockQueue.cpp \
-                      ArenaPool.cpp \
                       GlobalData.cpp \
                       SafeMutex.cpp \
                       Ndbinfo.cpp \
