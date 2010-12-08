@@ -89,6 +89,7 @@ int table_setup_instruments::rnd_next(void)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_instr_class *table_class;
   PFS_socket_class *socket_class;
 
   for (m_pos.set_at(&m_next_pos);

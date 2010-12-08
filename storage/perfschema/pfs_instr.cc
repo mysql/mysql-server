@@ -65,9 +65,9 @@ ulong table_max;
 /** Number of table instances lost. @sa table_array */
 ulong table_lost;
 /** Size of the socket instances array. @sa socket_array */
-ulong socket_instances_max;
+ulong socket_max;
 /** Number of socket instances lost. @sa socket_array */
-ulong socket_instances_lost;
+ulong socket_lost;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
 ulong events_waits_history_per_thread;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
@@ -125,8 +125,8 @@ PFS_table *table_array= NULL;
 
 /**
   Socket instrumentation instances array.
-  @sa socket_instances_max
-  @sa socket_instances_lost
+  @sa socket_max
+  @sa socket_lost
 */
 PFS_socket *socket_array= NULL;
 
@@ -175,8 +175,8 @@ int init_instruments(const PFS_global_param *param)
   table_lost= 0;
   thread_max= param->m_thread_sizing;
   thread_lost= 0;
-  socket_instances_max= param->m_socket_sizing;
-  socket_instances_lost= 0;
+  socket_max= param->m_socket_sizing;
+  socket_lost= 0;
 
   events_waits_history_per_thread= param->m_events_waits_history_sizing;
   thread_history_sizing= param->m_thread_sizing
@@ -239,9 +239,9 @@ int init_instruments(const PFS_global_param *param)
       return 1;
   }
 
-  if (socket_instances_max > 0)
+  if (socket_max > 0)
   {
-    socket_array= PFS_MALLOC_ARRAY(socket_instances_max, PFS_socket, MYF(MY_ZEROFILL));
+    socket_array= PFS_MALLOC_ARRAY(socket_max, PFS_socket, MYF(MY_ZEROFILL));
     if (unlikely(socket_array == NULL))
       return 1;
   }
@@ -333,7 +333,7 @@ void cleanup_instruments(void)
   table_max= 0;
   pfs_free(socket_array);
   socket_array= NULL;
-  socket_instances_max= 0;
+  socket_max= 0;
   pfs_free(thread_array);
   thread_array= NULL;
   thread_max= 0;
@@ -750,9 +750,9 @@ const char *sanitize_file_name(const char *unsafe)
     intptr offset= (ptr - first) % sizeof(PFS_file);
     intptr valid_offset= my_offsetof(PFS_file, m_filename[0]);
     if (likely(offset == valid_offset))
-    {   
+    {
       return unsafe;
-    }   
+    }
   }
   return NULL;
 }
@@ -1078,9 +1078,9 @@ void destroy_table(PFS_table *pfs)
 PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 {
   PFS_scan scan;
-  uint random= randomized_index(identity, socket_instances_max);
+  uint random= randomized_index(identity, socket_max);
 
-  for (scan.init(random, socket_instances_max);
+  for (scan.init(random, socket_max);
        scan.has_pass();
        scan.next_pass())
   {
@@ -1103,7 +1103,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
     }
   }
 
-  socket_instances_lost++;
+  socket_lost++;
   return NULL;
 }
 
@@ -1114,7 +1114,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 void release_socket(PFS_socket *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
-  pfs->m_socket_stat.m_open_count--;
+  //pfs->m_socket_stat.m_open_count--;
 }
 
 /**
@@ -1167,7 +1167,7 @@ static void reset_file_waits_by_instance(void)
 static void reset_socket_waits_by_instance(void)
 {
   PFS_socket *pfs= socket_array;
-  PFS_socket *pfs_last= socket_array + sockets_max;
+  PFS_socket *pfs_last= socket_array + socket_max;
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_wait_stat.reset();

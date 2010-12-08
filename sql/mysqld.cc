@@ -142,7 +142,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
-#ifdef __WIN__ 
+#ifdef __WIN__
 #include <crtdbg.h>
 #define SIGNAL_FMT "exception 0x%x"
 #else
@@ -383,7 +383,7 @@ bool in_bootstrap= FALSE;
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
    to protect access to the grant table.
-   @note This flag is dropped in 5.1 
+   @note This flag is dropped in 5.1
    @see grant_init()
  */
 bool volatile grant_option;
@@ -1270,18 +1270,18 @@ static void __cdecl kill_server(int sig_ptr)
   else
     sql_print_error(ER_DEFAULT(ER_GOT_SIGNAL),my_progname,sig); /* purecov: inspected */
 
-#if defined(HAVE_SMEM) && defined(__WIN__)    
-  /*    
-   Send event to smem_event_connect_request for aborting    
-   */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
+#if defined(HAVE_SMEM) && defined(__WIN__)
+  /*
+   Send event to smem_event_connect_request for aborting
+   */
+  if (!SetEvent(smem_event_connect_request))
+  {
 	  DBUG_PRINT("error",
 		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+		 GetLastError()));
   }
-#endif  
-  
+#endif
+
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
       sig != 0)
@@ -2205,7 +2205,7 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
   callstack.
 */
 
-static BOOL WINAPI console_event_handler( DWORD type ) 
+static BOOL WINAPI console_event_handler( DWORD type )
 {
   DBUG_ENTER("console_event_handler");
 #ifndef EMBEDDED_LIBRARY
@@ -2213,7 +2213,7 @@ static BOOL WINAPI console_event_handler( DWORD type )
   {
      /*
        Do not shutdown before startup is finished and shutdown
-       thread is initialized. Otherwise there is a race condition 
+       thread is initialized. Otherwise there is a race condition
        between main thread doing initialization and CTRL-C thread doing
        cleanup, which can result into crash.
      */
@@ -2278,9 +2278,9 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
    /*
     Unfortunately there is no clean way to debug unhandled exception filters,
-    as debugger does not stop there(also documented in MSDN) 
+    as debugger does not stop there(also documented in MSDN)
     To overcome, one could put a MessageBox, but this will not work in service.
-    Better solution is to print error message and sleep some minutes 
+    Better solution is to print error message and sleep some minutes
     until debugger is attached
   */
   wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
@@ -2294,7 +2294,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
   {
     DWORD written;
     const char msg[] = "Got exception in exception handler!\n";
-    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1, 
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1,
       &written,NULL);
   }
   /*
@@ -2491,7 +2491,7 @@ You should either build a dynamically-linked binary, or force LinuxThreads\n\
 to be used with the LD_ASSUME_KERNEL environment variable. Please consult\n\
 the documentation for your distribution on how to do that.\n");
 #endif
-  
+
   if (locked_in_memory)
   {
     fprintf(stderr, "\n\
@@ -3068,7 +3068,7 @@ SHOW_VAR com_status_vars[]= {
 
 /**
   Create the name of the default general log file
-  
+
   @param[IN] buff    Location for building new string.
   @param[IN] log_ext The extension for the file (e.g .log)
   @returns Pointer to a new string containing the name
@@ -3167,13 +3167,13 @@ static int init_common_variables()
     strmake(default_logfile_name, STRING_WITH_LEN("mysql"));
   }
   else
-    strmake(default_logfile_name, glob_hostname, 
+    strmake(default_logfile_name, glob_hostname,
 	    sizeof(default_logfile_name)-5);
 
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
-  
+
   /*
     The default-storage-engine entry in my_long_options should have a
     non-null default value. It was earlier intialized as
@@ -3251,7 +3251,7 @@ static int init_common_variables()
   else
   {
     opt_large_pages= 0;
-    /* 
+    /*
        Either not configured to use large pages or Linux haven't
        been compiled with large page support
     */
@@ -3427,7 +3427,7 @@ static int init_common_variables()
   global_system_variables.collation_connection=  default_charset_info;
   global_system_variables.character_set_results= default_charset_info;
   global_system_variables.character_set_client=  default_charset_info;
-  if (!(character_set_filesystem= 
+  if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
@@ -3620,20 +3620,20 @@ static int init_thread_environment()
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 static unsigned long openssl_id_function()
-{ 
+{
   return (unsigned long) pthread_self();
-} 
+}
 
 
 static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{ 
+{
   openssl_lock_t *lock= new openssl_lock_t;
   mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
   return lock;
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file, 
+static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
 				    int line)
 {
   mysql_rwlock_destroy(&lock->lock);
@@ -3653,7 +3653,7 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
 }
 
 
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file, 
+static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 			 int line)
 {
   int err;
@@ -3678,7 +3678,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err) 
+  if (err)
   {
     sql_print_error("Fatal: can't %s OpenSSL lock", what);
     abort();
@@ -4008,9 +4008,9 @@ will be ignored as the --log-bin option is not defined.");
 
   if (opt_bin_log)
   {
-    /* Reports an error and aborts, if the --log-bin's path 
+    /* Reports an error and aborts, if the --log-bin's path
        is a directory.*/
-    if (opt_bin_logname && 
+    if (opt_bin_logname &&
         opt_bin_logname[strlen(opt_bin_logname) - 1] == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
@@ -4018,10 +4018,10 @@ a file name for --log-bin option", opt_bin_logname);
       unireg_abort(1);
     }
 
-    /* Reports an error and aborts, if the --log-bin-index's path 
+    /* Reports an error and aborts, if the --log-bin-index's path
        is a directory.*/
-    if (opt_binlog_index_name && 
-        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1] 
+    if (opt_binlog_index_name &&
+        opt_binlog_index_name[strlen(opt_binlog_index_name) - 1]
         == FN_LIBCHAR)
     {
       sql_print_error("Path '%s' is a directory name, please specify \
@@ -4149,7 +4149,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!DEFAULT_ERRMSGS[0][0])
-    unireg_abort(1);  
+    unireg_abort(1);
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
@@ -4361,7 +4361,7 @@ static void handle_connections_methods()
       handler_count--;
     }
   }
-#endif 
+#endif
 
   while (handler_count > 0)
     mysql_cond_wait(&COND_handler_count, &LOCK_thread_count);
@@ -4633,7 +4633,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
-  srand(time(NULL)); 
+  srand(time(NULL));
 #endif
 
   /*
@@ -4811,7 +4811,7 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 || HAVE_SMEM */
 
   /* (void) pthread_attr_destroy(&connection_attrib); */
-  
+
   DBUG_PRINT("quit",("Exiting main thread"));
 
 #ifndef __WIN__
@@ -4919,10 +4919,10 @@ default_service_handling(char **argv,
   pos= add_quoted_string(path_and_service, file_path, end);
   if (*extra_opt)
   {
-    /* 
-     Add option after file_path. There will be zero or one extra option.  It's 
+    /*
+     Add option after file_path. There will be zero or one extra option.  It's
      assumed to be --defaults-file=file but isn't checked.  The variable (not
-     the option name) should be quoted if it contains a string.  
+     the option name) should be quoted if it contains a string.
     */
     *pos++= ' ';
     if (opt_delim= strchr(extra_opt, '='))
@@ -4932,7 +4932,7 @@ default_service_handling(char **argv,
     }
     else
       opt_delim= extra_opt;
-    
+
     pos= add_quoted_string(pos, opt_delim, end);
   }
   /* We must have servicename last */
@@ -5921,8 +5921,8 @@ struct my_option my_long_options[]=
    "The value has to be a multiple of 256.",
    &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size,
    0, GET_ULONG, REQUIRED_ARG,
-   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX, 
-   /* sub_size */     0, /* block_size */ 256, 
+   /* def_value */ 1024, /* min_value */  256, /* max_value */ ULONG_MAX,
+   /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
 #ifndef DISABLE_GRANT_OPTIONS
@@ -6053,7 +6053,7 @@ struct my_option my_long_options[]=
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-retry-count", OPT_MASTER_RETRY_COUNT,
    "The number of tries the slave will make to connect to the master before giving up. "
-   "Deprecated option, use 'CHANGE MASTER TO master_retry_count = <num>' instead.", 
+   "Deprecated option, use 'CHANGE MASTER TO master_retry_count = <num>' instead.",
    &master_retry_count, &master_retry_count, 0, GET_ULONG,
    REQUIRED_ARG, 3600*24, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
@@ -6269,7 +6269,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   var->type= SHOW_MY_BOOL;
   mysql_mutex_lock(&LOCK_active_mi);
   var->value= buff;
-  *((my_bool *)buff)= (my_bool) (active_mi && 
+  *((my_bool *)buff)= (my_bool) (active_mi &&
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli->slave_running);
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -6322,7 +6322,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_CHAR;
     var->value= buff;
-    thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
+    thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time,
       active_mi->last_heartbeat);
     my_datetime_to_str(&received_heartbeat_time, buff);
   }
@@ -6540,7 +6540,7 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
 }
 
 /*
-   Functions relying on SSL 
+   Functions relying on SSL
    Note: In the show_ssl_* functions, we need to check if we have a
          valid vio-object since this isn't always true, specifically
          when session_status or global_status is requested from
@@ -6986,7 +6986,7 @@ static int mysql_init_variables(void)
   character_set_filesystem_name= (char*) "binary";
   lc_messages= (char*) "en_US";
   lc_time_names_name= (char*) "en_US";
-  
+
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
@@ -7272,13 +7272,13 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_BIND_ADDRESS:
     {
-      struct addrinfo *res_lst, hints;    
+      struct addrinfo *res_lst, hints;
 
       bzero(&hints, sizeof(struct addrinfo));
       hints.ai_socktype= SOCK_STREAM;
       hints.ai_protocol= IPPROTO_TCP;
 
-      if (getaddrinfo(argument, NULL, &hints, &res_lst) != 0) 
+      if (getaddrinfo(argument, NULL, &hints, &res_lst) != 0)
       {
         sql_print_error("Can't start server: cannot resolve hostname!");
         return 1;
@@ -7637,7 +7637,7 @@ fn_format_relative_to_data_home(char * to, const char *name,
 /**
   Test a file path to determine if the path is compatible with the secure file
   path restriction.
- 
+
   @param path null terminated character string
 
   @return
@@ -7699,7 +7699,7 @@ static int fix_paths(void)
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
-  mysql_unpacked_real_data_home_len= 
+  mysql_unpacked_real_data_home_len=
     (int) strlen(mysql_unpacked_real_data_home);
   if (mysql_unpacked_real_data_home[mysql_unpacked_real_data_home_len-1] == FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
@@ -7755,7 +7755,7 @@ static int fix_paths(void)
       opt_secure_file_priv= secure_file_real_path;
     }
   }
-  
+
   return 0;
 }
 
@@ -8127,6 +8127,9 @@ void init_server_psi_keys(void)
 
   count= array_elements(all_server_files);
   PSI_server->register_file(category, all_server_files, count);
+
+  count= array_elements(all_server_sockets);
+  PSI_server->register_socket(category, all_server_sockets, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */

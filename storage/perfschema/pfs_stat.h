@@ -222,31 +222,28 @@ struct PFS_table_stat
   }
 };
 
-/** Statistics for SOCKET usage. */
-struct PFS_socket_stat
+/** Statistics for SOCKET IO usage. */
+struct PFS_socket_io_stat
 {
-  /** Number of current open sockets. */
-  ulong m_open_count;
-  /** Count of RECV operations. */
-  ulonglong m_count_recv;
-  /** Count of SEND operations. */
-  ulonglong m_count_send;
-  /** Number of bytes received. */
-  ulonglong m_recv_bytes;
-  /** Number of bytes sent. */
-  ulonglong m_send_bytes;
+  /** Count of READ operations. */
+  ulonglong m_count_read;
+  /** Count of WRITE operations. */
+  ulonglong m_count_write;
+  /** Number of bytes read. */
+  ulonglong m_read_bytes;
+  /** Number of bytes written. */
+  ulonglong m_write_bytes;
 
   /** Reset socket statistics. */
   inline void reset(void)
   {
-    m_open_count= 0;
-    m_count_recv= 0;
-    m_count_send= 0;
-    m_count_recv_bytes= 0;
-    m_count_send_bytes= 0;
+    m_count_read= 0;
+    m_count_write= 0;
+    m_read_bytes= 0;
+    m_write_bytes= 0;
   }
 
-  inline void aggregate(const PFS_file_io_stat *stat)
+  inline void aggregate(const PFS_socket_io_stat *stat)
   {
     m_count_read+= stat->m_count_read;
     m_count_write+= stat->m_count_write;
@@ -254,32 +251,27 @@ struct PFS_socket_stat
     m_write_bytes+= stat->m_write_bytes;
   }
 
-  inline void aggregate_recv(ulonglong bytes)
+  inline void aggregate_read(ulonglong bytes)
   {
-    m_count_recv++;
-    m_recv_bytes+= bytes;
+    m_count_read++;
+    m_read_bytes+= bytes;
   }
 
-  inline void aggregate_send(ulonglong bytes)
+  inline void aggregate_write(ulonglong bytes)
   {
-    m_count_send++;
-    m_send_bytes+= bytes;
+    m_count_write++;
+    m_write_bytes+= bytes;
   }
-
 };
 
-/**
-  Reset socket statistic.
-  @param stat                         the statistics to reset
-*/
-inline void reset_socket_stat(PFS_socket_stat *stat)
+/** Statistics for SOCKET usage. */
+struct PFS_socket_stat
 {
-  stat->m_open_count= 0;
-  stat->m_count_recv= 0;
-  stat->m_count_send= 0;
-  stat->m_recv_bytes= 0;
-  stat->m_send_bytes= 0;
-}
+  /** Number of current open sockets. //TBD Not relevant */
+  ulong m_open_count;
+  /** Socket IO statistics. */
+  PFS_socket_io_stat m_io_stat;
+};
 
 
 /** @} */
