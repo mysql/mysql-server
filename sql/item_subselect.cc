@@ -1097,6 +1097,16 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       select_lex->group_list.elements)
   {
     bool tmp;
+    /*
+      If 'having' condition may evaluate to 'unknown', we must ensure
+      it 'IS TRUE' before we are allowed to continue into the AND'ed
+      Item_ref_null_helper object.
+    */
+    Item *having= join->having;
+    if (!abort_on_null && having && having->maybe_null)
+    {
+      having= new Item_func_istrue(having);
+    }
     Item *item= func->create(expr,
                              new Item_ref_null_helper(&select_lex->context,
                                                       this,
@@ -1118,7 +1128,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       we can assign select_lex->having here, and pass 0 as last
       argument (reference) to fix_fields()
     */
-    select_lex->having= join->having= and_items(join->having, item);
+    select_lex->having= join->having= and_items(having, item);
     if (join->having == item)
       item->name= (char*)in_having_cond;
     select_lex->having_fix_field= 1;
