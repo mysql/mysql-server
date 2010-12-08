@@ -926,7 +926,7 @@ SELECT COUNT(*) FROM t1
 DROP TABLE t1;
 
 #
-# Bug #637978: ORing of two index merge that caused a crash
+# Bug #684117: ORing of two index merge that caused a crash
 #
 
 CREATE TABLE t1 (
