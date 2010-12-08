@@ -4470,7 +4470,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     int2my_decimal(E_DEC_FATAL_ERROR, *(longlong*) value, 0, val);
     break;
   case DECIMAL_RESULT:
-    val= (my_decimal *)value;
+    my_decimal2decimal((my_decimal *) value, val);
     break;
   case STRING_RESULT:
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
