@@ -134,6 +134,22 @@ static Sys_var_ulong Sys_pfs_max_file_instances(
        DEFAULT(PFS_MAX_FILE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_sockets(
+       "performance_schema_max_sockets",
+       "Maximum number of opened instrumented sockets.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_socket_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_SOCKETS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_max_socket_classes(
+       "performance_schema_max_socket_classes",
+       "Maximum number of socket instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_socket_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_SOCKET_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_ulong Sys_pfs_max_mutex_classes(
        "performance_schema_max_mutex_classes",
        "Maximum number of mutex instruments.",
