@@ -2358,6 +2358,8 @@ set engine_condition_pushdown=1;
 # '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
 # for 'table2'
 #
+
+--sorted_result
 select table1.pk1, table2.pk1, table1.pk2, table2.pk2
  from t as table1, t as table2
  where table2.pk1 in (0,3) and
