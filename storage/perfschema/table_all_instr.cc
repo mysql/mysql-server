@@ -96,7 +96,7 @@ int table_all_instr::rnd_next(void)
       }
       break;
     case pos_all_instr::VIEW_SOCKET:
-      for ( ; m_pos.m_index_2 < socket_instances_max; m_pos.m_index_2++)
+      for ( ; m_pos.m_index_2 < socket_max; m_pos.m_index_2++)
       {
         socket= &socket_array[m_pos.m_index_2];
         if (socket->m_lock.is_populated())
@@ -161,7 +161,7 @@ int table_all_instr::rnd_pos(const void *pos)
     }
     break;
   case pos_all_instr::VIEW_SOCKET:
-    DBUG_ASSERT(m_pos.m_index_2 < socket_instances_max);
+    DBUG_ASSERT(m_pos.m_index_2 < socket_max);
     socket= &socket_array[m_pos.m_index_2];
     if (socket->m_lock.is_populated())
     {

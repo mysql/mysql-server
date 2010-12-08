@@ -395,7 +395,7 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("fetch") },
   { C_STRING_WITH_LEN("insert") }, /* write row */
   { C_STRING_WITH_LEN("update") }, /* update row */
-  { C_STRING_WITH_LEN("delete") },  /* delete row */
+  { C_STRING_WITH_LEN("delete") }, /* delete row */
 
   /* Socket operations */
   { C_STRING_WITH_LEN("create") },
@@ -410,7 +410,6 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("shutdown") }
 };
 
-
 int table_events_waits_common::read_row_values(TABLE *table,
                                                unsigned char *buf,
                                                Field **fields,
@@ -419,8 +418,8 @@ int table_events_waits_common::read_row_values(TABLE *table,
   Field *f;
   const LEX_STRING *operation;
 
-  compile_time_assert(COUNT_OPERATION_TYPE ==
-                      array_elements(operation_names_map));
+//  compile_time_assert(COUNT_OPERATION_TYPE ==
+//                      array_elements(operation_names_map));
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;

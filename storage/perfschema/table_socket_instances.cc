@@ -80,6 +80,7 @@ table_socket_instances::m_share=
   &table_socket_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -108,7 +109,7 @@ int table_socket_instances::rnd_next(void)
   PFS_socket *pfs;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < socket_instances_max;
+       m_pos.m_index < socket_max;
        m_pos.next())
   {
     pfs= &socket_array[m_pos.m_index];
@@ -128,7 +129,7 @@ int table_socket_instances::rnd_pos(const void *pos)
   PFS_socket *pfs;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < socket_instances_max);
+  DBUG_ASSERT(m_pos.m_index < socket_max);
   pfs= &socket_array[m_pos.m_index];
 
   if (! pfs->m_lock.is_populated())
@@ -159,8 +160,8 @@ void table_socket_instances::make_row(PFS_socket *pfs)
   m_row.m_ip=                 pfs->m_ip;
   m_row.m_ip_length=          pfs->m_ip_length;
   m_row.m_port=               pfs->m_port;
-  m_row.m_bytes_read=         pfs->m_socket_stat.m_recv_bytes;
-  m_row.m_bytes_write=        pfs->m_socket_stat.m_send_bytes;
+  m_row.m_bytes_read=         pfs->m_socket_stat.m_io_stat.m_read_bytes; //TBD
+  m_row.m_bytes_write=        pfs->m_socket_stat.m_io_stat.m_write_bytes;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;

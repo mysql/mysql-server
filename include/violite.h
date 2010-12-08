@@ -22,6 +22,7 @@
 #define	vio_violite_h_
 
 #include "my_net.h"			/* needed because of struct in_addr */
+#include <mysql/psi/mysql_socket.h>
 
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
@@ -46,6 +47,7 @@ enum enum_vio_type
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
 
 Vio*	vio_new(my_socket sd, enum enum_vio_type type, uint flags);
+Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
 #ifdef __WIN__
 Vio* vio_new_win32pipe(HANDLE hPipe);
 Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
@@ -188,6 +190,7 @@ enum SSL_type
 struct st_vio
 {
   my_socket		sd;		/* my_socket - real or imaginary */
+  MYSQL_SOCKET  mysql_socket;       /* socket handle for performance schema */
   HANDLE hPipe;
   my_bool		localhost;	/* Are we from localhost? */
   int			fcntl_mode;	/* Buffered fcntl(sd,F_GETFL) */
@@ -197,10 +200,9 @@ struct st_vio
   enum enum_vio_type	type;		/* Type of connection */
   char			desc[30];	/* String description */
   char                  *read_buffer;   /* buffer for vio_read_buff */
-  char                  *read_pos;      /* start of unfetched data in the
-                                           read buffer */
+  char   *read_pos;      /* start of unfetched data in the read buffer */
   char                  *read_end;      /* end of unfetched data */
-  /* function pointers. They are similar for socket/SSL/whatever */
+  /* Function pointers. They are similar for socket/SSL/whatever. */
   void    (*viodelete)(Vio*);
   int     (*vioerrno)(Vio*);
   size_t  (*read)(Vio*, uchar *, size_t);

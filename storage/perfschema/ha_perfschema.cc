@@ -139,7 +139,7 @@ static struct st_mysql_show_var pfs_status_vars[]=
   {"Performance_schema_file_handles_lost",
     (char*) &file_handle_lost, SHOW_LONG},
   {"Performance_schema_socket_instances_lost",
-    (char*) &socket_instances_lost, SHOW_LONG},
+    (char*) &socket_lost, SHOW_LONG},
   {"Performance_schema_locker_lost",
     (char*) &locker_lost, SHOW_LONG},
   /* table shares, can be flushed */

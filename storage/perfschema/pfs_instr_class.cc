@@ -155,9 +155,9 @@ void init_event_name_sizing(const PFS_global_param *param)
   rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
-  table_class_start= file_class_start + param->m_file_class_sizing;
-  socket_class_start= table_class_start + param->m_table_class_sizing;
-  max_instrument_class= socket_class_start + 1; /* global table io */
+  socket_class_start= file_class_start + param->m_file_class_sizing;
+  table_class_start= socket_class_start + param->m_socket_class_sizing;
+  max_instrument_class= table_class_start + 1; /* global table io */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -796,6 +796,7 @@ PFS_file_class *find_file_class(PFS_file_key key)
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_file_class, file_class_array, file_class_max, unsafe);
+}
 
 /**
   Register a socket instrumentation metadata.
@@ -832,7 +833,7 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags);
     entry->m_index= index;
     entry->m_event_name_index= file_class_start + index;
-    entry->m_singleton- NULL;
+    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }
@@ -856,7 +857,7 @@ PFS_socket_class *find_socket_class(PFS_socket_key key)
 
 PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
 {
-  SANITIZE_ARRAY_BODY(socket_class_array, socket_class_max, unsafe);
+  SANITIZE_ARRAY_BODY(PFS_socket_class, socket_class_array, socket_class_max, unsafe);
 }
 
 PFS_instr_class *find_table_class(uint index)

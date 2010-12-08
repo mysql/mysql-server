@@ -348,8 +348,8 @@ extern long file_handle_max;
 extern ulong file_handle_lost;
 extern ulong table_max;
 extern ulong table_lost;
-extern ulong socket_instances_max;
-extern ulong socket_instances_lost;
+extern ulong socket_max;
+extern ulong socket_lost;
 extern ulong events_waits_history_per_thread;
 extern ulong locker_lost;
 

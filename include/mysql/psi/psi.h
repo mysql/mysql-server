@@ -265,31 +265,22 @@ enum PSI_socket_operation
 {
   /** Socket creation, as in @c socket() or @c socketpair(). */
   PSI_SOCKET_CREATE= 0,
-
   /** Socket connection, as in @c connect(), @c listen() and @c accept(). */
   PSI_SOCKET_CONNECT= 1,
-
   /** Socket bind, as in @c bind(), @c getsockname() and @c getpeername(). */
   PSI_SOCKET_BIND= 2,
-
   /** Socket close, as in @c shutdown(). */
   PSI_SOCKET_CLOSE= 3,
-  /**
-    Generic socket send, such as @c send(), @c sendto(), @c sendmsg(). */
+  /** Generic socket send, such as @c send(), @c sendto(), @c sendmsg(). */
   PSI_SOCKET_SEND= 4,
-  /**
-    Generic socket receive, such as @c recv(), @c recvfrom), @c recvmsg(). */
+  /** Generic socket receive, such as @c recv(), @c recvfrom), @c recvmsg(). */
   PSI_SOCKET_RECV= 5,
-
   /** Generic socket seek, such as @c fseek() or @c seek(). */
   PSI_SOCKET_SEEK= 6,
-
   /** Socket options, as in @c getsockopt() and @c setsockopt(). */
   PSI_SOCKET_OPT= 7,
-
   /** Socket status, as in @c sockatmark() and @c isfdtype(). */
   PSI_SOCKET_STAT= 8,
-
   /** Socket shutdown, as in @c shutdown(). */
   PSI_SOCKET_SHUTDOWN= 9
 };
