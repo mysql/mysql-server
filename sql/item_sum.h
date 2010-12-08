@@ -406,14 +406,22 @@ public:
   Item_sum(THD *thd, Item_sum *item);
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
-  inline bool reset() { aggregator_clear(); return aggregator_add(); };
+  /**
+    Resets the aggregate value to its default and aggregates the current
+    value of its attribute(s).
+  */  
+  inline bool reset_and_add() 
+  { 
+    aggregator_clear(); 
+    return aggregator_add(); 
+  };
 
   /*
     Called when new group is started and results are being saved in
-    a temporary table. Similar to reset(), but must also store value in
-    result_field. Like reset() it is supposed to reset start value to
-    default.
-    This set of methods (reult_field(), reset_field, update_field()) of
+    a temporary table. Similarly to reset_and_add() it resets the 
+    value to its default and aggregates the value of its 
+    attribute(s), but must also store it in result_field. 
+    This set of methods (result_item(), reset_field, update_field()) of
     Item_sum is used only if quick_group is not null. Otherwise
     copy_or_same() is used to obtain a copy of this item.
   */
@@ -455,7 +463,7 @@ public:
     set_aggregator(with_distinct ?
                    Aggregator::DISTINCT_AGGREGATOR :
                    Aggregator::SIMPLE_AGGREGATOR);
-    reset();
+    aggregator_clear();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
