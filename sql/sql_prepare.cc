@@ -3759,7 +3759,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       MYSQL_QUERY_EXEC_START(thd->query(),
                              thd->thread_id,
                              (char *) (thd->db ? thd->db : ""),
-                             thd->security_ctx->priv_user,
+                             &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
       error= mysql_execute_command(thd);
