@@ -5092,6 +5092,9 @@ int ha_tokudb::info(uint flag) {
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + share->rows_from_locked_table;
+        if (stats.records == 0) {
+            stats.records++;
+        }
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
             u_int64_t num_rows = 0;
@@ -5105,6 +5108,9 @@ int ha_tokudb::info(uint flag) {
             if (error == 0) {
                 share->rows = num_rows;
                 stats.records = num_rows;
+                if (stats.records == 0) {
+                    stats.records++;
+                }
             }
             else {
                 goto cleanup;
