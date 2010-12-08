@@ -191,7 +191,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgn pdisooorr   cumxz
+ *             llgnqpdisooorr   cumxz
  *
  */
 
