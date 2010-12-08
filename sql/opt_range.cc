@@ -5050,6 +5050,7 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *cu
   KEY *key_info= ext_index_scan->key_info;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* key_part_end= key_part+ext_index_scan->used_key_parts;
+  uint key_parts= key_info->key_parts;
   MY_BITMAP *used_fields= &ext_index_scan->used_fields;
   
   if (!curr->length)
@@ -5072,7 +5073,7 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *cu
       {
         ulong *rec_per_key= key_info->rec_per_key+i;
         ulong f1= rec_per_key[0] ? rec_per_key[0] : 1;
-        ulong f2= rec_per_key[1] ? rec_per_key[1] : 1;
+        ulong f2= i+1 < key_parts && rec_per_key[1] ? rec_per_key[1] : 1;
 	records= (double) records / f2 * f1;
       }
       else
