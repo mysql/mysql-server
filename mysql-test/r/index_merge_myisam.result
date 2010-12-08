@@ -115,11 +115,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 100);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
 explain select * from t0 where
 (key1 < 3 or key2 < 3) and (key3 < 1000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ALL	i1,i2,i3	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
 explain select * from t0 where
 ((key1 < 4 or key2 < 4) and (key2 <5 or key3 < 4))
 or
@@ -259,7 +259,7 @@ explain
 select * from t0,t1 where (t0.key1=t1.key1) and
 (t0.key1=3 or t0.key2=4) and t1.key1<200;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
 1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
 explain
 select * from t0,t1 where (t0.key1=t1.key1) and
@@ -374,14 +374,14 @@ max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.ke
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
-from t0 as A, t0 as B
+from t0 as A straight_join t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
 1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where; Using join buffer
 select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
-from t0 as A, t0 as B
+from t0 as A straight_join t0 as B
 where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
 and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
 max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
