@@ -5095,7 +5095,8 @@ int ha_tokudb::info(uint flag) {
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
             u_int64_t num_rows = 0;
-            TOKU_DB_FRAGMENTATION_S frag_info = {0};
+            TOKU_DB_FRAGMENTATION_S frag_info;
+            memset(&frag_info, 0, sizeof frag_info);
 
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
@@ -6501,7 +6502,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     u_int32_t mult_put_flags[MAX_KEY + 1];
     u_int32_t mult_dbt_flags[MAX_KEY + 1];
     bool incremented_numDBs = false;
-    struct loader_context lc = {0};
+    struct loader_context lc;
+    memset(&lc, 0, sizeof lc);
     lc.thd = thd;
     lc.ha = this;
     loader_error = 0;
