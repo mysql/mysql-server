@@ -34,7 +34,6 @@ ADD_LIBRARY(ndbkernel STATIC
     DynArr256.cpp
     LockQueue.cpp
     GlobalData.cpp
-    ArenaPool.cpp
     SafeMutex.cpp
     Ndbinfo.cpp
     NdbinfoTables.cpp
