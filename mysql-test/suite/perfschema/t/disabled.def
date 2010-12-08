@@ -25,3 +25,44 @@
 #
 ##############################################################################
 
+perfschema.start_server_no_rwlock_inst  : WL#4896 Perfschema NET IO - temporary
+perfschema.start_server_no_rwlock_class : WL#4896 Perfschema NET IO - temporary
+perfschema.start_server_no_mutex_inst   : WL#4896 Perfschema NET IO - temporary
+start_server_nothing                    : WL#4896 Perfschema NET IO - temporary
+start_server_off                        : WL#4896 Perfschema NET IO - temporary
+start_server_no_cond_class              : WL#4896 Perfschema NET IO - temporary
+start_server_no_cond_inst               : WL#4896 Perfschema NET IO - temporary
+start_server_no_file_class              : WL#4896 Perfschema NET IO - temporary
+start_server_no_file_inst               : WL#4896 Perfschema NET IO - temporary
+start_server_no_mutex_class             : WL#4896 Perfschema NET IO - temporary
+start_server_no_mutex_inst              : WL#4896 Perfschema NET IO - temporary
+start_server_no_rwlock_class            : WL#4896 Perfschema NET IO - temporary
+start_server_no_rwlock_inst             : WL#4896 Perfschema NET IO - temporary
+start_server_no_setup_actors            : WL#4896 Perfschema NET IO - temporary
+start_server_no_setup_objects           : WL#4896 Perfschema NET IO - temporary
+start_server_no_table_hdl               : WL#4896 Perfschema NET IO - temporary
+start_server_no_table_inst              : WL#4896 Perfschema NET IO - temporary
+start_server_nothing                    : WL#4896 Perfschema NET IO - temporary
+start_server_no_thread_class            : WL#4896 Perfschema NET IO - temporary
+start_server_no_thread_inst             : WL#4896 Perfschema NET IO - temporary
+aggregate                               : WL#4896 Perfschema NET IO - temporary
+csv_table_io                            : WL#4896 Perfschema NET IO - temporary
+indexed_table_io                        : WL#4896 Perfschema NET IO - temporary
+start_server_on                         : WL#4896 Perfschema NET IO - temporary
+information_schema                      : WL#4896 Perfschema NET IO - temporary
+innodb_table_io                         : WL#4896 Perfschema NET IO - temporary
+memory_table_io                         : WL#4896 Perfschema NET IO - temporary
+merge_table_io                          : WL#4896 Perfschema NET IO - temporary
+multi_table_io                          : WL#4896 Perfschema NET IO - temporary
+myisam_file_io                          : WL#4896 Perfschema NET IO - temporary
+myisam_table_io                         : WL#4896 Perfschema NET IO - temporary
+part_table_io                           : WL#4896 Perfschema NET IO - temporary
+pfs_upgrade_lc0                         : WL#4896 Perfschema NET IO - temporary
+privilege_table_io                      : WL#4896 Perfschema NET IO - temporary
+temp_table_io                           : WL#4896 Perfschema NET IO - temporary
+trigger_table_io                        : WL#4896 Perfschema NET IO - temporary
+schema_lc0                              : WL#4896 Perfschema NET IO - temporary
+view_table_io                           : WL#4896 Perfschema NET IO - temporary
+rollback_table_io                       : WL#4896 Perfschema NET IO - temporary
+
+
