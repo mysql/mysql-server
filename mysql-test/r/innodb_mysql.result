@@ -1315,4 +1315,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
 DROP TABLE t1,t2;
+#
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+#  is returned
+#
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+CREATE TABLE t2 
+SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+ERROR 22007: Truncated incorrect datetime value: ''
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
 End of 5.0 tests
