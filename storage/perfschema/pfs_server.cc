@@ -69,6 +69,7 @@ initialize_performance_schema(const PFS_global_param *param)
       init_thread_class(param->m_thread_class_sizing) ||
       init_table_share(param->m_table_share_sizing) ||
       init_file_class(param->m_file_class_sizing) ||
+      init_socket_class(param->m_socket_class_sizing) ||
       init_instruments(param) ||
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
@@ -118,6 +119,7 @@ static void cleanup_performance_schema(void)
   cleanup_thread_class();
   cleanup_table_share();
   cleanup_file_class();
+  cleanup_socket_class();
   cleanup_events_waits_history_long();
   cleanup_table_share_hash();
   cleanup_file_hash();
