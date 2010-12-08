@@ -372,6 +372,42 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
   DBUG_RETURN(0);
 }
 
+void Mrr_ordered_index_reader::set_temp_space(uchar *space)
+{
+  //saved_key_tuple= space;
+  saved_rowid= space;
+  have_saved_rowid= FALSE;
+}
+
+void Mrr_ordered_index_reader::interrupt_read()
+{
+  /*
+  key_copy(saved_key_tuple, file->get_table()->record[0], 
+           &file->get_table()->key_info[file->active_index],
+           keypar.key_tuple_length);
+  */
+  /* Save the last rowid */
+  memcpy(saved_rowid, file->ref, file->ref_length);
+  have_saved_rowid= TRUE;
+}
+
+void Mrr_ordered_index_reader::position()
+{
+  if (have_saved_rowid)
+    memcpy(file->ref, saved_rowid, file->ref_length);
+  else
+    Mrr_index_reader::position();
+}
+
+void Mrr_ordered_index_reader::resume_read()
+{
+  /*
+  key_restore(file->get_table()->record[0], saved_key_tuple, 
+              &file->get_table()->key_info[file->active_index],
+              keypar.key_tuple_length);
+  */
+}
+
 
 /**
   Fill the buffer with (lookup_tuple, range_id) pairs and sort
@@ -480,6 +516,8 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 
   */
   disallow_identical_key_handling= test(mrr_funcs.skip_index_tuple);
+  /*bzero(saved_key_tuple, keypar.key_tuple_length);*/
+  have_saved_rowid= FALSE;
   return 0;
 }
 
@@ -571,6 +609,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
 
   last_identical_rowid= NULL;
 
+  index_reader->resume_read();
   while (rowid_buffer->can_write())
   {
     res= index_reader->get_next(&range_info);
@@ -589,6 +628,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
     rowid_buffer->write();
   }
    
+  index_reader->interrupt_read();
   /* Sort the buffer contents by rowid */
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)file);
 
@@ -788,6 +828,16 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     keypar.key_size_in_keybuf= keypar.use_key_pointers? 
                                  sizeof(char*) : keypar.key_tuple_length;
     key_buff_elem_size= keypar.key_size_in_keybuf + (int)is_mrr_assoc * sizeof(void*);
+    
+    /* Ordered index reader needs some space to store an index tuple */
+    if (strategy != index_strategy)
+    {
+      if (full_buf_end - full_buf <= (ptrdiff_t)primary_file->ref_length/*keypar.key_tuple_length*/)
+        goto use_default_impl;
+      reader_factory.ordered_index_reader.set_temp_space(full_buf);
+      //full_buf += keypar.key_tuple_length;
+      full_buf += primary_file->ref_length;
+    }
   }
 
   if (strategy == index_strategy)
@@ -1039,7 +1089,7 @@ int Mrr_ordered_index_reader::compare_keys_reverse(void* arg, uchar* key1,
 bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf, 
                                       key_part_map key_tuple_map)
 {
-  uint key_buff_elem_size= key_size_in_keybuf + 
+  long key_buff_elem_size= key_size_in_keybuf + 
                            (int)is_mrr_assoc * sizeof(void*);
   
   KEY *key_info= &primary_file->get_table()->key_info[keyno];
@@ -1186,6 +1236,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
     move_to_next_key_value();
     return res;
   }
+  owner->have_saved_rowid= FALSE;
   get_next_row= FALSE;
   return 0;
 }
@@ -1212,6 +1263,7 @@ int Key_value_records_iterator::get_next()
       return res; 
     }
     identical_key_it.init(owner->key_buffer);
+    owner->have_saved_rowid= FALSE;
     get_next_row= FALSE;
   }
 

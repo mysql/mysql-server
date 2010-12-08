@@ -211,8 +211,11 @@ public:
   /* Get pointer to place where every get_next() call will put rowid */
   virtual uchar *get_rowid_ptr() = 0;
   /* Get the rowid (call this after get_next() call) */
-  void position();
+  virtual void position();
   virtual bool skip_record(char *range_id, uchar *rowid) = 0;
+
+  virtual void interrupt_read() {}
+  virtual void resume_read() {}
 };
 
 
@@ -269,6 +272,10 @@ public:
             mrr_funcs.skip_index_tuple(mrr_iter, range_info));
   }
 
+  void set_temp_space(uchar *space);
+  void interrupt_read();
+  void resume_read();
+  void position();
 private:
   Key_value_records_iterator kv_it;
 
@@ -300,6 +307,11 @@ private:
   
   /* TRUE == reached eof when enumerating ranges */
   bool source_exhausted;
+  
+  /* TODO */
+  /*uchar *saved_key_tuple;*/
+  uchar *saved_rowid;
+  bool have_saved_rowid;
 
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
   static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);

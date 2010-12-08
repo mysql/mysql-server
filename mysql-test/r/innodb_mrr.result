@@ -576,3 +576,87 @@ count(*)
 480
 set join_cache_level= @my_save_join_cache_level;
 drop table t1;
+#
+# BUG#671340: Diverging results in with mrr_sort_keys=ON|OFF and join_cache_level=5
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+(10,8,'v','v'),
+(11,8,'f','f'),
+(12,5,'v','v'),
+(13,8,'s','s'),
+(14,8,'a','a'),
+(15,6,'p','p'),
+(16,7,'z','z'),
+(17,2,'a','a'),
+(18,5,'h','h'),
+(19,7,'h','h'),
+(20,2,'v','v'),
+(21,9,'v','v'),
+(22,142,'b','b'),
+(23,3,'y','y'),
+(24,0,'v','v'),
+(25,3,'m','m'),
+(26,5,'z','z'),
+(27,9,'n','n'),
+(28,1,'d','d'),
+(29,107,'a','a');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_int_key int(11) NOT NULL,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES 
+(1,9,'x','x'),
+(2,5,'g','g'),
+(3,1,'o','o'),
+(4,0,'g','g'),
+(5,1,'v','v'),
+(6,190,'m','m'),
+(7,6,'x','x'),
+(8,3,'c','c'),
+(9,4,'z','z'),
+(10,3,'i','i'),
+(11,186,'x','x'),
+(12,1,'g','g'),
+(13,8,'q','q'),
+(14,226,'m','m'),
+(15,133,'p','p'),
+(16,6,'e','e'),
+(17,3,'t','t'),
+(18,8,'j','j'),
+(19,5,'h','h'),
+(20,7,'w','w');
+SELECT count(*), sum(table1.col_int_key*table2.pk) 
+FROM 
+t2 AS table1, t1 AS table2, t2 AS table3 
+WHERE 
+table3.col_varchar_nokey = table2.col_varchar_key AND table3.pk > table2.col_varchar_nokey ;
+count(*)	sum(table1.col_int_key*table2.pk)
+240	185955
+set @my_save_join_cache_level= @@join_cache_level;
+set @my_save_join_buffer_size= @@join_buffer_size;
+set join_cache_level=6;
+set join_buffer_size=1500;
+SELECT count(*), sum(table1.col_int_key*table2.pk) 
+FROM 
+t2 AS table1, t1 AS table2, t2 AS table3 
+WHERE 
+table3.col_varchar_nokey = table2.col_varchar_key AND table3.pk > table2.col_varchar_nokey ;
+count(*)	sum(table1.col_int_key*table2.pk)
+240	185955
+drop table t1,t2;
+set join_cache_level=@my_save_join_cache_level;
+set join_buffer_size=@my_save_join_buffer_size;
