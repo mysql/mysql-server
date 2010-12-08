@@ -3775,13 +3775,8 @@ check_watch:
 
 	{
 		buf_page_t*	bpage;
-		ulint		fold = buf_page_address_fold(space, page_no);
 		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
-		mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
-
-		mutex_enter(hash_mutex);
-		bpage = buf_page_hash_get_low(buf_pool, space, page_no, fold);
-		mutex_exit(hash_mutex);
+		bpage = buf_page_hash_get(buf_pool, space, page_no);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the

@@ -44,11 +44,13 @@ ha_create_func(
 /*===========*/
 	ulint	n,		/*!< in: number of array cells */
 #ifdef UNIV_SYNC_DEBUG
-	ulint	mutex_level,	/*!< in: level of the mutexes in the latching
-				order: this is used in the debug version */
+	ulint	sync_level,	/*!< in: level of the mutexes or rw_locks
+				in the latching order: this is used in the
+				 debug version */
 #endif /* UNIV_SYNC_DEBUG */
-	ulint	n_mutexes,	/*!< in: number of mutexes to protect the
-				hash table: must be a power of 2, or 0 */
+	ulint	n_sync_obj,	/*!< in: number of mutexes or rw_locks
+				to protect the hash table: must be a
+				power of 2, or 0 */
 	ulint	type)		/*!< in: type of datastructure for which
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
@@ -62,13 +64,13 @@ ha_create_func(
 	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
 	     || type == MEM_HEAP_FOR_PAGE_HASH);
 
-	ut_ad(ut_is_2pow(n_mutexes));
+	ut_ad(ut_is_2pow(n_sync_obj));
 	table = hash_create(n);
 
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
 
-	if (n_mutexes == 0) {
+	if (n_sync_obj == 0) {
 		table->heap = mem_heap_create_typed(
 			ut_min(4096, MEM_MAX_ALLOC_IN_BUF), type);
 		ut_a(table->heap);
@@ -77,11 +79,19 @@ ha_create_func(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	hash_create_mutexes(table, n_mutexes, mutex_level);
+	if (type == MEM_HEAP_FOR_PAGE_HASH) {
+		/* We create a hash table protected by rw_locks for
+		buf_pool->page_hash. */
+		hash_create_sync_obj(table, HASH_TABLE_SYNC_RW_LOCK,
+				     n_sync_obj, sync_level);
+	} else {
+		hash_create_sync_obj(table, HASH_TABLE_SYNC_MUTEX,
+				     n_sync_obj, sync_level);
+	}
 
-	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
+	table->heaps = mem_alloc(n_sync_obj * sizeof(void*));
 
-	for (i = 0; i < n_mutexes; i++) {
+	for (i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}
@@ -110,7 +120,7 @@ ha_clear(
 
 #ifndef UNIV_HOTBACKUP
 	/* Free the memory heaps. */
-	n = table->n_mutexes;
+	n = table->n_sync_obj;
 
 	for (i = 0; i < n; i++) {
 		mem_heap_free(table->heaps[i]);
@@ -120,9 +130,24 @@ ha_clear(
 		mem_free(table->heaps);
 	}
 
-	if (table->mutexes) {
-		mem_free(table->mutexes);
+	switch (table->type) {
+	case HASH_TABLE_SYNC_MUTEX:
+		mem_free(table->sync_obj.mutexes);
+		table->sync_obj.mutexes = NULL;
+		break;
+
+	case HASH_TABLE_SYNC_RW_LOCK:
+		mem_free(table->sync_obj.rw_locks);
+		table->sync_obj.rw_locks = NULL;
+		break;
+
+	case HASH_TABLE_SYNC_NONE:
+		/* do nothing */
+		break;
 	}
+
+	table->n_sync_obj = 0;
+	table->type = HASH_TABLE_SYNC_NONE;
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -165,7 +190,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	ASSERT_HASH_MUTEX_OWN(table, fold);
+	hash_assert_can_modify(table, fold);
 
 	hash = hash_calc_hash(fold, table);
 
@@ -294,7 +319,7 @@ ha_search_and_update_if_found_func(
 
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ASSERT_HASH_MUTEX_OWN(table, fold);
+	hash_assert_can_modify(table, fold);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -333,7 +358,7 @@ ha_remove_all_nodes_to_page(
 
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ASSERT_HASH_MUTEX_OWN(table, fold);
+	hash_assert_can_modify(table, fold);
 
 	node = ha_chain_get_first(table, fold);
 

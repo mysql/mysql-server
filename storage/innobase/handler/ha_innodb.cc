@@ -12071,10 +12071,12 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(page_hash_mutexes, srv_n_page_hash_mutexes,
+#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
+static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Number of mutexes protecting buffer pool page_hash. Rounded up to the next power of 2",
-  NULL, NULL, 256, 1, MAX_PAGE_HASH_MUTEXES, 0);
+  "Number of rw_locks protecting buffer pool page_hash. Rounded up to the next power of 2",
+  NULL, NULL, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12314,7 +12316,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(reset_all_monitor_counter),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
-  MYSQL_SYSVAR(page_hash_mutexes),
+#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
+  MYSQL_SYSVAR(page_hash_locks),
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   NULL
 };
 

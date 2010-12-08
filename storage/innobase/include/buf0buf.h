@@ -69,8 +69,8 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_POOL_WATCH_SIZE		(srv_n_purge_threads + 1)
 					/*!< Maximum number of concurrent
 					buffer pool watches */
-#define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
-					page_hash mutexes */
+#define MAX_PAGE_HASH_LOCKS	1024	/*!< The maximum number of
+					page_hash locks */
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
@@ -1161,49 +1161,77 @@ buf_page_hash_get_low(
 	ulint		fold);	/*!< in: buf_page_address_fold(space, offset) */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is up to the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get(
-/*==============*/
+buf_page_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex);		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found or an
-uncompressed page frame does not exist.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is upto the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+Returns the control block of a file page, NULL if not found.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
-buf_block_hash_get(
-/*===============*/
+buf_block_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex);		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
+/* There are four different ways we can try to get a bpage or block
+from the page hash:
+1) Caller already holds the appropriate page hash lock: in the case call
+buf_page_hash_get_low() function.
+2) Caller wants to hold page hash lock in x-mode
+3) Caller wants to hold page hash lock in s-mode
+4) Caller doesn't want to hold page hash lock */
+#define buf_page_hash_get_s_locked(b, s, o, l)			\
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+#define buf_page_hash_get_x_locked(b, s, o, l)			\
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+#define buf_page_hash_get(b, s, o)				\
+	buf_page_hash_get_locked(b, s, o, NULL, 0)
+
+#define buf_block_hash_get_s_locked(b, s, o, l)			\
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+#define buf_block_hash_get_x_locked(b, s, o, l)			\
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+#define buf_block_hash_get(b, s, o)				\
+	buf_block_hash_get_locked(b, s, o, NULL, 0)
+
 /*********************************************************************//**
 Gets the current length of the free list of buffer blocks.
 @return	length of the free list */
@@ -1809,19 +1837,46 @@ Use these instead of accessing buf_pool->mutex directly. */
 
 
 
-/** Get appropriate page_hash_mutex. */
-#define buf_page_hash_mutex_get(b, f)		\
-	hash_get_mutex(b->page_hash, f)
+/** Get appropriate page_hash_lock. */
+# define buf_page_hash_lock_get(b, f)		\
+	hash_get_lock(b->page_hash, f)
 
-/** Test if page_hash mutex is owned. */
-#define buf_page_hash_mutex_own(b, p)			\
-	mutex_own(buf_page_hash_mutex_get(b,		\
+#ifdef UNIV_SYNC_DEBUG
+/** Test if page_hash lock is held in s-mode. */
+# define buf_page_hash_lock_held_s(b, p)		\
+	rw_lock_own(buf_page_hash_lock_get(b,		\
 		  buf_page_address_fold(p->space,	\
-					p->offset)))
-#define buf_block_hash_mutex_own(b, p)			\
-	mutex_own(buf_page_hash_mutex_get(b,		\
-		  buf_page_address_fold(p->page.space,	\
-					p->page.offset)))
+					p->offset)),	\
+					RW_LOCK_SHARED)
+
+/** Test if page_hash lock is held in x-mode. */
+# define buf_page_hash_lock_held_x(b, p)		\
+	rw_lock_own(buf_page_hash_lock_get(b,		\
+		  buf_page_address_fold(p->space,	\
+					p->offset)),	\
+					RW_LOCK_EX)
+
+/** Test if page_hash lock is held in x or s-mode. */
+# define buf_page_hash_lock_held_s_or_x(b, p)		\
+	(buf_page_hash_lock_held_s(b, p)		\
+	 || buf_page_hash_lock_held_x(b, p))
+
+# define buf_block_hash_lock_held_s(b, p)		\
+	buf_page_hash_lock_held_s(b, &(p->page))
+
+# define buf_block_hash_lock_held_x(b, p)		\
+	buf_page_hash_lock_held_x(b, &(p->page))
+
+# define buf_block_hash_lock_held_s_or_x(b, p)		\
+	buf_page_hash_lock_held_s_or_x(b, &(p->page))
+#else /* UNIV_SYNC_DEBUG */
+# define buf_page_hash_lock_held_s(b, p)	(TRUE)
+# define buf_page_hash_lock_held_x(b, p)	(TRUE)
+# define buf_page_hash_lock_held_s_or_x(b, p)	(TRUE)
+# define buf_block_hash_lock_held_s(b, p)	(TRUE)
+# define buf_block_hash_lock_held_x(b, p)	(TRUE)
+# define buf_block_hash_lock_held_s_or_x(b, p)	(TRUE)
+#endif /* UNIV_SYNC_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Forbid the release of the buffer pool mutex. */
