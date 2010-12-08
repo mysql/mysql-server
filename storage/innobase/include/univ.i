@@ -203,6 +203,9 @@ debugging redo log application problems. */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
+#define UNIV_PERF_DEBUG                         /* debug flag that enables
+                                                light weight performance
+                                                related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */

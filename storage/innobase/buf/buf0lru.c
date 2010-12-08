@@ -124,8 +124,8 @@ If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
 the object will be freed.
 
 The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
-and the appropriate hash_mutex. This function will release the
-buf_page_get_mutex() and the hash_mutex.
+and the appropriate hash_lock. This function will release the
+buf_page_get_mutex() and the hash_lock.
 
 If a compressed page or a compressed-only block descriptor is freed,
 other compressed pages or compressed-only block descriptors may be
@@ -375,12 +375,12 @@ scan_again:
 		} else {
 			ulint fold = buf_page_address_fold(bpage->space,
 							   bpage->offset);
-			mutex_t* hash_mutex = buf_page_hash_mutex_get(buf_pool,
+			rw_lock_t* hash_lock = buf_page_hash_lock_get(buf_pool,
 								      fold);
 
 			mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
-			mutex_enter(hash_mutex);
+			rw_lock_x_lock(hash_lock);
 			mutex_enter(block_mutex);
 
 			if (bpage->buf_fix_count > 0) {
@@ -391,7 +391,7 @@ scan_again:
 				the modifications to the file */
 
 				all_freed = FALSE;
-				mutex_exit(hash_mutex);
+				rw_lock_x_unlock(hash_lock);
 				mutex_exit(block_mutex);
 				goto next_page;
 			}
@@ -446,7 +446,7 @@ scan_again:
 				zip_size = buf_page_get_zip_size(bpage);
 				page_no = buf_page_get_page_no(bpage);
 
-				mutex_exit(hash_mutex);
+				rw_lock_x_unlock(hash_lock);
 				mutex_exit(block_mutex);
 
 				/* Note that the following call will acquire
@@ -490,7 +490,10 @@ scan_again:
 
 			}
 
-			ut_ad(!mutex_own(hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+                        ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+                              && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 			ut_ad(!mutex_own(block_mutex));
 		}
 next_page:
@@ -1471,7 +1474,7 @@ buf_LRU_free_block(
 	enum buf_lru_free_block_status	ret;
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
@@ -1479,7 +1482,7 @@ buf_LRU_free_block(
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 
-	mutex_enter(hash_mutex);
+	rw_lock_x_lock(hash_lock);
 	mutex_enter(block_mutex);
 
 #if UNIV_WORD_SIZE == 4
@@ -1537,7 +1540,7 @@ buf_LRU_free_block(
 no_free_exit:
 			ret = BUF_LRU_NOT_FREED;
 func_exit:
-			mutex_exit(hash_mutex);
+			rw_lock_x_unlock(hash_lock);
 			mutex_exit(block_mutex);
 			return(ret);
 		}
@@ -1568,7 +1571,9 @@ func_exit:
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mutex_own(hash_mutex));
+#ifdef UNIV_SYNC_DEBUG
+        ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
 	if (buf_LRU_block_remove_hashed_page(bpage, zip)
@@ -1584,7 +1589,7 @@ func_exit:
 		if (b) {
 			buf_page_t*	prev_b	= UT_LIST_GET_PREV(LRU, b);
 
-			mutex_enter(hash_mutex);
+			rw_lock_x_lock(hash_lock);
 			mutex_enter(block_mutex);
 
 			ut_a(!buf_page_hash_get_low(buf_pool,
@@ -1683,7 +1688,7 @@ func_exit:
 			b->buf_fix_count++;
 			b->io_fix = BUF_IO_READ;
 
-			mutex_exit(hash_mutex);
+			rw_lock_x_unlock(hash_lock);
 			mutex_exit(block_mutex);
 		}
 
@@ -1733,7 +1738,10 @@ func_exit:
 
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	}
-
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	return(BUF_LRU_FREED);
 }
 
@@ -1805,8 +1813,8 @@ If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
 the object will be freed.
 
 The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
-and the appropriate hash_mutex. This function will release the
-buf_page_get_mutex() and the hash_mutex.
+and the appropriate hash_lock. This function will release the
+buf_page_get_mutex() and the hash_lock.
 
 If a compressed page or a compressed-only block descriptor is freed,
 other compressed pages or compressed-only block descriptors may be
@@ -1826,15 +1834,17 @@ buf_LRU_block_remove_hashed_page(
 	ulint			fold;
 	const buf_page_t*	hashed_bpage;
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
-	mutex_t*		hash_mutex;
+	rw_lock_t*		hash_lock;
 
 	ut_ad(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	fold = buf_page_address_fold(bpage->space, bpage->offset);
-	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
-	ut_ad(mutex_own(hash_mutex));
+	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+#ifdef UNIV_SYNC_DEBUG
+        ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
@@ -1940,7 +1950,7 @@ buf_LRU_block_remove_hashed_page(
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		mutex_exit(buf_page_get_mutex(bpage));
-		mutex_exit(hash_mutex);
+		rw_lock_x_unlock(hash_lock);
 		buf_pool_mutex_exit(buf_pool);
 		buf_print();
 		buf_LRU_print();
@@ -1965,7 +1975,7 @@ buf_LRU_block_remove_hashed_page(
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 
 		mutex_exit(&buf_pool->zip_mutex);
-		mutex_exit(hash_mutex);
+		rw_lock_x_unlock(hash_lock);
 		buf_pool_mutex_exit_forbid(buf_pool);
 
 		buf_buddy_free(
@@ -2006,7 +2016,7 @@ buf_LRU_block_remove_hashed_page(
 		and by the time we'll release it in the caller we'd
 		have inserted the compressed only descriptor in the
 		page_hash. */
-		mutex_exit(hash_mutex);
+		rw_lock_x_unlock(hash_lock);
 		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (zip && bpage->zip.data) {

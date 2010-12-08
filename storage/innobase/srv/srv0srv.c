@@ -192,8 +192,8 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
-/* number of mutexes to protect buf_pool->page_hash */
-UNIV_INTERN ulong	srv_n_page_hash_mutexes = 256;
+/* number of locks to protect buf_pool->page_hash */
+UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */

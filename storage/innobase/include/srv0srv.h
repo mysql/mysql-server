@@ -155,7 +155,7 @@ extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
-extern ulong	srv_n_page_hash_mutexes;/*!< number of mutexes to
+extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
