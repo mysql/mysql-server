@@ -625,7 +625,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: command "cat_file" failed with error 1
+mysqltest: At line 1: command "cat_file" failed with error 1. (my_errno)
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
