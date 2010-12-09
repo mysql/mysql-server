@@ -374,6 +374,17 @@ typedef struct brt_upgrade_status {
 
 void toku_brt_get_upgrade_status(BRT_UPGRADE_STATUS);
 
+
+typedef struct le_status {
+    u_int64_t max_committed_xr;
+    u_int64_t max_provisional_xr;
+    u_int64_t expanded;
+    u_int64_t max_memsize;
+} LE_STATUS_S, *LE_STATUS;
+
+void toku_le_get_status(LE_STATUS);
+
+
 C_END
 
 #endif

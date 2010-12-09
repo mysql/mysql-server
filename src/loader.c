@@ -280,8 +280,6 @@ int toku_loader_set_error_callback(DB_LOADER *loader,
 
 int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val) 
 {
-    status.put++;  // not worth the extra cycles to keep threadsafe
-
     int r = 0;
     int i = 0;
     //      err_i is unused now( always 0).  How would we know which dictionary
@@ -290,7 +288,8 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
     // skip put if error already found
     if ( loader->i->err_errno != 0 ) {
-        return -1;
+        r = -1;
+	goto cleanup;
     }
 
     if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
@@ -326,9 +325,14 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
         
         // deliberately return content free value
         //   - must call error_callback to get error info
-        return -1;
+        r = -1;
     }
-    return 0;
+ cleanup:
+    if (r==0)
+	status.put++;  // executed too often to be worth making threadsafe
+    else
+	status.put_fail++;
+    return r;
 }
 
 int toku_loader_close(DB_LOADER *loader) 
