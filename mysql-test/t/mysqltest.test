@@ -1354,6 +1354,11 @@ EOF
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
 remove_file $MYSQL_TMP_DIR/mysqltest.sql;
 
+--error 1
+--exec echo "if (\$var ==) {" | $MYSQL_TEST  2>&1
+--error 1
+--exec echo "if (\$var > ) {" | $MYSQL_TEST  2>&1
+
 # ----------------------------------------------------------------------------
 # Test while with compare conditions
 # ----------------------------------------------------------------------------
