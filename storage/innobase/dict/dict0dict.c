@@ -774,7 +774,7 @@ dict_init(void)
 	ut_a(dict_foreign_err_file);
 
 	mutex_create(dict_foreign_err_mutex_key,
-		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
+		     &dict_foreign_err_mutex, SYNC_NO_ORDER_CHECK);
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
 		rw_lock_create(PFS_NOT_INSTRUMENTED,
