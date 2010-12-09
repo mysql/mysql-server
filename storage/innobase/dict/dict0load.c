@@ -441,7 +441,7 @@ dict_process_sys_fields_rec(
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function
+about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
@@ -469,6 +469,11 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
+	
+	/* This recieves a dict_foreign_t* that points to a stack variable.
+	So mem_heap_free(foreign->heap) is not used as elsewhere.
+	Since the heap used here is freed elsewhere, foreign->heap
+	is not assigned. */
 	foreign->id = mem_heap_strdupl(heap, (const char*) field, len);
 
 	rec_get_nth_field_offs_old(rec, 1/*DB_TRX_ID*/, &len);
@@ -480,22 +485,22 @@ err_len:
 		goto err_len;
 	}
 
+	/* The _lookup versions of the referenced and foreign table names
+	 are not assigned since they are not used in this dict_foreign_t */
+
 	field = rec_get_nth_field_old(rec, 3/*FOR_NAME*/, &len);
 	if (UNIV_UNLIKELY(len < 1 || len == UNIV_SQL_NULL)) {
 		goto err_len;
 	}
 	foreign->foreign_table_name = mem_heap_strdupl(
 		heap, (const char*) field, len);
-	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
 	field = rec_get_nth_field_old(rec, 4/*REF_NAME*/, &len);
 	if (UNIV_UNLIKELY(len < 1 || len == UNIV_SQL_NULL)) {
 		goto err_len;
 	}
-
 	foreign->referenced_table_name = mem_heap_strdupl(
 		heap, (const char*) field, len);
-	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	field = rec_get_nth_field_old(rec, 5/*N_COLS*/, &len);
 	if (UNIV_UNLIKELY(len != 4)) {
