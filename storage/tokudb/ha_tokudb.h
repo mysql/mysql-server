@@ -281,6 +281,9 @@ private:
     DB_LOADER* loader;
     bool abort_loader;
     int loader_error;
+
+    bool num_DBs_locked_in_bulk;
+    u_int32_t lock_count;
     
     bool fix_rec_buff_for_blob(ulong length);
     bool fix_rec_update_buff_for_blob(ulong length);
@@ -348,7 +351,7 @@ private:
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
-    void set_main_dict_put_flags(THD* thd, u_int32_t* put_flags);
+    void set_main_dict_put_flags(THD* thd, u_int32_t* put_flags, bool no_overwrite_no_error_allowed);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
