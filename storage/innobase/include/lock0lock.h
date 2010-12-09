@@ -619,7 +619,7 @@ UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	const trx_t*	trx);	/*!< in: transaction */
+	trx_t*		trx);	/*!< in: transaction */
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */

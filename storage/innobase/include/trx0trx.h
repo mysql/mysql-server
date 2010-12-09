@@ -230,8 +230,8 @@ trx_commit_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. The caller must own the
-trx_t::mutex. */
+Prints info about a transaction to the given file. The caller must not own
+the transaction mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -397,8 +397,10 @@ struct trx_lock_struct {
 					transaction */
 
 	UT_LIST_BASE_NODE_T(lock_t)
-			trx_locks;	/*!< locks reserved by the
-				       	transaction */
+			trx_locks;	/*!< locks reserved by the transaction.
+					List operations are covered by the
+					trx mutex. Logical operations require
+					the lock mutex */
 };
 
 #define TRX_MAGIC_N	91118598
