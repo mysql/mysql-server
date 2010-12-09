@@ -35,6 +35,9 @@
 #include "table_file_instances.h"
 #include "table_file_summary.h"
 #include "table_threads.h"
+#include "table_tiws_by_index_usage.h"
+#include "table_tiws_by_table.h"
+#include "table_tlws_by_table.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -73,6 +76,9 @@ static PFS_engine_table_share *all_shares[]=
   &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_threads::m_share,
+  &table_tiws_by_index_usage::m_share,
+  &table_tiws_by_table::m_share,
+  &table_tlws_by_table::m_share,
   NULL
 };
 

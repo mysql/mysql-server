@@ -168,3 +168,75 @@ void reset_events_waits_history_long(void)
     wait->m_wait_class= NO_WAIT_CLASS;
 }
 
+void reset_table_waits_by_table()
+{
+  PFS_table_share *pfs= table_share_array;
+  PFS_table_share *pfs_last= pfs + table_share_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate();
+  }
+}
+
+void reset_table_io_waits_by_table()
+{
+  PFS_table_share *pfs= table_share_array;
+  PFS_table_share *pfs_last= pfs + table_share_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate_io();
+  }
+}
+
+void reset_table_lock_waits_by_table()
+{
+  PFS_table_share *pfs= table_share_array;
+  PFS_table_share *pfs_last= pfs + table_share_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->aggregate_lock();
+  }
+}
+
+void reset_table_waits_by_table_handle()
+{
+  PFS_table *pfs= table_array;
+  PFS_table *pfs_last= pfs + table_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->sanitized_aggregate();
+  }
+}
+
+void reset_table_io_waits_by_table_handle()
+{
+  PFS_table *pfs= table_array;
+  PFS_table *pfs_last= pfs + table_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->sanitized_aggregate_io();
+  }
+}
+
+void reset_table_lock_waits_by_table_handle()
+{
+  PFS_table *pfs= table_array;
+  PFS_table *pfs_last= pfs + table_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if (pfs->m_lock.is_populated())
+      pfs->sanitized_aggregate_lock();
+  }
+}
+

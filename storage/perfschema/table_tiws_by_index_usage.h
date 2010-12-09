@@ -13,12 +13,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
-#define TABLE_EWS_GLOBAL_BY_EVENT_NAME_H
+#ifndef TABLE_IO_WAIT_SUMMARY_BY_INDEX_USAGE_H
+#define TABLE_IO_WAIT_SUMMARY_BY_INDEX_USAGE_H
 
 /**
-  @file storage/perfschema/table_ews_global_by_event_name.h
-  Table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (declarations).
+  @file storage/perfschema/table_tiws_by_index_usage.h
+  Table TABLE_IO_WAIT_SUMMARY_BY_INDEX_USAGE (declarations).
 */
 
 #include "pfs_column_types.h"
@@ -34,54 +34,60 @@
 
 /**
   A row of table
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.
+  PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX.
 */
-struct row_ews_global_by_event_name
+struct row_tiws_by_index_usage
 {
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
-  PFS_stat_row m_stat;
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+  /** Column INDEX_NAME. */
+  char m_index_name[NAME_LEN];
+  /** Length in bytes of @c m_index_name. */
+  uint m_index_name_length;
+  /** Columns COUNT/SUM/MIN/AVG/MAX (+_READ, +WRITE). */
+  PFS_table_io_stat_row m_stat;
 };
 
 /**
   Position of a cursor on
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.
-  Index 1 on instrument view
-  Index 2 on instrument class (1 based)
+  PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX.
+  Index 1 on table_share_array (0 based)
+  Index 2 on index (0 based)
 */
-struct pos_ews_global_by_event_name
-: public PFS_double_index, public PFS_instrument_view_constants
+struct pos_tiws_by_index_usage : public PFS_double_index
 {
-  pos_ews_global_by_event_name()
-    : PFS_double_index(FIRST_VIEW, 1)
+  pos_tiws_by_index_usage()
+    : PFS_double_index(0, 0)
   {}
 
   inline void reset(void)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 1;
+    m_index_1= 0;
+    m_index_2= 0;
   }
 
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
+  inline bool has_more_table(void)
+  {
+    return (m_index_1 < table_share_max);
+  }
 
-  inline void next_view(void)
+  inline void next_table(void)
   {
     m_index_1++;
-    m_index_2= 1;
-  }
-
-  inline void next_instrument(void)
-  {
-    m_index_2++;
+    m_index_2= 0;
   }
 };
 
-/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
-class table_ews_global_by_event_name : public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.TABLE_IO_WAIT_SUMMARY_BY_INDEX. */
+class table_tiws_by_index_usage : public PFS_engine_table
 {
 public:
   /** Table share */
@@ -99,19 +105,14 @@ protected:
                               Field **fields,
                               bool read_all);
 
-  table_ews_global_by_event_name();
+  table_tiws_by_index_usage();
 
 public:
-  ~table_ews_global_by_event_name()
+  ~table_tiws_by_index_usage()
   {}
 
 protected:
-  void make_mutex_row(PFS_mutex_class *klass);
-  void make_rwlock_row(PFS_rwlock_class *klass);
-  void make_cond_row(PFS_cond_class *klass);
-  void make_file_row(PFS_file_class *klass);
-  void make_table_io_row(PFS_instr_class *klass);
-  void make_table_lock_row(PFS_instr_class *klass);
+  void make_row(PFS_table_share *table_share, uint index);
 
 private:
   /** Table share lock. */
@@ -120,13 +121,13 @@ private:
   static TABLE_FIELD_DEF m_field_def;
 
   /** Current row. */
-  row_ews_global_by_event_name m_row;
+  row_tiws_by_index_usage m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  pos_ews_global_by_event_name m_pos;
+  pos_tiws_by_index_usage m_pos;
   /** Next position. */
-  pos_ews_global_by_event_name m_next_pos;
+  pos_tiws_by_index_usage m_next_pos;
 };
 
 /** @} */
