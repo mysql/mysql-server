@@ -34,7 +34,7 @@ delimiter ;|
 # the log's contents) that caused the server crash.
 
 -- disable_query_log
-call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'read error', data_len: 66124, event_type: 116");
+call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'read error', data_len: 66125, event_type: 116");
 -- enable_query_log
 
 --error 1220
