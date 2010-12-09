@@ -1169,8 +1169,8 @@ void handle_command_error(struct st_command *command, uint error)
     int i;
 
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with error %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
 
     i= match_expected_error(command, error, NULL);
 
@@ -1181,8 +1181,8 @@ void handle_command_error(struct st_command *command, uint error)
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -2077,7 +2077,7 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     val_len= 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
-                                                  + name_len+1, MYF(MY_WME))))
+                                                  + name_len+2, MYF(MY_WME))))
     die("Out of memory");
 
   if (name != NULL)
@@ -7934,6 +7934,16 @@ void init_re(void)
 
 int match_re(my_regex_t *re, char *str)
 {
+  while (my_isspace(charset_info, *str))
+    str++;
+  if (str[0] == '/' && str[1] == '*')
+  {
+    char *comm_end= strstr (str, "*/");
+    if (! comm_end)
+      die("Statement is unterminated comment");
+    str= comm_end + 2;
+  }
+  
   int err= my_regexec(re, str, (size_t)0, NULL, 0);
 
   if (err == 0)

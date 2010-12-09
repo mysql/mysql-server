@@ -2130,6 +2130,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+--replace_regex /my_errno=[0-9]*/(my_errno)/
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
 
