@@ -338,7 +338,7 @@ protected:
   Number of comparisons of table rowids equivalent to reading one row from a 
   table.
 */
-#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*100)
 
 /*
   For sequential disk seeks the cost formula is:

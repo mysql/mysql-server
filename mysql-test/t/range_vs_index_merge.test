@@ -68,7 +68,7 @@ SELECT * FROM City
 
 EXPLAIN 
 SELECT * FROM City
-  WHERE (Population > 101000 AND Population < 103000);
+  WHERE (Population > 101000 AND Population < 102000);
 
 EXPLAIN 
 SELECT * FROM City
@@ -88,7 +88,7 @@ SELECT * FROM City
 EXPLAIN 
 SELECT * FROM City
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 # The following 4 queries check that the plans
 # for the previous 2 plans are valid
@@ -103,11 +103,11 @@ SELECT * FROM City
 
 SELECT * FROM City USE INDEX ()
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 SELECT * FROM City
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 # The output of the next 7 commands tells us about selectivities
 # of the conditions utilized in 4 queries following after them  
@@ -197,11 +197,11 @@ SELECT  * FROM City
 # of the conditions utilized in 3 queries following after them  
 
 EXPLAIN
-SELECT * FROM City WHERE (ID < 50) OR (ID BETWEEN 100 AND 110);
+SELECT * FROM City WHERE (ID < 10) OR (ID BETWEEN 100 AND 110);
 EXPLAIN
-SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 300 AND 600);
+SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 100 AND 200);
 EXPLAIN
-SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1800);
+SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1500);
 EXPLAIN
 SELECT * FROM City WHERE Country > 'A' AND Country < 'ARG';
 EXPLAIN
@@ -219,20 +219,20 @@ SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
 EXPLAIN
 SELECT * FROM City
   WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 900 AND 1800) AND 
+        OR ((ID BETWEEN 900 AND 1500) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ((ID < 600) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 300 AND 600) AND 
+  WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
+        OR ((ID BETWEEN 100 AND 200) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 
@@ -240,33 +240,33 @@ SELECT * FROM City
 # for the previous 3 plans are valid
 
 SELECT * FROM City USE INDEX ()
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 10) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City USE INDEX()
   WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 900 AND 1800) AND 
+        OR ((ID BETWEEN 900 AND 1500) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City
   WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 900 AND 1800) AND 
+        OR ((ID BETWEEN 900 AND 1500) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City USE INDEX ()
   WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 300 AND 600) AND 
+        OR ((ID BETWEEN 100 AND 200) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City
   WHERE ((ID < 200) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
-        OR ((ID BETWEEN 300 AND 600) AND 
+        OR ((ID BETWEEN 100 AND 200) AND 
             (Name LIKE 'Pa%' OR (Population > 103000 AND Population < 104000)));
 
 
@@ -353,7 +353,7 @@ ANALYZE TABLE City;
 --enable_result_log
 --enable_query_log
 
-# The output of the next 4 commands tells us about selectivities
+# The output of the next 5 commands tells us about selectivities
 # of the conditions utilized in 2 queries following after them  
 
 EXPLAIN
@@ -364,6 +364,8 @@ EXPLAIN
 SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
+EXPLAIN
+SELECT * FROM City WHERE Country='FIN';
 
 # The pattern of the WHERE condition used in the following 3 queries is
 #   (range(key1_p2) OR (range(key2)) AND key1_p1=c
@@ -380,7 +382,7 @@ SELECT * FROM City
 EXPLAIN
 SELECT * FROM City 
   WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+        AND Country='FIN';
 
 # The following 4 queries check that the plans
 # for the previous 2 plans are valid
@@ -395,11 +397,11 @@ SELECT * FROM City USE INDEX ()
 
 SELECT * FROM City 
   WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+        AND Country='FIN';
 
 SELECT * FROM City USE INDEX ()
   WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+        AND Country='FIN';
 
 
 CREATE INDEX CountryName ON City(Country,Name);
@@ -412,11 +414,13 @@ ANALYZE TABLE City;
 --enable_result_log
 --enable_query_log
 
-# The output of the next 11 commands tells us about selectivities
+# The output of the next 12 commands tells us about selectivities
 # of the conditions utilized in 3 queries following after them  
 
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
+EXPLAIN
+SELECT * FROM City WHERE Country='FIN';
 EXPLAIN
 SELECT * FROM City WHERE Country='BRA';
 EXPLAIN
@@ -464,7 +468,7 @@ SELECT * FROM City
 EXPLAIN
 SELECT * FROM City
   WHERE ((Population > 101000 AND Population < 110000) OR
-          ID BETWEEN 3500 AND 3800) AND Country='USA'
+          ID BETWEEN 3500 AND 3800) AND Country='FIN'
         AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
 
 # The following 6 queries check that the plans
@@ -492,12 +496,12 @@ SELECT * FROM City
 
 SELECT * FROM City USE INDEX ()
   WHERE ((Population > 101000 AND Population < 102000) OR
-          ID BETWEEN 3790 AND 3800) AND Country='USA'
+          ID BETWEEN 3790 AND 3800) AND Country='FIN'
         AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
 
 SELECT * FROM City
   WHERE ((Population > 101000 AND Population < 102000) OR
-          ID BETWEEN 3790 AND 3800) AND Country='USA'
+          ID BETWEEN 3790 AND 3800) AND Country='FIN'
         AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
 
 

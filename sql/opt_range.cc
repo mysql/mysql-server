@@ -1093,7 +1093,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
     {
       bool must_be_ored= sel_trees_must_be_ored(param, *or_tree, tree,
                                                 ored_keys);
-      if (must_be_ored == is_first_check_pass) 
+      if (must_be_ored || !is_first_check_pass) 
       {
         result_keys.clear_all();
         result= *or_tree;
@@ -1138,8 +1138,7 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param,
       *or_tree= result;
       if (is_first_check_pass)
         return 0;
-      else
-        was_ored= TRUE;
+      was_ored= TRUE;
     }
   }
   if (was_ored)
