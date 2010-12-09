@@ -3394,6 +3394,7 @@ fts_sync_commit(
 	/* TODO: uncomment when we have such a lock implemented
 	rwu_lock_u_upgrade(&cache->lock); */
 
+	/* Delete deleted Dod ID from ADD table */
 	error = fts_sync_delete_from_added(sync);
 
 	/* Get the list of deleted documents that are either in the

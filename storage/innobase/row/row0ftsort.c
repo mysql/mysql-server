@@ -29,6 +29,20 @@ Created 10/13/2010 Jimmy Yang
 #include "row0merge.h"
 #include "row0row.h"
 
+/** Read the next record to buffer N.
+@param N	index into array of merge info structure */
+#define ROW_MERGE_READ_GET_NEXT(N)					\
+	do {								\
+		b[N] = row_merge_read_rec(				\
+			block[N], buf[N], b[N], index,			\
+			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
+		if (UNIV_UNLIKELY(!b[N])) {				\
+			if (mrec[N]) {					\
+				goto exit;				\
+			}						\
+		}							\
+	} while (0)
+
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
 tokenized doc string. The index has three "fields":
@@ -853,6 +867,21 @@ row_fts_build_sel_tree_level(
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];
 		child_right = sel_tree[(start + i) * 2 + 2];
+
+		/* Deal with NULL child conditions */
+		if (!mrec[child_left]) {
+			if (!mrec[child_right]) {
+				sel_tree[start + i] = -1;
+			} else {
+				sel_tree[start + i] = child_right;
+			}
+			return;
+		} else if (!mrec[child_right]) {
+			sel_tree[start + i] = child_left;
+			return;
+		}
+
+		/* Select the smaller one to set parent pointer */
 		if (row_merge_cmp(mrec[child_left], mrec[child_right],
 				  offsets[child_left],
 				  offsets[child_right],
@@ -881,7 +910,8 @@ row_fts_build_sel_tree(
 	int	i = 0;
 	ulint	start;
 
-	if (FTS_PARALLEL_DEGREE < 2) {
+	/* No need to build selection tree if we only have two merge threads */
+	if (FTS_PARALLEL_DEGREE <= 2) {
 		return(0);
 	}
 
@@ -997,12 +1027,17 @@ row_fts_merge_insert(
 	fts_table.parent = index->table->name;
 
 	for (i = 0; i < FTS_PARALLEL_DEGREE; i++) {
-		if (!row_merge_read(fd[i], foffs[i], block[i])) {
-			error = DB_CORRUPTION;
-			goto corrupt;
-		}
+		if (psort_info[i].merge_file[id]->n_rec == 0) {
+			/* No Rows to read */
+			mrec[i] = b[i] = NULL;
+		} else {
+			if (!row_merge_read(fd[i], foffs[i], block[i])) {
+				error = DB_CORRUPTION;
+				goto exit;
+			}
 
-		ROW_MERGE_READ_GET_NEXT(i);
+			ROW_MERGE_READ_GET_NEXT(i);
+		}
 	}
 
 	height = row_fts_build_sel_tree(sel_tree, mrec, offsets, index);
@@ -1020,7 +1055,7 @@ row_fts_merge_insert(
 				min_rec++;
 
 				if (min_rec >= FTS_PARALLEL_DEGREE) {
-					goto corrupt;
+					goto exit;
 				}
 			}
 
@@ -1040,7 +1075,7 @@ row_fts_merge_insert(
 			min_rec = sel_tree[0];
 
 			if (min_rec ==  -1) {
-				goto corrupt;
+				goto exit;
 			}
 		}
 
@@ -1070,7 +1105,7 @@ row_fts_merge_insert(
 		mem_heap_empty(tuple_heap);
 	}
 
-corrupt:
+exit:
 	trx->op_info = "";
 
 	mem_heap_free(tuple_heap);
