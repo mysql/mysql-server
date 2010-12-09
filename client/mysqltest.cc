@@ -2073,6 +2073,8 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     name_len = strlen(name);
   if (!val_len && val)
     val_len = strlen(val) ;
+  if (!val)
+    val_len= 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
                                                   + name_len+1, MYF(MY_WME))))
@@ -2093,10 +2095,9 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     die("Out of memory");
 
   if (val)
-  {
     memcpy(tmp_var->str_val, val, val_len);
-    tmp_var->str_val[val_len]= 0;
-  }
+  tmp_var->str_val[val_len]= 0;
+
   var_check_int(tmp_var);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
@@ -5053,6 +5054,7 @@ void do_close_connection(struct st_command *command)
     dynstr_append_mem(ds, ";\n", 2);
   }
 
+  dynstr_free(&ds_connection);
   DBUG_VOID_RETURN;
 }
 
@@ -5481,6 +5483,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+  dynstr_free(&ds_default_auth);
 #ifdef HAVE_SMEM
   dynstr_free(&ds_shm);
 #endif
@@ -5729,6 +5732,7 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     }
 
     v.is_int= TRUE;
+    var_free(&v2);
   } else
   {
     if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
@@ -7822,7 +7826,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 		     ds, &ds_warnings);
 
   dynstr_free(&ds_warnings);
-  if (command->type == Q_EVAL)
+  if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
     dynstr_free(&eval_query);
 
   if (display_result_sorted)
