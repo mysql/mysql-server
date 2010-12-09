@@ -124,6 +124,7 @@ int poll_count = 0;
 int poll_count_nominal = 0;    // number of fclose calls for normal operation, initially zero
 int poll_count_trigger = 0;    // sequence number of fclose call that will fail (zero disables induced failure)
 
+int error_injected = 0;
 
 static const char *
 err_type_str (enum test_type t) {
@@ -172,6 +173,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
     event_count++;
     size_t r;
     if (fwrite_count_trigger == fwrite_count || event_count == event_count_trigger) {
+	error_injected++;
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -190,6 +192,7 @@ bad_write(int fd, const void * bp, size_t len) {
     write_count++;
     event_count++;
     if (write_count_trigger == write_count || event_count == event_count_trigger) {
+	error_injected++;
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -204,6 +207,7 @@ bad_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     pwrite_count++;
     event_count++;
     if (pwrite_count_trigger == pwrite_count || event_count == event_count_trigger) {
+	error_injected++;
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -220,6 +224,7 @@ bad_fdopen(int fd, const char * mode) {
     fdopen_count++;
     event_count++;
     if (fdopen_count_trigger == fdopen_count || event_count == event_count_trigger) {
+	error_injected++;
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -234,7 +239,7 @@ bad_fopen(const char *filename, const char *mode) {
     fopen_count++;
     event_count++;
     if (fopen_count_trigger == fopen_count || event_count == event_count_trigger) {
-	//printf("Doing fopen_count=%d event_count=%" PRId64 "\n", fopen_count, event_count);
+	error_injected++;
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -250,6 +255,7 @@ bad_open(const char *path, int oflag, int mode) {
     open_count++;
     event_count++;
     if (open_count_trigger == open_count || event_count == event_count_trigger) {
+	error_injected++;
 	errno = EINVAL;
 	rval = -1;
     } else {
@@ -269,6 +275,7 @@ bad_fclose(FILE * stream) {
     rval = fclose(stream);
     if (rval==0) {
 	if (fclose_count_trigger == fclose_count || event_count == event_count_trigger) {
+            error_injected++;
 	    errno = ENOSPC;
 	    rval = -1;
 	}
@@ -574,6 +581,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 {
     int failed_put = 0;
     int error_injection;  // are we expecting simulated errors from system calls?
+    error_injected = 0;   // number of errors actually injected
 
     if (t == commit        ||
 	t == abort_txn     ||
@@ -624,10 +632,10 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-	if (error_injection)
+	if (r != 0) {
+	    assert(error_injection && error_injected);
 	    failed_put = r;
-	else
-	    CKERR(r);
+	}
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
@@ -664,10 +672,14 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
     }
     else if (error_injection && !failed_put) {
 	const char * type = err_type_str(t);
-	if (verbose)
-	    printf("closing, but expecting failure from simulated error (enospc or einval)%s\n", type);
 	r = loader->close(loader);
-	if (!USE_PUTS) {
+	if (verbose) {
+	    if (error_injected)
+		printf("closing, but expecting failure from simulated error (enospc or einval)%s\n", type);
+	    else
+		printf("closing, expecting no error because number of system calls was less than predicted (%s)\n", type);
+	}
+	if (!USE_PUTS && error_injected) {
 	    if (r == 0) {
 		printf("loader->close() returned 0 but should have failed due to injected error from %s on call %d\n",
 		       err_type_str(t), trigger);
@@ -676,7 +688,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	    assert(r);
 	}
 	else
-	    CKERR(r);  // if using puts, "outer" loader should close just fine
+	    CKERR(r);  // if using puts, "outer" loader should close without error, if no errors injected should also close without error
     }
     else {
 	if (verbose)
