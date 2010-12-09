@@ -33,7 +33,6 @@
 
 #define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
 
-
 /*****************************************************************************
  *  Join cache module
 ******************************************************************************/
@@ -138,6 +137,7 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
   return len;
 }
     
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
 
 /* 
   Determine different counters of fields associated with a record in the cache  
@@ -158,10 +158,31 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
 
 void JOIN_CACHE::calc_record_fields()
 {
-  JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                               join->join_tab+join->const_tables;
-  tables= join_tab-tab;
-
+  JOIN_TAB *tab;
+  if (prev_cache)
+    tab= prev_cache->join_tab;
+  else
+  {
+    if (join_tab->bush_root_tab)
+    {
+      /* 
+        If the tab we're attached to is inside an SJM-nest, start from the
+        first tab in that SJM nest
+      */
+      tab= join_tab->bush_root_tab->bush_children->start;
+    }
+    else
+    {
+      /*
+        The tab we're attached to is not inside an SJM-nest. Start from the
+        first non-const table.
+      */
+      tab= join->join_tab + join->const_tables;
+    }
+  }
+  start_tab= tab;
+  //tables= join_tab-tab;
+  //tables= 0;
   fields= 0;
   blobs= 0;
   flag_fields= 0;
@@ -169,7 +190,7 @@ void JOIN_CACHE::calc_record_fields()
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  for ( ; tab < join_tab ; tab++)
+  for ( ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
   {	    
     calc_used_field_length(join->thd, tab);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
@@ -178,6 +199,7 @@ void JOIN_CACHE::calc_record_fields()
     blobs+= tab->used_blobs;
 
     fields+= tab->check_rowid_field();
+    //tables++;
   }
   if ((with_match_flag= join_tab->use_match_flag()))
     flag_fields++;
@@ -272,7 +294,8 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  //for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
   {
     TABLE *table= tab->table;
 
@@ -337,7 +360,8 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+  //for (tab= join_tab-tables; tab < join_tab; tab++)
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -558,7 +582,9 @@ int JOIN_CACHE_BKA::init()
       of the counting 'in local_key_arg_fields' and 'external_key_arg_fields'
       respectively.
     */ 
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+   // for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (tab= cache->start_tab; tab != cache->join_tab; tab=
+         next_linear_tab(cache->join, tab, TRUE))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -598,7 +624,9 @@ int JOIN_CACHE_BKA::init()
   while (ext_key_arg_cnt)
   {
     cache= cache->prev_cache;
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
+    for (tab= cache->start_tab; tab != cache->join_tab; tab=
+         next_linear_tab(cache->join, tab, TRUE))
+    //for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
     { 
       CACHE_FIELD *copy_end;
       MY_BITMAP *key_read_set= &tab->table->tmp_set;
@@ -641,7 +669,8 @@ int JOIN_CACHE_BKA::init()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= join_tab-tables; tab < join_tab ; tab++)
+  //for (tab= join_tab-tables; tab < join_tab ; tab++)
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
                                                  &data_field_count, &copy,
@@ -1771,13 +1800,18 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     join_tab->select->quick= 0;
   }
 
-  for (tab= join->join_tab; tab != join_tab ; tab++)
+  //for (tab= join->join_tab; tab != join_tab ; tab++)
+  for (tab= start_tab ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
   {
     tab->status= tab->table->status;
     tab->table->status= 0;
   }
 
   /* Start retrieving all records of the joined table */
+  
+  if ((rc= join_tab_execution_startup(join_tab)) < 0)
+    goto finish;
+
   if ((error= join_init_read_record(join_tab))) 
   {
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
@@ -1837,7 +1871,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   if (error > 0)				// Fatal error
     rc= NESTED_LOOP_ERROR; 
 finish:                  
-  for (tab= join->join_tab; tab != join_tab ; tab++)
+  //for (tab= join->join_tab; tab != join_tab ; tab++)
+  for (tab= start_tab ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
     tab->table->status= tab->status;
   return rc;
 }

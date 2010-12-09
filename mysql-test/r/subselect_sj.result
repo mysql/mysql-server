@@ -809,7 +809,7 @@ INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','f
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	13	func	1	1.00	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	13	func,func	1	100.00	
 2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`pk` > 0))
@@ -978,7 +978,7 @@ FROM t1
 WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	18	100.00	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	8	func	1	1.00	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	100.00	
 2	SUBQUERY	t1	ALL	varchar_key	NULL	NULL	NULL	15	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t2`.`varchar_nokey` AS `varchar_nokey` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`varchar_nokey` = `test`.`t1`.`varchar_key`) and ((`test`.`t1`.`varchar_nokey` < 'n') xor `test`.`t1`.`pk`))

@@ -46,16 +46,17 @@ protected:
           < child_join->prepare
         < engine->prepare
         *ref= substitution;
+        substitution= NULL;
       < Item_subselect::fix_fields
   */
-  Item *substitution;
 public:
+  Item *substitution;
   /* unit of subquery */
   st_select_lex_unit *unit;
-protected:
   Item *expr_cache;
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
+protected:
   /* old engine if engine was changed */
   subselect_engine *old_engine;
   /* cache of used external tables */
@@ -148,6 +149,7 @@ public:
   bool mark_as_dependent(THD *thd, st_select_lex *select, Item *item);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void recalc_used_tables(st_select_lex *new_parent, bool after_pullout);
+  virtual int optimize();
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -351,7 +353,9 @@ protected:
     all JOIN in UNION
   */
   Item *expr;
+public:
   Item_in_optimizer *optimizer;
+protected:
   bool was_null;
   bool abort_on_null;
 public:
@@ -396,6 +400,16 @@ public:
     MATERIALIZATION /* IN will be executed via subquery materialization. */
   };
   enum_exec_method exec_method;
+
+  /*
+    TRUE<=>this is a flattenable semi-join, false overwise.
+  */
+  bool is_flattenable_semijoin;
+  
+  /*
+    Cost to populate the temporary table (set on if-needed basis).
+  */
+  //double startup_cost;
 
   bool *get_cond_guard(int i)
   {
@@ -446,7 +460,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   void update_used_tables();
-  bool setup_engine();
+  bool setup_engine(bool dont_switch_arena);
   bool init_left_expr_cache();
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
@@ -521,6 +535,7 @@ public:
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
+  virtual int optimize() { DBUG_ASSERT(0); return 0; }
   /*
     Execute the engine
 
@@ -753,7 +768,7 @@ inline bool Item_subselect::is_uncacheable() const
 
 class subselect_hash_sj_engine : public subselect_engine
 {
-protected:
+public:
   /* The table into which the subquery is materialized. */
   TABLE *tmp_table;
   /* TRUE if the subquery was materialized into a temp table. */
@@ -765,14 +780,16 @@ protected:
     of subselect_single_select_engine::[prepare | cols].
   */
   subselect_single_select_engine *materialize_engine;
+protected:
   /* The engine used to compute the IN predicate. */
   subselect_engine *lookup_engine;
   /*
     QEP to execute the subquery and materialize its result into a
     temporary table. Created during the first call to exec().
   */
+public:
   JOIN *materialize_join;
-
+protected:
   /* Keyparts of the only non-NULL composite index in a rowid merge. */
   MY_BITMAP non_null_key_parts;
   /* Keyparts of the single column indexes with NULL, one keypart per index. */
@@ -785,7 +802,9 @@ protected:
     IN results because index lookups sometimes match values that are actually
     not equal to the search key in SQL terms.
  */
+public:
   Item_cond_and *semi_join_conds;
+protected:
   /* Possible execution strategies that can be used to compute hash semi-join.*/
   enum exec_strategy {
     UNDEFINED,
@@ -821,10 +840,11 @@ public:
   }
   ~subselect_hash_sj_engine();
 
-  bool init_permanent(List<Item> *tmp_columns);
+  bool init_permanent(List<Item> *tmp_columns, uint subquery_id);
   bool init_runtime();
   void cleanup();
   int prepare() { return 0; } /* Override virtual function in base class. */
+  int optimize();
   int exec();
   virtual void print(String *str, enum_query_type query_type);
   uint cols()

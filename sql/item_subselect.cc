@@ -206,11 +206,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   {
     // all transformation is done (used by prepared statements)
     changed= 1;
-  inside_first_fix_fields= FALSE;
-
-
-    // all transformation is done (used by prepared statements)
-    changed= 1;
+    inside_first_fix_fields= FALSE;
 
     /*
       Substitute the current item with an Item_in_optimizer that was
@@ -235,13 +231,13 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	res= (*ref)->fix_fields(thd, ref);
       goto end;
-//psergey-merge:  done_first_fix_fields= FALSE;
+
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-//psergey-merge:  done_first_fix_fields= FALSE;
+
       goto end;
     }
     fix_length_and_dec();
@@ -259,6 +255,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
 end:
   done_first_fix_fields= FALSE;
+  inside_first_fix_fields= FALSE;
   thd->where= save_where;
   return res;
 }
@@ -488,6 +485,12 @@ bool Item_subselect::exec()
   return (res);
 }
 
+int Item_subselect::optimize()
+{
+  int res;
+  res= engine->optimize();
+  return res;
+}
 
 /**
   Check if an expression cache is needed for this subquery
@@ -794,9 +797,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
-  //psergey-merge: can do without that: row[i]->cache_value();
-  //psergey-backport-timours: ^ really, without that ^ 
-  //psergey-try-merge-again:
   row[i]->cache_value();
 }
 
@@ -2219,7 +2219,7 @@ void Item_in_subselect::update_used_tables()
     @retval FALSE an execution method was chosen successfully
 */
 
-bool Item_in_subselect::setup_engine()
+bool Item_in_subselect::setup_engine(bool dont_switch_arena)
 {
   subselect_hash_sj_engine *new_engine= NULL;
   bool res= FALSE;
@@ -2234,14 +2234,15 @@ bool Item_in_subselect::setup_engine()
 
     old_engine= (subselect_single_select_engine*) engine;
 
-    if (arena->is_conventional())
+    if (arena->is_conventional() || dont_switch_arena)
       arena= 0;
     else
       thd->set_n_backup_active_arena(arena, &backup);
 
     if (!(new_engine= new subselect_hash_sj_engine(thd, this,
                                                    old_engine)) ||
-        new_engine->init_permanent(unit->get_unit_column_types()))
+        new_engine->init_permanent(unit->get_unit_column_types(),
+                                   old_engine->get_identifier()))
     {
       Item_subselect::trans_res trans_res;
       /*
@@ -3583,7 +3584,7 @@ subselect_hash_sj_engine::get_strategy_using_schema()
         bitmap_set_bit(&partial_match_key_parts, i);
         ++count_partial_match_columns;
       }
-    }
+    };
   }
 
   /* If no column contains NULLs use regular hash index lookups. */
@@ -3783,6 +3784,7 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   reexecution.
 
   @param tmp_columns the items that produce the data for the temp table
+  @param subquery_id subquery's identifier (for temptable name)
 
   @details
   - Create a temporary table to store the result of the IN subquery. The
@@ -3798,7 +3800,8 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
+bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns, 
+                                              uint subquery_id)
 {
   /* Options to create_tmp_table. */
   ulonglong tmp_create_options= thd->options | TMP_TABLE_ALL_COLUMNS;
@@ -3833,12 +3836,19 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   }
 */
+  char buf[32];
+  uint len= my_snprintf(buf, sizeof(buf), "<subquery%d>", subquery_id);
+  char *name;
+  if (!(name= (char*)thd->alloc(len + 1)))
+    DBUG_RETURN(TRUE);
+  memcpy(name, buf, len+1);
+
   if (!(result= new select_materialize_with_stats))
     DBUG_RETURN(TRUE);
 
   if (((select_union*) result)->create_result_table(
                          thd, tmp_columns, TRUE, tmp_create_options,
-                         "materialized subselect", TRUE))
+                         name, TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= ((select_union*) result)->table;
@@ -3919,7 +3929,7 @@ bool subselect_hash_sj_engine::make_semi_join_conds()
   if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table("", tmp_table->alias.c_ptr(), TL_READ);
   tmp_table_ref->table= tmp_table;
 
   context= new Name_resolution_context;
@@ -3984,6 +3994,7 @@ subselect_hash_sj_engine::make_unique_engine()
 
   tab->table= tmp_table;
   tab->ref.tmp_table_index_lookup_init(thd, tmp_key, it, FALSE);
+
 
   DBUG_RETURN(new subselect_uniquesubquery_engine(thd, tab, item,
                                                   semi_join_conds));
@@ -4063,6 +4074,17 @@ void subselect_hash_sj_engine::cleanup()
   result->cleanup(); /* Resets the temp table as well. */
 }
 
+
+int subselect_hash_sj_engine::optimize()
+{
+  int res= 0;
+  SELECT_LEX *save_select= thd->lex->current_select;
+  thd->lex->current_select= materialize_join->select_lex;
+  res= materialize_join->optimize();
+  thd->lex->current_select= save_select;
+
+  return res;
+}
 
 /**
   Execute a subquery IN predicate via materialization.

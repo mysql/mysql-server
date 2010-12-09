@@ -2,7 +2,7 @@
   @file
 
   @brief
-    Subquery optimization code here.
+    Semi-join subquery optimizations code
 
 */
 
@@ -16,7 +16,162 @@
 
 #include <my_bit.h>
 
-// Our own:
+/*
+  This file contains optimizations for semi-join subqueries.
+  
+  Contents
+  --------
+  1. What is a semi-join subquery
+  2. General idea about semi-join execution
+  2.1 Correlated vs uncorrelated semi-joins
+  2.2 Mergeable vs non-mergeable semi-joins
+  3. Code-level view of semi-join processing
+  3.1 Conversion
+  3.1.1 Merged semi-join TABLE_LIST object
+  3.1.2 Non-merged semi-join data structure
+  3.2 Semi-joins and query optimization
+  3.2.1 Non-merged semi-joins and join optimization
+  3.2.2 Merged semi-joins and join optimization
+  3.3 Semi-joins and query execution
+
+  1. What is a semi-join subquery
+  -------------------------------
+  We use this definition of semi-join:
+
+    outer_tbl SEMI JOIN inner_tbl ON cond = {set of outer_tbl.row such that
+                                             exist inner_tbl.row, for which 
+                                             cond(outer_tbl.row,inner_tbl.row)
+                                             is satisfied}
+  
+  That is, semi-join operation is similar to inner join operation, with
+  exception that we don't care how many matches a row from outer_tbl has in
+  inner_tbl.
+
+  In SQL terms: a semi-join subquery is an IN subquery that is an AND-part of
+  the WHERE/ON clause.
+
+  2. General idea about semi-join execution
+  -----------------------------------------
+  We can execute semi-join in a way similar to inner join, with exception that
+  we need to somehow ensure that we do not generate record combinations that
+  differ only in rows of inner tables.
+  There is a number of different ways to achieve this property, implemented by
+  a number of semi-join execution strategies.
+  Some strategies can handle any semi-joins, other can be applied only to
+  semi-joins that have certain properties that are described below:
+
+  2.1 Correlated vs uncorrelated semi-joins
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Uncorrelated semi-joins are special in the respect that they allow to
+   - execute the subquery (possible as it's uncorrelated)
+   - somehow make sure that generated set does not have duplicates
+   - perform an inner join with outer tables.
+  
+  or, rephrasing in SQL form:
+
+  SELECT ... FROM ot WHERE ot.col IN (SELECT it.col FROM it WHERE uncorr_cond)
+    ->
+  SELECT ... FROM ot JOIN (SELECT DISTINCT it.col FROM it WHERE uncorr_cond)
+
+  2.2 Mergeable vs non-mergeable semi-joins
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Semi-join operation has some degree of commutability with inner join
+  operation: we can join subquery's tables with ouside table(s) and eliminate
+  duplicate record combination after that:
+
+    ot1 JOIN ot2 SEMI_JOIN{it1,it2} (it1 JOIN it2) ON sjcond(ot2,it*) ->
+              |
+              +-------------------------------+
+                                              v
+    ot1 SEMI_JOIN{it1,it2} (it1 JOIN it2 JOIN ot2) ON sjcond(ot2,it*)
+ 
+  In order for this to work, subquery's top-level operation must be join, and
+  grouping or ordering with limit (grouping or ordering with limit are not
+  commutative with duplicate removal). In other words, the conversion is
+  possible when the subquery doesn't have GROUP BY clause, any aggregate
+  functions*, or ORDER BY ... LIMIT clause.
+
+  Definitions:
+  - Subquery whose top-level operation is a join is called *mergeable semi-join*
+  - All other kinds of semi-join subqueries are considered non-mergeable.
+
+  *- this requirement is actually too strong, but its exceptions are too
+  complicated to be considered here.
+
+  3. Code-level view of semi-join processing
+  ------------------------------------------
+  
+  3.1 Conversion and pre-optimization data structures
+  ---------------------------------------------------
+  * When doing JOIN::prepare for the subquery, we detect that it can be
+    converted into a semi-join and register it in parent_join->sj_subselects
+
+  * At the start of parent_join->optimize(), the predicate is converted into 
+    a semi-join node. A semi-join node is a TABLE_LIST object that is linked
+    somewhere in parent_join->join_list (either it is just present there, or
+    it is a descendant of some of its members).
+  
+  There are two kinds of semi-joins:
+  - Merged semi-joins
+  - Non-merged semi-joins
+   
+  3.1.1 Merged semi-join TABLE_LIST object
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Merged semi-join object is a TABLE_LIST that contains a sub-join of 
+  subquery tables and the semi-join ON expression (in this respect it is 
+  very similar to nested outer join representation)
+  Merged semi-join represents this SQL:
+
+    ... SEMI JOIN (inner_tbl1 JOIN ... JOIN inner_tbl_n) ON sj_on_expr
+  
+  Semi-join objects of this kind have TABLE_LIST::sj_subq_pred set.
+ 
+  3.1.2 Non-merged semi-join data structure
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  Non-merged semi-join object is a leaf TABLE_LIST object that has a subquery
+  that produces rows. It is similar to a base table and represents this SQL:
+    
+    ... SEMI_JOIN (SELECT non_mergeable_select) ON sj_on_expr
+  
+  Subquery items that were converted into semi-joins are removed from the WHERE
+  clause. (They do remain in PS-saved WHERE clause, and they replace themselves
+  with Item_int(1) on subsequent re-executions).
+
+  3.2 Semi-joins and join optimization
+  ------------------------------------
+  
+  3.2.1 Non-merged semi-joins and join optimization
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  For join optimization purposes, non-merged semi-join nests are similar to
+  base tables - they've got one JOIN_TAB, which can be accessed with one of
+  two methods:
+   - full table scan (representing SJ-Materialization-Scan strategy)
+   - eq_ref-like table lookup (representing SJ-Materialization-Lookup)
+
+  Unlike regular base tables, non-merged semi-joins have:
+   - non-zero JOIN_TAB::startup_cost, and
+   - join_tab->table->is_filled_at_execution()==TRUE, which means one
+     cannot do const table detection or range analysis or other table data-
+     dependent inferences
+  // instead, get_delayed_table_estimates() runs optimization on the nest so that 
+  // we get an idea about temptable size
+  
+  3.2.2 Merged semi-joins and join optimization
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   - optimize_semijoin_nests() does pre-optimization 
+   - during join optimization, the join has one JOIN_TAB (or is it POSITION?) 
+     array, and suffix-based detection is used, see advance_sj_state()
+   - after join optimization is done, get_best_combination() switches 
+     the data-structure to prefix-based, multiple JOIN_TAB ranges format.
+
+  3.3 Semi-joins and query execution
+  ----------------------------------
+  * Join executor has hooks for all semi-join strategies.
+    TODO elaborate.
+
+*/
+
+
 static
 bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
@@ -25,6 +180,8 @@ static bool replace_where_subcondition(JOIN *join, Item **expr,
 static int subq_sj_candidate_cmp(Item_in_subselect* const *el1, 
                                  Item_in_subselect* const *el2);
 static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred);
+static bool convert_subq_to_jtbm(JOIN *parent_join, 
+                                 Item_in_subselect *subq_pred, bool *remove);
 static TABLE_LIST *alloc_join_nest(THD *thd);
 static 
 void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist);
@@ -50,17 +207,22 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where);
 /*
   Check if we need JOIN::prepare()-phase subquery rewrites and if yes, do them
 
+  SYNOPSIS
+     check_and_do_in_subquery_rewrites()
+       join  Subquery's join
+
   DESCRIPTION
     Check if we need to do
-     - subquery->semi-join rewrite
+     - subquery -> mergeable semi-join rewrite
      - if the subquery can be handled with materialization
      - 'substitution' rewrite for table-less subqueries like "(select 1)"
-
-    and mark appropriately
+     - IN->EXISTS rewrite
+    and, depending on the rewrite, either do it, or record it to be done at a
+    later phase.
 
   RETURN
-     0  - OK
-    -1  - Some sort of query error
+    0      - OK
+    Other  - Some sort of query error
 */
 
 int check_and_do_in_subquery_rewrites(JOIN *join)
@@ -166,6 +328,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       (void)subquery_types_allow_materialization(in_subs);
 
       in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
+      in_subs->is_flattenable_semijoin= TRUE;
 
       /* Register the subquery for further processing in flatten_subqueries() */
       select_lex->
@@ -220,10 +383,24 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           (in_subs->is_top_level_item() ||
            optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) ||
            optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) &&//4
-          !in_subs->is_correlated &&                                  // 5
-          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
+          !in_subs->is_correlated)                                  // 5
       {
+        if (in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED)
           in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
+
+        /*
+          If the subquery is an AND-part of WHERE register for being processed
+          with jtbm strategy
+        */
+        if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
+            thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1 &&
+            optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN))
+        {
+          in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
+          in_subs->is_flattenable_semijoin= FALSE;
+          select_lex->outer_select()->
+            join->sj_subselects.append(thd->mem_root, in_subs);
+        }
       }
 
       Item_subselect::trans_res trans_res;
@@ -339,6 +516,69 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
 
 
 /*
+  Finalize IN->EXISTS conversion in case we couldn't use materialization.
+
+  DESCRIPTION  Invoke the IN->EXISTS converter
+    Replace the Item_in_subselect with its wrapper Item_in_optimizer in WHERE.
+
+  RETURN 
+    FALSE - Ok
+    TRUE  - Fatal error
+*/
+
+static 
+bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
+{
+  DBUG_ENTER("make_in_exists_conversion");
+  JOIN *child_join= item->unit->first_select()->join;
+  Item_subselect::trans_res res;
+  item->changed= 0;
+  item->fixed= 0;
+
+  SELECT_LEX *save_select_lex= thd->lex->current_select;
+  thd->lex->current_select= item->unit->first_select();
+
+  res= item->select_transformer(child_join);
+
+  thd->lex->current_select= save_select_lex;
+
+  if (res == Item_subselect::RES_ERROR)
+    DBUG_RETURN(TRUE);
+
+  item->changed= 1;
+  item->fixed= 1;
+
+  Item *substitute= item->substitution;
+  bool do_fix_fields= !item->substitution->fixed;
+  /*
+    The Item_subselect has already been wrapped with Item_in_optimizer, so we
+    should search for item->optimizer, not 'item'.
+  */
+  Item *replace_me= item->optimizer;
+  DBUG_ASSERT(replace_me==substitute);
+
+  Item **tree= (item->emb_on_expr_nest == (TABLE_LIST*)1)?
+                 &join->conds : &(item->emb_on_expr_nest->on_expr);
+  if (replace_where_subcondition(join, tree, replace_me, substitute, 
+                                 do_fix_fields))
+    DBUG_RETURN(TRUE);
+  item->substitution= NULL;
+   
+  if (!thd->stmt_arena->is_conventional())
+  {
+    tree= (item->emb_on_expr_nest == (TABLE_LIST*)1)?
+           &join->select_lex->prep_where : 
+           &(item->emb_on_expr_nest->prep_on_expr);
+
+    if (replace_where_subcondition(join, tree, replace_me, substitute, 
+                                   FALSE))
+      DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Convert semi-join subquery predicates into semi-join join nests
 
   SYNOPSIS
@@ -445,25 +685,41 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (in_subq= join->sj_subselects.front(); 
-       in_subq != in_subq_end && 
-       join->tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
-       in_subq++)
-  {
-    Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
-                   &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    if (replace_where_subcondition(join, tree, *in_subq, new Item_int(1),
-                                   FALSE))
-      DBUG_RETURN(TRUE); /* purecov: inspected */
-  }
  
   for (in_subq= join->sj_subselects.front(); 
        in_subq != in_subq_end && 
        join->tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
        in_subq++)
   {
-    if (convert_subq_to_sj(join, *in_subq))
-      DBUG_RETURN(TRUE);
+    bool remove_item= TRUE;
+    if ((*in_subq)->is_flattenable_semijoin) 
+    {
+      if (convert_subq_to_sj(join, *in_subq))
+        DBUG_RETURN(TRUE);
+    }
+    else
+    {
+      if (convert_subq_to_jtbm(join, *in_subq, &remove_item))
+        DBUG_RETURN(TRUE);
+    }
+    if (remove_item)
+    {
+      Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
+                     &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
+      Item *replace_me= *in_subq;
+      /*
+        JTBM: the subquery was already mapped with Item_in_optimizer, so we
+        should search for that, not for original Item_in_subselect.
+        TODO: what about delaying that rewrite until here?
+      */
+      if (!(*in_subq)->is_flattenable_semijoin)
+      {
+        replace_me= (*in_subq)->optimizer;
+      }
+      if (replace_where_subcondition(join, tree, replace_me, new Item_int(1),
+                                     FALSE))
+        DBUG_RETURN(TRUE); /* purecov: inspected */
+    }
   }
 skip_conversion:
   /* 
@@ -494,7 +750,19 @@ skip_conversion:
     bool do_fix_fields= !(*in_subq)->substitution->fixed;
     Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
                    &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    if (replace_where_subcondition(join, tree, *in_subq, substitute, 
+
+    Item *replace_me= *in_subq;
+    /*
+      JTBM: the subquery was already mapped with Item_in_optimizer, so we
+      should search for that, not for original Item_in_subselect.
+      TODO: what about delaying that rewrite until here?
+    */
+    if (!(*in_subq)->is_flattenable_semijoin)
+    {
+      replace_me= (*in_subq)->optimizer;
+    }
+
+    if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                    do_fix_fields))
       DBUG_RETURN(TRUE);
     (*in_subq)->substitution= NULL;
@@ -505,7 +773,7 @@ skip_conversion:
              &join->select_lex->prep_where : 
              &((*in_subq)->emb_on_expr_nest->prep_on_expr);
 
-      if (replace_where_subcondition(join, tree, *in_subq, substitute, 
+      if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                      FALSE))
         DBUG_RETURN(TRUE);
     }
@@ -516,6 +784,61 @@ skip_conversion:
   join->sj_subselects.clear();
   DBUG_RETURN(FALSE);
 }
+
+
+/*
+  Get #output_rows and scan_time estimates for a "delayed" table.
+
+  SYNOPSIS
+    get_delayed_table_estimates()
+      table         IN    Table to get estimates for
+      out_rows      OUT   E(#rows in the table)
+      scan_time     OUT   E(scan_time).
+      startup_cost  OUT   cost to populate the table.
+
+  DESCRIPTION
+    Get #output_rows and scan_time estimates for a "delayed" table. By
+    "delayed" here we mean that the table is filled at the start of query
+    execution. This means that the optimizer can't use table statistics to 
+    get #rows estimate for it, it has to call this function instead.
+
+    This function is expected to make different actions depending on the nature
+    of the table. At the moment there is only one kind of delayed tables,
+    non-flattenable semi-joins.
+*/
+
+void get_delayed_table_estimates(TABLE *table,
+                                 ha_rows *out_rows, 
+                                 double *scan_time,
+                                 double *startup_cost)
+{
+  Item_in_subselect *item= table->pos_in_table_list->jtbm_subselect;
+  item->optimize();
+
+  DBUG_ASSERT(item->engine->engine_type() ==
+              subselect_engine::HASH_SJ_ENGINE);
+
+  subselect_hash_sj_engine *hash_sj_engine=
+    ((subselect_hash_sj_engine*)item->engine);
+  JOIN *join= hash_sj_engine->materialize_join;
+
+  double rows= 1;
+  double read_time= 0.0;
+
+  /* Calculate #rows and cost of join execution */
+  for (uint i= join->const_tables; i < join->tables; i++)
+  {
+    rows      *= join->best_positions[i].records_read;
+    read_time += join->best_positions[i].read_time;
+  }
+  *out_rows= rows;
+  *startup_cost= read_time;
+  /* Calculate cost of scanning the temptable */
+  double data_size= rows * hash_sj_engine->tmp_table->s->reclength;
+  /* Do like in handler::read_time */
+  *scan_time= data_size/IO_SIZE + 2;
+} 
+
 
 /**
    @brief Replaces an expression destructively inside the expression tree of
@@ -534,6 +857,7 @@ skip_conversion:
    @return <code>true</code> if there was an error, <code>false</code> if
    successful.
 */
+
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields)
@@ -769,8 +1093,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* 3. Remove the original subquery predicate from the WHERE/ON */
 
   // The subqueries were replaced for Item_int(1) earlier
-  subq_pred->exec_method=
-    Item_in_subselect::SEMI_JOIN;         // for subsequent executions
+  subq_pred->exec_method= Item_in_subselect::SEMI_JOIN; // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->tables counter */
@@ -886,6 +1209,118 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
   DBUG_RETURN(FALSE);
 }
+
+
+/*
+  Convert subquery predicate into non-mergeable semi-join nest.
+
+  TODO: 
+    why does this do IN-EXISTS conversion? Can't we unify it with mergeable
+    semi-joins? currently, convert_subq_to_sj() cannot fail to convert (unless
+    fatal errors)
+
+    
+  RETURN 
+    FALSE - Ok
+    TRUE  - Fatal error
+*/
+
+static bool convert_subq_to_jtbm(JOIN *parent_join, 
+                                 Item_in_subselect *subq_pred, 
+                                 bool *remove_item)
+{
+  SELECT_LEX *parent_lex= parent_join->select_lex;
+  List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
+  TABLE_LIST *emb_tbl_nest= NULL; // will change when we learn to handle outer joins
+  TABLE_LIST *tl;
+  DBUG_ENTER("convert_subq_to_jtbm");
+
+  if (subq_pred->setup_engine(TRUE))
+    DBUG_RETURN(TRUE);
+
+  if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
+  {
+    *remove_item= FALSE;
+    make_in_exists_conversion(parent_join->thd, parent_join, subq_pred);
+    DBUG_RETURN(FALSE);
+  }
+  *remove_item= TRUE;
+
+  TABLE_LIST *jtbm;
+  char *tbl_alias;
+  const char alias_mask[]="<subquery%d>";
+  if (!(tbl_alias= (char*)parent_join->thd->calloc(sizeof(alias_mask)+5)) || 
+      !(jtbm= alloc_join_nest(parent_join->thd))) //todo: this is not a join nest!
+  {
+    DBUG_RETURN(TRUE);
+  }
+
+  jtbm->join_list= emb_join_list;
+  jtbm->embedding= emb_tbl_nest;
+  jtbm->jtbm_subselect= subq_pred;
+  jtbm->nested_join= NULL;
+
+  /* Nests do not participate in those 'chains', so: */
+  /* jtbm->next_leaf= jtbm->next_local= jtbm->next_global == NULL*/
+  emb_join_list->push_back(jtbm);
+  
+  /* 
+    Inject the jtbm table into TABLE_LIST::next_leaf list, so that 
+    make_join_statistics() and co. can find it.
+  */
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf) ;
+  tl->next_leaf= jtbm;
+
+  /*
+    Same as above for TABLE_LIST::next_local chain
+    (a theory: a next_local chain always starts with ::leaf_tables
+     because view's tables are inserted after the view)
+  */
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local) ;
+  tl->next_local= jtbm;
+
+  /* A theory: no need to re-connect the next_global chain */
+
+  subselect_hash_sj_engine *hash_sj_engine=
+    ((subselect_hash_sj_engine*)subq_pred->engine);
+  jtbm->table= hash_sj_engine->tmp_table;
+
+  jtbm->table->tablenr= parent_join->tables;
+  jtbm->table->map= table_map(1) << (parent_join->tables);
+
+  parent_join->tables++;
+
+  Item *conds= hash_sj_engine->semi_join_conds;
+  conds->fix_after_pullout(parent_lex, &conds);
+
+  DBUG_EXECUTE("where", print_where(conds,"SJ-EXPR", QT_ORDINARY););
+  
+  my_snprintf(tbl_alias, sizeof(alias_mask)+5, alias_mask, 
+    hash_sj_engine->materialize_join->select_lex->select_number);
+  jtbm->alias= tbl_alias; 
+
+  /* Inject sj_on_expr into the parent's WHERE or ON */
+  if (emb_tbl_nest)
+  {
+    DBUG_ASSERT(0);
+    /*emb_tbl_nest->on_expr= and_items(emb_tbl_nest->on_expr, 
+                                     sj_nest->sj_on_expr);
+    emb_tbl_nest->on_expr->fix_fields(parent_join->thd, &emb_tbl_nest->on_expr);
+    */
+  }
+  else
+  {
+    /* Inject into the WHERE */
+    parent_join->conds= and_items(parent_join->conds, conds);
+    parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds);
+    parent_join->select_lex->where= parent_join->conds;
+  }
+
+  /* Don't unlink the child subselect, as the subquery will be used. */
+
+  DBUG_RETURN(FALSE);
+}
+
 
 static TABLE_LIST *alloc_join_nest(THD *thd)
 {
@@ -1245,6 +1680,7 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
   DBUG_RETURN(FALSE);
 }
 
+
 /*
   Get estimated record length for semi-join materialization temptable
   
@@ -1301,7 +1737,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   return len;
 }
 
-//psergey-todo: is the below a kind of table elimination??
+
 /*
   Check if table's KEYUSE elements have an eq_ref(outer_tables) candidate
 
@@ -1317,6 +1753,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   TODO
     Check again if it is feasible to factor common parts with constant table
     search
+
+    Also check if it's feasible to factor common parts with table elimination
 
   RETURN
     TRUE  - There exists an eq_ref(outer-tables) candidate
@@ -1367,6 +1805,7 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
   }
   return FALSE;
 }
+
 
 /*
   Do semi-join optimization step after we've added a new tab to join prefix
@@ -2188,6 +2627,9 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
   }
 }
 
+enum_nested_loop_state 
+end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+
 /*
   Setup semi-join materialization strategy for one semi-join nest
   
@@ -2209,10 +2651,11 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     TRUE   Error
 */
 
-bool setup_sj_materialization(JOIN_TAB *tab)
+bool setup_sj_materialization(JOIN_TAB *sjm_tab)
 {
   uint i;
   DBUG_ENTER("setup_sj_materialization");
+  JOIN_TAB *tab= sjm_tab->bush_children->start;
   TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
   SJ_MATERIALIZATION_INFO *sjm= emb_sj_nest->sj_mat_info;
   THD *thd= tab->join->thd;
@@ -2240,10 +2683,13 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     DBUG_RETURN(TRUE); /* purecov: inspected */
   sjm->table->file->extra(HA_EXTRA_WRITE_CACHE);
   sjm->table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+
   tab->join->sj_tmp_tables.push_back(sjm->table);
   tab->join->sjm_info_list.push_back(sjm);
   
   sjm->materialized= FALSE;
+  sjm_tab->table= sjm->table;
+
   if (!sjm->is_sj_scan)
   {
     KEY           *tmp_key; /* The only index on the temporary table. */
@@ -2256,8 +2702,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable.
     */
     TABLE_REF *tab_ref;
-    if (!(tab_ref= (TABLE_REF*) thd->alloc(sizeof(TABLE_REF))))
-      DBUG_RETURN(TRUE); /* purecov: inspected */
+    tab_ref= &sjm_tab->ref;
     tab_ref->key= 0; /* The only temp table index. */
     tab_ref->key_length= tmp_key->key_length;
     if (!(tab_ref->key_buff=
@@ -2290,12 +2735,22 @@ bool setup_sj_materialization(JOIN_TAB *tab)
                                       use that information instead.
                                    */
                                    cur_ref_buff + null_count,
-                                   null_count ? tab_ref->key_buff : 0,
+                                   null_count ? cur_ref_buff : 0,
                                    cur_key_part->length, tab_ref->items[i],
                                    FALSE);
       cur_ref_buff+= cur_key_part->store_length;
     }
     *ref_key= NULL; /* End marker. */
+      
+    /*
+      We don't ever have guarded conditions for SJM tables, but code at SQL
+      layer depends on cond_guards array being alloced.
+    */
+    if (!(tab_ref->cond_guards= (bool**) thd->calloc(sizeof(uint*)*tmp_key_parts)))
+    {
+      DBUG_RETURN(TRUE);
+    }
+
     tab_ref->key_err= 1;
     tab_ref->key_parts= tmp_key_parts;
     sjm->tab_ref= tab_ref;
@@ -2315,6 +2770,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     if (!(sjm->in_equality= create_subq_in_equalities(thd, sjm,
                                                       emb_sj_nest->sj_subq_pred)))
       DBUG_RETURN(TRUE); /* purecov: inspected */
+    sjm_tab->type= JT_EQ_REF;
+    sjm_tab->select_cond= sjm->in_equality;
   }
   else
   {
@@ -2367,9 +2824,11 @@ bool setup_sj_materialization(JOIN_TAB *tab)
          then substitute_for_best_equal_field() will change the conditions
          according to the join order:
 
-           it1
-           it2    it1.col=it2.col
-           ot     cond(it1.col)
+         table | attached condition
+         ------+--------------------
+          it1  |
+          it2  | it1.col=it2.col
+          ot   | cond(it1.col)
 
          although we've originally had "SELECT it2.col", conditions attached 
          to subsequent outer tables will refer to it1.col, so SJM-Scan will
@@ -2398,7 +2857,17 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       /* The write_set for source tables must be set up to allow the copying */
       bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
     }
+    sjm_tab->type= JT_ALL;
+
+    /* Initialize full scan */
+    sjm_tab->read_first_record= join_read_record_no_init;
+    sjm_tab->read_record.copy_field= sjm->copy_field;
+    sjm_tab->read_record.copy_field_end= sjm->copy_field +
+                                         sjm->sjm_table_cols.elements;
+    sjm_tab->read_record.read_record= rr_sequential_and_unpack;
   }
+
+  sjm_tab->bush_children->end[-1].next_select= end_sj_materialize;
 
   DBUG_RETURN(FALSE);
 }
@@ -3499,4 +3968,78 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
   }
 }
 
+
+/*
+  Join tab execution startup function.
+
+  SYNOPSIS
+    join_tab_execution_startup()
+      tab  Join tab to perform startup actions for
+
+  DESCRIPTION
+    Join tab execution startup function. This is different from
+    tab->read_first_record in the regard that this has actions that are to be
+    done once per join execution.
+
+    Currently there are only two possible startup functions, so we have them
+    both here inside if (...) branches. In future we could switch to function
+    pointers.
+  
+  RETURN 
+    NESTED_LOOP_OK - OK
+    NESTED_LOOP_ERROR| NESTED_LOOP_KILLED - Error, abort the join execution
+*/
+
+enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab)
+{
+  Item_in_subselect *in_subs;
+  DBUG_ENTER("join_tab_execution_startup");
+
+  if (tab->table->pos_in_table_list && 
+      (in_subs= tab->table->pos_in_table_list->jtbm_subselect))
+  {
+    /* It's a non-merged SJM nest */
+    DBUG_ASSERT(in_subs->engine->engine_type() ==
+                subselect_engine::HASH_SJ_ENGINE);
+
+    subselect_hash_sj_engine *hash_sj_engine=
+      ((subselect_hash_sj_engine*)in_subs->engine);
+    if (!hash_sj_engine->is_materialized)
+    {
+      hash_sj_engine->materialize_join->exec();
+      hash_sj_engine->is_materialized= TRUE; 
+
+      if (hash_sj_engine->materialize_join->error || tab->join->thd->is_fatal_error)
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
+  }
+  else if (tab->bush_children)
+  {
+    /* It's a merged SJM nest */
+    enum_nested_loop_state rc;
+    JOIN *join= tab->join;
+    SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
+    JOIN_TAB *join_tab= tab->bush_children->start;
+    JOIN_TAB *save_return_tab= join->return_tab;
+
+    if (!sjm->materialized)
+    {
+      /*
+        Now run the join for the inner tables. The first call is to run the
+        join, the second one is to signal EOF (this is essential for some
+        join strategies, e.g. it will make join buffering flush the records)
+      */
+      if ((rc= sub_select(join, join_tab, FALSE/* no EOF */)) < 0 ||
+          (rc= sub_select(join, join_tab, TRUE/* now EOF */)) < 0)
+      {
+        join->return_tab= save_return_tab;
+        DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
+      }
+      join->return_tab= save_return_tab;
+      sjm->materialized= TRUE;
+    }
+  }
+
+  DBUG_RETURN(NESTED_LOOP_OK);
+}
 

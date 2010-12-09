@@ -2295,7 +2295,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if (keys_to_use.is_clear_all())
+  DBUG_ASSERT(!head->is_filled_at_execution());
+  if (keys_to_use.is_clear_all() || head->is_filled_at_execution())
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)

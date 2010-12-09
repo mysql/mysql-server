@@ -166,58 +166,66 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
 void
 TEST_join(JOIN *join)
 {
-  uint i,ref;
+  uint ref;
+  int i;
+  List_iterator<JOIN_TAB_RANGE> it(join->join_tab_ranges);
+  JOIN_TAB_RANGE *jt_range;
   DBUG_ENTER("TEST_join");
-
-  /*
-    Assemble results of all the calls to full_name() first,
-    in order not to garble the tabular output below.
-  */
-  String ref_key_parts[MAX_TABLES];
-  for (i= 0; i < join->tables; i++)
-  {
-    JOIN_TAB *tab= join->join_tab + i;
-    for (ref= 0; ref < tab->ref.key_parts; ref++)
-    {
-      ref_key_parts[i].append(tab->ref.items[ref]->full_name());
-      ref_key_parts[i].append("  ");
-    }
-  }
 
   DBUG_LOCK_FILE;
   VOID(fputs("\nInfo about JOIN\n",DBUG_FILE));
-  for (i=0 ; i < join->tables ; i++)
+
+  while ((jt_range= it++))
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *form=tab->table;
-    char key_map_buff[128];
-    fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
-	    form->alias.c_ptr(),
-	    join_type_str[tab->type],
-	    tab->keys.print(key_map_buff),
-	    tab->ref.key_parts,
-	    tab->ref.key,
-	    tab->ref.key_length);
-    if (tab->select)
+    /*
+      Assemble results of all the calls to full_name() first,
+      in order not to garble the tabular output below.
+    */
+    String ref_key_parts[MAX_TABLES];
+    for (i= 0; i < (jt_range->end - jt_range->start); i++)
     {
-      char buf[MAX_KEY/8+1];
-      if (tab->use_quick == 2)
-	fprintf(DBUG_FILE,
-		"                  quick select checked for each record (keys: %s)\n",
-		tab->select->quick_keys.print(buf));
-      else if (tab->select->quick)
+      JOIN_TAB *tab= jt_range->start + i;
+      for (ref= 0; ref < tab->ref.key_parts; ref++)
       {
-	fprintf(DBUG_FILE, "                  quick select used:\n");
-        tab->select->quick->dbug_dump(18, FALSE);
+        ref_key_parts[i].append(tab->ref.items[ref]->full_name());
+        ref_key_parts[i].append("  ");
       }
-      else
-	VOID(fputs("                  select used\n",DBUG_FILE));
     }
-    if (tab->ref.key_parts)
+
+    for (i= 0; i < (jt_range->end - jt_range->start); i++)
     {
-      fprintf(DBUG_FILE,
+      JOIN_TAB *tab= jt_range->start + i;
+      TABLE *form=tab->table;
+      char key_map_buff[128];
+      fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
+	    form->alias.c_ptr(),
+              join_type_str[tab->type],
+              tab->keys.print(key_map_buff),
+              tab->ref.key_parts,
+              tab->ref.key,
+              tab->ref.key_length);
+      if (tab->select)
+      {
+        char buf[MAX_KEY/8+1];
+        if (tab->use_quick == 2)
+          fprintf(DBUG_FILE,
+                  "                  quick select checked for each record (keys: %s)\n",
+                  tab->select->quick_keys.print(buf));
+        else if (tab->select->quick)
+        {
+          fprintf(DBUG_FILE, "                  quick select used:\n");
+          tab->select->quick->dbug_dump(18, FALSE);
+        }
+        else
+          VOID(fputs("                  select used\n",DBUG_FILE));
+      }
+      if (tab->ref.key_parts)
+      {
+        fprintf(DBUG_FILE,
               "                  refs:  %s\n", ref_key_parts[i].c_ptr_safe());
+      }
     }
+    VOID(fputs("\n",DBUG_FILE));
   }
   DBUG_UNLOCK_FILE;
   DBUG_VOID_RETURN;

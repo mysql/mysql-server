@@ -5892,28 +5892,12 @@ Item_field* Item_equal::get_first(Item_field *field)
   {
     /*
       It's a field from an materialized semi-join. We can substitute it only
-      for a field from the same semi-join.
+      for a field from the same semi-join. Find the first of such items.
     */
-    JOIN_TAB *first= field_tab;
-    JOIN *join= field_tab->join;
-    int tab_idx= field_tab - field_tab->join->join_tab;
 
-    DBUG_ASSERT(join->join_tab[tab_idx].table->map &
-                emb_nest->sj_inner_tables);
-
-    /* Find the first table of this semi-join nest */
-    for (int i= tab_idx-1; i >= (int)join->const_tables; i--)
-    {
-      if (join->join_tab[i].table->map & emb_nest->sj_inner_tables)
-        first= join->join_tab + i;
-      else
-        // Found first tab that doesn't belong to current SJ.
-        break;
-    }
-    /* Find an item to substitute for. */
     while ((item= it++))
     {
-      if (item->field->table->reginfo.join_tab >= first)
+      if (item->field->table->pos_in_table_list->embedding == emb_nest)
       {
         /*
           If we found given field then return NULL to avoid unnecessary
@@ -5925,32 +5909,27 @@ Item_field* Item_equal::get_first(Item_field *field)
   }
   else
   {
-#if 0    
     /*
       The field is not in SJ-Materialization nest. We must return the first
-      field that's not embedded in a SJ-Materialization nest.
-      Example: suppose we have a join order:
+      field in the join order. The field may be inside a semi-join nest, i.e 
+      a join order may look like this:
 
           SJ-Mat(it1  it2)  ot1  ot2
 
-      and equality ot2.col = ot1.col = it2.col
-      If we're looking for best substitute for 'ot2.col', we should pick ot1.col
-      and not it2.col, because when we run a join between ot1 and ot2
-      execution of SJ-Mat(...) has already finished and we can't rely on the
-      value of it*.*.
-      psergey-fix-fix: ^^ THAT IS INCORRECT ^^. Pick the first, whatever that
-      is.
+      where we're looking what to substitute ot2.col for. In this case we must 
+      still return it1.col, here's a proof why:
+
+      First let's note that either it1.col or it2.col participates in 
+      subquery's IN-equality. It can't be otherwise, because materialization is
+      only applicable to uncorrelated subqueries, so the only way we could
+      infer "it1.col=ot1.col" is from the IN-equality. Ok, so IN-eqality has 
+      it1.col or it2.col on its inner side. it1.col is first such item in the
+      join order, so it's not possible for SJ-Mat to be
+      SJ-Materialization-lookup, it is SJ-Materialization-Scan. The scan part
+      of this strategy will unpack value of it1.col=it2.col into it1.col
+      (that's the first equal item inside the subquery), and we'll be able to
+      get it from there. qed.
     */
-    while ((item= it++))
-    {
-      TABLE_LIST *emb_nest= item->field->table->pos_in_table_list->embedding;
-      if (!emb_nest || !emb_nest->sj_mat_info || 
-          !emb_nest->sj_mat_info->is_used)
-      {
-        return item;
-      }
-    }
-#endif
     return fields.head();
   }
   // Shouldn't get here.

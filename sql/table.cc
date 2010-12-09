@@ -5327,6 +5327,12 @@ bool st_table::is_children_attached(void)
          (parent && parent->children_attached));
 }
 
+
+bool st_table::is_filled_at_execution()
+{ 
+  return test(pos_in_table_list->jtbm_subselect);
+}
+
 /*
   Cleanup this table for re-execution.
 

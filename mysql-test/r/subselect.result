@@ -1361,7 +1361,7 @@ explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using index
 1	PRIMARY	t3	index	a	a	5	NULL	3	100.00	Using index
-1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.61	Using index; FirstMatch(t2)
+1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.00	Using index; FirstMatch(t2)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1` join `test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` = `test`.`t3`.`a`))
 insert into t1 values (3,31);
@@ -3418,7 +3418,8 @@ AAA	8
 EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	23	test.t1.a,test.t1.b	1	
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 ALTER TABLE t1 ADD INDEX(a);
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
@@ -3429,7 +3430,8 @@ AAA	8
 EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
+1	PRIMARY	t1	ALL	a	NULL	NULL	NULL	9	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	23	test.t1.a,test.t1.b	1	
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 DROP TABLE t1;
 create table t1( f1 int,f2 int);
@@ -4323,16 +4325,18 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,1 in ( <materialize> (select 1 from `test`.`t1` group by `test`.`t1`.`a` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`))))))
+Note	1003	select 1 AS `1` from  <materialize> (select 1 from `test`.`t1` group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`1` = 1)
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<subquery2>	const	distinct_key	distinct_key	4	const	1	100.00	
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,1 in ( <materialize> (select 1 from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`))))))
+Note	1003	select 1 AS `1` from  <materialize> (select 1 from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a`) join `test`.`t1` where (`<subquery2>`.`1` = 1)
 DROP TABLE t1;
 #
 # Bug#45061: Incorrectly market field caused wrong result.

@@ -1365,7 +1365,7 @@ explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	a	a	5	NULL	4	100.00	Using index
 1	PRIMARY	t3	index	a	a	5	NULL	3	100.00	Using index
-1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.61	Using index; FirstMatch(t2)
+1	PRIMARY	t1	ref	a	a	10	test.t2.a,test.t3.a	116	100.00	Using index; FirstMatch(t2)
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1` join `test`.`t3`) where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` = `test`.`t3`.`a`))
 insert into t1 values (3,31);

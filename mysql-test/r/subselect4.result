@@ -345,7 +345,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
@@ -360,13 +360,13 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	SIMPLE	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 DEALLOCATE PREPARE stmt;
@@ -383,7 +383,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
@@ -398,13 +398,13 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	t1_IDX	NULL	NULL	NULL	5	
-1	SIMPLE	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 DEALLOCATE PREPARE stmt;
@@ -420,7 +420,7 @@ FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
@@ -435,13 +435,13 @@ WHERE EMPNUM IN
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	subselect2	eq_ref	unique_key	unique_key	3	func	1	
+1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	3	func	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
 DEALLOCATE PREPARE stmt;
