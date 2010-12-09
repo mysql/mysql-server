@@ -124,6 +124,64 @@ struct PFS_table_io_stat_row
   }
 };
 
+struct PFS_table_lock_stat_row
+{
+  PFS_stat_row m_all;
+  PFS_stat_row m_all_read;
+  PFS_stat_row m_all_write;
+  PFS_stat_row m_read_normal;
+  PFS_stat_row m_read_with_shared_locks;
+  PFS_stat_row m_read_high_priority;
+  PFS_stat_row m_read_no_insert;
+  PFS_stat_row m_read_external;
+  PFS_stat_row m_write_allow_write;
+  PFS_stat_row m_write_concurrent_insert;
+  PFS_stat_row m_write_delayed;
+  PFS_stat_row m_write_low_priority;
+  PFS_stat_row m_write_normal;
+  PFS_stat_row m_write_external;
+
+  inline void set(time_normalizer *normalizer, const PFS_table_lock_stat *stat)
+  {
+    PFS_single_stat all_read;
+    PFS_single_stat all_write;
+    PFS_single_stat all;
+
+    m_read_normal.set(normalizer, & stat->m_stat[PFS_TL_READ]);
+    m_read_with_shared_locks.set(normalizer, & stat->m_stat[PFS_TL_READ_WITH_SHARED_LOCKS]);
+    m_read_high_priority.set(normalizer, & stat->m_stat[PFS_TL_READ_HIGH_PRIORITY]);
+    m_read_no_insert.set(normalizer, & stat->m_stat[PFS_TL_READ_NO_INSERT]);
+    m_read_external.set(normalizer, & stat->m_stat[PFS_TL_READ_EXTERNAL]);
+
+    all_read.aggregate(& stat->m_stat[PFS_TL_READ]);
+    all_read.aggregate(& stat->m_stat[PFS_TL_READ_WITH_SHARED_LOCKS]);
+    all_read.aggregate(& stat->m_stat[PFS_TL_READ_HIGH_PRIORITY]);
+    all_read.aggregate(& stat->m_stat[PFS_TL_READ_NO_INSERT]);
+    all_read.aggregate(& stat->m_stat[PFS_TL_READ_EXTERNAL]);
+
+    m_write_allow_write.set(normalizer, & stat->m_stat[PFS_TL_WRITE_ALLOW_WRITE]);
+    m_write_concurrent_insert.set(normalizer, & stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
+    m_write_delayed.set(normalizer, & stat->m_stat[PFS_TL_WRITE_DELAYED]);
+    m_write_low_priority.set(normalizer, & stat->m_stat[PFS_TL_WRITE_LOW_PRIORITY]);
+    m_write_normal.set(normalizer, & stat->m_stat[PFS_TL_WRITE]);
+    m_write_external.set(normalizer, & stat->m_stat[PFS_TL_WRITE_EXTERNAL]);
+
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_ALLOW_WRITE]);
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_DELAYED]);
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_LOW_PRIORITY]);
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE]);
+    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_EXTERNAL]);
+
+    all.aggregate(& all_read);
+    all.aggregate(& all_write);
+
+    m_all_read.set(normalizer, & all_read);
+    m_all_write.set(normalizer, & all_write);
+    m_all.set(normalizer, & all);
+  }
+};
+
 void set_field_object_type(Field *f, enum_object_type object_type);
 
 /** @} */

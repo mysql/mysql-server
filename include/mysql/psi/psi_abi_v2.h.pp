@@ -54,14 +54,17 @@ enum PSI_file_operation
   PSI_FILE_RENAME= 15,
   PSI_FILE_SYNC= 16
 };
-enum PSI_table_operation
+enum PSI_table_io_operation
+{
+  PSI_TABLE_FETCH_ROW= 0,
+  PSI_TABLE_WRITE_ROW= 1,
+  PSI_TABLE_UPDATE_ROW= 2,
+  PSI_TABLE_DELETE_ROW= 3
+};
+enum PSI_table_lock_operation
 {
   PSI_TABLE_LOCK= 0,
   PSI_TABLE_EXTERNAL_LOCK= 1,
-  PSI_TABLE_FETCH_ROW= 2,
-  PSI_TABLE_WRITE_ROW= 3,
-  PSI_TABLE_UPDATE_ROW= 4,
-  PSI_TABLE_DELETE_ROW= 5
 };
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;

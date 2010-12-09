@@ -55,6 +55,9 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_setup_timers.h
   table_sync_instances.h
   table_threads.h
+  table_tiws_by_index_usage.h
+  table_tiws_by_table.h
+  table_tlws_by_table.h
   ha_perfschema.cc
   pfs.cc
   pfs_column_values.cc
@@ -85,6 +88,9 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_setup_timers.cc
   table_sync_instances.cc
   table_threads.cc
+  table_tiws_by_index_usage.cc
+  table_tiws_by_table.cc
+  table_tlws_by_table.cc
   pfs_atomic.cc
   pfs_check.cc
 )

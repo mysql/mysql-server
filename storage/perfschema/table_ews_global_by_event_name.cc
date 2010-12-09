@@ -94,7 +94,8 @@ int
 table_ews_global_by_event_name::delete_all_rows(void)
 {
   reset_events_waits_by_instance();
-  /* FIXME: table io */
+  reset_table_waits_by_table_handle();
+  reset_table_waits_by_table();
   reset_global_wait_stat();
   return 0;
 }
@@ -169,6 +170,12 @@ int table_ews_global_by_event_name::rnd_next(void)
         m_next_pos.set_after(&m_pos);
         return 0;
       }
+      if (m_pos.m_index_2 == 2)
+      {
+        make_table_lock_row(&global_table_lock_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
       break;
     default:
       break;
@@ -226,8 +233,12 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     }
     break;
   case pos_ews_global_by_event_name::VIEW_TABLE:
-    DBUG_ASSERT(m_pos.m_index_2 == 1);
-    make_table_io_row(&global_table_io_class);
+    DBUG_ASSERT(m_pos.m_index_2 >= 1);
+    DBUG_ASSERT(m_pos.m_index_2 <= 2);
+    if (m_pos.m_index_2 == 1)
+      make_table_io_row(&global_table_io_class);
+    else
+      make_table_lock_row(&global_table_lock_class);
     break;
   }
 
@@ -453,6 +464,48 @@ void table_ews_global_by_event_name
   }
 
   cumulated_io_stat.sum(& cumulated_stat);
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row_exists= true;
+}
+
+void table_ews_global_by_event_name
+::make_table_lock_row(PFS_instr_class *klass)
+{
+  m_row.m_name= klass->m_name;
+  m_row.m_name_length= klass->m_name_length;
+  uint index= klass->m_event_name_index;
+  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
+
+  /* For all the table shares ... */
+  PFS_table_share *share= table_share_array;
+  PFS_table_share *share_last= table_share_array + table_share_max;
+  for ( ; share < share_last; share++)
+  {
+    if (share->m_lock.is_populated())
+    {
+      /* Aggregate lock stats */
+      share->m_table_stat.sum_lock(& cumulated_stat);
+    }
+  }
+
+  /* For all the table handles ... */
+  PFS_table *table= table_array;
+  PFS_table *table_last= table_array + table_max;
+  for ( ; table < table_last; table++)
+  {
+    if (table->m_lock.is_populated())
+    {
+      PFS_table_share *safe_share= sanitize_table_share(table->m_share);
+
+      if (likely(safe_share != NULL))
+      {
+        /* Aggregate lock stats */
+        table->m_table_stat.sum_lock(& cumulated_stat);
+      }
+    }
+  }
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   m_row.m_stat.set(normalizer, &cumulated_stat);
