@@ -188,6 +188,8 @@ my $opt_cursor_protocol;
 my $opt_view_protocol;
 
 our $opt_debug;
+my $debug_d= "d";
+my $opt_debug_common;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 
@@ -963,6 +965,7 @@ sub command_line_setup {
 
              # Debugging
              'debug'                    => \$opt_debug,
+             'debug-common'             => \$opt_debug_common,
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
@@ -1546,6 +1549,18 @@ sub command_line_setup {
 	       join(" ", @valgrind_args), "\"");
   }
 
+  if ($opt_debug_common)
+  {
+    $opt_debug= 1;
+    $debug_d= "d,query,info,error,enter,exit";
+  }
+
+  if ($opt_debug && $opt_debug ne "1")
+  {
+    $debug_d= "d,$opt_debug";
+    $debug_d= "d,query,info,error,enter,exit" if $opt_debug eq "std";
+  }
+
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -1843,7 +1858,7 @@ sub client_debug_arg($$) {
 
   if ( $opt_debug ) {
     mtr_add_arg($args,
-		"--debug=d:t:A,%s/log/%s.trace",
+		"--debug=$debug_d:t:A,%s/log/%s.trace",
 		$path_vardir_trace, $client_name)
   }
 }
@@ -3008,7 +3023,7 @@ sub mysql_install_db {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap.trace",
+    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/bootstrap.trace",
 		$path_vardir_trace);
   }
 
@@ -4589,7 +4604,7 @@ sub mysqld_start ($$) {
 
   if ( $opt_debug )
   {
-    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/%s.trace",
+    mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
   }
 
@@ -5692,6 +5707,8 @@ Options for debugging the product
   client-gdb            Start mysqltest client in gdb
   ddd                   Start mysqld in ddd
   debug                 Dump trace output for all servers and client programs
+  debug-common          Same as debug, but sets 'd' debug flags to
+                        "query,info,error,enter,exit"
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
   manual-debug          Let user manually start mysqld in debugger, before
