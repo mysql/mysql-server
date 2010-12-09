@@ -434,6 +434,8 @@ anything goes
 mysqltest: At line 2: Only == and != are supported for string values
 mysqltest: At line 2: Found junk '~= 6' after $variable in condition
 mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+mysqltest: At line 1: Missing right operand in comparison
+mysqltest: At line 1: Missing right operand in comparison
 counter is 2
 counter is 3
 counter is 4
