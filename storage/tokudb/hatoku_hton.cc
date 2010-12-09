@@ -1060,6 +1060,15 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.sequential_queries);
       STATPRINT("dictionary sequential queries", buf);
 
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_committed_xr);
+      STATPRINT("le_max_committed_xr", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_provisional_xr);
+      STATPRINT("le_max_provisional_xr", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_max_memsize);
+      STATPRINT("le_max_memsize", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.le_expanded);
+      STATPRINT("le_expanded", buf);
+
       const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
       u_int64_t lockctr     =  engstat.ydb_lock_ctr >> 1;   // lsb indicates if locked
       snprintf(buf, bufsiz, "%" PRIu64, lockctr);  
@@ -1157,6 +1166,15 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.range_out_of_write_locks);
       STATPRINT("range write locks exhausted", buf);
 
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks);
+      STATPRINT("directory_read_locks", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_read_locks_fail);
+      STATPRINT("directory_read_locks_fail", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_write_locks);
+      STATPRINT("directory_write_locks", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.directory_write_locks_fail);
+      STATPRINT("directory_write_locks_fail", buf);
+
       snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_count);
       STATPRINT("fsync count", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_time);
@@ -1183,6 +1201,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("loader create fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put);
       STATPRINT("loader put", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_put_fail);
+      STATPRINT("loader put_fail", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close);
       STATPRINT("loader close (success)", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.loader_close_fail);
