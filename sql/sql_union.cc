@@ -529,7 +529,7 @@ bool st_select_lex_unit::optimize()
 
 	saved_error= sl->join->optimize();
         /* Save estimated number of rows. */
-        result->estimated_records+= sl->join->best_rowcount;
+        result->estimated_rowcount+= sl->join->best_rowcount;
       }
 
       if (saved_error)
@@ -550,7 +550,6 @@ bool st_select_lex_unit::optimize()
 bool st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
-  SELECT_LEX *select_cursor=first_select();
   ulonglong add_rows=0;
   ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
@@ -577,7 +576,7 @@ bool st_select_lex_unit::exec()
         DBUG_ASSERT(0);
       }
     }
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
       thd->lex->current_select= sl;
@@ -897,24 +896,6 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
   }
 
   return &sl->item_list;
-}
-
-
-/**
-  @brief
-  Increase estimated number of records for a derived table/view
-
-  @param records  number of records to increase estimate by
-
-  @details
-  This function increases estimated number of records by the 'records'
-  for the derived table to which this select belongs to.
-*/
-
-void st_select_lex_unit::increase_estimated_records(ha_rows estimate)
-{
-  if (result)
-    result->estimated_records+= estimate;
 }
 
 

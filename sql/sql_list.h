@@ -290,7 +290,7 @@ public:
     As this isn't an effective algorithm the list to be sorted is
     supposed to be short.
   */
-  inline void sort(Node_cmp_func cmp, void *arg)
+  void sort(Node_cmp_func cmp, void *arg)
   {
     bool swap;
     do

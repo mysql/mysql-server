@@ -1143,7 +1143,7 @@ public:
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
   bool alloc_keys(uint key_count);
-  int add_tmp_key(ulonglong key_parts, char *key_name);
+  bool add_tmp_key(ulonglong key_parts, char *key_name);
   void use_index(int key_to_save);
 
   inline void set_keyread(bool flag)
@@ -1271,10 +1271,12 @@ typedef struct st_schema_table
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2
 
-#define VIEW_ALGORITHM_UNDEFINED        0
-#define VIEW_ALGORITHM_TMPTABLE         1
-#define VIEW_ALGORITHM_MERGE            2
-#define DERIVED_ALGORITHM_TMPTABLE      3
+enum enum_derived_type {
+  VIEW_ALGORITHM_UNDEFINED = 0,
+  VIEW_ALGORITHM_TMPTABLE,
+  VIEW_ALGORITHM_MERGE,
+  DERIVED_ALGORITHM_TMPTABLE
+};
 
 #define VIEW_SUID_INVOKER               0
 #define VIEW_SUID_DEFINER               1
@@ -1356,11 +1358,10 @@ enum enum_open_type
   See also the comment for the TABLE_LIST::update_derived_keys function.
 */
 
-struct st_derived_table_key {
+struct Derived_key {
   table_map referenced_by;
   key_map used_fields;
 };
-typedef st_derived_table_key Derived_key;
 
 class Semijoin_mat_exec;
 class Index_hint;
@@ -1624,7 +1625,7 @@ struct TABLE_LIST
       - VIEW_ALGORITHM_MERGE
       @to do Replace with an enum 
   */
-  uint8         effective_algorithm;
+  enum_derived_type effective_algorithm;
   GRANT_INFO	grant;
   /* data need by some engines in query cache*/
   ulonglong     engine_data;
@@ -1783,7 +1784,7 @@ struct TABLE_LIST
   }
   inline bool is_view_or_derived()
   {
-    return (effective_algorithm);
+    return (effective_algorithm != VIEW_ALGORITHM_UNDEFINED);
   }
   void register_want_access(ulong want_access);
   bool prepare_security(THD *thd);

@@ -53,11 +53,12 @@ mysql_handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*))
 	 sl;
 	 sl= sl->next_select_in_list())
     {
-      for (TABLE_LIST *cursor= sl->get_table_list();
-	   cursor;
-	   cursor= cursor->next_local)
+      for (TABLE_LIST *table_ref= sl->get_table_list();
+	   table_ref;
+	   table_ref= table_ref->next_local)
       {
-	if ((res= (*processor)(lex->thd, lex, cursor)))
+	if (table_ref->is_view_or_derived() &&
+            (res= (*processor)(lex->thd, lex, table_ref)))
 	  goto out;
       }
       if (lex->describe)
@@ -85,7 +86,8 @@ bool
 mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
                             bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
-  return (*processor)(lex->thd, lex, derived);
+  return (derived->is_view_or_derived() &&
+          (*processor)(lex->thd, lex, derived));
 }
 
 /**
@@ -93,7 +95,7 @@ mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
 
   @param thd Thread handle
   @param lex LEX for this thread
-  @param derived TABLE_LIST for the upper SELECT
+  @param derived TABLE_LIST of the derived table in the upper SELECT
 
   @details 
 
@@ -145,11 +147,12 @@ mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
 
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
-  SELECT_LEX_UNIT *unit= derived->derived;
+  SELECT_LEX_UNIT *unit= derived->get_unit();
   ulonglong create_options;
   DBUG_ENTER("mysql_derived_prepare");
   bool res= FALSE;
-  if (unit)
+  DBUG_ASSERT(unit);
+  if (derived->is_materialized_derived())
   {
     SELECT_LEX *first_select= unit->first_select();
     TABLE *table= 0;
@@ -171,13 +174,8 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     create_options= (first_select->options | thd->variables.option_bits |
                      TMP_TABLE_ALL_COLUMNS);
-
-    /* Initialize derived table. */
-    if (!derived->view)
-      derived->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
-
     /*
-      Temp table is created so that it hounours if UNION without ALL is to be 
+      Temp table is created so that it honors if UNION without ALL is to be 
       processed
 
       As 'distinct' parameter we always pass FALSE (0), because underlying
@@ -192,7 +190,6 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
       goto exit;
 
     table= derived_result->table;
-    unit->derived= derived;
     derived->materialized= FALSE;
 exit:
     /* Hide "Unknown column" or "Unknown function" error */
@@ -241,7 +238,7 @@ exit:
       thd->derived_tables= table;
     }
   }
-  else if (derived->merge_underlying_list)
+  else
     derived->set_underlying_merge();
   DBUG_RETURN(res);
 }
@@ -249,11 +246,12 @@ exit:
 
 /**
   @brief
-  Runs optimize phase for a derived table/view.
+  Runs optimize phase for the query expression that represents a derived
+  table/view.
 
   @details
-  Runs optimize phase for a derived table/view.
-  If optimizer finds out that the derived table/view is of the type
+  Runs optimize phase for the query expression that represents a derived
+  table/view. If optimizer finds out that the derived table/view is of the type
   "SELECT a_constant" this functions also materializes it.
 
   @param thd thread handle
@@ -266,43 +264,27 @@ exit:
 
 bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
-  SELECT_LEX_UNIT *unit= derived->view ?
-                      &derived->view->unit : derived->derived;
-  bool res= FALSE;
+  SELECT_LEX_UNIT *unit= derived->get_unit();
 
-  if (!derived->effective_algorithm || !unit)
-    return FALSE;
+  DBUG_ASSERT(unit);
 
-  SELECT_LEX *first_select= unit->first_select();
-  SELECT_LEX *save_current_select= lex->current_select;
-  if (unit->is_union())
-  {
-    // optimize union without execution
-    res= unit->optimize();
-  }
-  else if (unit->derived)
-  {
-    lex->current_select= first_select;
-    if ((res= first_select->join->optimize()))
-      goto err;
-    lex->current_select= save_current_select;
-    /* Save estimated number of rows. */
-    unit->result->estimated_records= first_select->join->best_rowcount;
-    unit->optimized= 1;
-  }
-  if (unit->result->estimated_records <= 1)
-  {
-    res= (mysql_derived_create(thd, lex, derived) ||
-          mysql_derived_materialize(thd, lex, derived));
-  }
+  // optimize union without execution
+  if (unit->optimize() || thd->is_error())
+    goto err;
+
+  if (unit->result->estimated_rowcount <= 1 &&
+      (mysql_derived_create(thd, lex, derived) ||
+       mysql_derived_materialize(thd, lex, derived)))
+    goto err;
+  return FALSE;
 err:
-  return res;
+  return TRUE;
 }
 
 
 /**
   @brief
-  Actually create result table for a materialized derived table/view.
+  Create result table for a materialized derived table/view.
 
   @param thd     thread handle
   @param lex     LEX of the embedding query.
@@ -320,125 +302,128 @@ err:
 bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
-  SELECT_LEX_UNIT *unit= derived->derived;
-  bool res= FALSE;
+  SELECT_LEX_UNIT *unit= derived->get_unit();
 
-  /*check that table creation pass without problem and it is derived table */
-  if (table && unit)
+  DBUG_ASSERT(unit);
+
+  /*
+   Don't create result table in following cases:
+   *) It's a mergeable view.
+   *) Some commands, like show table status, doesn't prepare views/derived
+      tables => no need to create result table also.
+   *) Table is already created.
+  */
+  if (!derived->is_materialized_derived() || !table || table->created)
+    return FALSE;
+  /* create tmp table */
+  select_union *result= (select_union*)unit->result;
+
+  if (table->s->db_type() == myisam_hton)
   {
-    /* create tmp table */
-    if (!table->created)
-    {
-      TABLE *table= derived->table;
-      select_union *result= (select_union*)unit->result;
-
-      if (table->s->db_type() == myisam_hton)
-      {
-        if (create_myisam_tmp_table(table, table->key_info,
-                                      result->tmp_table_param.start_recinfo,
-                                      &result->tmp_table_param.recinfo,
-                                      (unit->first_select()->options |
-                                       thd->lex->select_lex.options |
-                                       thd->variables.option_bits |
-                                       TMP_TABLE_ALL_COLUMNS),
-                                       thd->variables.big_tables))
-          res= TRUE;
-      }
-      if (!res && open_tmp_table(table))
-        res= TRUE;
-      else
-      {
-        table->file->extra(HA_EXTRA_WRITE_CACHE);
-        table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-        table->created= TRUE;
-      }
-    }
+    if (create_myisam_tmp_table(table, table->key_info,
+                                  result->tmp_table_param.start_recinfo,
+                                  &result->tmp_table_param.recinfo,
+                                  (unit->first_select()->options |
+                                   thd->lex->select_lex.options |
+                                   thd->variables.option_bits |
+                                   TMP_TABLE_ALL_COLUMNS),
+                                   thd->variables.big_tables))
+      return TRUE;
   }
-  return res;
+  if (open_tmp_table(table))
+    return TRUE;
+
+  table->file->extra(HA_EXTRA_WRITE_CACHE);
+  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->created= TRUE;
+
+  return FALSE;
 }
 
 
-/*
-  fill derived table
+/**
+  @brief
+  Fill derived table
 
-  SYNOPSIS
-    mysql_derived_filling()
-    thd			Thread handle
-    lex                 LEX for this thread
-    unit                node that contains all SELECT's for derived tables
-    derived     TABLE_LIST for the upper SELECT
+  @param  thd	    Thread handle
+  @param  lex       LEX for this thread
+  @param  unit      node that contains all SELECT's for derived tables
+  @param  derived   TABLE_LIST for the upper SELECT
 
-  IMPLEMENTATION
-    Derived table is resolved with temporary table. It is created based on the
-    queries defined. After temporary table is filled, if this is not EXPLAIN,
-    then the entire unit / node is deleted. unit is deleted if UNION is used
-    for derived table and node is deleted is it is a  simple SELECT.
-    If you use this function, make sure it's not called at prepare.
-    Due to evaluation of LIMIT clause it can not be used at prepared stage.
+  @details
+  Derived table is resolved with temporary table. It is created based on the
+  queries defined. After temporary table is filled, if this is not EXPLAIN,
+  then the entire unit / node is deleted. unit is deleted if UNION is used
+  for derived table and node is deleted is it is a  simple SELECT.
+  If you use this function, make sure it's not called at prepare.
+  Due to evaluation of LIMIT clause it can not be used at prepared stage.
 
-  RETURN
-    FALSE  OK
-    TRUE   Error
-*/
+  @return  FALSE  OK
+  @return  TRUE   Error
+  */
 
 bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
   TABLE *table= derived->table;
-  SELECT_LEX_UNIT *unit= derived->derived;
+  SELECT_LEX_UNIT *unit= derived->get_unit();
   bool res= FALSE;
 
-  /*check that table creation pass without problem and it is derived table */
-  if (table && unit && !derived->materialized)
+  DBUG_ASSERT(unit && table && table->created);
+
+  if (derived->materialized)
+    return FALSE;
+
+  SELECT_LEX *first_select= unit->first_select();
+  select_union *derived_result= derived->derived_result;
+  SELECT_LEX *save_current_select= lex->current_select;
+
+  if (unit->is_union())
   {
-    SELECT_LEX *first_select= unit->first_select();
-    select_union *derived_result= derived->derived_result;
-    SELECT_LEX *save_current_select= lex->current_select;
+    // execute union without clean up
+    res= unit->exec();
+  }
+  else
+  {
+    JOIN *join= first_select->join;
+    unit->set_limit(first_select);
+    if (unit->select_limit_cnt == HA_POS_ERROR)
+      first_select->options&= ~OPTION_FOUND_ROWS;
 
-    /* Create table if it isn't created yet. */
-    DBUG_ASSERT(table->created);
+    lex->current_select= first_select;
 
-    if (unit->is_union())
+    DBUG_ASSERT(join && join->optimized);
+
+    if (thd->lex->describe & DESCRIBE_EXTENDED)
     {
-      // execute union without clean up
-      res= unit->exec();
-    }
-    else
-    {
-      unit->set_limit(first_select);
-      if (unit->select_limit_cnt == HA_POS_ERROR)
-	first_select->options&= ~OPTION_FOUND_ROWS;
-
-      lex->current_select= first_select;
-      res= mysql_select(thd, &first_select->ref_pointer_array,
-			first_select->table_list.first,
-			first_select->with_wild,
-			first_select->item_list, first_select->where,
-			(first_select->order_list.elements+
-			 first_select->group_list.elements),
-			first_select->order_list.first,
-			first_select->group_list.first,
-			first_select->having, (ORDER*) NULL,
-			(first_select->options | thd->variables.option_bits |
-			 SELECT_NO_UNLOCK),
-			derived_result, unit, first_select);
+      join->conds_history= join->conds;
+      join->having_history= (join->having?join->having:join->tmp_having);
     }
 
-    if (!res)
-    {
-      /*
-        Here we entirely fix both TABLE_LIST and list of SELECT's as
-        there were no derived tables
-      */
-      if (derived_result->flush())
-        res= TRUE;
+    join->exec();
 
-      if (!lex->describe)
+    if (thd->lex->describe & DESCRIBE_EXTENDED)
+    {
+      first_select->where= join->conds_history;
+      first_select->having= join->having_history;
+    }
+  }
+
+  if (!res)
+  {
+    /*
+      Here we entirely fix both TABLE_LIST and list of SELECT's as
+      there were no derived tables
+    */
+    if (derived_result->flush())
+      res= TRUE;
+
+    if (!lex->describe)
         unit->cleanup();
-    }
-    else
-      unit->cleanup();
-    lex->current_select= save_current_select;
     derived->materialized= TRUE;
   }
+  else
+    unit->cleanup();
+  lex->current_select= save_current_select;
+
   return res;
 }

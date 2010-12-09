@@ -7789,7 +7789,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
       item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
     thd->used_tables|= item->used_tables();
     if (join)
-      join->used_tables|= item->used_tables();
+      join->select_list_tables|= item->used_tables();
     thd->lex->current_select->cur_pos_in_select_list++;
   }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
@@ -8099,7 +8099,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     {
       thd->used_tables|= table->map;
       if (thd->lex->current_select->join)
-        thd->lex->current_select->join->used_tables|=table->map;
+        thd->lex->current_select->join->select_list_tables|= table->map;
     }
 
     /*
@@ -8186,7 +8186,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
           if (field_table)
           {
             thd->used_tables|= field_table->map;
-            thd->lex->current_select->join->used_tables|= field_table->map;
+            thd->lex->current_select->join->select_list_tables|=
+              field_table->map;
             field_table->covering_keys.intersect(field->part_of_key);
             field_table->merge_keys.merge(field->part_of_key);
             field_table->used_fields++;
@@ -8196,7 +8197,8 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
       else
       {
         thd->used_tables|= item->used_tables();
-        thd->lex->current_select->join->used_tables|= item->used_tables();
+        thd->lex->current_select->join->select_list_tables|=
+          item->used_tables();
       }
       thd->lex->current_select->cur_pos_in_select_list++;
     }

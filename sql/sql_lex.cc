@@ -1728,7 +1728,7 @@ void st_select_lex_unit::init_query()
   item_list.empty();
   describe= 0;
   found_rows_for_union= 0;
-  result= 0;
+  result= NULL;
 }
 
 void st_select_lex::init_query()
@@ -3160,10 +3160,9 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
   @brief Process all derived tables/views of the SELECT.
 
   @param lex    LEX of this thread
-  @param phase  phases to run derived tables/views through
 
   @details
-  This function runs specified 'phases' on all tables from the
+  This function runs given processor on all derived tables from the
   table_list of this select.
 
   @return FALSE ok.
@@ -3173,11 +3172,12 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 bool st_select_lex::handle_derived(LEX *lex,
                                    bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
-  for (TABLE_LIST *cursor= (TABLE_LIST*) table_list.first;
-       cursor;
-       cursor= cursor->next_local)
+  for (TABLE_LIST *table_ref= (TABLE_LIST*) table_list.first;
+       table_ref;
+       table_ref= table_ref->next_local)
   {
-    if (cursor->is_view_or_derived() && cursor->handle_derived(lex, processor))
+    if (table_ref->is_view_or_derived() &&
+        table_ref->handle_derived(lex, processor))
       return TRUE;
   }
   return FALSE;

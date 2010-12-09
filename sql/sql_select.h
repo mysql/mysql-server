@@ -265,8 +265,6 @@ typedef struct st_join_table : public Sql_alloc
   uint          packed_info;
 
   READ_RECORD::Setup_func read_first_record;
-  //TODO try to unify with save_read_first_record below
-  READ_RECORD::Setup_func saved_read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
@@ -1850,7 +1848,7 @@ public:
     The set of those tables whose fields are referenced in the select list of
     this select level.
   */
-  table_map used_tables;
+  table_map select_list_tables;
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
@@ -1904,7 +1902,7 @@ public:
     optimized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
-    used_tables= 0;
+    select_list_tables= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
