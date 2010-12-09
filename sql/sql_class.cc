@@ -1722,7 +1722,7 @@ void THD::rollback_item_tree_changes()
 *****************************************************************************/
 
 select_result::select_result():
-  estimated_records(0)
+  estimated_rowcount(0)
 {
   thd=current_thd;
 }

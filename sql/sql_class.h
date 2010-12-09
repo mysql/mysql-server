@@ -1985,8 +1985,8 @@ public:
     The set of those tables whose fields are referenced in all subqueries
     of the query.
     Since this field is meaningless for quieries with subqueries (subqueries
-    has their own table numerations) this field is used only for non-SELECT
-    queries. For SELECT the JOIN::used_tables field is used instead.
+    has their own table maps) this field is used only for non-SELECT
+    queries. For SELECT the JOIN::select_list_tables field is used instead.
   */
   table_map  used_tables;
   USER_CONN *user_connect;
@@ -2975,7 +2975,7 @@ public:
     Number of records estimated in this result.
     Valid only for materialized derived tables/views.
   */
-  ha_rows estimated_records;
+  ha_rows estimated_rowcount;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3269,7 +3269,7 @@ public:
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     skip_create_table(0), bit_fields_as_long(0)
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3288,8 +3288,8 @@ public:
 
 class select_union :public select_result_interceptor
 {
-public:
   TMP_TABLE_PARAM tmp_table_param;
+public:
   TABLE *table;
 
   select_union() :table(0) {}
@@ -3302,6 +3302,7 @@ public:
                            bool is_distinct, ulonglong options,
                            const char *alias, bool bit_fields_as_long,
                            bool create_table);
+  friend bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived);
 };
 
 /* Base subselect interface class */

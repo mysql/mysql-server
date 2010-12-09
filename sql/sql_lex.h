@@ -519,7 +519,6 @@ public:
   st_select_lex_unit()
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
-      derived(NULL),
       fake_select_lex(NULL)
   {
   }
@@ -552,11 +551,6 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
   Item_subselect *item;
-  /*
-    TABLE_LIST representing this union in the embedding select. Used for
-    derived tables/views handling.
-  */
-  TABLE_LIST *derived;
   /* thread handler */
   THD *thd;
   /*
@@ -606,7 +600,6 @@ public:
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
-  void increase_estimated_records(ha_rows estimate);
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;

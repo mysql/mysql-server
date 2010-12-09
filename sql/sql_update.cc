@@ -310,7 +310,7 @@ int mysql_update(THD *thd,
     DBUG_RETURN(1);
   }
 
-   /* Calculate "table->covering_keys" based on the WHERE */
+  /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 

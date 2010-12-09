@@ -456,7 +456,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
     thd->used_tables|= item->used_tables();
-    thd->lex->current_select->join->used_tables|= item->used_tables();
+    thd->lex->current_select->join->select_list_tables|= item->used_tables();
   }
   return res;
 }
@@ -1751,6 +1751,8 @@ JOIN::optimize()
     DBUG_RETURN(0);
   optimized= 1;
   DEBUG_SYNC(thd, "before_join_optimize");
+  thd_proc_info(thd, "optimizing");
+
   /* Run optimize phase for all derived tables/views used in this SELECT. */
   {
     select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
@@ -1764,8 +1766,6 @@ JOIN::optimize()
       select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
     }
   }
-
-  thd_proc_info(thd, "optimizing");
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (flatten_subqueries())
@@ -2611,7 +2611,7 @@ JOIN::optimize()
       JOIN_TAB *last_join_tab= join_tab+tables-1;
       do
       {
-	if (used_tables & last_join_tab->table->map)
+	if (select_list_tables & last_join_tab->table->map)
 	  break;
 	last_join_tab->not_used_in_distinct=1;
       } while (last_join_tab-- != join_tab);
@@ -2772,7 +2772,7 @@ JOIN::exec()
   thd_proc_info(thd, "executing");
   error= 0;
   /* Create result tables for materialized views. */
-  if ( select_lex->handle_derived(thd->lex, &mysql_derived_create))
+  if (select_lex->handle_derived(thd->lex, &mysql_derived_create))
     DBUG_VOID_RETURN;
   if (procedure)
   {
@@ -5035,7 +5035,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
         There will be no more rows than defined in the LIMIT clause. Use it
         as an estimate.
       */
-      join->best_rowcount= join->unit->select_limit_cnt;
+      set_if_smaller(join->best_rowcount, join->unit->select_limit_cnt);
     }
     else
     {
@@ -5487,8 +5487,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   uint exists_optimize= 0;
   TABLE_LIST *table= field->table->pos_in_table_list;
   if (!table->derived_keys_ready && table->is_materialized_derived() &&
-      !field->table->created)
-    table->update_derived_keys(field, value, num_values);
+      !field->table->created &&
+      table->update_derived_keys(field, value, num_values))
+    return;
   if (!(field->flags & PART_KEY_FLAG))
   {
     // Don't remove column IS NULL on a LEFT JOIN table
@@ -6248,7 +6249,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  generate_derived_keys(select_lex);
+  if (generate_derived_keys(select_lex))
+    return TRUE;
 
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
@@ -9882,18 +9884,14 @@ static bool make_join_select(JOIN *join, Item *cond)
   @brief
   Add keys to derived tables'/views' result tables in a list
 
-  @param tables list of tables to generate keys for
+  @param select_lex generate derived keys for select_lex's derived tables
 
   @details
-  This function generates keys for all derived tables/views in the 'tables'
-  list with help of the TABLE_LIST:generate_keys function.
+  This function generates keys for all derived tables/views of the given
+  select_lex list with help of the TABLE_LIST:generate_keys function.
 
-  @note currently this function can't fail because errors from the
-  TABLE_LIST:generate_keys function is ignored as they aren't critical to the
-  query execution.
-
-  TODO add keys for group by/order by to allow loose index scan.
   @return FALSE all keys were successfully added.
+  @return TRUE OOM error
 */
 
 bool generate_derived_keys(SELECT_LEX *select_lex)
@@ -9904,11 +9902,11 @@ bool generate_derived_keys(SELECT_LEX *select_lex)
     Reserve space for a key for GROUP BY which could be added later.
     see add_group_and_distinct_keys.
   */
-  if(join->tables == 1 &&
-     table->is_materialized_derived() &&
-     table->table->file->stats.records > 1 &&
-     (join->tmp_table_param.sum_func_count || join->group ||
-      join->select_distinct))
+  if (join->tables == 1 &&
+      table->is_materialized_derived() &&
+      table->table->file->stats.records > 1 &&
+      (join->tmp_table_param.sum_func_count || join->group ||
+       join->select_distinct))
     table->table->max_keys++;
   for (; table; table= table->next_leaf)
   {
@@ -9937,8 +9935,8 @@ void JOIN::drop_unused_derived_keys()
 {
   for (uint i= const_tables ; i < tables ; i++)
   {
-    JOIN_TAB *tab=join_tab+i;
-    TABLE *table=tab->table;
+    JOIN_TAB *tab= join_tab + i;
+    TABLE *table= tab->table;
     /*
      No need to drop keys descriptions if:
      1) not a materialized derive table
@@ -9947,9 +9945,9 @@ void JOIN::drop_unused_derived_keys()
      4) only one key and it is already used
     */
     if (!table->pos_in_table_list->is_materialized_derived() || // (1)
-        table->created ||
-        !table->max_keys ||                                     // (2)
-        (table->max_keys == 1 && !tab->ref.key))                // (3)
+        table->created ||                                       // (2)
+        table->max_keys == 0 ||                                 // (3)
+        (table->max_keys == 1 && tab->ref.key == 0))            // (4)
       continue;
     table->use_index(tab->ref.key);
     /* Now there is only 1 index, point to it. */
@@ -11297,7 +11295,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if (tab->table->pos_in_table_list->is_materialized_derived() &&
         !tab->table->pos_in_table_list->materialized)
     {
-      tab->saved_read_first_record= tab->read_first_record;
+      tab->save_read_first_record= tab->read_first_record;
       tab->read_first_record= join_materialize_table;
     }
   }
@@ -18382,7 +18380,8 @@ join_materialize_table(JOIN_TAB *tab)
   if (mysql_handle_single_derived(tab->table->in_use->lex,
                                   derived, &mysql_derived_materialize))
     return -1;
-  tab->read_first_record= tab->saved_read_first_record;
+  tab->read_first_record= tab->save_read_first_record;
+  tab->save_read_first_record= NULL;
   return (*tab->read_first_record)(tab);
 }
 
@@ -23104,7 +23103,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           need_order=0;
           extra.append(STRING_WITH_LEN("; Using filesort"));
         }
-        if (distinct & test_all_bits(used_tables,thd->used_tables))
+        if (distinct && test_all_bits(used_tables,thd->used_tables))
           extra.append(STRING_WITH_LEN("; Distinct"));
 
         if (tab->loosescan_match_tab)

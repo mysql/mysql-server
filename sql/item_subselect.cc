@@ -2372,6 +2372,9 @@ int subselect_single_select_engine::exec()
             bool *cond_guard= tab->ref.cond_guards[i];
             if (cond_guard && !*cond_guard)
             {
+              /* Make sure that save_read_first_record usage doesn't
+               * intersect with join_materialize_table()'s */
+              DBUG_ASSERT(!tab->save_read_first_record);
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
@@ -2399,6 +2402,7 @@ int subselect_single_select_engine::exec()
       tab->read_record.ref_length= 0;
       tab->read_first_record= tab->save_read_first_record; 
       tab->read_record.read_record= tab->save_read_record;
+      tab->save_read_first_record= NULL;
     }
     executed= 1;
     thd->where= save_where;

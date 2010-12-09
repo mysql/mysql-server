@@ -5081,16 +5081,19 @@ void TABLE::mark_columns_per_binlog_row_image()
   Allocate space enough to fit 'key_count' keys for this table.
 
   @return FALSE space was successfully allocated.
-  @return TRUE an error occur.
+  @return TRUE OOM error occur.
 */
 
 bool TABLE::alloc_keys(uint key_count)
 {
   DBUG_ASSERT(!s->keys);
   max_keys= key_count;
-  key_info= s->key_info= (KEY*) alloc_root(&mem_root, sizeof(KEY)*max_keys);
-  bzero(key_info, sizeof(KEY)*max_keys);
-  return !(key_info);
+  if (!(key_info= s->key_info=
+        (KEY*) alloc_root(&mem_root, sizeof(KEY)*max_keys)))
+    return TRUE;
+
+  memset(key_info, 0, sizeof(KEY)*max_keys);
+  return FALSE;
 }
 
 
@@ -5108,15 +5111,16 @@ bool TABLE::alloc_keys(uint key_count)
   When covering is TRUE then key_fields forms the key prefix and other fields
   forms the rest.
 
-  @return <0 an error occur.
-  @return 0 key can't be created.
-  @return >0 key created.
+  @TODO somehow manage to create keys in tmp_table_param for unification
+        purposes
+
+  @return TRUE OOM error.
+  @return FALSE the key was created or ignored.
 */
-//TODO somehow manage to create keys in tmp_table_param for unification
-//purposes
-int TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
+
+bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 {
-  DBUG_ASSERT(!created && s->keys< max_keys && key_parts);
+  DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
   KEY* keyinfo;
   Field **reg_field;
@@ -5130,19 +5134,19 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   {
     /* Don't create index over a blob field. */
     if (key_parts & (1 << i) && (*reg_field)->flags & BLOB_FLAG)
-      return 0;
+      return FALSE;
     field_count++;
   }
   uint key_part_count= my_count_bits(key_parts);
 
   /* Allocate keys in the tables' mem_root. */
-  ulonglong key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
-                          sizeof(ulong) * key_part_count;
+  size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
+                       sizeof(ulong) * key_part_count;
   key_buf= (uchar*) alloc_root(&mem_root, key_buf_size);
 
   if (!key_buf)
-    return -1;
-  bzero(key_buf, key_buf_size);
+    return TRUE;
+  memset(key_buf, 0, key_buf_size);
   keyinfo= key_info + s->keys;
   keyinfo->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   keyinfo->usable_key_parts= keyinfo->key_parts= key_part_count;
@@ -5179,7 +5183,7 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
     key_part_info->length=   (uint16) (*reg_field)->key_length();
     keyinfo->key_length+= key_part_info->length;
     /* TODO:
-      The below method of computing the key format length of the
+      The below method of computing the key format length of a
       key part is a copy/paste from opt_range.cc, and table.cc.
       This should be factored out, e.g. as a method of Field.
       In addition it is not clear if any of the Field::*_length
@@ -5208,7 +5212,7 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   }
   set_if_bigger(s->max_key_length, keyinfo->key_length);
   s->keys++;
-  return 1;
+  return FALSE;
 }
 
 /*
@@ -5225,31 +5229,21 @@ int TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 
 void TABLE::use_index(int key_to_save)
 {
-  int i= 1;
-  uint prefix= 0;
   if (!s->keys)
     return;
   DBUG_ASSERT(!created && key_to_save < (int)s->keys);
-  if (key_to_save < 0)
-    /* Drop all keys; */
-    i= 0;
-  else if (key_to_save > 0)
-  {
-    /* Save the given key. No need to copy key#0. */
-    memcpy(key_info, key_info + key_to_save, sizeof(KEY));
-    /* Save info on covering key. */
-    if (covering_keys.is_set(key_to_save))
-      prefix= 1;
-  }
-  covering_keys.set_prefix(prefix);
 
   if (key_to_save < 0)
   {
+    /* Drop all keys; */
     key_info= s->key_info= 0;
     s->key_parts= 0;
     s->keys= 0;
     covering_keys.clear_all();
   } else {
+    /* Save the given key. No need to copy key#0. */
+    if (key_to_save > 0)
+      memcpy(key_info, key_info + key_to_save, sizeof(KEY));
     s->keys= 1;
     s->key_parts= key_info[0].key_parts;
     if (covering_keys.is_set(key_to_save))
@@ -5564,7 +5558,7 @@ int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
   if (is_materialized_derived() && !materialized)
-    table->file->stats.records= derived->result->estimated_records;
+    table->file->stats.records= derived->result->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;
@@ -5578,15 +5572,15 @@ int TABLE_LIST::fetch_number_of_rows()
   Each generated key consists of fields of derived table used in equi-join.
   Example:
 
-    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+    SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 and tt.f2.=t1.f4;
   In this case for the derived table tt one key will be generated. It will
-  consist of two parts f1 and f2. Beside on-per-table keys one additional key
+  consist of two parts f1 and f2. Beside one-per-table keys one additional key
   is generated. It includes all fields referenced by other tables.
 
   Example:
 
-    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+    SELECT * FROM (SELECT f1, f2. count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 JOIN
                   t2 ON tt.f2=t2.f4;
   In this case for the derived table tt two keys will be generated.
@@ -5596,7 +5590,7 @@ int TABLE_LIST::fetch_number_of_rows()
   See also JOIN::drop_unused_derived_keys function.
   Example:
 
-    SELECT * FROM (SELECT * FROM t1 GROUP BY 1) tt JOIN
+    SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=a_function(t1.f3);
   In this case for the derived table tt one key will be generated. It will
   consist of one field - f1.
@@ -5635,6 +5629,10 @@ int TABLE_LIST::fetch_number_of_rows()
   @param derived_key_list  list of all possible derived keys
   @param field             referenced field
   @param ref_by_tbl        the table that refers to given field
+
+  @details The possible key to be used for join with table with ref_by_tbl
+  table map is extended to include 'field'. If ref_by_tbl == 0 then the key
+  that includes all referred fields is extended.
 
   @return TRUE  OOM
   @return FALSE otherwise
@@ -5708,7 +5706,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   /* Don't bother with keys for CREATE VIEW and for BLOB fields. */
   if (field->table->in_use->lex->view_prepare_mode ||
       field->flags & BLOB_FLAG)
-    return TRUE;
+    return FALSE;
 
   /* Allow all keys to be used. */
   if (!derived_key_list.elements)
@@ -5720,10 +5718,10 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
 
   for (uint i= 0; i < num_values; i++)
   {
-    table_map tbl, tables= values[i]->used_tables();
+    table_map tables= values[i]->used_tables();
     if (!tables)
       continue;
-    for (tbl= 1; tables >= tbl; tbl<<= 1)
+    for (table_map tbl= 1; tables >= tbl; tbl<<= 1)
     {
       if (! (tables & tbl))
         continue;
@@ -5776,7 +5774,8 @@ bool TABLE_LIST::generate_keys()
   if (!derived_key_list.elements)
     return FALSE;
 
-  table->alloc_keys(derived_key_list.elements);
+  if (table->alloc_keys(derived_key_list.elements))
+    return TRUE;
 
   /* Sort entries to make key numbers sequence deterministic. */
   derived_key_list.sort((Node_cmp_func)DKL_sort_func, 0);
@@ -5784,7 +5783,7 @@ bool TABLE_LIST::generate_keys()
   {
     sprintf(buf, "auto_key%i", key++);
     if (table->add_tmp_key(entry->used_fields.to_ulonglong(),
-                           table->in_use->strdup(buf)) < 0)
+                           table->in_use->strdup(buf)))
       return TRUE;
   }
   return FALSE;
@@ -5810,18 +5809,18 @@ bool TABLE_LIST::handle_derived(LEX *lex,
                                 bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
   SELECT_LEX_UNIT *unit= get_unit();
-  if (unit)
+  DBUG_ASSERT(unit);
+
+  /* Dive into a merged derived table or materialize as is otherwise. */
+  if (!is_materialized_derived())
   {
-    //Dive into a merged derived table or materialize as is otherwise.
-    if (!is_materialized_derived())
-    {
-      for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-        if (sl->handle_derived(lex, processor))
-          return TRUE;
-    }
-    else
-      return mysql_handle_single_derived(lex, this, processor);
+    for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+      if (sl->handle_derived(lex, processor))
+        return TRUE;
   }
+  else
+    return mysql_handle_single_derived(lex, this, processor);
+
   return FALSE;
 }
 
