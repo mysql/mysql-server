@@ -123,23 +123,6 @@ struct row_merge_dup_struct {
 /** Structure for reporting duplicate records. */
 typedef struct row_merge_dup_struct row_merge_dup_t;
 
-/** Write a record via buffer 2 and read the next record to buffer N.
-@param M	FTS merge info structure
-@param N	index into array of merge info structure
-@param INDEX	the FTS index */
-
-#define ROW_MERGE_READ_GET_NEXT(N)					\
-	do {								\
-		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index,			\
-			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
-		if (UNIV_UNLIKELY(!b[N])) {				\
-			if (mrec[N]) {					\
-				goto corrupt;				\
-			}						\
-		}							\
-	} while (0)
-
 /*********************************************************************//**
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return	error code or DB_SUCCESS */
