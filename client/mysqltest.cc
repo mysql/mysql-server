@@ -5680,6 +5680,8 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     }
     while (my_isspace(charset_info, *curr_ptr))
       curr_ptr++;
+    if (curr_ptr == expr_end)
+      die("Missing right operand in comparison");
 
     /* Strip off trailing white space */
     while (my_isspace(charset_info, expr_end[-1]))
