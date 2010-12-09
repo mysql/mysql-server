@@ -1,3 +1,7 @@
+2010-12-09	The InnoDB Team
+	* buf/buf0lru.c:
+	Fix Bug#57600 output of I/O sum[%lu] can go negative
+
 2010-11-11	The InnoDB Team
 	* thr/thr0loc.c, trx/trx0i_s.c:
 	Fix Bug#57802 Empty ASSERTION parameter passed to the HASH_SEARCH macro
