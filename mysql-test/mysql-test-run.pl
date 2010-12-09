@@ -3030,6 +3030,12 @@ sub mysql_install_db {
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
+  # On some old linux kernels, aio on tmpfs is not supported
+  # Remove this if/when Bug #58421 fixes this in the server
+  if ($^O eq "linux" && $opt_mem) {
+    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
+  }
+
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
   # server process.
@@ -4513,6 +4519,13 @@ sub mysqld_arguments ($$$) {
     {
       mtr_add_arg($args, "--skip-bdb");
     }
+  }
+
+  # On some old linux kernels, aio on tmpfs is not supported
+  # Remove this if/when Bug #58421 fixes this in the server
+  if ($^O eq "linux" && $opt_mem)
+  {
+    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
   }
 
   if ( $mysql_version_id >= 50106 && !$opt_user_args)
