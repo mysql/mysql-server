@@ -1446,10 +1446,9 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
-  "index_condition_pushdown",
+  "index_condition_pushdown" , "mrr", "mrr_cost_based",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
-  "mrr", "mrr_cost_based",
 #endif
   "default", NullS
 };
@@ -1467,10 +1466,10 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, "
-       "index_condition_pushdown"
+       "index_condition_pushdown, mrr, mrr_cost_based"
 #ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, "
-       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based"
+       "semijoin, loosescan, firstmatch"
 #endif
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
@@ -1528,7 +1527,6 @@ static Sys_var_ulong Sys_read_buff_size(
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
-static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
@@ -1612,6 +1610,16 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   DBUG_RETURN(result);
 }
+
+
+/**
+  The read_only boolean is always equal to the opt_readonly boolean except
+  during fix_read_only(); when that function is entered, opt_readonly is
+  the pre-update value and read_only is the post-update value.
+  fix_read_only() compares them and runs needed operations for the
+  transition (especially when transitioning from false to true) and
+  synchronizes both booleans in the end.
+*/
 static Sys_var_mybool Sys_readonly(
        "read_only",
        "Make all non-temporary tables read-only, with the exception for "
