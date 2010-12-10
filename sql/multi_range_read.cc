@@ -359,9 +359,10 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
       kv_it.move_to_next_key_value();
       continue;
     }
-
-    if (!skip_index_tuple(*(char**)cur_range_info) &&
-        !skip_record(*(char**)cur_range_info, NULL))
+    char *range_info;
+    memcpy(&range_info, cur_range_info, sizeof(char*));
+    if (!skip_index_tuple(range_info) &&
+        !skip_record(range_info, NULL))
     {
       break;
     }
@@ -1051,17 +1052,24 @@ void DsMrr_impl::dsmrr_close()
   my_qsort2-compatible static member function to compare key tuples 
 */
 
-int Mrr_ordered_index_reader::compare_keys(void* arg, uchar* key1, uchar* key2)
+int Mrr_ordered_index_reader::compare_keys(void* arg, uchar* key1_arg, 
+                                           uchar* key2_arg)
 {
   Mrr_ordered_index_reader *reader= (Mrr_ordered_index_reader*)arg;
   TABLE *table= reader->file->get_table();
   KEY_PART_INFO *part= table->key_info[reader->file->active_index].key_part;
-  
+  uchar *key1, *key2;
+   
   if (reader->keypar.use_key_pointers)
   {
     /* the buffer stores pointers to keys, get to the keys */
-    key1= *((uchar**)key1);
-    key2= *((uchar**)key2);  // todo is this alignment-safe?
+    memcpy(&key1, key1_arg, sizeof(char*));
+    memcpy(&key2, key2_arg, sizeof(char*));
+  }
+  else
+  {
+    key1= key1_arg;
+    key2= key2_arg;
   }
 
   return key_tuple_cmp(part, key1, key2, reader->keypar.key_tuple_length);
@@ -1211,7 +1219,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 
   last_identical_key_ptr= cur_index_tuple;
   if (owner->keypar.use_key_pointers)
-    cur_index_tuple= *((uchar**)cur_index_tuple);
+    memcpy(&cur_index_tuple, key_in_buf, sizeof(char*));
   
   /* Check out how many more identical keys are following */
   uchar *save_cur_index_tuple= cur_index_tuple;
