@@ -38,6 +38,7 @@ SELECT COUNT(*) FROM CountryLanguage;
 COUNT(*)
 984
 CREATE INDEX Name ON City(Name);
+set session optimizer_switch='index_merge_sort_intersection=off';
 EXPLAIN
 SELECT * FROM City
 WHERE (Population >= 100000 OR Name LIKE 'P%' OR Population < 100000);
@@ -71,9 +72,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Population	Population	4	NULL	459	Using where
 EXPLAIN 
 SELECT * FROM City
-WHERE (Population > 101000 AND Population < 103000);
+WHERE (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	81	Using where
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using where
 EXPLAIN 
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'));
@@ -88,9 +89,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN 
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-AND (Population > 101000 AND Population < 103000);
+AND (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	81	Using where
+1	SIMPLE	City	range	Population,Country,Name	Population	4	NULL	39	Using where
 SELECT * FROM City USE INDEX ()
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
 AND (Population > 101000 AND Population < 115000);
@@ -153,24 +154,20 @@ ID	Name	Country	Population
 4032	Cambridge	USA	101355
 SELECT * FROM City USE INDEX ()
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-AND (Population > 101000 AND Population < 103000);
+AND (Population > 101000 AND Population < 102000);
 ID	Name	Country	Population
 637	Mit Ghamr	EGY	101801
 707	Marbella	ESP	101144
-3411	Ceyhan	TUR	102412
 3792	Tartu	EST	101246
-4027	Cape Coral	USA	102286
 4032	Cambridge	USA	101355
 SELECT * FROM City
 WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-AND (Population > 101000 AND Population < 103000);
+AND (Population > 101000 AND Population < 102000);
 ID	Name	Country	Population
 707	Marbella	ESP	101144
 3792	Tartu	EST	101246
 4032	Cambridge	USA	101355
 637	Mit Ghamr	EGY	101801
-4027	Cape Coral	USA	102286
-3411	Ceyhan	TUR	102412
 EXPLAIN
 SELECT  * FROM City WHERE (Name < 'Ac');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -328,9 +325,9 @@ ID	Name	Country	Population
 1003	Pemalang	IDN	103500
 2663	Río Bravo	MEX	103901
 EXPLAIN
-SELECT * FROM City WHERE (ID < 50) OR (ID BETWEEN 100 AND 110);
+SELECT * FROM City WHERE (ID < 30) OR (ID BETWEEN 100 AND 150);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	61	Using where
+1	SIMPLE	City	range	PRIMARY	PRIMARY	4	NULL	81	Using where
 EXPLAIN
 SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 300 AND 600);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -353,11 +350,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Name	Name	35	NULL	72	Using where
 EXPLAIN
 SELECT * FROM City
-WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
 (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	61	Using where
+1	SIMPLE	City	range	PRIMARY,Population,Country,Name	PRIMARY	4	NULL	41	Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ((ID < 800) AND (Name LIKE 'Ha%' OR (Country > 'A' AND Country < 'ARG')))
@@ -373,7 +370,7 @@ OR ((ID BETWEEN 300 AND 600) AND
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name	Name,Country,Population	35,3,4	NULL	128	Using sort_union(Name,Country,Population); Using where
 SELECT * FROM City USE INDEX ()
-WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
 (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 ID	Name	Country	Population
@@ -384,13 +381,10 @@ ID	Name	Country	Population
 7	Haag	NLD	440900
 16	Haarlem	NLD	148772
 25	Haarlemmermeer	NLD	110722
-31	Heerlen	NLD	95052
-33	Willemstad	ANT	2345
-34	Tirana	ALB	270000
 100	Paraná	ARG	207041
 102	Posadas	ARG	201273
 SELECT * FROM City
-WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
 OR ((ID BETWEEN 100 AND 110) AND 
 (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 ID	Name	Country	Population
@@ -401,9 +395,6 @@ ID	Name	Country	Population
 7	Haag	NLD	440900
 16	Haarlem	NLD	148772
 25	Haarlemmermeer	NLD	110722
-31	Heerlen	NLD	95052
-33	Willemstad	ANT	2345
-34	Tirana	ALB	270000
 100	Paraná	ARG	207041
 102	Posadas	ARG	201273
 SELECT * FROM City USE INDEX()
@@ -726,119 +717,55 @@ SELECT * FROM City WHERE Name LIKE 'P%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	range	Name	Name	35	NULL	135	Using where
 EXPLAIN
-SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population	Population	4	NULL	81	Using where
+1	SIMPLE	City	range	Population	Population	4	NULL	39	Using where
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	ref	Country,CountryPopulation	Country	3	const	267	Using where
 EXPLAIN
 SELECT * FROM City 
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
 AND Country='USA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	index_merge	Population,Country,Name,CountryPopulation	CountryPopulation,Name	7,35	NULL	15	Using sort_union(CountryPopulation,Name); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name,CountryPopulation	CountryPopulation,Name	7,35	NULL	8	Using sort_union(CountryPopulation,Name); Using where
 EXPLAIN
 SELECT * FROM City 
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-AND Country='USA';
+WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%' )
+AND Country='USA' AND Name LIKE '%port';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	ref	Population,Country,Name,CountryPopulation	Country	3	const	267	Using where
 SELECT * FROM City 
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
 AND Country='USA';
 ID	Name	Country	Population
 3943	Pasadena	USA	141674
 3953	Pasadena	USA	133936
-4023	Gary	USA	102746
-4024	Berkeley	USA	102743
-4025	Santa Clara	USA	102361
-4026	Green Bay	USA	102313
-4027	Cape Coral	USA	102286
-4028	Arvada	USA	102153
-4029	Pueblo	USA	102121
 4030	Sandy	USA	101853
 4031	Athens-Clarke County	USA	101489
 4032	Cambridge	USA	101355
 SELECT * FROM City USE INDEX ()
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
 AND Country='USA';
 ID	Name	Country	Population
 3943	Pasadena	USA	141674
 3953	Pasadena	USA	133936
-4023	Gary	USA	102746
-4024	Berkeley	USA	102743
-4025	Santa Clara	USA	102361
-4026	Green Bay	USA	102313
-4027	Cape Coral	USA	102286
-4028	Arvada	USA	102153
-4029	Pueblo	USA	102121
 4030	Sandy	USA	101853
 4031	Athens-Clarke County	USA	101489
 4032	Cambridge	USA	101355
 SELECT * FROM City 
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-AND Country='USA';
+WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%')
+AND Country='USA' AND Name LIKE '%port';
 ID	Name	Country	Population
-3797	Philadelphia	USA	1517550
-3798	Phoenix	USA	1321045
-3820	Portland	USA	529121
-3844	Pittsburgh	USA	334563
-3870	Plano	USA	222030
-3912	Providence	USA	173618
-3930	Pomona	USA	149473
-3932	Paterson	USA	149222
-3943	Pasadena	USA	141674
-3951	Pembroke Pines	USA	137427
-3953	Pasadena	USA	133936
-3967	Paradise	USA	124682
-3986	Palmdale	USA	116670
-3996	Peoria	USA	112936
-4007	Peoria	USA	108364
-4016	Provo	USA	105166
-4023	Gary	USA	102746
-4024	Berkeley	USA	102743
-4025	Santa Clara	USA	102361
-4026	Green Bay	USA	102313
-4027	Cape Coral	USA	102286
-4028	Arvada	USA	102153
-4029	Pueblo	USA	102121
-4030	Sandy	USA	101853
-4031	Athens-Clarke County	USA	101489
-4032	Cambridge	USA	101355
-4035	Portsmouth	USA	100565
+3880	Shreveport	USA	200145
+3946	Bridgeport	USA	139529
 SELECT * FROM City USE INDEX ()
-WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-AND Country='USA';
+WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%')
+AND Country='USA' AND Name LIKE '%port';
 ID	Name	Country	Population
-3797	Philadelphia	USA	1517550
-3798	Phoenix	USA	1321045
-3820	Portland	USA	529121
-3844	Pittsburgh	USA	334563
-3870	Plano	USA	222030
-3912	Providence	USA	173618
-3930	Pomona	USA	149473
-3932	Paterson	USA	149222
-3943	Pasadena	USA	141674
-3951	Pembroke Pines	USA	137427
-3953	Pasadena	USA	133936
-3967	Paradise	USA	124682
-3986	Palmdale	USA	116670
-3996	Peoria	USA	112936
-4007	Peoria	USA	108364
-4016	Provo	USA	105166
-4023	Gary	USA	102746
-4024	Berkeley	USA	102743
-4025	Santa Clara	USA	102361
-4026	Green Bay	USA	102313
-4027	Cape Coral	USA	102286
-4028	Arvada	USA	102153
-4029	Pueblo	USA	102121
-4030	Sandy	USA	101853
-4031	Athens-Clarke County	USA	101489
-4032	Cambridge	USA	101355
-4035	Portsmouth	USA	100565
+3880	Shreveport	USA	200145
+3946	Bridgeport	USA	139529
 CREATE INDEX CountryName ON City(Country,Name);
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
@@ -900,9 +827,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	index_merge	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	CountryName,PRIMARY	38,4	NULL	11	Using sort_union(CountryName,PRIMARY); Using where
 EXPLAIN
 SELECT * FROM City
-WHERE ((Population > 101000 AND Population < 110000) OR
-ID BETWEEN 3500 AND 3800) AND Country='USA'
-        AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
+WHERE ((Population > 101000 AND Population < 1000000) OR
+ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+AND Name LIKE '%port';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	City	ref	PRIMARY,Population,Country,Name,CountryPopulation,CountryName	Country	3	const	267	Using where
 SELECT * FROM City USE INDEX ()
@@ -938,21 +866,21 @@ ID	Name	Country	Population
 4031	Athens-Clarke County	USA	101489
 4032	Cambridge	USA	101355
 SELECT * FROM City USE INDEX ()
-WHERE ((Population > 101000 AND Population < 102000) OR
-ID BETWEEN 3790 AND 3800) AND Country='USA'
-        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+WHERE ((Population > 101000 AND Population < 1000000) OR
+ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+AND Name LIKE '%port';
 ID	Name	Country	Population
-4030	Sandy	USA	101853
-4031	Athens-Clarke County	USA	101489
-4032	Cambridge	USA	101355
+3880	Shreveport	USA	200145
+3946	Bridgeport	USA	139529
 SELECT * FROM City
-WHERE ((Population > 101000 AND Population < 102000) OR
-ID BETWEEN 3790 AND 3800) AND Country='USA'
-        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+WHERE ((Population > 101000 AND Population < 1000000) OR
+ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+AND Name LIKE '%port';
 ID	Name	Country	Population
-4030	Sandy	USA	101853
-4031	Athens-Clarke County	USA	101489
-4032	Cambridge	USA	101355
+3880	Shreveport	USA	200145
+3946	Bridgeport	USA	139529
 EXPLAIN
 SELECT * FROM City
 WHERE ((Population > 101000 and Population < 102000) OR
@@ -1460,3 +1388,4 @@ f1	f2	f3	f4
 9	0	2	6
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
+set session optimizer_switch='index_merge_sort_intersection=default';

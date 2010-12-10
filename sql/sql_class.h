@@ -2977,6 +2977,7 @@ class user_var_entry
   DTCollation collation;
 };
 
+
 /*
    Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
@@ -2993,27 +2994,42 @@ class Unique :public Sql_alloc
   IO_CACHE file;
   TREE tree;
   uchar *record_pointers;
+  ulong filtered_out_elems;
   bool flush();
   uint size;
+  uint full_size;
+  uint min_dupl_count;
 
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
-	 uint size_arg, ulonglong max_in_memory_size_arg);
+	 uint size_arg, ulonglong max_in_memory_size_arg,
+         uint min_dupl_count_arg= 0);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr)
   {
     DBUG_ENTER("unique_add");
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush())
+    if (!(tree.flag & TREE_ONLY_DUPS) && 
+        tree.elements_in_tree >= max_elements && flush())
       DBUG_RETURN(1);
     DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
   }
 
+  bool is_in_memory() { return (my_b_tell(&file) == 0); }
+  void close_for_expansion() { tree.flag= TREE_ONLY_DUPS; }
+
   bool get(TABLE *table);
+  
+  inline static double get_search_cost(uint tree_elems, uint compare_factor)
+  {
+    return log((double) tree_elems) / (compare_factor * M_LN2);
+  }  
+
   static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
-                             ulonglong max_in_memory_size);
+                             ulonglong max_in_memory_size, uint compare_factor,
+                             bool intersect_fl, bool *in_memory);
   inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
                                             ulonglong max_in_memory_size)
   {
@@ -3030,6 +3046,11 @@ public:
 
   friend int unique_write_to_file(uchar* key, element_count count, Unique *unique);
   friend int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique);
+
+  friend int unique_write_to_file_with_count(uchar* key, element_count count,
+                                             Unique *unique);
+  friend int unique_intersect_write_to_ptrs(uchar* key, element_count count, 
+				            Unique *unique);
 };
 
 

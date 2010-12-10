@@ -33,6 +33,8 @@ ANALYZE TABLE City;
 --enable_result_log
 --enable_query_log
 
+set session optimizer_switch='index_merge_sort_intersection=off';
+
 # The following 4 queries are added for code coverage 
 
 #the exptected # of rows differ on 32-bit and 64-bit platforms for innodb 
@@ -68,7 +70,7 @@ SELECT * FROM City
 
 EXPLAIN 
 SELECT * FROM City
-  WHERE (Population > 101000 AND Population < 103000);
+  WHERE (Population > 101000 AND Population < 102000);
 
 EXPLAIN 
 SELECT * FROM City
@@ -88,7 +90,7 @@ SELECT * FROM City
 EXPLAIN 
 SELECT * FROM City
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 # The following 4 queries check that the plans
 # for the previous 2 plans are valid
@@ -103,11 +105,11 @@ SELECT * FROM City
 
 SELECT * FROM City USE INDEX ()
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 SELECT * FROM City
   WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'F'))
-        AND (Population > 101000 AND Population < 103000);
+        AND (Population > 101000 AND Population < 102000);
 
 # The output of the next 7 commands tells us about selectivities
 # of the conditions utilized in 4 queries following after them  
@@ -197,9 +199,10 @@ SELECT  * FROM City
 # of the conditions utilized in 3 queries following after them  
 
 EXPLAIN
-SELECT * FROM City WHERE (ID < 50) OR (ID BETWEEN 100 AND 110);
+SELECT * FROM City WHERE (ID < 30) OR (ID BETWEEN 100 AND 150);
 EXPLAIN
 SELECT * FROM City WHERE (ID < 200) OR (ID BETWEEN 300 AND 600);
+--replace_result 2921 2950
 EXPLAIN
 SELECT * FROM City WHERE (ID < 600) OR (ID BETWEEN 900 AND 1800);
 EXPLAIN
@@ -219,7 +222,7 @@ SELECT * FROM City WHERE Name LIKE 'Ha%' OR Name LIKE 'Pa%' ;
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
@@ -240,12 +243,12 @@ SELECT * FROM City
 # for the previous 3 plans are valid
 
 SELECT * FROM City USE INDEX ()
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
 SELECT * FROM City
-  WHERE ((ID < 50) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
+  WHERE ((ID < 30) AND (Name LIKE 'H%' OR (Country > 'A' AND Country < 'ARG')))
         OR ((ID BETWEEN 100 AND 110) AND 
             (Name LIKE 'P%' OR (Population > 103000 AND Population < 104000)));
 
@@ -361,7 +364,7 @@ SELECT * FROM City WHERE Name LIKE 'Pas%';
 EXPLAIN
 SELECT * FROM City WHERE Name LIKE 'P%';
 EXPLAIN
-SELECT * FROM City WHERE (Population > 101000 AND Population < 103000);
+SELECT * FROM City WHERE (Population > 101000 AND Population < 102000);
 EXPLAIN
 SELECT * FROM City WHERE Country='USA';
 
@@ -374,32 +377,32 @@ SELECT * FROM City WHERE Country='USA';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+  WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
         AND Country='USA';
 
 EXPLAIN
 SELECT * FROM City 
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+  WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%' )
+        AND Country='USA' AND Name LIKE '%port';
 
 # The following 4 queries check that the plans
 # for the previous 2 plans are valid
 
 SELECT * FROM City 
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+  WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
         AND Country='USA';
 
 SELECT * FROM City USE INDEX ()
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'Pas%')
+  WHERE ((Population > 101000 AND Population < 102000) OR Name LIKE 'Pas%')
         AND Country='USA';
 
 SELECT * FROM City 
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+  WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%')
+        AND Country='USA' AND Name LIKE '%port';
 
 SELECT * FROM City USE INDEX ()
-  WHERE ((Population > 101000 AND Population < 103000) OR Name LIKE 'P%')
-        AND Country='USA';
+  WHERE ((Population > 101000 AND Population < 1000000) OR Name LIKE 'P%')
+        AND Country='USA' AND Name LIKE '%port';
 
 
 CREATE INDEX CountryName ON City(Country,Name);
@@ -463,9 +466,10 @@ SELECT * FROM City
 
 EXPLAIN
 SELECT * FROM City
-  WHERE ((Population > 101000 AND Population < 110000) OR
-          ID BETWEEN 3500 AND 3800) AND Country='USA'
-        AND (Name BETWEEN 'P' AND 'T' OR ID BETWEEN 4000 AND 4300);
+  WHERE ((Population > 101000 AND Population < 1000000) OR
+          ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+        AND Name LIKE '%port';
 
 # The following 6 queries check that the plans
 # for the previous 3 plans are valid
@@ -491,14 +495,16 @@ SELECT * FROM City
         AND (Name LIKE 'Pa%' OR ID BETWEEN 4028 AND 4032);
 
 SELECT * FROM City USE INDEX ()
-  WHERE ((Population > 101000 AND Population < 102000) OR
-          ID BETWEEN 3790 AND 3800) AND Country='USA'
-        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+  WHERE ((Population > 101000 AND Population < 1000000) OR
+          ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+        AND Name LIKE '%port';
 
 SELECT * FROM City
-  WHERE ((Population > 101000 AND Population < 102000) OR
-          ID BETWEEN 3790 AND 3800) AND Country='USA'
-        AND (Name LIKE 'Pa%' OR ID BETWEEN 4025 AND 4035);
+  WHERE ((Population > 101000 AND Population < 1000000) OR
+          ID BETWEEN 3000 AND 3800) AND Country='USA'
+        AND (Name BETWEEN 'P' AND 'Z' OR ID BETWEEN 3500 AND 4300)
+        AND Name LIKE '%port';
 
 
 # The pattern of the WHERE condition used in the following query is
@@ -1003,3 +1009,6 @@ SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
 SET SESSION optimizer_switch=DEFAULT;
 
 DROP TABLE t1;
+
+#the following command must be the last one in the file
+set session optimizer_switch='index_merge_sort_intersection=default';

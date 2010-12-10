@@ -338,7 +338,7 @@ protected:
   Number of comparisons of table rowids equivalent to reading one row from a 
   table.
 */
-#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*2)
+#define TIME_FOR_COMPARE_ROWID  (TIME_FOR_COMPARE*100)
 
 /*
   For sequential disk seeks the cost formula is:
@@ -542,12 +542,13 @@ protected:
 #define OPTIMIZER_SWITCH_INDEX_MERGE_UNION 2
 #define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION 4
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT 8
+#define OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT 16
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST 16
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 16
 #  define OPTIMIZER_SWITCH_LAST 32
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION 32
+#  define OPTIMIZER_SWITCH_LAST 64
 #endif
 
 #ifdef DBUG_OFF 
@@ -555,12 +556,14 @@ protected:
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT)
 #else 
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION)
 #endif
 
@@ -2233,6 +2236,8 @@ ha_rows filesort(THD *thd, TABLE *form,struct st_sort_field *sortorder,
 		 ha_rows max_rows, bool sort_positions,
                  ha_rows *examined_rows);
 void filesort_free_buffers(TABLE *table, bool full);
+double get_merge_many_buffs_cost(uint *buffer, uint last_n_elems,
+                                 int elem_size);
 void change_double_for_sort(double nr,uchar *to);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);

@@ -971,6 +971,7 @@ tmpdir	#
 select * from information_schema.session_variables where variable_name like 'tmpdir';
 VARIABLE_NAME	VARIABLE_VALUE
 TMPDIR	#
+set sort_buffer_size=1024*8;
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 @@ssl_ca	@@ssl_capath	@@ssl_cert	@@ssl_cipher	@@ssl_key
 #	#	#	#	#
