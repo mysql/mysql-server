@@ -559,6 +559,36 @@ ORDER BY f9;
 drop table t1,t2;
 
 --echo #
+--echo # LP BUG#682683 Crash in create_tmp_table called from
+--echo #               JOIN::init_execution
+--echo #
+
+CREATE TABLE t2 (f1 int) ;
+INSERT INTO t2 VALUES (1),(2);
+
+CREATE TABLE t1 (f1 int) ;
+
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+
+INSERT INTO t1 VALUES (1),(2);
+
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+
+drop table t1,t2;
+
+--echo #
 --echo # LP BUG#680943 Assertion `!table || (!table->read_set ||
 --echo # bitmap_is_set(table->read_set, field_index))' failed with subquery
 --echo #

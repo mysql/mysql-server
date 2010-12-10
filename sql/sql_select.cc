@@ -1402,6 +1402,7 @@ setup_subq_exit:
 
 /**
   Create and initialize objects neeed for the execution of a query plan.
+  Evaluate constant expressions not evaluated during optimization.
 */
 
 int JOIN::init_execution()
@@ -1409,6 +1410,7 @@ int JOIN::init_execution()
   DBUG_ENTER("JOIN::init_execution");
 
   DBUG_ASSERT(optimized);
+  DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
   initialized= true;
 
   /* Create a tmp table if distinct or if the sort is too complicated */
@@ -1837,6 +1839,27 @@ JOIN::exec()
 			    zero_result_cause,
 			    having);
     DBUG_VOID_RETURN;
+  }
+
+  /*
+    Evaluate all constant expressions with subqueries in the ORDER/GROUP clauses
+    to make sure that all subqueries return a single row. The evaluation itself
+    will trigger an error if that is not the case.
+  */
+  if (exec_const_order_group_cond.elements &&
+      !(select_options & SELECT_DESCRIBE))
+  {
+    List_iterator_fast<Item> const_item_it(exec_const_order_group_cond);
+    Item *cur_const_item;
+    while ((cur_const_item= const_item_it++))
+    {
+      cur_const_item->val_str(&cur_const_item->str_value);
+      if (thd->is_error())
+      {
+        error= thd->is_error();
+        DBUG_VOID_RETURN;
+      }
+    }
   }
 
   if ((this->select_lex->options & OPTION_SCHEMA_TABLE) &&
@@ -8295,13 +8318,16 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
         (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
         join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
-    else if (!(order_tables & not_const_tables) &&
-             !order->item[0]->with_subselect)
+    else if (!(order_tables & not_const_tables))
     {
-      /*
-        Skip constant expressions in the ORDER/GROUP clause, except when there
-        is a subquery in the expression.
-      */
+      if (order->item[0]->with_subselect)
+      {
+        /*
+          Delay the evaluation of constant ORDER and/or GROUP expressions that
+          contain subqueries until the execution phase.
+        */
+        join->exec_const_order_group_cond.push_back(order->item[0]);
+      }
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;
     }
