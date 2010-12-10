@@ -3133,7 +3133,8 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   key.keyinfo= keyinfo;
 
   if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length +
-                                 keyinfo->maxlength)))
+                                 keyinfo->maxlength +
+                                 MARIA_INDEX_OVERHEAD_SIZE)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
