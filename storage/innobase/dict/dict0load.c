@@ -1394,7 +1394,7 @@ dict_load_indexes(
 
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
-		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE)) {
+		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE | DICT_FTS)) {
 
 			fprintf(stderr,
 				"InnoDB: Error: unknown type %lu"
@@ -1404,7 +1404,8 @@ dict_load_indexes(
 			error = DB_UNSUPPORTED;
 			dict_mem_index_free(index);
 			goto func_exit;
-		} else if (index->page == FIL_NULL) {
+		} else if (index->page == FIL_NULL
+			   && (!(index->type & DICT_FTS))) {
 
 			fprintf(stderr,
 				"InnoDB: Error: trying to load index %s"
