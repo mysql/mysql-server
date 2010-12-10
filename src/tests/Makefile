@@ -144,6 +144,7 @@ BDB_DONTRUN_TESTS = \
         recover-compare-db-descriptor \
 	recover-del-multiple \
 	recover-del-multiple-abort \
+        recover-del-multiple-srcdb-fdelete-all \
         recover-delboth-after-checkpoint \
         recover-delboth-checkpoint \
         recover-fclose-in-checkpoint \
@@ -153,6 +154,7 @@ BDB_DONTRUN_TESTS = \
 	recover-put-multiple-abort \
         recover-put-multiple-fdelete-all \
         recover-put-multiple-fdelete-some \
+        recover-put-multiple-srcdb-fdelete-all \
         recover-split-checkpoint \
         recover-tablelock \
 	recover-test-logsuppress \

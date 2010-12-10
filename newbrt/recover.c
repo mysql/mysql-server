@@ -829,26 +829,26 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
     assert(r == 0);
     assert(txn!=NULL);
     DB *src_db = NULL;
+    BOOL do_inserts = TRUE;
     {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->src_filenum, &tuple);
         if (l->src_filenum.fileid == FILENUM_NONE.fileid)
             assert(r==DB_NOTFOUND);
         else {
-            assert(r==0); //How do we continue if src_db is specified but missing?
-            src_db = tuple->brt->db;
+            if (r == 0)
+                src_db = tuple->brt->db;
+            else
+                do_inserts = FALSE; // src file was probably deleted
         }
     }
-    uint32_t file;
     DBT src_key, src_val, dest_key, dest_val;
     toku_fill_dbt(&src_key, l->src_key.data, l->src_key.len);
     toku_fill_dbt(&src_val, l->src_val.data, l->src_val.len);
-    toku_init_dbt(&dest_key);
-    toku_init_dbt(&dest_val);
-    dest_key.flags = DB_DBT_REALLOC;
-    dest_val.flags = DB_DBT_REALLOC;
+    toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
+    toku_init_dbt_flags(&dest_val, DB_DBT_REALLOC);
 
-    for (file = 0; file < l->dest_filenums.num; file++) {
+    for (uint32_t file = 0; do_inserts && file < l->dest_filenums.num; file++) {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->dest_filenums.filenums[file], &tuple);
         if (r==0) {
@@ -858,18 +858,15 @@ static int toku_recover_enq_insert_multiple (struct logtype_enq_insert_multiple 
             assert(r==0);
             r = toku_brt_maybe_insert(tuple->brt, &dest_key, &dest_val, txn, TRUE, l->lsn, FALSE, BRT_INSERT);
             assert(r == 0);
+
             //flags==0 means generate_row_for_put callback changed it
             //(and freed any memory necessary to do so) so that values are now stored
             //in temporary memory that does not need to be freed.  We need to continue
             //using DB_DBT_REALLOC however.
-            if (dest_key.flags == 0) {
-                toku_init_dbt(&dest_key);
-                dest_key.flags = DB_DBT_REALLOC;
-            }
-            if (dest_val.flags == 0) {
-                toku_init_dbt(&dest_val);
-                dest_val.flags = DB_DBT_REALLOC;
-            }
+            if (dest_key.flags == 0) 
+                toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
+            if (dest_val.flags == 0)
+                toku_init_dbt_flags(&dest_val, DB_DBT_REALLOC);
         }
     }
     if (dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
@@ -890,24 +887,26 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
     assert(r == 0);
     assert(txn!=NULL);
     DB *src_db = NULL;
+    BOOL do_deletes = TRUE;
     {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->src_filenum, &tuple);
         if (l->src_filenum.fileid == FILENUM_NONE.fileid)
             assert(r==DB_NOTFOUND);
         else {
-            assert(r==0); //How do we continue if src_db is specified but missing?
-            src_db = tuple->brt->db;
+            if (r == 0)
+                src_db = tuple->brt->db;
+            else
+                do_deletes = FALSE; // src file was probably deleted
         }
     }
-    uint32_t file;
+
     DBT src_key, src_val, dest_key;
     toku_fill_dbt(&src_key, l->src_key.data, l->src_key.len);
     toku_fill_dbt(&src_val, l->src_val.data, l->src_val.len);
-    toku_init_dbt(&dest_key);
-    dest_key.flags = DB_DBT_REALLOC;
+    toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
 
-    for (file = 0; file < l->dest_filenums.num; file++) {
+    for (uint32_t file = 0; do_deletes && file < l->dest_filenums.num; file++) {
         struct file_map_tuple *tuple = NULL;
         r = file_map_find(&renv->fmap, l->dest_filenums.filenums[file], &tuple);
         if (r==0) {
@@ -917,12 +916,11 @@ static int toku_recover_enq_delete_multiple (struct logtype_enq_delete_multiple 
             assert(r==0);
             r = toku_brt_maybe_delete(tuple->brt, &dest_key, txn, TRUE, l->lsn, FALSE);
             assert(r == 0);
+
             //flags==0 indicates the return values are stored in temporary memory that does
             //not need to be freed.  We need to continue using DB_DBT_REALLOC however.
-            if (dest_key.flags == 0) {
-                toku_init_dbt(&dest_key);
-                dest_key.flags = DB_DBT_REALLOC;
-            }
+            if (dest_key.flags == 0)
+                toku_init_dbt_flags(&dest_key, DB_DBT_REALLOC);
         }
     }
     if (dest_key.flags & DB_DBT_REALLOC && dest_key.data) toku_free(dest_key.data); //TODO: #2321 May need windows hack
