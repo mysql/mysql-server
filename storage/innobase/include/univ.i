@@ -125,7 +125,7 @@ Sun Studio */
 
 # if !defined(__GNUC__) && !(defined(__SUNPRO_C) || defined(__SUNPRO_CC))
 #  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
-//#  define UNIV_MUST_NOT_INLINE
+#  define UNIV_MUST_NOT_INLINE
 # endif
 
 # ifdef HAVE_PREAD
