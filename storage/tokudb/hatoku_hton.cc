@@ -1027,6 +1027,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("txn close (commit+abort)", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.txn_oldest_live);
       STATPRINT("txn oldest live", buf);
+      STATPRINT("txn oldest starttime", engstat.txn_oldest_live_starttime);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.next_lsn);
       STATPRINT("next LSN", buf);
 
