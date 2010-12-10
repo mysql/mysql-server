@@ -1793,14 +1793,16 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->txn_close   = txnstat.close;
 	    {
 		uint64_t oldest_xid = 0;
+                time_t   oldest_starttime = 0;
 		uint64_t next_lsn   = 0;
 		TOKULOGGER logger = env->i->logger;
 		if (logger) {
-		    oldest_xid = toku_logger_get_oldest_living_xid(env->i->logger);
+		    oldest_xid = toku_logger_get_oldest_living_xid(env->i->logger, &oldest_starttime);
 		    next_lsn   = (toku_logger_get_next_lsn(env->i->logger)).lsn;
 		}
 		engstat->txn_oldest_live = oldest_xid;
 		engstat->next_lsn = next_lsn;
+                format_time(&oldest_starttime, engstat->txn_oldest_live_starttime);
 	    }
 	}
 	{

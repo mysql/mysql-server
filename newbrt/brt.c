@@ -2663,7 +2663,7 @@ brt_optimize (BRT brt, BOOL upgrade) {
     TXNID oldest = TXNID_NONE_LIVING;
     if (!upgrade) {
 	TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-	oldest = toku_logger_get_oldest_living_xid(logger);
+	oldest = toku_logger_get_oldest_living_xid(logger, NULL);
     }
 
     XIDS root_xids = xids_get_root_xids();
@@ -4274,7 +4274,7 @@ int toku_brt_cursor (
     cursor->brt = brt;
     cursor->current_in_omt = FALSE;
     cursor->prefetching = FALSE;
-    cursor->oldest_living_xid = ttxn ? toku_logger_get_oldest_living_xid(ttxn->logger) : TXNID_NONE;
+    cursor->oldest_living_xid = ttxn ? toku_logger_get_oldest_living_xid(ttxn->logger, NULL) : TXNID_NONE;
     cursor->is_snapshot_read = is_snapshot_read;
     cursor->is_leaf_mode = FALSE;
     cursor->ttxn = ttxn;
@@ -5722,7 +5722,7 @@ BOOL
 toku_brt_is_empty (BRT brt, /*out*/BOOL *try_again) {
 
     TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-    TXNID oldest = toku_logger_get_oldest_living_xid(logger);
+    TXNID oldest = toku_logger_get_oldest_living_xid(logger, NULL);
 
     XIDS root_xids    = xids_get_root_xids();
     XIDS message_xids;

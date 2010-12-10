@@ -152,6 +152,7 @@ int toku_txn_begin_with_xid (
         return errno;
     int r;
     LSN first_lsn;
+    result->starttime = time(NULL);  // getting timestamp in seconds is a cheap call
     if (xid == 0) {
         r = toku_log_xbegin(logger, &first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
         if (r!=0) goto died;
