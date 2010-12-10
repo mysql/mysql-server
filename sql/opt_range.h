@@ -274,12 +274,13 @@ public:
 
   enum {
     QS_TYPE_RANGE = 0,
-    QS_TYPE_INDEX_MERGE = 1,
-    QS_TYPE_RANGE_DESC = 2,
-    QS_TYPE_FULLTEXT   = 3,
-    QS_TYPE_ROR_INTERSECT = 4,
-    QS_TYPE_ROR_UNION = 5,
-    QS_TYPE_GROUP_MIN_MAX = 6
+    QS_TYPE_INDEX_INTERSECT = 1,
+    QS_TYPE_INDEX_MERGE = 2,
+    QS_TYPE_RANGE_DESC = 3,
+    QS_TYPE_FULLTEXT   = 4,
+    QS_TYPE_ROR_INTERSECT = 5,
+    QS_TYPE_ROR_UNION = 6,
+    QS_TYPE_GROUP_MIN_MAX = 7
   };
 
   /* Get type of this quick select - one of the QS_TYPE_* values */
@@ -305,6 +306,10 @@ public:
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
   */
   virtual void save_last_pos(){};
+  
+  void add_key_and_length(String *key_names,
+                          String *used_lengths,
+                          bool *first);
 
   /*
     Append comma-separated list of keys this quick select uses to key_names;
@@ -314,13 +319,15 @@ public:
   virtual void add_keys_and_lengths(String *key_names,
                                     String *used_lengths)=0;
 
+  void add_key_name(String *str, bool *first);
+
   /*
     Append text representation of quick select structure (what and how is
     merged) to str. The result is added to "Extra" field in EXPLAIN output.
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str) {};
+  virtual void add_info_string(String *str) {}
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -393,8 +400,17 @@ protected:
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM*,uint idx,
                                               SEL_ARG *key_tree,
                                               MEM_ROOT *alloc);
+  friend 
+  int read_keys_and_merge_scans(THD *thd, TABLE *head,
+                                List<QUICK_RANGE_SELECT> quick_selects,
+                                QUICK_RANGE_SELECT *pk_quick_select,
+                                READ_RECORD *read_record,
+                                bool intersection,
+                                Unique **unique_ptr);
+
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
+  friend class QUICK_INDEX_INTERSECT_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
   friend class QUICK_GROUP_MIN_MAX_SELECT;
 
@@ -519,6 +535,45 @@ public:
   bool reverse_sorted() { return false; }
   bool unique_key_range() { return false; }
   int get_type() { return QS_TYPE_INDEX_MERGE; }
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+  void add_info_string(String *str);
+  bool is_keys_used(const MY_BITMAP *fields);
+#ifndef DBUG_OFF
+  void dbug_dump(int indent, bool verbose);
+#endif
+
+  bool push_quick_back(QUICK_RANGE_SELECT *quick_sel_range);
+
+  /* range quick selects this index_merge read consists of */
+  List<QUICK_RANGE_SELECT> quick_selects;
+
+  /* quick select that uses clustered primary key (NULL if none) */
+  QUICK_RANGE_SELECT* pk_quick_select;
+
+  /* true if this select is currently doing a clustered PK scan */
+  bool  doing_pk_scan;
+
+  MEM_ROOT alloc;
+  THD *thd;
+  int read_keys_and_merge();
+
+  /* used to get rows collected in Unique */
+  READ_RECORD read_record;
+};
+
+class QUICK_INDEX_INTERSECT_SELECT : public QUICK_SELECT_I
+{
+  Unique *unique;
+public:
+  QUICK_INDEX_INTERSECT_SELECT(THD *thd, TABLE *table);
+  ~QUICK_INDEX_INTERSECT_SELECT();
+
+  int  init();
+  int  reset(void);
+  int  get_next();
+  bool reverse_sorted() { return false; }
+  bool unique_key_range() { return false; }
+  int get_type() { return QS_TYPE_INDEX_INTERSECT; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);

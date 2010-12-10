@@ -50,10 +50,6 @@ static int write_keys(SORTPARAM *param,uchar * *sort_keys,
 		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void make_sortkey(SORTPARAM *param,uchar *to, uchar *ref_pos);
 static void register_used_fields(SORTPARAM *param);
-static int merge_index(SORTPARAM *param,uchar *sort_buffer,
-		       BUFFPEK *buffpek,
-		       uint maxbuffer,IO_CACHE *tempfile,
-		       IO_CACHE *outfile);
 static bool save_index(SORTPARAM *param,uchar **sort_keys, uint count, 
                        FILESORT_INFO *table_sort);
 static uint suffix_length(ulong string_length);
@@ -145,6 +141,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   /* filesort cannot handle zero-length records. */
   DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
+  param.min_dupl_count= 0;
   param.addon_field= 0;
   param.addon_length= 0;
   if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
@@ -1216,7 +1213,13 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   rec_length= param->rec_length;
   res_length= param->res_length;
   sort_length= param->sort_length;
-  offset= rec_length-res_length;
+  element_count dupl_count;
+  uchar *src;
+  uint dupl_count_ofs= rec_length-sizeof(element_count);
+  uint min_dupl_count= param->min_dupl_count;
+  offset= rec_length-
+          (flag && min_dupl_count ? sizeof(dupl_count) : 0)-res_length;
+  uint wr_len= flag ? res_length : rec_length;
   maxcount= (ulong) (param->keys/((uint) (Tb-Fb) +1));
   to_start_filepos= my_b_tell(to_file);
   strpos= sort_buffer;
@@ -1262,16 +1265,20 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     */
     buffpek= (BUFFPEK*) queue_top(&queue);
     memcpy(param->unique_buff, buffpek->key, rec_length);
-    if (my_b_write(to_file, (uchar*) buffpek->key, rec_length))
-    {
-      error=1; goto err;                        /* purecov: inspected */
-    }
+    if (min_dupl_count)
+      memcpy(&dupl_count, param->unique_buff+dupl_count_ofs, 
+             sizeof(dupl_count));
     buffpek->key+= rec_length;
-    buffpek->mem_count--;
-    if (!--max_rows)
+    if (! --buffpek->mem_count)
     {
-      error= 0;                                       /* purecov: inspected */
-      goto end;                                       /* purecov: inspected */
+      if (!(error= (int) read_to_buffer(from_file,buffpek,
+                                        rec_length)))
+      {
+        VOID(queue_remove(&queue,0));
+        reuse_freed_buff(&queue, buffpek, rec_length);
+      }
+      else if (error == -1)
+        goto err;                        /* purecov: inspected */ 
     }
     queue_replaced(&queue);                        // Top element has been used
   }
@@ -1287,26 +1294,41 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     for (;;)
     {
       buffpek= (BUFFPEK*) queue_top(&queue);
+      src= buffpek->key;
       if (cmp)                                        // Remove duplicates
       {
         if (!(*cmp)(first_cmp_arg, &(param->unique_buff),
                     (uchar**) &buffpek->key))
-              goto skip_duplicate;
-            memcpy(param->unique_buff, (uchar*) buffpek->key, rec_length);
+	{
+          if (min_dupl_count)
+	  {
+            element_count cnt;
+            memcpy(&cnt, (uchar *) buffpek->key+dupl_count_ofs, sizeof(cnt));
+            dupl_count+= cnt;
+          }
+          goto skip_duplicate;
+        }
+        if (min_dupl_count)
+	{
+          memcpy(param->unique_buff+dupl_count_ofs, &dupl_count,
+                 sizeof(dupl_count));
+        }
+	src= param->unique_buff;
       }
-      if (flag == 0)
+        
+      if (!flag || !min_dupl_count || dupl_count >= min_dupl_count)
       {
-        if (my_b_write(to_file,(uchar*) buffpek->key, rec_length))
+        if (my_b_write(to_file, src+(flag ? offset : 0), wr_len))
         {
           error=1; goto err;                        /* purecov: inspected */
         }
       }
-      else
-      {
-        if (my_b_write(to_file, (uchar*) buffpek->key+offset, res_length))
-        {
-          error=1; goto err;                        /* purecov: inspected */
-        }
+      if (cmp)
+      {   
+        memcpy(param->unique_buff, (uchar*) buffpek->key, rec_length);
+        if (min_dupl_count)
+          memcpy(&dupl_count, param->unique_buff+dupl_count_ofs, 
+                 sizeof(dupl_count));
       }
       if (!--max_rows)
       {
@@ -1343,9 +1365,33 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   {
     if (!(*cmp)(first_cmp_arg, &(param->unique_buff), (uchar**) &buffpek->key))
     {
-      buffpek->key+= rec_length;         // Remove duplicate
+      if (min_dupl_count)
+      {
+        element_count cnt;
+        memcpy(&cnt, (uchar *) buffpek->key+dupl_count_ofs, sizeof(cnt));
+        dupl_count+= cnt;
+      }
+      buffpek->key+= rec_length;         
       --buffpek->mem_count;
     }
+
+    if (min_dupl_count)
+      memcpy(param->unique_buff+dupl_count_ofs, &dupl_count,
+             sizeof(dupl_count));
+          
+    if (!flag || !min_dupl_count || dupl_count >= min_dupl_count)
+    {
+      src= param->unique_buff;
+      if (my_b_write(to_file, src+(flag ? offset : 0), wr_len))
+      {
+        error=1; goto err;                        /* purecov: inspected */
+      }
+      if (!--max_rows)
+      {
+        error= 0;                               
+        goto end;                             
+      }
+    }   
   }
 
   do
@@ -1367,12 +1413,17 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     else
     {
       register uchar *end;
-      strpos= buffpek->key+offset;
-      for (end= strpos+buffpek->mem_count*rec_length ;
-           strpos != end ;
-           strpos+= rec_length)
-      {     
-        if (my_b_write(to_file, strpos, res_length))
+      src= buffpek->key+offset;
+      for (end= src+buffpek->mem_count*rec_length ;
+           src != end ;
+           src+= rec_length)
+      {
+        if (flag && min_dupl_count &&
+            memcmp(&min_dupl_count, src+dupl_count_ofs, 
+                   sizeof(dupl_count_ofs))<0)
+	  continue;
+        
+        if (my_b_write(to_file, src, wr_len))
         {
           error=1; goto err;                        
         }
@@ -1393,7 +1444,7 @@ err:
 
 	/* Do a merge to output-file (save only positions) */
 
-static int merge_index(SORTPARAM *param, uchar *sort_buffer,
+int merge_index(SORTPARAM *param, uchar *sort_buffer,
 		       BUFFPEK *buffpek, uint maxbuffer,
 		       IO_CACHE *tempfile, IO_CACHE *outfile)
 {
@@ -1699,3 +1750,4 @@ void change_double_for_sort(double nr,uchar *to)
     }
   }
 }
+

@@ -38,6 +38,7 @@ SELECT COUNT(*) FROM CountryLanguage;
 COUNT(*)
 984
 CREATE INDEX Name ON City(Name);
+set session optimizer_switch='index_merge_sort_intersection=off';
 EXPLAIN
 SELECT * FROM City
 WHERE (Population >= 100000 OR Name LIKE 'P%' OR Population < 100000);
@@ -1366,3 +1367,4 @@ f1	f2	f3	f4
 9	0	2	6
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
+set session optimizer_switch='index_merge_sort_intersection=default';

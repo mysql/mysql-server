@@ -1,3 +1,5 @@
+set @optimizer_switch_save= @@optimizer_switch;
+set optimizer_switch='index_merge_sort_intersection=off';
 #---------------- Index merge test 2 -------------------------------------------
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2;
@@ -709,3 +711,4 @@ WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 COUNT(*)
 6145
 DROP TABLE t1;
+set optimizer_switch= @optimizer_switch_save;
