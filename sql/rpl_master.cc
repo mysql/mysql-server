@@ -1433,7 +1433,7 @@ bool show_binlogs(THD* thd)
 
   if (!mysql_bin_log.is_open())
   {
-    my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
+    my_error(ER_NO_BINARY_LOGGING, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
