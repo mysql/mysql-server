@@ -4610,14 +4610,13 @@ lock_print_info_all_transactions(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
 
-		trx_mutex_enter(trx);
-
+		/* Note we are doing a dirty read here and it is possible
+		for the transaction state to change while we are printing
+		the transaction. This should be OK. */
 		if (trx->state == TRX_STATE_NOT_STARTED) {
 			fputs("---", file);
 			trx_print(file, trx, 600);
 		}
-
-		trx_mutex_exit(trx);
 	}
 
 loop:
