@@ -294,15 +294,6 @@ be effective only if PFS_GROUP_BUFFER_SYNC is defined. */
 
 # endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
-
-/** A chunk of buffers.  The buffer pool is allocated in chunks. */
-struct buf_chunk_struct{
-	ulint		mem_size;	/*!< allocated size of the chunk */
-	ulint		size;		/*!< size of frames[] and blocks[] */
-	void*		mem;		/*!< pointer to the memory area which
-					was allocated for the frames */
-	buf_block_t*	blocks;		/*!< array of buffer control blocks */
-};
 #endif /* !UNIV_HOTBACKUP */
 
 /** Macro to determine whether the read of write counter is used depending
@@ -5222,7 +5213,7 @@ buf_stats_aggregate_pool_info(
 Collect buffer pool stats information for a buffer pool. Also
 record aggregated stats if there are more than one buffer pool
 in the server */
-static
+UNIV_INTERN
 void
 buf_stats_get_pool_info(
 /*====================*/

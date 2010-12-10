@@ -35,6 +35,15 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.h"
 #include "buf0rea.h"
 
+/** A chunk of buffers. The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+};
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
@@ -1294,5 +1303,22 @@ buf_pool_mutex_exit_all(void)
 		buf_pool = buf_pool_from_array(i);
 		buf_pool_mutex_exit(buf_pool);
 	}
+}
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size)	/*!< in: chunk size */
+{
+	const buf_chunk_t*	chunk;
+
+	chunk = buf_pool->chunks + n;
+	*chunk_size = chunk->size;
+	return(chunk->blocks);
 }
 #endif /* !UNIV_HOTBACKUP */
