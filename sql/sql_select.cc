@@ -7843,7 +7843,7 @@ static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i;
-  uint jcl;
+  uint jcl= 0;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
   uint first_sjm_table= MAX_TABLES;
@@ -7862,8 +7862,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *table=tab->table;
-    bool icp_other_tables_ok;
-    bool idx_cond_fact_out;
+    bool icp_other_tables_ok= FALSE;
+    bool idx_cond_fact_out= FALSE;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;

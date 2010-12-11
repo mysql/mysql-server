@@ -2450,7 +2450,7 @@ void JOIN_CACHE::print_explain_comment(String *str)
   str->append(buffer_type);
   str->append(STRING_WITH_LEN(", "));
   
-  const char *join_alg;
+  const char *join_alg="";
   switch (get_join_alg()) {
   case BNL_JOIN_ALG:
     join_alg= "BNL";
