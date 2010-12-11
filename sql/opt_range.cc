@@ -5168,9 +5168,9 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
                                      PARTIAL_INDEX_INTERSECTION_INFO *next)
 {
   ha_rows records;
-  ha_rows records2;
   ha_rows records_in_scans;
   double cost;
+  ha_rows records2= 0;
   ha_rows filtered_out_records= 0;
   ha_rows index_scan_records= ext_index_scan->records;
   COMMON_INDEX_INTERSECTION_INFO *common_info= curr->common_info;
