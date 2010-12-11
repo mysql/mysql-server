@@ -238,7 +238,7 @@ private:
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnb cooop lsyyei   r              (Long TCKEYREQ)
+ dnb cooopqlsyyei   r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
