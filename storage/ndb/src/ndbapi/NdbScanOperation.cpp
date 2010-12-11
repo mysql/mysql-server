@@ -1818,14 +1818,14 @@ NdbScanOperation::nextResult(const char ** out_row_ptr,
 
 int
 NdbScanOperation::nextResultCopyOut(char * buffer,
-                             bool fetchAllowed, bool forceSend)
+                                    bool fetchAllowed, bool forceSend)
 {
   const char * data;
   int result;
-  if (result = nextResult(&data, fetchAllowed, forceSend) == 0)
-    {
-      memcpy(buffer, data, m_attribute_record->m_row_size);
-    }
+  if ((result = nextResult(&data, fetchAllowed, forceSend)) == 0)
+  {
+    memcpy(buffer, data, m_attribute_record->m_row_size);
+  }
   return result;
 }
 
