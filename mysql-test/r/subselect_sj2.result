@@ -34,7 +34,7 @@ explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	3	
 1	PRIMARY	t2	ref	b	b	5	test.t1.a	2	
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -52,7 +52,8 @@ insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	b	NULL	NULL	NULL	10	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t3)
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -76,7 +77,7 @@ explain select * from t3 where b in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	10	
 1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	
-2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	
+2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 set @save_ecp= @@engine_condition_pushdown;
 set engine_condition_pushdown=0;
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
@@ -130,7 +131,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
-1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer (flat, BNL join)
 2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
@@ -198,7 +199,7 @@ a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z
 from t1 ot where a in (select a from t2 it);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	22	
-1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where; Using join buffer
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	52	Using where; Using join buffer (flat, BNL join)
 2	SUBQUERY	it	ALL	NULL	NULL	NULL	NULL	22	
 select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) as Z 
@@ -272,8 +273,8 @@ from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
-1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer
-1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
+1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using where; Using index
 1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
 drop table t0, t1,t2,t3;
 CREATE TABLE t1 (
@@ -425,7 +426,7 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Start temporary
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary
 Warnings:

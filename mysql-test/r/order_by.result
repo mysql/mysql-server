@@ -1489,7 +1489,7 @@ SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a,b	b	4	const	4	Using index condition; Using temporary; Using filesort
+1	SIMPLE	t1	ref	a,b	b	4	const	4	Using index condition; Using where; Using temporary; Using filesort
 1	SIMPLE	t2	ref	a,b,c	a	40	test.t1.a,const	11	Using index condition
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
@@ -1608,19 +1608,19 @@ EXPLAIN
 SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX FOR JOIN (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 DROP TABLE t1, t2;
 #
 # Bug #50394: Regression in EXPLAIN with index scan, LIMIT, GROUP BY and

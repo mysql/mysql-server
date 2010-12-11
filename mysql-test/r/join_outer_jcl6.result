@@ -1,3 +1,6 @@
+set @save_optimizer_switch_jcl6=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
 set join_cache_level=6;
 show variables like 'join_cache_level';
 Variable_name	Value
@@ -99,7 +102,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select t1.*,t2.* from t1 left join t2 on t1.a=t2.a where isnull(t2.a)=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using where; Using join buffer
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	Using where; Using join buffer (flat, BKA join)
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
@@ -316,11 +319,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (flat, BNL join)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -336,11 +339,11 @@ Lilliana Angelovska	NULL	NULL
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Not exists; Using join buffer (flat, BNL join)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -692,8 +695,8 @@ a1	a2	b1	b2	c1	c2
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -742,13 +745,13 @@ explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from
 order by m.match_id desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer (flat, BKA join)
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer (flat, BKA join)
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 
 order by UUX desc;
@@ -768,7 +771,7 @@ t2 s straight_join t1 m where m.match_id = 1
 order by UUX desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
-1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer
+1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	Using join buffer (flat, BKA join)
 select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 t2 s straight_join t1 m where m.match_id = 1 
 order by UUX desc;
@@ -1131,15 +1134,15 @@ a	b	a	b
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a = t2.a OR t1.a = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer (flat, BKA join)
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a IN(t2.a, t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer (flat, BKA join)
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.a WHERE t1.a > IF(t1.a = t2.b-2, t2.b, t2.b-1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	Using where
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	Using join buffer (flat, BKA join)
 DROP TABLE t1,t2;
 DROP VIEW IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2;
@@ -1228,7 +1231,7 @@ EXPLAIN
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	idx	idx	4	test.t1.id	2	Using where; Not exists; Using join buffer
+1	SIMPLE	t2	ref	idx	idx	4	test.t1.id	2	Using where; Not exists; Using join buffer (flat, BKA join)
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	a
@@ -1332,14 +1335,14 @@ RIGHT OUTER JOIN t1 tt1 ON 1
 STRAIGHT_JOIN    t1 tt9 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tt1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
-1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	tt2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	tt3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt4	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt5	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (incremental, BNL join)
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
 #
@@ -1358,8 +1361,8 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 TA1
 RIGHT JOIN t2 TA2 JOIN t2 TA3 ON TA2.f1 ON TA3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TA2	ALL	NULL	NULL	NULL	NULL	20	Using where
-1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer
-1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
+1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (incremental, BNL join)
 DROP TABLE t1, t2;
 #
 # Bug#48971 Segfault in add_found_match_trig_cond () at sql_select.cc:5990
@@ -1376,11 +1379,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
+1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (flat, BNL join)
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt1` left join (`test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1))) on(1) where 1
 EXPLAIN EXTENDED SELECT STRAIGHT_JOIN jt1.f1 FROM t1 AS jt1
@@ -1393,11 +1396,11 @@ RIGHT JOIN t1 AS jt6 ON jt6.f1
 ON 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt6	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer
-1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
-1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer
+1	SIMPLE	jt3	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (flat, BNL join)
+1	SIMPLE	jt4	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt5	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt2	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
+1	SIMPLE	jt1	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index; Using join buffer (incremental, BNL join)
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
@@ -1494,7 +1497,7 @@ sum(t3.b)
 show status like "handler_read%";
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1048580
+Handler_read_key	4
 Handler_read_next	5
 Handler_read_prev	0
 Handler_read_rnd	5
@@ -1506,12 +1509,13 @@ sum(t3.b)
 show status like "handler_read%";
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1048580
+Handler_read_key	4
 Handler_read_next	5
 Handler_read_prev	0
 Handler_read_rnd	5
 Handler_read_rnd_next	1048581
 drop table t1,t2,t3;
+#
 # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
 #
 CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
@@ -1546,3 +1550,4 @@ set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+set @@optimizer_switch=@save_optimizer_switch_jcl6;

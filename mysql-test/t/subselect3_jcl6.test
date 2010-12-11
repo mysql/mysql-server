@@ -2,6 +2,10 @@
 # Run subselect3.test with BKA enabled 
 #
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
+
 set join_cache_level=6;
 show variables like 'join_cache_level';
 
@@ -9,3 +13,5 @@ show variables like 'join_cache_level';
 
 set join_cache_level=default;
 show variables like 'join_cache_level';
+
+set @@optimizer_switch=@save_optimizer_switch;

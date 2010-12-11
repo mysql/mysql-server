@@ -1074,6 +1074,7 @@ show status like "handler_read%";
 
 drop table t1,t2,t3;
 
+--echo #
 --echo # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
 --echo #
 

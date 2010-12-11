@@ -121,11 +121,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -133,59 +133,59 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -201,11 +201,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -213,59 +213,59 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -277,11 +277,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -289,60 +289,60 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
@@ -353,11 +353,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -365,59 +365,59 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	290.146368
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.c21	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -433,11 +433,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -445,59 +445,59 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -509,11 +509,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -521,60 +521,60 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
@@ -585,11 +585,11 @@ select @@optimizer_search_depth;
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
@@ -597,59 +597,59 @@ Last_query_cost	822.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	822.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using index
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using index
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using index
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	795.625316
 explain select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	Using where
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
-1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer
+1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 show status like 'Last_query_cost';
 Variable_name	Value

@@ -187,7 +187,7 @@ min(7)
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
 select min(7) from t2i join t1i;
 min(7)
 NULL
@@ -203,7 +203,7 @@ max(7)
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (flat, BNL join)
 select max(7) from t2i join t1i;
 max(7)
 NULL
@@ -2630,6 +2630,61 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t2, t1;
+#
+# Bug #663818: wrong result when BNLH is used 
+#
+CREATE TABLE t1(pk int NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+(1), (2), (11), (12), (13), (14),
+(15), (16), (17), (18), (19);
+CREATE TABLE t2(pk int NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES 
+(1), (10), (11), (12), (13), (14),
+(15), (16), (17), (18), (19), (20), (21);
+SET SESSION join_buffer_size=10000;
+SET SESSION join_cache_level=3;
+EXPLAIN
+SELECT t1.pk FROM t1,t2 
+WHERE t1.pk = t2.pk AND t2.pk <> 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	11	Using where; Using index
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	Using index; Using join buffer (flat, BNLH join)
+SELECT t1.pk FROM t1,t2 
+WHERE t1.pk = t2.pk AND t2.pk <> 8;
+pk
+1
+11
+12
+13
+14
+15
+16
+17
+18
+19
+SET SESSION join_cache_level=1;
+EXPLAIN
+SELECT t1.pk FROM t1,t2 
+WHERE t1.pk = t2.pk AND t2.pk <> 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	11	Using where; Using index
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	Using index
+SELECT t1.pk FROM t1,t2 
+WHERE t1.pk = t2.pk AND t2.pk <> 8;
+pk
+1
+11
+12
+13
+14
+15
+16
+17
+18
+19
+DROP TABLE t1,t2;
+SET SESSION join_cache_level=DEFAULT;
+SET SESSION join_buffer_size=DEFAULT;
 #
 # Bug#668644: HAVING + ORDER BY
 #

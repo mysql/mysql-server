@@ -7684,6 +7684,8 @@ ha_innobase::info_low(
 		}
 
 		stats.check_time = 0;
+                stats.mrr_length_per_rec= ref_length +  8; // 8 = max(sizeof(void *));
+
 
 		if (stats.records == 0) {
 			stats.mean_rec_length = 0;

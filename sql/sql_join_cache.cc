@@ -57,7 +57,7 @@
     The function ignores the fields 'blob_length' and 'ofset' of the
     descriptor.
 
-  RETURN
+  RETURN VALUE
     the length of the field  
 */
 
@@ -98,7 +98,7 @@ uint add_flag_field_to_join_cache(uchar *str, uint length, CACHE_FIELD **field)
     descriptor  while 'descr_ptr' points to the position right after the
     last added pointer.  
 
-  RETURN
+  RETURN VALUE
     the total length of the added fields  
 */
 
@@ -137,7 +137,44 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
   *descr_ptr= copy_ptr;
   return len;
 }
-    
+
+/* 
+  Get the next table whose records are stored in the join buffer of this cache
+
+  SYNOPSIS
+    get_next_table()
+      tab     the table for which the next table is to be returned
+
+  DESCRIPTION
+    For a given table whose records are stored in this cache the function
+    returns the next such table if there is any.
+    The function takes into account that the tables whose records are
+    are stored in the same cache now can interleave with tables from
+    materialized semijoin subqueries.
+
+  TODO
+    This function should be modified/simplified after the new code for
+     materialized semijoins is merged.
+
+  RETURN
+    The next join table whose records are stored in the buffer of this cache
+    if such table exists, 0 - otherwise
+*/
+
+JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
+{
+  
+  if (++tab == join_tab)
+    return NULL;
+  if (join_tab->first_sjm_sibling)
+    return tab;
+  uint i= tab-join->join_tab;
+  while (sj_is_materialize_strategy(join->best_positions[i].sj_strategy) &&
+         i < join->tables)
+    i+= join->best_positions[i].n_sj_tables;
+  return join->join_tab+i < join_tab ? join->join_tab+i : NULL; 
+}
+
 
 /* 
   Determine different counters of fields associated with a record in the cache  
@@ -152,14 +189,16 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
     The function sets 'with_match_flag' on if 'join_tab' needs a match flag
     i.e. if it is the first inner table of an outer join or a semi-join.  
 
-  RETURN
+  RETURN VALUE
     none 
 */
 
 void JOIN_CACHE::calc_record_fields()
 {
   JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                               join->join_tab+join->const_tables;
+                                (join_tab->first_sjm_sibling ?
+			         join_tab->first_sjm_sibling :
+			         join->join_tab+join->const_tables);
   tables= join_tab-tab;
 
   fields= 0;
@@ -169,9 +208,9 @@ void JOIN_CACHE::calc_record_fields()
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  for ( ; tab < join_tab ; tab++)
+  for ( ; tab ; tab= get_next_table(tab))
   {	    
-    calc_used_field_length(join->thd, tab);
+    tab->calc_used_field_length(FALSE);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
     flag_fields+= test(tab->table->maybe_null);
     fields+= tab->used_fields;
@@ -184,6 +223,73 @@ void JOIN_CACHE::calc_record_fields()
   fields+= flag_fields;
 }
 
+
+/* 
+  Collect information on join key arguments  
+
+  SYNOPSIS
+    collect_info_on_key_args()
+
+  DESCRIPTION
+    The function traverses the ref expressions that are used to access the
+    joined table join_tab. For each table 'tab' whose fields are to be stored
+    in the join buffer of the cache the function finds the fields from 'tab'
+    that occur in the ref expressions and marks these fields in the bitmap
+    tab->table->tmp_set. The function counts the number of them stored
+    in this cache and the total number of them stored in the previous caches
+    and saves the results of the counting in 'local_key_arg_fields' and               'external_key_arg_fields' respectively.
+
+  NOTES
+    The function does not do anything if no key is used to join the records
+    from join_tab.
+    
+  RETURN VALUE
+    none 
+*/  
+
+void JOIN_CACHE::collect_info_on_key_args()
+{
+  JOIN_TAB *tab;
+  JOIN_CACHE *cache;
+  local_key_arg_fields= 0;
+  external_key_arg_fields= 0;
+
+  if (!is_key_access())
+    return;
+
+  TABLE_REF *ref= &join_tab->ref;
+  cache= this;
+  do
+  {
+    for (tab= cache->join_tab-cache->tables; tab ;
+         tab= cache->get_next_table(tab))
+    { 
+      uint key_args;
+      bitmap_clear_all(&tab->table->tmp_set);
+      for (uint i= 0; i < ref->key_parts; i++)
+      {
+        Item *ref_item= ref->items[i]; 
+        if (!(tab->table->map & ref_item->used_tables()))
+	  continue;
+	 ref_item->walk(&Item::add_field_to_set_processor, 1,
+                        (uchar *) tab->table);
+      }
+      if ((key_args= bitmap_bits_set(&tab->table->tmp_set)))
+      {
+        if (cache == this)
+          local_key_arg_fields+= key_args;
+        else
+          external_key_arg_fields+= key_args;
+      }
+    }
+    cache= cache->prev_cache;
+  } 
+  while (cache);
+
+  return;
+}
+
+
 /* 
   Allocate memory for descriptors and pointers to them associated with the cache  
 
@@ -195,29 +301,29 @@ void JOIN_CACHE::calc_record_fields()
     and the array of pointers to the field descriptors used to copy
     join record data from record buffers into the join buffer and
     backward. Some pointers refer to the field descriptor associated
-    with previous caches. They are placed at the beginning of the
-    array of pointers and its total number is specified by the parameter
-    'external fields'.
-    The pointer of the first array is assigned to field_descr and the 
-    number of elements is precalculated by the function calc_record_fields. 
+    with previous caches. They are placed at the beginning of the array
+    of pointers and its total number is stored in external_key_arg_fields.
+    The pointer of the first array is assigned to field_descr and the number
+    of the elements in it is precalculated by the function calc_record_fields. 
     The allocated arrays are adjacent.
   
   NOTES
     The memory is allocated in join->thd->memroot
 
-  RETURN
+  RETURN VALUE
     pointer to the first array  
 */
 
-int JOIN_CACHE::alloc_fields(uint external_fields)
+int JOIN_CACHE::alloc_fields()
 {
-  uint ptr_cnt= external_fields+blobs+1;
+  uint ptr_cnt= external_key_arg_fields+blobs+1;
   uint fields_size= sizeof(CACHE_FIELD)*fields;
   field_descr= (CACHE_FIELD*) sql_alloc(fields_size +
                                         sizeof(CACHE_FIELD*)*ptr_cnt);
   blob_ptr= (CACHE_FIELD **) ((uchar *) field_descr + fields_size);
   return (field_descr == NULL);
 }  
+
 
 /* 
   Create descriptors of the record flag fields stored in the join buffer 
@@ -252,7 +358,7 @@ int JOIN_CACHE::alloc_fields(uint external_fields)
     The function sets the value of 'length' to the total length of the
     flag fields.
   
-  RETURN
+  RETURN VALUE
     none
 */
 
@@ -272,7 +378,7 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     TABLE *table= tab->table;
 
@@ -295,17 +401,145 @@ void JOIN_CACHE::create_flag_fields()
 
 
 /* 
+  Create descriptors of the fields used to build access keys to the joined table
+
+  SYNOPSIS
+    create_key_arg_fields()
+
+  DESCRIPTION
+    The function creates descriptors of the record fields stored in the join
+    buffer that are used to build access keys to the joined table. These
+    fields are put into the buffer ahead of other records fields stored in
+    the buffer. Such placement helps to optimize construction of access keys.
+    For each field that is used to build access keys to the joined table but
+    is stored in some other join cache buffer the function saves a pointer
+    to the the field descriptor. The array of such pointers are placed in the
+    the join cache structure just before the array of pointers to the
+    blob fields blob_ptr.
+    Any field stored in a join cache buffer that is used to construct keys
+    to access tables associated with other join caches is called a referenced
+    field. It receives a unique number that is saved by the function in the
+    member 'referenced_field_no' of the CACHE_FIELD descriptor for the field.
+    This number is used as index to the array of offsets to the referenced
+    fields that are saved and put in the join cache buffer after all record
+    fields.
+    The function also finds out whether that the keys to access join_tab
+    can be considered as embedded and, if so, sets the flag 'use_emb_key' in
+    this join cache appropriately. 
+     
+  NOTES.
+    When a key to access the joined table 'join_tab' is constructed the array
+    of pointers to the field descriptors for the external fields is looked
+    through. For each of this pointers we find out in what previous key cache
+    the referenced field is stored. The value of 'referenced_field_no'
+    provides us with the index into the array of offsets for referenced 
+    fields stored in the join cache. The offset read by the the index allows
+    us to read the field without reading all other fields of the record 
+    stored the join cache buffer. This optimizes the construction of keys
+    to access 'join_tab' when some key arguments are stored in the previous
+    join caches.  
+
+  NOTES
+    The function does not do anything if no key is used to join the records
+    from join_tab.
+ 
+  RETURN VALUE
+    none
+*/
+void JOIN_CACHE::create_key_arg_fields()
+{
+  JOIN_TAB *tab;
+  JOIN_CACHE *cache;
+
+  if (!is_key_access())
+    return;
+
+  /* 
+    Save pointers to the cache fields in previous caches
+    that  are used to build keys for this key access.
+  */
+  cache= this;
+  uint ext_key_arg_cnt= external_key_arg_fields;
+  CACHE_FIELD *copy;
+  CACHE_FIELD **copy_ptr= blob_ptr;
+  while (ext_key_arg_cnt)
+  {
+    cache= cache->prev_cache;
+    for (tab= cache->join_tab-cache->tables; tab;
+         tab= cache->get_next_table(tab))
+    { 
+      CACHE_FIELD *copy_end;
+      MY_BITMAP *key_read_set= &tab->table->tmp_set;
+      /* key_read_set contains the bitmap of tab's fields referenced by ref */ 
+      if (bitmap_is_clear_all(key_read_set))
+        continue;
+      copy_end= cache->field_descr+cache->fields;
+      for (copy= cache->field_descr+cache->flag_fields; copy < copy_end; copy++)
+      {
+        /*
+          (1) - when we store rowids for DuplicateWeedout, they have
+                copy->field==NULL
+        */
+        if (copy->field &&  // (1)
+            copy->field->table == tab->table &&
+            bitmap_is_set(key_read_set, copy->field->field_index))
+        {
+          *copy_ptr++= copy; 
+          ext_key_arg_cnt--;
+          if (!copy->referenced_field_no)
+          {
+            /* 
+              Register the referenced field 'copy': 
+              - set the offset number in copy->referenced_field_no,
+              - adjust the value of the flag 'with_length',
+              - adjust the values of 'pack_length' and 
+                of 'pack_length_with_blob_ptrs'.
+	    */
+            copy->referenced_field_no= ++cache->referenced_fields;
+            if (!cache->with_length)
+            {
+              cache->with_length= TRUE;
+              uint sz= cache->get_size_of_rec_length();
+              cache->base_prefix_length+= sz;
+              cache->pack_length+= sz;
+              cache->pack_length_with_blob_ptrs+= sz;
+            }
+	    cache->pack_length+= cache->get_size_of_fld_offset();
+            cache->pack_length_with_blob_ptrs+= cache->get_size_of_fld_offset();
+          }        
+        }
+      }
+    } 
+  }
+  /* After this 'blob_ptr' shall not be be changed */ 
+  blob_ptr= copy_ptr;
+  
+  /* Now create local fields that are used to build ref for this key access */
+  copy= field_descr+flag_fields;
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
+  {
+    length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
+                                                 &data_field_count, &copy,
+                                                 &data_field_ptr_count, 
+                                                 &copy_ptr);
+  }
+
+  use_emb_key= check_emb_key_usage();
+
+  return;
+}
+
+
+/* 
   Create descriptors of all remaining data fields stored in the join buffer    
 
   SYNOPSIS
     create_remaining_fields()
-      all_read_fields   indicates that descriptors for all read data fields
-                        are to be created
 
   DESCRIPTION
     The function creates descriptors for all remaining data fields of a
-    record from the join buffer. If the parameter 'all_read_fields' is
-    true the function creates fields for all read record fields that
+    record from the join buffer. If the value returned by is_key_access() is
+    false the function creates fields for all read record fields that
     comprise the partial join record joined with join_tab. Otherwise, 
     for each table tab, the set of the read fields for which the descriptors
     have to be added is determined as the difference between all read fields
@@ -315,7 +549,7 @@ void JOIN_CACHE::create_flag_fields()
     the added fields.
    
   NOTES
-    If 'all_read_fields' is false the function modifies the value of
+    If is_key_access() returns true the function modifies the value of
     tab->table->tmp_set for a each table whose fields are stored in the cache.
     The function calls the method Field::fill_cache_field to figure out
     the type of the cache field and the maximal length of its representation
@@ -327,17 +561,18 @@ void JOIN_CACHE::create_flag_fields()
     contains the number of the pointers to such descriptors having been
     stored up to the moment.
 
-  RETURN
+  RETURN VALUE
     none 
 */
 
-void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
+void JOIN_CACHE:: create_remaining_fields()
 {
   JOIN_TAB *tab;
+  bool all_read_fields= !is_key_access();
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= join_tab-tables; tab < join_tab; tab++)
+  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -372,6 +607,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
 }
 
 
+
 /* 
   Calculate and set all cache constants      
 
@@ -389,7 +625,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
     making a dicision whether more records should be added into the join
     buffer or not.
   
-  RETURN
+  RETURN VALUE
     none 
 */
 
@@ -424,6 +660,8 @@ void JOIN_CACHE::set_constants()
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
   size_of_fld_ofs= size_of_rec_len;
+  base_prefix_length= (with_length ? size_of_rec_len : 0) +
+                      (prev_cache ? prev_cache->get_size_of_rec_offset() : 0);
   /* 
     The size of the offsets for referenced fields will be added later.
     The values of 'pack_length' and 'pack_length_with_blob_ptrs' are adjusted
@@ -437,65 +675,322 @@ void JOIN_CACHE::set_constants()
 
 
 /* 
+  Get maximum total length of all affixes of a record in the join cache buffer
+
+  SYNOPSIS
+    get_record_max_affix_length()
+
+  DESCRIPTION
+    The function calculates the maximum possible total length of all affixes
+    of a record in the join cache buffer, that is made of:
+      - the length of all prefixes used in this cache,
+      - the length of the match flag if it's needed
+      - the total length of the maximum possible offsets to the fields of
+        a record in the buffer.
+
+  RETURN VALUE
+    The maximum total length of all affixes of a record in the join buffer  
+*/ 
+     
+uint JOIN_CACHE::get_record_max_affix_length()
+{
+  uint len= get_prefix_length() +
+            test(with_match_flag) + 
+            size_of_fld_ofs * data_field_count;
+  return len;
+}
+
+
+/* 
+  Get the minimum possible size of the cache join buffer 
+
+  SYNOPSIS
+    get_min_join_buffer_size()
+
+  DESCRIPTION
+    At the first its invocation for the cache the function calculates the
+    minimum possible size of the join buffer of the cache. This value depends
+    on the minimal number of records 'min_records' to be stored in the join
+    buffer. The number is supposed to be determined by the procedure that 
+    chooses the best access path to the joined table join_tab in the execution
+    plan. After the calculation of the interesting size the function saves it
+    in the field 'min_buff_size' in order to use it directly at the next     
+    invocations of the function.
+
+  NOTES
+    Currently the number of minimal records is just set to 1.
+
+  RETURN VALUE
+    The minimal possible size of the join buffer of this cache 
+*/
+
+ulong JOIN_CACHE::get_min_join_buffer_size()
+{
+  if (!min_buff_size)
+  {
+    ulong len= 0;
+    for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
+      len+= tab->get_max_used_fieldlength();
+    len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
+    ulong min_sz= len*min_records;
+    ulong add_sz= 0;
+    for (uint i=0; i < min_records; i++)
+      add_sz+= join_tab_scan->aux_buffer_incr(i+1);
+    avg_aux_buffer_incr= add_sz/min_records;
+    min_sz+= add_sz;
+    min_sz+= pack_length_with_blob_ptrs;
+    min_buff_size= min_sz;
+  }
+  return min_buff_size;
+}
+
+
+/* 
+  Get the maximum possible size of the cache join buffer 
+
+  SYNOPSIS
+    get_max_join_buffer_size()
+
+  DESCRIPTION
+    At the first its invocation for the cache the function calculates the
+    maximum possible size of join buffer for the cache. This value does not
+    exceed the estimate of the number of records 'max_records' in the partial
+    join that joins tables from the first one through join_tab. This value
+    is also capped off by the value of join_tab->join_buffer_size_limit, if it
+    has been set a to non-zero value, and by the value of the system parameter 
+    join_buffer_size - otherwise. After the calculation of the interesting size
+    the function saves the value in the field 'max_buff_size' in order to use
+    it directly at the next  invocations of the function.
+
+  NOTES
+    Currently the value of join_tab->join_buffer_size_limit is initialized
+    to 0 and is never reset.
+
+  RETURN VALUE
+    The maximum possible size of the join buffer of this cache 
+*/
+
+ulong JOIN_CACHE::get_max_join_buffer_size()
+{
+  if (!max_buff_size)
+  {
+    ulong max_sz;
+    ulong min_sz= get_min_join_buffer_size(); 
+    ulong len= 0;
+    for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
+      len+= tab->get_used_fieldlength();
+    len+= get_record_max_affix_length();
+    avg_record_length= len;
+    len+= get_max_key_addon_space_per_record() + avg_aux_buffer_incr;
+    space_per_record= len;
+    
+    ulong limit_sz= join->thd->variables.join_buff_size;
+    if (join_tab->join_buffer_size_limit)
+      set_if_smaller(limit_sz, join_tab->join_buffer_size_limit);
+    if (limit_sz / max_records > space_per_record)
+      max_sz= space_per_record * max_records;
+    else
+      max_sz= limit_sz;
+    max_sz+= pack_length_with_blob_ptrs;
+    set_if_smaller(max_sz, limit_sz);
+    set_if_bigger(max_sz, min_sz);
+    max_buff_size= max_sz;
+  }
+  return max_buff_size;
+}    
+      
+
+/* 
   Allocate memory for a join buffer      
 
   SYNOPSIS
     alloc_buffer()
 
   DESCRIPTION
-    The function allocates a lump of memory for the cache join buffer. The
-    size of the allocated memory is 'buff_size' bytes. 
+    The function allocates a lump of memory for the cache join buffer. 
+    Initially the function sets the size of the buffer buff_size equal to
+    the value returned by get_max_join_buffer_size(). If the total size of
+    the space intended to be used for the join buffers employed by the
+    tables from the first one through join_tab exceeds the value of the
+    system parameter join_buff_space_limit, then the function first tries
+    to shrink the used buffers to make the occupied space fit the maximum
+    memory allowed to be used for all join buffers in total. After
+    this the function tries to allocate a join buffer for join_tab.
+    If it fails to do so, it decrements the requested size of the join
+    buffer, shrinks proportionally the join buffers used for the previous
+    tables and tries to allocate a buffer for join_tab. In the case of a
+    failure the function repeats its attempts with smaller and smaller
+    requested sizes of the buffer, but not more than 4 times.
   
-  RETURN
-    0 - if the memory has been successfully allocated
-    1 - otherwise
+  RETURN VALUE
+    0   if the memory has been successfully allocated
+    1   otherwise
 */
 
 int JOIN_CACHE::alloc_buffer()
 {
-  buff= (uchar*) my_malloc(buff_size, MYF(0));
-  return buff == NULL;
-}    	
+  JOIN_TAB *tab;
+  JOIN_CACHE *cache;
+  ulonglong curr_buff_space_sz= 0;
+  ulonglong curr_min_buff_space_sz= 0;
+  ulonglong join_buff_space_limit=
+    join->thd->variables.join_buff_space_limit;
+  double partial_join_cardinality=  (join_tab-1)->get_partial_join_cardinality();
+  buff= NULL;
+  min_buff_size= 0;
+  max_buff_size= 0;
+  min_records= 1;
+  max_records= partial_join_cardinality <= join_buff_space_limit ?
+                 (ulonglong) partial_join_cardinality : join_buff_space_limit;
+  set_if_bigger(max_records, 10);
+  min_buff_size= get_min_join_buffer_size();
+  buff_size= get_max_join_buffer_size();
+  for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
+  {
+    cache= tab->cache;
+    if (cache)
+    {
+      curr_min_buff_space_sz+= cache->get_min_join_buffer_size();
+      curr_buff_space_sz+= cache->get_join_buffer_size();
+    }
+  }
+
+  if (curr_min_buff_space_sz > join_buff_space_limit ||
+      (curr_buff_space_sz > join_buff_space_limit &&
+       join->shrink_join_buffers(join_tab, curr_buff_space_sz,
+                                 join_buff_space_limit)))
+    goto fail;
+                               
+  for (ulong buff_size_decr= (buff_size-min_buff_size)/4 + 1; ; )
+  {
+    ulong next_buff_size;
+
+    if ((buff= (uchar*) my_malloc(buff_size, MYF(0))))
+      break;
+
+    next_buff_size= buff_size > buff_size_decr ? buff_size-buff_size_decr : 0;
+    if (next_buff_size < min_buff_size ||
+        join->shrink_join_buffers(join_tab, curr_buff_space_sz,
+                                  curr_buff_space_sz-buff_size_decr))
+      goto fail;
+    buff_size= next_buff_size;
+
+    curr_buff_space_sz= 0;
+    for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
+    {
+      cache= tab->cache;
+      if (cache)
+        curr_buff_space_sz+= cache->get_join_buffer_size();
+    } 
+  }
+  return 0;
+
+fail:
+  buff_size= 0;
+  return 1;
+}
+
+ 
+/*
+  Shrink the size if the cache join buffer in a given ratio
+
+  SYNOPSIS
+    shrink_join_buffer_in_ratio()
+      n           nominator of the ratio to shrink the buffer in
+      d           denominator if the ratio
+
+  DESCRIPTION
+    The function first deallocates the join buffer of the cache. Then
+    it allocates a buffer that is (n/d) times smaller.
+    
+  RETURN VALUE
+    FALSE   on success with allocation of the smaller join buffer 
+    TRUE    otherwise       
+*/
+
+bool JOIN_CACHE::shrink_join_buffer_in_ratio(ulonglong n, ulonglong d)
+{
+  ulonglong next_buff_size;
+  if (n < d)
+    return FALSE;
+  next_buff_size= (ulonglong) ((double) buff_size / n * d);
+  set_if_bigger(next_buff_size, min_buff_size);
+  buff_size= next_buff_size;
+  return realloc_buffer();
+}  
+
+
+/*
+  Reallocate the join buffer of a join cache
+ 
+  SYNOPSIS
+    realloc_buffer()
+
+  DESCRITION
+    The function reallocates the join buffer of the join cache. After this
+    it resets the buffer for writing.
+
+  NOTES
+    The function assumes that buff_size contains the new value for the join
+    buffer size.  
+
+  RETURN VALUE
+    0   if the buffer has been successfully reallocated
+    1   otherwise
+*/
+
+int JOIN_CACHE::realloc_buffer()
+{
+  int rc;
+  free();
+  rc= test(!(buff= (uchar*) my_malloc(buff_size, MYF(0))));
+  reset(TRUE);
+  return rc;   	
+}
   
 
 /* 
-  Initialize a BNL cache       
+  Initialize a join cache       
 
   SYNOPSIS
     init()
 
   DESCRIPTION
-    The function initializes the cache structure. It supposed to be called
-    right after a constructor for the JOIN_CACHE_BNL.
+    The function initializes the join cache structure. It supposed to be called
+    by init methods for classes derived from the JOIN_CACHE.
     The function allocates memory for the join buffer and for descriptors of
     the record fields stored in the buffer.
 
   NOTES
     The code of this function should have been included into the constructor
-    code itself. However the new operator for the class JOIN_CACHE_BNL would
+    code itself. However the new operator for the class JOIN_CACHE would
     never fail while memory allocation for the join buffer is not absolutely
     unlikely to fail. That's why this memory allocation has to be placed in a
     separate function that is called in a couple with a cache constructor.
     It is quite natural to put almost all other constructor actions into
     this function.     
   
-  RETURN
+  RETURN VALUE
     0   initialization with buffer allocations has been succeeded
     1   otherwise
 */
 
-int JOIN_CACHE_BNL::init()
+int JOIN_CACHE::init()
 {
   DBUG_ENTER("JOIN_CACHE::init");
 
   calc_record_fields();
 
-  if (alloc_fields(0))
+  collect_info_on_key_args();
+
+  if (alloc_fields())
     DBUG_RETURN(1);
 
   create_flag_fields();
-  
-  create_remaining_fields(TRUE);
+
+  create_key_arg_fields();
+
+  create_remaining_fields();
 
   set_constants();
 
@@ -509,164 +1004,7 @@ int JOIN_CACHE_BNL::init()
 
 
 /* 
-  Initialize a BKA cache       
-
-  SYNOPSIS
-    init()
-
-  DESCRIPTION
-    The function initializes the cache structure. It supposed to be called
-    right after a constructor for the JOIN_CACHE_BKA.
-    The function allocates memory for the join buffer and for descriptors of
-    the record fields stored in the buffer.
-
-  NOTES
-    The code of this function should have been included into the constructor
-    code itself. However the new operator for the class JOIN_CACHE_BKA would
-    never fail while memory allocation for the join buffer is not absolutely
-    unlikely to fail. That's why this memory allocation has to be placed in a
-    separate function that is called in a couple with a cache constructor.
-    It is quite natural to put almost all other constructor actions into
-    this function.     
-  
-  RETURN
-    0   initialization with buffer allocations has been succeeded
-    1   otherwise
-*/
-
-int JOIN_CACHE_BKA::init()
-{
-  JOIN_TAB *tab;
-  JOIN_CACHE *cache;
-  local_key_arg_fields= 0;
-  external_key_arg_fields= 0;
-  DBUG_ENTER("JOIN_CACHE_BKA::init");
-
-  calc_record_fields();
-
-  /* Mark all fields that can be used as arguments for this key access */
-  TABLE_REF *ref= &join_tab->ref;
-  cache= this;
-  do
-  {
-    /* 
-      Traverse the ref expressions and find the occurrences of fields in them for
-      each table 'tab' whose fields are to be stored in the 'cache' join buffer.
-      Mark these fields in the bitmap tab->table->tmp_set.
-      For these fields count the number of them stored in this cache and the
-      total number of them stored in the previous caches. Save the result
-      of the counting 'in local_key_arg_fields' and 'external_key_arg_fields'
-      respectively.
-    */ 
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
-    { 
-      uint key_args;
-      bitmap_clear_all(&tab->table->tmp_set);
-      for (uint i= 0; i < ref->key_parts; i++)
-      {
-        Item *ref_item= ref->items[i]; 
-        if (!(tab->table->map & ref_item->used_tables()))
-	  continue;
-	 ref_item->walk(&Item::add_field_to_set_processor, 1,
-                        (uchar *) tab->table);
-      }
-      if ((key_args= bitmap_bits_set(&tab->table->tmp_set)))
-      {
-        if (cache == this)
-          local_key_arg_fields+= key_args;
-        else
-          external_key_arg_fields+= key_args;
-      }
-    }
-    cache= cache->prev_cache;
-  } 
-  while (cache);
-
-  if (alloc_fields(external_key_arg_fields))
-    DBUG_RETURN(1);
-
-  create_flag_fields();
-  
-  /* 
-    Save pointers to the cache fields in previous caches
-    that  are used to build keys for this key access.
-  */
-  cache= this;
-  uint ext_key_arg_cnt= external_key_arg_fields;
-  CACHE_FIELD *copy;
-  CACHE_FIELD **copy_ptr= blob_ptr;
-  while (ext_key_arg_cnt)
-  {
-    cache= cache->prev_cache;
-    for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
-    { 
-      CACHE_FIELD *copy_end;
-      MY_BITMAP *key_read_set= &tab->table->tmp_set;
-      /* key_read_set contains the bitmap of tab's fields referenced by ref */ 
-      if (bitmap_is_clear_all(key_read_set))
-        continue;
-      copy_end= cache->field_descr+cache->fields;
-      for (copy= cache->field_descr+cache->flag_fields; copy < copy_end; copy++)
-      {
-        /*
-          (1) - when we store rowids for DuplicateWeedout, they have
-                copy->field==NULL
-        */
-        if (copy->field &&  // (1)
-            copy->field->table == tab->table &&
-            bitmap_is_set(key_read_set, copy->field->field_index))
-        {
-          *copy_ptr++= copy; 
-          ext_key_arg_cnt--;
-          if (!copy->referenced_field_no)
-          {
-            /* 
-              Register the referenced field 'copy': 
-              - set the offset number in copy->referenced_field_no,
-              - adjust the value of the flag 'with_length',
-              - adjust the values of 'pack_length' and 
-                of 'pack_length_with_blob_ptrs'.
-	    */
-            copy->referenced_field_no= ++cache->referenced_fields;
-            cache->with_length= TRUE;
-	    cache->pack_length+= cache->get_size_of_fld_offset();
-            cache->pack_length_with_blob_ptrs+= cache->get_size_of_fld_offset();
-          }        
-        }
-      }
-    } 
-  }
-  /* After this 'blob_ptr' shall not be be changed */ 
-  blob_ptr= copy_ptr;
-  
-  /* Now create local fields that are used to build ref for this key access */
-  copy= field_descr+flag_fields;
-  for (tab= join_tab-tables; tab < join_tab ; tab++)
-  {
-    length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
-                                                 &data_field_count, &copy,
-                                                 &data_field_ptr_count, 
-                                                 &copy_ptr);
-  }
-
-  use_emb_key= check_emb_key_usage();
-
-  create_remaining_fields(FALSE);
-
-  set_constants();
-
-  if (alloc_buffer())
-    DBUG_RETURN(1); 
-
-  reset(TRUE);
-
-  DBUG_RETURN(0);
-}  
-
-
-/* 
   Check the possibility to read the access keys directly from the join buffer       
-
   SYNOPSIS
     check_emb_key_usage()
 
@@ -693,13 +1031,21 @@ int JOIN_CACHE_BKA::init()
     we still do not consider them embedded. In the future we'll expand the
     the class of keys which we identify as embedded.
 
-  RETURN
-    TRUE  - key values will be considered as embedded,
-    FALSE - otherwise.
+  NOTES
+    The function returns FALSE if no key is used to join the records
+    from join_tab.
+
+  RETURN VALUE
+    TRUE    key values will be considered as embedded,
+    FALSE   otherwise.
 */
 
-bool JOIN_CACHE_BKA::check_emb_key_usage()
+bool JOIN_CACHE::check_emb_key_usage()
 {
+
+  if (!is_key_access())
+    return FALSE;
+
   uint i;
   Item *item; 
   KEY_PART_INFO *key_part;
@@ -800,110 +1146,6 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
 
 
 /* 
-  Calculate the increment of the MRR buffer for a record write       
-
-  SYNOPSIS
-    aux_buffer_incr()
-
-  DESCRIPTION
-    This implementation of the virtual function aux_buffer_incr determines
-    for how much the size of the MRR buffer should be increased when another
-    record is added to the cache.   
-
-  RETURN
-    the increment of the size of the MRR buffer for the next record
-*/
-
-uint JOIN_CACHE_BKA::aux_buffer_incr()
-{
-  uint incr= 0;
-  TABLE_REF *ref= &join_tab->ref;
-  TABLE *tab= join_tab->table;
-  uint rec_per_key= tab->key_info[ref->key].rec_per_key[ref->key_parts-1];
-  set_if_bigger(rec_per_key, 1);
-  if (records == 1)
-    incr=  ref->key_length + tab->file->ref_length;
-  incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
-  return incr; 
-}
-
-
-/*
-  Check if the record combination matches the index condition
-
-  SYNOPSIS
-    JOIN_CACHE_BKA::skip_index_tuple()
-      rseq             Value returned by bka_range_seq_init()
-      range_info       MRR range association data
-    
-  DESCRIPTION
-    This function is invoked from MRR implementation to check if an index
-    tuple matches the index condition. It is used in the case where the index
-    condition actually depends on both columns of the used index and columns
-    from previous tables.
-    
-    Accessing columns of the previous tables requires special handling with
-    BKA. The idea of BKA is to collect record combinations in a buffer and 
-    then do a batch of ref access lookups, i.e. by the time we're doing a
-    lookup its previous-records-combination is not in prev_table->record[0]
-    but somewhere in the join buffer.
-    
-    We need to get it from there back into prev_table(s)->record[0] before we
-    can evaluate the index condition, and that's why we need this function
-    instead of regular IndexConditionPushdown.
-
-  NOTE
-    Possible optimization:
-    Before we unpack the record from a previous table
-    check if this table is used in the condition.
-    If so then unpack the record otherwise skip the unpacking.
-    This should be done by a special virtual method
-    get_partial_record_by_pos().
-
-  RETURN
-    0    The record combination satisfies the index condition
-    1    Otherwise
-*/
-
-bool JOIN_CACHE_BKA::skip_index_tuple(range_seq_t rseq, char *range_info)
-{
-  DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
-  JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  cache->get_record_by_pos((uchar*)range_info);
-  DBUG_RETURN(!join_tab->cache_idx_cond->val_int());
-}
-
-
-/*
-  Check if the record combination matches the index condition
-
-  SYNOPSIS
-    bka_skip_index_tuple()
-      rseq             Value returned by bka_range_seq_init()
-      range_info       MRR range association data
-    
-  DESCRIPTION
-    This is wrapper for JOIN_CACHE_BKA::skip_index_tuple method,
-    see comments there.
-
-  NOTE
-    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
- 
-  RETURN
-    0    The record combination satisfies the index condition
-    1    Otherwise
-*/
-
-static 
-bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
-{
-  DBUG_ENTER("bka_skip_index_tuple");
-  JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
-}
-
-
-/* 
   Write record fields and their required offsets into the join cache buffer
 
   SYNOPSIS
@@ -942,9 +1184,11 @@ bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
     The 'last_rec_blob_data_is_in_rec_buff' is set on if the blob data 
     remains in the record buffers and not copied to the join buffer. It may
     happen only to the blob data from the last record added into the cache.
-   
-    
-  RETURN
+    If on_precond is attached to join_tab and it is not evaluated to TRUE
+    then MATCH_IMPOSSIBLE is placed in the match flag field of the record
+    written into the join buffer.
+       
+  RETURN VALUE
     length of the written record data
 */
 
@@ -954,16 +1198,18 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   bool last_record;
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
+  uchar *flags_pos;
   uchar *cp= pos;
   uchar *init_pos= cp;
   uchar *rec_len_ptr= 0;
+  uint key_extra= extra_key_length();
  
   records++;  /* Increment the counter of records in the cache */
 
-  len= pack_length;
+  len= pack_length + key_extra;
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
-  uint incr= aux_buffer_incr();
+  uint incr= aux_buffer_incr(records);
   ulong rem= rem_space();
   aux_buff_size+= len+incr < rem ? incr : rem;
 
@@ -1000,7 +1246,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     This function is called only in the case when there is enough space left in
     the cache to store at least non-blob parts of the current record.
   */
-  last_record= (len+pack_length_with_blob_ptrs) > rem_space();
+  last_record= (len+pack_length_with_blob_ptrs+key_extra) > rem_space();
   
   /* 
     Save the position for the length of the record in the cache if it's needed.
@@ -1032,6 +1278,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 
   /* First put into the cache the values of all flag fields */
   copy_end= field_descr+flag_fields;
+  flags_pos= cp;
   for ( ; copy < copy_end; copy++)
   {
     memcpy(cp, copy->str, copy->length);
@@ -1134,6 +1381,19 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   last_rec_pos= curr_rec_pos; 
   end_pos= pos= cp;
   *is_full= last_record;
+
+  last_written_is_null_compl= 0;   
+  if (!join_tab->first_unmatched && join_tab->on_precond)
+  { 
+    join_tab->found= 0;
+    join_tab->not_null_compl= 1;
+    if (!join_tab->on_precond->val_int())
+    {
+      flags_pos[0]= MATCH_IMPOSSIBLE;     
+      last_written_is_null_compl= 1;
+    }
+  } 
+      
   return (uint) (cp-init_pos);
 }
 
@@ -1158,7 +1418,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     - the size of the auxiliary buffer is reset to 0,
     - the flag 'last_rec_blob_data_is_in_rec_buff' is set to 0.
     
-  RETURN
+  RETURN VALUE
     none
 */
 
@@ -1176,6 +1436,7 @@ void JOIN_CACHE::reset(bool for_writing)
   }
 }
 
+
 /* 
   Add a record into the join buffer: the default implementation
 
@@ -1190,7 +1451,7 @@ void JOIN_CACHE::reset(bool for_writing)
     The implementation assumes that the function get_curr_link() 
     will return exactly the pointer to this matched record.
 
-  RETURN
+  RETURN VALUE
     TRUE    if it has been decided that it should be the last record
             in the join buffer,
     FALSE   otherwise
@@ -1227,9 +1488,9 @@ bool JOIN_CACHE::put_record()
     point to the beginning of the first field of the record in the
     join buffer.    
 
-  RETURN
-    TRUE  - there are no more records to read from the join buffer
-    FALSE - otherwise
+  RETURN VALUE
+    TRUE    there are no more records to read from the join buffer
+    FALSE   otherwise
 */
 
 bool JOIN_CACHE::get_record()
@@ -1268,7 +1529,7 @@ bool JOIN_CACHE::get_record()
     from the the join buffers of the previous caches. The fields are read
     into the corresponding record buffers.
 
-  RETURN
+  RETURN VALUE
     none
 */
 
@@ -1287,7 +1548,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 
 
 /* 
-  Test the match flag from the referenced record: the default implementation
+  Get the match flag from the referenced record: the default implementation
 
   SYNOPSIS
     get_match_flag_by_pos()
@@ -1295,28 +1556,53 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
 
   DESCRIPTION
     This default implementation of the virtual function get_match_flag_by_pos
-    test the match flag for the record pointed by the reference at the position
-    rec_ptr. If the match flag in placed one of the previous buffers the function
-    first reaches the linked record fields in this buffer.
+    get the match flag for the record pointed by the reference at the position
+    rec_ptr. If the match flag is placed in one of the previous buffers the
+    function first reaches the linked record fields in this buffer.
 
-  RETURN
-    TRUE    if the match flag is set on
-    FALSE   otherwise
+  RETURN VALUE
+    match flag for the record at the position rec_ptr
 */
 
-bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
+enum JOIN_CACHE::Match_flag JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
 {
+  Match_flag match_fl= MATCH_NOT_FOUND;
   if (with_match_flag)
-    return test(*rec_ptr);
+  {
+    match_fl= (enum Match_flag) rec_ptr[0];
+    return match_fl;
+  }
   if (prev_cache)
   {
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     return prev_cache->get_match_flag_by_pos(prev_rec_ptr);
   } 
   DBUG_ASSERT(0);
-  return FALSE;
+  return match_fl;
 }
 
+
+/* 
+  Calculate the increment of the auxiliary buffer for a record write
+
+  SYNOPSIS
+    aux_buffer_incr()
+      recno   the number of the record the increment to be calculated for
+
+  DESCRIPTION
+    This function calls the aux_buffer_incr the method of the
+    companion member join_tab_scan to calculate the growth of the
+    auxiliary buffer when the recno-th record is added to the
+    join_buffer of this cache.
+
+  RETURN VALUE
+    the number of bytes in the increment 
+*/
+
+uint JOIN_CACHE::aux_buffer_incr(ulong recno)
+{ 
+  return join_tab_scan->aux_buffer_incr(recno);
+}
 
 /* 
   Read all flag and data fields of a record from the join buffer
@@ -1332,8 +1618,8 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     The function increments the value of 'pos' by the length of the
     read data. 
 
-  RETURN
-    (-1) - if there is no more records in the join buffer
+  RETURN VALUE
+    (-1)   if there is no more records in the join buffer
     length of the data read from the join buffer - otherwise
 */
 
@@ -1371,7 +1657,7 @@ uint JOIN_CACHE::read_all_record_fields()
     The function increments the value of 'pos' by the length of the
     read data. 
 
-  RETURN
+  RETURN VALUE
     length of the data read from the join buffer
 */
 
@@ -1380,6 +1666,12 @@ uint JOIN_CACHE::read_flag_fields()
   uchar *init_pos= pos;
   CACHE_FIELD *copy= field_descr;
   CACHE_FIELD *copy_end= copy+flag_fields;
+  if (with_match_flag)
+  {
+    copy->str[0]= test((Match_flag) pos[0] == MATCH_FOUND);
+    pos+= copy->length;
+    copy++;    
+  } 
   for ( ; copy < copy_end; copy++)
   {
     memcpy(copy->str, pos, copy->length);
@@ -1406,7 +1698,7 @@ uint JOIN_CACHE::read_flag_fields()
     The function increments the value of 'pos' by the length of the
     read data. 
 
-  RETURN
+  RETURN VALUE
     length of the data read from the join buffer
 */
 
@@ -1484,9 +1776,15 @@ uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff)
     If the value of *len is 0 then the function sets it to the total
     length of the record fields including possible trailing offset
     values. Otherwise *len is supposed to provide this value that
-    has been obtained earlier.  
+    has been obtained earlier. 
 
-  RETURN
+  NOTE
+    If the value of the referenced field is null then the offset
+    for the value is set to 0. If the value of a field can be null
+    then the value of flag_fields is always positive. So the offset
+    for any non-null value cannot be 0 in this case. 
+
+  RETURN VALUE
     TRUE   'copy' points to a data descriptor of this join cache
     FALSE  otherwise
 */
@@ -1513,14 +1811,21 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
                          size_of_fld_ofs*
                          (referenced_fields+1-copy->referenced_field_no));  
   bool is_null= FALSE;
+  Field *field= copy->field;
   if (offset == 0 && flag_fields)
     is_null= TRUE;
   if (is_null)
-    copy->field->set_null();
+  {
+    field->set_null();
+    if (!field->real_maybe_null())
+      field->table->null_row= 1;
+  }
   else
   {
     uchar *save_pos= pos;
-    copy->field->set_notnull(); 
+    field->set_notnull(); 
+    if (!field->real_maybe_null())
+      field->table->null_row= 0;
     pos= rec_ptr+offset;
     read_record_field(copy, blob_data_is_in_rec_buff(rec_ptr));
     pos= save_pos;
@@ -1530,30 +1835,69 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
    
 
 /* 
-  Skip record from join buffer if its match flag is on: default implementation
+  Skip record from join buffer if's already matched: default implementation
 
   SYNOPSIS
-    skip_record_if_match()
+    skip_if_matched()
 
   DESCRIPTION
-    This default implementation of the virtual function skip_record_if_match
-    skips the next record from the join buffer if its  match flag is set on.
-    If the record is skipped the value of 'pos' is set to points to the position
+    This default implementation of the virtual function skip_if_matched
+    skips the next record from the join buffer if its  match flag is set to 
+    MATCH_FOUND.
+    If the record is skipped the value of 'pos' is set to point to the position
     right after the record.
 
-  RETURN
-    TRUE  - the match flag is on and the record has been skipped
-    FALSE - the match flag is off 
+  RETURN VALUE
+    TRUE   the match flag is set to MATCH_FOUND and the record has been skipped
+    FALSE  otherwise
 */
 
-bool JOIN_CACHE::skip_record_if_match()
+bool JOIN_CACHE::skip_if_matched()
 {
   DBUG_ASSERT(with_length);
   uint offset= size_of_rec_len;
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
-  /* Check whether the match flag is on */
-  if (get_match_flag_by_pos(pos+offset))
+  /* Check whether the match flag is MATCH_FOUND */
+  if (get_match_flag_by_pos(pos+offset) == MATCH_FOUND)
+  {
+    pos+= size_of_rec_len + get_rec_length(pos);
+    return TRUE;
+  }
+  return FALSE;
+}      
+
+
+/* 
+  Skip record from join buffer if the match isn't needed: default implementation
+
+  SYNOPSIS
+    skip_if_not_needed_match()
+
+  DESCRIPTION
+    This default implementation of the virtual function skip_if_not_needed_match
+    skips the next record from the join buffer if its match flag is not 
+    MATCH_NOT_FOUND, and, either its value is MATCH_FOUND and join_tab is the
+    first inner table of an inner join, or, its value is MATCH_IMPOSSIBLE
+    and join_tab is the first inner table of an outer join.
+    If the record is skipped the value of 'pos' is set to point to the position
+    right after the record.
+
+  RETURN VALUE
+    TRUE    the record has to be skipped
+    FALSE   otherwise 
+*/
+
+bool JOIN_CACHE::skip_if_not_needed_match()
+{
+  DBUG_ASSERT(with_length);
+  enum Match_flag match_fl;
+  uint offset= size_of_rec_len;
+  if (prev_cache)
+    offset+= prev_cache->get_size_of_rec_offset();
+
+  if ((match_fl= get_match_flag_by_pos(pos+offset)) != MATCH_NOT_FOUND &&
+      (join_tab->check_only_first_match() == (match_fl == MATCH_FOUND)) )
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
@@ -1617,7 +1961,7 @@ void JOIN_CACHE::restore_last_record()
     that have matches, after which null complementing extension for all
     unmatched records from the join buffer are generated.  
       
-  RETURN
+  RETURN VALUE
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
 */ 
 
@@ -1711,16 +2055,16 @@ finish:
 }
 
 
-/*
-  Using BNL find matches from the next table for records from the join buffer   
+/*   
+  Find matches from the next table for records from the join buffer 
 
   SYNOPSIS
     join_matching_records()
       skip_last    do not look for matches for the last partial join record 
 
   DESCRIPTION
-    The function retrieves all rows of the join_tab table and check whether
-    they match partial join records from the join buffer. If a match is found
+    The function retrieves rows of the join_tab table and checks whether they
+    match partial join records from the join buffer. If a match is found
     the function will call the sub_select function trying to look for matches
     for the remaining join operations.
     This function currently is called only from the function join_records.    
@@ -1729,27 +2073,46 @@ finish:
     the future processing in the caller function.
 
   NOTES
+    If employed by BNL or BNLH join algorithms the function performs a full
+    scan of join_tab for each refill of the join buffer. If BKA or BKAH
+    algorithms are used then the function iterates only over those records
+    from join_tab that can be accessed by keys built over records in the join
+    buffer. To apply a proper method of iteration the function just calls
+    virtual iterator methods (open, next, close) of the member join_tab_scan.
+    The member can be either of the JOIN_TAB_SCAN or JOIN_TAB_SCAN_MMR type.
+    The class JOIN_TAB_SCAN provides the iterator methods for BNL/BNLH join
+    algorithms. The class JOIN_TAB_SCAN_MRR provides the iterator methods
+    for BKA/BKAH join algorithms.
+    When the function looks for records from the join buffer that would
+    match a record from join_tab it iterates either over all records in
+    the buffer or only over selected records. If BNL join operation is
+    performed all records are checked for the match. If BNLH or BKAH
+    algorithm is employed to join join_tab then the function looks only
+    through the records with the same join key as the record from join_tab.
+    With the BKA join algorithm only one record from the join buffer is checked
+    for a match for any record from join_tab. To iterate over the candidates
+    for a match the virtual function get_next_candidate_for_match is used,
+    while the virtual function prepare_look_for_matches is called to prepare
+    for such iteration proccess.     
+
+  NOTES
     The function produces all matching extensions for the records in the 
-    join buffer following the path of the Blocked Nested Loops algorithm. 
+    join buffer following the path of the employed blocked algorithm. 
     When an outer join operation is performed all unmatched records from
     the join buffer must be extended by null values. The function 
     'join_null_complements' serves this purpose.  
       
-  RETURN
-    return one of enum_nested_loop_state.
+  RETURN VALUE
+    return one of enum_nested_loop_state
 */ 
 
-enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
+enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 {
-  uint cnt;
   int error;
-  JOIN_TAB *tab;
-  READ_RECORD *info;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool check_only_first_match= join_tab->check_only_first_match();
-  SQL_SELECT *select= join_tab->cache_select;
-
   join_tab->table->null_row= 0;
+  bool check_only_first_match= join_tab->check_only_first_match();
+  bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
@@ -1771,25 +2134,12 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     join_tab->select->quick= 0;
   }
 
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-
-  /* Start retrieving all records of the joined table */
-  if ((error= join_init_read_record(join_tab))) 
-  {
-    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
+  /* Prepare to retrieve all records of the joined table */
+  if ((error= join_tab_scan->open())) 
     goto finish;
-  }
 
-  info= &join_tab->read_record;
-  do
+  while (!(error= join_tab_scan->next()))   
   {
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
-
     if (join->thd->killed)
     {
       /* The user has aborted the execution of the query */
@@ -1797,52 +2147,43 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       rc= NESTED_LOOP_KILLED;
       goto finish; 
     }
-    int err= 0;
 
-     if (rc == NESTED_LOOP_OK)
-       update_virtual_fields(join->thd, join_tab->table);
- 
-    /* 
-      Do not look for matches if the last read record of the joined table
-      does not meet the conditions that have been pushed to this table
-    */
-    if (rc == NESTED_LOOP_OK && 
-        (!select || (err= select->skip_record(join->thd)) != 0))
-    {
-      if (err < 0)
-        return NESTED_LOOP_ERROR;
-      rc= NESTED_LOOP_OK;
+    if (join_tab->keep_current_rowid)
+      join_tab->table->file->position(join_tab->table->record[0]);
+    
+    /* Prepare to read matching candidates from the join buffer */
+    if (prepare_look_for_matches(skip_last))
+      continue;
 
-      /* Prepare to read records from the join buffer */
-      reset(FALSE);
-
-      /* Read each record from the join buffer and look for matches */
-      for (cnt= records - test(skip_last) ; cnt; cnt--)
-      { 
-        /* 
-          If only the first match is needed and it has been already found for
-          the next record read from the join buffer then the record is skipped.
-	*/
-        if (!check_only_first_match || !skip_record_if_match())
-        {
-	  get_record();
-          rc= generate_full_extensions(get_curr_rec());
-          if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	    goto finish;   
-        }
+    uchar *rec_ptr;
+    /* Read each possible candidate from the buffer and look for matches */
+    while ((rec_ptr= get_next_candidate_for_match()))
+    { 
+      /* 
+        If only the first match is needed, and, it has been already found for
+        the next record read from the join buffer, then the record is skipped.
+        Also those records that must be null complemented are not considered
+        as candidates for matches.
+      */
+      if ((!check_only_first_match && !outer_join_first_inner) ||
+          !skip_next_candidate_for_match(rec_ptr))
+      {
+	read_next_candidate_for_match(rec_ptr);
+        rc= generate_full_extensions(rec_ptr);
+        if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+	  goto finish;   
       }
     }
-  } while (!(error= info->read_record(info)));
+  }
 
-  if (error > 0)				// Fatal error
-    rc= NESTED_LOOP_ERROR; 
-finish:                  
-  for (tab= join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
+finish: 
+  if (error)                 
+    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
+  join_tab_scan->close();
   return rc;
 }
 
-     
+
 /*
   Set match flag for a record in join buffer if it has not been set yet    
 
@@ -1862,7 +2203,7 @@ finish:
     The function assumes that the match flag for any record in any cache
     is placed in the first byte occupied by the record fields. 
 
-  RETURN
+  RETURN VALUE
     TRUE   the match flag is set by this call for the first time
     FALSE  the match flag has been set before this call
 */ 
@@ -1891,9 +2232,9 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
     DBUG_ASSERT(cache);
     rec_ptr= cache->get_rec_ref(rec_ptr);
   } 
-  if (rec_ptr[0] == 0)
+  if ((Match_flag) rec_ptr[0] != MATCH_FOUND)
   {
-    rec_ptr[0]= 1;
+    rec_ptr[0]= MATCH_FOUND;
     first_inner->found= 1;
     return TRUE;  
   }
@@ -1914,7 +2255,7 @@ bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
     case the function calls the join_tab->next_select method to generate
     all full extension for this partial join match.
       
-  RETURN
+  RETURN VALUE
     return one of enum_nested_loop_state.
 */ 
 
@@ -1969,7 +2310,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     Setting the match flag on can trigger re-evaluation of pushdown conditions
     for the record when join_tab is the last inner table of an outer join.
       
-  RETURN
+  RETURN VALUE
     TRUE   there is a match
     FALSE  there is no match
 */ 
@@ -1977,7 +2318,7 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
 inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 {
   /* Check whether pushdown conditions are satisfied */
-  if (join_tab->select && join_tab->select->skip_record(join->thd) < 1)
+  if (join_tab->select && join_tab->select->skip_record(join->thd) <= 0)
     return FALSE;
 
   if (!join_tab->is_last_inner_table())
@@ -2007,7 +2348,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     */      
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
-      if (tab->select && tab->select->skip_record(join->thd) < 1)
+      if (tab->select && tab->select->skip_record(join->thd) <= 0)
         return FALSE;
     }
   }
@@ -2038,9 +2379,9 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 
   NOTES
     The same implementation of the virtual method join_null_complements
-    is used for JOIN_CACHE_BNL and JOIN_CACHE_BKA.
+    is used for BNL/BNLH/BKA/BKA join algorthm.
       
-  RETURN
+  RETURN VALUE
     return one of enum_nested_loop_state.
 */ 
 
@@ -2049,7 +2390,6 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
-  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner;
  
   /* Return at once if there are no records in the join buffer */
   if (!records)
@@ -2070,40 +2410,16 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       goto finish;
     }
     /* Just skip the whole record if a match for it has been already found */
-    if (!is_first_inner || !skip_record_if_match())
+    if (!is_first_inner || !skip_if_matched())
     {
       get_record();
       /* The outer row is complemented by nulls for each inner table */
       restore_record(join_tab->table, s->default_values);
       mark_as_null_row(join_tab->table);  
-      /* Check all pushdown conditions attached to the inner table */
-      join_tab->first_unmatched->found= 1;
-      if (join_tab->select && join_tab->select->skip_record(join->thd) < 1)
-        continue;
-      if (is_last_inner)
-      { 
-        JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
-        while (first_upper && first_upper->last_inner == join_tab)
-        {
-          set_match_flag_if_none(first_upper, get_curr_rec());
-          for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
-          {
-            if (tab->select && tab->select->skip_record(join->thd) < 1)
-              goto next;
-          }
-          first_upper= first_upper->first_upper;
-        }
-      }
-      /* Find all matches for the remaining join tables */
-      rc= (*join_tab->next_select)(join, join_tab+1, 0);
+      rc= generate_full_extensions(get_curr_rec());
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-      {
-        reset(TRUE);
         goto finish;
-      }
     }
-  next:
-    ;
   }
 
 finish:
@@ -2112,13 +2428,1182 @@ finish:
 
 
 /*
-  Initialize retrieval of range sequence for BKA algorithm
+  Add a comment on the join algorithm employed by the join cache 
+
+  SYNOPSIS
+    print_explain_comment()
+      str  string to add the comment on the employed join algorithm to
+
+  DESCRIPTION
+    This function adds info on the type of the used join buffer (flat or
+    incremental) and on the type of the the employed join algorithm (BNL,
+    BNLH, BKA or BKAH) to the the end of the sring str.
+
+  RETURN VALUE
+    none
+*/ 
+
+void JOIN_CACHE::print_explain_comment(String *str)
+{
+  str->append(STRING_WITH_LEN(" ("));
+  const char *buffer_type= prev_cache ? "incremental" : "flat";
+  str->append(buffer_type);
+  str->append(STRING_WITH_LEN(", "));
+  
+  const char *join_alg;
+  switch (get_join_alg()) {
+  case BNL_JOIN_ALG:
+    join_alg= "BNL";
+    break;
+  case BNLH_JOIN_ALG:
+    join_alg= "BNLH";
+    break;
+  case BKA_JOIN_ALG:
+    join_alg= "BKA";
+    break;
+  case BKAH_JOIN_ALG:
+    join_alg= "BKAH";
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  str->append(join_alg);
+  str->append(STRING_WITH_LEN(" join"));
+  str->append(STRING_WITH_LEN(")"));
+ }
+   
+
+/* 
+  Initialize a hashed join cache       
+
+  SYNOPSIS
+    init()
+
+  DESCRIPTION
+    The function initializes the cache structure with a hash table in it.
+    The hash table will be used to store key values for the records from
+    the join buffer.
+    The function allocates memory for the join buffer and for descriptors of
+    the record fields stored in the buffer.
+    The function also initializes a hash table for record keys within the join
+    buffer space.
+
+  NOTES VALUE
+    The function is supposed to be called by the init methods of the classes 
+    derived from JOIN_CACHE_HASHED.
+  
+  RETURN VALUE
+    0   initialization with buffer allocations has been succeeded
+    1   otherwise
+*/
+
+int JOIN_CACHE_HASHED::init()
+{
+  int rc= 0;
+  TABLE_REF *ref= &join_tab->ref;
+
+  DBUG_ENTER("JOIN_CACHE_HASHED::init");
+
+  hash_table= 0;
+  key_entries= 0;
+
+  key_length= ref->key_length;
+
+  if ((rc= JOIN_CACHE::init()))
+    DBUG_RETURN (rc);
+
+  if (!(key_buff= (uchar*) sql_alloc(key_length)))
+    DBUG_RETURN(1);
+
+  /* Take into account a reference to the next record in the key chain */
+  pack_length+= get_size_of_rec_offset(); 
+  pack_length_with_blob_ptrs+= get_size_of_rec_offset();
+
+  init_hash_table();
+
+  rec_fields_offset= get_size_of_rec_offset()+get_size_of_rec_length()+
+                     (prev_cache ? prev_cache->get_size_of_rec_offset() : 0);
+
+  data_fields_offset= 0;
+  if (use_emb_key)
+  {
+    CACHE_FIELD *copy= field_descr;
+    CACHE_FIELD *copy_end= copy+flag_fields;
+    for ( ; copy < copy_end; copy++)
+      data_fields_offset+= copy->length;
+  } 
+
+  DBUG_RETURN(rc);
+}
+
+
+/* 
+  Initialize the hash table of a hashed join cache 
+
+  SYNOPSIS
+    init_hash_table()
+
+  DESCRIPTION
+    The function estimates the number of hash table entries in the hash
+    table to be used and initializes this hash table within the join buffer
+    space.
+
+  RETURN VALUE
+    Currently the function always returns 0;
+*/
+
+int JOIN_CACHE_HASHED::init_hash_table()
+{
+  hash_table= 0;
+  key_entries= 0;
+
+  /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */
+  uint max_size_of_key_ofs= max(2, get_size_of_rec_offset());  
+  for (size_of_key_ofs= 2;
+       size_of_key_ofs <= max_size_of_key_ofs;
+       size_of_key_ofs+= 2)
+  {    
+    key_entry_length= get_size_of_rec_offset() + // key chain header
+                      size_of_key_ofs +          // reference to the next key 
+                      (use_emb_key ?  get_size_of_rec_offset() : key_length);
+
+    ulong space_per_rec= avg_record_length +
+                         avg_aux_buffer_incr +
+                         key_entry_length+size_of_key_ofs;
+    uint n= buff_size / space_per_rec;
+
+    /*
+      TODO: Make a better estimate for this upper bound of
+            the number of records in in the join buffer.
+    */
+    uint max_n= buff_size / (pack_length-length+
+                             key_entry_length+size_of_key_ofs);
+
+    hash_entries= (uint) (n / 0.7);
+    set_if_bigger(hash_entries, 1);
+    
+    if (offset_size(max_n*key_entry_length) <=
+        size_of_key_ofs)
+      break;
+  }
+   
+  /* Initialize the hash table */ 
+  hash_table= buff + (buff_size-hash_entries*size_of_key_ofs);
+  cleanup_hash_table();
+  curr_key_entry= hash_table;
+
+  return 0;
+}
+
+
+/*
+  Reallocate the join buffer of a hashed join cache
+ 
+  SYNOPSIS
+    realloc_buffer()
+
+  DESCRITION
+    The function reallocates the join buffer of the hashed join cache.
+    After this it initializes a hash table within the buffer space and
+    resets the join cache for writing.
+
+  NOTES
+    The function assumes that buff_size contains the new value for the join
+    buffer size.  
+
+  RETURN VALUE
+    0   if the buffer has been successfully reallocated
+    1   otherwise
+*/
+
+int JOIN_CACHE_HASHED::realloc_buffer()
+{
+  int rc;
+  free();
+  rc= test(!(buff= (uchar*) my_malloc(buff_size, MYF(0))));
+  init_hash_table();
+  reset(TRUE);
+  return rc;   	
+}
+
+/*
+  Get maximum size of the additional space per record used for record keys
+
+  SYNOPSYS
+    get_max_key_addon_space_per_record()
+  
+  DESCRIPTION
+    The function returns the size of the space occupied by one key entry
+    and one hash table entry.
+
+  RETURN VALUE
+    maximum size of the additional space per record that is used to store
+    record keys in the hash table
+*/
+
+uint JOIN_CACHE_HASHED::get_max_key_addon_space_per_record()
+{
+  ulong len;
+  TABLE_REF *ref= &join_tab->ref;
+  /* 
+    The total number of hash entries in the hash tables is bounded by
+    ceiling(N/0.7) where N is the maximum number of records in the buffer.
+    That's why the multiplier 2 is used in the formula below. 
+  */ 
+  len= (use_emb_key ?  get_size_of_rec_offset() : ref->key_length) +
+        size_of_rec_ofs +    // size of the key chain header
+        size_of_rec_ofs +    // >= size of the reference to the next key 
+        2*size_of_rec_ofs;   // >= 2*( size of hash table entry)
+  return len; 
+}    
+
+
+/* 
+  Reset the buffer of a hashed join cache for reading/writing
+
+  SYNOPSIS
+    reset()
+      for_writing  if it's TRUE the function reset the buffer for writing
+
+  DESCRIPTION
+    This implementation of the virtual function reset() resets the join buffer
+    of the JOIN_CACHE_HASHED class for reading or writing.
+    Additionally to what the default implementation does this function
+    cleans up the hash table allocated within the buffer.  
+    
+  RETURN VALUE
+    none
+*/
+ 
+void JOIN_CACHE_HASHED::reset(bool for_writing)
+{
+  this->JOIN_CACHE::reset(for_writing);
+  if (for_writing && hash_table)
+    cleanup_hash_table();
+  curr_key_entry= hash_table;
+}
+
+
+/* 
+  Add a record into the buffer of a hashed join cache
+
+  SYNOPSIS
+    put_record()
+
+  DESCRIPTION
+    This implementation of the virtual function put_record writes the next
+    matching record into the join buffer of the JOIN_CACHE_HASHED class.
+    Additionally to what the default implementation does this function
+    performs the following. 
+    It extracts from the record the key value used in lookups for matching
+    records and searches for this key in the hash tables from the join cache.
+    If it finds the key in the hash table it joins the record to the chain
+    of records with this key. If the key is not found in the hash table the
+    key is placed into it and a chain containing only the newly added record 
+    is attached to the key entry. The key value is either placed in the hash 
+    element added for the key or, if the use_emb_key flag is set, remains in
+    the record from the partial join.
+    If the match flag field of a record contains MATCH_IMPOSSIBLE the key is
+    not created for this record. 
+    
+  RETURN VALUE
+    TRUE    if it has been decided that it should be the last record
+            in the join buffer,
+    FALSE   otherwise
+*/
+
+bool JOIN_CACHE_HASHED::put_record()
+{
+  bool is_full;
+  uchar *key;
+  uint key_len= key_length;
+  uchar *key_ref_ptr;
+  uchar *link= 0;
+  TABLE_REF *ref= &join_tab->ref;
+  uchar *next_ref_ptr= pos;
+
+  pos+= get_size_of_rec_offset();
+  /* Write the record into the join buffer */  
+  if (prev_cache)
+    link= prev_cache->get_curr_rec_link();
+  write_record_data(link, &is_full);
+
+  if (last_written_is_null_compl)
+    return is_full;    
+
+  if (use_emb_key)
+    key= get_curr_emb_key();
+  else
+  {
+    /* Build the key over the fields read into the record buffers */ 
+    cp_buffer_from_ref(join->thd, join_tab->table, ref);
+    key= ref->key_buff;
+  }
+
+  /* Look for the key in the hash table */
+  if (key_search(key, key_len, &key_ref_ptr))
+  {
+    uchar *last_next_ref_ptr;
+    /* 
+      The key is found in the hash table. 
+      Add the record to the circular list of the records attached to this key.
+      Below 'rec' is the record to be added into the record chain for the found
+      key, 'key_ref' points to a flatten representation of the st_key_entry 
+      structure that contains the key and the head of the record chain.
+    */
+    last_next_ref_ptr= get_next_rec_ref(key_ref_ptr+get_size_of_key_offset());
+    /* rec->next_rec= key_entry->last_rec->next_rec */
+    memcpy(next_ref_ptr, last_next_ref_ptr, get_size_of_rec_offset());
+    /* key_entry->last_rec->next_rec= rec */ 
+    store_next_rec_ref(last_next_ref_ptr, next_ref_ptr);
+    /* key_entry->last_rec= rec */
+    store_next_rec_ref(key_ref_ptr+get_size_of_key_offset(), next_ref_ptr);
+  }
+  else
+  {
+    /* 
+      The key is not found in the hash table.
+      Put the key into the join buffer linking it with the keys for the
+      corresponding hash entry. Create a circular list with one element
+      referencing the record and attach the list to the key in the buffer.
+    */
+    uchar *cp= last_key_entry;
+    cp-= get_size_of_rec_offset()+get_size_of_key_offset();
+    store_next_key_ref(key_ref_ptr, cp);
+    store_null_key_ref(cp);
+    store_next_rec_ref(next_ref_ptr, next_ref_ptr);
+    store_next_rec_ref(cp+get_size_of_key_offset(), next_ref_ptr);
+    if (use_emb_key)
+    {
+      cp-= get_size_of_rec_offset();
+      store_emb_key_ref(cp, key);
+    }
+    else
+    {
+      cp-= key_len;
+      memcpy(cp, key, key_len);
+    }
+    last_key_entry= cp;
+    DBUG_ASSERT(last_key_entry >= end_pos);
+    /* Increment the counter of key_entries in the hash table */ 
+    key_entries++;
+  }  
+  return is_full;
+}
+
+
+/*
+  Read the next record from the buffer of a hashed join cache
+
+  SYNOPSIS
+    get_record()
+
+  DESCRIPTION
+    Additionally to what the default implementation of the virtual 
+    function get_record does this implementation skips the link element
+    used to connect the records with the same key into a chain. 
+
+  RETURN VALUE
+    TRUE    there are no more records to read from the join buffer
+    FALSE   otherwise
+*/
+
+bool JOIN_CACHE_HASHED::get_record()
+{ 
+  pos+= get_size_of_rec_offset();
+  return this->JOIN_CACHE::get_record();
+}
+
+
+/* 
+  Skip record from a hashed join buffer if its match flag is set to MATCH_FOUND
+
+  SYNOPSIS
+    skip_if_matched()
+
+  DESCRIPTION
+    This implementation of the virtual function skip_if_matched does
+    the same as the default implementation does, but it takes into account
+    the link element used to connect the records with the same key into a chain. 
+
+  RETURN VALUE
+    TRUE    the match flag is MATCH_FOUND  and the record has been skipped
+    FALSE   otherwise 
+*/
+
+bool JOIN_CACHE_HASHED::skip_if_matched()
+{
+  uchar *save_pos= pos;
+  pos+= get_size_of_rec_offset();
+  if (!this->JOIN_CACHE::skip_if_matched())
+  {
+    pos= save_pos;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+/* 
+  Skip record from a hashed join buffer if its match flag dictates to do so
+
+  SYNOPSIS
+    skip_if_uneeded_match()
+
+  DESCRIPTION
+    This implementation of the virtual function skip_if_not_needed_match does
+    the same as the default implementation does, but it takes into account
+    the link element used to connect the records with the same key into a chain. 
+
+  RETURN VALUE
+    TRUE    the match flag dictates to skip the record
+    FALSE   the match flag is off 
+*/
+
+bool JOIN_CACHE_HASHED::skip_if_not_needed_match()
+{
+  uchar *save_pos= pos;
+  pos+= get_size_of_rec_offset();
+  if (!this->JOIN_CACHE::skip_if_not_needed_match())
+  {
+    pos= save_pos;
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
+/* 
+  Search for a key in the hash table of the join buffer
+
+  SYNOPSIS
+    key_search()
+      key             pointer to the key value
+      key_len         key value length
+      key_ref_ptr OUT position of the reference to the next key from 
+                      the hash element for the found key , or
+                      a position where the reference to the the hash 
+                      element for the key is to be added in the
+                      case when the key has not been found
+      
+  DESCRIPTION
+    The function looks for a key in the hash table of the join buffer.
+    If the key is found the functionreturns the position of the reference
+    to the next key from  to the hash element for the given key. 
+    Otherwise the function returns the position where the reference to the
+    newly created hash element for the given key is to be added.  
+
+  RETURN VALUE
+    TRUE    the key is found in the hash table
+    FALSE   otherwise
+*/
+
+bool JOIN_CACHE_HASHED::key_search(uchar *key, uint key_len,
+                                   uchar **key_ref_ptr) 
+{
+  bool is_found= FALSE;
+  uint idx= get_hash_idx(key, key_length);
+  uchar *ref_ptr= hash_table+size_of_key_ofs*idx;
+  while (!is_null_key_ref(ref_ptr))
+  {
+    uchar *next_key;
+    ref_ptr= get_next_key_ref(ref_ptr);
+    next_key= use_emb_key ? get_emb_key(ref_ptr-get_size_of_rec_offset()) :
+                            ref_ptr-key_length;
+
+    if (memcmp(next_key, key, key_len) == 0)
+    {
+      is_found= TRUE;
+      break;
+    }
+  }
+  *key_ref_ptr= ref_ptr;
+  return is_found;
+} 
+
+
+/* 
+  Calclulate hash value for a key in the hash table of the join buffer
+
+  SYNOPSIS
+    get_hash_idx()
+      key             pointer to the key value
+      key_len         key value length
+      
+  DESCRIPTION
+    The function calculates an index of the hash entry in the hash table
+    of the join buffer for the given key  
+
+  RETURN VALUE
+    the calculated index of the hash entry for the given key.  
+*/
+
+uint JOIN_CACHE_HASHED::get_hash_idx(uchar* key, uint key_len)
+{
+  ulong nr= 1;
+  ulong nr2= 4;
+  uchar *pos= key;
+  uchar *end= key+key_len;
+  for (; pos < end ; pos++)
+  {
+    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
+    nr2+= 3;
+  }
+  return nr % hash_entries;
+}
+
+
+/* 
+  Clean up the hash table of the join buffer
+
+  SYNOPSIS
+    cleanup_hash_table()
+      key             pointer to the key value
+      key_len         key value length
+      
+  DESCRIPTION
+    The function cleans up the hash table in the join buffer removing all
+    hash elements from the table. 
+
+  RETURN VALUE
+    none  
+*/
+
+void JOIN_CACHE_HASHED:: cleanup_hash_table()
+{
+  last_key_entry= hash_table;
+  bzero(hash_table, (buff+buff_size)-hash_table);
+  key_entries= 0;
+}
+
+
+/*
+  Check whether all records in a key chain have their match flags set on   
+
+  SYNOPSIS
+    check_all_match_flags_for_key()
+      key_chain_ptr     
+
+  DESCRIPTION
+    This function retrieves records in the given circular chain and checks
+    whether their match flags are set on. The parameter key_chain_ptr shall
+    point to the position in the join buffer storing the reference to the
+    last element of this chain. 
+            
+  RETURN VALUE
+    TRUE   if each retrieved record has its match flag set to MATCH_FOUND
+    FALSE  otherwise 
+*/
+
+bool JOIN_CACHE_HASHED::check_all_match_flags_for_key(uchar *key_chain_ptr)
+{
+  uchar *last_rec_ref_ptr= get_next_rec_ref(key_chain_ptr);
+  uchar *next_rec_ref_ptr= last_rec_ref_ptr;
+  do
+  {
+    next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
+    uchar *rec_ptr= next_rec_ref_ptr+rec_fields_offset;
+    if (get_match_flag_by_pos(rec_ptr) != MATCH_FOUND)
+      return FALSE;
+  }
+  while (next_rec_ref_ptr != last_rec_ref_ptr);
+  return TRUE;
+}
+  
+
+/* 
+  Get the next key built for the records from the buffer of a hashed join cache
+
+  SYNOPSIS
+    get_next_key()
+      key    pointer to the buffer where the key value is to be placed
+
+  DESCRIPTION
+    The function reads the next key value stored in the hash table of the
+    join buffer. Depending on the value of the use_emb_key flag of the
+    join cache the value is read either from the table itself or from
+    the record field where it occurs. 
+
+  RETURN VALUE
+    length of the key value - if the starting value of 'cur_key_entry' refers
+    to the position after that referred by the the value of 'last_key_entry',    
+    0 - otherwise.     
+*/
+
+uint JOIN_CACHE_HASHED::get_next_key(uchar ** key)
+{  
+  if (curr_key_entry == last_key_entry)
+    return 0;
+
+  curr_key_entry-= key_entry_length;
+
+  *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
+
+  DBUG_ASSERT(*key >= buff && *key < hash_table);
+
+  return key_length;
+}
+
+
+/* 
+  Initiate an iteration process over records in the joined table
+
+  SYNOPSIS
+    open()
+
+  DESCRIPTION
+    The function initiates the process of iteration over records from the 
+    joined table recurrently performed by the BNL/BKLH join algorithm.  
+
+  RETURN VALUE   
+    0            the initiation is a success 
+    error code   otherwise     
+*/
+
+int JOIN_TAB_SCAN::open()
+{
+  for (JOIN_TAB *tab= join->join_tab; tab != join_tab ; tab++)
+  {
+    tab->status= tab->table->status;
+    tab->table->status= 0;
+  }
+  is_first_record= TRUE;
+  return join_init_read_record(join_tab);
+}
+
+
+/* 
+  Read the next record that can match while scanning the joined table
+
+  SYNOPSIS
+    next()
+
+  DESCRIPTION
+    The function reads the next record from the joined table that can
+    match some records in the buffer of the join cache 'cache'. To do
+    this the function calls the function that scans table records and
+    looks for the next one that meets the condition pushed to the
+    joined table join_tab.
+
+  NOTES
+    The function catches the signal that kills the query.
+
+  RETURN VALUE   
+    0            the next record exists and has been successfully read 
+    error code   otherwise     
+*/
+
+int JOIN_TAB_SCAN::next()
+{
+  int err= 0;
+  int skip_rc;
+  READ_RECORD *info= &join_tab->read_record;
+  SQL_SELECT *select= join_tab->cache_select;
+  if (is_first_record)
+    is_first_record= FALSE;
+  else
+    err= info->read_record(info);
+  if (!err)
+    update_virtual_fields(join->thd, join_tab->table);
+  while (!err && select && (skip_rc= select->skip_record(join->thd)) <= 0)
+  {
+    if (join->thd->killed || skip_rc < 0) 
+      return 1;
+    /* 
+      Move to the next record if the last retrieved record does not
+      meet the condition pushed to the table join_tab.
+    */
+    err= info->read_record(info);
+    if (!err)
+      update_virtual_fields(join->thd, join_tab->table);
+  } 
+  return err; 
+}
+
+
+/* 
+  Perform finalizing actions for a scan over the table records
+
+  SYNOPSIS
+    close()
+
+  DESCRIPTION
+    The function performs the necessary restoring actions after
+    the table scan over the joined table has been finished.
+
+  RETURN VALUE   
+    none      
+*/
+
+void JOIN_TAB_SCAN::close()
+{
+  for (JOIN_TAB *tab= join->join_tab; tab != join_tab ; tab++)
+    tab->table->status= tab->status;
+}
+
+
+/*
+  Prepare to iterate over the BNL join cache buffer to look for matches 
+
+  SYNOPSIS
+    prepare_look_for_matches()
+      skip_last   <-> ignore the last record in the buffer
+
+  DESCRIPTION
+    The function prepares the join cache for an iteration over the
+    records in the join buffer. The iteration is performed when looking
+    for matches for the record from the joined table join_tab that 
+    has been placed into the record buffer of the joined table.
+    If the value of the parameter skip_last is TRUE then the last
+    record from the join buffer is ignored.
+    The function initializes the counter of the records that have been
+    not iterated over yet.
+    
+  RETURN VALUE   
+    TRUE    there are no records in the buffer to iterate over 
+    FALSE   otherwise
+*/
+    
+bool JOIN_CACHE_BNL::prepare_look_for_matches(bool skip_last)
+{
+  if (!records)
+    return TRUE;
+  reset(FALSE);
+  rem_records= records-test(skip_last);
+  return rem_records == 0;
+}
+
+
+/*
+  Get next record from the BNL join cache buffer when looking for matches 
+
+  SYNOPSIS
+    get_next_candidate_for_match
+
+  DESCRIPTION
+    This method is used for iterations over the records from the join
+    cache buffer when looking for matches for records from join_tab.
+    The methods performs the necessary preparations to read the next record
+    from the join buffer into the record buffer by the method
+    read_next_candidate_for_match, or, to skip the next record from the join 
+    buffer by the method skip_recurrent_candidate_for_match.    
+    This implementation of the virtual method get_next_candidate_for_match
+    just  decrements the counter of the records that are to be iterated over
+    and returns the current value of the cursor 'pos' as the position of 
+    the record to be processed. 
+    
+  RETURN VALUE    
+    pointer to the position right after the prefix of the current record
+    in the join buffer if the there is another record to iterate over,
+    0 - otherwise.  
+*/
+
+uchar *JOIN_CACHE_BNL::get_next_candidate_for_match()
+{
+  if (!rem_records)
+    return 0;
+  rem_records--;
+  return pos+base_prefix_length;
+} 
+
+
+/*
+  Check whether the matching record from the BNL cache is to be skipped 
+
+  SYNOPSIS
+    skip_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after the prefix 
+             of the current record
+
+  DESCRIPTION
+    This implementation of the virtual function just calls the
+    method skip_if_not_needed_match to check whether the record referenced by
+    ref_ptr has its match flag set either to MATCH_FOUND and join_tab is the
+    first inner table of a semi-join, or it's set to MATCH_IMPOSSIBLE and
+    join_tab is the first inner table of an outer join.
+    If so, the function just skips this record setting the value of the
+    cursor 'pos' to the position right after it.
+
+  RETURN VALUE    
+    TRUE   the record referenced by rec_ptr has been skipped
+    FALSE  otherwise  
+*/
+
+bool JOIN_CACHE_BNL::skip_next_candidate_for_match(uchar *rec_ptr)
+{
+  pos= rec_ptr-base_prefix_length; 
+  return skip_if_not_needed_match();
+}
+
+
+/*
+  Read next record from the BNL join cache buffer when looking for matches 
+
+  SYNOPSIS
+    read_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after the prefix
+             the current record.
+
+  DESCRIPTION
+    This implementation of the virtual method read_next_candidate_for_match
+    calls the method get_record to read the record referenced by rec_ptr from
+    the join buffer into the record buffer. If this record refers to the
+    fields in the other join buffers the call of get_record ensures that
+    these fields are read into the corresponding record buffers as well.
+    This function is supposed to be called after a successful call of
+    the method get_next_candidate_for_match.
+    
+  RETURN VALUE   
+    none
+*/
+
+void JOIN_CACHE_BNL::read_next_candidate_for_match(uchar *rec_ptr)
+{
+  pos= rec_ptr-base_prefix_length;
+  get_record();
+} 
+
+
+/*
+  Initialize the BNL join cache 
+
+  SYNOPSIS
+    init
+
+  DESCRIPTION
+    The function initializes the cache structure. It is supposed to be called
+    right after a constructor for the JOIN_CACHE_BNL.
+
+  NOTES
+    The function first constructs a companion object of the type JOIN_TAB_SCAN,
+    then it calls the init method of the parent class.
+    
+  RETURN VALUE  
+    0   initialization with buffer allocations has been succeeded
+    1   otherwise
+*/
+
+int JOIN_CACHE_BNL::init()
+{
+  DBUG_ENTER("JOIN_CACHE_BNL::init");
+
+  if (!(join_tab_scan= new JOIN_TAB_SCAN(join, join_tab)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(JOIN_CACHE::init());
+}
+
+
+/*
+  Get the chain of records from buffer matching the current candidate for join
+
+  SYNOPSIS
+    get_matching_chain_by_join_key()
+
+  DESCRIPTION
+    This function first build a join key for the record of join_tab that
+    currently is in the join buffer for this table. Then it looks for
+    the key entry with this key in the hash table of the join cache.
+    If such a key entry is found the function returns the pointer to
+    the head of the chain of records in the join_buffer that match this
+    key.
+
+  RETURN VALUE
+    The pointer to the corresponding circular list of records if
+    the key entry with the join key is found, 0 - otherwise.
+*/  
+
+uchar *JOIN_CACHE_BNLH::get_matching_chain_by_join_key()
+{
+  uchar *key_ref_ptr;
+  TABLE *table= join_tab->table;
+  TABLE_REF *ref= &join_tab->ref;
+  KEY *keyinfo= table->key_info+ref->key;
+  /* Build the join key value out of the record in the record buffer */
+  key_copy(key_buff, table->record[0], keyinfo, key_length);
+  /* Look for this key in the join buffer */
+  if (!key_search(key_buff, key_length, &key_ref_ptr))
+    return 0;
+  return key_ref_ptr+get_size_of_key_offset();
+}
+
+
+/*
+  Prepare to iterate over the BNLH join cache buffer to look for matches 
+
+  SYNOPSIS
+    prepare_look_for_matches()
+      skip_last   <-> ignore the last record in the buffer
+
+  DESCRIPTION
+    The function prepares the join cache for an iteration over the
+    records in the join buffer. The iteration is performed when looking
+    for matches for the record from the joined table join_tab that 
+    has been placed into the record buffer of the joined table.
+    If the value of the parameter skip_last is TRUE then the last
+    record from the join buffer is ignored.
+    The function builds the hashed key from the join fields of join_tab
+    and uses this key to look in the hash table of the join cache for
+    the chain of matching records in in the join buffer. If it finds
+    such a chain it sets  the member last_rec_ref_ptr to point to the
+    last link of the chain while setting the member next_rec_ref_po 0.
+    
+  RETURN VALUE    
+    TRUE    there are no matching records in the buffer to iterate over 
+    FALSE   otherwise
+*/
+    
+bool JOIN_CACHE_BNLH::prepare_look_for_matches(bool skip_last)
+{
+  uchar *curr_matching_chain;
+  last_matching_rec_ref_ptr= next_matching_rec_ref_ptr= 0;
+  if (!(curr_matching_chain= get_matching_chain_by_join_key()))
+    return 1;
+  last_matching_rec_ref_ptr= get_next_rec_ref(curr_matching_chain); 
+  return 0;
+}
+
+
+/*
+  Get next record from the BNLH join cache buffer when looking for matches 
+
+  SYNOPSIS
+    get_next_candidate_for_match
+
+  DESCRIPTION
+    This method is used for iterations over the records from the join
+    cache buffer when looking for matches for records from join_tab.
+    The methods performs the necessary preparations to read the next record
+    from the join buffer into the record buffer by the method
+    read_next_candidate_for_match, or, to skip the next record from the join 
+    buffer by the method skip_next_candidate_for_match.    
+    This implementation of the virtual method moves to the next record
+    in the chain of all records from the join buffer that are to be
+    equi-joined with the current record from join_tab.
+    
+  RETURN VALUE   
+    pointer to the beginning of the record fields in the join buffer
+    if the there is another record to iterate over, 0 - otherwise.  
+*/
+
+uchar *JOIN_CACHE_BNLH::get_next_candidate_for_match()
+{
+  if (next_matching_rec_ref_ptr == last_matching_rec_ref_ptr)
+    return 0;
+  next_matching_rec_ref_ptr= get_next_rec_ref(next_matching_rec_ref_ptr ?
+                                                next_matching_rec_ref_ptr :
+                                                last_matching_rec_ref_ptr);
+  return next_matching_rec_ref_ptr+rec_fields_offset; 
+} 
+
+
+/*
+  Check whether the matching record from the BNLH cache is to be skipped 
+
+  SYNOPSIS
+    skip_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after 
+             the previous record
+
+  DESCRIPTION
+    This implementation of the virtual function just calls the
+    method get_match_flag_by_pos to check whether the record referenced
+    by ref_ptr has its match flag set to MATCH_FOUND.
+
+  RETURN VALUE    
+    TRUE   the record referenced by rec_ptr has its match flag set to 
+           MATCH_FOUND
+    FALSE  otherwise  
+*/
+
+bool JOIN_CACHE_BNLH::skip_next_candidate_for_match(uchar *rec_ptr)
+{
+ return  join_tab->check_only_first_match() &&
+          (get_match_flag_by_pos(rec_ptr) == MATCH_FOUND);
+}
+
+
+/*
+  Read next record from the BNLH join cache buffer when looking for matches 
+
+  SYNOPSIS
+    read_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after 
+             the previous record
+
+  DESCRIPTION
+    This implementation of the virtual method read_next_candidate_for_match
+    calls the method get_record_by_pos to read the record referenced by rec_ptr
+    from the join buffer into the record buffer. If this record refers to
+    fields in the other join buffers the call of get_record_by_po ensures that
+    these fields are read into the corresponding record buffers as well.
+    This function is supposed to be called after a successful call of
+    the method get_next_candidate_for_match.
+    
+  RETURN VALUE   
+    none
+*/
+
+void JOIN_CACHE_BNLH::read_next_candidate_for_match(uchar *rec_ptr)
+{
+  get_record_by_pos(rec_ptr);
+} 
+
+
+/*
+  Initialize the BNLH join cache 
+
+  SYNOPSIS
+    init
+
+  DESCRIPTION
+    The function initializes the cache structure. It is supposed to be called
+    right after a constructor for the JOIN_CACHE_BNLH.
+
+  NOTES
+    The function first constructs a companion object of the type JOIN_TAB_SCAN,
+    then it calls the init method of the parent class.
+    
+  RETURN VALUE  
+    0   initialization with buffer allocations has been succeeded
+    1   otherwise
+*/
+
+int JOIN_CACHE_BNLH::init()
+{
+  DBUG_ENTER("JOIN_CACHE_BNLH::init");
+
+  if (!(join_tab_scan= new JOIN_TAB_SCAN(join, join_tab)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(JOIN_CACHE_HASHED::init());
+}
+
+
+/* 
+  Calculate the increment of the MRR buffer for a record write       
+
+  SYNOPSIS
+    aux_buffer_incr()
+
+  DESCRIPTION
+    This implementation of the virtual function aux_buffer_incr determines
+    for how much the size of the MRR buffer should be increased when another
+    record is added to the cache.   
+
+  RETURN VALUE
+    the increment of the size of the MRR buffer for the next record
+*/
+
+uint JOIN_TAB_SCAN_MRR::aux_buffer_incr(ulong recno)
+{
+  uint incr= 0;
+  TABLE_REF *ref= &join_tab->ref;
+  TABLE *tab= join_tab->table;
+  uint rec_per_key= tab->key_info[ref->key].rec_per_key[ref->key_parts-1];
+  set_if_bigger(rec_per_key, 1);
+  if (recno == 1)
+    incr=  ref->key_length + tab->file->ref_length;
+  incr+= tab->file->stats.mrr_length_per_rec * rec_per_key;
+  return incr; 
+}
+
+
+/* 
+  Initiate iteration over records returned by MRR for the current join buffer
+
+  SYNOPSIS
+    open()
+
+  DESCRIPTION
+    The function initiates the process of iteration over the records from 
+    join_tab returned by the MRR interface functions for records from
+    the join buffer. Such an iteration is performed by the BKA/BKAH join
+    algorithm for each new refill of the join buffer.
+    The function calls the MRR handler function multi_range_read_init to
+    initiate this process.
+
+  RETURN VALUE   
+    0            the initiation is a success 
+    error code   otherwise     
+*/
+
+int JOIN_TAB_SCAN_MRR::open()
+{
+  handler *file= join_tab->table->file;
+
+  join_tab->table->null_row= 0;
+
+
+  /* Dynamic range access is never used with BKA */
+  DBUG_ASSERT(join_tab->use_quick != 2);
+
+  for (JOIN_TAB *tab =join->join_tab; tab != join_tab ; tab++)
+  {
+    tab->status= tab->table->status;
+    tab->table->status= 0;
+  }
+
+  init_mrr_buff();
+
+  /* 
+    Prepare to iterate over keys from the join buffer and to get
+    matching candidates obtained with MMR handler functions.
+  */ 
+  if (!file->inited)
+    file->ha_index_init(join_tab->ref.key, 1);
+  ranges= cache->get_number_of_ranges_for_mrr();
+  if (!join_tab->cache_idx_cond)
+    range_seq_funcs.skip_index_tuple= 0;
+  return file->multi_range_read_init(&range_seq_funcs, (void*) cache,
+                                     ranges, mrr_mode, &mrr_buff);
+}
+
+
+/* 
+  Read the next record returned by MRR for the current join buffer
+
+  SYNOPSIS
+    next()
+
+  DESCRIPTION
+    The function reads the next record from the joined table join_tab
+    returned by the MRR handler function multi_range_read_next for
+    the current refill of the join buffer. The record is read into
+    the record buffer used for join_tab records in join operations.
+
+  RETURN VALUE   
+    0            the next record exists and has been successfully read 
+    error code   otherwise     
+*/
+
+int JOIN_TAB_SCAN_MRR::next()
+{
+  char **ptr= (char **) cache->get_curr_association_ptr();
+  int rc= join_tab->table->file->multi_range_read_next(ptr) ? -1 : 0;
+  if (!rc)
+  {
+    /* 
+      If a record in in an incremental cache contains no fields then the
+      association for the last record in cache will be equal to cache->end_pos
+    */ 
+    DBUG_ASSERT(cache->buff <= (uchar *) (*ptr) &&
+                (uchar *) (*ptr) <= cache->end_pos);
+    update_virtual_fields(join->thd, join_tab->table);
+  }
+  return rc;
+}
+
+
+/*
+  Initialize retrieval of range sequence for BKA join algorithm
     
   SYNOPSIS
     bka_range_seq_init()
      init_params   pointer to the BKA join cache object
      n_ranges      the number of ranges obtained 
-     flags         combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
+     flags         combination of MRR flags
 
   DESCRIPTION
     The function interprets init_param as a pointer to a JOIN_CACHE_BKA
@@ -2128,7 +3613,7 @@ finish:
   NOTE
     This function are used only as a callback function.    
 
-  RETURN
+  RETURN VALUE
     init_param value that is to be used as a parameter of bka_range_seq_next()
 */    
 
@@ -2143,11 +3628,11 @@ range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
 
 
 /*
-  Get the key over the next record from the join buffer used by BKA  
+  Get the next range/key over records from the join buffer used by a BKA cache
     
   SYNOPSIS
     bka_range_seq_next()
-      seq    the value returned by  bka_range_seq_init
+      seq        the value returned by  bka_range_seq_init
       range  OUT reference to the next range
   
   DESCRIPTION
@@ -2158,8 +3643,8 @@ range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
   NOTE
     This function are used only as a callback function.
    
-  RETURN
-    0   ok, the range structure filled with info about the next key
+  RETURN VALUE
+    0   ok, the range structure filled with info about the next range/key
     1   no more ranges
 */    
 
@@ -2196,15 +3681,14 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     
   DESCRIPTION
     The function interprets seq as a pointer to a JOIN_CACHE_BKA object.
-    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
-    object. The function returns TRUE if the record with this range_info
-    is to be filtered out from the stream of records returned by
+    The function returns TRUE if the record with this range_info 
+    is to be filtered out from the stream of records returned by 
     multi_range_read_next(). 
 
   NOTE
     This function are used only as a callback function.
 
-  RETURN
+  RETURN VALUE
     1    record with this range_info is to be filtered out from the stream
          of records returned by multi_range_read_next()
     0    the record is to be left in the stream
@@ -2215,207 +3699,194 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
 {
   DBUG_ENTER("bka_range_seq_skip_record");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  bool res= cache->get_match_flag_by_pos((uchar *) range_info);
+  bool res= cache->get_match_flag_by_pos((uchar *) range_info) ==
+            JOIN_CACHE::MATCH_FOUND;
   DBUG_RETURN(res);
 }
 
+
 /*
-  Using BKA find matches from the next table for records from the join buffer   
+  Check if the record combination from BKA cache matches the index condition
 
   SYNOPSIS
-    join_matching_records()
-      skip_last    do not look for matches for the last partial join record 
+    bka_skip_index_tuple()
+      rseq             value returned by bka_range_seq_init()
+      range_info       record chain for the next range/key returned by MRR
+    
+  DESCRIPTION
+    This is wrapper for JOIN_CACHE_BKA::skip_index_tuple method,
+    see comments there.
+
+  NOTE
+    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
+ 
+  RETURN VALUE
+    0    The record combination satisfies the index condition
+    1    Otherwise
+*/
+
+static 
+bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("bka_skip_index_tuple");
+  JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
+  DBUG_RETURN(cache->skip_index_tuple(range_info));
+}
+
+
+/*
+  Prepare to read the record from BKA cache matching the current joined record   
+
+  SYNOPSIS
+    prepare_look_for_matches()
+      skip_last <-> ignore the last record in the buffer (always unused here)
 
   DESCRIPTION
-    This function can be used only when the table join_tab can be accessed
-    by keys built over the fields of previous join tables.
-    The function retrieves all partial join records from the join buffer and
-    for each of them builds the key value to access join_tab, performs index
-    look-up with this key and selects matching records yielded by this look-up
-    If a match is found the function will call the sub_select function trying
-    to look for matches for the remaining join operations.
-    This function currently is called only from the function join_records.    
-    It's assumed that this function is always called with the skip_last 
-    parameter equal to false.
+    The function prepares to iterate over records in the join cache buffer
+    matching the record loaded into the record buffer for join_tab when
+    performing join operation by BKA join algorithm. With BKA algorithms the
+    record loaded into the record buffer for join_tab always has a direct
+    reference to the matching records from the join buffer. When the regular
+    BKA join algorithm is employed the record from join_tab can refer to
+    only one such record.   
+    The function sets the counter of the remaining records from the cache 
+    buffer that would match the current join_tab record to 1.
+    
+  RETURN VALUE   
+    TRUE    there are no records in the buffer to iterate over 
+    FALSE   otherwise
+*/
+    
+bool JOIN_CACHE_BKA::prepare_look_for_matches(bool skip_last)
+{
+  if (!records)
+    return TRUE;
+  rem_records= 1;
+  return FALSE;
+}
+
+
+/*
+  Get the record from the BKA cache matching the current joined record   
+
+  SYNOPSIS
+    get_next_candidate_for_match
+
+  DESCRIPTION
+    This method is used for iterations over the records from the join
+    cache buffer when looking for matches for records from join_tab.
+    The method performs the necessary preparations to read the next record
+    from the join buffer into the record buffer by the method
+    read_next_candidate_for_match, or, to skip the next record from the join 
+    buffer by the method skip_if_not_needed_match.    
+    This implementation of the virtual method get_next_candidate_for_match
+    just  decrements the counter of the records that are to be iterated over
+    and returns the value of curr_association as a reference to the position
+    of the beginning of the record fields in the buffer.
+    
+  RETURN VALUE   
+    pointer to the start of the record fields in the join buffer
+    if the there is another record to iterate over, 0 - otherwise.  
+*/
+
+uchar *JOIN_CACHE_BKA::get_next_candidate_for_match()
+{
+  if (!rem_records)
+    return 0;
+  rem_records--;
+  return curr_association;
+} 
+
+
+/*
+  Check whether the matching record from the BKA cache is to be skipped 
+
+  SYNOPSIS
+    skip_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after 
+             the previous record
+
+  DESCRIPTION
+    This implementation of the virtual function just calls the
+    method get_match_flag_by_pos to check whether the record referenced
+    by ref_ptr has its match flag set to MATCH_FOUND.
+
+  RETURN VALUE   
+    TRUE   the record referenced by rec_ptr has its match flag set to
+           MATCH_FOUND
+    FALSE  otherwise  
+*/
+
+bool JOIN_CACHE_BKA::skip_next_candidate_for_match(uchar *rec_ptr)
+{
+  return join_tab->check_only_first_match() && 
+         (get_match_flag_by_pos(rec_ptr) == MATCH_FOUND);
+}
+
+
+/*
+  Read the next record from the BKA join cache buffer when looking for matches 
+
+  SYNOPSIS
+    read_next_candidate_for_match
+    rec_ptr  pointer to the position in the join buffer right after 
+             the previous record
+
+  DESCRIPTION
+    This implementation of the virtual method read_next_candidate_for_match
+    calls the method get_record_by_pos to read the record referenced by rec_ptr
+    from the join buffer into the record buffer. If this record refers to
+    fields in the other join buffers the call of get_record_by_po ensures that
+    these fields are read into the corresponding record buffers as well.
+    This function is supposed to be called after a successful call of
+    the method get_next_candidate_for_match.
+    
+  RETURN VALUE   
+    none
+*/
+
+void JOIN_CACHE_BKA::read_next_candidate_for_match(uchar *rec_ptr)
+{
+  get_record_by_pos(rec_ptr);
+} 
+
+
+/*
+  Initialize the BKA join cache 
+
+  SYNOPSIS
+    init
+
+  DESCRIPTION
+    The function initializes the cache structure. It is supposed to be called
+    right after a constructor for the JOIN_CACHE_BKA.
 
   NOTES
-    The function produces all matching extensions for the records in the 
-    join buffer following the path of the Batched Key Access algorithm. 
-    When an outer join operation is performed all unmatched records from
-    the join buffer must be extended by null values. The function 
-    join_null_complements serves this purpose.
-    The Batched Key Access algorithm assumes that key accesses are batched.
-    In other words it assumes that, first, either keys themselves or the
-    corresponding rowids (primary keys) are accumulated in a buffer, then
-    data rows from  join_tab are fetched for all of them. When a row is
-    fetched it is always returned with a reference to the key by which it
-    has been accessed.
-    When key values are batched we can save on the number of the server 
-    requests for index lookups. For the remote engines, like NDB cluster, it
-    essentially reduces the number of round trips between the server and
-    the engine when performing a join operation. 
-    When the rowids for the keys are batched we can optimize the order
-    in what we fetch the data for this rowids. The performance benefits of
-    this optimization can be significant for such engines as MyISAM, InnoDB.
-    What is exactly batched are hidden behind implementations of
-    MRR handler interface that is supposed to be appropriately chosen
-    for each engine. If for a engine no specific implementation of the MRR
-    interface is supllied then the default implementation is used. This
-    implementation actually follows the path of Nested Loops Join algorithm.
-    In this case BKA join surely will demonstrate a worse performance than
-    NL join. 
-            
-  RETURN
-    return one of enum_nested_loop_state
+    The function first constructs a companion object of the type 
+    JOIN_TAB_SCAN_MRR, then it calls the init method of the parent class.
+    
+  RETURN VALUE   
+    0   initialization with buffer allocations has been succeeded
+    1   otherwise
 */
 
-enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
+int JOIN_CACHE_BKA::init()
 {
-  int error;
-  handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
-  uchar *rec_ptr= 0;
   bool check_only_first_match= join_tab->check_only_first_match();
 
-  /* Set functions to iterate over keys in the join buffer */
+  RANGE_SEQ_IF rs_funcs= { bka_range_seq_init, 
+                           bka_range_seq_next,
+                           check_only_first_match ?
+                             bka_range_seq_skip_record : 0,
+                           bka_skip_index_tuple };
 
-  RANGE_SEQ_IF seq_funcs= { bka_range_seq_init, 
-                            bka_range_seq_next,
-                            check_only_first_match ?
-                              bka_range_seq_skip_record : 0,
-                            join_tab->cache_idx_cond ?
-                              bka_skip_index_tuple : 0 };
+  DBUG_ENTER("JOIN_CACHE_BKA::init");
 
-  /* The value of skip_last must be always FALSE when this function is called */
-  DBUG_ASSERT(!skip_last);
+  if (!(join_tab_scan= new JOIN_TAB_SCAN_MRR(join, join_tab, 
+                                             mrr_mode, rs_funcs)))
+    DBUG_RETURN(1);
 
-  /* Return at once if there are no records in the join buffer */
-  if (!records)
-    return NESTED_LOOP_OK;  
-                   
-  rc= init_join_matching_records(&seq_funcs, records);
-  if (rc != NESTED_LOOP_OK)
-    goto finish;
-
-  while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
-  {
-    if (join->thd->killed)
-    {
-      /* The user has aborted the execution of the query */
-      join->thd->send_kill_message();
-      rc= NESTED_LOOP_KILLED; 
-      goto finish;
-    }
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
-    /* 
-      If only the first match is needed and it has been already found 
-      for the associated partial join record then the returned candidate
-      is discarded.
-    */
-    if (rc == NESTED_LOOP_OK &&
-        (!check_only_first_match || !get_match_flag_by_pos(rec_ptr)))
-    {
-      get_record_by_pos(rec_ptr);
-      update_virtual_fields(join->thd, join_tab->table);
-      rc= generate_full_extensions(rec_ptr);
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	goto finish;   
-    }
-  }
-
-  if (error > 0 && error != HA_ERR_END_OF_FILE)	   
-    return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
-}
-
-
-
-/* 
-  Prepare to search for records that match records from the join buffer
-
-  SYNOPSIS
-    init_join_matching_records()
-      seq_funcs    structure of range sequence interface
-      ranges       number of keys/ranges in the sequence
-
-  DESCRIPTION
-    This function calls the multi_range_read_init function to set up
-    the BKA process of generating the keys from the records in the join
-    buffer and looking for matching records from the table to be joined.
-    The function passes as a parameter a structure of functions that
-    implement the range sequence interface. This interface is used to
-    enumerate all generated keys and optionally to filter the matching
-    records returned by the multi_range_read_next calls from the
-    intended invocation of the join_matching_records method. The
-    multi_range_read_init function also receives the parameters for
-    MRR buffer to be used and flags specifying the mode in which
-    this buffer will be functioning.
-    The number of keys in the sequence expected by multi_range_read_init
-    is passed through the parameter ranges.  
-    
-  RETURN
-    return one of enum_nested_loop_state
-*/
-
-enum_nested_loop_state 
-JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
-{
-  int error;
-  handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
-
-  join_tab->table->null_row= 0;
-
-
-  /* Dynamic range access is never used with BKA */
-  DBUG_ASSERT(join_tab->use_quick != 2);
-
-  for (JOIN_TAB *tab =join->join_tab; tab != join_tab ; tab++)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-
-  init_mrr_buff();
-
-  /* 
-    Prepare to iterate over keys from the join buffer and to get
-    matching candidates obtained with MMR handler functions.
-  */ 
-  if (!file->inited)
-    file->ha_index_init(join_tab->ref.key, 1);
-  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
-					  mrr_mode, &mrr_buff)))
-    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
-  
-  return rc;
-}
-
-
-/* 
-  Finish searching for records that match records from the join buffer
-
-  SYNOPSIS
-    end_join_matching_records()
-      rc      return code passed by the join_matching_records function
-
-  DESCRIPTION
-    This function perform final actions on searching for all matches for
-    the records from the join buffer and building all full join extensions
-    of the records with these matches. 
-    
-  RETURN
-    return code rc passed to the function as a parameter
-*/
-
-enum_nested_loop_state 
-JOIN_CACHE_BKA::end_join_matching_records(enum_nested_loop_state rc)
-{
-  for (JOIN_TAB *tab=join->join_tab; tab != join_tab ; tab++)
-    tab->table->status= tab->status;
-  return rc;  
+  DBUG_RETURN(JOIN_CACHE::init());
 }
 
 
@@ -2440,11 +3911,13 @@ JOIN_CACHE_BKA::end_join_matching_records(enum_nested_loop_state rc)
     If is assumed that the functions starts reading at the position of
     the record length which is provided for each records in a BKA cache.
     After the key is built the 'pos' value points to the first position after
-    the current record. 
+    the current record.
+    The function just skips the records with MATCH_IMPOSSIBLE in the
+    match flag field if there is any. 
     The function returns 0 if the initial position is after the beginning
     of the record fields for last record from the join buffer. 
 
-  RETURN
+  RETURN VALUE
     length of the key value - if the starting value of 'pos' points to
     the position before the fields for the last record,
     0 - otherwise.     
@@ -2457,12 +3930,14 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uchar *init_pos;
   JOIN_CACHE *cache;
   
-  if (pos > last_rec_pos || !records)
-    return 0;
+start:
 
   /* Any record in a BKA cache is prepended with its length */
   DBUG_ASSERT(with_length);
    
+  if ((pos+size_of_rec_len) > last_rec_pos || !records)
+    return 0;
+
   /* Read the length of the record */
   rec_len= get_rec_length(pos);
   pos+= size_of_rec_len; 
@@ -2476,6 +3951,13 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
 
   /* Read all flag fields of the record */
   read_flag_fields();
+
+  if (with_match_flag && 
+      (Match_flag) curr_rec_pos[0] == MATCH_IMPOSSIBLE )
+  {
+    pos= init_pos+rec_len;
+    goto start;
+  }
  
   if (use_emb_key)
   {
@@ -2534,445 +4016,109 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
 } 
 
 
-/* 
-  Initialize a BKA_UNIQUE cache       
+/*
+  Check the index condition of the joined table for a record from the BKA cache
 
   SYNOPSIS
-    init()
-
+    skip_index_tuple()
+      range_info       pointer to the record returned by MRR 
+    
   DESCRIPTION
-    The function initializes the cache structure. It supposed to be called
-    right after a constructor for the JOIN_CACHE_BKA_UNIQUE.
-    The function allocates memory for the join buffer and for descriptors of
-    the record fields stored in the buffer.
-    The function also estimates the number of hash table entries in the hash
-    table to be used and initializes this hash table.
+    This function is invoked from MRR implementation to check if an index
+    tuple matches the index condition. It is used in the case where the index
+    condition actually depends on both columns of the used index and columns
+    from previous tables.
+   
+  NOTES 
+    Accessing columns of the previous tables requires special handling with
+    BKA. The idea of BKA is to collect record combinations in a buffer and 
+    then do a batch of ref access lookups, i.e. by the time we're doing a
+    lookup its previous-records-combination is not in prev_table->record[0]
+    but somewhere in the join buffer.    
+    We need to get it from there back into prev_table(s)->record[0] before we
+    can evaluate the index condition, and that's why we need this function
+    instead of regular IndexConditionPushdown.
 
   NOTES
-    The code of this function should have been included into the constructor
-    code itself. However the new operator for the class JOIN_CACHE_BKA_UNIQUE
-    would never fail while memory allocation for the join buffer is not 
-    absolutely unlikely to fail. That's why this memory allocation has to be
-    placed in a separate function that is called in a couple with a cache 
-    constructor.
-    It is quite natural to put almost all other constructor actions into
-    this function.     
-  
-  RETURN
-    0   initialization with buffer allocations has been succeeded
-    1   otherwise
+    Possible optimization:
+    Before we unpack the record from a previous table
+    check if this table is used in the condition.
+    If so then unpack the record otherwise skip the unpacking.
+    This should be done by a special virtual method
+    get_partial_record_by_pos().
+
+  RETURN VALUE
+    1    the record combination does not satisfies the index condition
+    0    otherwise
 */
 
-int JOIN_CACHE_BKA_UNIQUE::init()
+bool JOIN_CACHE_BKA::skip_index_tuple(char *range_info)
 {
-  int rc= 0;
-  TABLE_REF *ref= &join_tab->ref;
-  
-  DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::init");
-
-  hash_table= 0;
-  key_entries= 0;
-
-  if ((rc= JOIN_CACHE_BKA::init()))
-    DBUG_RETURN (rc);
-
-  key_length= ref->key_length;
-
-  /* Take into account a reference to the next record in the key chain */
-  pack_length+= get_size_of_rec_offset(); 
- 
-  /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */
-  uint max_size_of_key_ofs= max(2, get_size_of_rec_offset());  
-  for (size_of_key_ofs= 2;
-       size_of_key_ofs <= max_size_of_key_ofs;
-       size_of_key_ofs+= 2)
-  {    
-    key_entry_length= get_size_of_rec_offset() + // key chain header
-                      size_of_key_ofs +          // reference to the next key 
-                      (use_emb_key ?  get_size_of_rec_offset() : key_length);
-
-    uint n= buff_size / (pack_length+key_entry_length+size_of_key_ofs);
-
-    /*
-      TODO: Make a better estimate for this upper bound of
-            the number of records in in the join buffer.
-    */
-    uint max_n= buff_size / (pack_length-length+
-                             key_entry_length+size_of_key_ofs);
-
-    hash_entries= (uint) (n / 0.7);
-    
-    if (offset_size(max_n*key_entry_length) <=
-        size_of_key_ofs)
-      break;
-  }
-   
-  /* Initialize the hash table */ 
-  hash_table= buff + (buff_size-hash_entries*size_of_key_ofs);
-  cleanup_hash_table();
-  curr_key_entry= hash_table;
-
-  pack_length+= key_entry_length;
-  pack_length_with_blob_ptrs+= get_size_of_rec_offset() + key_entry_length;
-
-  rec_fields_offset= get_size_of_rec_offset()+get_size_of_rec_length()+
-                     (prev_cache ? prev_cache->get_size_of_rec_offset() : 0);
-
-  data_fields_offset= 0;
-  if (use_emb_key)
-  {
-    CACHE_FIELD *copy= field_descr;
-    CACHE_FIELD *copy_end= copy+flag_fields;
-    for ( ; copy < copy_end; copy++)
-      data_fields_offset+= copy->length;
-  } 
-
-  DBUG_RETURN(rc);
+  DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
+  get_record_by_pos((uchar*)range_info);
+  DBUG_RETURN(!join_tab->cache_idx_cond->val_int());
 }
 
-
-/* 
-  Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing
-
-  SYNOPSIS
-    reset()
-      for_writing  if it's TRUE the function reset the buffer for writing
-
-  DESCRIPTION
-    This implementation of the virtual function reset() resets the join buffer
-    of the JOIN_CACHE_BKA_UNIQUE class for reading or writing.
-    Additionally to what the default implementation does this function
-    cleans up the hash table allocated within the buffer.  
-    
-  RETURN
-    none
-*/
- 
-void JOIN_CACHE_BKA_UNIQUE::reset(bool for_writing)
-{
-  this->JOIN_CACHE::reset(for_writing);
-  if (for_writing && hash_table)
-    cleanup_hash_table();
-  curr_key_entry= hash_table;
-}
-
-/* 
-  Add a record into the JOIN_CACHE_BKA_UNIQUE buffer
-
-  SYNOPSIS
-    put_record()
-
-  DESCRIPTION
-    This implementation of the virtual function put_record writes the next
-    matching record into the join buffer of the JOIN_CACHE_BKA_UNIQUE class.
-    Additionally to what the default implementation does this function
-    performs the following. 
-    It extracts from the record the key value used in lookups for matching
-    records and searches for this key in the hash tables from the join cache.
-    If it finds the key in the hash table it joins the record to the chain
-    of records with this key. If the key is not found in the hash table the
-    key is placed into it and a chain containing only the newly added record 
-    is attached to the key entry. The key value is either placed in the hash 
-    element added for the key or, if the use_emb_key flag is set, remains in
-    the record from the partial join.
-    
-  RETURN
-    TRUE    if it has been decided that it should be the last record
-            in the join buffer,
-    FALSE   otherwise
-*/
-
-bool JOIN_CACHE_BKA_UNIQUE::put_record()
-{
-  bool is_full;
-  uchar *key;
-  uint key_len= key_length;
-  uchar *key_ref_ptr;
-  uchar *link= 0;
-  TABLE_REF *ref= &join_tab->ref;
-  uchar *next_ref_ptr= pos;
-
-  pos+= get_size_of_rec_offset();
-  /* Write the record into the join buffer */  
-  if (prev_cache)
-    link= prev_cache->get_curr_rec_link();
-  write_record_data(link, &is_full);
-
-  if (use_emb_key)
-    key= get_curr_emb_key();
-  else
-  {
-    /* Build the key over the fields read into the record buffers */ 
-    cp_buffer_from_ref(join->thd, join_tab->table, ref);
-    key= ref->key_buff;
-  }
-
-  /* Look for the key in the hash table */
-  if (key_search(key, key_len, &key_ref_ptr))
-  {
-    uchar *last_next_ref_ptr;
-    /* 
-      The key is found in the hash table. 
-      Add the record to the circular list of the records attached to this key.
-      Below 'rec' is the record to be added into the record chain for the found
-      key, 'key_ref' points to a flatten representation of the st_key_entry 
-      structure that contains the key and the head of the record chain.
-    */
-    last_next_ref_ptr= get_next_rec_ref(key_ref_ptr+get_size_of_key_offset());
-    /* rec->next_rec= key_entry->last_rec->next_rec */
-    memcpy(next_ref_ptr, last_next_ref_ptr, get_size_of_rec_offset());
-    /* key_entry->last_rec->next_rec= rec */ 
-    store_next_rec_ref(last_next_ref_ptr, next_ref_ptr);
-    /* key_entry->last_rec= rec */
-    store_next_rec_ref(key_ref_ptr+get_size_of_key_offset(), next_ref_ptr);
-  }
-  else
-  {
-    /* 
-      The key is not found in the hash table.
-      Put the key into the join buffer linking it with the keys for the
-      corresponding hash entry. Create a circular list with one element
-      referencing the record and attach the list to the key in the buffer.
-    */
-    uchar *cp= last_key_entry;
-    cp-= get_size_of_rec_offset()+get_size_of_key_offset();
-    store_next_key_ref(key_ref_ptr, cp);
-    store_null_key_ref(cp);
-    store_next_rec_ref(next_ref_ptr, next_ref_ptr);
-    store_next_rec_ref(cp+get_size_of_key_offset(), next_ref_ptr);
-    if (use_emb_key)
-    {
-      cp-= get_size_of_rec_offset();
-      store_emb_key_ref(cp, key);
-    }
-    else
-    {
-      cp-= key_len;
-      memcpy(cp, key, key_len);
-    }
-    last_key_entry= cp;
-    /* Increment the counter of key_entries in the hash table */ 
-    key_entries++;
-  }  
-  return is_full;
-}
 
 
 /*
-  Read the next record from the JOIN_CACHE_BKA_UNIQUE buffer
-
-  SYNOPSIS
-    get_record()
-
-  DESCRIPTION
-    Additionally to what the default implementation of the virtual 
-    function get_record does this implementation skips the link element
-    used to connect the records with the same key into a chain. 
-
-  RETURN
-    TRUE  - there are no more records to read from the join buffer
-    FALSE - otherwise
-*/
-
-bool JOIN_CACHE_BKA_UNIQUE::get_record()
-{ 
-  pos+= get_size_of_rec_offset();
-  return this->JOIN_CACHE::get_record();
-}
-
-
-/* 
-  Skip record from the JOIN_CACHE_BKA_UNIQUE join buffer if its match flag is on
-
-  SYNOPSIS
-    skip_record_if_match()
-
-  DESCRIPTION
-    This implementation of the virtual function skip_record_if_match does
-    the same as the default implementation does, but it takes into account
-    the link element used to connect the records with the same key into a chain. 
-
-  RETURN
-    TRUE  - the match flag is on and the record has been skipped
-    FALSE - the match flag is off 
-*/
-
-bool JOIN_CACHE_BKA_UNIQUE::skip_record_if_match()
-{
-  uchar *save_pos= pos;
-  pos+= get_size_of_rec_offset();
-  if (!this->JOIN_CACHE::skip_record_if_match())
-  {
-    pos= save_pos;
-    return FALSE;
-  }
-  return TRUE;
-}
-
-
-/* 
-  Search for a key in the hash table of the join buffer
-
-  SYNOPSIS
-    key_search()
-      key             pointer to the key value
-      key_len         key value length
-      key_ref_ptr OUT position of the reference to the next key from 
-                      the hash element for the found key , or
-                      a position where the reference to the the hash 
-                      element for the key is to be added in the
-                      case when the key has not been found
-      
-  DESCRIPTION
-    The function looks for a key in the hash table of the join buffer.
-    If the key is found the functionreturns the position of the reference
-    to the next key from  to the hash element for the given key. 
-    Otherwise the function returns the position where the reference to the
-    newly created hash element for the given key is to be added.  
-
-  RETURN
-    TRUE  - the key is found in the hash table
-    FALSE - otherwise
-*/
-
-bool JOIN_CACHE_BKA_UNIQUE::key_search(uchar *key, uint key_len,
-                                       uchar **key_ref_ptr) 
-{
-  bool is_found= FALSE;
-  uint idx= get_hash_idx(key, key_length);
-  uchar *ref_ptr= hash_table+size_of_key_ofs*idx;
-  while (!is_null_key_ref(ref_ptr))
-  {
-    uchar *next_key;
-    ref_ptr= get_next_key_ref(ref_ptr);
-    next_key= use_emb_key ? get_emb_key(ref_ptr-get_size_of_rec_offset()) :
-                            ref_ptr-key_length;
-
-    if (memcmp(next_key, key, key_len) == 0)
-    {
-      is_found= TRUE;
-      break;
-    }
-  }
-  *key_ref_ptr= ref_ptr;
-  return is_found;
-} 
-
-
-/* 
-  Calclulate hash value for a key in the hash table of the join buffer
-
-  SYNOPSIS
-    get_hash_idx()
-      key             pointer to the key value
-      key_len         key value length
-      
-  DESCRIPTION
-    The function calculates an index of the hash entry in the hash table
-    of the join buffer for the given key  
-
-  RETURN
-    the calculated index of the hash entry for the given key.  
-*/
-
-uint JOIN_CACHE_BKA_UNIQUE::get_hash_idx(uchar* key, uint key_len)
-{
-  ulong nr= 1;
-  ulong nr2= 4;
-  uchar *pos= key;
-  uchar *end= key+key_len;
-  for (; pos < end ; pos++)
-  {
-    nr^= (ulong) ((((uint) nr & 63)+nr2)*((uint) *pos))+ (nr << 8);
-    nr2+= 3;
-  }
-  return nr % hash_entries;
-}
-
-
-/* 
-  Clean up the hash table of the join buffer
-
-  SYNOPSIS
-    cleanup_hash_table()
-      key             pointer to the key value
-      key_len         key value length
-      
-  DESCRIPTION
-    The function cleans up the hash table in the join buffer removing all
-    hash elements from the table. 
-
-  RETURN
-    none  
-*/
-
-void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
-{
-  last_key_entry= hash_table;
-  bzero(hash_table, (buff+buff_size)-hash_table);
-  key_entries= 0;
-}
-
-
-/*
-  Initialize retrieval of range sequence for BKA_UNIQUE algorithm
+  Initialize retrieval of range sequence for the BKAH join algorithm
     
   SYNOPSIS
-    bka_range_seq_init()
-      init_params   pointer to the BKA_INIQUE join cache object
+    bkah_range_seq_init()
+      init_params   pointer to the BKAH join cache object
       n_ranges      the number of ranges obtained 
-      flags         combination of HA_MRR_SINGLE_POINT, HA_MRR_FIXED_KEY
+      flags         combination of MRR flags
 
   DESCRIPTION
-    The function interprets init_param as a pointer to a JOIN_CACHE_BKA_UNIQUE
-    object. The function prepares for an iteration over the unique join keys
+    The function interprets init_param as a pointer to a JOIN_CACHE_BKAH
+    object. The function prepares for an iteration over distinct join keys
     built over the records from the cache join buffer.
 
   NOTE
     This function are used only as a callback function.    
 
-  RETURN
+  RETURN VALUE
     init_param    value that is to be used as a parameter of 
-                  bka_unique_range_seq_next()
+                  bkah_range_seq_next()
 */    
 
 static 
-range_seq_t bka_unique_range_seq_init(void *init_param, uint n_ranges,
-                                      uint flags)
+range_seq_t bkah_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
-  DBUG_ENTER("bka_unique_range_seq_init");
-  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) init_param;
+  DBUG_ENTER("bkah_range_seq_init");
+  JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) init_param;
   cache->reset(0);
   DBUG_RETURN((range_seq_t) init_param);
 }
 
 
 /*
-  Get the key over the next record from the join buffer used by BKA_UNIQUE  
+  Get the next range/key over records from the join buffer of a BKAH cache  
     
   SYNOPSIS
-    bka_unique_range_seq_next()
-      seq        value returned by  bka_unique_range_seq_init()
+    bkah_range_seq_next()
+      seq        value returned by  bkah_range_seq_init()
       range  OUT reference to the next range
   
   DESCRIPTION
-    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE 
+    The function interprets seq as a pointer to a JOIN_CACHE_BKAH 
     object. The function returns a pointer to the range descriptor
     for the next unique key built over records from the join buffer.
 
   NOTE
     This function are used only as a callback function.
    
-  RETURN
-    0    ok, the range structure filled with info about the next key
+  RETURN VALUE
+    0    ok, the range structure filled with info about the next range/key
     1    no more ranges
 */    
 
 static 
-uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+uint bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
-  DBUG_ENTER("bka_unique_range_seq_next");
-  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
+  DBUG_ENTER("bkah_range_seq_next");
+  JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
   TABLE_REF *ref= &cache->join_tab->ref;
   key_range *start_key= &range->start_key;
   if ((start_key->length= cache->get_next_key((uchar **) &start_key->key)))
@@ -2990,16 +4136,16 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
 
 /*
-  Check whether range_info orders to skip the next record from BKA_UNIQUE buffer
+  Check whether range_info orders to skip the next record from BKAH join buffer
 
   SYNOPSIS
-    bka_unique_range_seq_skip_record()
-      seq              value returned by bka_unique_range_seq_init()
-      range_info       information about the next range
+    bkah_range_seq_skip_record()
+      seq              value returned by bkah_range_seq_init()
+      range_info       information about the next range/key returned by MRR
       rowid [NOT USED] rowid of the record to be checked (not used)
     
   DESCRIPTION
-    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
+    The function interprets seq as a pointer to a JOIN_CACHE_BKAH
     object. The function returns TRUE if the record with this range_info
     is to be filtered out from the stream of records returned by
     multi_range_read_next(). 
@@ -3007,38 +4153,138 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   NOTE
     This function are used only as a callback function.
 
-  RETURN
+  RETURN VALUE
     1    record with this range_info is to be filtered out from the stream
          of records returned by multi_range_read_next()
     0    the record is to be left in the stream
 */ 
 
 static 
-bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
-                                      uchar *rowid)
+bool bkah_range_seq_skip_record(range_seq_t rseq, char *range_info,
+                                uchar *rowid)
 {
-  DBUG_ENTER("bka_unique_range_seq_skip_record");
-  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
+  DBUG_ENTER("bkah_range_seq_skip_record");
+  JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
   bool res= cache->check_all_match_flags_for_key((uchar *) range_info);
   DBUG_RETURN(res);
 }
 
  
 /*
-  Check if the record combination matches the index condition
+  Check if the record combination from BKAH cache matches the index condition
 
   SYNOPSIS
-    JOIN_CACHE_BKA_UNIQUE::skip_index_tuple()
-      rseq             Value returned by bka_range_seq_init()
-      range_info       MRR range association data
+    bkah_skip_index_tuple()
+      rseq             value returned by bka_range_seq_init()
+      range_info       record chain for the next range/key returned by MRR
+    
+  DESCRIPTION
+    This is wrapper for JOIN_CACHE_BKA_UNIQUE::skip_index_tuple method,
+    see comments there.
+
+  NOTE
+    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
+ 
+  RETURN VALUE
+    0    some records from the chain satisfy the index condition
+    1    otherwise
+*/
+
+static 
+bool bkah_skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("bka_unique_skip_index_tuple");
+  JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
+  DBUG_RETURN(cache->skip_index_tuple(range_info));
+}
+
+
+/*
+  Prepare to read record from BKAH cache matching the current joined record   
+
+  SYNOPSIS
+    prepare_look_for_matches()
+      skip_last <-> ignore the last record in the buffer (always unused here)
+
+  DESCRIPTION
+    The function prepares to iterate over records in the join cache buffer
+    matching the record loaded into the record buffer for join_tab when
+    performing join operation by BKAH join algorithm. With BKAH algorithm, if
+    association labels are used, then record loaded into the record buffer 
+    for join_tab always has a direct reference to the chain of the mathing
+    records from the join buffer. If association labels are not used then
+    then the chain of the matching records is obtained by the call of the
+    get_key_chain_by_join_key function.
+    
+  RETURN VALUE   
+    TRUE    there are no records in the buffer to iterate over 
+    FALSE   otherwise
+*/
+    
+bool JOIN_CACHE_BKAH::prepare_look_for_matches(bool skip_last)
+{
+  last_matching_rec_ref_ptr= next_matching_rec_ref_ptr= 0;
+  if (no_association &&
+      (curr_matching_chain= get_matching_chain_by_join_key()))
+    return 1;
+  last_matching_rec_ref_ptr= get_next_rec_ref(curr_matching_chain);
+  return 0;
+}
+
+/*
+  Initialize the BKAH join cache 
+
+  SYNOPSIS
+    init
+
+  DESCRIPTION
+    The function initializes the cache structure. It is supposed to be called
+    right after a constructor for the JOIN_CACHE_BKAH.
+
+  NOTES
+    The function first constructs a companion object of the type 
+    JOIN_TAB_SCAN_MRR, then it calls the init method of the parent class.
+    
+  RETURN VALUE   
+    0   initialization with buffer allocations has been succeeded
+    1   otherwise
+*/
+
+int JOIN_CACHE_BKAH::init()
+{
+  bool check_only_first_match= join_tab->check_only_first_match();
+
+  no_association= test(mrr_mode & HA_MRR_NO_ASSOCIATION);
+
+  RANGE_SEQ_IF rs_funcs= { bkah_range_seq_init,
+                           bkah_range_seq_next,
+                           check_only_first_match && !no_association ?
+                             bkah_range_seq_skip_record : 0,
+                           bkah_skip_index_tuple };
+
+  DBUG_ENTER("JOIN_CACHE_BKAH::init");
+
+  if (!(join_tab_scan= new JOIN_TAB_SCAN_MRR(join, join_tab, 
+                                             mrr_mode, rs_funcs)))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(JOIN_CACHE_HASHED::init());
+}
+
+
+/*
+  Check the index condition of the joined table for a record from the BKA cache
+
+  SYNOPSIS
+    skip_index_tuple()
+      range_info       record chain returned by MRR 
     
   DESCRIPTION
     See JOIN_CACHE_BKA::skip_index_tuple().
-    This function is the variant for use with
-    JOIN_CACHE_BKA_UNIQUE. The difference from JOIN_CACHE_BKA case is that
-    there may be multiple previous table record combinations that share the
-    same key, i.e. they map to the same MRR range.
-    As a consequence, we need to loop through all previous table record
+    This function is the variant for use with rhe class JOIN_CACHE_BKAH.
+    The difference from JOIN_CACHE_BKA case is that there may be multiple
+    previous table record combinations that share the same key(MRR range).
+    As a consequence, we need to loop through the chain of all table record
     combinations that match the given MRR range key range_info until we find
     one that satisfies the index condition.
 
@@ -3050,245 +4296,26 @@ bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
     This should be done by a special virtual method
     get_partial_record_by_pos().
 
-  RETURN
-    0    The record combination satisfies the index condition
-    1    Otherwise
+  RETURN VALUE
+    1    any record combination from the chain referred by range_info
+         does not satisfy the index condition
+    0    otherwise
 
 
 */
 
-bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq, char *range_info)
+bool JOIN_CACHE_BKAH::skip_index_tuple(char *range_info)
 {
-  DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::skip_index_tuple");
-  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
-  uchar *last_rec_ref_ptr=  cache->get_next_rec_ref((uchar*) range_info);
+  uchar *last_rec_ref_ptr= get_next_rec_ref((uchar*) range_info);
   uchar *next_rec_ref_ptr= last_rec_ref_ptr;
+  DBUG_ENTER("JOIN_CACHE_BKAH::skip_index_tuple");
   do
   {
-    next_rec_ref_ptr= cache->get_next_rec_ref(next_rec_ref_ptr);
-    uchar *rec_ptr= next_rec_ref_ptr + cache->rec_fields_offset;
-    cache->get_record_by_pos(rec_ptr);
+    next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
+    uchar *rec_ptr= next_rec_ref_ptr + rec_fields_offset;
+    get_record_by_pos(rec_ptr);
     if (join_tab->cache_idx_cond->val_int())
       DBUG_RETURN(FALSE);
   } while(next_rec_ref_ptr != last_rec_ref_ptr);
   DBUG_RETURN(TRUE);
 }
-
-
-/*
-  Check if the record combination matches the index condition
-
-  SYNOPSIS
-    bka_unique_skip_index_tuple()
-      rseq             Value returned by bka_range_seq_init()
-      range_info       MRR range association data
-    
-  DESCRIPTION
-    This is wrapper for JOIN_CACHE_BKA_UNIQUE::skip_index_tuple method,
-    see comments there.
-
-  NOTE
-    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
- 
-  RETURN
-    0    The record combination satisfies the index condition
-    1    Otherwise
-*/
-
-static 
-bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
-{
-  DBUG_ENTER("bka_unique_skip_index_tuple");
-  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
-  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
-}
-
-
-/*
-  Using BKA_UNIQUE find matches from the next table for records from join buffer   
-
-  SYNOPSIS
-    join_matching_records()
-      skip_last    do not look for matches for the last partial join record 
-
-  DESCRIPTION
-    This function can be used only when the table join_tab can be accessed
-    by keys built over the fields of previous join tables.
-    The function retrieves all keys from the hash table of the join buffer
-    built for partial join records from the buffer. For each of these keys
-    the function performs an index lookup and tries to match records yielded
-    by this lookup with records from the join buffer attached to the key.
-    If a match is found the function will call the sub_select function trying
-    to look for matches for the remaining join operations.
-    This function does not assume that matching records are necessarily
-    returned with references to the keys by which they were found. If the call
-    of the function multi_range_read_init returns flags with
-    HA_MRR_NO_ASSOCIATION then a search for the key built from the returned
-    record is carried on. The search is performed by probing in in the hash
-    table of the join buffer.
-    This function currently is called only from the function join_records.    
-    It's assumed that this function is always called with the skip_last 
-    parameter equal to false.
-            
-  RETURN
-    return one of enum_nested_loop_state 
-*/
-
-enum_nested_loop_state 
-JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
-{
-  int error;
-  uchar *key_chain_ptr;
-  handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool check_only_first_match= join_tab->check_only_first_match();
-  bool no_association= test(mrr_mode &  HA_MRR_NO_ASSOCIATION);
-
-  /* Set functions to iterate over keys in the join buffer */
-  RANGE_SEQ_IF seq_funcs= { bka_unique_range_seq_init,
-                            bka_unique_range_seq_next,
-                            check_only_first_match && !no_association ?
-                              bka_unique_range_seq_skip_record : 0,
-                            join_tab->cache_idx_cond ?
-                              bka_unique_skip_index_tuple : 0  };
-
-  /* The value of skip_last must be always FALSE when this function is called */
-  DBUG_ASSERT(!skip_last);
-
-  /* Return at once if there are no records in the join buffer */
-  if (!records)
-    return NESTED_LOOP_OK;  
-                   
-  rc= init_join_matching_records(&seq_funcs, key_entries);
-  if (rc != NESTED_LOOP_OK)
-    goto finish;
-
-  while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
-  {
-    if (no_association)
-    {
-      uchar *key_ref_ptr;
-      TABLE *table= join_tab->table;
-      TABLE_REF *ref= &join_tab->ref;
-      KEY *keyinfo= table->key_info+ref->key;
-      /* 
-        Build the key value out of  the record returned by the call of
-        multi_range_read_next in the record buffer
-      */ 
-      key_copy(ref->key_buff, table->record[0], keyinfo, ref->key_length);
-      /* Look for this key in the join buffer */
-      if (!key_search(ref->key_buff, ref->key_length, &key_ref_ptr))
-	continue;
-      key_chain_ptr= key_ref_ptr+get_size_of_key_offset();
-    } 
-
-    uchar *last_rec_ref_ptr= get_next_rec_ref(key_chain_ptr);
-    uchar *next_rec_ref_ptr= last_rec_ref_ptr;
-    do
-    {
-      next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
-      uchar *rec_ptr= next_rec_ref_ptr+rec_fields_offset;
-
-      if (join->thd->killed)
-      {
-        /* The user has aborted the execution of the query */
-        join->thd->send_kill_message();
-        rc= NESTED_LOOP_KILLED; 
-        goto finish;
-      }
-      /* 
-        If only the first match is needed and it has been already found
-        for the associated partial join record then the returned candidate
-        is discarded.
-      */
-      if (rc == NESTED_LOOP_OK &&
-          (!check_only_first_match || !get_match_flag_by_pos(rec_ptr)))
-      {
-        get_record_by_pos(rec_ptr);
-        update_virtual_fields(join->thd, join_tab->table);
-        rc= generate_full_extensions(rec_ptr);
-        if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	  goto finish;   
-      }
-    }
-    while (next_rec_ref_ptr != last_rec_ref_ptr); 
-  }
-
-  if (error > 0 && error != HA_ERR_END_OF_FILE)	   
-    return NESTED_LOOP_ERROR; 
-finish:                  
-  return end_join_matching_records(rc);
-}
-
-
-/*
-  Check whether all records in a key chain have their match flags set on   
-
-  SYNOPSIS
-    check_all_match_flags_for_key()
-      key_chain_ptr     
-
-  DESCRIPTION
-    This function retrieves records in the given circular chain and checks
-    whether their match flags are set on. The parameter key_chain_ptr shall
-    point to the position in the join buffer storing the reference to the
-    last element of this chain. 
-            
-  RETURN
-    TRUE   if each retrieved record has its match flag set on
-    FALSE  otherwise 
-*/
-
-bool JOIN_CACHE_BKA_UNIQUE::check_all_match_flags_for_key(uchar *key_chain_ptr)
-{
-  uchar *last_rec_ref_ptr= get_next_rec_ref(key_chain_ptr);
-  uchar *next_rec_ref_ptr= last_rec_ref_ptr;
-  do
-  {
-    next_rec_ref_ptr= get_next_rec_ref(next_rec_ref_ptr);
-    uchar *rec_ptr= next_rec_ref_ptr+rec_fields_offset;
-    if (!get_match_flag_by_pos(rec_ptr))
-      return FALSE;
-  }
-  while (next_rec_ref_ptr != last_rec_ref_ptr);
-  return TRUE;
-}
-  
-
-/* 
-  Get the next key built for the records from BKA_UNIQUE join buffer
-
-  SYNOPSIS
-    get_next_key()
-      key    pointer to the buffer where the key value is to be placed
-
-  DESCRIPTION
-    The function reads the next key value stored in the hash table of the
-    join buffer. Depending on the value of the use_emb_key flag of the
-    join cache the value is read either from the table itself or from
-    the record field where it occurs. 
-
-  RETURN
-    length of the key value - if the starting value of 'cur_key_entry' refers
-    to the position after that referred by the the value of 'last_key_entry'    
-    0 - otherwise.     
-*/
-
-uint JOIN_CACHE_BKA_UNIQUE::get_next_key(uchar ** key)
-{  
-  if (curr_key_entry == last_key_entry)
-    return 0;
-
-  curr_key_entry-= key_entry_length;
-
-  *key = use_emb_key ? get_emb_key(curr_key_entry) : curr_key_entry;
-
-  DBUG_ASSERT(*key >= buff && *key < hash_table);
-
-  return key_length;
-}
-
-
-/****************************************************************************
- * Join cache module end
- ****************************************************************************/

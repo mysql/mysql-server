@@ -590,6 +590,10 @@ public:
   }
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
+
+  /* Check whether the field can be used as a join attribute in hash join */
+  virtual bool hash_join_is_possible() { return TRUE; }
+
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -765,6 +769,12 @@ public:
   my_decimal *val_decimal(my_decimal *);
   virtual bool str_needs_quotes() { return TRUE; }
   uint is_equal(Create_field *new_field);
+
+  bool hash_join_is_possible()
+  {
+    /* TODO: support hash joins for non-binary collations */
+    return (flags & BINARY_FLAG);
+  }
 };
 
 
@@ -1909,6 +1919,7 @@ public:
   uint size_of() const { return sizeof(*this); }
   int  reset(void) { return !maybe_null() || Field_blob::reset(); }
   geometry_type get_geometry_type() { return geom_type; };
+  bool hash_join_is_possible() { return FALSE; }
 };
 #endif /*HAVE_SPATIAL*/
 

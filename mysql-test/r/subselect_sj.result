@@ -1,4 +1,5 @@
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
+set @save_optimizer_switch=@@optimizer_switch;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(a int, b int);
@@ -12,7 +13,7 @@ insert into t12 select * from t10;
 Flattened because of dependency, t10=func(t1)
 explain select * from t1 where a in (select pk from t10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
 select * from t1 where a in (select pk from t10);
 a	b
@@ -39,7 +40,7 @@ select * from t1 where a in (select a from t11);
 a	b
 explain select * from t1 where a in (select pk from t10) and b in (select pk from t10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using index
 1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using index
 select * from t1 where a in (select pk from t10) and b in (select pk from t10);
@@ -50,8 +51,8 @@ a	b
 flattening a nested subquery
 explain select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	Using where
 1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	Using index
 select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 a	b
@@ -61,8 +62,8 @@ a	b
 flattening subquery w/ several tables
 explain extended select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
-1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t10	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where
 1	PRIMARY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t12` join `test`.`t1` where ((`test`.`t10`.`pk` = `test`.`t1`.`a`) and (`test`.`t12`.`pk` = `test`.`t10`.`a`))
@@ -100,75 +101,75 @@ t1 m10, t1 m11,  t1 m12, t1 m13, t1 m14,t1 m15,t1 m16,t1 m17,t1 m18,t1 m19
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	s00	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	s01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s19	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s20	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s21	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s22	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s23	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s24	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s25	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s26	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s27	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s28	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s29	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s30	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s31	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s32	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s33	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s34	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s35	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s36	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s37	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s38	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s39	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s40	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s41	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s42	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s43	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s44	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s45	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s46	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
+1	PRIMARY	s01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s19	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s20	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s21	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s22	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s23	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s24	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s25	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s26	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s27	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s28	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s29	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s30	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s31	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s32	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s33	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s34	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s35	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s36	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s37	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s38	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s39	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s40	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s41	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s42	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s43	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s44	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s45	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s46	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s47	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s48	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+1	PRIMARY	s49	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
 2	DEPENDENT SUBQUERY	m00	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer
-2	DEPENDENT SUBQUERY	m19	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+2	DEPENDENT SUBQUERY	m01	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m02	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m03	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m04	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m05	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m06	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m07	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m08	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m09	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m10	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m11	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m12	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m13	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m14	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m15	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m16	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m17	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m18	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	m19	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 select * from
 t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10)) 
 where t1.a < 5;
@@ -194,7 +195,7 @@ insert into t1 select (A.a + 10 * B.a),1 from t0 A, t0 B;
 explain extended select * from t1 where a in (select pk from t10 where pk<3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t10`.`pk`) and (`test`.`t10`.`pk` < 3))
 drop table t0, t1, t2;
@@ -322,7 +323,8 @@ INSERT INTO WORKS VALUES  ('E3','P2',20);
 INSERT INTO WORKS VALUES  ('E4','P2',20);
 INSERT INTO WORKS VALUES  ('E4','P4',40);
 INSERT INTO WORKS VALUES  ('E4','P5',80);
-set optimizer_switch='default,materialization=off';
+set optimizer_switch=@save_optimizer_switch;
+set optimizer_switch='materialization=off';
 explain SELECT EMPNUM, EMPNAME
 FROM STAFF
 WHERE EMPNUM IN
@@ -344,7 +346,7 @@ E1	Alice
 E2	Betty
 E3	Carmen
 E4	Don
-set optimizer_switch='default';
+set optimizer_switch=@save_optimizer_switch;
 drop table STAFF,WORKS,PROJ;
 # End of bug#45191
 #
@@ -450,7 +452,7 @@ COUNT(*)
 drop table t1, t2;
 drop view v1;
 drop procedure p1;
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 # End of bug#46744
 
 Bug#46797 "Crash in fix_semijoin_strategies_for_picked_join_order 
@@ -506,7 +508,7 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	Using where
 1	PRIMARY	t2	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using index; FirstMatch(t1)
 Warnings:
 Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
@@ -601,7 +603,7 @@ v1field
 DROP TABLE t1,t2;
 DROP VIEW v1,v2;
 DROP PROCEDURE p1;
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 # End of BUG#48834
 
 Bug#49097 subquery with view generates wrong result with
@@ -736,7 +738,7 @@ WHERE int_nokey IN (SELECT it2.int_key
 FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	it1	index	NULL	int_key	4	NULL	2	Using index; Start temporary
-1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
 1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
@@ -768,7 +770,7 @@ select a from t1
 where a in (select c from t2 where d >= some(select e from t3 where b=e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; End temporary; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; End temporary; Using join buffer (flat, BNL join)
 3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
@@ -1060,8 +1062,10 @@ AND t1.val IN (SELECT t3.val FROM t3
 WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where; FirstMatch(t1)
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; FirstMatch(t3)
+1	PRIMARY	subselect3	eq_ref	unique_key	unique_key	14	func	1	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	14	func	1	
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 SELECT *
 FROM t1
 WHERE t1.val IN (SELECT t2.val FROM t2
@@ -1115,3 +1119,4 @@ FROM t1 RIGHT JOIN t2 ON t1.varchar_key
 varchar_key
 set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2, t3;
+set @@optimizer_switch=@save_optimizer_switch;

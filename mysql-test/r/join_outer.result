@@ -1335,7 +1335,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	tt6	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	tt7	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	SIMPLE	tt8	ALL	NULL	NULL	NULL	NULL	2	Using where
-1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	tt9	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
 SET optimizer_search_depth = DEFAULT;
 DROP TABLE t1;
 #
@@ -1354,7 +1354,7 @@ EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t1 TA1
 RIGHT JOIN t2 TA2 JOIN t2 TA3 ON TA2.f1 ON TA3.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	TA2	ALL	NULL	NULL	NULL	NULL	20	Using where
-1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer
+1	SIMPLE	TA3	ALL	NULL	NULL	NULL	NULL	20	Using join buffer (flat, BNL join)
 1	SIMPLE	TA1	ALL	NULL	NULL	NULL	NULL	2	Using where
 DROP TABLE t1, t2;
 #
@@ -1502,12 +1502,13 @@ sum(t3.b)
 show status like "handler_read%";
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	1048580
+Handler_read_key	4
 Handler_read_next	5
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	1048581
 drop table t1,t2,t3;
+#
 # Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
 #
 CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));

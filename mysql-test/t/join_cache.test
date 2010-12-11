@@ -3,6 +3,10 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 --enable_warnings
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='semijoin_with_cache=on';
+set @@optimizer_switch='outer_join_with_cache=on';
+
 set names utf8;
 
 CREATE DATABASE world;
@@ -160,7 +164,7 @@ use world;
 --enable_query_log
 
 show variables like 'join_buffer_size';
-set join_cache_level=5;
+set join_cache_level=3;
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -187,14 +191,106 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+show variables like 'join_buffer_size';
+set join_cache_level=4;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+
+show variables like 'join_buffer_size';
+set join_cache_level=5;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
 
 EXPLAIN
 SELECT Name FROM City
@@ -245,15 +341,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -303,15 +390,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -360,15 +438,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
-
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 
 EXPLAIN
 SELECT Name FROM City
@@ -395,7 +464,7 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 
-set join_cache_level=5;
+set join_cache_level=3;
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -422,14 +491,77 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=4;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=5;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
 
 EXPLAIN
 SELECT Name FROM City
@@ -467,15 +599,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -512,15 +635,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
-
 EXPLAIN
 SELECT Name FROM City
   WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
@@ -556,15 +670,6 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
-
---echo # !!!NB igor: after backporting the SJ code the following should return
---echo # EXPLAIN
---echo # SELECT Name FROM City
---echo # WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
---echo # City.Population > 100000;
---echo # id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
---echo # 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
---echo # 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer
 
 EXPLAIN
 SELECT Name FROM City
@@ -587,13 +692,14 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
 set join_cache_level=8;
-set join_buffer_size=256;
+set join_buffer_size=384;
 
 --replace_column 9 #
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
+--sorted_result
 SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND City.Population > 3000000;
 
@@ -997,7 +1103,7 @@ select * from t1 left join t2 on (1=0);
 explain select * from t1 left join t2 on (1=0) where a=40;
 select * from t1 left join t2 on (1=0) where a=40;
 
-set join_cache_level=1;
+set join_cache_level=0;
 explain select * from t1 left join t2 on (1=0);
 
 set join_cache_level=default;
@@ -1131,6 +1237,8 @@ INSERT INTO t3(a,b) VALUES
   (5,30), (5,40), (5,50), (5,60), (5,70), (5,80),
   (7,30), (7,40), (7,50), (7,60), (7,70), (7,80);
 
+set join_cache_level=0;
+
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
     WHERE t1.a=t2.a; 
@@ -1148,7 +1256,7 @@ SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val
     WHERE t1.a=t2.a;
 
 DROP INDEX idx ON t3;
-set join_cache_level=4;
+set join_cache_level=2;
 
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
@@ -1847,3 +1955,750 @@ select t1.* from t1,t2,t3;
 set join_cache_level=default;
 
 drop table t1,t2,t3;
+
+--echo #
+--echo # Bug #52394:  using join buffer for 3 table join with ref access 
+--echo # LP #623209: and no references to the columns of the middle table
+--echo #
+
+
+set join_cache_level=6;
+
+CREATE TABLE t1 (a int(11), b varchar(1));
+INSERT INTO t1 VALUES (6,'r'),(27,'o');
+
+CREATE TABLE t2(a int);
+INSERT INTO t2 VALUES(1),(2),(3),(4),(5);
+
+CREATE TABLE t3 (a int(11) primary key, b varchar(1));
+INSERT INTO t3 VALUES
+(14,'d'),(15,'z'),(16,'e'),(17,'h'),(18,'b'),(19,'s'),(20,'e'),
+(21,'j'),(22,'e'),(23,'f'),(24,'v'),(25,'x'),(26,'m'),(27,'o');
+
+EXPLAIN
+SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
+SELECT t3.a FROM t1,t2,t3 WHERE t1.a = t3.a AND t1.b = t3.b;
+
+DROP TABLE t1,t2,t3;
+
+set join_cache_level=default;
+
+--echo #
+--echo # Bug #51084: Batched key access crashes for SELECT with
+--echo #             derived table and LEFT JOIN 
+--echo #
+
+CREATE TABLE t1 (
+  carrier int,
+  id int PRIMARY KEY
+);
+INSERT INTO t1 VALUES (1,11),(1,12),(2,13);
+
+CREATE TABLE t2 (
+  scan_date int,
+  package_id int
+);
+INSERT INTO t2 VALUES (2008,21),(2008,22);
+
+CREATE TABLE t3 (
+  carrier int PRIMARY KEY,
+  id int
+);
+INSERT INTO t3 VALUES (1,31);
+
+CREATE TABLE t4 (
+  carrier_id int,
+  INDEX carrier_id(carrier_id)
+);
+INSERT INTO t4 VALUES (31),(32);
+
+SET join_cache_level=8;
+
+SELECT COUNT(*)
+  FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
+       ON t3.carrier = t1.carrier;
+
+EXPLAIN
+SELECT COUNT(*)
+  FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
+       ON t3.carrier = t1.carrier;
+
+SET join_cache_level=default;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #52636: allowing JOINs on NULL values w/ join_cache_level = 5-8
+--echo #
+
+CREATE TABLE t1 (b int);
+INSERT INTO t1 VALUES (NULL),(3);
+
+CREATE TABLE t2 (a int, b int, KEY (b));
+INSERT INTO t2 VALUES (100,NULL),(150,200);
+
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--sorted_result
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+set join_cache_level = 8;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--sorted_result
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+# test crash when no key is worth collecting by BKA for t2's ref
+delete from t1;
+INSERT INTO t1 VALUES (NULL),(NULL);
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--sorted_result
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+DROP TABLE t1,t2;
+
+# test varchar keys
+CREATE TABLE t1 (b varchar(100));
+INSERT INTO t1 VALUES (NULL),("some varchar");
+
+CREATE TABLE t2 (a int, b varchar(100), KEY (b));
+INSERT INTO t2 VALUES (100,NULL),(150,"varchar"),(200,NULL),(250,"long long varchar");
+
+set join_cache_level = 5;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--sorted_result
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+set join_cache_level = 8;
+explain SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+--sorted_result
+SELECT t2.a FROM t1 LEFT JOIN t2 ON t2.b  = t1.b;
+
+set join_cache_level = default;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #54359: Extra rows with join_cache_level=7,8 and two joins
+--echo #             and multi-column index"
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  a int DEFAULT NULL,
+  b varchar(16) DEFAULT NULL,
+  c varchar(16) DEFAULT NULL,
+  INDEX idx (b,a))
+;
+
+INSERT INTO t1 VALUES (4,9,'k','k');
+INSERT INTO t1 VALUES (12,5,'k','k');
+
+set join_cache_level = 8;
+
+EXPLAIN
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+  WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+
+SELECT t.a FROM t1 t, t1 s FORCE INDEX(idx)
+  WHERE s.pk AND s.a  >= t.pk AND  s.b  = t.c;
+
+set join_cache_level = default;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #54235: Extra rows with join_cache_level=6,8 and two LEFT JOINs
+--echo #
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TABLE t4 (a int);
+
+INSERT INTO t1 VALUES (null), (2), (null), (1);
+
+set join_cache_level = 6;
+EXPLAIN
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+    WHERE t1.a OR t3.a;
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a) ON 0 
+    WHERE t1.a OR t3.a;
+
+EXPLAIN
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+    WHERE t1.a OR t4.a;
+SELECT t1.a 
+  FROM t1 LEFT JOIN (t2 LEFT JOIN (t3 LEFT JOIN t4 ON 1) ON t2.a) ON 0
+    WHERE t1.a OR t4.a;
+
+set join_cache_level = default;
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #663840: Memory overwrite causing crash with hash join
+--echo #
+
+SET SESSION join_cache_level=3;
+SET SESSION join_buffer_size=100;
+
+CREATE TABLE t3 (
+  i int NOT NULL,
+  j int NOT NULL,
+  d date NOT NULL,
+  t time NOT NULL,
+  v varchar(1) NOT NULL,
+  u varchar(1) NOT NULL,
+  INDEX idx (v)
+)  COLLATE=latin1_bin;
+
+INSERT INTO t3 VALUES
+  (3,8,'2008-12-04','00:00:00','v','v'), (3,8,'2009-03-28','00:00:00','f','f'),
+  (3,5,'1900-01-01','00:55:47','v','v'), (2,8,'2009-10-02','00:00:00','s','s'),
+  (1,8,'1900-01-01','20:51:59','a','a'), (0,6,'2008-06-04','09:47:27','p','p'),
+  (8,7,'2009-01-13','21:58:29','z','z'), (5,2,'1900-01-01','22:45:53','a','a'),
+  (9,5,'2008-01-28','14:06:48','h','h'), (5,7,'2004-09-18','22:17:16','h','h'),
+  (4,2,'2006-10-14','14:59:37','v','v'), (2,9,'1900-01-01','23:37:40','v','v'),
+  (33,142,'2000-11-28','14:14:01','b','b'), (5,3,'2008-04-04','02:54:19','y','y'),
+  (1,0,'2002-07-13','06:34:26','v','v'), (9,3,'2003-01-03','18:07:38','m','m'),
+  (1,5,'2006-04-02','13:55:23','z','z'), (3,9,'2006-10-19','20:32:28','n','n'),
+  (8,1,'2005-06-08','11:57:44','d','d'), (231,107,'2006-12-26','03:10:35','a','a');
+
+CREATE TABLE t1 SELECT * FROM t3;
+DELETE FROM t1 WHERE i > 8;
+CREATE TABLE t2 SELECT * FROM t3;
+DELETE FROM t2 WHERE j > 10;
+
+EXPLAIN
+SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
+  WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
+
+--sorted_result
+SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
+  WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
+
+DROP TABLE t1,t2,t3;
+
+SET SESSION join_cache_level=DEFAULT;
+SET SESSION join_buffer_size=DEFAULT;
+
+
+--echo #
+--echo # Bug #664508: 'Simple' GROUP BY + ORDER BY 
+--echo #              when join buffers are used
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL, i int NOT NULL, v  varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
+) COLLATE latin1_bin;
+INSERT INTO t1 VALUES
+  (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
+  (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
+  (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
+
+CREATE TABLE t2 (
+  pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
+) COLLATE latin1_bin;
+INSERT INTO t2 VALUES
+  (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
+  (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
+  (20,2,'v'), (21,9,'v'), (22,142,'b'), (23,3,'y'), (24,0,'v'),
+  (25,3,'m'), (26,5,'z'), (27,9,'n'), (28,1,'d'), (29,107,'a');
+
+CREATE TABLE t3 (
+  pk int NOT NULL, i int NOT NULL,  v varchar(1) NOT NULL,
+  PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2(v,i)
+) COLLATE latin1_bin;
+INSERT INTO t3 VALUES
+  (1,9,'x'), (2,5,'g'), (3,1,'o'), (4,0,'g'), (5,1,'v'),
+  (6,190,'m'), (7,6,'x'), (8,3,'c'), (9,4,'z'), (10,3,'i'),
+  (11,186,'x'), (12,1,'g'), (13,8,'q'), (14,226,'m'), (15,133,'p'),
+  (16,6,'e'), (17,3,'t'), (18,8,'j'), (19,5,'h'), (20,7,'w');
+
+SET SESSION join_cache_level=1;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+SET SESSION join_cache_level=6;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+SET SESSION join_cache_level=4;
+EXPLAIN
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
+ GROUP BY t2.v ORDER BY t1.pk,t2.v;
+
+DROP TABLE t1,t2,t3;
+
+SET SESSION join_cache_level=DEFAULT;
+
+--echo #
+--echo # Bug #668290: hash join with non-binary collations 
+--echo #
+
+CREATE TABLE t1 (
+  i int DEFAULT NULL,
+  cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  INDEX cl (cl),
+  INDEX cu (cu)
+);
+INSERT INTO t1 VALUES
+  (650903552,'cmxffkpsel','z'), (535298048,'tvtjrcmxff','y'),
+  (1626865664,'when','for'), (39649280,'rcvljitvtj','ercvljitvt'),
+  (792068096,'ttercvljit','jttercvlji');
+INSERT INTO t1 SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  cu varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  i int DEFAULT NULL,
+  cl varchar(10) CHARACTER SET latin1 DEFAULT NULL,
+  INDEX cu (cu),
+  INDEX cl (cl)
+);
+INSERT INTO t2 VALUES 
+  ('g',7,'like'), ('fujttercvl',6,'y'),
+  ('s',2,'e'), ('didn\'t',0,'v'),
+  ('gvdrodpedk',8,'chogvdrodp'), ('jichogvdro',7,'will');
+
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+
+SET SESSION join_cache_level = 4;
+
+EXPLAIN
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #669382: hash join using a ref with constant key parts 
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES
+  (9), (11), (7), (8), (4), (1), (12), (3), (5);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+CREATE TABLE t2 (a int, b int, c int, INDEX idx (a,b));
+INSERT INTO t2 VALUES
+  (8, 80, 800), (1, 10, 100), (1, 11, 101), (3, 30, 300),
+  (1, 12, 102), (8, 81, 801), (7, 70, 700), (12, 120, 1200),
+  (8, 82, 802), (1, 13, 103), (1, 14, 104), (3, 31, 301),
+  (1, 15, 105), (8, 83, 803), (7, 71, 701);
+
+SET SESSION join_cache_level = 4;
+SET SESSION join_buffer_size = 192;
+
+EXPLAIN
+SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99; 
+SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99; 
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #671901: hash join using a ref to a varchar field
+--echo #
+
+CREATE TABLE t1 (
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  i int  DEFAULT NULL
+);
+INSERT INTO t1 VALUES
+ ('k',8), ('abcdefjh',-575340544), ('f',77), ('because', 2), ('f',-517472256),
+ ('abcdefjhj',5), ('z',7);
+
+CREATE TABLE t2 (
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  i int DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t2 VALUES
+  ('did',5), ('was',-1631322112), ('are',3), ('abcdefjhjk',3), 
+  ('abcdefjhjk',4), ('tell',-824573952), ('t',0),('v',-1711013888),
+  ('abcdefjhjk',1015414784), ('or',4), ('now',0), ('abcdefjhjk',-32702464),
+  ('abcdefjhjk',4), ('time',1078394880), ('f',4), ('m',-1845559296), 
+  ('ff', 5), ('abcdefjhjk',-1074397184);
+
+EXPLAIN 
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+EXPLAIN
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+
+SET SESSION join_cache_level = 4;
+EXPLAIN 
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
+EXPLAIN
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
+#--echo #
+--echo # Bug #672497: 3 way join with tiny incremental join buffer with
+--echo #              and a ref access from the first table 
+--echo #
+
+CREATE TABLE t1 (
+  pk int PRIMARY KEY,
+  v varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t1 VALUES
+  (1,'abcdefjhjk'), (2,'i'),(3,'abcdefjhjk'), (4,'well'), (5,'abcdefjhjk'),
+  (6,'abcdefjhjk'), (7,'that');
+
+CREATE TABLE t2 (
+  pk int PRIMARY KEY,
+  i int DEFAULT NULL,
+  v varchar(1000) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (v)
+);
+INSERT INTO t2 VALUES 
+ (1,6,'yes'), (2,NULL,'will'), (3,NULL,'o'), (4,NULL,'k'), (5,NULL,'she'),
+ (6,-1450835968,'abcdefjhjkl'), (7,-975831040,'abcdefjhjkl'), (8,NULL,'z'),
+ (10,-343932928,'t'),
+ (11,6,'yes'), (12,NULL,'will'), (13,NULL,'o'), (14,NULL,'k'), (15,NULL,'she'),
+ (16,-1450835968,'abcdefjhjkl'), (17,-975831040,'abcdefjhjkl'), (18,NULL,'z'),
+ (19,-343932928,'t');
+
+CREATE TABLE t3 (
+  pk int NOT NULL PRIMARY KEY,
+  i int,
+  v varchar(1024) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  INDEX idx (v(333))
+);
+INSERT INTO t3 VALUES 
+(1,7,'abcdefjhjkl'),(2,6,'y'), (3,NULL,'to'),(4,7,'n'),(5,7,'look'), (6,NULL,'all'),
+(7,1443168256,'c'), (8,1427046400,'right'),
+(11,7,'abcdefjhjkl'), (12,6,'y'), (13,NULL,'to'), (14,7,'n'), (15,7,'look'),
+(16,NULL,'all'), (17,1443168256,'c'), (18,1427046400,'right'),
+(21,7,'abcdefjhjkl'), (22,6,'y'), (23,NULL,'to'), (24,7,'n'), (25,7,'look'),
+(26,NULL,'all'), (27,1443168256,'c'), (28,1427046400,'right'),
+(31,7,'abcdefjhjkl'), (32,6,'y'), (33,NULL,'to'), (34,7,'n'), (35,7,'look'),
+(36,NULL,'all'), (37,1443168256,'c'), (38,1427046400,'right');
+
+SET SESSION join_buffer_size = 192;
+
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT t3.i FROM t1,t2,t3
+  WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
+SELECT t3.i FROM t1,t2,t3
+  WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #672551: hash join over a long varchar field
+--echo #
+
+CREATE TABLE t1 (
+  pk int PRIMARY KEY,
+  a varchar(512) CHARSET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (a)
+);
+INSERT INTO t1 VALUES (2, 'aa'), (5, 'ccccccc'), (3, 'bb');
+
+CREATE TABLE t2(
+  pk int PRIMARY KEY,
+  a varchar(512) CHARSET latin1 COLLATE latin1_bin DEFAULT NULL,
+  INDEX idx (a)
+);
+INSERT INTO t2 VALUES 
+  (10, 'a'), (20, 'c'), (30, 'aa'), (4, 'bb'),
+  (11, 'a'), (21, 'c'), (31, 'aa'), (41, 'cc'),
+  (12, 'a'), (22, 'c'), (32, 'bb'), (42, 'aa');
+
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+SELECT * FROM t1,t2 WHERE t2.a=t1.a;
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #674431: nested outer join when join_cache_level is set to 7
+--echo #
+
+CREATE TABLE t1 (a int, b varchar(32)) ;
+INSERT INTO t1 VALUES (5,'h'), (NULL,'j');
+CREATE TABLE t2 (a int, b varchar(32), c int) ;
+INSERT INTO t2 VALUES (5,'h',100), (NULL,'j',200);
+CREATE TABLE t3 (a int, b varchar(32), INDEX idx(b));
+INSERT INTO t3 VALUES (77,'h'), (88,'g');
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+SET SESSION join_cache_level = 7;
+SELECT t3.a
+  FROM t1 LEFT JOIN
+       (t2 LEFT OUTER JOIN t3 ON t2.b = t3.b) ON t2.a = t1.b
+    WHERE t3.a BETWEEN 3 AND 11 OR t1.a <= t2.c;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #52540: nested outer join when join_cache_level is set to 3
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (a varchar(10));
+INSERT INTO t2 VALUES ('f'),('x');
+CREATE TABLE t3 (pk int(11) PRIMARY KEY);
+INSERT INTO t3 VALUES (2);
+CREATE TABLE t4 (a varchar(10));
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+SET SESSION join_cache_level = 3;
+
+SELECT *
+       FROM t2 LEFT JOIN
+           ((t1 JOIN t3 ON t1.a = t3.pk) LEFT JOIN t4 ON 1) ON 1;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #674423: outer join with ON expression over only outer tables 
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES ('9');
+
+CREATE TABLE t2 (pk int, a int) ;
+INSERT INTO t2 VALUES ('9',NULL), ('1',NULL);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <>0 OR t2.pk < 9;
+
+SET SESSION join_cache_level = 1;
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+SELECT * FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t1.a <> 0 OR t2.pk < 9;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #675095: nested outer join using join buffer 
+--echo #
+
+CREATE TABLE t1 (pk int, a1 int) ;
+INSERT IGNORE INTO t1 VALUES (2,NULL), (8,0);
+
+CREATE TABLE t2 (pk int, a2 int, c2 int, d2 int) ;
+INSERT IGNORE INTO t2 VALUES  (9,0,0,2), (1,0,0,7);
+
+CREATE TABLE t3 (pk int, a3 int, c3 int, d3 int) ;
+INSERT IGNORE INTO t3 VALUES  (9,0,0,2), (1,0,0,7);
+
+CREATE TABLE t4 (pk int, a4 int, INDEX idx(a4)) ;
+INSERT IGNORE INTO t4 VALUES (2,NULL), (8,0);
+
+CREATE TABLE t5 (pk int, a5 int) ;
+INSERT IGNORE INTO t5 VALUES (2,0), (8,0);
+
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION join_cache_level = 2;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION join_cache_level = 1;
+
+EXPLAIN EXTENDED
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+SELECT *
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.c2 = t3.a3) ON t1.pk = t2.d2)
+        LEFT JOIN t4 ON t1.a1 = t4.a4) LEFT JOIN t5 ON t3.a3 = t5.a5;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # Bug #675516: nested outer join with 3 tables in the nest
+--echo #             using BNL + BNLH 
+--echo #
+
+CREATE TABLE t1 (a1 int, b1 int, c1 int) ;
+INSERT INTO t1 VALUES (7,8,0), (6,4,0);
+
+CREATE TABLE t2 (a2 int) ;
+INSERT INTO t2 VALUES (5);
+
+CREATE TABLE t3 (a3 int, b3 int, c3 int, PRIMARY KEY (b3)) ;
+INSERT INTO t3 VALUES (2,5,0);
+
+CREATE TABLE t4 (a4 int, b4 int, c4 int) ;
+INSERT INTO t4 VALUES (7,8,0);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 4;
+EXPLAIN
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+SELECT * FROM
+  t1 LEFT JOIN 
+  ((t2 JOIN t3 ON t2.a2 = t3.b3) JOIN t4 ON t4.b4 <> 0) ON t1.c1 = t3.c3
+   WHERE t3.a3 IS NULL;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug #660963: nested outer join with join_cache_level set to 5
+--echo #
+
+CREATE TABLE t1 (a1 int) ;
+INSERT INTO t1 VALUES (0),(0);
+
+CREATE TABLE t2 (a2 int, b2 int, PRIMARY KEY (a2)) ;
+INSERT INTO t2 VALUES (2,1);
+
+CREATE TABLE t3 (a3 int, b3 int, PRIMARY KEY (a3)) ;
+INSERT INTO t3 VALUES (2,1);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION join_cache_level = 5;
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #675922: incremental buffer for BKA with access from previous
+--echo #      buffers from non-nullable columns whose values may be null
+--echo #
+
+CREATE TABLE t1 (a1 varchar(32)) ;
+INSERT INTO t1 VALUES ('s'),('k');
+
+CREATE TABLE t2 (a2 int PRIMARY KEY, b2 varchar(32)) ;
+INSERT INTO t2 VALUES (7,'s');
+
+CREATE TABLE t3 (a3 int PRIMARY KEY, b3 varchar(32)) ;
+INSERT INTO t3 VALUES (7,'s');
+
+CREATE TABLE t4 (a4 int) ;
+INSERT INTO t4 VALUES (9);
+
+CREATE TABLE t5(a5 int PRIMARY KEY, b5 int) ;
+INSERT INTO t5 VALUES (7,0);
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=on';
+
+SET SESSION join_cache_level = 0;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION join_cache_level = 6;
+EXPLAIN
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+SELECT t4.a4, t5.b5 
+  FROM ((t1 LEFT JOIN (t2 JOIN t3 ON t2.a2 = t3.a3) ON t2.b2 = t1.a1)
+       LEFT JOIN t4 ON t4.a4 <> 0) LEFT JOIN t5 ON t5.a5 = t2.a2;
+
+SET SESSION optimizer_switch = 'outer_join_with_cache=off';
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+# this must be the last command in the file
+set @@optimizer_switch=@save_optimizer_switch;

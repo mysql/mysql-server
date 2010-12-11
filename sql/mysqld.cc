@@ -345,6 +345,11 @@ static const char *optimizer_switch_names[]=
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
+  "outer_join_with_cache",
+  "semijoin_with_cache",
+  "join_cache_incremental",
+  "join_cache_hashed",
+  "join_cache_bka",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -366,6 +371,11 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
   sizeof("subquery_cache") - 1,
+  sizeof("outer_join_with_cache") - 1,
+  sizeof("semijoin_with_cache") - 1,
+  sizeof("join_cache_incremental") - 1,
+  sizeof("join_cache_hashed") - 1,
+  sizeof("join_cache_bka") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -464,7 +474,10 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "semijoin=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
-                                        "subquery_cache=on"
+                                        "subquery_cache=on,"
+                                        "join_cache_incremental=on,"
+                                        "join_cache_hashed=on,"
+                                        "join_cache_bka=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";
 #else
@@ -5939,7 +5952,8 @@ enum options_mysqld
   OPT_DELAYED_INSERT_LIMIT, OPT_DELAYED_QUEUE_SIZE,
   OPT_FLUSH_TIME, OPT_FT_MIN_WORD_LEN, OPT_FT_BOOLEAN_SYNTAX,
   OPT_FT_MAX_WORD_LEN, OPT_FT_QUERY_EXPANSION_LIMIT, OPT_FT_STOPWORD_FILE,
-  OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE, OPT_JOIN_CACHE_LEVEL,
+  OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
+  OPT_JOIN_BUFF_SPACE_LIMIT, OPT_JOIN_CACHE_LEVEL,
   OPT_KEY_BUFFER_SIZE, OPT_KEY_CACHE_BLOCK_SIZE,
   OPT_KEY_CACHE_DIVISION_LIMIT, OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_KEY_CACHE_PARTITIONS,
@@ -7087,11 +7101,17 @@ thread is in the relay logs.",
    &max_system_variables.net_interactive_timeout, 0,
    GET_ULONG, REQUIRED_ARG, NET_WAIT_TIMEOUT, 1, LONG_TIMEOUT, 0, 1, 0},
   {"join_buffer_size", OPT_JOIN_BUFF_SIZE,
-   "The size of the buffer that is used for full joins.",
-   &global_system_variables.join_buff_size,
-   &max_system_variables.join_buff_size, 0, GET_ULONG,
+   "The size of the buffer that is used for joins.",
+    &global_system_variables.join_buff_size,
+    &max_system_variables.join_buff_size, 0, GET_ULONG,
    REQUIRED_ARG, 128*1024L, 128+MALLOC_OVERHEAD, (longlong) ULONG_MAX,
    MALLOC_OVERHEAD, 128, 0},
+  {"join_buffer_space_limit", OPT_JOIN_BUFF_SPACE_LIMIT,
+   "The limit of the space for all join buffers used by a query.",
+   &global_system_variables.join_buff_space_limit,
+   &max_system_variables.join_buff_space_limit, 0, GET_ULL,
+   REQUIRED_ARG, 8*128*1024L, 2048+MALLOC_OVERHEAD, (longlong) ULONGLONG_MAX,
+   MALLOC_OVERHEAD, 2048, 0},
    {"join_cache_level", OPT_JOIN_CACHE_LEVEL,
    "Controls what join operations can be executed with join buffers. Odd numbers are used for plain join buffers while even numbers are used for linked buffers",
    &global_system_variables.join_cache_level,
@@ -7383,7 +7403,8 @@ thread is in the relay logs.",
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
    "index_condition_pushdown, firstmatch, loosescan, materialization, "
    "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
-   "subquery_cache"
+   "subquery_cache, outer_join_with_cache, semijoin_with_cache, "
+   "join_cache_incremental, join_cache_hashed, join_cache_bka"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 

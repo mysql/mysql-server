@@ -2,6 +2,8 @@
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 --enable_warnings
 
+set @save_optimizer_switch=@@optimizer_switch;
+
 #
 # 1. Subquery with GROUP/HAVING
 #
@@ -888,7 +890,7 @@ set @@optimizer_switch='firstmatch=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t1;
 
@@ -906,7 +908,7 @@ select * from t1 where 2 in (select a from t0);
 set @@optimizer_switch='default,materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 select * from t1 where 2 in (select a from t0);
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 
 # 
@@ -952,7 +954,7 @@ flush status;
 select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 show status like 'Created_tmp_disk_tables';
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t0, t1;
 
 #
@@ -990,7 +992,7 @@ create table t1 (a decimal);
 insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 drop table t1;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # SJ-Materialization-scan for non-first table
@@ -1051,7 +1053,7 @@ set @save_optimizer_search_depth=@@optimizer_search_depth;
 set @@optimizer_search_depth=63;
 explain select * from t1 where (a,b) in (select a,b from t2);
 set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch=default;
+set @@optimizer_switch=@save_optimizer_switch;
 
 drop table t0, t1, t2;
 
@@ -1181,3 +1183,6 @@ ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
 CALL p1;
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
+
+# The following command must be the last one the file 
+set @@optimizer_switch=@save_optimizer_switch;

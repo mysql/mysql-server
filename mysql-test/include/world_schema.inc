@@ -6,7 +6,7 @@ CREATE TABLE Country (
   Capital int(11) default NULL,
   PRIMARY KEY  (Code),
   UNIQUE INDEX (Name)
-);
+) COLLATE latin1_bin;
 CREATE TABLE City (
   ID int(11) NOT NULL auto_increment,
   Name char(35) NOT NULL default '',
@@ -15,11 +15,11 @@ CREATE TABLE City (
   PRIMARY KEY  (ID),
   INDEX (Population),
   INDEX (Country) 
-);
+) COLLATE latin1_bin;
 CREATE TABLE CountryLanguage (
   Country char(3) NOT NULL default '',
   Language char(30) NOT NULL default '',
   Percentage float(3,1) NOT NULL default '0.0',
   PRIMARY KEY  (Country, Language),
   INDEX (Percentage)
-);
+) COLLATE latin1_bin; 

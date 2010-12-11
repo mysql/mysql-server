@@ -320,6 +320,9 @@ static sys_var_thd_ulong	sys_interactive_timeout(&vars, "interactive_timeout",
 						&SV::net_interactive_timeout);
 static sys_var_thd_ulong	sys_join_buffer_size(&vars, "join_buffer_size",
 					     &SV::join_buff_size);
+static sys_var_thd_ulonglong    sys_join_buffer_space_limit(&vars,
+                                                "join_buffer_space_limit",
+					        &SV::join_buff_space_limit);
 static sys_var_thd_ulong	sys_join_cache_level(&vars, "join_cache_level",
 					             &SV::join_cache_level);
 static sys_var_key_buffer_size	sys_key_buffer_size(&vars, "key_buffer_size");
@@ -4058,7 +4061,7 @@ bool
 sys_var_thd_optimizer_switch::
 symbolic_mode_representation(THD *thd, ulonglong val, LEX_STRING *rep)
 {
-  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  char buff[STRING_BUFFER_USUAL_SIZE*18];
   String tmp(buff, sizeof(buff), &my_charset_latin1);
   int i;
   ulonglong bit;

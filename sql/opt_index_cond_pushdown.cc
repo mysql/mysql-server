@@ -272,12 +272,14 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
                      in tab->select_cond
       keyno          Index for which extract and push the condition
       other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
+      factor_out     TRUE <=> Factor out the extracted condition
 
   DESCRIPTION
     Try to extract and push the index condition down to table handler
 */
 
-void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
+void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
+                     bool factor_out)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
@@ -350,7 +352,8 @@ void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       if (idx_remainder_cond != idx_cond)
         tab->ref.disable_cache= TRUE;
 
-      Item *row_cond= make_cond_remainder(tab->select_cond, TRUE);
+      Item *row_cond= factor_out ?  make_cond_remainder(tab->select_cond, TRUE) :
+	                            tab->pre_idx_push_select_cond;
 
       DBUG_EXECUTE("where",
                    print_where(row_cond, "remainder cond", QT_ORDINARY););

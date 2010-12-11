@@ -449,7 +449,8 @@ static void do_varstring1(Copy_field *copy)
   if (length > copy->to_length- 1)
   {
     length=copy->to_length - 1;
-    if (copy->from_field->table->in_use->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields &&
+        copy->to_field)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
@@ -485,7 +486,8 @@ static void do_varstring2(Copy_field *copy)
   if (length > copy->to_length- HA_KEY_BLOB_LENGTH)
   {
     length=copy->to_length-HA_KEY_BLOB_LENGTH;
-    if (copy->from_field->table->in_use->count_cuted_fields)
+    if (copy->from_field->table->in_use->count_cuted_fields &&
+        copy->to_field)
       copy->to_field->set_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                                   WARN_DATA_TRUNCATED, 1);
   }
@@ -549,9 +551,9 @@ void Copy_field::set(uchar *to,Field *from)
       do_copy=	  do_field_to_null_str;
   }
   else
-  {
+  { 
     to_null_ptr=  0;				// For easy debugging
-    do_copy=	  do_field_eq;
+    do_copy= do_field_eq;
   }
 }
 
@@ -710,6 +712,9 @@ Copy_field::get_copy_func(Field *to,Field *from)
                                                     do_varstring1_mb) :
                   (from->charset()->mbmaxlen == 1 ? do_varstring2 :
                                                     do_varstring2_mb));
+        else 
+          return  (((Field_varstring*) from)->length_bytes == 1 ?
+                    do_varstring1 : do_varstring2);
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?

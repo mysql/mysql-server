@@ -5,6 +5,8 @@
 drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
 --enable_warnings
 
+set @save_optimizer_switch=@@optimizer_switch;
+
 #
 # 1. Subqueries that are converted into semi-joins
 #
@@ -224,7 +226,8 @@ INSERT INTO WORKS VALUES  ('E4','P2',20);
 INSERT INTO WORKS VALUES  ('E4','P4',40);
 INSERT INTO WORKS VALUES  ('E4','P5',80);
 
-set optimizer_switch='default,materialization=off';
+set optimizer_switch=@save_optimizer_switch;
+set optimizer_switch='materialization=off';
 
 explain SELECT EMPNUM, EMPNAME
 FROM STAFF
@@ -240,7 +243,7 @@ WHERE EMPNUM IN
    WHERE PNUM IN
      (SELECT PNUM  FROM PROJ));
 
-set optimizer_switch='default';
+set optimizer_switch=@save_optimizer_switch;
 
 drop table STAFF,WORKS,PROJ;
 
@@ -359,7 +362,7 @@ drop table t1, t2;
 drop view v1;
 drop procedure p1;
 
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 
 --echo # End of bug#46744
 
@@ -526,7 +529,7 @@ DROP TABLE t1,t2;
 DROP VIEW v1,v2;
 DROP PROCEDURE p1;
 
-set SESSION optimizer_switch='default';
+set SESSION optimizer_switch=@save_optimizer_switch;
 
 --echo # End of BUG#48834
 
@@ -979,3 +982,5 @@ WHERE (SELECT varchar_key FROM t3
 set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2, t3;
 
+# The following command must be the last one the file 
+set @@optimizer_switch=@save_optimizer_switch;

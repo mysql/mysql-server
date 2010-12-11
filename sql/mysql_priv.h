@@ -570,12 +570,17 @@ protected:
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 512
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN 1024
 #define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<11)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<12)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<13)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<14)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<15)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<16)
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<12)
+#  define OPTIMIZER_SWITCH_LAST (1<<17)
 #else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<12)
-#  define OPTIMIZER_SWITCH_LAST (1<<13)
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<17)
+#  define OPTIMIZER_SWITCH_LAST (1<<18)
 #endif
 
 #ifdef DBUG_OFF 
@@ -591,7 +596,10 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
 #else
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -605,7 +613,10 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE)
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
 #endif
 
 /*

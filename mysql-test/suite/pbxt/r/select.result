@@ -1437,7 +1437,7 @@ companynr	companynr
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	index	NULL	PRIMARY	1	NULL	12	Using index; Using temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (flat, BNL join)
 select t2.fld1,t2.companynr,fld3,period from t3,t2 where t2.fld1 = 38208 and t2.fld1=t3.t2nr and period = 1008 or t2.fld1 = 38008 and t2.fld1 =t3.t2nr and period = 1008;
 fld1	companynr	fld3	period
 038008	37	reporters	1008
@@ -2368,7 +2368,7 @@ insert into t1 values (1,2), (2,2), (3,2), (4,2);
 insert into t2 values (1,3), (2,3), (3,4), (4,4);
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	1	
+1	SIMPLE	t2	ref	c,d	d	5	const	1	Using where
 1	SIMPLE	t1	ref	a	a	5	test.t2.c	1	
 select * from t1 left join t2 on a=c where d in (4);
 a	b	c	d
@@ -2376,7 +2376,7 @@ a	b	c	d
 4	2	4	4
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	c,d	d	5	const	1	
+1	SIMPLE	t2	ref	c,d	d	5	const	1	Using where
 1	SIMPLE	t1	ref	a	a	5	test.t2.c	1	
 select * from t1 left join t2 on a=c where d = 4;
 a	b	c	d
@@ -2723,7 +2723,7 @@ where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and
 t2.b like '%%' order by t2.b limit 0,1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	b,c	b	5	const	1	Using temporary; Using filesort
-1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index; Using join buffer
+1	SIMPLE	t3	index	PRIMARY,a,b	PRIMARY	8	NULL	2	Using index; Using join buffer (flat, BNL join)
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	2	Range checked for each record (index map: 0x1)
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
@@ -2746,7 +2746,7 @@ Note	1031	Table storage engine for 't1' doesn't have this option
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2756,7 +2756,7 @@ a	b	a	b
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2910,11 +2910,11 @@ a
 EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
 EXPLAIN SELECT t1.a FROM t1 INNER JOIN t2 ON t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where; Using join buffer (flat, BNL join)
 DROP TABLE t1,t2;
 select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
@@ -3630,7 +3630,7 @@ WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
 t3.c IN ('bb','ee');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	range	si,ai	si	5	NULL	2	Using where
+1	SIMPLE	t2	range	si,ai	ai	5	NULL	1	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	Using where
 DROP TABLE t1,t2,t3;
 DROP TABLE IF EXISTS t1;

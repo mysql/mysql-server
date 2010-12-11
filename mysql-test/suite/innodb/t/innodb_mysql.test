@@ -860,6 +860,40 @@ show create table t2;
 drop table t2, t1;
 
 --echo #
+--echo # Bug #663818: wrong result when BNLH is used 
+--echo #
+
+CREATE TABLE t1(pk int NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+  (1), (2), (11), (12), (13), (14),
+  (15), (16), (17), (18), (19);
+CREATE TABLE t2(pk int NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES 
+  (1), (10), (11), (12), (13), (14),
+  (15), (16), (17), (18), (19), (20), (21);
+
+SET SESSION join_buffer_size=10000;
+
+SET SESSION join_cache_level=3;
+EXPLAIN
+SELECT t1.pk FROM t1,t2 
+  WHERE t1.pk = t2.pk AND t2.pk <> 8;
+SELECT t1.pk FROM t1,t2 
+  WHERE t1.pk = t2.pk AND t2.pk <> 8;
+
+SET SESSION join_cache_level=1;
+EXPLAIN
+SELECT t1.pk FROM t1,t2 
+  WHERE t1.pk = t2.pk AND t2.pk <> 8;
+SELECT t1.pk FROM t1,t2 
+  WHERE t1.pk = t2.pk AND t2.pk <> 8;
+
+DROP TABLE t1,t2;
+
+SET SESSION join_cache_level=DEFAULT;
+SET SESSION join_buffer_size=DEFAULT;
+
+--echo #
 --echo # Bug#668644: HAVING + ORDER BY
 --echo #
 

@@ -1196,9 +1196,6 @@ SELECT COUNT(*)
 
 DROP TABLE t1,t2,t3,t4,t5;
 
-# !!!Remove the following if brackets after having merged the code of MWL#128 
-if (`SELECT @@join_cache_level=1`)
-{  
 #
 # BUG#49322: Nested left joins + not-exist optimization
 #
@@ -1238,7 +1235,7 @@ SELECT t1.pk, t1.a, t2.pk, t2.a,t3.pk, t3.a
   WHERE t3.pk IS NULL;
 
 DROP TABLE t1, t2, t3;
-}
+
 
 --echo End of 5.0 tests
 
