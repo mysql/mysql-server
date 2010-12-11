@@ -5075,7 +5075,8 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *cu
     ha_rows table_cardinality= curr->common_info->table_cardinality;
     ha_rows records= curr->records;
     bitmap_copy(used_fields, curr->intersect_fields);
-    records= (double) records / table_cardinality * ext_index_scan->records;
+    records= (ha_rows) ((double) records / table_cardinality *
+                         ext_index_scan->records);
     set_if_bigger(records, 1);
     for (uint i= 0 ; key_part < key_part_end; i++, key_part++)
     {
@@ -5084,7 +5085,7 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *cu
         ulong *rec_per_key= key_info->rec_per_key+i;
         ulong f1= rec_per_key[0] ? rec_per_key[0] : 1;
         ulong f2= i+1 < key_parts && rec_per_key[1] ? rec_per_key[1] : 1;
-	records= (double) records / f2 * f1;
+	records= (ha_rows) ((double) records / f2 * f1);
       }
       else
       { 
