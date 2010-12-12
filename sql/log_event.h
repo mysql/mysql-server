@@ -2481,7 +2481,7 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifdef MYSQL_SERVER
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, 0), xid(x)
+  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, TRUE), xid(x)
   { cache_type= EVENT_NO_CACHE; }
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);

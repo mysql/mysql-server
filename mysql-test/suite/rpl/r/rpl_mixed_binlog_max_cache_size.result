@@ -10,6 +10,10 @@ SET GLOBAL max_binlog_cache_size = 4096;
 Warnings:
 Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
 SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+Warnings:
+Warning	1725	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
+SET GLOBAL binlog_stmt_cache_size = 4096;
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -134,13 +138,20 @@ SET GLOBAL max_binlog_cache_size = 4096;
 Warnings:
 Warning	1712	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
 SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+Warnings:
+Warning	1725	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
+SET GLOBAL binlog_stmt_cache_size = 4096;
 include/stop_slave.inc
 include/start_slave.inc
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
 TRUNCATE t1;
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 BEGIN;
 Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
 COMMIT;
@@ -151,6 +162,8 @@ show binlog events in 'slave-bin.000001' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;
+SET GLOBAL max_binlog_stmt_cache_size= ORIGINAL_VALUE;
+SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 include/stop_slave.inc
 include/start_slave.inc
 SELECT count(*) FROM t1;
