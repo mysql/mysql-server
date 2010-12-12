@@ -590,7 +590,11 @@ int ha_myisam::net_read_dump(NET* net)
   int data_fd = file->dfile;
   int error = 0;
 
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  if (my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    error= my_errno;
+    goto err;
+  }
   for (;;)
   {
     ulong packet_len = my_net_read(net);
@@ -626,7 +630,11 @@ int ha_myisam::dump(THD* thd, int fd)
     return ENOMEM;
 
   int error = 0;
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  if (my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    error= my_errno;
+    goto err;
+  }
   for (; bytes_to_read > 0;)
   {
     size_t bytes = my_read(data_fd, buf, blocksize, MYF(MY_WME));
