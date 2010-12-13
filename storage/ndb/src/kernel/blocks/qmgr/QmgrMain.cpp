@@ -1127,9 +1127,9 @@ retry:
     part.assign(NdbNodeBitmask::Size, conf->clusterNodes);
     FailRep* rep = (FailRep*)signal->getDataPtrSend();
     rep->failCause = FailRep::ZPARTITIONED_CLUSTER;
-    rep->president = cpresident;
-    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partition);
-    rep->partitionFailSourceNodeId = getOwnNodeId();
+    rep->partitioned.president = cpresident;
+    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partitioned.partition);
+    rep->partitioned.partitionFailSourceNodeId = getOwnNodeId();
     Uint32 ref = calcQmgrBlockRef(nodeId);
     Uint32 i = 0;
     /* Send source of event info if a node supports it */
@@ -3458,7 +3458,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       {
 	jam();
 	NdbNodeBitmask part;
-	part.assign(NdbNodeBitmask::Size, rep->partition);
+	part.assign(NdbNodeBitmask::Size, rep->partitioned.partition);
 	part.getText(buf2);
 	BaseString::snprintf(extra, sizeof(extra),
 			     "Our cluster: %s other cluster: %s",
