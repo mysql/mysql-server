@@ -163,7 +163,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
   if (list->data)
   {
     enum thr_lock_type last_lock_type= list->data->type;
-    THR_LOCK_OWNER first_owner= list->data->owner;
+    THR_LOCK_OWNER *first_owner= list->data->owner;
 
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
