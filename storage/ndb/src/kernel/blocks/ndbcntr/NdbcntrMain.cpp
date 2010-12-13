@@ -3505,6 +3505,7 @@ Ndbcntr::execSTOP_CONF(Signal* signal)
      */
     FailRep * const failRep = (FailRep *)&signal->theData[0];
     failRep->failCause = FailRep::ZMULTI_NODE_SHUTDOWN;
+    failRep->failSourceNodeId = getOwnNodeId();
     NodeReceiverGroup rg(QMGR, c_clusterNodes);
     Uint32 nodeId = 0;
     while ((nodeId = NdbNodeBitmask::find(c_stopRec.stopReq.nodes, nodeId+1))
