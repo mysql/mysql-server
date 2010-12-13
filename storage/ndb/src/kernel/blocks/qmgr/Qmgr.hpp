@@ -312,7 +312,8 @@ private:
   void failReport(Signal* signal,
                   Uint16 aFailedNode,
                   UintR aSendFailRep,
-                  FailRep::FailCause failCause);
+                  FailRep::FailCause failCause,
+                  Uint16 sourceNode);
   void findNeighbours(Signal* signal, Uint32 from);
   Uint16 translateDynamicIdToNodeId(Signal* signal, UintR TdynamicId);
 
@@ -341,7 +342,8 @@ private:
   void commitFailReqLab(Signal* signal);
   void commitFailConfLab(Signal* signal);
   void failReportLab(Signal* signal, Uint16 aFailedNode, 
-		     FailRep::FailCause aFailCause);
+		     FailRep::FailCause aFailCause,
+                     Uint16 sourceNode);
   void sendCommitFailReq(Signal* signal);
   void presToConfLab(Signal* signal);
   void sendSttorryLab(Signal* signal);
