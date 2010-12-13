@@ -10,10 +10,11 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE;
--- enable_result_log
 
 # This gives the over all buffer pool size
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE;
+
+-- enable_result_log
 
 # Create a table and check its page info behave correctly in the pool
 CREATE TABLE infoschema_buffer_test (col1 INT) ENGINE = INNODB;
@@ -51,7 +52,7 @@ FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test";
 
 # Do one more test
---replace_regex /'*[0-9]*'/'NUM'/
+#--replace_regex /'*[0-9]*'/'NUM'/
 CREATE TABLE infoschema_parent (id INT NOT NULL, PRIMARY KEY (id))
 ENGINE=INNODB;
 
