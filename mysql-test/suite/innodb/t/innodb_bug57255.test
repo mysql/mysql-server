@@ -12,6 +12,7 @@ create table C(id int not null auto_increment primary key, f1 int not null, fore
 insert into A values(1), (2);
 
 --disable_query_log
+begin;
 let $i=257;
 while ($i)
 {
@@ -24,6 +25,7 @@ while ($i)
 insert into C(f1) values(2);
 dec $i;
 }
+commit;
 --enable_query_log
 
 # Following Deletes should not report error

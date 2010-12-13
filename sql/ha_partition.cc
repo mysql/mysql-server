@@ -2432,7 +2432,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   for (i= 0; i < m_tot_parts; i++)
     m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
 
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
     
   if (!m_file && create_handlers(mem_root))
   {
@@ -2442,7 +2442,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   DBUG_RETURN(FALSE);
 
 err3:
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
 err2:
   my_free(file_buffer, MYF(0));
 err1:

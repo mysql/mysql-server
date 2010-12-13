@@ -11058,6 +11058,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       /* Compare the found key with max_key. */
       int cmp_res= key_cmp(index_info->key_part, max_key,
                            real_prefix_len + min_max_arg_len);
+      my_afree(max_key);
       /*
         The key is outside of the range if: 
         the interval is open and the key is equal to the maximum boundry
@@ -11183,6 +11184,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
       /* Compare the found key with min_key. */
       int cmp_res= key_cmp(index_info->key_part, min_key,
                            real_prefix_len + min_max_arg_len);
+      my_afree(min_key);
       /*
         The key is outside of the range if: 
         the interval is open and the key is equal to the minimum boundry
