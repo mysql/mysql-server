@@ -67,7 +67,7 @@ public:
     if (failCause == ZPARTITIONED_CLUSTER)
     {
       return (sigLen == (SignalLength + PartitionedExtraLength)) ?
-        partitionFailSourceNodeId : 
+        partitioned.partitionFailSourceNodeId : 
         0;
     }
 
@@ -88,7 +88,7 @@ private:
       Uint32 president;
       Uint32 partition[NdbNodeBitmask::Size];
       Uint32 partitionFailSourceNodeId;
-    };
+    } partitioned;
     Uint32 failSourceNodeId;
   };
 };
