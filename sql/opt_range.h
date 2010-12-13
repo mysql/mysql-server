@@ -826,6 +826,13 @@ class SQL_SELECT :public Sql_alloc {
  public:
   QUICK_SELECT_I *quick;	// If quick-select used
   COND		*cond;		// where condition
+
+  /*
+    When using Index Condition Pushdown: condition that we've had before
+    extracting and pushing index condition.
+    In other cases, NULL.
+  */
+  Item *pre_idx_push_select_cond;
   TABLE	*head;
   IO_CACHE file;		// Positions to used records
   ha_rows records;		// Records in use if read from file

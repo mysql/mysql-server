@@ -71,6 +71,9 @@ select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or
 #
 # Now try different keypart types and special values
 #
+--disable_warnings
+drop table if exists t4;
+--enable_warnings
 create table t4 (a varchar(10), b int, c char(10), filler char(200),
                  key idx1 (a, b, c));
 
