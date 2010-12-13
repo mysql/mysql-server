@@ -32,17 +32,17 @@ check_file(){
 	fi
 	
 	case "$line" in
-	    ^max-time*)
+	    ^max-time:*)
 		testcase=$(expr $testcase + 1);;
-	    ^cmd*)
+	    ^cmd:*)
 		if [ $(echo $line | wc -w) -ne 2 ]
 		then
 		    die $file $lineno
 		fi
 		testcase=$(expr $testcase + 2);;
-	    ^args*)
+	    ^args:*)
 		testcase=$(expr $testcase + 4);;
-	    ^type*)
+	    ^type:*)
 		;;
 	    ^$) 
                 if [ $testcase -ne 7 ]
