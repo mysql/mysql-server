@@ -327,6 +327,9 @@ This is no longer true. We'll, however, keep the lint datatype to add
 assertions to catch any corner cases that we may have missed. */
 UNIV_INTERN lint	srv_conc_n_threads	= 0;
 
+/* print all user-level transactions deadlocks to mysqld stderr */
+UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
+
 /* this mutex protects srv_conc data structures */
 static os_fast_mutex_t	srv_conc_mutex;
 
