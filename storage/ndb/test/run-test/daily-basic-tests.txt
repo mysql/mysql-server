@@ -1622,7 +1622,7 @@ cmd: testIndex
 args: -n Bug56829 T1
 
 max-time: 500
-cmd testNodeRestart
+cmd: testNodeRestart
 args: -n ForceStopAndRestart T1
 
 max-time: 300
