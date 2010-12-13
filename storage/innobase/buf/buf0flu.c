@@ -2423,7 +2423,13 @@ buf_flush_page_cleaner_thread(
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
 
 	/* We can now make a final sweep on flushing the buffer pool
-	and exit after we have cleaned the whole buffer pool. */
+	and exit after we have cleaned the whole buffer pool. 
+	It is important that we wait for any running batch that has
+	been triggered by us to finish. Otherwise we can end up
+	considering end of that batch as a finish of our final
+	sweep and we'll come out of the loop leaving behind dirty pages
+	in the flush_list */
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	do {
 
 		n_flushed = buf_flush_list(PCT_IO(100),
