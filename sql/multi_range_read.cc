@@ -426,17 +426,14 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   if (source_exhausted)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
-  //if (know_key_tuple_params)
-  {
-    buf_manager->reset_buffer_sizes(buf_manager->arg);
-    key_buffer->reset();
-    key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
-                              is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
-                              sizeof(uchar*));
-  }
+  buf_manager->reset_buffer_sizes(buf_manager->arg);
+  key_buffer->reset();
+  key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
+                            is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
+                            sizeof(uchar*));
 
   while (key_buffer->can_write() && 
-         !(source_exhausted= (bool)mrr_funcs.next(mrr_iter, &cur_range)))
+         !(source_exhausted= mrr_funcs.next(mrr_iter, &cur_range)))
   {
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
 

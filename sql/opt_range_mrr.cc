@@ -116,11 +116,11 @@ static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
       - max_key_part
 
   RETURN
-    0  Ok
-    1  No more ranges in the sequence
+    FALSE  Ok
+    TRUE   No more ranges in the sequence
 */
 
-uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
   SEL_ARG_RANGE_SEQ *seq= (SEL_ARG_RANGE_SEQ*)rseq;
@@ -314,7 +314,7 @@ range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags)
     1  No more ranges in the sequence
 */
 
-uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   QUICK_RANGE_SEQ_CTX *ctx= (QUICK_RANGE_SEQ_CTX*)rseq;
 

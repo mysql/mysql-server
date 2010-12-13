@@ -1197,10 +1197,10 @@ typedef struct st_range_seq_if
         range  OUT Information about the next range
     
     RETURN
-      0 - Ok, the range structure filled with info about the next range
-      1 - No more ranges
+      FALSE - Ok, the range structure filled with info about the next range
+      TRUE  - No more ranges
   */
-  uint (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+  bool (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
 
   /*
     Check whether range_info orders to skip the next record

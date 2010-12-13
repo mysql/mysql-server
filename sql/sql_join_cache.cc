@@ -3655,12 +3655,12 @@ range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
     This function are used only as a callback function.
    
   RETURN VALUE
-    0   ok, the range structure filled with info about the next range/key
-    1   no more ranges
+    FALSE   ok, the range structure filled with info about the next range/key
+    TRUE    no more ranges
 */    
 
 static 
-uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bka_range_seq_next");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -4130,12 +4130,12 @@ range_seq_t bkah_range_seq_init(void *init_param, uint n_ranges, uint flags)
     This function are used only as a callback function.
    
   RETURN VALUE
-    0    ok, the range structure filled with info about the next range/key
-    1    no more ranges
+    FALSE  ok, the range structure filled with info about the next range/key
+    TRUE   no more ranges
 */    
 
 static 
-uint bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bkah_range_seq_next");
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;

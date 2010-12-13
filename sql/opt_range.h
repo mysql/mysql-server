@@ -373,7 +373,7 @@ typedef struct st_quick_range_seq_ctx
 } QUICK_RANGE_SEQ_CTX;
 
 range_seq_t quick_range_seq_init(void *init_param, uint n_ranges, uint flags);
-uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
+bool quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
 
 /*
@@ -461,7 +461,7 @@ private:
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
   friend class QUICK_GROUP_MIN_MAX_SELECT;
-  friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
+  friend bool quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param,
                                           uint n_ranges, uint flags);
 };
