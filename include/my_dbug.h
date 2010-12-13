@@ -160,7 +160,8 @@ extern  void _db_flush_();
 #ifdef __WIN__
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
-#define DBUG_SUICIDE() (_db_flush_(), kill(getpid(), SIGKILL), pause())
+extern void _db_suicide_();
+#define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif
 
 #else						/* No debugger */
