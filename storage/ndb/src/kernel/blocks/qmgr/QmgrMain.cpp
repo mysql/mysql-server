@@ -3719,6 +3719,7 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
       arrayIndex++;
     }
   }
+  ndbassert(arrayIndex == cnoPrepFailedNodes);
   UintR tprepFailConf;
   UintR Tindex2;
   UintR guard0;
@@ -3729,6 +3730,14 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   tprepFailConf = ZTRUE;
   if (cnoFailedNodes > 0) {
     jam();
+    /* Check whether the set of nodes which have had communications
+     * closed is the same as the set of failed nodes.
+     * If it is, we can confirm the PREP_FAIL phase for this set 
+     * of nodes to the President.
+     * If it is not, we Refuse the PREP_FAIL phase for this set
+     * of nodes, the President will start a new PREP_FAIL phase
+     * for the new set.
+     */
     guard0 = cnoFailedNodes - 1;
     arrGuard(guard0, MAX_NDB_NODES);
     for (Tindex = 0; Tindex <= guard0; Tindex++) {
@@ -3746,6 +3755,10 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
       }//for
       if (Tfound == ZFALSE) {
         jam();
+        /* A failed node is missing from the set, we will not
+         * confirm this Prepare_Fail phase.
+         * Store the node id in the array for later.
+         */
         tprepFailConf = ZFALSE;
         arrGuard(cnoPrepFailedNodes, MAX_NDB_NODES);
         cprepFailedNodes[cnoPrepFailedNodes] = TfailedNodeNo;
@@ -3755,7 +3768,11 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   }//if
   if (tprepFailConf == ZFALSE) {
     jam();
-    for (Tindex = 1; Tindex < MAX_NDB_NODES; Tindex++) {
+    /* Inform President that we cannot confirm the PREP_FAIL
+     * phase as we are aware of at least one other node
+     * failure
+     */
+    for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
       cfailedNodes[Tindex] = cprepFailedNodes[Tindex];
     }//for
     cnoFailedNodes = cnoPrepFailedNodes;
@@ -3767,6 +3784,9 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
 		       cnoPrepFailedNodes,
 		       cprepFailedNodes);
   } else {
+    /* We have prepared the failure of the requested nodes
+     * send confirmation to the president
+     */
     jam();
     cnoCommitFailedNodes = cnoPrepFailedNodes;
     guard0 = cnoPrepFailedNodes - 1;
