@@ -2528,11 +2528,11 @@ row_sel_store_row_id_to_prebuilt(
 
 #ifdef UNIV_DEBUG
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,field,src,len)	\
-	row_sel_field_store_in_mysql_format_func(dest,templ,field,src,len)
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
+	row_sel_field_store_in_mysql_format_func(dest,templ,idx,field,src,len)
 #else /* UNIV_DEBUG */
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-# define row_sel_field_store_in_mysql_format(dest,templ,field,src,len)	\
+# define row_sel_field_store_in_mysql_format(dest,templ,idx,field,src,len) \
 	row_sel_field_store_in_mysql_format_func(dest,templ,src,len)
 #endif /* UNIV_DEBUG */
 
@@ -2555,13 +2555,21 @@ row_sel_field_store_in_mysql_format_func(
 				type, is_unsigned, mysql_col_len,
 				mbminlen, mbmaxlen */
 #ifdef UNIV_DEBUG
-	const dict_field_t* field,
-				/*!< in: InnoDB index field */
+	const dict_index_t* index,
+				/*!< in: InnoDB index */
+	ulint		field_no,
+				/*!< in: templ->rec_field_no or
+				templ->clust_rec_field_no or
+				templ->icp_rec_field_no */
 #endif /* UNIV_DEBUG */
 	const byte*	data,	/*!< in: data to store */
 	ulint		len)	/*!< in: length of the data */
 {
-	byte*	ptr;
+	byte*			ptr;
+#ifdef UNIV_DEBUG
+	const dict_field_t*	field
+		= dict_index_get_nth_field(index, field_no);
+#endif /* UNIV_DEBUG */
 
 	ut_ad(len != UNIV_SQL_NULL);
 	UNIV_MEM_ASSERT_RW(data, len);
@@ -2660,7 +2668,10 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len);
+		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		      || (field_no == templ->icp_rec_field_no
+			  && field->prefix_len > 0));
+		ut_ad(!(field->prefix_len % templ->mbmaxlen));
 
 		if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
 			/* Pad with spaces. This undoes the stripping
@@ -2782,8 +2793,7 @@ row_sel_store_mysql_field_func(
 
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, dict_index_get_nth_field(index, field_no),
-			data, len);
+			templ, index, field_no, data, len);
 
 		if (heap != prebuilt->blob_heap) {
 			mem_heap_free(heap);
@@ -2832,8 +2842,7 @@ row_sel_store_mysql_field_func(
 
 		row_sel_field_store_in_mysql_format(
 			mysql_rec + templ->mysql_col_offset,
-			templ, dict_index_get_nth_field(index, field_no),
-			data, len);
+			templ, index, field_no, data, len);
 	}
 
 	ut_ad(len != UNIV_SQL_NULL);
