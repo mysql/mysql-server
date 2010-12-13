@@ -2377,6 +2377,25 @@ void _db_flush_()
 }
 
 
+#ifndef __WIN__
+void _db_suicide_()
+{
+  int retval;
+  sigset_t new_mask;
+  sigfillset(&new_mask);
+
+  fprintf(stderr, "SIGKILL myself\n");
+  fflush(stderr);
+
+  retval= kill(getpid(), SIGKILL);
+  assert(retval == 0);
+  retval= sigsuspend(&new_mask);
+  fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
+  assert(FALSE); /* With full signal mask, we should never return here. */
+}
+#endif  /* ! __WIN__ */
+
+
 void _db_lock_file_()
 {
   CODE_STATE *cs;
