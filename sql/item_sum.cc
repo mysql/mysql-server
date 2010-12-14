@@ -3170,7 +3170,6 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tree(item->tree),
   unique_filter(item->unique_filter),
   table(item->table),
-  order(item->order),
   context(item->context),
   arg_count_order(item->arg_count_order),
   arg_count_field(item->arg_count_field),
@@ -3183,6 +3182,24 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 {
   quick_group= item->quick_group;
   result.set_charset(collation.collation);
+
+  /*
+    Since the ORDER structures pointed to by the elements of the 'order' array
+    may be modified in find_order_in_list() called from
+    Item_func_group_concat::setup(), create a copy of those structures so that
+    such modifications done in this object would not have any effect on the
+    object being copied.
+  */
+  ORDER *tmp;
+  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+                                     sizeof(ORDER) * arg_count_order)))
+    return;
+  tmp= (ORDER *)(order + arg_count_order);
+  for (uint i= 0; i < arg_count_order; i++, tmp++)
+  {
+    memcpy(tmp, item->order[i], sizeof(ORDER));
+    order[i]= tmp;
+  }
 }
 
 

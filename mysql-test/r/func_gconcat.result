@@ -989,4 +989,22 @@ SELECT 1 FROM
 1
 1
 DROP TABLE t1;
+#
+# Bug #54476: crash when group_concat and 'with rollup' in prepared statements
+# 
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1.a ORDER BY t1.a) FROM t1 JOIN t1 t2 GROUP BY t1.a WITH ROLLUP";
+EXECUTE stmt;
+GROUP_CONCAT(t1.a ORDER BY t1.a)
+1,1
+2,2
+1,1,2,2
+EXECUTE stmt;
+GROUP_CONCAT(t1.a ORDER BY t1.a)
+1,1
+2,2
+1,1,2,2
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.0 tests
