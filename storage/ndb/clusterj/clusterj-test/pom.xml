@@ -22,7 +22,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-test</artifactId>
   <packaging>jar</packaging>
-  <version>7.1.9-SNAPSHOT</version>
+  <version>7.1.10-SNAPSHOT</version>
   <name>ClusterJ Test Suite</name>
   <build>
     <plugins>
@@ -91,13 +91,13 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-core</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
