@@ -868,6 +868,7 @@ TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 INNODB_BUFFER_PAGE	TABLE_NAME	select
+INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
