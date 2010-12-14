@@ -937,6 +937,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_CHANGE_USER:
   {
+    bool rc;
     status_var_increment(thd->status_var.com_other);
 
     thd->change_user();
@@ -956,7 +957,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
-    if (acl_authenticate(thd, 0, packet_length))
+    rc= acl_authenticate(thd, 0, packet_length);
+    MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+    if (rc)
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
@@ -1394,6 +1397,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                      thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
+                      command_name[command].str);
 
   log_slow_statement(thd);
 
