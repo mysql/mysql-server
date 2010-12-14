@@ -1715,14 +1715,8 @@ typedef struct st_lex : public Query_tables_list
   bool verbose, no_write_to_binlog;
 
   bool tx_chain, tx_release;
-  /*
-    Special JOIN::prepare mode: changing of query is prohibited.
-    When creating a view, we need to just check its syntax omitting
-    any optimizations: afterwards definition of the view will be
-    reconstructed by means of ::print() methods and written to
-    to an .frm file. We need this definition to stay untouched.
-  */
-  bool view_prepare_mode;
+
+  uint8 context_analysis_only;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
@@ -1841,6 +1835,13 @@ typedef struct st_lex : public Query_tables_list
     destroy_query_tables_list();
     plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
     delete_dynamic(&plugins);
+  }
+
+  inline bool is_ps_or_view_context_analysis()
+  {
+    return (context_analysis_only &
+            (CONTEXT_ANALYSIS_ONLY_PREPARE |
+             CONTEXT_ANALYSIS_ONLY_VIEW));
   }
 
   inline void uncacheable(uint8 cause)
