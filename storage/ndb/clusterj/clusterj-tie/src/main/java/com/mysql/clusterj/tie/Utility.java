@@ -956,7 +956,7 @@ public class Utility {
             chars = padString(value, storeColumn);
         }
         ByteBuffer byteBuffer = encodeToByteBuffer(chars, storeColumn.getCharsetNumber(), offset);
-        fixBufferPrefixLength(byteBuffer, offset);
+        fixBufferPrefixLength(storeColumn.getName(), byteBuffer, offset);
         if (logger.isDetailEnabled()) dumpBytesToLog(byteBuffer, byteBuffer.limit());
         return byteBuffer;
     }
@@ -988,7 +988,7 @@ public class Utility {
      * @param byteBuffer the byte buffer to fix
      * @param offset the size of the length prefix
      */
-    public static void fixBufferPrefixLength(ByteBuffer byteBuffer, int offset) {
+    public static void fixBufferPrefixLength(String columnName, ByteBuffer byteBuffer, int offset) {
         int limit = byteBuffer.limit();
         // go back and fill in the length field(s)
         // size of the output char* is current limit minus offset
@@ -998,9 +998,17 @@ public class Utility {
             case 0:
                 break;
             case 1:
+                if (length > 255) {
+                    throw new ClusterJUserException(local.message("ERR_Varchar_Too_Big",
+                            length, columnName));
+                }
                 byteBuffer.put((byte)(length % 256));
                 break;
             case 2:
+                if (length > 65535) {
+                    throw new ClusterJUserException(local.message("ERR_Varchar_Too_Big",
+                            length, columnName));
+                }
                 byteBuffer.put((byte)(length % 256));
                 byteBuffer.put((byte)(length / 256));
                 break;
@@ -1400,7 +1408,7 @@ public class Utility {
         if (prefixLength == 0) {
             chars = padString(input, storeColumn);
         }
-        return charsetConverter.encode(chars, collation, prefixLength, bufferManager);
+        return charsetConverter.encode(storeColumn.getName(), chars, collation, prefixLength, bufferManager);
     }
 
     /** Decode a ByteBuffer into a String using the charset. The return value
@@ -1484,7 +1492,7 @@ public class Utility {
      */
     protected interface CharsetConverter {
 
-        ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager);
+        ByteBuffer encode(String columnName, CharSequence input, int collation, int prefixLength, BufferManager bufferManager);
 
         String decode(ByteBuffer inputByteBuffer, int collation, BufferManager bufferManager);
     }
@@ -1503,7 +1511,7 @@ public class Utility {
          * @param bufferManager the buffer manager with shared buffers
          * @return a byte buffer positioned at zero with the data ready to send to the database
          */
-        public ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
+        public ByteBuffer encode(String columnName, CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
             // input length in bytes is twice String length
             int inputLength = input.length() * 2;
             ByteBuffer inputByteBuffer = bufferManager.copyStringToByteBuffer(input);
@@ -1521,7 +1529,7 @@ public class Utility {
                     case CharsetMapConst.RecodeStatus.RECODE_OK:
                         outputByteBuffer.limit(prefixLength + lengths[1]);
                         outputByteBuffer.position(0);
-                        fixBufferPrefixLength(outputByteBuffer, prefixLength);
+                        fixBufferPrefixLength(columnName, outputByteBuffer, prefixLength);
                         return outputByteBuffer;
                     case CharsetMapConst.RecodeStatus.RECODE_BAD_CHARSET:
                         throw new ClusterJFatalInternalException(local.message("ERR_Encode_Bad_Charset",
@@ -1650,7 +1658,7 @@ public class Utility {
          * @param bufferManager the buffer manager with shared buffers
          * @return a byte buffer positioned at zero with the data ready to send to the database
          */
-        public ByteBuffer encode(CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
+        public ByteBuffer encode(String columnName, CharSequence input, int collation, int prefixLength, BufferManager bufferManager) {
             int length = input.length();
             byte[] outputBytes = new byte[length];
             for (int position = 0; position < length; ++position) {
@@ -1663,7 +1671,7 @@ public class Utility {
             outputByteBuffer.put(outputBytes);
             outputByteBuffer.flip();
             // adjust the length prefix
-            fixBufferPrefixLength(outputByteBuffer, prefixLength);
+            fixBufferPrefixLength(columnName, outputByteBuffer, prefixLength);
             return outputByteBuffer;
         }
 
