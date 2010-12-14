@@ -673,4 +673,15 @@ SET t3.a = 0;
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 
+--echo #
+--echo # Bug#52157 various crashes and assertions with multi-table update, stored function
+--echo #
+
+CREATE FUNCTION f1 () RETURNS BLOB RETURN 1;
+CREATE TABLE t1 (f1 DATE);
+INSERT INTO t1 VALUES('2001-01-01');
+UPDATE (SELECT 1 FROM t1 WHERE f1 = (SELECT f1() FROM t1)) x, t1 SET f1 = 1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+
 --echo end of tests
