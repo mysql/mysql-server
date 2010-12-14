@@ -132,20 +132,6 @@ void Item_subselect::cleanup()
 }
 
 
-/*
-   We cannot use generic Item::safe_charset_converter() because
-   Subselect transformation does not happen in view_prepare_mode
-   and thus we can not evaluate val_...() for const items.
-*/
-
-Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_func_conv_charset *conv=
-    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
-  return conv->safe ? conv : NULL;
-}
-
-
 void Item_singlerow_subselect::cleanup()
 {
   DBUG_ENTER("Item_singlerow_subselect::cleanup");
@@ -302,6 +288,7 @@ bool Item_subselect::exec()
   if (thd->is_error() || thd->killed)
     return 1;
 
+  DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -449,7 +436,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return const_item_cache;
+  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1876,7 +1863,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   if (exec_method == EXEC_SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
   return result || Item_subselect::fix_fields(thd_arg, ref);

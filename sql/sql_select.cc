@@ -595,7 +595,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
   
   if (select_lex->master_unit()->item &&    // This is a subquery
-      !thd->lex->view_prepare_mode &&       // Not normalizing a view
+                                            // Not normalizing a view
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       !(select_options & SELECT_DESCRIBE))  // Not within a describe
   {
     /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
