@@ -596,7 +596,10 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         // iterate the dependencies and see if any are not supported
         boolean supported = status != Status.BAD;
         boolean workToDo = !supported;
-        for (NdbOpenJPADomainTypeHandlerImpl<?> dependent: dependencies) {
+        // iterate a copy of dependencies to avoid concurrent modification of dependencies
+        List<NdbOpenJPADomainTypeHandlerImpl<?>> copyOfDependencies =
+                new ArrayList<NdbOpenJPADomainTypeHandlerImpl<?>>(dependencies);
+        for (NdbOpenJPADomainTypeHandlerImpl<?> dependent: copyOfDependencies) {
             // top level class will have recursive list of dependencies including itself
             this.dependencies.addAll(dependent.getDependencies());
             switch (dependent.supportStatus()) {
