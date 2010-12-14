@@ -22,7 +22,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-aggregate</artifactId>
   <packaging>pom</packaging>
-  <version>7.1.9-SNAPSHOT</version>
+  <version>7.1.10-SNAPSHOT</version>
   <name>ClusterJ Aggregate</name>
   <description>The aggregate maven project of ClusterJ</description>
   <modules>

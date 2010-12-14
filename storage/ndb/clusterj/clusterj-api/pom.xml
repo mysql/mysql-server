@@ -22,7 +22,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-api</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.9-SNAPSHOT</version>
+  <version>7.1.10-SNAPSHOT</version>
   <name>ClusterJ API</name>
   <description>The API for ClusterJ</description>
   <build>

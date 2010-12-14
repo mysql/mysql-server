@@ -25,7 +25,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-openjpa</artifactId>
-  <version>7.1.9-SNAPSHOT</version>
+  <version>7.1.10-SNAPSHOT</version>
   <packaging>bundle</packaging>
   <name>ClusterJ OpenJPA Integration</name>
 
@@ -122,24 +122,24 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-jpatest</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-core</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-tie</artifactId>
-      <version>7.1.9-SNAPSHOT</version>
+      <version>7.1.10-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
