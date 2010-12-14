@@ -1508,6 +1508,13 @@ void clean_up(bool print_message)
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
 
+  my_free(const_cast<char*>(log_bin_basename));
+  my_free(const_cast<char*>(log_bin_index));
+#ifndef EMBEDDED_LIBRARY
+  my_free(const_cast<char*>(relay_log_basename));
+  my_free(const_cast<char*>(relay_log_index));
+#endif
+
   /*
     The following lines may never be executed as the main thread may have
     killed us
