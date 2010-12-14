@@ -1472,6 +1472,7 @@ buf_LRU_free_block(
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	enum buf_lru_free_block_status	ret;
+	enum buf_page_state		page_state;
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
@@ -1576,172 +1577,178 @@ func_exit:
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
-	if (buf_LRU_block_remove_hashed_page(bpage, zip)
-	    != BUF_BLOCK_ZIP_FREE) {
+	page_state = buf_LRU_block_remove_hashed_page(bpage, zip);
 
-		/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
-		then it was a compressed page with an uncompressed frame and
-		we are interested in freeing only the uncompressed frame.
-		Therefore we have to reinsert the compressed page descriptor
-		into the LRU and page_hash (and possibly flush_list).
-		if b == NULL then it was a regular page that has been freed */
-
-		if (b) {
-			buf_page_t*	prev_b	= UT_LIST_GET_PREV(LRU, b);
-
-			rw_lock_x_lock(hash_lock);
-			mutex_enter(block_mutex);
-
-			ut_a(!buf_page_hash_get_low(buf_pool,
-						    bpage->space,
-						    bpage->offset,
-						    fold));
-
-			b->state = b->oldest_modification
-				? BUF_BLOCK_ZIP_DIRTY
-				: BUF_BLOCK_ZIP_PAGE;
-			UNIV_MEM_DESC(b->zip.data,
-				      page_zip_get_size(&b->zip), b);
-
-			/* The fields in_page_hash and in_LRU_list of
-			the to-be-freed block descriptor should have
-			been cleared in
-			buf_LRU_block_remove_hashed_page(), which
-			invokes buf_LRU_remove_block(). */
-			ut_ad(!bpage->in_page_hash);
-			ut_ad(!bpage->in_LRU_list);
-			/* bpage->state was BUF_BLOCK_FILE_PAGE because
-			b != NULL. The type cast below is thus valid. */
-			ut_ad(!((buf_block_t*) bpage)->in_unzip_LRU_list);
-
-			/* The fields of bpage were copied to b before
-			buf_LRU_block_remove_hashed_page() was invoked. */
-			ut_ad(!b->in_zip_hash);
-			ut_ad(b->in_page_hash);
-			ut_ad(b->in_LRU_list);
-
-			HASH_INSERT(buf_page_t, hash,
-				    buf_pool->page_hash, fold, b);
-
-			/* Insert b where bpage was in the LRU list. */
-			if (UNIV_LIKELY(prev_b != NULL)) {
-				ulint	lru_len;
-
-				ut_ad(prev_b->in_LRU_list);
-				ut_ad(buf_page_in_file(prev_b));
-#if UNIV_WORD_SIZE == 4
-				/* On 32-bit systems, there is no
-				padding in buf_page_t.  On other
-				systems, Valgrind could complain about
-				uninitialized pad bytes. */
-				UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
-#endif
-				UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
-						     prev_b, b);
-
-				if (buf_page_is_old(b)) {
-					buf_pool->LRU_old_len++;
-					if (UNIV_UNLIKELY
-					    (buf_pool->LRU_old
-					     == UT_LIST_GET_NEXT(LRU, b))) {
-
-						buf_pool->LRU_old = b;
-					}
-				}
-
-				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
-
-				if (lru_len > BUF_LRU_OLD_MIN_LEN) {
-					ut_ad(buf_pool->LRU_old);
-					/* Adjust the length of the
-					old block list if necessary */
-					buf_LRU_old_adjust_len(buf_pool);
-				} else if (lru_len == BUF_LRU_OLD_MIN_LEN) {
-					/* The LRU list is now long
-					enough for LRU_old to become
-					defined: init it */
-					buf_LRU_old_init(buf_pool);
-				}
-#ifdef UNIV_LRU_DEBUG
-				/* Check that the "old" flag is consistent
-				in the block and its neighbours. */
-				buf_page_set_old(b, buf_page_is_old(b));
-#endif /* UNIV_LRU_DEBUG */
-			} else {
-				ut_d(b->in_LRU_list = FALSE);
-				buf_LRU_add_block_low(b, buf_page_is_old(b));
-			}
-
-			if (b->state == BUF_BLOCK_ZIP_PAGE) {
-				buf_LRU_insert_zip_clean(b);
-			} else {
-				/* Relocate on buf_pool->flush_list. */
-				buf_flush_relocate_on_flush_list(bpage, b);
-			}
-
-			bpage->zip.data = NULL;
-			page_zip_set_size(&bpage->zip, 0);
-
-			/* Prevent buf_page_get_gen() from
-			decompressing the block while we release
-			buf_pool->mutex and block_mutex. */
-			b->buf_fix_count++;
-			b->io_fix = BUF_IO_READ;
-
-			rw_lock_x_unlock(hash_lock);
-			mutex_exit(block_mutex);
-		}
-
-		if (buf_pool_mutex_released) {
-			*buf_pool_mutex_released = TRUE;
-		}
-
-		buf_pool_mutex_exit(buf_pool);
-
-		/* Remove possible adaptive hash index on the page.
-		The page was declared uninitialized by
-		buf_LRU_block_remove_hashed_page().  We need to flag
-		the contents of the page valid (which it still is) in
-		order to avoid bogus Valgrind warnings.*/
-
-		UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
-			       UNIV_PAGE_SIZE);
-		btr_search_drop_page_hash_index((buf_block_t*) bpage);
-		UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
-				 UNIV_PAGE_SIZE);
-
-		if (b) {
-			/* Compute and stamp the compressed page
-			checksum while not holding any mutex.  The
-			block is already half-freed
-			(BUF_BLOCK_REMOVE_HASH) and removed from
-			buf_pool->page_hash, thus inaccessible by any
-			other thread. */
-
-			mach_write_to_4(
-				b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
-				UNIV_LIKELY(srv_use_checksums)
-				? page_zip_calc_checksum(
-					b->zip.data,
-					page_zip_get_size(&b->zip))
-				: BUF_NO_CHECKSUM_MAGIC);
-		}
-
-		buf_pool_mutex_enter(buf_pool);
-
-		if (b) {
-			mutex_enter(&buf_pool->zip_mutex);
-			b->buf_fix_count--;
-			buf_page_set_io_fix(b, BUF_IO_NONE);
-			mutex_exit(&buf_pool->zip_mutex);
-		}
-
-		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-	}
 #ifdef UNIV_SYNC_DEBUG
+	/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (page_state == BUF_BLOCK_ZIP_FREE) {
+		return(BUF_LRU_FREED);
+	}
+
+	ut_ad(page_state == BUF_BLOCK_REMOVE_HASH);
+
+	/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
+	then it was a compressed page with an uncompressed frame and
+	we are interested in freeing only the uncompressed frame.
+	Therefore we have to reinsert the compressed page descriptor
+	into the LRU and page_hash (and possibly flush_list).
+	if b == NULL then it was a regular page that has been freed */
+
+	if (b) {
+		buf_page_t*	prev_b	= UT_LIST_GET_PREV(LRU, b);
+
+		rw_lock_x_lock(hash_lock);
+		mutex_enter(block_mutex);
+
+		ut_a(!buf_page_hash_get_low(buf_pool,
+					    bpage->space,
+					    bpage->offset,
+					    fold));
+
+		b->state = b->oldest_modification
+			? BUF_BLOCK_ZIP_DIRTY
+			: BUF_BLOCK_ZIP_PAGE;
+		UNIV_MEM_DESC(b->zip.data,
+			      page_zip_get_size(&b->zip), b);
+
+		/* The fields in_page_hash and in_LRU_list of
+		the to-be-freed block descriptor should have
+		been cleared in
+		buf_LRU_block_remove_hashed_page(), which
+		invokes buf_LRU_remove_block(). */
+		ut_ad(!bpage->in_page_hash);
+		ut_ad(!bpage->in_LRU_list);
+		/* bpage->state was BUF_BLOCK_FILE_PAGE because
+		b != NULL. The type cast below is thus valid. */
+		ut_ad(!((buf_block_t*) bpage)->in_unzip_LRU_list);
+
+		/* The fields of bpage were copied to b before
+		buf_LRU_block_remove_hashed_page() was invoked. */
+		ut_ad(!b->in_zip_hash);
+		ut_ad(b->in_page_hash);
+		ut_ad(b->in_LRU_list);
+
+		HASH_INSERT(buf_page_t, hash,
+			    buf_pool->page_hash, fold, b);
+
+		/* Insert b where bpage was in the LRU list. */
+		if (UNIV_LIKELY(prev_b != NULL)) {
+			ulint	lru_len;
+
+			ut_ad(prev_b->in_LRU_list);
+			ut_ad(buf_page_in_file(prev_b));
+#if UNIV_WORD_SIZE == 4
+			/* On 32-bit systems, there is no
+			padding in buf_page_t.  On other
+			systems, Valgrind could complain about
+			uninitialized pad bytes. */
+			UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
+#endif
+			UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
+					     prev_b, b);
+
+			if (buf_page_is_old(b)) {
+				buf_pool->LRU_old_len++;
+				if (UNIV_UNLIKELY
+				    (buf_pool->LRU_old
+				     == UT_LIST_GET_NEXT(LRU, b))) {
+
+					buf_pool->LRU_old = b;
+				}
+			}
+
+			lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+
+			if (lru_len > BUF_LRU_OLD_MIN_LEN) {
+				ut_ad(buf_pool->LRU_old);
+				/* Adjust the length of the
+				old block list if necessary */
+				buf_LRU_old_adjust_len(buf_pool);
+			} else if (lru_len == BUF_LRU_OLD_MIN_LEN) {
+				/* The LRU list is now long
+				enough for LRU_old to become
+				defined: init it */
+				buf_LRU_old_init(buf_pool);
+			}
+#ifdef UNIV_LRU_DEBUG
+			/* Check that the "old" flag is consistent
+			in the block and its neighbours. */
+			buf_page_set_old(b, buf_page_is_old(b));
+#endif /* UNIV_LRU_DEBUG */
+		} else {
+			ut_d(b->in_LRU_list = FALSE);
+			buf_LRU_add_block_low(b, buf_page_is_old(b));
+		}
+
+		if (b->state == BUF_BLOCK_ZIP_PAGE) {
+			buf_LRU_insert_zip_clean(b);
+		} else {
+			/* Relocate on buf_pool->flush_list. */
+			buf_flush_relocate_on_flush_list(bpage, b);
+		}
+
+		bpage->zip.data = NULL;
+		page_zip_set_size(&bpage->zip, 0);
+
+		/* Prevent buf_page_get_gen() from
+		decompressing the block while we release
+		buf_pool->mutex and block_mutex. */
+		b->buf_fix_count++;
+		b->io_fix = BUF_IO_READ;
+
+		rw_lock_x_unlock(hash_lock);
+		mutex_exit(block_mutex);
+	}
+
+	if (buf_pool_mutex_released) {
+		*buf_pool_mutex_released = TRUE;
+	}
+
+	buf_pool_mutex_exit(buf_pool);
+
+	/* Remove possible adaptive hash index on the page.
+	The page was declared uninitialized by
+	buf_LRU_block_remove_hashed_page().  We need to flag
+	the contents of the page valid (which it still is) in
+	order to avoid bogus Valgrind warnings.*/
+
+	UNIV_MEM_VALID(((buf_block_t*) bpage)->frame,
+		       UNIV_PAGE_SIZE);
+	btr_search_drop_page_hash_index((buf_block_t*) bpage);
+	UNIV_MEM_INVALID(((buf_block_t*) bpage)->frame,
+			 UNIV_PAGE_SIZE);
+
+	if (b) {
+		/* Compute and stamp the compressed page
+		checksum while not holding any mutex.  The
+		block is already half-freed
+		(BUF_BLOCK_REMOVE_HASH) and removed from
+		buf_pool->page_hash, thus inaccessible by any
+		other thread. */
+
+		mach_write_to_4(
+			b->zip.data + FIL_PAGE_SPACE_OR_CHKSUM,
+			UNIV_LIKELY(srv_use_checksums)
+			? page_zip_calc_checksum(
+				b->zip.data,
+				page_zip_get_size(&b->zip))
+			: BUF_NO_CHECKSUM_MAGIC);
+	}
+
+	buf_pool_mutex_enter(buf_pool);
+
+	if (b) {
+		mutex_enter(&buf_pool->zip_mutex);
+		b->buf_fix_count--;
+		buf_page_set_io_fix(b, BUF_IO_NONE);
+		mutex_exit(&buf_pool->zip_mutex);
+	}
+
+	buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	return(BUF_LRU_FREED);
 }
 
