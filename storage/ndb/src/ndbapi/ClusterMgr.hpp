@@ -37,6 +37,7 @@ extern "C" void* runClusterMgr_C(void * me);
 class ClusterMgr : public trp_client
 {
   friend class TransporterFacade;
+  friend class ArbitMgr;
   friend void* runClusterMgr_C(void * me);
 public:
   ClusterMgr(class TransporterFacade &);
@@ -195,7 +196,7 @@ public:
   friend void* runArbitMgr_C(void* me);
 
 private:
-  class ClusterMgr m_clusterMgr;
+  class ClusterMgr & m_clusterMgr;
   unsigned theRank;
   unsigned theDelay;
 

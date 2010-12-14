@@ -768,6 +768,8 @@ MgmtSrvr::~MgmtSrvr()
     m_config_manager= 0;
   }
 
+  this->close(); // close trp_client before stopping TransporterFacade
+
   // Stop transporter
   if(theFacade != 0){
     theFacade->stop_instance();

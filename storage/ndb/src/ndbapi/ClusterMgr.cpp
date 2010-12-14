@@ -91,6 +91,7 @@ ClusterMgr::~ClusterMgr()
     delete theArbitMgr;
     theArbitMgr = 0;
   }
+  this->close(); // disconnect from TransporterFacade
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
@@ -190,9 +191,11 @@ ClusterMgr::startThread() {
 void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
-  Guard g(clusterMgrThreadMutex);
-  if(theStop == 1){
-    DBUG_VOID_RETURN;
+  {
+    Guard g(clusterMgrThreadMutex);
+    if(theStop == 1){
+      DBUG_VOID_RETURN;
+    }
   }
 
   void *status;
@@ -301,9 +304,15 @@ ClusterMgr::threadMain( ){
     for (Uint32 i = 0; i<10; i++)
     {
       NdbSleep_MilliSleep(10);
-      start_poll();
-      do_poll(0);
-      complete_poll();
+      {
+        Guard g(clusterMgrThreadMutex);
+        /**
+         * Protect from ArbitMgr sending signals while we poll
+         */
+        start_poll();
+        do_poll(0);
+        complete_poll();
+      }
     }
     now = NdbTick_CurrentMillisecond();
     timeSlept = (now - before);
@@ -1217,8 +1226,11 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
   ndbout << endl;
 #endif
 
-  m_clusterMgr.lock();
-  m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
-  m_clusterMgr.unlock();
+  {
+    Guard g(m_clusterMgr.clusterMgrThreadMutex);
+    m_clusterMgr.lock();
+    m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
+    m_clusterMgr.unlock();
+  }
 }
 
