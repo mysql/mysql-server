@@ -36,8 +36,6 @@ Created 11/5/1995 Heikki Tuuri
 /** Flag indicating if the page_cleaner is in active state. */
 extern ibool buf_page_cleaner_is_active;
 
-extern mysql_pfs_key_t buf_page_cleaner_thread_key;
-
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN

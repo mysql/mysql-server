@@ -86,7 +86,9 @@ need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
 UNIV_INTERN ibool buf_page_cleaner_is_active = FALSE;
 
+#ifdef UNIV_PFS_THREAD
 UNIV_INTERN mysql_pfs_key_t buf_page_cleaner_thread_key;
+#endif /* UNIV_PFS_THREAD */
 
 /* @} */
 
