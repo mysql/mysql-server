@@ -5295,13 +5295,6 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
-  /*
-    Don't evaluate this subquery during statement prepare even if
-    it's a constant one. The flag is switched off in the end of
-    mysqld_stmt_prepare.
-  */
-  if (thd->stmt_arena->is_stmt_prepare())
-    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
