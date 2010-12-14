@@ -1,12 +1,11 @@
 DROP TABLE IF EXISTS t1;
 #
-# Start of 5.5 tests
+# Start of 5.6 tests
 #
-SET NAMES latin1;
-SET character_set_connection=utf32;
-select hex('a'), hex('a ');
-hex('a')	hex('a ')
-00000061	0000006100000020
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+SELECT HEX('a'), HEX('a ');
+HEX('a')	HEX('a ')
+6100	61002000
 select 'a' = 'a', 'a' = 'a ', 'a ' = 'a';
 'a' = 'a'	'a' = 'a '	'a ' = 'a'
 1	1	1
@@ -28,104 +27,109 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
-select hex(_utf32 0x44);
-hex(_utf32 0x44)
-00000044
-select hex(_utf32 0x3344);
-hex(_utf32 0x3344)
-00003344
-select hex(_utf32 0x103344);
-hex(_utf32 0x103344)
-00103344
-select hex(_utf32 X'44');
-hex(_utf32 X'44')
-00000044
-select hex(_utf32 X'3344');
-hex(_utf32 X'3344')
-00003344
-select hex(_utf32 X'103344');
-hex(_utf32 X'103344')
-00103344
-CREATE TABLE t1 (word VARCHAR(64), word2 CHAR(64)) CHARACTER SET utf32;
-INSERT INTO t1 VALUES (_koi8r 0xF2, _koi8r 0xF2), (X'2004',X'2004');
-SELECT hex(word) FROM t1 ORDER BY word;
-hex(word)
-00000420
-00002004
-SELECT hex(word2) FROM t1 ORDER BY word2;
-hex(word2)
-00000420
-00002004
+#
+# Check that incomplete utf16le characters in HEX notation
+# are left-padded with zeros
+#
+SELECT HEX(_utf16le 0x44);
+HEX(_utf16le 0x44)
+0044
+SELECT HEX(_utf16le 0x3344);
+HEX(_utf16le 0x3344)
+3344
+SELECT HEX(_utf16le 0x113344);
+HEX(_utf16le 0x113344)
+00113344
+#
+# Check that 0x20 is only trimmed when it is
+# a part of real SPACE character, not just a part
+# of a multibyte sequence.
+# Note, CYRILLIC LETTER ER is used as an example, which
+# is stored as 0x0420 in utf16le, thus contains 0x20 in the
+# low byte. The second character is THREE-PER-M, U+2004,
+# which contains 0x20 in the high byte.
+#
+CREATE TABLE t1 (word VARCHAR(64), word2 CHAR(64)) CHARACTER SET utf16le;
+INSERT INTO t1 VALUES (_koi8r 0xF2, _koi8r 0xF2), (_ucs2 X'2004',_ucs2 X'2004');
+SELECT HEX(word) FROM t1 ORDER BY word;
+HEX(word)
+2004
+0420
+SELECT HEX(word2) FROM t1 ORDER BY word2;
+HEX(word2)
+2004
+0420
 DELETE FROM t1;
-INSERT INTO t1 VALUES
-(X'000004200000002000000020',X'000004200000002000000020'),
-(X'000020040000002000000020',X'000020040000002000000020');
-SELECT hex(word) FROM t1 ORDER BY word;
-hex(word)
-000004200000002000000020
-000020040000002000000020
-SELECT hex(word2) FROM t1 ORDER BY word2;
-hex(word2)
-00000420
-00002004
+#
+# Check that real spaces are correctly trimmed.
+#
+INSERT INTO t1 VALUES (_ucs2 X'042000200020', _ucs2 X'042000200020');
+INSERT INTO t1 VALUES (_ucs2 X'200400200020', _ucs2 X'200400200020');
+SELECT HEX(word) FROM t1 ORDER BY word;
+HEX(word)
+200420002000
+042020002000
+SELECT HEX(word2) FROM t1 ORDER BY word2;
+HEX(word2)
+2004
+0420
 DROP TABLE t1;
-SELECT hex(LPAD(_utf32 X'0420',10,_utf32 X'0421'));
-hex(LPAD(_utf32 X'0420',10,_utf32 X'0421'))
-00000421000004210000042100000421000004210000042100000421000004210000042100000420
-SELECT hex(LPAD(_utf32 X'0420',10,_utf32 X'0000042100000422'));
-hex(LPAD(_utf32 X'0420',10,_utf32 X'0000042100000422'))
-00000421000004220000042100000422000004210000042200000421000004220000042100000420
-SELECT hex(LPAD(_utf32 X'0420',10,_utf32 X'000004210000042200000423'));
-hex(LPAD(_utf32 X'0420',10,_utf32 X'000004210000042200000423'))
-00000421000004220000042300000421000004220000042300000421000004220000042300000420
-SELECT hex(LPAD(_utf32 X'000004200000042100000422000004230000042400000425000004260000042700000428000004290000042A0000042B',10,_utf32 X'000004210000042200000423'));
-hex(LPAD(_utf32 X'000004200000042100000422000004230000042400000425000004260000042700000428000004290000042A0000042B',10,_utf32 X'000004210000042200000423'))
-00000420000004210000042200000423000004240000042500000426000004270000042800000429
-SELECT hex(RPAD(_utf32 X'0420',10,_utf32 X'0421'));
-hex(RPAD(_utf32 X'0420',10,_utf32 X'0421'))
-00000420000004210000042100000421000004210000042100000421000004210000042100000421
-SELECT hex(RPAD(_utf32 X'0420',10,_utf32 X'0000042100000422'));
-hex(RPAD(_utf32 X'0420',10,_utf32 X'0000042100000422'))
-00000420000004210000042200000421000004220000042100000422000004210000042200000421
-SELECT hex(RPAD(_utf32 X'0420',10,_utf32 X'000004210000042200000423'));
-hex(RPAD(_utf32 X'0420',10,_utf32 X'000004210000042200000423'))
-00000420000004210000042200000423000004210000042200000423000004210000042200000423
-SELECT hex(RPAD(_utf32 X'000004200000042100000422000004230000042400000425000004260000042700000428000004290000042A0000042B',10,_utf32 X'000004210000042200000423'));
-hex(RPAD(_utf32 X'000004200000042100000422000004230000042400000425000004260000042700000428000004290000042A0000042B',10,_utf32 X'000004210000042200000423'))
-00000420000004210000042200000423000004240000042500000426000004270000042800000429
-CREATE TABLE t1 SELECT 
-LPAD(_utf32 X'0420',10,_utf32 X'0421') l,
-RPAD(_utf32 X'0420',10,_utf32 X'0421') r;
+#
+# Check LPAD/RPAD
+#
+CREATE TABLE t1 (a VARCHAR(10), pad INT, b VARCHAR(10)) CHARACTER SET utf16le;
+INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'0421');
+INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'04210422');
+INSERT INTO t1 VALUES (_ucs2 X'0420', 10, _ucs2 X'042104220423');
+INSERT INTO t1 VALUES (_ucs2 X'0420042104220423042404250426042704280429042A042B',10,_ucs2 X'042104220423');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+INSERT INTO t1 VALUES (_utf32 X'010000', 10, _ucs2 X'0421');
+INSERT INTO t1 VALUES (_ucs2 X'0421', 10, _utf32 X'010000');
+SELECT a, pad, b, LPAD(a, pad, b), HEX(LPAD(a, pad, b)) FROM t1;
+a	pad	b	LPAD(a, pad, b)	HEX(LPAD(a, pad, b))
+Р	10	С	СССССССССР	2104210421042104210421042104210421042004
+Р	10	СТ	СТСТСТСТСР	2104220421042204210422042104220421042004
+Р	10	СТУ	СТУСТУСТУР	2104220423042104220423042104220423042004
+РСТУФХЦЧШЩ	10	СТУ	РСТУФХЦЧШЩ	2004210422042304240425042604270428042904
+?	10	С	ССССССССС?	21042104210421042104210421042104210400D800DC
+С	10	?	?????????С	00D800DC00D800DC00D800DC00D800DC00D800DC00D800DC00D800DC00D800DC00D800DC2104
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+LPAD(_utf16le X'2004',10,_utf16le X'2104') l,
+RPAD(_utf16le X'2004',10,_utf16le X'2104') r;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `l` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT '',
-  `r` varchar(10) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `l` varchar(10) CHARACTER SET utf16le NOT NULL DEFAULT '',
+  `r` varchar(10) CHARACTER SET utf16le NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-select hex(l), hex(r) from t1;
-hex(l)	hex(r)
-00000421000004210000042100000421000004210000042100000421000004210000042100000420	00000420000004210000042100000421000004210000042100000421000004210000042100000421
+SELECT HEX(l), HEX(r) FROM t1;
+HEX(l)	HEX(r)
+2104210421042104210421042104210421042004	2004210421042104210421042104210421042104
 DROP TABLE t1;
-create table t1 (f1 char(30));
-insert into t1 values ("103000"), ("22720000"), ("3401200"), ("78000");
-select lpad(f1, 12, "-o-/") from t1;
-lpad(f1, 12, "-o-/")
+CREATE TABLE t1 (f1 CHAR(30));
+INSERT INTO t1 VALUES ("103000"), ("22720000"), ("3401200"), ("78000");
+SELECT LPAD(f1, 12, "-o-/") FROM t1;
+LPAD(f1, 12, "-o-/")
 -o-/-o103000
 -o-/22720000
 -o-/-3401200
 -o-/-o-78000
-drop table t1;
-SET NAMES latin1;
-SET character_set_connection=utf32;
+DROP TABLE t1;
+#
+# Testing LIKE
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
 select @@collation_connection;
 @@collation_connection
-utf32_general_ci
+utf16le_general_ci
 create table t1 as select repeat(' ',10) as a union select null;
 alter table t1 add key(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(10) CHARACTER SET utf32 DEFAULT NULL,
+  `a` varchar(10) CHARACTER SET utf16le DEFAULT NULL,
   KEY `a` (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
@@ -237,9 +241,7 @@ select 'AZ' like '_Z';
 select 'AMZ'like 'A%M%Z';
 'AMZ'like 'A%M%Z'
 1
-SET NAMES utf8;
-SET character_set_connection=utf32;
-CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le);
 INSERT INTO t1 VALUES ('фыва'),('Фыва'),('фЫва'),('фыВа'),('фывА'),('ФЫВА');
 INSERT INTO t1 VALUES ('фывапролдж'),('Фывапролдж'),('фЫвапролдж'),('фыВапролдж');
 INSERT INTO t1 VALUES ('фывАпролдж'),('фываПролдж'),('фывапРолдж'),('фывапрОлдж');
@@ -304,13 +306,13 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
-SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf32_bin ORDER BY BINARY a;
+SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf16le_bin ORDER BY BINARY a;
 a
 фЫва
 фЫвапролдж
 DROP TABLE t1;
-CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
-ENGINE=MyISAM CHARACTER SET utf32;
+CREATE TABLE t1 (word VARCHAR(64) NOT NULL, PRIMARY KEY (word))
+ENGINE=MyISAM CHARACTER SET utf16le;
 INSERT INTO t1 (word) VALUES ("cat");
 SELECT * FROM t1 WHERE word LIKE "c%";
 word
@@ -321,27 +323,42 @@ cat
 SELECT * FROM t1 WHERE word LIKE "cat";
 word
 cat
-SELECT * FROM t1 WHERE word LIKE _utf32 x'0000006300000025';
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
 word
 cat
-SELECT * FROM t1 WHERE word LIKE _utf32 x'00000063000000610000005F';
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
 word
 cat
 DROP TABLE t1;
-select insert(_utf32 0x000000610000006200000063,10,2,_utf32 0x000000640000006500000066);
-insert(_utf32 0x000000610000006200000063,10,2,_utf32 0x000000640000006500000066)
+#
+# Check that INSERT() works fine.
+# This invokes charpos() function.
+#
+CREATE TABLE t1 (
+a VARCHAR(10) CHARACTER SET utf16le,
+b VARCHAR(10) CHARACTER SET utf16le);
+INSERT INTO t1 VALUES ('abc', 'def');
+SELECT INSERT(a, 10, 2, b) FROM t1;
+INSERT(a, 10, 2, b)
 abc
-select insert(_utf32 0x000000610000006200000063,1,2,_utf32 0x000000640000006500000066);
-insert(_utf32 0x000000610000006200000063,1,2,_utf32 0x000000640000006500000066)
+SELECT INSERT(a, 1, 2, b) FROM t1;
+INSERT(a, 1, 2, b)
 defc
-SET NAMES latin1;
+DROP TABLE t1;
+#
+# Bug#1264
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+#
+# Two fields, index
+#
 CREATE TABLE t1 (
 word VARCHAR(64),
-bar INT(11) default 0,
+bar INT(11) DEFAULT 0,
 PRIMARY KEY (word))
 ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci ;
+CHARSET utf16le
+COLLATE utf16le_general_ci ;
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a");
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -371,12 +388,15 @@ aardvara
 aardvark
 aardvarz
 DROP TABLE t1;
+#
+# One field, index
+#
 CREATE TABLE t1 (
 word VARCHAR(64) ,
 PRIMARY KEY (word))
 ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci;
+CHARSET utf16le
+COLLATE utf16le_general_ci;
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a");
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -395,13 +415,16 @@ aardvara
 aardvark
 aardvarz
 DROP TABLE t1;
+#
+# Two fields, no index
+#
 CREATE TABLE t1 (
 word TEXT,
 bar INT(11) AUTO_INCREMENT,
 PRIMARY KEY (bar))
 ENGINE=MyISAM
-CHARSET utf32
-COLLATE utf32_general_ci ;
+CHARSET utf16le
+COLLATE utf16le_general_ci ;
 INSERT INTO t1 (word) VALUES ("aar");
 INSERT INTO t1 (word) VALUES ("a" );
 INSERT INTO t1 (word) VALUES ("aardvar");
@@ -431,159 +454,181 @@ aardvara
 aardvark
 aardvarz
 DROP TABLE t1;
-SELECT hex(cast(0xAA as char character set utf32));
-hex(cast(0xAA as char character set utf32))
-000000AA
-SELECT hex(convert(0xAA using utf32));
-hex(convert(0xAA using utf32))
-000000AA
-CREATE TABLE t1 (a char(10) character set utf32);
+#
+# END OF Bug 1264 test
+#
+#
+# Check alignment for from-binary-conversion with CAST and CONVERT
+#
+SELECT HEX(CAST(0xAA as char CHARACTER SET utf16le));
+HEX(CAST(0xAA as char CHARACTER SET utf16le))
+00AA
+SELECT HEX(CONVERT(0xAA USING utf16le));
+HEX(CONVERT(0xAA USING utf16le))
+00AA
+#
+# Check alignment for string types
+#
+CREATE TABLE t1 (a CHAR(10) CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
 HEX(a)
-00000001
-00000011
-00000111
-00001111
+0001
+0011
+0111
+1111
 00011111
 DROP TABLE t1;
-CREATE TABLE t1 (a varchar(10) character set utf32);
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
 HEX(a)
-00000001
-00000011
-00000111
-00001111
+0001
+0011
+0111
+1111
 00011111
 DROP TABLE t1;
-CREATE TABLE t1 (a text character set utf32);
+CREATE TABLE t1 (a TEXT CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
 HEX(a)
-00000001
-00000011
-00000111
-00001111
+0001
+0011
+0111
+1111
 00011111
 DROP TABLE t1;
-CREATE TABLE t1 (a mediumtext character set utf32);
+CREATE TABLE t1 (a MEDIUMTEXT CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
 HEX(a)
-00000001
-00000011
-00000111
-00001111
+0001
+0011
+0111
+1111
 00011111
 DROP TABLE t1;
-CREATE TABLE t1 (a longtext character set utf32);
+CREATE TABLE t1 (a LONGTEXT CHARACTER SET utf16le);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
 HEX(a)
-00000001
-00000011
-00000111
-00001111
+0001
+0011
+0111
+1111
 00011111
 DROP TABLE t1;
-create table t1(a char(1)) default charset utf32;
-insert into t1 values ('a'),('b'),('c');
-alter table t1 modify a char(5);
-select a, hex(a) from t1;
-a	hex(a)
-a	00000061
-b	00000062
-c	00000063
-drop table t1;
-set @ivar= 1234;
-set @str1 = 'select ?';
-set @str2 = convert(@str1 using utf32);
-prepare stmt1 from @str2;
-execute stmt1 using @ivar;
+#
+# Bug#5081 : UCS2 fields are filled with '0x2020'
+# after extending field length
+#
+CREATE TABLE t1(a CHAR(1)) DEFAULT CHARSET utf16le;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+ALTER TABLE t1 MODIFY a CHAR(5);
+SELECT a, HEX(a) FROM t1;
+a	HEX(a)
+a	6100
+b	6200
+c	6300
+DROP TABLE t1;
+#
+# Check prepare statement from an UTF16 string
+#
+SET NAMES latin1;
+SET @ivar= 1234;
+SET @str1 = 'SELECT ?';
+SET @str2 = CONVERT(@str1 USING utf16le);
+PREPARE stmt1 FROM @str2;
+EXECUTE stmt1 USING @ivar;
 ?
 1234
-set names utf8;
-create table t1 (a enum('x','y','z') character set utf32);
-show create table t1;
+#
+# Check that utf16le works with ENUM and SET type
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+CREATE TABLE t1 (a ENUM('x','y','z') CHARACTER SET utf16le);
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET utf32 DEFAULT NULL
+  `a` enum('x','y','z') CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-insert into t1 values ('x');
-insert into t1 values ('y');
-insert into t1 values ('z');
-select a, hex(a) from t1 order by a;
-a	hex(a)
-x	00000078
-y	00000079
-z	0000007A
-alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set utf32;
-show create table t1;
+INSERT INTO t1 VALUES ('x');
+INSERT INTO t1 VALUES ('y');
+INSERT INTO t1 VALUES ('z');
+SELECT a, HEX(a) FROM t1 ORDER BY a;
+a	HEX(a)
+x	7800
+y	7900
+z	7A00
+ALTER TABLE t1 CHANGE a a ENUM('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16le;
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-insert into t1 values ('D');
-insert into t1 values ('E ');
-insert into t1 values ('ä');
-insert into t1 values ('ö');
-insert into t1 values ('ü');
-select a, hex(a) from t1 order by a;
-a	hex(a)
-x	00000078
-y	00000079
-z	0000007A
-d	00000064
-e	00000065
-ä	000000E4
-ö	000000F6
-ü	000000FC
-drop table t1;
-create table t1 (a set ('x','y','z','ä','ö','ü') character set utf32);
-show create table t1;
+INSERT INTO t1 VALUES ('D');
+INSERT INTO t1 VALUES ('E ');
+INSERT INTO t1 VALUES ('ä');
+INSERT INTO t1 VALUES ('ö');
+INSERT INTO t1 VALUES ('ü');
+SELECT a, HEX(a) FROM t1 ORDER BY a;
+a	HEX(a)
+x	7800
+y	7900
+z	7A00
+d	6400
+e	6500
+ä	E400
+ö	F600
+ü	FC00
+DROP TABLE t1;
+CREATE TABLE t1 (a set ('x','y','z','ä','ö','ü') CHARACTER SET utf16le);
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf32 DEFAULT NULL
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-insert into t1 values ('x');
-insert into t1 values ('y');
-insert into t1 values ('z');
-insert into t1 values ('x,y');
-insert into t1 values ('x,y,z,ä,ö,ü');
-select a, hex(a) from t1 order by a;
-a	hex(a)
-x	00000078
-y	00000079
-x,y	000000780000002C00000079
-z	0000007A
-x,y,z,ä,ö,ü	000000780000002C000000790000002C0000007A0000002C000000E40000002C000000F60000002C000000FC
-drop table t1;
-create table t1(a enum('a','b','c')) default character set utf32;
-insert into t1 values('a'),('b'),('c');
-alter table t1 add b char(1);
-show warnings;
+INSERT INTO t1 VALUES ('x');
+INSERT INTO t1 VALUES ('y');
+INSERT INTO t1 VALUES ('z');
+INSERT INTO t1 VALUES ('x,y');
+INSERT INTO t1 VALUES ('x,y,z,ä,ö,ü');
+SELECT a, HEX(a) FROM t1 ORDER BY a;
+a	HEX(a)
+x	7800
+y	7900
+x,y	78002C007900
+z	7A00
+x,y,z,ä,ö,ü	78002C0079002C007A002C00E4002C00F6002C00FC00
+DROP TABLE t1;
+#
+# Bug#7302 UCS2 data in ENUM fields get truncated when new column is added
+#
+CREATE TABLE t1(a ENUM('a','b','c')) DEFAULT CHARACTER SET utf16le;
+INSERT INTO t1 VALUES('a'),('b'),('c');
+ALTER TABLE t1 ADD b CHAR(1);
+SHOW WARNINGS;
 Level	Code	Message
-select * from t1 order by a;
+SELECT * FROM t1 ORDER BY a;
 a	b
 a	NULL
 b	NULL
 c	NULL
-drop table t1;
-SET NAMES latin1;
-SET collation_connection='utf32_general_ci';
+DROP TABLE t1;
+SET NAMES utf8, collation_connection='utf16le_general_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
-utf32_general_ci	0000006100000009
-utf32_general_ci	00000061
-utf32_general_ci	0000006100000020
+utf16le_general_ci	61000900
+utf16le_general_ci	6100
+utf16le_general_ci	61002000
 drop table t1;
 select @@collation_connection;
 @@collation_connection
-utf32_general_ci
+utf16le_general_ci
 create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
 insert into t1 values('abcdef');
 insert into t1 values('_bcdef');
@@ -599,16 +644,15 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
-SET NAMES latin1;
-SET collation_connection='utf32_bin';
+SET NAMES utf8, collation_connection='utf16le_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
 insert into t1 values ('a'), ('a '), ('a\t');
 select collation(a),hex(a) from t1 order by a;
 collation(a)	hex(a)
-utf32_bin	0000006100000009
-utf32_bin	00000061
-utf32_bin	0000006100000020
+utf16le_bin	61000900
+utf16le_bin	6100
+utf16le_bin	61002000
 drop table t1;
 #
 # Bug#55980 Character sets: supplementary character _bin ordering is wrong
@@ -617,34 +661,34 @@ CREATE TABLE t1 AS SELECT REPEAT('a',1) AS a LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(1) CHARACTER SET utf32 COLLATE utf32_bin NOT NULL DEFAULT ''
+  `a` varchar(1) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
 HEX(a)	HEX(CONVERT(a USING utf8mb4))
-00000385	CE85
-0000FF9D	EFBE9D
-00010384	F0908E84
-00100000	F4808080
+8503	CE85
+9DFF	EFBE9D
+00D884DF	F0908E84
+C0DB00DC	F4808080
 ALTER TABLE t1 ADD KEY(a);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
 HEX(a)	HEX(CONVERT(a USING utf8mb4))
-00000385	CE85
-0000FF9D	EFBE9D
-00010384	F0908E84
-00100000	F4808080
+8503	CE85
+9DFF	EFBE9D
+00D884DF	F0908E84
+C0DB00DC	F4808080
 # Additional test for bug#37244 Character sets: short utf8_bin weight_string value
 SELECT HEX(a), HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a;
 HEX(a)	HEX(WEIGHT_STRING(a))
-00000385	000385
-0000FF9D	00FF9D
-00010384	010384
-00100000	100000
+8503	000385
+9DFF	00FF9D
+00D884DF	010384
+C0DB00DC	100000
 DROP TABLE IF EXISTS t1;
 select @@collation_connection;
 @@collation_connection
-utf32_bin
+utf16le_bin
 create table t1 ROW_FORMAT=DYNAMIC select repeat('a',50) as c1 ;
 insert into t1 values('abcdef');
 insert into t1 values('_bcdef');
@@ -660,336 +704,549 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
-select hex(substr(_utf32 0x000000e4000000e500000068,1));
-hex(substr(_utf32 0x000000e4000000e500000068,1))
-000000E4000000E500000068
-select hex(substr(_utf32 0x000000e4000000e500000068,2));
-hex(substr(_utf32 0x000000e4000000e500000068,2))
-000000E500000068
-select hex(substr(_utf32 0x000000e4000000e500000068,3));
-hex(substr(_utf32 0x000000e4000000e500000068,3))
-00000068
-select hex(substr(_utf32 0x000000e4000000e500000068,-1));
-hex(substr(_utf32 0x000000e4000000e500000068,-1))
-00000068
-select hex(substr(_utf32 0x000000e4000000e500000068,-2));
-hex(substr(_utf32 0x000000e4000000e500000068,-2))
-000000E500000068
-select hex(substr(_utf32 0x000000e4000000e500000068,-3));
-hex(substr(_utf32 0x000000e4000000e500000068,-3))
-000000E4000000E500000068
+#
+# Bug#10344 Some string functions fail for UCS2
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le, pos INT);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,1);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,2);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,3);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,-1);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,-2);
+INSERT INTO t1 VALUES (_ucs2 0x00e400e50068,-3);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, 1);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, 2);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, 3);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, -1);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, -2);
+INSERT INTO t1 VALUES (_utf32 0x000000e4000000e500010000, -3);
+SELECT HEX(SUBSTR(a, pos)), SUBSTR(a, pos) FROM t1;
+HEX(SUBSTR(a, pos))	SUBSTR(a, pos)
+E400E5006800	äåh
+E5006800	åh
+6800	h
+6800	h
+E5006800	åh
+E400E5006800	äåh
+E400E50000D800DC	äå?
+E50000D800DC	å?
+00D800DC	?
+00D800DC	?
+E50000D800DC	å?
+E400E50000D800DC	äå?
+DROP TABLE t1;
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+#
+# Bug#9442 Set parameter make query fail if column CHARACTER SET is UCS2
+#
+CREATE TABLE t1 (utext VARCHAR(20) CHARACTER SET utf16le);
+INSERT INTO t1 VALUES ("lily");
+INSERT INTO t1 VALUES ("river");
+PREPARE stmt FROM 'SELECT utext FROM t1 where utext like ?';
+SET @param1='%%';
+EXECUTE stmt USING @param1;
+utext
+lily
+river
+EXECUTE stmt USING @param1;
+utext
+lily
+river
+SELECT utext FROM t1 where utext like '%%';
+utext
+lily
+river
+DROP TABLE t1;
+DEALLOCATE PREPARE stmt;
+#
+# Bug#22052 Trailing spaces are not removed FROM UNICODE fields in an index
+#
 CREATE TABLE t1 (
-a varchar(250) NOT NULL default '',
-KEY a (a)
-) ENGINE=MyISAM DEFAULT CHARSET=utf32 COLLATE utf32_general_ci;
-insert into t1 values (0x803d);
-insert into t1 values (0x005b);
-select hex(a) from t1;
-hex(a)
-0000005B
-0000803D
-drop table t1;
-create table t1 (utext varchar(20) character set utf32);
-insert into t1 values ("lily");
-insert into t1 values ("river");
-prepare stmt from 'select utext from t1 where utext like ?';
-set @param1='%%';
-execute stmt using @param1;
-utext
-lily
-river
-execute stmt using @param1;
-utext
-lily
-river
-select utext from t1 where utext like '%%';
-utext
-lily
-river
-drop table t1;
-deallocate prepare stmt;
-create table t1 (
-a char(10) character set utf32 not null, 
-index a (a)
+a CHAR(10) CHARACTER SET utf16le NOT NULL,
+INDEX a (a)
 ) engine=myisam;
-insert into t1 values (repeat(0x0000201f, 10));
-insert into t1 values (repeat(0x00002020, 10));
-insert into t1 values (repeat(0x00002021, 10));
-explain select hex(a) from t1 order by a;
+INSERT INTO t1 VALUES (REPEAT(_ucs2 0x201f, 10));
+INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2020, 10));
+INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2021, 10));
+# make sure "index read" is used
+explain SELECT HEX(a) FROM t1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	a	40	NULL	3	Using index
-select hex(a) from t1 order by a;
-hex(a)
-0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F
-00002020000020200000202000002020000020200000202000002020000020200000202000002020
-00002021000020210000202100002021000020210000202100002021000020210000202100002021
-alter table t1 drop index a;
-select hex(a) from t1 order by a;
-hex(a)
-0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F0000201F
-00002020000020200000202000002020000020200000202000002020000020200000202000002020
-00002021000020210000202100002021000020210000202100002021000020210000202100002021
-drop table t1;
+SELECT HEX(a) FROM t1 ORDER BY a;
+HEX(a)
+1F201F201F201F201F201F201F201F201F201F20
+2020202020202020202020202020202020202020
+2120212021202120212021202120212021202120
+ALTER TABLE t1 DROP INDEX a;
+SELECT HEX(a) FROM t1 ORDER BY a;
+HEX(a)
+1F201F201F201F201F201F201F201F201F201F20
+2020202020202020202020202020202020202020
+2120212021202120212021202120212021202120
+DROP TABLE t1;
+#
+# Bug #20108: corrupted default enum value for a ucs2 field
+#
 CREATE TABLE t1 (
-status enum('active','passive') character set utf32 collate utf32_general_ci 
-NOT NULL default 'passive'
+status ENUM('active','passive') CHARACTER SET utf16le COLLATE utf16le_general_ci
+NOT NULL DEFAULT 'passive'
 );
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive'
+  `status` enum('active','passive') CHARACTER SET utf16le NOT NULL DEFAULT 'passive'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf32 NOT NULL DEFAULT 'passive',
+  `status` enum('active','passive') CHARACTER SET utf16le NOT NULL DEFAULT 'passive',
   `a` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
-End of 4.1 tests
-CREATE TABLE t1 (a varchar(64) character set utf32, b decimal(10,3));
+#
+# Conversion FROM an UTF16LE string to a decimal column
+#
+CREATE TABLE t1 (a VARCHAR(64) CHARACTER SET utf16le, b DECIMAL(10,3));
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
-update t1 set b=a;
-SELECT *, hex(a) FROM t1;
-a	b	hex(a)
-1.1	1.100	000000310000002E00000031
-2.1	2.100	000000320000002E00000031
+UPDATE t1 set b=a;
+SELECT *, HEX(a) FROM t1;
+a	b	HEX(a)
+1.1	1.100	31002E003100
+2.1	2.100	32002E003100
 DROP TABLE t1;
-create table t1 (utext varchar(20) character set utf32);
-insert into t1 values ("lily");
-insert into t1 values ("river");
-prepare stmt from 'select utext from t1 where utext like ?';
-set @param1='%%';
-execute stmt using @param1;
+#
+# Bug#9442 Set parameter make query fail if column CHARACTER SET is UCS2
+#
+CREATE TABLE t1 (utext VARCHAR(20) CHARACTER SET utf16le);
+INSERT INTO t1 VALUES ("lily");
+INSERT INTO t1 VALUES ("river");
+PREPARE stmt FROM 'SELECT utext FROM t1 where utext like ?';
+SET @param1='%%';
+EXECUTE stmt USING @param1;
 utext
 lily
 river
-execute stmt using @param1;
+EXECUTE stmt USING @param1;
 utext
 lily
 river
-select utext from t1 where utext like '%%';
+SELECT utext FROM t1 where utext like '%%';
 utext
 lily
 river
-drop table t1;
-deallocate prepare stmt;
-set names latin1;
-set character_set_connection=utf32;
-select soundex(''),soundex('he'),soundex('hello all folks'),soundex('#3556 in bugdb');
-soundex('')	soundex('he')	soundex('hello all folks')	soundex('#3556 in bugdb')
+DROP TABLE t1;
+DEALLOCATE PREPARE stmt;
+#
+# Bug#22638 SOUNDEX broken for international characters
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+SELECT SOUNDEX(''),SOUNDEX('he'),SOUNDEX('hello all folks'),SOUNDEX('#3556 in bugdb');
+SOUNDEX('')	SOUNDEX('he')	SOUNDEX('hello all folks')	SOUNDEX('#3556 in bugdb')
 	H000	H4142	I51231
-select hex(soundex('')),hex(soundex('he')),hex(soundex('hello all folks')),hex(soundex('#3556 in bugdb'));
-hex(soundex(''))	hex(soundex('he'))	hex(soundex('hello all folks'))	hex(soundex('#3556 in bugdb'))
-	00000048000000300000003000000030	0000004800000034000000310000003400000032	000000490000003500000031000000320000003300000031
-select 'mood' sounds like 'mud';
+SELECT HEX(SOUNDEX('')),HEX(SOUNDEX('he')),HEX(SOUNDEX('hello all folks')),HEX(SOUNDEX('#3556 in bugdb'));
+HEX(SOUNDEX(''))	HEX(SOUNDEX('he'))	HEX(SOUNDEX('hello all folks'))	HEX(SOUNDEX('#3556 in bugdb'))
+	4800300030003000	48003400310034003200	490035003100320033003100
+SELECT 'mood' sounds like 'mud';
 'mood' sounds like 'mud'
 1
-select hex(soundex(_utf32 0x000004100000041100000412));
-hex(soundex(_utf32 0x000004100000041100000412))
-00000410000000300000003000000030
-select hex(soundex(_utf32 0x000000BF000000C0));
-hex(soundex(_utf32 0x000000BF000000C0))
-000000C0000000300000003000000030
-set names latin1;
-create table t1(a blob, b text charset utf32);
-select data_type, character_octet_length, character_maximum_length
-from information_schema.columns where table_name='t1';
+# Cyrillic A, BE, VE
+SELECT HEX(SOUNDEX(_utf16le 0x041004110412));
+HEX(SOUNDEX(_utf16le 0x041004110412))
+0410300030003000
+# Make sure that "U+00BF INVERTED QUESTION MARK" is not considered as letter
+SELECT HEX(SOUNDEX(_utf16le 0x00BF00C0));
+HEX(SOUNDEX(_utf16le 0x00BF00C0))
+00BF300030003000
+#
+# Bug#14290: character_maximum_length for text fields
+#
+CREATE TABLE t1(a BLOB, b TEXT CHARSET utf16le);
+SELECT data_type, character_octet_length, character_maximum_length
+FROM information_schema.columns where table_name='t1';
 data_type	character_octet_length	character_maximum_length
 blob	65535	65535
-text	65535	16383
-drop table t1;
-set names latin1;
-set collation_connection=utf32_general_ci;
-select position('bb' in 'abba');
-position('bb' in 'abba')
+text	65535	32767
+DROP TABLE t1;
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+#
+# Testing cs->coll->instr()
+#
+SELECT POSITION('bb' IN 'abba');
+POSITION('bb' IN 'abba')
 2
-create table t1 (a varchar(10) character set utf32) engine=heap;
-insert into t1 values ('a'),('A'),('b'),('B');
-select * from t1 where a='a' order by binary a;
-a
-A
-a
-select hex(min(binary a)),count(*) from t1 group by a;
-hex(min(binary a))	count(*)
-00000041	2
-00000042	2
-drop table t1;
-select char_length('abcd'), octet_length('abcd');
-char_length('abcd')	octet_length('abcd')
-4	16
-select left('abcd',2);
-left('abcd',2)
+#
+# Testing cs->coll->hash_sort()
+#
+SET NAMES utf8, collation_connection=utf16le_bin;
+SELECT @@collation_connection;
+@@collation_connection
+utf16le_bin
+CREATE TABLE t1 ENGINE=HEAP AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
+ALTER TABLE t1 ADD KEY (a);
+CREATE TABLE t2 (a VARCHAR(10));
+INSERT INTO t2 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t2 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+INSERT INTO t1 SELECT CONCAT('a',t21.a,t22.a) FROM t2 t21, t2 t22 ORDER BY 1;
+DROP TABLE t2;
+INSERT INTO t1 VALUES ('a ');
+SELECT a, HEX(a) FROM t1 WHERE a='a';
+a	HEX(a)
+a 	61002000
+DROP TABLE t1;
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+SELECT @@collation_connection;
+@@collation_connection
+utf16le_general_ci
+CREATE TABLE t1 ENGINE=HEAP AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
+ALTER TABLE t1 ADD KEY (a);
+CREATE TABLE t2 (a VARCHAR(10));
+INSERT INTO t2 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t2 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+INSERT INTO t1 SELECT CONCAT('a',t21.a,t22.a) FROM t2 t21, t2 t22 ORDER BY 1;
+DROP TABLE t2;
+INSERT INTO t1 VALUES ('a ');
+SELECT a, HEX(a) FROM t1 WHERE a='a';
+a	HEX(a)
+a 	61002000
+DROP TABLE t1;
+#
+# Testing cs->cset->numchars()
+#
+SELECT CHAR_LENGTH('abcd'), OCTET_LENGTH('abcd');
+CHAR_LENGTH('abcd')	OCTET_LENGTH('abcd')
+4	8
+SELECT CHAR_LENGTH(_utf16le 0x00D800DC), OCTET_LENGTH(_utf16le 0x00D800DC);
+CHAR_LENGTH(_utf16le 0x00D800DC)	OCTET_LENGTH(_utf16le 0x00D800DC)
+1	4
+SELECT CHAR_LENGTH(_utf16le 0x7DD8FFDF), OCTET_LENGTH(_utf16le 0x7FD8DDDF);
+CHAR_LENGTH(_utf16le 0x7DD8FFDF)	OCTET_LENGTH(_utf16le 0x7FD8DDDF)
+1	4
+#
+# Testing cs->cset->charpos()
+#
+SELECT LEFT('abcd',2);
+LEFT('abcd',2)
 ab
-create table t1 (a varchar(10) character set utf32);
-insert into t1 values (_utf32 0x0010FFFF);
-insert into t1 values (_utf32 0x00110000);
-ERROR HY000: Invalid utf32 character string: '001100'
-insert into t1 values (_utf32 0x00110101);
-ERROR HY000: Invalid utf32 character string: '001101'
-insert into t1 values (_utf32 0x01000101);
-ERROR HY000: Invalid utf32 character string: '010001'
-insert into t1 values (_utf32 0x11000101);
-ERROR HY000: Invalid utf32 character string: '110001'
-select hex(a) from t1;
-hex(a)
-0010FFFF
-drop table t1;
-create table t1 (utf32 varchar(2) character set utf32);
-Wrong character with pad
-insert into t1 values (0x110000);
+SELECT HEX(LEFT(_utf16le 0x00D800DC7FD8FFDF, 1));
+HEX(LEFT(_utf16le 0x00D800DC7FD8FFDF, 1))
+00D800DC
+SELECT HEX(RIGHT(_utf16le 0x00D800DC7FD8FFDF, 1));
+HEX(RIGHT(_utf16le 0x00D800DC7FD8FFDF, 1))
+7FD8FFDF
+#
+# Testing cs->cset->well_formed_length()
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le);
+# Bad sequences
+INSERT INTO t1 VALUES (_utf16le 0x00D8);
+ERROR HY000: Invalid utf16le character string: '00D8'
+INSERT INTO t1 VALUES (_utf16le 0x00DC);
+ERROR HY000: Invalid utf16le character string: '00DC'
+INSERT INTO t1 VALUES (_utf16le 0x00D800D8);
+ERROR HY000: Invalid utf16le character string: '00D800'
+INSERT INTO t1 VALUES (_utf16le 0x00D800E8);
+ERROR HY000: Invalid utf16le character string: '00D800'
+INSERT INTO t1 VALUES (_utf16le 0x00D80008);
+ERROR HY000: Invalid utf16le character string: '00D800'
+# Good sequences
+INSERT INTO t1 VALUES (_utf16le 0x00D800DC);
+INSERT INTO t1 VALUES (_utf16le 0x00D8FFDC);
+INSERT INTO t1 VALUES (_utf16le 0xFFDB00DC);
+INSERT INTO t1 VALUES (_utf16le 0xFFDBFFDC);
+SELECT HEX(a) FROM t1;
+HEX(a)
+00D800DC
+00D8FFDC
+FFDB00DC
+FFDBFFDC
+DROP TABLE t1;
+#
+# Bug#32393 Character sets: illegal characters in utf16le columns
+#
+# Tests that cs->cset->wc_mb() doesn't accept surrogate parts
+#
+# via ALTER
+#
+CREATE TABLE t1 (s1 VARCHAR(50) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (0xDF84);
+ALTER TABLE t1 MODIFY column s1 VARCHAR(50) CHARACTER SET utf16le;
 Warnings:
-Warning	1366	Incorrect string value: '\x11\x00\x00' for column 'utf32' at row 1
-Wrong chsaracter without pad
-insert into t1 values (0x00110000);
+Warning	1366	Incorrect string value: '\xDF\x84' for column 's1' at row 1
+SELECT HEX(s1) FROM t1;
+HEX(s1)
+3F00
+DROP TABLE t1;
+#
+# via UPDATE
+#
+CREATE TABLE t1 (s1 VARCHAR(5) CHARACTER SET ucs2, s2 VARCHAR(5) CHARACTER SET utf16le);
+INSERT INTO t1 (s1) VALUES (0xdf84);
+UPDATE t1 set s2 = s1;
 Warnings:
-Warning	1366	Incorrect string value: '\x00\x11\x00\x00' for column 'utf32' at row 1
-Wrong character with pad followed by another wrong character
-insert into t1 values (0x11000000110000);
-Warnings:
-Warning	1366	Incorrect string value: '\x11\x00\x00\x00\x11\x00...' for column 'utf32' at row 1
-Good character with pad followed by bad character
-insert into t1 values (0x10000000110000);
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x11\x00\x00' for column 'utf32' at row 1
-Good character without pad followed by bad character
-insert into t1 values (0x0010000000110000);
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x11\x00\x00' for column 'utf32' at row 1
-Wrong character with the second byte higher than 0x10
-insert into t1 values (0x00800037);
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x80\x007' for column 'utf32' at row 1
-Wrong character with pad with the second byte higher than 0x10
-insert into t1 values (0x00800037);
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x80\x007' for column 'utf32' at row 1
-drop table t1;
-select _utf32'a' collate utf32_general_ci = 0xfffd;
-_utf32'a' collate utf32_general_ci = 0xfffd
-0
-select hex(concat(_utf32 0x0410 collate utf32_general_ci, 0x61));
-hex(concat(_utf32 0x0410 collate utf32_general_ci, 0x61))
-0000041000000061
-create table t1 (s1 varchar(5) character set utf32);
-insert into t1 values (0xfffd);
-select case when s1 = 0xfffd then 1 else 0 end from t1;
-case when s1 = 0xfffd then 1 else 0 end
-1
-select hex(s1) from t1 where s1 = 0xfffd;
-hex(s1)
-0000FFFD
-drop table t1;
-create table t1 (a char(10)) character set utf32;
-insert into t1 values ('a   ');
-select hex(a) from t1;
-hex(a)
-00000061
-drop table t1;
-select upper('abcd'), lower('ABCD');
-upper('abcd')	lower('ABCD')
+Warning	1366	Incorrect string value: '\xDF\x84' for column 's2' at row 1
+SELECT HEX(s2) FROM t1;
+HEX(s2)
+3F00
+DROP TABLE t1;
+#
+# Testing cs->cset->lengthsp()
+#
+CREATE TABLE t1 (a CHAR(10)) CHARACTER SET utf16le;
+INSERT INTO t1 VALUES ('a   ');
+SELECT HEX(a) FROM t1;
+HEX(a)
+6100
+DROP TABLE t1;
+#
+# Testing cs->cset->caseup() and cs->cset->casedn()
+#
+SELECT UPPER('abcd'), LOWER('ABCD');
+UPPER('abcd')	LOWER('ABCD')
 ABCD	abcd
-create table t1 (a varchar(10) character set utf32);
-insert into t1 values (123456);
-select a, hex(a) from t1;
-a	hex(a)
-123456	000000310000003200000033000000340000003500000036
-drop table t1;
-select hex(soundex('a'));
-hex(soundex('a'))
-00000041000000300000003000000030
-create table t1 (a enum ('a','b','c')) character set utf32;
-insert into t1 values ('1');
-select * from t1;
+#
+# Checking str_to_datetime()
+#
+select @@collation_connection;
+@@collation_connection
+utf16le_general_ci
+CREATE TABLE t1 (a date);
+INSERT INTO t1 VALUES ('2007-09-16');
+SELECT * FROM t1;
+a
+2007-09-16
+DROP TABLE t1;
+#
+# Testing cs->cset->ll10tostr
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf16le);
+INSERT INTO t1 VALUES (123456);
+SELECT a, HEX(a) FROM t1;
+a	HEX(a)
+123456	310032003300340035003600
+DROP TABLE t1;
+#
+# Testing cs->cset->fill
+# SOUNDEX fills strings with DIGIT ZERO up to four characters
+#
+SELECT SOUNDEX('a'), HEX(SOUNDEX('a'));
+SOUNDEX('a')	HEX(SOUNDEX('a'))
+A000	4100300030003000
+#
+# Testing cs->cset->strntoul
+#
+CREATE TABLE t1 (a enum ('a','b','c')) CHARACTER SET utf16le;
+INSERT INTO t1 VALUES ('1');
+SELECT * FROM t1;
 a
 a
-drop table t1;
-set names latin1;
-select hex(conv(convert('123' using utf32), -10, 16));
-hex(conv(convert('123' using utf32), -10, 16))
+DROP TABLE t1;
+#
+# Testing cs->cset->strntoll and cs->cset->strntoull
+#
+SET NAMES latin1;
+SELECT HEX(CONV(CONVERT('123' USING utf16le), -10, 16));
+HEX(CONV(CONVERT('123' USING utf16le), -10, 16))
 3742
-select hex(conv(convert('123' using utf32), 10, 16));
-hex(conv(convert('123' using utf32), 10, 16))
+SELECT HEX(CONV(CONVERT('123' USING utf16le), 10, 16));
+HEX(CONV(CONVERT('123' USING utf16le), 10, 16))
 3742
-set names latin1;
-set character_set_connection=utf32;
-select 1.1 + '1.2';
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+#
+# Testing cs->cset->strntod
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+SELECT 1.1 + '1.2';
 1.1 + '1.2'
 2.3
-select 1.1 + '1.2xxx';
+SELECT 1.1 + '1.2xxx';
 1.1 + '1.2xxx'
 2.3
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1.2xxx'
-select left('aaa','1');
-left('aaa','1')
+#
+# Testing cs->cset->strtoll10
+#
+SELECT LEFT('aaa','1');
+LEFT('aaa','1')
 a
-create table t1 (a int);
-insert into t1 values ('-1234.1e2');
-insert into t1 values ('-1234.1e2xxxx');
+CREATE TABLE t1 AS SELECT REPEAT('abcd', 128) AS a;
+SELECT LEFT(a, '2') FROM t1;
+LEFT(a, '2')
+ab
+SELECT LEFT(a, ' \t \t 2') FROM t1;
+LEFT(a, ' \t \t 2')
+ab
+SELECT LEFT(a, ' \t \t +2') FROM t1;
+LEFT(a, ' \t \t +2')
+ab
+SELECT SUBSTR(a, '-2') FROM t1;
+SUBSTR(a, '-2')
+cd
+SELECT SUBSTR(a, ' \t \t -2') FROM t1;
+SUBSTR(a, ' \t \t -2')
+cd
+SELECT LEFT(a, '00002') FROM t1;
+LEFT(a, '00002')
+ab
+SELECT LEFT(a, ' \t \t 00002') FROM t1;
+LEFT(a, ' \t \t 00002')
+ab
+SELECT LEFT(a, ' \t \t +00002') FROM t1;
+LEFT(a, ' \t \t +00002')
+ab
+SELECT SUBSTR(a, '-00002') FROM t1;
+SUBSTR(a, '-00002')
+cd
+SELECT SUBSTR(a, ' \t \t -00002') FROM t1;
+SUBSTR(a, ' \t \t -00002')
+cd
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT REPEAT('abcd', 128) AS a LIMIT 0;
+INSERT INTO t1 VALUES ('255'), ('65535'),('16777215'),('4294967295'),
+('1099511627775'),('281474976710655'),('72057594037927935'),
+('1844674407370955161'),('18446744073709551614'), ('18446744073709551615');
+SELECT a, CAST(a AS SIGNED), CAST(a AS UNSIGNED) FROM t1;
+a	CAST(a AS SIGNED)	CAST(a AS UNSIGNED)
+255	255	255
+65535	65535	65535
+16777215	16777215	16777215
+4294967295	4294967295	4294967295
+1099511627775	1099511627775	1099511627775
+281474976710655	281474976710655	281474976710655
+72057594037927935	72057594037927935	72057594037927935
+1844674407370955161	1844674407370955161	1844674407370955161
+18446744073709551614	-2	18446744073709551614
+18446744073709551615	-1	18446744073709551615
+Warnings:
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+Warning	1105	Cast to signed converted positive out-of-range integer to it's negative complement
+UPDATE t1 SET a=CONCAT('-', a);
+SELECT a, CAST(a AS SIGNED) FROM t1;
+a	CAST(a AS SIGNED)
+-255	-255
+-65535	-65535
+-16777215	-16777215
+-4294967295	-4294967295
+-1099511627775	-1099511627775
+-281474976710655	-281474976710655
+-72057594037927935	-72057594037927935
+-1844674407370955161	-1844674407370955161
+-18446744073709551614	-9223372036854775808
+-18446744073709551615	-9223372036854775808
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '-18446744073709551614'
+Warning	1292	Truncated incorrect INTEGER value: '-18446744073709551615'
+DROP TABLE t1;
+#
+# Testing cs->cset->strntoull10rnd
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES ('-1234.1e2');
+INSERT INTO t1 VALUES ('-1234.1e2xxxx');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-insert into t1 values ('-1234.1e2    ');
-select * from t1;
+INSERT INTO t1 VALUES ('-1234.1e2    ');
+INSERT INTO t1 VALUES ('123');
+INSERT INTO t1 VALUES ('-124');
+INSERT INTO t1 VALUES ('+125');
+INSERT INTO t1 VALUES (' \t \t 123');
+INSERT INTO t1 VALUES (' \t \t -124');
+INSERT INTO t1 VALUES (' \t \t +125');
+INSERT INTO t1 VALUES (' \t \t 000123');
+INSERT INTO t1 VALUES (' \t \t -000124');
+INSERT INTO t1 VALUES (' \t \t +000125');
+SELECT * FROM t1;
 a
 -123410
 -123410
 -123410
-drop table t1;
-create table t1 (a int);
-insert into t1 values ('1 ');
-insert into t1 values ('1 x');
+123
+-124
+125
+123
+-124
+125
+123
+-124
+125
+DROP TABLE t1;
+CREATE TABLE t1 (a BIGINT UNSIGNED);
+INSERT INTO t1 VALUES ('255'), ('65535'),('16777215'),('4294967295'),
+('1099511627775'),('281474976710655'),('72057594037927935'),
+('1844674407370955161'),('18446744073709551614'), ('18446744073709551615');
+SELECT * FROM t1;
+a
+255
+65535
+16777215
+4294967295
+1099511627775
+281474976710655
+72057594037927935
+1844674407370955161
+18446744073709551614
+18446744073709551615
+DROP TABLE t1;
+#
+# Testing cs->cset->scan
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES ('1 ');
+INSERT INTO t1 VALUES ('1 x');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
-select * from t1;
+SELECT * FROM t1;
 a
 1
 1
-drop table t1;
-create table t1 (a varchar(17000) character set utf32);
+DROP TABLE t1;
+#
+# Testing auto-conversion to TEXT
+#
+CREATE TABLE t1 (a VARCHAR(17000) CHARACTER SET utf16le);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
-show create table t1;
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext CHARACTER SET utf32
+  `a` mediumtext CHARACTER SET utf16le
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-create table t1 (a varchar(250) character set utf32 primary key);
-show create table t1;
+DROP TABLE t1;
+#
+# Testing that maximim possible key length is 1000 bytes
+#
+CREATE TABLE t1 (a VARCHAR(250) CHARACTER SET utf16le PRIMARY KEY);
+SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(250) CHARACTER SET utf32 NOT NULL,
+  `a` varchar(250) CHARACTER SET utf16le NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
-create table t1 (a varchar(334) character set utf32 primary key);
-ERROR 42000: Specified key was too long; max key length is 1000 bytes
-create table t1 (a varchar(333) character set utf32, key(a));
-Warnings:
-Warning	1071	Specified key was too long; max key length is 1000 bytes
-insert into t1 values (repeat('a',333)), (repeat('b',333));
-flush tables;
-check table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
-drop table t1;
-SET collation_connection=utf32_general_ci;
-CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
-SET timestamp=1216359724;
-INSERT INTO t1 VALUES (current_date);
-INSERT INTO t1 VALUES (current_time);
-INSERT INTO t1 VALUES (current_timestamp);
-SELECT s1, hex(s1) FROM t1;
-s1	hex(s1)
-2008-07-18	000000320000003000000030000000380000002D00000030000000370000002D0000003100000038
-08:42:04	00000030000000380000003A00000034000000320000003A0000003000000034
-2008-07-18 08:42:04	000000320000003000000030000000380000002D00000030000000370000002D00000031000000380000002000000030000000380000003A00000034000000320000003A0000003000000034
 DROP TABLE t1;
-SET timestamp=0;
-SET NAMES latin1;
-set collation_connection=utf32_general_ci;
+CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY);
+ERROR 42000: Specified key was too long; max key length is 1000 bytes
+#
+# Conversion to utf8
+#
+CREATE TABLE t1 (a CHAR(1) CHARACTER SET utf16le);
+INSERT INTO t1 VALUES (0x00D800DC),(0x00D8FFDC),(0x7FDB00DC),(0x7FDBFFDC);
+INSERT INTO t1 VALUES (0xC000), (0xFF00),(0x00E0), (0xFFFF);
+SELECT HEX(a), HEX(@a:=CONVERT(a USING utf8mb4)), HEX(CONVERT(@a USING utf16le)) FROM t1;
+HEX(a)	HEX(@a:=CONVERT(a USING utf8mb4))	HEX(CONVERT(@a USING utf16le))
+00D800DC	F0908080	00D800DC
+00D8FFDC	F09083BF	00D8FFDC
+7FDB00DC	F3AFB080	7FDB00DC
+7FDBFFDC	F3AFB3BF	7FDBFFDC
+C000	C380	C000
+FF00	C3BF	FF00
+00E0	EE8080	00E0
+FFFF	EFBFBF	FFFF
+DROP TABLE t1;
+#
+# Test basic regex functionality
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
 drop table if exists t1;
 create table t1 as
 select repeat(' ', 64) as s1, repeat(' ',64) as s2
@@ -998,8 +1255,8 @@ select null, null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(64) CHARACTER SET utf32 DEFAULT NULL,
-  `s2` varchar(64) CHARACTER SET utf32 DEFAULT NULL
+  `s1` varchar(64) CHARACTER SET utf16le DEFAULT NULL,
+  `s2` varchar(64) CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 delete from t1;
 insert into t1 values('aaa','aaa');
@@ -1033,34 +1290,30 @@ NULL
 NULL
 NULL
 drop table t1;
-set names latin1;
-select hex(char(0x01 using utf32));
-hex(char(0x01 using utf32))
-00000001
-select hex(char(0x0102 using utf32));
-hex(char(0x0102 using utf32))
-00000102
-select hex(char(0x010203 using utf32));
-hex(char(0x010203 using utf32))
-00010203
-select hex(char(0x01020304 using utf32));
-hex(char(0x01020304 using utf32))
-
-Warnings:
-Warning	1300	Invalid utf32 character string: '010203'
-create table t1 (s1 varchar(1) character set utf32, s2 text character set utf32);
-create index i on t1 (s1);
-insert into t1 values (char(256 using utf32), char(256 using utf32));
-select hex(s1), hex(s2) from t1;
-hex(s1)	hex(s2)
-00000100	00000100
-drop table t1;
-SET collation_connection=utf32_general_ci;
-CREATE TABLE t1 AS SELECT repeat('a',2) as s1 LIMIT 0;
+#
+# Test how CHARACTER SET works with date/time
+#
+CREATE TABLE t1 AS SELECT repeat('a',20) AS s1 LIMIT 0;
+SET timestamp=1216359724;
+INSERT INTO t1 VALUES (current_date);
+INSERT INTO t1 VALUES (current_time);
+INSERT INTO t1 VALUES (current_timestamp);
+SELECT s1, hex(s1) FROM t1;
+s1	hex(s1)
+2008-07-18	32003000300038002D00300037002D0031003800
+08:42:04	300038003A00340032003A0030003400
+2008-07-18 08:42:04	32003000300038002D00300037002D00310038002000300038003A00340032003A0030003400
+DROP TABLE t1;
+SET timestamp=0;
+#
+# Bug#33073 Character sets: ordering fails with utf32
+#
+SET NAMES utf8, collation_connection=utf16le_general_ci;
+CREATE TABLE t1 AS SELECT REPEAT('a',2) as s1 LIMIT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `s1` varchar(2) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `s1` varchar(2) CHARACTER SET utf16le NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES ('ab'),('AE'),('ab'),('AE');
 SELECT * FROM t1 ORDER BY s1;
@@ -1078,113 +1331,77 @@ AE
 AE
 DROP TABLE t1;
 SET max_sort_length=DEFAULT;
-SET NAMES latin1;
 #
 # Bug#52520 Difference in tinytext utf column metadata
 #
 CREATE TABLE t1 (
-s1 TINYTEXT CHARACTER SET utf32,
-s2 TEXT CHARACTER SET utf32,
-s3 MEDIUMTEXT CHARACTER SET utf32,
-s4 LONGTEXT CHARACTER SET utf32
+s1 TINYTEXT CHARACTER SET utf16le,
+s2 TEXT CHARACTER SET utf16le,
+s3 MEDIUMTEXT CHARACTER SET utf16le,
+s4 LONGTEXT CHARACTER SET utf16le
 );
-SET NAMES utf8mb4, @@character_set_results=NULL;
+SET NAMES utf8, @@character_set_results=NULL;
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	s1	s1	252	255	0	Y	16	0	60
-def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	60
-def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	60
-def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	60
-def					HEX(s1)	253	8160	0	Y	0	0	45
+def	test	t1	t1	s1	s1	252	255	0	Y	16	0	56
+def	test	t1	t1	s2	s2	252	65535	0	Y	16	0	56
+def	test	t1	t1	s3	s3	252	16777215	0	Y	16	0	56
+def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	56
+def					HEX(s1)	253	6120	0	Y	0	0	33
 s1	s2	s3	s4	HEX(s1)
 SET NAMES latin1;
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	s1	s1	252	63	0	Y	16	0	8
-def	test	t1	t1	s2	s2	252	16383	0	Y	16	0	8
-def	test	t1	t1	s3	s3	252	4194303	0	Y	16	0	8
-def	test	t1	t1	s4	s4	252	1073741823	0	Y	16	0	8
+def	test	t1	t1	s1	s1	252	127	0	Y	16	0	8
+def	test	t1	t1	s2	s2	252	32767	0	Y	16	0	8
+def	test	t1	t1	s3	s3	252	8388607	0	Y	16	0	8
+def	test	t1	t1	s4	s4	252	2147483647	0	Y	16	0	8
 def					HEX(s1)	253	2040	0	Y	0	0	8
 s1	s2	s3	s4	HEX(s1)
-SET NAMES utf8mb4;
+SET NAMES utf8;
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	s1	s1	252	252	0	Y	16	0	45
-def	test	t1	t1	s2	s2	252	65532	0	Y	16	0	45
-def	test	t1	t1	s3	s3	252	16777212	0	Y	16	0	45
-def	test	t1	t1	s4	s4	252	4294967292	0	Y	16	0	45
-def					HEX(s1)	253	8160	0	Y	0	0	45
+def	test	t1	t1	s1	s1	252	381	0	Y	16	0	33
+def	test	t1	t1	s2	s2	252	98301	0	Y	16	0	33
+def	test	t1	t1	s3	s3	252	25165821	0	Y	16	0	33
+def	test	t1	t1	s4	s4	252	4294967295	0	Y	16	0	33
+def					HEX(s1)	253	6120	0	Y	0	0	33
 s1	s2	s3	s4	HEX(s1)
 CREATE TABLE t2 AS SELECT CONCAT(s1) FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `CONCAT(s1)` varchar(255) CHARACTER SET utf32 DEFAULT NULL
+  `CONCAT(s1)` varchar(255) CHARACTER SET utf16le DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
 #
-# Bug#45263 utf32_general_ci, bad effects around CREATE TABLE AS SELECT
-#
-SET collation_connection=utf32_general_ci;
-CREATE TABLE t1 AS SELECT HEX(0x00) AS my_col;
-SELECT * FROM t1;
-my_col
-00
-DROP TABLE t1;
-#
-# Bug#32859 Character sets: no warning with non-fitting chariot wheel
-#
-CREATE TABLE t1 (utf32 CHAR(5) CHARACTER SET utf32, latin1 CHAR(5) CHARACTER SET latin1);
-INSERT INTO t1 (utf32) VALUES (0xc581);
-UPDATE t1 SET latin1 = utf32;
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x00\xC5\x81' for column 'latin1' at row 1
-DELETE FROM t1;
-INSERT INTO t1 (utf32) VALUES (0x100cc);
-UPDATE t1 SET latin1 = utf32;
-Warnings:
-Warning	1366	Incorrect string value: '\x00\x01\x00\xCC' for column 'latin1' at row 1
-DROP TABLE t1;
-#
-# Bug#55912 FORMAT with locale set fails for numbers < 1000
-#
-SET collation_connection=utf32_general_ci;
-CREATE TABLE t1 AS SELECT format(123,2,'no_NO');
+# Problem found by Roy during review
+# MY_CS_BINSORT was not set for utf16le_bin,
+# so filesort did not work well
+# 
+SET NAMES utf8, @@collation_connection=utf16le_bin;
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) as c LIMIT 0;
+ALTER TABLE t1 ADD PRIMARY KEY(c);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(37) CHARACTER SET utf32 NOT NULL DEFAULT ''
+  `c` varchar(10) CHARACTER SET utf16le COLLATE utf16le_bin NOT NULL DEFAULT '',
+  PRIMARY KEY (`c`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SELECT * FROM t1;
-format(123,2,'no_NO')
-123,00
+INSERT INTO t1 VALUES ('abc'),('zyx'),('acb');
+SELECT UPPER(c) FROM t1 ORDER BY 1 DESC;
+UPPER(c)
+ZYX
+ACB
+ABC
 DROP TABLE t1;
-#
-# Bug#42511 mysqld: ctype-ucs2.c:2044: my_strnncollsp_utf32: Assertion (tlen % 4) == 0' faied
-#
-CREATE TABLE t1 (
-b char(250) CHARACTER SET utf32,
-key (b)
-) ENGINE=MYISAM;
-INSERT INTO t1 VALUES ('d'),('f');
-SELECT * FROM t1 WHERE b BETWEEN 'a' AND 'z';
-b
-d
-f
-DROP TABLE t1;
-#
-# End of 5.5 tests
-#
-#
-# Start of 5.6 tests
-#
 #
 # WL#3664 WEIGHT_STRING
 #
-set collation_connection=utf32_general_ci;
+SET NAMES utf8, collation_connection=utf16le_general_ci;
 select @@collation_connection;
 @@collation_connection
-utf32_general_ci
+utf16le_general_ci
 select hex(weight_string('a'));
 hex(weight_string('a'))
 0041
@@ -1259,7 +1476,7 @@ hex(weight_string('abc',25, 4, 0xC0))
 00410042004300200020002000200020002000200020002000
 select @@collation_connection;
 @@collation_connection
-utf32_general_ci
+utf16le_general_ci
 select hex(weight_string(cast(_latin1 0x80 as char)));
 hex(weight_string(cast(_latin1 0x80 as char)))
 20AC
@@ -1329,15 +1546,15 @@ hex(weight_string(cast(_latin1 0x808080 as char), 5, 4, 0xC0))
 select hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0));
 hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 20AC20AC20AC00200020002000200020002000200020002000
-select hex(weight_string(_utf32 0x10000));
-hex(weight_string(_utf32 0x10000))
+SELECT HEX(WEIGHT_STRING(_utf16le 0x00D800DC));
+HEX(WEIGHT_STRING(_utf16le 0x00D800DC))
 FFFD
-select hex(weight_string(_utf32 0x10001));
-hex(weight_string(_utf32 0x10001))
+SELECT HEX(WEIGHT_STRING(_utf16le 0x00D801DC));
+HEX(WEIGHT_STRING(_utf16le 0x00D801DC))
 FFFD
 select @@collation_connection;
 @@collation_connection
-utf32_general_ci
+utf16le_general_ci
 select hex(weight_string('a' LEVEL 1));
 hex(weight_string('a' LEVEL 1))
 0041
@@ -1365,10 +1582,10 @@ FFBEFFBDFFBCFFDFFFDF
 select hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE));
 hex(weight_string('abc' as char(5) LEVEL 1 DESC REVERSE))
 DFFFDFFFBCFFBDFFBEFF
-set collation_connection=utf32_bin;
+SET NAMES utf8, collation_connection=utf16le_bin;
 select @@collation_connection;
 @@collation_connection
-utf32_bin
+utf16le_bin
 select hex(weight_string('a'));
 hex(weight_string('a'))
 000061
@@ -1443,7 +1660,7 @@ hex(weight_string('abc',25, 4, 0xC0))
 00006100006200006300002000002000002000002000002000
 select @@collation_connection;
 @@collation_connection
-utf32_bin
+utf16le_bin
 select hex(weight_string(cast(_latin1 0x80 as char)));
 hex(weight_string(cast(_latin1 0x80 as char)))
 0020AC
@@ -1515,7 +1732,7 @@ hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 0020AC0020AC0020AC00002000002000002000002000002000
 select @@collation_connection;
 @@collation_connection
-utf32_bin
+utf16le_bin
 select hex(weight_string('a' LEVEL 1));
 hex(weight_string('a' LEVEL 1))
 000061

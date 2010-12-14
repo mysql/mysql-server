@@ -480,7 +480,7 @@ static bool check_charset(sys_var *self, THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     String str(buff, sizeof(buff), system_charset_info), *res;
-    if (!(res=var->value->val_str(&str)))
+    if (!(res=var->value->val_str_ascii(&str)))
       var->save_result.ptr= NULL;
     else if (!(var->save_result.ptr= get_charset_by_csname(res->c_ptr(),
                                                            MY_CS_PRIMARY,
@@ -598,7 +598,7 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     String str(buff, sizeof(buff), system_charset_info), *res;
-    if (!(res= var->value->val_str(&str)))
+    if (!(res= var->value->val_str_ascii(&str)))
       var->save_result.ptr= NULL;
     else if (!(var->save_result.ptr= get_charset_by_name(res->c_ptr(), MYF(0))))
     {
