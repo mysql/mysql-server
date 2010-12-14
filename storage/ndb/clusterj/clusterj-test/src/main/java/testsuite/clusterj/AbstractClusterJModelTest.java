@@ -28,10 +28,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
+import java.util.TreeSet;
 
 import com.mysql.clusterj.Session;
 
@@ -584,10 +587,15 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         return row;
     }
 
-    /** Read data via JDBC */
+    /** Read data via JDBC ordered by id */
     protected List<Object[]> readFromJDBC(ColumnDescriptor[] columnDescriptors) {
         String tableName = getTableName();
         List<Object[]> result = new ArrayList<Object[]>();
+        Set<Object[]> rows = new TreeSet<Object[]>(new Comparator<Object[]>(){
+            public int compare(Object[] me, Object[] other) {
+                return ((Integer)me[0]) - ((Integer)other[0]);
+            }
+        });
         StringBuffer buffer = new StringBuffer("SELECT id");
         for (ColumnDescriptor columnDescriptor: columnDescriptors) {
             buffer.append(", ");
@@ -595,7 +603,6 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         }
         buffer.append(" FROM ");
         buffer.append(tableName);
-        buffer.append(" ORDER BY ID");
         String statement = buffer.toString();
         if (debug) System.out.println(statement);
         PreparedStatement preparedStatement = null;
@@ -612,12 +619,13 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
                     ++j;
                 }
                 ++i;
-                result.add(row);
+                rows.add(row);
             }
             connection.commit();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to read " + tableName + " at instance " + i, e);
         }
+        result = new ArrayList<Object[]>(rows);
         if (debug) System.out.println("readFromJDBC: " + dumpListOfObjectArray(result));
         return result;
     }
