@@ -501,14 +501,15 @@ public:
                          INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE,
                          ROWID_MERGE_ENGINE, TABLE_SCAN_ENGINE};
 
-  subselect_engine(Item_subselect *si, select_result_interceptor *res)
-    :thd(0)
+  subselect_engine(THD *thd_arg, Item_subselect *si,
+                   select_result_interceptor *res)
   {
     result= res;
     item= si;
     res_type= STRING_RESULT;
     res_field_type= MYSQL_TYPE_VAR_STRING;
     maybe_null= 0;
+    set_thd(thd_arg);
   }
   virtual ~subselect_engine() {}; // to satisfy compiler
   virtual void cleanup()= 0;
@@ -572,7 +573,7 @@ class subselect_single_select_engine: public subselect_engine
   st_select_lex *select_lex; /* corresponding select_lex */
   JOIN * join; /* corresponding JOIN structure */
 public:
-  subselect_single_select_engine(st_select_lex *select,
+  subselect_single_select_engine(THD *thd_arg, st_select_lex *select,
 				 select_result_interceptor *result,
 				 Item_subselect *item);
   void cleanup();
@@ -601,7 +602,7 @@ class subselect_union_engine: public subselect_engine
 {
   st_select_lex_unit *unit;  /* corresponding unit structure */
 public:
-  subselect_union_engine(st_select_lex_unit *u,
+  subselect_union_engine(THD *thd_arg, st_select_lex_unit *u,
 			 select_result_interceptor *result,
 			 Item_subselect *item);
   void cleanup();
@@ -657,10 +658,8 @@ public:
   // constructor can assign THD because it will be called after JOIN::prepare
   subselect_uniquesubquery_engine(THD *thd_arg, st_join_table *tab_arg,
 				  Item_subselect *subs, Item *where)
-    :subselect_engine(subs, 0), tab(tab_arg), cond(where)
-  {
-    set_thd(thd_arg);
-  }
+    :subselect_engine(thd_arg, subs, 0), tab(tab_arg), cond(where)
+  {}
   ~subselect_uniquesubquery_engine();
   void cleanup();
   int prepare();
@@ -812,13 +811,11 @@ protected:
 public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)
-    :subselect_engine(in_predicate, NULL), tmp_table(NULL),
+    :subselect_engine(thd, in_predicate, NULL), tmp_table(NULL),
     is_materialized(FALSE), materialize_engine(old_engine), lookup_engine(NULL),
     materialize_join(NULL), count_partial_match_columns(0),
     count_null_only_columns(0), semi_join_conds(NULL), strategy(UNDEFINED)
-  {
-    set_thd(thd);
-  }
+  {}
   ~subselect_hash_sj_engine();
 
   bool init_permanent(List<Item> *tmp_columns);
@@ -1056,7 +1053,8 @@ protected:
 protected:
   virtual bool partial_match()= 0;
 public:
-  subselect_partial_match_engine(subselect_uniquesubquery_engine *engine_arg,
+  subselect_partial_match_engine(THD *thd_arg,
+                                 subselect_uniquesubquery_engine *engine_arg,
                                  TABLE *tmp_table_arg, Item_subselect *item_arg,
                                  select_result_interceptor *result_arg,
                                  List<Item> *equi_join_conds_arg,
@@ -1148,19 +1146,18 @@ protected:
   bool test_null_row(rownum_t row_num);
   bool partial_match();
 public:
-  subselect_rowid_merge_engine(subselect_uniquesubquery_engine *engine_arg,
+  subselect_rowid_merge_engine(THD *thd_arg,
+                               subselect_uniquesubquery_engine *engine_arg,
                                TABLE *tmp_table_arg, uint keys_count_arg,
                                uint covering_null_row_width_arg,
                                Item_subselect *item_arg,
                                select_result_interceptor *result_arg,
                                List<Item> *equi_join_conds_arg)
-    :subselect_partial_match_engine(engine_arg, tmp_table_arg, item_arg,
-                                    result_arg, equi_join_conds_arg,
+    :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg,
+                                    item_arg, result_arg, equi_join_conds_arg,
                                     covering_null_row_width_arg),
     keys_count(keys_count_arg), non_null_key(NULL)
-  {
-    thd= lookup_engine->get_thd();
-  }
+  {}
   ~subselect_rowid_merge_engine();
   bool init(MY_BITMAP *non_null_key_parts, MY_BITMAP *partial_match_key_parts);
   void cleanup();
@@ -1173,7 +1170,8 @@ class subselect_table_scan_engine: public subselect_partial_match_engine
 protected:
   bool partial_match();
 public:
-  subselect_table_scan_engine(subselect_uniquesubquery_engine *engine_arg,
+  subselect_table_scan_engine(THD *thd_arg,
+                              subselect_uniquesubquery_engine *engine_arg,
                               TABLE *tmp_table_arg, Item_subselect *item_arg,
                               select_result_interceptor *result_arg,
                               List<Item> *equi_join_conds_arg,

@@ -19518,10 +19518,7 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
 
 void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 {
-  /* TODO: thd may not be set for sub queries, but this should be fixed */
   DBUG_ASSERT(thd);
-  if (!thd)
-    thd= current_thd;
 
   str->append(STRING_WITH_LEN("select "));
 

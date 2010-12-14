@@ -60,6 +60,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   DBUG_ENTER("Item_subselect::init");
   DBUG_PRINT("enter", ("select_lex: 0x%lx", (long) select_lex));
   unit= select_lex->master_unit();
+  thd= unit->thd;
 
   if (unit->item)
   {
@@ -76,6 +77,7 @@ void Item_subselect::init(st_select_lex *select_lex,
   else
   {
     SELECT_LEX *outer_select= unit->outer_select();
+    DBUG_ASSERT(thd);
     /*
       do not take into account expression inside aggregate functions because
       they can access original table fields
@@ -84,9 +86,9 @@ void Item_subselect::init(st_select_lex *select_lex,
                     NO_MATTER :
                     outer_select->parsing_place);
     if (unit->is_union())
-      engine= new subselect_union_engine(unit, result, this);
+      engine= new subselect_union_engine(thd, unit, result, this);
     else
-      engine= new subselect_single_select_engine(select_lex, result, this);
+      engine= new subselect_single_select_engine(thd, select_lex, result, this);
   }
   {
     SELECT_LEX *upper= unit->outer_select();
@@ -183,7 +185,8 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   bool res;
 
   DBUG_ASSERT(fixed == 0);
-  engine->set_thd((thd= thd_param));
+  /* There is no reason to get a different THD. */
+  DBUG_ASSERT(thd == thd_param);
   if (!done_first_fix_fields)
   {
     done_first_fix_fields= TRUE;
@@ -2384,10 +2387,10 @@ void subselect_engine::set_thd(THD *thd_arg)
 
 
 subselect_single_select_engine::
-subselect_single_select_engine(st_select_lex *select,
+subselect_single_select_engine(THD *thd_arg, st_select_lex *select,
 			       select_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
-  :subselect_engine(item_arg, result_arg),
+  :subselect_engine(thd_arg, item_arg, result_arg),
    prepared(0), executed(0), select_lex(select), join(0)
 {
   select_lex->master_unit()->item= item_arg;
@@ -2455,10 +2458,10 @@ void subselect_uniquesubquery_engine::cleanup()
 }
 
 
-subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
+subselect_union_engine::subselect_union_engine(THD *thd_arg, st_select_lex_unit *u,
 					       select_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
-  :subselect_engine(item_arg, result_arg)
+  :subselect_engine(thd_arg, item_arg, result_arg)
 {
   unit= u;
   if (!result_arg)				//out of memory
@@ -4164,7 +4167,7 @@ int subselect_hash_sj_engine::exec()
     if (strategy == PARTIAL_MATCH_MERGE)
     {
       pm_engine=
-        new subselect_rowid_merge_engine((subselect_uniquesubquery_engine*)
+        new subselect_rowid_merge_engine(thd, (subselect_uniquesubquery_engine*)
                                          lookup_engine, tmp_table,
                                          count_pm_keys,
                                          covering_null_row_width,
@@ -4188,7 +4191,7 @@ int subselect_hash_sj_engine::exec()
     if (strategy == PARTIAL_MATCH_SCAN)
     {
       if (!(pm_engine=
-            new subselect_table_scan_engine((subselect_uniquesubquery_engine*)
+            new subselect_table_scan_engine(thd, (subselect_uniquesubquery_engine*)
                                             lookup_engine, tmp_table,
                                             item, result,
                                             semi_join_conds->argument_list(),
@@ -4623,12 +4626,12 @@ void Ordered_key::print(String *str)
 
 
 subselect_partial_match_engine::subselect_partial_match_engine(
-  subselect_uniquesubquery_engine *engine_arg,
+  THD *thd_arg, subselect_uniquesubquery_engine *engine_arg,
   TABLE *tmp_table_arg, Item_subselect *item_arg,
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
   uint covering_null_row_width_arg)
-  :subselect_engine(item_arg, result_arg),
+  :subselect_engine(thd_arg, item_arg, result_arg),
    tmp_table(tmp_table_arg), lookup_engine(engine_arg),
    equi_join_conds(equi_join_conds_arg),
    covering_null_row_width(covering_null_row_width_arg)
@@ -5144,13 +5147,13 @@ end:
 
 
 subselect_table_scan_engine::subselect_table_scan_engine(
-  subselect_uniquesubquery_engine *engine_arg,
+  THD *thd_arg, subselect_uniquesubquery_engine *engine_arg,
   TABLE *tmp_table_arg,
   Item_subselect *item_arg,
   select_result_interceptor *result_arg,
   List<Item> *equi_join_conds_arg,
   uint covering_null_row_width_arg)
-  :subselect_partial_match_engine(engine_arg, tmp_table_arg, item_arg,
+  :subselect_partial_match_engine(thd_arg, engine_arg, tmp_table_arg, item_arg,
                                   result_arg, equi_join_conds_arg,
                                   covering_null_row_width_arg)
 {}
