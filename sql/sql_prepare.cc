@@ -1688,7 +1688,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_normal_and_derived_tables(thd, tables, 0))
     goto err;
 
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
   res= select_like_stmt_test(stmt, 0, 0);
 
 err:
@@ -2233,19 +2233,6 @@ end:
   return query_str;
 }
 
-
-/** Init PS/SP specific parse tree members.  */
-
-static void init_stmt_after_parse(LEX *lex)
-{
-  SELECT_LEX *sl= lex->all_selects_list;
-  /*
-    Switch off a temporary flag that prevents evaluation of
-    subqueries in statement prepare.
-  */
-  for (; sl; sl= sl->next_select_in_list())
-   sl->uncacheable&= ~UNCACHEABLE_PREPARE;
-}
 
 /**
   SQLCOM_PREPARE implementation.
@@ -3080,6 +3067,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   parser_state.m_lip.stmt_prepare_mode= TRUE;
   lex_start(thd);
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
@@ -3132,7 +3120,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
   {
     setup_set_params();
-    init_stmt_after_parse(lex);
+    lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
     /*
