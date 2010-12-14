@@ -920,7 +920,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->profiling.start_new_query();
 #endif
   MYSQL_COMMAND_START(thd->thread_id, command,
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
   
   thd->set_command(command);
@@ -1061,7 +1061,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
@@ -1113,7 +1113,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       MYSQL_QUERY_START(beginning_of_next_stmt, thd->thread_id,
                         (char *) (thd->db ? thd->db : ""),
-                        thd->security_ctx->priv_user,
+                        &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
 
       thd->set_query_and_id(beginning_of_next_stmt, length,
@@ -5530,7 +5530,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           MYSQL_QUERY_EXEC_START(thd->query(),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
-                                 thd->security_ctx->priv_user,
+                                 &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
 
