@@ -728,9 +728,12 @@ void do_handle_one_connection(THD *thd_arg)
   for (;;)
   {
     NET *net= &thd->net;
+    bool rc;
 
     lex_start(thd);
-    if (login_connection(thd))
+    rc= login_connection(thd);
+    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    if (rc)
       goto end_thread;
 
     MYSQL_CONNECTION_START(thd->thread_id, thd->security_ctx->priv_user,

@@ -1993,6 +1993,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
