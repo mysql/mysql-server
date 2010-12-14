@@ -1320,39 +1320,44 @@ void check_range_capable_PF(TABLE *table)
 }
 
 
-/*
-  Set up partition bitmap
+/**
+  Set up partition bitmaps
 
-  SYNOPSIS
-    set_up_partition_bitmap()
-    thd                  Thread object
-    part_info            Reference to partitioning data structure
+    @param thd           Thread object
+    @param part_info     Reference to partitioning data structure
 
-  RETURN VALUE
-    TRUE                 Memory allocation failure
-    FALSE                Success
+  @return Operation status
+    @retval TRUE         Memory allocation failure
+    @retval FALSE        Success
 
-  DESCRIPTION
-    Allocate memory for bitmap of the partitioned table
+    Allocate memory for bitmaps of the partitioned table
     and initialise it.
 */
 
-static bool set_up_partition_bitmap(THD *thd, partition_info *part_info)
+static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
 {
   uint32 *bitmap_buf;
   uint bitmap_bits= part_info->num_subparts? 
                      (part_info->num_subparts* part_info->num_parts):
                       part_info->num_parts;
   uint bitmap_bytes= bitmap_buffer_size(bitmap_bits);
-  DBUG_ENTER("set_up_partition_bitmap");
+  DBUG_ENTER("set_up_partition_bitmaps");
 
-  if (!(bitmap_buf= (uint32*)thd->alloc(bitmap_bytes)))
+  DBUG_ASSERT(!part_info->bitmaps_are_initialized);
+
+  /* Allocate for both read and lock_partitions */
+  if (!(bitmap_buf= (uint32*) alloc_root(&part_info->table->mem_root,
+                                         bitmap_bytes * 2)))
   {
-    mem_alloc_error(bitmap_bytes);
+    mem_alloc_error(bitmap_bytes * 2);
     DBUG_RETURN(TRUE);
   }
-  bitmap_init(&part_info->used_partitions, bitmap_buf, bitmap_bytes*8, FALSE);
-  bitmap_set_all(&part_info->used_partitions);
+  bitmap_init(&part_info->read_partitions, bitmap_buf, bitmap_bits, FALSE);
+  /* Use the second half of the allocated buffer for lock_partitions */
+  bitmap_init(&part_info->lock_partitions, bitmap_buf + (bitmap_bytes / 4),
+              bitmap_bits, FALSE);
+  part_info->bitmaps_are_initialized= TRUE;
+  part_info->set_partition_bitmaps(NULL);
   DBUG_RETURN(FALSE);
 }
 
@@ -1872,7 +1877,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
-  if (unlikely(set_up_partition_bitmap(thd, part_info)))
+  if (unlikely(set_up_partition_bitmaps(thd, part_info)))
     goto end;
   if (unlikely(part_info->set_up_charset_field_preps()))
   {
@@ -3996,7 +4001,7 @@ err:
 
   DESCRIPTION
     This function is called to prune the range of partitions to scan by
-    checking the used_partitions bitmap.
+    checking the read_partitions bitmap.
     If start_part > end_part at return it means no partition needs to be
     scanned. If start_part == end_part it always means a single partition
     needs to be scanned.
@@ -4013,7 +4018,7 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec)
   DBUG_ENTER("prune_partition_set");
   for (i= part_spec->start_part; i <= part_spec->end_part; i++)
   {
-    if (bitmap_is_set(&(part_info->used_partitions), i))
+    if (bitmap_is_set(&(part_info->read_partitions), i))
     {
       DBUG_PRINT("info", ("Partition %d is set", i));
       if (last_partition == -1)
@@ -4095,7 +4100,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
         */
         get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
         /*
-          Check if range can be adjusted by looking in used_partitions
+          Check if range can be adjusted by looking in read_partitions
         */
         prune_partition_set(table, part_spec);
         DBUG_VOID_RETURN;
@@ -4147,7 +4152,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
           get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
           clear_indicator_in_key_fields(key_info);
           /*
-            Check if range can be adjusted by looking in used_partitions
+            Check if range can be adjusted by looking in read_partitions
           */
           prune_partition_set(table, part_spec);
           DBUG_VOID_RETURN; 
@@ -4217,7 +4222,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   if (found_part_field)
     clear_indicator_in_key_fields(key_info);
   /*
-    Check if range can be adjusted by looking in used_partitions
+    Check if range can be adjusted by looking in read_partitions
   */
   prune_partition_set(table, part_spec);
   DBUG_VOID_RETURN;
@@ -4366,6 +4371,7 @@ bool mysql_unpack_partition(THD *thd,
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
+  part_info->table= table;
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
@@ -7165,20 +7171,19 @@ void mem_alloc_error(size_t size)
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-/*
-  Return comma-separated list of used partitions in the provided given string
+/**
+  Return comma-separated list of used partitions in the provided given string.
 
-  SYNOPSIS
-    make_used_partitions_str()
-      part_info  IN  Partitioning info
-      parts_str  OUT The string to fill
+    @param      part_info  Partitioning info
+    @param[out] parts_str  The string to fill
 
-  DESCRIPTION
-    Generate a list of used partitions (from bits in part_info->used_partitions
+    Generate a list of used partitions (from bits in part_info->read_partitions
     bitmap), asd store it into the provided String object.
     
-  NOTE
+    @note
     The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
+    In case of UPDATE, only the partitions read is given, not the partitions
+    that was written or locked.
 */
 
 void make_used_partitions_str(partition_info *part_info, String *parts_str)
@@ -7196,7 +7201,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
       List_iterator<partition_element> it2(head_pe->subpartitions);
       while ((pe= it2++))
       {
-        if (bitmap_is_set(&part_info->used_partitions, partition_id))
+        if (bitmap_is_set(&part_info->read_partitions, partition_id))
         {
           if (parts_str->length())
             parts_str->append(',');
@@ -7216,7 +7221,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
   {
     while ((pe= it++))
     {
-      if (bitmap_is_set(&part_info->used_partitions, partition_id))
+      if (bitmap_is_set(&part_info->read_partitions, partition_id))
       {
         if (parts_str->length())
           parts_str->append(',');

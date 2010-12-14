@@ -204,6 +204,17 @@ static uchar *get_field_name(Field **buff, size_t *length,
 }
 
 
+/**
+  A function to return the partition name from a partition element
+*/
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                            my_bool not_used __attribute__((unused)))
+{
+  *length= part->length;
+  return part->partition_name;
+}
+
+
 /*
   Returns pointer to '.frm' extension of the file name.
 
@@ -1969,8 +1980,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    /* we should perform the fix_partition_func in either local or
-       caller's arena depending on work_part_info_used value
+    /*
+      We should perform the fix_partition_func in either local or
+      caller's arena depending on work_part_info_used value.
     */
     if (!work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
@@ -2121,6 +2133,7 @@ int closefrm(register TABLE *table, bool free_share)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
+    /* Allocated through table->mem_root, freed below */
     free_items(table->part_info->item_free_list);
     table->part_info->item_free_list= 0;
     table->part_info= 0;

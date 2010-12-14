@@ -4665,6 +4665,47 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/*
+  TODO: When adding support for FK in partitioned tables, update this function
+  so the referenced table get correct locking.
+*/
+static bool prune_partition_locks(TABLE_LIST *tables)
+{
+  TABLE_LIST *table;
+  DBUG_ENTER("prune_partition_locks");
+  for (table= tables; table; table= table->next_global)
+  {
+    /* Avoid to lock/start_stmt partitions not used in the statement. */
+    if (!table->placeholder())
+    {
+      if (table->table->part_info)
+      {
+        /*
+          Initialize and set partitions bitmaps, using table's mem_root,
+          destroyed in closefrm().
+        */
+        if (table->table->part_info->set_partition_bitmaps(table))
+          DBUG_RETURN(TRUE);
+        /*
+          TODO: Add prune_partitions() here as WL#4443.
+          Needs all items and conds fixed (as in first part in JOIN::optimize,
+          mysql_prepare_delete).
+        */
+      }
+      else if (table->partition_names && table->partition_names->elements)
+      {
+        /* Don't allow PARTITION () clause on a nonpartitioned table */
+        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+
 /**
   Open all tables in list
 
@@ -4925,6 +4966,15 @@ restart:
       }
     }
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* Prune partitions to avoid unneccesary locks */
+  if (prune_partition_locks(*start))
+  {
+    error= TRUE;
+    goto err;
+  }
+#endif
 
 err:
   thd_proc_info(thd, 0);
