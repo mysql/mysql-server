@@ -11,6 +11,6 @@ set sql_log_bin=1;
 insert into t1 values(1),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'
 drop table t1;
-Error: "Query caused different errors on master and slave.     Error on master: 'Duplicate entry '%-.192s' for key %d' (1062), Error on slave: 'no error' (0). Default database: 'test'. Query: 'insert into t1 values(1),(2)'" (expected different error codes on master and slave)
+Error: "Query caused different errors on master and slave.     Error on master: message format='Duplicate entry '%-.192s' for key %d' error code=1062 ; Error on slave: actual message='no error', error code=0. Default database: 'test'. Query: 'insert into t1 values(1),(2)'" (expected different error codes on master and slave)
 Errno: "0" (expected 0)
 drop table t1;
