@@ -736,7 +736,7 @@ void do_handle_one_connection(THD *thd_arg)
     if (rc)
       goto end_thread;
 
-    MYSQL_CONNECTION_START(thd->thread_id, thd->security_ctx->priv_user,
+    MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
                            (char *) thd->security_ctx->host_or_ip);
 
     prepare_new_connection_state(thd);
