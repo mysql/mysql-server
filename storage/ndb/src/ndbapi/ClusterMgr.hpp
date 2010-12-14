@@ -182,7 +182,7 @@ extern "C" void* runArbitMgr_C(void* me);
 class ArbitMgr
 {
 public:
-  ArbitMgr(class TransporterFacade &);
+  ArbitMgr(class ClusterMgr &);
   ~ArbitMgr();
 
   inline void setRank(unsigned n) { theRank = n; }
@@ -195,7 +195,7 @@ public:
   friend void* runArbitMgr_C(void* me);
 
 private:
-  class TransporterFacade & theFacade;
+  class ClusterMgr m_clusterMgr;
   unsigned theRank;
   unsigned theDelay;
 

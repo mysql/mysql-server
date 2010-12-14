@@ -482,22 +482,12 @@ void TransporterFacade::threadMainReceive(void)
 #ifdef NDB_SHM_TRANSPORTER
   NdbThread_set_shm_sigmask(TRUE);
 #endif
-  NdbMutex_Lock(theMutexPtr);
-  theTransporterRegistry->update_connections();
-  NdbMutex_Unlock(theMutexPtr);
-  while(!theStopReceive) {
-    for(int i = 0; i<10; i++){
-      NdbSleep_MilliSleep(10);
-      NdbMutex_Lock(theMutexPtr);
-      if (m_poll_owner == NULL)
-      {
-        external_poll(0);
-      }
-      NdbMutex_Unlock(theMutexPtr);
-    }
+  while(!theStopReceive)
+  {
     NdbMutex_Lock(theMutexPtr);
     theTransporterRegistry->update_connections();
     NdbMutex_Unlock(theMutexPtr);
+    NdbSleep_MilliSleep(100);
   }//while
   theTransporterRegistry->stopReceiving();
 }

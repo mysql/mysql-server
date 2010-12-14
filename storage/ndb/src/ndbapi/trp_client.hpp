@@ -61,6 +61,8 @@ public:
 
   void lock();
   void unlock();
+
+  Uint32 getOwnNodeId() const;
 private:
   Uint32 m_blockNo;
   TransporterFacade * m_facade;
@@ -112,8 +114,8 @@ inline
 void
 trp_client::lock()
 {
-  assert(m_poll.m_locked == false);
   NdbMutex_Lock(m_facade->theMutexPtr);
+  assert(m_poll.m_locked == false);
   m_poll.m_locked = true;
 }
 
@@ -122,8 +124,8 @@ void
 trp_client::unlock()
 {
   assert(m_poll.m_locked == true);
-  NdbMutex_Unlock(m_facade->theMutexPtr);
   m_poll.m_locked = false;
+  NdbMutex_Unlock(m_facade->theMutexPtr);
 }
 
 inline
