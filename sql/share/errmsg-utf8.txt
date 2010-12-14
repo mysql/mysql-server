@@ -6418,8 +6418,8 @@ ER_TABLES_DIFFERENT_METADATA
   eng "Tables have different definitions"
   swe "Tabellerna har olika definitioner"
 ER_ROW_DOES_NOT_MATCH_PARTITION
-  eng "Found row that does not match the partition"
-  swe "Hittade rad som inte passar i partitionen"
+  eng "Found a row that does not match the partition"
+  swe "Hittade en rad som inte passar i partitionen"
 ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
 ER_WARN_INDEX_NOT_APPLICABLE
@@ -6450,3 +6450,28 @@ ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from a log file."
 
+ER_PARTITION_CLAUSE_ON_NONPARTITIONED
+  eng "PARTITION () clause on non partitioned table"
+  swe "PARTITION () klausul för en icke partitionerad tabell"
+ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+  eng "Found a row not matching the given partition set"
+  swe "Hittade en rad som inte passar i någon given partition"
+ER_NO_SUCH_PARTITION 
+  cze "partion '%-.64s' neexistuje"
+  dan "partition '%-.64s' eksisterer ikke"
+  nla "partition '%-.64s' bestaat niet"
+  eng "partition '%-.64s' doesn't exist"
+  est "partition '%-.64s' ei eksisteeri"
+  fre "La partition '%-.64s' n'existe pas"
+  ger "Die partition '%-.64s' existiert nicht"
+  hun "A '%-.64s' partition nem letezik"
+  ita "La tabella particione '%-.64s' non esiste"
+  nor "Partition '%-.64s' doesn't exist"
+  norwegian-ny "Partition '%-.64s' doesn't exist"
+  pol "Partition '%-.64s' doesn't exist"
+  por "Particion '%-.64s' n�o existe"
+  rum "Partition '%-.64s' nu exista"
+  serbian "Partition '%-.64s' ne postoji"
+  slo "Partition '%-.64s' doesn't exist"
+  spa "Particion '%-.64s' no existe"
+  swe "Det finns ingen partition som heter '%-.64s'"

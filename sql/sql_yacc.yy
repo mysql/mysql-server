@@ -780,10 +780,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 167 shift/reduce conflicts.
+  Currently there are 164 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 167
+%expect 164
 
 /*
    Comments for TOKENS.
@@ -1171,9 +1171,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
-%token  PARTITIONING_SYM
-%token  PARTITIONS_SYM
 %token  PARTITION_SYM                 /* SQL-2003-R */
+%token  PARTITIONS_SYM
+%token  PARTITIONING_SYM
 %token  PASSWORD
 %token  PHASE_SYM
 %token  PLUGINS_SYM
@@ -1507,7 +1507,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         btree_or_rtree
 
 %type <string_list>
-        using_list
+        using_list opt_use_partition use_partition
 
 %type <key_part>
         key_part
@@ -9420,6 +9420,22 @@ normal_join:
         | CROSS JOIN_SYM {}
         ;
 
+/*
+  table PARTITION (list of partitions), reusing using_list instead of creating
+  a new rule for partition_list.
+*/
+opt_use_partition:
+          /* empty */ { $$= 0;}
+        | use_partition
+        ;
+        
+use_partition:
+          PARTITION_SYM '(' using_list ')' have_partitioning
+          {
+            $$= $3;
+          }
+        ;
+  
 /* 
    This is a flattening of the rules <table factor> and <table primary>
    in the SQL:2003 standard, since we don't have <sample clause>
@@ -9433,13 +9449,14 @@ table_factor:
             SELECT_LEX *sel= Select;
             sel->table_join_options= 0;
           }
-          table_ident opt_table_alias opt_key_definition
+          table_ident opt_use_partition opt_table_alias opt_key_definition
           {
-            if (!($$= Select->add_table_to_list(YYTHD, $2, $3,
+            if (!($$= Select->add_table_to_list(YYTHD, $2, $4,
                                                 Select->get_table_join_options(),
                                                 YYPS->m_lock_type,
                                                 YYPS->m_mdl_type,
-                                                Select->pop_index_hints())))
+                                                Select->pop_index_hints(),
+                                                $3)))
               MYSQL_YYABORT;
             Select->add_joined_table($$);
           }
@@ -9509,7 +9526,7 @@ table_factor:
               if (ti == NULL)
                 MYSQL_YYABORT;
               if (!($$= sel->add_table_to_list(lex->thd,
-                                               new Table_ident(unit), $5, 0,
+                                               ti, $5, 0,
                                                TL_READ, MDL_SHARED_READ)))
 
                 MYSQL_YYABORT;
@@ -10497,6 +10514,19 @@ table_name:
           }
         ;
 
+table_name_with_opt_use_partition:
+          table_ident opt_use_partition
+          {
+            if (!Select->add_table_to_list(YYTHD, $1, NULL,
+                                           TL_OPTION_UPDATING,
+                                           YYPS->m_lock_type,
+                                           YYPS->m_mdl_type,
+                                           NULL,
+                                           $2))
+              MYSQL_YYABORT;
+          }
+        ;
+
 table_alias_ref_list:
           table_alias_ref
         | table_alias_ref_list ',' table_alias_ref
@@ -10620,7 +10650,7 @@ insert2:
         ;
 
 insert_table:
-          table_name
+          table_name_with_opt_use_partition
           {
             LEX *lex=Lex;
             lex->field_list.empty();
@@ -10820,11 +10850,13 @@ delete:
         ;
 
 single_multi:
-          FROM table_ident
+          FROM table_ident opt_use_partition
           {
             if (!Select->add_table_to_list(YYTHD, $2, NULL, TL_OPTION_UPDATING,
                                            YYPS->m_lock_type,
-                                           YYPS->m_mdl_type))
+                                           YYPS->m_mdl_type,
+                                           NULL,
+                                           $3))
               MYSQL_YYABORT;
             YYPS->m_lock_type= TL_READ_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_READ;
@@ -11586,18 +11618,18 @@ load:
             if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
           }
-          opt_duplicate INTO TABLE_SYM table_ident
+          opt_duplicate INTO TABLE_SYM table_ident opt_use_partition
           {
             LEX *lex=Lex;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           $4, MDL_SHARED_WRITE))
+                                           $4, MDL_SHARED_WRITE, NULL, $13))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
             lex->value_list.empty();
           }
           opt_load_data_charset
-          { Lex->exchange->cs= $14; }
+          { Lex->exchange->cs= $15; }
           opt_xml_rows_identified_by
           opt_field_term opt_line_term opt_ignore_lines opt_field_or_var_spec
           opt_load_data_set_spec
@@ -12535,7 +12567,6 @@ keyword:
         | OPTIONS_SYM           {}
         | OWNER_SYM             {}
         | PARSER_SYM            {}
-        | PARTITION_SYM         {}
         | PORT_SYM              {}
         | PREPARE_SYM           {}
         | REMOVE_SYM            {}
