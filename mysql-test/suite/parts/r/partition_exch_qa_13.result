@@ -101,7 +101,7 @@ a	b
 9	Nine
 INSERT INTO t_10 VALUES (10, "TEN");
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 SELECT * FROM tp WHERE a < 11;
 a	b
 2	Two
@@ -131,7 +131,7 @@ a	b
 8	Eight
 INSERT INTO t_1000 VALUES (99, "Ninetynine");
 ALTER TABLE tp1 EXCHANGE PARTITION p2 WITH TABLE t_1000;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 SELECT * FROM tp1 WHERE a < 1000 AND a > 98;
 a	b
 112	Hundred twelve
@@ -209,7 +209,7 @@ a	b
 188	Hundred eighty-eight
 INSERT INTO tsp_03 VALUES (20, "Twenty");
 ALTER TABLE tsp EXCHANGE PARTITION sp03 WITH TABLE tsp_03;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 SELECT * FROM tsp;
 a	b
 112	Hundred twelve

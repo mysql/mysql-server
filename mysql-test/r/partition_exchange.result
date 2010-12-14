@@ -134,7 +134,7 @@ a	b
 63	Sixty three
 64	Sixty four
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
 SHOW CREATE TABLE t;
 Table	Create Table

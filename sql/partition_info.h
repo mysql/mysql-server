@@ -23,6 +23,7 @@
 #include "partition_element.h"
 
 class partition_info;
+struct TABLE_LIST;
 
 /* Some function typedefs */
 typedef int (*get_part_id_func)(partition_info *part_info,
@@ -44,6 +45,8 @@ public:
 
   List<char> part_field_list;
   List<char> subpart_field_list;
+
+  TABLE *table;
   
   /* 
     If there is no subpartitioning, use only this func to get partition ids.
@@ -111,14 +114,30 @@ public:
   struct st_ddl_log_memory_entry *frm_log_entry;
 
   /* 
-    A bitmap of partitions used by the current query. 
+    Bitmaps of partitions used by the current query. 
+    * read_partitions  - partitions to be used for reading.
+    * lock_partitions  - partitions that must be locked (read or write).
+    Usually read_partitions is the same set as lock_partitions, but
+    in case of UPDATE the WHERE clause can limit the read_partitions set,
+    but not neccesarily the lock_partitions set.
     Usage pattern:
-    * The handler->extra(HA_EXTRA_RESET) call at query start/end sets all
-      partitions to be unused.
-    * Before index/rnd_init(), partition pruning code sets the bits for used
-      partitions.
+    * Initialized in ha_partition::open().
+    * read+lock_partitions is set  according to explicit PARTITION,
+      WL#5217, in open_and_lock_tables().
+    * Bits in read_partitions can be cleared in prune_partitions()
+      in the optimizing step.
+      (WL#4443 is about allowing prune_partitions() to affect lock_partitions
+      and be done before locking too).
+    * When the partition enabled handler get an external_lock call it locks
+      all partitions in lock_partitions (and remembers which partitions it
+      locked, so that it can unlock them later). In case of LOCK TABLES it will
+      lock all partitions, and keep them locked while lock_partitions can
+      change for each statement under LOCK TABLES.
+    * Freed at the same time item_free_list is freed.
   */
-  MY_BITMAP used_partitions;
+  MY_BITMAP read_partitions;
+  MY_BITMAP lock_partitions;
+  bool bitmaps_are_initialized;
 
   union {
     longlong *range_int_array;
@@ -209,7 +228,7 @@ public:
   bool column_list;
 
   partition_info()
-  : get_partition_id(NULL), get_part_partition_id(NULL),
+  : table(NULL), get_partition_id(NULL), get_part_partition_id(NULL),
     get_subpartition_id(NULL),
     part_field_array(NULL), subpart_field_array(NULL),
     part_charset_field_array(NULL),
@@ -219,6 +238,7 @@ public:
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
     first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
+    bitmaps_are_initialized(FALSE),
     list_array(NULL), err_value(0),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
@@ -248,6 +268,7 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
+  bool set_partition_bitmaps(TABLE_LIST *table_list);
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
   {
@@ -306,7 +327,7 @@ private:
                                        uint start_no);
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
-  bool has_unique_name(partition_element *element);
+  bool prune_partition_bitmaps(TABLE_LIST *table_list);
 };
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);

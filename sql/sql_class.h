@@ -516,6 +516,7 @@ typedef struct system_status_var
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
+  ulong ha_external_lock_count;
 
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
