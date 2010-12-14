@@ -54,6 +54,26 @@ BaseString::BaseString(const char* s)
     m_len = n;
 }
 
+BaseString::BaseString(const char * s, size_t n)
+{
+  if (s == NULL || n == 0)
+  {
+    m_chr = NULL;
+    m_len = 0;
+    return;
+  }
+  m_chr = new char[n + 1];
+  if (m_chr == NULL)
+  {
+    errno = ENOMEM;
+    m_len = 0;
+    return;
+  }
+  memcpy(m_chr, s, n);
+  m_chr[n] = 0;
+  m_len = n;
+}
+
 BaseString::BaseString(const BaseString& str)
 {
     const char* const s = str.m_chr;
