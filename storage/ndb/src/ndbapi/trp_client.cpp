@@ -47,6 +47,12 @@ trp_client::open(TransporterFacade* tf, int blockNo)
   return res;
 }
 
+Uint32
+trp_client::getOwnNodeId() const
+{
+  return m_facade->theOwnId;
+}
+
 void
 trp_client::close()
 {
