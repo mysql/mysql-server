@@ -708,4 +708,18 @@ SELECT 1 FROM
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #54476: crash when group_concat and 'with rollup' in prepared statements
+--echo # 
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1.a ORDER BY t1.a) FROM t1 JOIN t1 t2 GROUP BY t1.a WITH ROLLUP";
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
 --echo End of 5.0 tests

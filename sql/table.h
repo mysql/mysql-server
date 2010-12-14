@@ -31,7 +31,6 @@ typedef struct st_order {
   struct st_order *next;
   Item	 **item;			/* Point at item in select fields */
   Item	 *item_ptr;			/* Storage for initial item */
-  Item   **item_copy;			/* For SPs; the original item ptr */
   int    counter;                       /* position in SELECT list, correct
                                            only if counter_used is true*/
   bool	 asc;				/* true if ascending */
