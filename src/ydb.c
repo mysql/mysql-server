@@ -71,7 +71,7 @@ static u_int64_t directory_write_locks_fail;  /* total directory write locks una
 static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
 static u_int64_t logsuppressfail;            // number of times unable to suppress logs for empty table (2440)
 static time_t    startuptime;                // timestamp of system startup
-volatile static DB_ENV *  most_recent_env;   // most recently opened env, used for engine status on crash.  Note there are likely to be races on this if you have multiple threads creating and closing environments in parallel.  We'll declare it volatile since at least that helps make sure the compiler doesn't optimize away certain code (e.g., if while debugging, you write a code that spins on most_recent_env, you'd like to compiler not to optimize your code away.)
+static DB_ENV * volatile most_recent_env;   // most recently opened env, used for engine status on crash.  Note there are likely to be races on this if you have multiple threads creating and closing environments in parallel.  We'll declare it volatile since at least that helps make sure the compiler doesn't optimize away certain code (e.g., if while debugging, you write a code that spins on most_recent_env, you'd like to compiler not to optimize your code away.)
 
 static uint32_t  engine_status_enable = 1;   // if zero, suppress engine status output on failed assert, for test programs only
 
