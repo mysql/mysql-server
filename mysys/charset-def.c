@@ -326,6 +326,8 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
 #ifdef HAVE_CHARSET_utf16
   add_compiled_collation(&my_charset_utf16_general_ci);
   add_compiled_collation(&my_charset_utf16_bin);
+  add_compiled_collation(&my_charset_utf16le_general_ci);
+  add_compiled_collation(&my_charset_utf16le_bin);
 #ifdef HAVE_UCA_COLLATIONS
   add_compiled_collation(&my_charset_utf16_unicode_ci);
   add_compiled_collation(&my_charset_utf16_german2_uca_ci);
