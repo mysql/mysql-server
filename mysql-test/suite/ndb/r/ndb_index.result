@@ -152,3 +152,23 @@ port67	node78	pop98	1
 select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='foo';
 port	accessnode	pop	accesstype
 drop table t1;
+CREATE TABLE inleveroverzicht (
+id int(11) NOT NULL auto_increment,
+klantid int(11) NOT NULL default '0',
+productcode varchar(255) NOT NULL default '0',
+aantal int(11) NOT NULL default '0',
+PRIMARY KEY  (id),
+KEY klantid (klantid),
+KEY `klantid/productcode` (klantid,productcode)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1 AUTO_INCREMENT=34 ;
+INSERT INTO inleveroverzicht (id, klantid, productcode, aantal) VALUES 
+(33, 31, '15674', 11),
+(32, 31, '0001256', 1);
+SELECT * from inleveroverzicht ORDER BY id;
+id	klantid	productcode	aantal
+32	31	0001256	1
+33	31	15674	11
+TRUNCATE TABLE inleveroverzicht;
+SELECT * from inleveroverzicht  ORDER BY id;
+id	klantid	productcode	aantal
+DROP TABLE inleveroverzicht;
