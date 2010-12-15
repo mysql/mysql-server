@@ -3714,6 +3714,7 @@ i_s_innodb_buf_page_lru_fill(
 
 		table_name = NULL;
 		index_name = NULL;
+		state_str = NULL;
 
 		page_info = info_array + i;
 
