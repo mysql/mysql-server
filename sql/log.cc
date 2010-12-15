@@ -2981,7 +2981,10 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (MYSQL_LOG::open(key_file_binlog,
+  if (MYSQL_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                      key_file_binlog,
+#endif
                       log_name, log_type_arg, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
