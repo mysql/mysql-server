@@ -158,8 +158,9 @@ drop table t1, char63_utf8, char128_utf8;
 --echo #
 --error ER_SYNTAX_ERROR
 BINLOG '';
+--error ER_BASE64_DECODE_ERROR
 BINLOG '123';
---error ER_SYNTAX_ERROR
+--error ER_BASE64_DECODE_ERROR
 BINLOG '-2079193929';
---error ER_SYNTAX_ERROR
+--error ER_BASE64_DECODE_ERROR
 BINLOG 'xç↓%~∙D╒ƒ╡';

@@ -18,6 +18,12 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#
+# Important note:
+# this test is extremely sensitive to how threads are running inside the server,
+# so it has it's own -master.opt file, to enforce it runs alone in mysqld
+#
+
 # Setup
 
 flush status;
@@ -58,6 +64,10 @@ select @thread_id_increment;
 
 --connection default
 
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
 # Wait for the disconnect con2 to complete
 let $wait_condition=
   select count(*) = 2 from performance_schema.threads
@@ -75,6 +85,10 @@ let $con3_THREAD_ID=`select thread_id from performance_schema.threads
 --disconnect con1
 
 --connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
 
 # Wait for the disconnect con1 and con3 to complete
 let $wait_condition=
@@ -122,6 +136,10 @@ select @thread_id_increment;
 
 --connection default
 
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
 # Wait for the disconnect con2 to complete
 let $wait_condition=
   select count(*) = 2 from performance_schema.threads
@@ -139,6 +157,10 @@ let $con3_THREAD_ID=`select thread_id from performance_schema.threads
 --disconnect con1
 
 --connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
 
 # Wait for the disconnect con1 and con3 to complete
 let $wait_condition=
