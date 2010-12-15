@@ -409,7 +409,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
-my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
+my_bool read_only= 0, opt_readonly= 0;
+my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -1507,6 +1508,13 @@ void clean_up(bool print_message)
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
 
+  my_free(const_cast<char*>(log_bin_basename));
+  my_free(const_cast<char*>(log_bin_index));
+#ifndef EMBEDDED_LIBRARY
+  my_free(const_cast<char*>(relay_log_basename));
+  my_free(const_cast<char*>(relay_log_index));
+#endif
+
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -1992,6 +2000,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -7572,6 +7581,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.engine_condition_pushdown=
     test(global_system_variables.optimizer_switch &
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+
+  opt_readonly= read_only;
 
   return 0;
 }
