@@ -119,7 +119,6 @@ public:
   /* TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select */
   bool is_correlated; 
 
-  enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
 		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
 
@@ -148,7 +147,7 @@ public:
     eliminated= FALSE;
     null_value= 1;
   }
-  virtual trans_res select_transformer(JOIN *join);
+  virtual bool select_transformer(JOIN *join);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
   enum Type type() const;
@@ -259,7 +258,7 @@ public:
   subs_type substype() { return SINGLEROW_SUBS; }
 
   void reset();
-  trans_res select_transformer(JOIN *join);
+  bool select_transformer(JOIN *join);
   void store(uint i, Item* item);
   double val_real();
   longlong val_int ();
@@ -399,16 +398,16 @@ protected:
 
 protected:
   bool init_cond_guards();
-  trans_res select_in_like_transformer(JOIN *join);
-  trans_res single_value_transformer(JOIN *join);
-  trans_res row_value_transformer(JOIN * join);
+  bool select_in_like_transformer(JOIN *join);
+  bool single_value_transformer(JOIN *join);
+  bool row_value_transformer(JOIN * join);
   bool fix_having(Item *having, st_select_lex *select_lex);
-  trans_res create_single_in_to_exists_cond(JOIN * join,
-                                            Item **where_item,
-                                            Item **having_item);
-  trans_res create_row_in_to_exists_cond(JOIN * join,
-                                         Item **where_item,
-                                         Item **having_item);
+  bool create_single_in_to_exists_cond(JOIN * join,
+                                       Item **where_item,
+                                       Item **having_item);
+  bool create_row_in_to_exists_cond(JOIN * join,
+                                    Item **where_item,
+                                    Item **having_item);
 public:
   Item *left_expr;
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
@@ -473,7 +472,7 @@ public:
     null_value= 0;
     was_null= 0;
   }
-  trans_res select_transformer(JOIN *join);
+  bool select_transformer(JOIN *join);
   bool create_in_to_exists_cond(JOIN *join_arg);
   bool inject_in_to_exists_cond(JOIN *join_arg);
 
@@ -523,7 +522,7 @@ public:
 
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
-  trans_res select_transformer(JOIN *join);
+  bool select_transformer(JOIN *join);
   void create_comp_func(bool invert) { func= func_creator(invert); }
   virtual void print(String *str, enum_query_type query_type);
 };

@@ -172,11 +172,11 @@ Item_subselect::~Item_subselect()
   engine= NULL;
 }
 
-Item_subselect::trans_res
+bool
 Item_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_subselect::select_transformer");
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
@@ -809,13 +809,17 @@ void Item_singlerow_subselect::reset()
   - switch off this optimization for prepare statement,
   because we do not rollback this changes.
   Make rollback for it, or special name resolving mode in 5.0.
+
+  @param join  Join object of the subquery (i.e. 'child' join).
+
+  @retval false  The subquery was transformed
 */
-Item_subselect::trans_res
+bool
 Item_singlerow_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_singlerow_subselect::select_transformer");
   if (changed)
-    DBUG_RETURN(RES_OK);
+    DBUG_RETURN(false);
 
   SELECT_LEX *select_lex= join->select_lex;
   Query_arena *arena= thd->stmt_arena;
@@ -842,7 +846,6 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
       !arena->is_stmt_prepare_or_first_sp_execute()
       )
   {
-
     have_to_be_excluded= 1;
     if (thd->lex->describe)
     {
@@ -858,9 +861,8 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     */
     substitution->walk(&Item::remove_dependence_processor, 0,
 		       (uchar *) select_lex->outer_select());
-    DBUG_RETURN(RES_REDUCE);
   }
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
@@ -1368,11 +1370,11 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
   @param join  Join object of the subquery (i.e. 'child' join).
 
   @details
-  Rewrite a single-column subquery using rule-based approach. The subquery
+  Rewrite a single-column subquery using rule-based approach. Given the subquery
 
      oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
 
-  First, try to convert the subquery to scalar-result subquery in one of
+  First, try to convert the subquery to a scalar-result subquery in one of
   the forms:
     
      - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
@@ -1387,11 +1389,11 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
   EXISTS by injecting additional predicates, or will be executed via subquery
   materialization in its unmodified form.
 
-  @retval RES_OK     The subquery was transformed
-  @retval RES_ERROR  Error
+  @retval false  The subquery was transformed
+  @retval true   Error
 */
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::single_value_transformer(JOIN *join)
 {
   SELECT_LEX *select_lex= join->select_lex;
@@ -1405,7 +1407,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-    DBUG_RETURN(RES_ERROR);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -1425,7 +1427,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
     if (substitution)
     {
       /* It is second (third, ...) SELECT of UNION => All is done */
-      DBUG_RETURN(RES_OK);
+      DBUG_RETURN(false);
     }
 
     Item *subs;
@@ -1470,7 +1472,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
         we do not check item->fixed
       */
       if (item->fix_fields(thd, 0))
-	DBUG_RETURN(RES_ERROR);
+	DBUG_RETURN(true);
       thd->lex->allow_sum_func= save_allow_sum_func; 
       /* we added aggregate function => we have to change statistic */
       count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
@@ -1487,7 +1489,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
     }
     /* fix fields is already called for  left expression */
     substitution= func->create(left_expr, subs);
-    DBUG_RETURN(RES_OK);
+    DBUG_RETURN(false);
   }
 
   Item* join_having= join->having ? join->having : join->tmp_having;
@@ -1513,7 +1515,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                    ER_SELECT_REDUCED, warn_buff);
     }
-    DBUG_RETURN(RES_OK);
+    DBUG_RETURN(false);
   }
 
   /*
@@ -1533,7 +1535,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
     if (!optimizer || optimizer->fix_left(thd, 0))
     {
       thd->lex->current_select= current;
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     }
     thd->lex->current_select= current;
 
@@ -1554,7 +1556,7 @@ Item_in_subselect::single_value_transformer(JOIN *join)
     // select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
@@ -1603,11 +1605,11 @@ bool Item_in_subselect::fix_having(Item *having, SELECT_LEX *select_lex)
         WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
         HAVING trigcond(<is_not_null_test>(ie))
 
-  @retval RES_OK     If the new conditions were created successfully
-  @retval RES_ERROR  Error
+  @retval false If the new conditions were created successfully
+  @retval true  Error
 */
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
                                                    Item **where_item,
                                                    Item **having_item)
@@ -1646,7 +1648,7 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
     if (!join_having)
       item->name= (char*) in_having_cond;
     if (fix_having(item, select_lex))
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     *having_item= item;
   }
   else
@@ -1666,11 +1668,11 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
         {
           if (!(having= new Item_func_trig_cond(having,
                                                 get_cond_guard(0))))
-            DBUG_RETURN(RES_ERROR);
+            DBUG_RETURN(true);
         }
         having->name= (char*) in_having_cond;
         if (fix_having(having, select_lex))
-          DBUG_RETURN(RES_ERROR);
+          DBUG_RETURN(true);
         *having_item= having;
 
 	item= new Item_cond_or(item,
@@ -1683,7 +1685,7 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
       if (!abort_on_null && left_expr->maybe_null)
       {
         if (!(item= new Item_func_trig_cond(item, get_cond_guard(0))))
-          DBUG_RETURN(RES_ERROR);
+          DBUG_RETURN(true);
       }
 
       /*
@@ -1693,7 +1695,7 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
       */
       item->name= (char *) in_additional_cond;
       if (!item->fixed && item->fix_fields(thd, 0))
-        DBUG_RETURN(RES_ERROR);
+        DBUG_RETURN(true);
       *where_item= item;
     }
     else
@@ -1710,12 +1712,12 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
         {
           if (!(new_having= new Item_func_trig_cond(new_having,
                                                     get_cond_guard(0))))
-            DBUG_RETURN(RES_ERROR);
+            DBUG_RETURN(true);
         }
 
         new_having->name= (char*) in_having_cond;
         if (fix_having(new_having, select_lex))
-          DBUG_RETURN(RES_ERROR);
+          DBUG_RETURN(true);
         *having_item= new_having;
       }
       else
@@ -1723,7 +1725,7 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
     }
   }
 
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
@@ -1739,11 +1741,11 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
   additional predicates, or will be executed via subquery materialization in its
   unmodified form.
 
-  @retval RES_OK     The subquery was transformed
-  @retval RES_ERROR  Error
+  @retval false  The subquery was transformed
+  @retval true   Error
 */
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::row_value_transformer(JOIN *join)
 {
   SELECT_LEX *select_lex= join->select_lex;
@@ -1755,7 +1757,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   if (select_lex->item_list.elements != cols_num)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), cols_num);
-    DBUG_RETURN(RES_ERROR);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -1774,7 +1776,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     if (!optimizer || optimizer->fix_left(thd, 0))
     {
       thd->lex->current_select= current;
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     }
 
     // we will refer to upper level cache array => we have to save it in PS
@@ -1786,7 +1788,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     //select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   }
 
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
@@ -1795,18 +1797,51 @@ Item_in_subselect::row_value_transformer(JOIN *join)
   subselect into a correlated EXISTS via predicate injection.
 
   @details
-  There are two cases - either the subquery has aggregates, GROUP BY,
-  or HAVING, or not. Both cases are described inline in the code.
+  The correlated predicates are created as follows:
+
+  - If the subquery has aggregates, GROUP BY, or HAVING, convert to
+
+    (l1, l2, l3) IN (SELECT v1, v2, v3 ... HAVING having)
+    =>
+    EXISTS (SELECT ... HAVING having and
+                              (l1 = v1 or is null v1) and
+                              (l2 = v2 or is null v2) and
+                              (l3 = v3 or is null v3) and
+                              is_not_null_test(v1) and
+                              is_not_null_test(v2) and
+                              is_not_null_test(v3))
+
+    where is_not_null_test used to register nulls in case if we have
+    not found matching to return correct NULL value.
+
+  - Otherwise (no aggregates/GROUP BY/HAVING) convert the subquery as follows:
+
+    (l1, l2, l3) IN (SELECT v1, v2, v3 ... WHERE where)
+    =>
+    EXISTS (SELECT ... WHERE where and
+                             (l1 = v1 or is null v1) and
+                             (l2 = v2 or is null v2) and
+                             (l3 = v3 or is null v3)
+                       HAVING is_not_null_test(v1) and
+                              is_not_null_test(v2) and
+                              is_not_null_test(v3))
+    where is_not_null_test registers NULLs values but reject rows.
+
+    in case when we do not need correct NULL, we have simplier construction:
+    EXISTS (SELECT ... WHERE where and
+                             (l1 = v1) and
+                             (l2 = v2) and
+                             (l3 = v3)
 
   @param join[in]  Join object of the subquery (i.e. 'child' join).
   @param where_item[out]   the in-to-exists addition to the where clause
   @param having_item[out]  the in-to-exists addition to the having clause
 
-  @retval RES_OK     If the new conditions were created successfully
-  @retval RES_ERROR  Error
+  @retval false  If the new conditions were created successfully
+  @retval true   Error
 */
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                                                 Item **where_item,
                                                 Item **having_item)
@@ -1829,19 +1864,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
 
   if (is_having_used)
   {
-    /*
-      (l1, l2, l3) IN (SELECT v1, v2, v3 ... HAVING having) =>
-      EXISTS (SELECT ... HAVING having and
-                                (l1 = v1 or is null v1) and
-                                (l2 = v2 or is null v2) and
-                                (l3 = v3 or is null v3) and
-                                is_not_null_test(v1) and
-                                is_not_null_test(v2) and
-                                is_not_null_test(v3))
-      where is_not_null_test used to register nulls in case if we have
-      not found matching to return correct NULL value
-      TODO: say here explicitly if the order of AND parts matters or not.
-    */
+    /* TODO: say here explicitly if the order of AND parts matters or not. */
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
@@ -1853,7 +1876,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                     Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
-        DBUG_RETURN(RES_ERROR);
+        DBUG_RETURN(true);
       Item *item_eq=
         new Item_func_eq(new
                          Item_ref(&select_lex->context,
@@ -1865,20 +1888,18 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                          Item_ref(&select_lex->context,
                                   select_lex->ref_pointer_array + i,
                                   (char *)"<no matter>",
-                                  (char *)"<list ref>")
-                        );
+                                  (char *)"<list ref>"));
       Item *item_isnull=
         new Item_func_isnull(new
                              Item_ref(&select_lex->context,
                                       select_lex->ref_pointer_array+i,
                                       (char *)"<no matter>",
-                                      (char *)"<list ref>")
-                            );
+                                      (char *)"<list ref>"));
       Item *col_item= new Item_cond_or(item_eq, item_isnull);
       if (!abort_on_null && left_expr->element_index(i)->maybe_null)
       {
         if (!(col_item= new Item_func_trig_cond(col_item, get_cond_guard(i))))
-          DBUG_RETURN(RES_ERROR);
+          DBUG_RETURN(true);
       }
       *having_item= and_items(*having_item, col_item);
 
@@ -1893,7 +1914,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
       {
         if (!(item_nnull_test= 
               new Item_func_trig_cond(item_nnull_test, get_cond_guard(i))))
-          DBUG_RETURN(RES_ERROR);
+          DBUG_RETURN(true);
       }
       item_having_part2= and_items(item_having_part2, item_nnull_test);
       item_having_part2->top_level_item();
@@ -1902,23 +1923,6 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
   }
   else
   {
-    /*
-      (l1, l2, l3) IN (SELECT v1, v2, v3 ... WHERE where) =>
-      EXISTS (SELECT ... WHERE where and
-                               (l1 = v1 or is null v1) and
-                               (l2 = v2 or is null v2) and
-                               (l3 = v3 or is null v3)
-                         HAVING is_not_null_test(v1) and
-                                is_not_null_test(v2) and
-                                is_not_null_test(v3))
-      where is_not_null_test register NULLs values but reject rows
-
-      in case when we do not need correct NULL, we have simplier construction:
-      EXISTS (SELECT ... WHERE where and
-                               (l1 = v1) and
-                               (l2 = v2) and
-                               (l3 = v3)
-    */
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
@@ -1929,7 +1933,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                     Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
-        DBUG_RETURN(RES_ERROR);
+        DBUG_RETURN(true);
       item=
         new Item_func_eq(new
                          Item_direct_ref(&select_lex->context,
@@ -1942,8 +1946,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                                          select_lex->
                                          ref_pointer_array+i,
                                          (char *)"<no matter>",
-                                         (char *)"<list ref>")
-                        );
+                                         (char *)"<list ref>"));
       if (!abort_on_null)
       {
         Item *having_col_item=
@@ -1961,8 +1964,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
                                            select_lex->
                                            ref_pointer_array+i,
                                            (char *)"<no matter>",
-                                           (char *)"<list ref>")
-                          );
+                                           (char *)"<list ref>"));
         item= new Item_cond_or(item, item_isnull);
         /* 
           TODO: why we create the above for cases where the right part
@@ -1971,10 +1973,10 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
         if (left_expr->element_index(i)->maybe_null)
         {
           if (!(item= new Item_func_trig_cond(item, get_cond_guard(i))))
-            DBUG_RETURN(RES_ERROR);
+            DBUG_RETURN(true);
           if (!(having_col_item= 
                   new Item_func_trig_cond(having_col_item, get_cond_guard(i))))
-            DBUG_RETURN(RES_ERROR);
+            DBUG_RETURN(true);
         }
         *having_item= and_items(*having_item, having_col_item);
       }
@@ -1985,7 +1987,7 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
   if (*where_item)
   {
     if (!(*where_item)->fixed && (*where_item)->fix_fields(thd, 0))
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     (*where_item)->top_level_item();
   }
 
@@ -1994,15 +1996,15 @@ Item_in_subselect::create_row_in_to_exists_cond(JOIN * join,
     if (!join_having)
       (*having_item)->name= (char*) in_having_cond;
     if (fix_having(*having_item, select_lex))
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     (*having_item)->top_level_item();
   }
 
-  DBUG_RETURN(RES_OK);
+  DBUG_RETURN(false);
 }
 
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::select_transformer(JOIN *join)
 {
   return select_in_like_transformer(join);
@@ -2021,7 +2023,7 @@ Item_in_subselect::select_transformer(JOIN *join)
 
 bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
 {
-  Item_subselect::trans_res res;
+  bool res;
 
   DBUG_ASSERT(engine->engine_type() == subselect_engine::SINGLE_SELECT_ENGINE ||
               engine->engine_type() == subselect_engine::UNION_ENGINE);
@@ -2042,7 +2044,7 @@ bool Item_in_subselect::create_in_to_exists_cond(JOIN *join_arg)
     res= create_row_in_to_exists_cond(join_arg,
                                       &(join_arg->in_to_exists_where),
                                       &(join_arg->in_to_exists_having));
-  return (res != RES_OK);
+  return (res);
 }
 
 
@@ -2092,28 +2094,28 @@ bool Item_in_subselect::inject_in_to_exists_cond(JOIN *join_arg)
 
 
 /**
-  Prepare IN/ALL/ANY/SOME subquery transformation and call appropriate
+  Prepare IN/ALL/ANY/SOME subquery transformation and call the appropriate
   transformation function.
 
   @param join    JOIN object of transforming subquery
 
   @notes
   To decide which transformation procedure (scalar or row) applicable here
-  we have to call fix_fields() for left expression to be able to call
-  cols() method on it. Also this method make arena management for
+  we have to call fix_fields() for the left expression to be able to call
+  cols() method on it. Also this method makes arena management for
   underlying transformation methods.
 
-  @retval  RES_OK      OK
-  @retval  RES_ERROR   Error
+  @retval  false  OK
+  @retval  true   Error
 */
 
-Item_subselect::trans_res
+bool
 Item_in_subselect::select_in_like_transformer(JOIN *join)
 {
   Query_arena *arena, backup;
   SELECT_LEX *current= thd->lex->current_select;
   const char *save_where= thd->where;
-  Item_subselect::trans_res res= RES_ERROR;
+  bool trans_res= true;
   bool result;
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
@@ -2132,7 +2134,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join)
   }
 
   if (changed)
-    DBUG_RETURN(RES_OK);
+    DBUG_RETURN(false);
 
   thd->where= "IN/ALL/ANY subquery";
 
@@ -2172,7 +2174,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join)
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
   if (left_expr->cols() == 1)
-    res= single_value_transformer(join);
+    trans_res= single_value_transformer(join);
   else
   {
     /* we do not support row operation for ALL/ANY/SOME */
@@ -2181,15 +2183,15 @@ Item_in_subselect::select_in_like_transformer(JOIN *join)
       if (arena)
         thd->restore_active_arena(arena, &backup);
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      DBUG_RETURN(RES_ERROR);
+      DBUG_RETURN(true);
     }
-    res= row_value_transformer(join);
+    trans_res= row_value_transformer(join);
   }
   if (arena)
     thd->restore_active_arena(arena, &backup);
 err:
   thd->where= save_where;
-  DBUG_RETURN(res);
+  DBUG_RETURN(trans_res);
 }
 
 
@@ -2381,7 +2383,7 @@ bool Item_in_subselect::init_cond_guards()
 }
 
 
-Item_subselect::trans_res
+bool
 Item_allany_subselect::select_transformer(JOIN *join)
 {
   DBUG_ENTER("Item_allany_subselect::select_transformer");

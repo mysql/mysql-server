@@ -29,6 +29,10 @@ static TABLE_LIST *alloc_join_nest(THD *thd);
 static 
 void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist);
 static uint get_tmp_table_rec_length(List<Item> &items);
+static double get_tmp_table_lookup_cost(THD *thd, ha_rows row_count,
+                                        uint row_size);
+static double get_tmp_table_write_cost(THD *thd, ha_rows row_count,
+                                       uint row_size);
 bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables);
 static SJ_MATERIALIZATION_INFO *
 at_sjmat_pos(const JOIN *join, table_map remaining_tables, const JOIN_TAB *tab,
@@ -257,10 +261,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         Transform each subquery predicate according to its overloaded
         transformer.
       */
-      Item_subselect::trans_res trans_res;
-      if ((trans_res= subselect->select_transformer(join)) !=
-          Item_subselect::RES_OK)
-        DBUG_RETURN((trans_res == Item_subselect::RES_ERROR));
+      if (subselect->select_transformer(join))
+        DBUG_RETURN(-11);
     }
   }
   DBUG_RETURN(0);
@@ -502,18 +504,17 @@ skip_conversion:
   for (; in_subq!= in_subq_end; in_subq++)
   {
     JOIN *child_join= (*in_subq)->unit->first_select()->join;
-    Item_subselect::trans_res res;
     (*in_subq)->changed= 0;
     (*in_subq)->fixed= 0;
 
     SELECT_LEX *save_select_lex= thd->lex->current_select;
     thd->lex->current_select= (*in_subq)->unit->first_select();
 
-    res= (*in_subq)->select_transformer(child_join);
+    bool res= (*in_subq)->select_transformer(child_join);
 
     thd->lex->current_select= save_select_lex;
 
-    if (res == Item_subselect::RES_ERROR)
+    if (res)
       DBUG_RETURN(TRUE);
 
     (*in_subq)->changed= 1;
@@ -1253,17 +1254,16 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
           Calculate temporary table parameters and usage costs
         */
         uint rowlen= get_tmp_table_rec_length(right_expr_list);
-        double lookup_cost;
-        if (rowlen * subjoin_out_rows< join->thd->variables.max_heap_table_size)
-          lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
-        else
-          lookup_cost= DISK_TEMPTABLE_LOOKUP_COST;
+        double lookup_cost= get_tmp_table_lookup_cost(join->thd,
+                                                      subjoin_out_rows, rowlen);
+        double write_cost= get_tmp_table_write_cost(join->thd,
+                                                    subjoin_out_rows, rowlen);
 
         /*
           Let materialization cost include the cost to write the data into the
           temporary table:
         */ 
-        sjm->materialization_cost.add_io(subjoin_out_rows, lookup_cost);
+        sjm->materialization_cost.add_io(subjoin_out_rows, write_cost);
         
         /*
           Set the cost to do a full scan of the temptable (will need this to 
@@ -1337,6 +1337,49 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   }
   return len;
 }
+
+
+/**
+  The cost of a lookup into a unique hash/btree index on a temporary table
+  with 'row_count' rows each of size 'row_size'.
+
+  @param thd  current query context
+  @param row_count  number of rows in the temp table
+  @param row_size   average size in bytes of the rows
+
+  @return  the cost of one lookup
+*/
+
+static double get_tmp_table_lookup_cost(THD *thd, ha_rows row_count, uint row_size)
+{
+  if (row_count * row_size > thd->variables.max_heap_table_size)
+    return (double) DISK_TEMPTABLE_LOOKUP_COST;
+  else
+    return (double) HEAP_TEMPTABLE_LOOKUP_COST;
+}
+
+/**
+  The cost of writing a row into a temporary table with 'row_count' unique
+  rows each of size 'row_size'.
+
+  @param thd  current query context
+  @param row_count  number of rows in the temp table
+  @param row_size   average size in bytes of the rows
+
+  @return  the cost of writing one row
+*/
+
+static double get_tmp_table_write_cost(THD *thd, ha_rows row_count, uint row_size)
+{
+  double lookup_cost= get_tmp_table_lookup_cost(thd, row_count, row_size);
+  /*
+    TODO:
+    This is an optimistic estimate. Add additional costs resulting from
+    actually writing the row to memory/disk and possible index reorganization.
+  */
+  return lookup_cost;
+}
+
 
 //psergey-todo: is the below a kind of table elimination??
 /*
@@ -1867,15 +1910,15 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         - sj_inner_fanout*sj_outer_fanout  lookups.
 
       */
-      double one_lookup_cost;
-      if (sj_outer_fanout*temptable_rec_size > 
-          join->thd->variables.max_heap_table_size)
-        one_lookup_cost= DISK_TEMPTABLE_LOOKUP_COST;
-      else
-        one_lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
+      double one_lookup_cost= get_tmp_table_lookup_cost(join->thd,
+                                                        sj_outer_fanout,
+                                                        temptable_rec_size);
+      double one_write_cost= get_tmp_table_write_cost(join->thd,
+                                                      sj_outer_fanout,
+                                                      temptable_rec_size);
 
       double write_cost= join->positions[first_tab].prefix_record_count* 
-                         sj_outer_fanout * one_lookup_cost;
+                         sj_outer_fanout * one_write_cost;
       double full_lookup_cost= join->positions[first_tab].prefix_record_count* 
                                sj_outer_fanout* sj_inner_fanout * 
                                one_lookup_cost;
@@ -3611,12 +3654,7 @@ bool JOIN::optimize_unflattened_subqueries()
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
 {  /* The original QEP of the subquery. */
-  DYNAMIC_ARRAY save_keyuse; /* Copy of the JOIN::keyuse array. */
-  POSITION save_best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
-  /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
-  KEYUSE *save_join_tab_keyuse[MAX_TABLES];
-  /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
-  key_map save_join_tab_checked_keys[MAX_TABLES];
+  Query_plan_state save_qep;
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 
@@ -3634,9 +3672,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
   DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
   DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
-
-  save_keyuse.elements= 0;
-  save_keyuse.buffer= NULL;
 
   /*
     Compute and compare the costs of materialization and in-exists if both
@@ -3660,8 +3695,19 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     double in_exists_strategy_cost;
 
     if (outer_join)
-      outer_join->get_partial_join_cost(outer_join->tables,
+    {
+      /*
+        Make_cond_for_table is called for predicates only in the WHERE/ON
+        clauses. In all other cases, predicates are not pushed to any
+        JOIN_TAB, and their joi_tab_idx remains MAX_TABLES. Such predicates
+        are evaluated for each complete row.
+      */
+      uint partial_plan_len= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
+                             outer_join->tables :
+                             in_subs->get_join_tab_idx() + 1;
+      outer_join->get_partial_join_cost(partial_plan_len,
                                         &outer_read_time, &outer_record_count);
+    }
     else
     {
       /*
@@ -3673,7 +3719,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     }
 
     inner_join->get_partial_join_cost(inner_join->tables,
-                                      &inner_read_time_1, &inner_record_count_1);
+                                      &inner_read_time_1,
+                                      &inner_record_count_1);
+    /* inner_read_time_1 above is a dummy, get the correct total join cost. */
+    inner_read_time_1= inner_join->best_read;
 
     if (in_to_exists_where && const_tables != tables)
     {
@@ -3681,18 +3730,16 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         Re-optimize and cost the subquery taking into account the IN-EXISTS
         conditions.
       */
-      if (save_query_plan(&save_keyuse, save_best_positions,
-                          save_join_tab_keyuse, save_join_tab_checked_keys))
-        return TRUE;
-      reopt_result= reoptimize(in_to_exists_where, join_tables);
-      if (reopt_result == REOPT_OLD_PLAN)
-        restore_query_plan(&save_keyuse, save_best_positions,
-                           save_join_tab_keyuse, save_join_tab_checked_keys);
-      else if (reopt_result == REOPT_ERROR)
+      reopt_result= reoptimize(in_to_exists_where, join_tables, &save_qep);
+      if (reopt_result == REOPT_ERROR)
         return TRUE;
 
       inner_join->get_partial_join_cost(inner_join->tables,
-                                        &inner_read_time_2, &inner_record_count_2);
+                                        &inner_read_time_2,
+                                        &inner_record_count_2);
+      /* inner_read_time_2 above is a dummy, get the correct total join cost. */
+      inner_read_time_2= inner_join->best_read;
+
     }
     else
     {
@@ -3705,24 +3752,20 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     /*
       1. Compute the cost of the materialization strategy.
     */
-    double materialization_cost; /* The cost of executing the subquery and */
-                                 /* storing its result in an indexed temp table.*/
-    /* The cost of a lookup into the unique index of the materialized table. */
-    double lookup_cost;
-    double write_row_cost= 1; /* TODO: what is the real cost to write a row? */
-    materialization_cost= inner_read_time_1 +
-                          inner_record_count_1 * write_row_cost;
-    /*
-      The cost of a hash/btree lookup into a unique index of a materialized
-      subquery.
-      TIMOUR: TODO: the block of code below is exact copy/paste from
-      opt_subselect.cc:optimize_semi_join_nests() - refactor it.
-    */
     uint rowlen= get_tmp_table_rec_length(unit->first_select()->item_list);
-    if (rowlen * inner_record_count_1 < thd->variables.max_heap_table_size)
-      lookup_cost= HEAP_TEMPTABLE_LOOKUP_COST;
-    else
-      lookup_cost= DISK_TEMPTABLE_LOOKUP_COST;
+    /* The cost of writing one row into the temporary table. */
+    double write_cost= get_tmp_table_write_cost(thd, inner_record_count_1,
+                                                rowlen);
+    /* The cost of a lookup into the unique index of the materialized table. */
+    double lookup_cost= get_tmp_table_lookup_cost(thd, inner_record_count_1,
+                                                  rowlen);
+    /*
+      The cost of executing the subquery and storing its result in an indexed
+      temporary table.
+    */
+    double materialization_cost= inner_read_time_1 +
+                                 write_cost * inner_record_count_1;
+
     materialize_strategy_cost= materialization_cost +
                                outer_record_count * lookup_cost;
 
@@ -3764,8 +3807,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   {
     /* Restore the original query plan used for materialization. */
     if (reopt_result == REOPT_NEW_PLAN)
-      restore_query_plan(&save_keyuse, save_best_positions,
-                         save_join_tab_keyuse, save_join_tab_checked_keys);
+      restore_query_plan(&save_qep);
 
     /* TODO: should we set/unset this flag for both select_lex and its unit? */
     in_subs->unit->uncacheable&= ~UNCACHEABLE_DEPENDENT;
@@ -3789,11 +3831,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   }
   else if (in_subs->in_strategy & SUBS_IN_TO_EXISTS)
   {
-    /* Keep the new query plan with injected conditions, delete the old plan. */
-    if (reopt_result == REOPT_NEW_PLAN)
-      delete_dynamic(&save_keyuse);
-
-    if (reopt_result == REOPT_NONE && in_to_exists_where && const_tables != tables)
+    if (reopt_result == REOPT_NONE && in_to_exists_where &&
+        const_tables != tables)
     {
       /*
         The subquery was not reoptimized either because the user allowed only the
@@ -3805,7 +3844,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         join_tab[i].keyuse= NULL;
         join_tab[i].checked_keys.clear_all();
       }
-      if ((reopt_result= reoptimize(in_to_exists_where, join_tables)) ==
+      if ((reopt_result= reoptimize(in_to_exists_where, join_tables, NULL)) ==
           REOPT_ERROR)
         return TRUE;
     }

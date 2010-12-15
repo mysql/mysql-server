@@ -1374,6 +1374,31 @@ private:
   JOIN& operator=(const JOIN &rhs);             /**< not implemented */
 
 protected:
+
+  /**
+    ???
+  */
+  class Query_plan_state {
+  public:
+    DYNAMIC_ARRAY keyuse; /* Copy of the JOIN::keyuse array. */
+    POSITION best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
+    /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
+    KEYUSE *join_tab_keyuse[MAX_TABLES];
+    /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
+    key_map join_tab_checked_keys[MAX_TABLES];
+  public:
+    Query_plan_state()
+    {   
+      keyuse.elements= 0;
+      keyuse.buffer= NULL;
+    }
+    Query_plan_state(JOIN *join);
+    ~Query_plan_state()
+    {
+      delete_dynamic(&keyuse);
+    }
+  };
+
   /* Results of reoptimizing a JOIN via JOIN::reoptimize(). */
   enum enum_reopt_result {
     REOPT_NEW_PLAN, /* there is a new reoptimized plan */
@@ -1383,13 +1408,10 @@ protected:
   };
 
   /* Support for plan reoptimization with rewritten conditions. */
-  enum_reopt_result reoptimize(Item *added_where, table_map join_tables);
-  int save_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
-                      KEYUSE **save_join_tab_keyuse,
-                      key_map *save_join_tab_checked_keys);
-  void restore_query_plan(DYNAMIC_ARRAY *save_keyuse, POSITION *save_positions,
-                      KEYUSE **save_join_tab_keyuse,
-                      key_map *save_join_tab_checked_keys);
+  enum_reopt_result reoptimize(Item *added_where, table_map join_tables,
+                               Query_plan_state *save_to);
+  void save_query_plan(Query_plan_state *save_to);
+  void restore_query_plan(Query_plan_state *restore_from);
   /* Choose a subquery plan for a table-less subquery. */
   bool choose_tableless_subquery_plan();
 

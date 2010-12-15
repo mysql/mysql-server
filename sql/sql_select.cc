@@ -179,10 +179,12 @@ int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(Item *cond,table_map table,
 				 table_map used_table,
+                                 uint join_tab_idx_arg,
                                  bool exclude_expensive_cond);
 static COND *make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                                            table_map tables,
                                            table_map used_table,
+                                           uint join_tab_idx_arg,
                                            bool exclude_expensive_cond);
 
 static Item* part_of_refkey(TABLE *form,Field *field);
@@ -919,7 +921,7 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, FALSE);
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, MAX_TABLES, FALSE);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
@@ -2235,7 +2237,8 @@ JOIN::exec()
 
       Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
 						 used_tables,
-						 (table_map)0, FALSE);
+						 (table_map)0,
+                                                 MAX_TABLES, FALSE);
       if (sort_table_cond)
       {
 	if (!curr_table->select)
@@ -2266,7 +2269,8 @@ JOIN::exec()
                                          QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
-						   ~used_tables, FALSE);
+						   ~used_tables,
+                                                   MAX_TABLES, FALSE);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
                                          "having after sort",
                                          QT_ORDINARY););
@@ -5483,6 +5487,8 @@ void JOIN::get_partial_join_cost(uint n_tables,
   double record_count= 1;
   double read_time= 0.0;
 
+  DBUG_ASSERT(n_tables <= tables && n_tables > 0);
+
   for (uint i= const_tables; i < n_tables; i++)
   {
     if (best_positions[i].records_read)
@@ -6674,7 +6680,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         join->exec_const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
-                              (table_map) 0, FALSE);
+                              (table_map) 0, MAX_TABLES, FALSE);
         DBUG_EXECUTE("where",print_where(join->exec_const_cond, "constants",
                                          QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
@@ -6685,7 +6691,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             JOIN_TAB *cond_tab= tab->first_inner;
             COND *tmp= make_cond_for_table(*tab->on_expr_ref,
                                            join->const_table_map,
-                                           (table_map) 0, FALSE);
+                                           (table_map) 0, MAX_TABLES, FALSE);
             if (!tmp)
               continue;
             tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -6776,7 +6782,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
       tmp= NULL;
       if (cond)
-        tmp= make_cond_for_table(cond, used_tables, current_map, FALSE);
+        tmp= make_cond_for_table(cond, used_tables, current_map, i, FALSE);
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
@@ -6834,7 +6840,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, FALSE);
+              make_cond_for_table(tmp, current_map, current_map, MAX_TABLES, FALSE);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -6965,7 +6971,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                 (tmp=make_cond_for_table(cond,
 					 join->const_table_map |
 					 current_map,
-					 current_map, FALSE)))
+					 current_map, MAX_TABLES, FALSE)))
 	    {
               DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
 	      tab->cache_select=(SQL_SELECT*)
@@ -6995,7 +7001,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           JOIN_TAB *cond_tab= join_tab->first_inner;
           COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
                                          join->const_table_map,
-                                         (table_map) 0, FALSE);
+                                         (table_map) 0, MAX_TABLES, FALSE);
           if (!tmp)
             continue;
           tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
@@ -7014,6 +7020,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
 
       /* Push down non-constant conditions from on expressions */
+      JOIN_TAB *first_tab= join->join_tab+join->const_tables;
       JOIN_TAB *last_tab= tab;
       while (first_inner_tab && first_inner_tab->last_inner == last_tab)
       {  
@@ -7025,12 +7032,13 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
         table_map used_tables2= (join->const_table_map |
                                  OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
-	for (tab= join->join_tab+join->const_tables; tab <= last_tab ; tab++)
+	for (tab= first_tab; tab <= last_tab ; tab++)
         {
           current_map= tab->table->map;
           used_tables2|= current_map;
           COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
-                                              current_map, FALSE);
+                                              current_map,
+                                              (tab - first_tab), FALSE);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
@@ -14682,6 +14690,8 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       tables       Tables for which "current field values" are available
       used_table   Table that we're extracting the condition for (may 
                    also include PSEUDO_TABLE_BITS
+      join_tab_idx_arg The index of the JOIN_TAB this Item is being extracted
+                       for. MAX_TABLES if there is no corresponding JOIN_TAB.
       exclude_expensive_cond  Do not push expensive conditions
 
   DESCRIPTION
@@ -14708,15 +14718,18 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 
 static Item *
 make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+                    uint join_tab_idx_arg,
                     bool exclude_expensive_cond __attribute__((unused)))
 {
   return make_cond_for_table_from_pred(cond, cond, tables, used_table,
+                                       join_tab_idx_arg,
                                        exclude_expensive_cond);
 }
 
 static Item *
 make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
+                              uint join_tab_idx_arg,
                               bool exclude_expensive_cond __attribute__((unused)))
 {
   if (cond->type() == Item::COND_ITEM)
@@ -14733,6 +14746,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       {
 	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
                                                 tables, used_table,
+                                                join_tab_idx_arg,
                                                 exclude_expensive_cond);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
@@ -14765,6 +14779,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       {
 	Item *fix=make_cond_for_table_from_pred(root_cond, item,
                                                 tables, 0L,
+                                                join_tab_idx_arg,
                                                 exclude_expensive_cond);
 	if (!fix)
 	  return (COND*) 0;			// Always true
@@ -14789,7 +14804,10 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   if (cond->marker == 3 || (cond->used_tables() & ~tables))
     return (COND*) 0;				// Can't check this yet
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
+  {
+    cond->set_join_tab_idx(join_tab_idx_arg);
     return cond;				// Not boolean op
+  }
 
   if (cond->type() == Item::FUNC_ITEM && 
       ((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
@@ -14810,6 +14828,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
     }
   }
   cond->marker=2;
+  cond->set_join_tab_idx(join_tab_idx_arg);
   return cond;
 }
 
@@ -15986,7 +16005,7 @@ static bool fix_having(JOIN *join, Item **having)
 
   DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
   Item* sort_table_cond=make_cond_for_table(*having, used_tables, used_tables,
-                                            FALSE);
+                                            MAX_TABLES, FALSE);
   if (sort_table_cond)
   {
     if (!table->select)
@@ -16004,7 +16023,8 @@ static bool fix_having(JOIN *join, Item **having)
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having",
                                      QT_ORDINARY););
-    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables, FALSE);
+    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables,
+                                 MAX_TABLES, FALSE);
     DBUG_EXECUTE("where",
                  print_where(*having,"having after make_cond", QT_ORDINARY););
   }
@@ -19193,7 +19213,7 @@ void TABLE_LIST::print(THD *thd, table_map eliminated_tables, String *str,
 void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 {
   /* TODO: thd may not be set for sub queries, but this should be fixed */
-  DBUG_ASSERT(thd);
+//  DBUG_ASSERT(thd);
   if (!thd)
     thd= current_thd;
 
@@ -19359,78 +19379,59 @@ bool JOIN::change_result(select_result *res)
   Save a query execution plan so that the caller can revert to it if needed,
   and reset the current query plan so that it can be reoptimized.
 
-  @param save_keyuse[out]  a KEYUSE array to save JOIN::keyuse
-  @param save_best_positions[out]  array to save JOIN::best_positions
-  @param save_join_tab_keyuse[out] array of KEYUSE pointers to save each
-                                   JOIN_TAB::keyuse pointer
-  @param save_join_tab_checked_keys[out] an array of bitmaps to save
-                                         each JOIN_TAB::checked_keys
-
-  @retval 0  OK
-  @retval 1  memory allocation error
+  @param save_to  The object into which the current query plan state is saved
 */
-int JOIN::save_query_plan(DYNAMIC_ARRAY *save_keyuse,
-                          POSITION *save_best_positions,
-                          KEYUSE **save_join_tab_keyuse,
-                          key_map *save_join_tab_checked_keys)
+
+void JOIN::save_query_plan(Query_plan_state *save_to)
 {
   if (keyuse.elements)
   {
     DYNAMIC_ARRAY tmp_keyuse;
-    if (my_init_dynamic_array(save_keyuse, sizeof(KEYUSE), 20, 64))
-      return 1;
+    // TODO: isn't this allocated by update_ref_and_keys
+    //if (my_init_dynamic_array(save_keyuse, sizeof(KEYUSE), 20, 64))
+    //  return 1;
     /* Swap the current and the backup keyuse arrays. */
     tmp_keyuse= keyuse;
-    keyuse= (*save_keyuse);
-    (*save_keyuse)= tmp_keyuse;
+    keyuse= save_to->keyuse;
+    save_to->keyuse= tmp_keyuse;
 
     for (uint i= 0; i < tables; i++)
     {
-      save_join_tab_keyuse[i]= join_tab[i].keyuse;
+      save_to->join_tab_keyuse[i]= join_tab[i].keyuse;
       join_tab[i].keyuse= NULL;
-      save_join_tab_checked_keys[i]= join_tab[i].checked_keys;
+      save_to->join_tab_checked_keys[i]= join_tab[i].checked_keys;
       join_tab[i].checked_keys.clear_all();
     }
   }
-  memcpy((uchar*) save_best_positions, (uchar*) best_positions,
+  memcpy((uchar*) save_to->best_positions, (uchar*) best_positions,
          sizeof(POSITION) * (tables + 1));
   memset(best_positions, 0, sizeof(POSITION) * (tables + 1));
-  return 0;
 }
 
 
 /**
-  Restore a query plan previously saved by the caller.
+  Restore a query execution plan previously saved by the caller.
 
-  @param save_keyuse  a KEYUSE array to restore into JOIN::keyuse
-  @param save_best_positions  array to restore into JOIN::best_positions
-  @param save_join_tab_keyuse array of KEYUSE pointers to restore each
-                                   JOIN_TAB::keyuse pointer
-  @param save_join_tab_checked_keys an array of bitmaps to restore
-                                         each JOIN_TAB::checked_keys
+  @param The object from which the current query plan state is restored.
 */
 
-void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
-                              POSITION *save_best_positions,
-                              KEYUSE **save_join_tab_keyuse,
-                              key_map *save_join_tab_checked_keys)
+void JOIN::restore_query_plan(Query_plan_state *restore_from)
 {
-  if (save_keyuse->elements)
+  if (restore_from->keyuse.elements)
   {
     DYNAMIC_ARRAY tmp_keyuse;
     tmp_keyuse= keyuse;
-    keyuse= (*save_keyuse);
-    (*save_keyuse)= tmp_keyuse;
-    delete_dynamic(save_keyuse);
+    keyuse= restore_from->keyuse;
+    restore_from->keyuse= tmp_keyuse;
 
     for (uint i= 0; i < tables; i++)
     {
-      join_tab[i].keyuse= save_join_tab_keyuse[i];
-      join_tab[i].checked_keys= save_join_tab_checked_keys[i];
+      join_tab[i].keyuse= restore_from->join_tab_keyuse[i];
+      join_tab[i].checked_keys= restore_from->join_tab_checked_keys[i];
     }
 
   }
-  memcpy((uchar*) best_positions, (uchar*) save_best_positions,
+  memcpy((uchar*) best_positions, (uchar*) restore_from->best_positions,
          sizeof(POSITION) * (tables + 1));
 }
 
@@ -19441,8 +19442,7 @@ void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
 
   @param added_where  An extra conjunct to the WHERE clause to reoptimize with
   @param join_tables  The set of tables to reoptimize
-  @param save_best_positions  The join order of the original plan to restore to
-                              if needed.
+  @param save_to      If != NULL, save here the state of the current query plan
 
   @notes
   Given a query plan that already optimized taking into account some WHERE clause
@@ -19462,7 +19462,9 @@ void JOIN::restore_query_plan(DYNAMIC_ARRAY *save_keyuse,
   @retval REOPT_ERROR     an irrecovarable error occured during reoptimization.
 */
 
-JOIN::enum_reopt_result JOIN::reoptimize(Item *added_where, table_map join_tables)
+JOIN::enum_reopt_result
+JOIN::reoptimize(Item *added_where, table_map join_tables,
+                 Query_plan_state *save_to)
 {
   DYNAMIC_ARRAY added_keyuse;
   SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */
@@ -19477,6 +19479,9 @@ JOIN::enum_reopt_result JOIN::reoptimize(Item *added_where, table_map join_table
 
   if (!added_keyuse.elements)
     return REOPT_OLD_PLAN;
+
+  if (save_to)
+    save_query_plan(save_to);
 
   /* Add the new access methods to the keyuse array. */
   if (!keyuse.buffer &&

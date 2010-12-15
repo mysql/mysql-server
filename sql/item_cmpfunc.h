@@ -268,6 +268,8 @@ public:
   virtual Item *expr_cache_insert_transformer(uchar *thd_arg);
   bool is_expensive_processor(uchar *arg);
   bool is_expensive();
+  void set_join_tab_idx(uint join_tab_idx_arg)
+  { args[1]->set_join_tab_idx(join_tab_idx_arg); }
 };
 
 class Comp_creator
