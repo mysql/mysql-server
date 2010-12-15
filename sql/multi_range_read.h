@@ -346,7 +346,14 @@ private:
   /* TRUE <=> index_reader->refill_buffer() call has returned EOF */
   bool index_reader_exhausted;
   
+  /* 
+    TRUE <=> We should call index_reader->refill_buffer(). This happens if
+    1. we've made index_reader->get_next() call which returned EOF
+    2. we haven't made any index_reader calls (and our first call should 
+       be index_reader->refill_buffer(initial=TRUE)
+  */
   bool index_reader_needs_refill;
+
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
   
