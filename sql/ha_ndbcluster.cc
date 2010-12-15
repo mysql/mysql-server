@@ -1313,20 +1313,48 @@ static void ndb_clear_index(NDBDICT *dict, NDB_INDEX_DATA &data)
   ndb_init_index(data);
 }
 
+static
+void ndb_protect_char(const char* from, char* to, uint to_length, char protect)
+{
+  uint fpos= 0, tpos= 0;
+
+  while(from[fpos] != '\0' && tpos < to_length - 1)
+  {
+    if (from[fpos] == protect)
+    {
+      int len= 0;
+      to[tpos++]= '@';
+      if(tpos < to_length - 5)
+      {
+        len= sprintf(to+tpos, "00%u", (uint) protect);
+        tpos+= len;
+      }
+    }
+    else
+    {
+      to[tpos++]= from[fpos];
+    }
+    fpos++;
+  }
+  to[tpos]= '\0';
+}
+
 /*
   Associate a direct reference to an index handle
   with an index (for faster access)
  */
 int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
-                                    const char *index_name, uint index_no)
+                                    const char *key_name, uint index_no)
 {
+  char index_name[FN_LEN + 1];
   int error= 0;
 
   NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
   m_index[index_no].type= idx_type;
   DBUG_ENTER("ha_ndbcluster::add_index_handle");
   DBUG_PRINT("enter", ("table %s", m_tabname));
-
+  
+  ndb_protect_char(key_name, index_name, sizeof(index_name) - 1, '/');
   if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
   {
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
@@ -6056,6 +6084,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
                                     KEY *key_info,
                                     bool unique)
 {
+  char index_name[FN_LEN + 1];
   Ndb *ndb= get_ndb(thd);
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
@@ -6064,7 +6093,10 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   DBUG_ENTER("ha_ndbcluster::create_index");
   DBUG_PRINT("enter", ("name: %s ", name));
 
-  NdbDictionary::Index ndb_index(name);
+  ndb_protect_char(name, index_name, sizeof(index_name) - 1, '/');
+  DBUG_PRINT("info", ("index name: %s ", index_name));
+
+  NdbDictionary::Index ndb_index(index_name);
   if (unique)
     ndb_index.setType(NdbDictionary::Index::UniqueHashIndex);
   else 
