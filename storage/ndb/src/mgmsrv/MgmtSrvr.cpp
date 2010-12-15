@@ -432,6 +432,14 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
+  /**
+   * Wait for loopback interface to be enabled
+   */
+  while (!theFacade->isConnected(_ownNodeId))
+  {
+    NdbSleep_MilliSleep(20);
+  }
+
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
 
   /*
@@ -767,6 +775,8 @@ MgmtSrvr::~MgmtSrvr()
     delete m_config_manager;
     m_config_manager= 0;
   }
+
+  this->close(); // close trp_client before stopping TransporterFacade
 
   // Stop transporter
   if(theFacade != 0){

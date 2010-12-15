@@ -35,6 +35,9 @@ public:
   /** @brief Constructs a copy of a char * */
   BaseString(const char* s);
 
+  /** @brief Constructs a copy of a char * with length */
+  BaseString(const char* s, size_t len);
+
   /** @brief Constructs a copy of another BaseString */
   BaseString(const BaseString& str);
 

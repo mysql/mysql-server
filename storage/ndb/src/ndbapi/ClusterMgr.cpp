@@ -91,6 +91,7 @@ ClusterMgr::~ClusterMgr()
     delete theArbitMgr;
     theArbitMgr = 0;
   }
+  this->close(); // disconnect from TransporterFacade
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
@@ -140,7 +141,7 @@ ClusterMgr::configure(Uint32 nodeId,
   }
 
   /* Init own node info */
-  Node &node= theNodes[theFacade.ownId()];
+  Node &node= theNodes[getOwnNodeId()];
   assert(node.defined);
   node.set_connected(true);
   node.set_confirmed(true);
@@ -159,7 +160,7 @@ ClusterMgr::configure(Uint32 nodeId,
   {
     // The arbitrator should be active
     if (!theArbitMgr)
-      theArbitMgr = new ArbitMgr(theFacade);
+      theArbitMgr = new ArbitMgr(* this);
     theArbitMgr->setRank(rank);
 
     Uint32 delay = 0;
@@ -190,9 +191,11 @@ ClusterMgr::startThread() {
 void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
-  Guard g(clusterMgrThreadMutex);
-  if(theStop == 1){
-    DBUG_VOID_RETURN;
+  {
+    Guard g(clusterMgrThreadMutex);
+    if(theStop == 1){
+      DBUG_VOID_RETURN;
+    }
   }
 
   void *status;
@@ -294,11 +297,23 @@ ClusterMgr::threadMain( ){
   NDB_TICKS timeSlept = 100;
   NDB_TICKS now = NdbTick_CurrentMillisecond();
 
-  while(!theStop){
-
-    /* Sleep at least 100ms between each heartbet check */
+  while(!theStop)
+  {
+    /* Sleep at 100ms between each heartbeat check */
     NDB_TICKS before = now;
-    NdbSleep_MilliSleep(100);
+    for (Uint32 i = 0; i<10; i++)
+    {
+      NdbSleep_MilliSleep(10);
+      {
+        Guard g(clusterMgrThreadMutex);
+        /**
+         * Protect from ArbitMgr sending signals while we poll
+         */
+        start_poll();
+        do_poll(0);
+        complete_poll();
+      }
+    }
     now = NdbTick_CurrentMillisecond();
     timeSlept = (now - before);
 
@@ -327,6 +342,9 @@ ClusterMgr::threadMain( ){
       assert(nodeId > 0 && nodeId < MAX_NODES);
       Node & theNode = theNodes[nodeId];
       
+      if (nodeId == getOwnNodeId())
+        continue;
+
       if (!theNode.defined)
 	continue;
 
@@ -867,8 +885,8 @@ ClusterMgr::print_nodes(const char* where, NdbOut& out)
 /******************************************************************************
  * Arbitrator
  ******************************************************************************/
-ArbitMgr::ArbitMgr(TransporterFacade & _fac)
-  : theFacade(_fac)
+ArbitMgr::ArbitMgr(ClusterMgr & c)
+  : m_clusterMgr(c)
 {
   DBUG_ENTER("ArbitMgr::ArbitMgr");
 
@@ -1184,7 +1202,7 @@ ArbitMgr::sendStopRep(ArbitSignal& aSignal, Uint32 code)
 void
 ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
 {
-  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
+  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, m_clusterMgr.getOwnNodeId()));
 
   signal.theVerId_signalNumber = aSignal.gsn;
   signal.theReceiversBlockNumber = QMGR;
@@ -1193,7 +1211,7 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
 
   ArbitSignalData* sd = CAST_PTR(ArbitSignalData, signal.getDataPtrSend());
 
-  sd->sender = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+  sd->sender = numberToRef(API_CLUSTERMGR, m_clusterMgr.getOwnNodeId());
   sd->code = aSignal.data.code;
   sd->node = aSignal.data.node;
   sd->ticket = aSignal.data.ticket;
@@ -1211,8 +1229,11 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
   ndbout << endl;
 #endif
 
-  theFacade.lock_mutex();
-  theFacade.sendSignalUnCond(&signal, aSignal.data.sender);
-  theFacade.unlock_mutex();
+  {
+    Guard g(m_clusterMgr.clusterMgrThreadMutex);
+    m_clusterMgr.lock();
+    m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
+    m_clusterMgr.unlock();
+  }
 }
 

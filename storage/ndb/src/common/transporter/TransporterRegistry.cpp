@@ -26,6 +26,7 @@
 
 #ifdef NDB_TCP_TRANSPORTER
 #include "TCP_Transporter.hpp"
+#include "Loopback_Transporter.hpp"
 #endif
 
 #ifdef NDB_SCI_TRANSPORTER
@@ -429,7 +430,15 @@ bool
 TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 #ifdef NDB_TCP_TRANSPORTER
 
-  TCP_Transporter * t = new TCP_Transporter(*this, config);
+  TCP_Transporter * t = 0;
+  if (config->remoteNodeId == config->localNodeId)
+  {
+    t = new Loopback_Transporter(* this, config);
+  }
+  else
+  {
+    t = new TCP_Transporter(*this, config);
+  }
 
   if (t == NULL) 
     return false;
