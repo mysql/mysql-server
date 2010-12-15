@@ -35,6 +35,8 @@ CREATE TABLE T1 (a int);
 CREATE TABLE T3 (txt TEXT);
 
 # assert: that tables exist on master with upper case names
+# this fixes result mismatches for MacOSX
+--replace_result Tables_in_bug_37656 Tables_in_BUG_37656
 show tables;
 
 # assert: that tables exist on slave but with lower case names
