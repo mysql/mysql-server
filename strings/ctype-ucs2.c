@@ -2693,7 +2693,10 @@ static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
 {
   if ( r+2 > e ) 
     return MY_CS_TOOSMALL2;
-  
+
+  if (wc > 0xFFFF) /* UCS2 does not support characters outside BMP */
+    return MY_CS_ILUNI;
+
   r[0]= (uchar) (wc >> 8);
   r[1]= (uchar) (wc & 0xFF);
   return 2;
