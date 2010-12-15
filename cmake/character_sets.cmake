@@ -23,14 +23,14 @@ SET(DEFAULT_COLLATION "latin1_swedish_ci")
 ENDIF()
 
 SET(CHARSETS ${DEFAULT_CHARSET} latin1 utf8 utf8mb4)
-SET(CHARSETS_COMPLEX big5 cp1250 cp932 eucjpms euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8 utf8mb4 utf16 utf32)
+SET(CHARSETS_COMPLEX big5 cp1250 cp932 eucjpms euckr gb2312 gbk latin1 latin2 sjis tis620 ucs2 ujis utf8 utf8mb4 utf16 utf16le utf32)
 
 SET(CHARSETS_AVAILABLE 
 binary armscii8 ascii big5 cp1250 cp1251 cp1256 cp1257
 cp850 cp852 cp866 cp932 dec8 eucjpms euckr gb2312 gbk geostd8
 greek hebrew hp8 keybcs2 koi8r koi8u
 latin1 latin2 latin5 latin7 macce macroman
-sjis swe7 tis620 ucs2 ujis utf8 utf8mb4 utf16 utf32)
+sjis swe7 tis620 ucs2 ujis utf8 utf8mb4 utf16 utf16le utf32)
 
 
 SET (EXTRA_CHARSETS "all")

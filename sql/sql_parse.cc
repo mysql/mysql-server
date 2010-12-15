@@ -920,7 +920,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->profiling.start_new_query();
 #endif
   MYSQL_COMMAND_START(thd->thread_id, command,
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
   
   thd->set_command(command);
@@ -980,6 +980,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_CHANGE_USER:
   {
+    bool rc;
     status_var_increment(thd->status_var.com_other);
 
     thd->change_user();
@@ -999,7 +1000,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
-    if (acl_authenticate(thd, 0, packet_length))
+    rc= acl_authenticate(thd, 0, packet_length);
+    MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+    if (rc)
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
@@ -1058,7 +1061,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
@@ -1110,7 +1113,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       MYSQL_QUERY_START(beginning_of_next_stmt, thd->thread_id,
                         (char *) (thd->db ? thd->db : ""),
-                        thd->security_ctx->priv_user,
+                        &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
 
       thd->set_query_and_id(beginning_of_next_stmt, length,
@@ -1437,6 +1440,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                      thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
+                      command_name[command].str);
 
   log_slow_statement(thd);
 
@@ -5337,13 +5344,6 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
-  /*
-    Don't evaluate this subquery during statement prepare even if
-    it's a constant one. The flag is switched off in the end of
-    mysqld_stmt_prepare.
-  */
-  if (thd->stmt_arena->is_stmt_prepare())
-    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -5530,7 +5530,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           MYSQL_QUERY_EXEC_START(thd->query(),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
-                                 thd->security_ctx->priv_user,
+                                 &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
 

@@ -1834,16 +1834,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-    {
-      /*
-        We should disable const subselect item evaluation because
-        subselect transformation does not happen in view_prepare_mode
-        and thus val_...() methods can not be called for const items.
-      */
-      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
-                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
-      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
-    }
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
     if (!conv)
     {
@@ -2663,11 +2654,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
   tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
-    ErrConvString err(cptr, cs);
-    /*
-      We can use str_value.ptr() here as Item_string is gurantee to put an
-      end \0 here.
-    */
+    ErrConvString err(cptr, org_end - cptr, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
