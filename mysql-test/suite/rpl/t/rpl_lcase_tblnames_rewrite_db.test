@@ -34,6 +34,8 @@ CREATE TABLE T1 (a int);
 INSERT INTO T1 VALUES (1);
 
 -- echo ### assertion: master contains capitalized case table
+# this fixes result mismatches for MacOSX
+--replace_result Tables_in_b37656 Tables_in_B37656
 SHOW TABLES;
 
 -- sync_slave_with_master
