@@ -2209,6 +2209,9 @@ public:
 #endif
   void awake(THD::killed_state state_to_set);
 
+  /** Disconnect the associated communication endpoint. */
+  void disconnect();
+
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
     /* The query can be logged in row format or in statement format. */
