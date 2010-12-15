@@ -33,7 +33,8 @@ struct IPCConfig
   */
   static bool configureTransporters(Uint32 nodeId,
                                     const struct ndb_mgm_configuration &,
-                                    class TransporterRegistry &);
+                                    class TransporterRegistry &,
+                                    bool transporter_to_self = false);
 };
 
 #endif // IPCConfig_H

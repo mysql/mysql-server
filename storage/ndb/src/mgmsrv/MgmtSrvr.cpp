@@ -432,6 +432,14 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
+  /**
+   * Wait for loopback interface to be enabled
+   */
+  while (!theFacade->isConnected(_ownNodeId))
+  {
+    NdbSleep_MilliSleep(20);
+  }
+
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
 
   /*
