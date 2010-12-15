@@ -480,16 +480,19 @@ static bool check_charset(sys_var *self, THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     String str(buff, sizeof(buff), system_charset_info), *res;
-    if (!(res=var->value->val_str_ascii(&str)))
+    if (!(res= var->value->val_str(&str)))
       var->save_result.ptr= NULL;
-    else if (!(var->save_result.ptr= get_charset_by_csname(res->c_ptr(),
-                                                           MY_CS_PRIMARY,
-                                                           MYF(0))) &&
-             !(var->save_result.ptr= get_old_charset_by_name(res->c_ptr())))
+    else
     {
-      ErrConvString err(res);
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
-      return true;
+      ErrConvString err(res); /* Get utf8 '\0' terminated string */
+      if (!(var->save_result.ptr= get_charset_by_csname(err.ptr(),
+                                                         MY_CS_PRIMARY,
+                                                         MYF(0))) &&
+          !(var->save_result.ptr= get_old_charset_by_name(err.ptr())))
+      {
+        my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
+        return true;
+      }
     }
   }
   else // INT_RESULT
@@ -598,13 +601,16 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     String str(buff, sizeof(buff), system_charset_info), *res;
-    if (!(res= var->value->val_str_ascii(&str)))
+    if (!(res= var->value->val_str(&str)))
       var->save_result.ptr= NULL;
-    else if (!(var->save_result.ptr= get_charset_by_name(res->c_ptr(), MYF(0))))
+    else
     {
-      ErrConvString err(res);
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
-      return true;
+      ErrConvString err(res); /* Get utf8 '\0'-terminated string */
+      if (!(var->save_result.ptr= get_charset_by_name(err.ptr(), MYF(0))))
+      {
+        my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
+        return true;
+      }
     }
   }
   else // INT_RESULT
