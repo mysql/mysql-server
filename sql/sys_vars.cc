@@ -206,6 +206,14 @@ static Sys_var_ulong Sys_pfs_setup_actors_size(
        DEFAULT(PFS_MAX_SETUP_ACTOR),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_setup_objects_size(
+       "performance_schema_setup_objects_size",
+       "Maximum number of rows in SETUP_OBJECTS.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_setup_object_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_SETUP_OBJECT),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -255,16 +263,33 @@ static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
+static bool fix_binlog_stmt_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  check_binlog_stmt_cache_size(thd);
+  return false;
+}
+
 static Sys_var_ulong Sys_binlog_cache_size(
-       "binlog_cache_size", "The size of the cache to "
-       "hold the SQL statements for the binary log during a "
-       "transaction. If you often use big, multi-statement "
-       "transactions you can increase this to get more performance",
+       "binlog_cache_size", "The size of the transactional cache for "
+       "updates to transactional engines for the binary log. "
+       "If you often use transactions containing many statements, "
+       "you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_cache_size));
+
+static Sys_var_ulong Sys_binlog_stmt_cache_size(
+       "binlog_stmt_cache_size", "The size of the statement cache for "
+       "updates to non-transactional engines for the binary log. "
+       "If you often use statements updating a great number of rows, "
+       "you can increase this to get more performance",
+       GLOBAL_VAR(binlog_stmt_cache_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_stmt_cache_size));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -1099,14 +1124,23 @@ static Sys_var_ulong Sys_max_allowed_packet(
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
-       "Can be used to restrict the total size used to cache a "
-       "multi-transaction query",
+       "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_cache_size));
+
+static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
+       "max_binlog_stmt_cache_size",
+       "Sets the total size of the statement cache",
+       GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_stmt_cache_size));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
