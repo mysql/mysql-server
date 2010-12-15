@@ -8,10 +8,11 @@
 # running mostly MySQL using InnoDB only tables and performing complex
 # queries with few connections.
 # 
-# You can copy this file to /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options 
-# (@localstatedir@ for this installation) or to
-# ~/.my.cnf to set user-specific options.
+# MySQL programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, see:
+# http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
@@ -231,15 +232,6 @@ slow_query_log
 # even very fast queries being logged from time to time (as MySQL
 # currently measures time with second accuracy only).
 long_query_time = 2
-
-# The directory used by MySQL for storing temporary files. For example,
-# it is used to perform disk based large sorts, as well as for internal
-# and explicit temporary tables. It might be good to put it on a
-# swapfs/tmpfs filesystem, if you do not create very large temporary
-# files. Alternatively you can put it on dedicated disk. You can
-# specify multiple paths here by separating them by ";" - they will then
-# be used in a round-robin fashion.
-#tmpdir = /tmp
 
 
 # ***  Replication related settings 

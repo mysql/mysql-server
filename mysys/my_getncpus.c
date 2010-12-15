@@ -18,9 +18,10 @@
 #include "mysys_priv.h"
 #include <unistd.h>
 
+#ifdef _SC_NPROCESSORS_ONLN
+
 static int ncpus=0;
 
-#ifdef _SC_NPROCESSORS_ONLN
 int my_getncpus()
 {
   if (!ncpus)

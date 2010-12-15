@@ -308,6 +308,10 @@ var3 two columns with same name
 var4 from query that returns NULL
 var5 from query that returns no row
 failing query in let
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+`select 42`
+drop table t1;
 mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
@@ -398,7 +402,9 @@ true-inner
 true-inner again
 true-outer
 Counter is greater than 0, (counter=10)
+Counter should still be 10, is 10
 Counter is not 0, (counter=0)
+Not space var works
 Counter is true, (counter=alpha)
 Beta is true
 while with string, only once
@@ -798,7 +804,7 @@ drop table t1;
 mysqltest: At line 1: change user failed: Unknown database 'inexistent'
 mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
 mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
-file1.txt
+REPLACED_FILE1.txt
 file1.txt
 file2.txt
 file11.txt

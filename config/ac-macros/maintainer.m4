@@ -19,6 +19,7 @@ AC_DEFUN([MY_MAINTAINER_MODE_WARNINGS], [
   AS_IF([test "$GCC" = "yes"], [
     C_WARNINGS="-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
     CXX_WARNINGS="${C_WARNINGS} -Wno-unused-parameter"
+    C_WARNINGS="${C_WARNINGS} -Wdeclaration-after-statement"
   ])
 
   # Test whether the warning options work.

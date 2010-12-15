@@ -441,7 +441,7 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   int first_word_len, query_len;
-  my_bool abort_on_error;
+  my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
   enum enum_commands type;
@@ -471,7 +471,7 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 void var_free(void* v);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
-void eval_expr(VAR* v, const char *p, const char** p_end);
+void eval_expr(VAR* v, const char *p, const char** p_end, bool backtick= true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -2233,7 +2233,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(var, result.str, (const char**) &end);
+    /* Evaluation should not recurse via backtick */
+    eval_expr(var, result.str, (const char**) &end, false);
     dynstr_free(&result);
   }
   else
@@ -2389,7 +2390,7 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end)
+void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
 {
 
   DBUG_ENTER("eval_expr");
@@ -2414,7 +2415,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`')
+  if (*p == '`' && backtick)
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
@@ -3284,7 +3285,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     if (ds_wild && ds_wild->length &&
         wild_compare(file->name, ds_wild->str, 0))
       continue;
-    dynstr_append(ds, file->name);
+    replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
   set_wild_chars(0);
@@ -3314,6 +3315,7 @@ static void do_list_files(struct st_command *command)
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -3355,6 +3357,7 @@ static void do_list_files_write_file_command(struct st_command *command,
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -5439,7 +5442,9 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (*expr_start == '!')
   {
     not_expr= TRUE;
-    expr_start++; /* Step past the '!' */
+    expr_start++; /* Step past the '!', then any whitespace */
+    while (*expr_start && my_isspace(charset_info, *expr_start))
+      expr_start++;
   }
   /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
@@ -8386,7 +8391,7 @@ int main(int argc, char **argv)
       memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
     }
 
-    if (command_executed != last_command_executed)
+    if (command_executed != last_command_executed || command->used_replace)
     {
       /*
         As soon as any command has been executed,

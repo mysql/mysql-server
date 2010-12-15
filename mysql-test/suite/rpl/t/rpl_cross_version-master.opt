@@ -1,1 +1,2 @@
 --replicate-same-server-id --relay-log=slave-relay-bin --secure-file-priv=$MYSQL_TMP_DIR
+--force-restart
