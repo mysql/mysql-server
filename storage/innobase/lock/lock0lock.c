@@ -4297,6 +4297,7 @@ lock_remove_recovered_trx_record_locks(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		lock_t*	lock;
+		lock_t*	next_lock;
 
 		if (!trx->is_recovered) {
 			continue;
@@ -4304,7 +4305,7 @@ lock_remove_recovered_trx_record_locks(
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
-		     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+		     lock = next_lock) {
 
 			ut_a(lock->trx == trx);
 
@@ -4316,6 +4317,8 @@ lock_remove_recovered_trx_record_locks(
 			table level locks. */
 
 			ut_a(lock_get_type_low(lock) == LOCK_REC);
+
+			next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
 
 			if (lock->index->table == table) {
 				lock_rec_discard(lock);
