@@ -409,7 +409,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
-my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
+my_bool read_only= 0, opt_readonly= 0;
+my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -464,6 +465,8 @@ ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
+ulong binlog_stmt_cache_size=0;
+ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -475,6 +478,7 @@ ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
 ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
+ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 /**
   Limit of the total number of prepared statements in the server.
@@ -1504,6 +1508,13 @@ void clean_up(bool print_message)
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
 
+  my_free(const_cast<char*>(log_bin_basename));
+  my_free(const_cast<char*>(log_bin_index));
+#ifndef EMBEDDED_LIBRARY
+  my_free(const_cast<char*>(relay_log_basename));
+  my_free(const_cast<char*>(relay_log_index));
+#endif
+
   /*
     The following lines may never be executed as the main thread may have
     killed us
@@ -1989,6 +2000,7 @@ void close_connection(THD *thd, uint errcode, bool lock)
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -4740,6 +4752,7 @@ int mysqld_main(int argc, char **argv)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
+  check_binlog_stmt_cache_size(NULL);
 
   binlog_unsafe_map_init();
   /*
@@ -6641,6 +6654,8 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
+  {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,  SHOW_LONG},
+  {"Binlog_stmt_cache_use",    (char*) &binlog_stmt_cache_use,       SHOW_LONG},
   {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
@@ -7566,6 +7581,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.engine_condition_pushdown=
     test(global_system_variables.optimizer_switch &
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+
+  opt_readonly= read_only;
 
   return 0;
 }

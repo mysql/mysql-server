@@ -42,6 +42,8 @@ struct mysql_event
   LOG events occurs before emitting to the general query log.
   ERROR events occur before transmitting errors to the user. 
   RESULT events occur after transmitting a resultset to the user.
+  STATUS events occur after transmitting a resultset or errors
+  to the user.
 */
 
 #define MYSQL_AUDIT_GENERAL_CLASS 0
@@ -49,6 +51,7 @@ struct mysql_event
 #define MYSQL_AUDIT_GENERAL_LOG 0
 #define MYSQL_AUDIT_GENERAL_ERROR 1
 #define MYSQL_AUDIT_GENERAL_RESULT 2
+#define MYSQL_AUDIT_GENERAL_STATUS 3
 
 struct mysql_event_general
 {
@@ -65,6 +68,43 @@ struct mysql_event_general
   struct charset_info_st *general_charset;
   unsigned long long general_time;
   unsigned long long general_rows;
+};
+
+
+/*
+  AUDIT CLASS : CONNECTION
+  
+  CONNECT occurs after authentication phase is completed.
+  DISCONNECT occurs after connection is terminated.
+  CHANGE_USER occurs after COM_CHANGE_USER RPC is completed.
+*/
+
+#define MYSQL_AUDIT_CONNECTION_CLASS 1
+#define MYSQL_AUDIT_CONNECTION_CLASSMASK (1 << MYSQL_AUDIT_CONNECTION_CLASS)
+#define MYSQL_AUDIT_CONNECTION_CONNECT 0
+#define MYSQL_AUDIT_CONNECTION_DISCONNECT 1
+#define MYSQL_AUDIT_CONNECTION_CHANGE_USER 2
+
+struct mysql_event_connection
+{
+  unsigned int event_class;
+  unsigned int event_subclass;
+  int status;
+  unsigned long thread_id;
+  const char *user;
+  unsigned int user_length;
+  const char *priv_user;
+  unsigned int priv_user_length;
+  const char *external_user;
+  unsigned int external_user_length;
+  const char *proxy_user;
+  unsigned int proxy_user_length;
+  const char *host;
+  unsigned int host_length;
+  const char *ip;
+  unsigned int ip_length;
+  const char *database;
+  unsigned int database_length;
 };
 
 

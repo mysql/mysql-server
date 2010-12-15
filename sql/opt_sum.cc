@@ -424,7 +424,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
           item_sum->aggregator_clear();
         }
         else
-          item_sum->reset();
+          item_sum->reset_and_add();
         item_sum->make_const();
         recalc_const_item= 1;
         break;

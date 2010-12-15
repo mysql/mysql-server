@@ -1363,6 +1363,13 @@ SELECT 1 FROM t1, t1 t2
 ORDER BY QUOTE(t1.a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57913 large negative number to string conversion functions crash
+--echo # Bug#57810 case/when/then : Assertion failed: length || !scale
+--echo #
+SELECT '1' IN ('1', SUBSTRING(-9223372036854775809, 1));
+SELECT CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3));
+
 --echo End of 5.1 tests
 
 --echo Start of 5.4 tests
@@ -1420,4 +1427,124 @@ DROP TABLE t1;
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#5510 Functions to_base64 and from_base64
+--echo #
+let $1=64;
+while($1)
+{
+  dec $1;
+  eval CREATE TABLE t1 AS SELECT TO_BASE64(REPEAT('a',$1)) AS to_base64;
+  SHOW CREATE TABLE t1;
+  SELECT to_base64, LENGTH(to_base64) FROM t1;
+  CREATE TABLE t2 AS SELECT from_base64(to_base64) AS from_base64 FROM t1;
+  SHOW CREATE TABLE t2;
+  SELECT from_base64, LENGTH(from_base64) FROM t2;
+  DROP TABLE t2;
+  DROP TABLE t1;
+  --echo
+}
+CREATE TABLE t1 (a VARBINARY(64));
+INSERT INTO t1 VALUES (0x00), (0x0000), (0x000000), (0x00000000);
+INSERT INTO t1 VALUES (0x00010203040506070809);
+SELECT TO_BASE64(a), hex(a) FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo #
+--echo # Test NULL output for NULL input
+--echo #
+SELECT TO_BASE64(NULL);
+SELECT FROM_BASE64(NULL);
+
+--echo #
+--echo # RFC4648 test vectors
+--echo #
+SELECT @b:= TO_BASE64(''), FROM_BASE64(@b);       # ""
+SELECT @b:= TO_BASE64('f'), FROM_BASE64(@b);      # "Zg=="
+SELECT @b:= TO_BASE64('fo'), FROM_BASE64(@b);     # "Zm8="
+SELECT @b:= TO_BASE64('foo'), FROM_BASE64(@b);    # "Zm9v"
+SELECT @b:= TO_BASE64('foob'), FROM_BASE64(@b);   # "Zm9vYg=="
+SELECT @b:= TO_BASE64('fooba'), FROM_BASE64(@b);  # "Zm9vYmE="
+SELECT @b:= TO_BASE64('foobar'), FROM_BASE64(@b); # "Zm9vYmFy"
+
+
+--echo #
+--echo # Invalid characters - return NULL
+--echo #
+SELECT hex(FROM_BASE64('#'));
+SELECT hex(FROM_BASE64('A#'));
+SELECT hex(FROM_BASE64('AB#'));
+SELECT hex(FROM_BASE64('ABC#'));
+SELECT hex(FROM_BASE64('ABCD#'));
+
+--echo #
+--echo # "=" is not valid on the first and second positions of a quadruple
+--echo #
+SELECT hex(FROM_BASE64('='));
+SELECT hex(FROM_BASE64('A='));
+SELECT hex(FROM_BASE64('ABCD='));
+SELECT hex(FROM_BASE64('ABCDE='));
+
+--echo #
+--echo # Incomplete sequences - return NULL
+--echo #
+SELECT hex(FROM_BASE64('A'));
+SELECT hex(FROM_BASE64('AB'));
+SELECT hex(FROM_BASE64('ABC'));
+
+--echo #
+--echo # Unexpected input after pad characters - return NULL
+--echo #
+SELECT hex(FROM_BASE64('AAA=x'));
+SELECT hex(FROM_BASE64('AA==x'));
+
+
+--echo #
+--echo # Delimiters are allowed at any position
+--echo #
+SELECT hex(FROM_BASE64('  A B C D  '));
+SELECT hex(FROM_BASE64('  A A = = '));
+SELECT hex(FROM_BASE64('  A A A = '));
+SELECT hex(FROM_BASE64('  A  \n  B  \r  C  \t D  '));
+
+--echo #
+--echo # Testing that to_base64 respects max_allowed_packet
+--echo #
+SELECT LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)));
+
+--echo #
+--echo # Testing base64 with various data types
+--echo #
+CREATE TABLE t1 (
+  i1 INT, 
+  f1 FLOAT,
+  dc1 DECIMAL(10,5),
+  e1 ENUM('enum11','enum12','enum13'),
+  s1 SET('set1','set2','set3'),
+  t1 TIME,
+  d1 DATE,
+  dt1 DATETIME
+);
+INSERT INTO t1 VALUES
+(-12345, -456.789, 123.45, 'enum13', 'set1,set3',
+'01:02:03', '2010-01-01', '2011-01-01 02:03:04');
+SELECT FROM_BASE64(TO_BASE64(i1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(f1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(dc1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(e1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(s1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(t1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(d1)) FROM t1;
+SELECT FROM_BASE64(TO_BASE64(dt1)) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.6 tests
 --echo #
