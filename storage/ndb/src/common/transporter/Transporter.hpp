@@ -48,7 +48,7 @@ public:
    * None blocking
    *    Use isConnected() to check status
    */
-  bool connect_client();
+  virtual bool connect_client();
   bool connect_client(NDB_SOCKET_TYPE sockfd);
   bool connect_server(NDB_SOCKET_TYPE socket);
 

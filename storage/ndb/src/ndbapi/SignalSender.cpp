@@ -191,11 +191,6 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                    Uint32 len)
 {
   sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
-  if (nodeId == theFacade->ownId())
-  {
-    // No need to fragment when sending to own node
-    return sendSignal(nodeId, &sig);
-  }
 
   return theFacade->sendFragmentedSignal((NdbApiSignal*)&sig.header,
                                          nodeId,

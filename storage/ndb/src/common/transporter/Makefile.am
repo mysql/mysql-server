@@ -21,6 +21,7 @@ noinst_LTLIBRARIES = libtransporter.la
 libtransporter_la_SOURCES = \
 	Transporter.cpp \
 	TCP_Transporter.cpp \
+	Loopback_Transporter.cpp \
 	TransporterRegistry.cpp \
         Packer.cpp
 

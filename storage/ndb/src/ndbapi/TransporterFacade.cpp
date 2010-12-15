@@ -597,9 +597,17 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
       doConnect(remoteNodeId);
     }
   }
+
+  /**
+   * Also setup Loopback Transporter
+   */
+  if (is_mgmd(nodeId, conf))
+  {
+    doConnect(nodeId);
+  }
+
   DBUG_RETURN(true);
 }
-
 
 bool
 TransporterFacade::configure(NodeId nodeId,
@@ -614,7 +622,8 @@ TransporterFacade::configure(NodeId nodeId,
   // Configure transporters
   if (!IPCConfig::configureTransporters(nodeId,
                                         * conf,
-                                        * theTransporterRegistry))
+                                        * theTransporterRegistry,
+                                        is_mgmd(nodeId, conf)))
     DBUG_RETURN(false);
 
   // Configure cluster manager
@@ -1714,17 +1723,6 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
     signalLogger.flushSignalLog();
   }
 #endif
-
-  if (nodeId == theFacade->ownId())
-  {
-    SignalHeader tmp= s->header;
-    tmp.theSendersBlockRef = getOwnRef();
-    theFacade->deliver_signal(&tmp,
-                              1, // JBB
-                              (Uint32*)&s->theData[0],
-                              (LinearSectionPtr*)&s->ptr[0]);
-    return SEND_OK;
-  }
 
   SendStatus ss = 
     theFacade->theTransporterRegistry->prepareSend(&s->header,

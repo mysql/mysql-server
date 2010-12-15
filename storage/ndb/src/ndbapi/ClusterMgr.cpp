@@ -141,7 +141,7 @@ ClusterMgr::configure(Uint32 nodeId,
   }
 
   /* Init own node info */
-  Node &node= theNodes[theFacade.ownId()];
+  Node &node= theNodes[getOwnNodeId()];
   assert(node.defined);
   node.set_connected(true);
   node.set_confirmed(true);
@@ -342,6 +342,9 @@ ClusterMgr::threadMain( ){
       assert(nodeId > 0 && nodeId < MAX_NODES);
       Node & theNode = theNodes[nodeId];
       
+      if (nodeId == getOwnNodeId())
+        continue;
+
       if (!theNode.defined)
 	continue;
 
