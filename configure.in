@@ -910,46 +910,6 @@ struct request_info *req;
 ])
 AC_SUBST(WRAPLIBS)
 
-if test "$TARGET_LINUX" = "true"; then
-  AC_ARG_WITH(pstack,
-    [  --with-pstack           Use the pstack backtrace library],
-    [ USE_PSTACK=$withval ],
-    [ USE_PSTACK=no ])
-  pstack_libs=
-  pstack_dir=
-  if test "$USE_PSTACK" = yes -a "$TARGET_LINUX" = "true" -a "$BASE_MACHINE_TYPE" = "i386"
-  then
-    have_libiberty= have_libbfd=
-    my_save_LIBS="$LIBS"
-dnl I have no idea if this is a good test - can not find docs for libiberty  
-    AC_CHECK_LIB([iberty], [fdmatch],
-      [have_libiberty=yes
-       AC_CHECK_LIB([bfd], [bfd_openr], [have_libbfd=yes], , [-liberty])])
-    LIBS="$my_save_LIBS"
-
-    if test x"$have_libiberty" = xyes -a x"$have_libbfd" = xyes
-    then
-      pstack_dir="pstack"
-      pstack_libs="../pstack/libpstack.a -lbfd -liberty"
-      # We must link staticly when using pstack
-      with_mysqld_ldflags="-all-static"
-      AC_SUBST([pstack_dir])
-      AC_SUBST([pstack_libs])
-      AC_DEFINE([USE_PSTACK], [1], [the pstack backtrace library])
-dnl This check isn't needed, but might be nice to give some feedback....
-dnl    AC_CHECK_HEADER(libiberty.h,
-dnl      have_libiberty_h=yes,
-dnl      have_libiberty_h=no)
-    else
-      USE_PSTACK="no"
-    fi
-  else
-    USE_PSTACK="no"
-  fi
-fi
-AC_MSG_CHECKING([if we should use pstack])
-AC_MSG_RESULT([$USE_PSTACK])
-
 # Check for gtty if termio.h doesn't exists
 if test "$ac_cv_header_termio_h" = "no" -a "$ac_cv_header_termios_h" = "no"
 then
@@ -1178,7 +1138,7 @@ dnl Is this the right match for DEC OSF on alpha?
         sql/Makefile.in)
           # Use gen_lex_hash.linux instead of gen_lex_hash
           # Add library dependencies to mysqld_DEPENDENCIES
-          lib_DEPENDENCIES="\$(pstack_libs) \$(openssl_libs) \$(yassl_libs)"
+          lib_DEPENDENCIES="\$(openssl_libs) \$(yassl_libs)"
           cat > $filesed << EOF
 s,\(\./gen_lex_hash\)\$(EXEEXT),\1.linux,
 s%\(mysqld_DEPENDENCIES = \)%\1$lib_DEPENDENCIES %
@@ -2880,9 +2840,6 @@ esac
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
-if test -d "$srcdir/pstack" ; then
-  AC_CONFIG_FILES(pstack/Makefile pstack/aout/Makefile)
-fi
 if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi

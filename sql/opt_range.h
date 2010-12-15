@@ -265,6 +265,7 @@ public:
 
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
+  virtual bool clustered_pk_range() { return false; }
 
   enum {
     QS_TYPE_RANGE = 0,
@@ -532,6 +533,8 @@ public:
   MEM_ROOT alloc;
   THD *thd;
   int read_keys_and_merge();
+
+  bool clustered_pk_range() { return test(pk_quick_select); }
 
   /* used to get rows collected in Unique */
   READ_RECORD read_record;

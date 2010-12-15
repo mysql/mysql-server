@@ -5,8 +5,7 @@
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software. View the full text of the exception in file
-   EXCEPTIONS-CLIENT in the directory of this software distribution.
+   is applied to this software.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -131,8 +130,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       mysql_port = MYSQL_PORT;
 #ifndef MSDOS
       {
-	struct servent *serv_ptr;
-	char	*env;
+        char *env;
+        struct servent *serv_ptr __attribute__((unused));
 
         /*
           if builder specifically requested a default port, use that

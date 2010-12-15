@@ -194,6 +194,15 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
+  else if (select && select->quick && select->quick->clustered_pk_range())
+  {
+    /*
+      In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
+      use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
+      sort file does not contain rowids which satisfy clustered pk range.
+    */
+    tempfile= 0;
+  }
   else
     tempfile= table->sort.io_cache;
   if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
