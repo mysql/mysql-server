@@ -117,8 +117,8 @@ IF(UNIX)
 
   OPTION(WITH_PIC "" ON) # Why?
 
-  # Ensure aio is available on Linux (required by InnoDB)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Ensure aio is available on Linux (required by InnoDB)
     CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
     IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
@@ -130,6 +130,9 @@ IF(UNIX)
         SuSE:                       zypper install libaio-devel
        ")
     ENDIF()
+
+    # Enable fast mutexes on Linux
+    OPTION(WITH_FAST_MUTEXES "" ON)
   ENDIF()
 
 ENDIF()

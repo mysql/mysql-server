@@ -427,6 +427,8 @@ extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf16_bin;
 extern CHARSET_INFO my_charset_utf16_general_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf16le_bin;
+extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
