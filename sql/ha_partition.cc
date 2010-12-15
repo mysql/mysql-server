@@ -3050,7 +3050,9 @@ int ha_partition::write_row(uchar * buf)
   my_bitmap_map *old_map;
   HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
   THD *thd= ha_thd();
-  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
+  timestamp_auto_set_type saved_timestamp_type= table->timestamp_field_type;
+  ulong saved_sql_mode= thd->variables.sql_mode;
+  bool saved_auto_inc_field_not_null= table->auto_increment_field_not_null;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -3086,6 +3088,22 @@ int ha_partition::write_row(uchar * buf)
     */
     if (error)
       goto exit;
+
+    /*
+      Don't allow generation of auto_increment value the partitions handler.
+      If a partitions handler would change the value, then it might not
+      match the partition any longer.
+      This can occur if 'SET INSERT_ID = 0; INSERT (NULL)',
+      So allow this by adding 'MODE_NO_AUTO_VALUE_ON_ZERO' to sql_mode.
+      The partitions handler::next_insert_id must always be 0. Otherwise
+      we need to forward release_auto_increment, or reset it for all
+      partitions.
+    */
+    if (table->next_number_field->val_int() == 0)
+    {
+      table->auto_increment_field_not_null= TRUE;
+      thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
+    }
   }
 
   old_map= dbug_tmp_use_all_columns(table, table->read_set);
@@ -3119,7 +3137,9 @@ int ha_partition::write_row(uchar * buf)
     set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
 exit:
-  table->timestamp_field_type= orig_timestamp_type;
+  thd->variables.sql_mode= saved_sql_mode;
+  table->auto_increment_field_not_null= saved_auto_inc_field_not_null;
+  table->timestamp_field_type= saved_timestamp_type;
   DBUG_RETURN(error);
 }
 
@@ -3186,11 +3206,24 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
   else
   {
+    Field *saved_next_number_field= table->next_number_field;
+    /*
+      Don't allow generation of auto_increment value for update.
+      table->next_number_field is never set on UPDATE.
+      But is set for INSERT ... ON DUPLICATE KEY UPDATE,
+      and since update_row() does not generate or update an auto_inc value,
+      we cannot have next_number_field set when moving a row
+      to another partition with write_row(), since that could
+      generate/update the auto_inc value.
+      This gives the same behavior for partitioned vs non partitioned tables.
+    */
+    table->next_number_field= NULL;
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
     error= m_file[new_part_id]->ha_write_row(new_data);
     reenable_binlog(thd);
+    table->next_number_field= saved_next_number_field;
     if (error)
       goto exit;
 

@@ -6832,7 +6832,6 @@ view_err:
 			  table->alias);
     }
 
-    VOID(pthread_mutex_lock(&LOCK_open));
     /*
       Unlike to the above case close_cached_table() below will remove ALL
       instances of TABLE from table cache (it will also remove table lock
@@ -6853,6 +6852,7 @@ view_err:
       */
       ha_autocommit_or_rollback(thd, 0);
 
+      VOID(pthread_mutex_lock(&LOCK_open));
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -6885,6 +6885,8 @@ view_err:
         }
       }
     }
+    else
+      VOID(pthread_mutex_lock(&LOCK_open));
 
     if (error == HA_ERR_WRONG_COMMAND)
     {

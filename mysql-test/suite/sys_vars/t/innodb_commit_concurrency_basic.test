@@ -11,6 +11,10 @@
 # Creation Date: 2008-02-07                                                   #
 # Author:  Rizwan                                                             #
 #                                                                             #
+# Modified 2010-09-01 Horst                                                   #
+# Added amaster.opt with innodb-commit-concurrency > 0 to be able to assign   #
+# different values <> 0                                                       #
+#                                                                             #
 #Description:Test Cases of Dynamic System Variable innodb_commit_concurrency  #
 #             that checks the behavior of this variable in the following ways #
 #              * Default Value                                                #
@@ -43,7 +47,6 @@ SELECT @global_start_value;
 #           Display the DEFAULT value of innodb_commit_concurrency     #
 ######################################################################## 
 
-SET @@global.innodb_commit_concurrency = 0;
 SET @@global.innodb_commit_concurrency = DEFAULT;
 SELECT @@global.innodb_commit_concurrency;
 
@@ -60,19 +63,13 @@ SELECT @@innodb_commit_concurrency;
 --Error ER_UNKNOWN_TABLE
 SELECT local.innodb_commit_concurrency;
 
+--error ER_WRONG_ARGUMENTS
 SET global innodb_commit_concurrency = 0;
-
-SELECT @@global.innodb_commit_concurrency;
-
 
 --echo '#--------------------FN_DYNVARS_046_03------------------------#'
 ########################################################################## 
 #      change the value of innodb_commit_concurrency to a valid value    #
 ########################################################################## 
-
-
-SET @@global.innodb_commit_concurrency = 0;
-SELECT @@global.innodb_commit_concurrency;
 
 SET @@global.innodb_commit_concurrency = 1;
 SELECT @@global.innodb_commit_concurrency;
@@ -85,15 +82,13 @@ SELECT @@global.innodb_commit_concurrency;
 ########################################################################### 
 
 SET @@global.innodb_commit_concurrency = -1;
-SELECT @@global.innodb_commit_concurrency;
+SELECT @@global.innodb_commit_concurrency IN (4294967295,18446744073709551615);
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "T";
-SELECT @@global.innodb_commit_concurrency;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "Y";
-SELECT @@global.innodb_commit_concurrency;
 
 SET @@global.innodb_commit_concurrency = 1001;
 SELECT @@global.innodb_commit_concurrency;
@@ -131,6 +126,7 @@ SELECT @@global.innodb_commit_concurrency;
 
 SET @@global.innodb_commit_concurrency = TRUE;
 SELECT @@global.innodb_commit_concurrency;
+--error ER_WRONG_ARGUMENTS
 SET @@global.innodb_commit_concurrency = FALSE;
 SELECT @@global.innodb_commit_concurrency;
 

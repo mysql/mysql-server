@@ -346,4 +346,11 @@ FROM t1 GROUP BY a LIMIT 1;
 
 DROP TABLE t1;
 
+#
+# BUG#56138 "valgrind errors about overlapping memory when
+# double-assigning same variable"
+#
+
+select @v:=@v:=sum(1) from dual;
+
 --echo End of 5.1 tests

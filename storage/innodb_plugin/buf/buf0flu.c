@@ -1710,9 +1710,9 @@ buf_flush_validate_low(void)
 		ut_a(om > 0);
 
 		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+			buf_page_t* rpage;
 			ut_a(rnode);
-			buf_page_t* rpage = *rbt_value(buf_page_t*,
-						       rnode);
+			rpage = *rbt_value(buf_page_t*, rnode);
 			ut_a(rpage);
 			ut_a(rpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);

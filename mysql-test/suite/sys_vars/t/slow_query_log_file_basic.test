@@ -35,7 +35,9 @@
 #   Saving initial value of slow_query_log_file in a temporary variable   #
 ###########################################################################
 
-SET @start_value = @@global.slow_query_log_file;
+#SET @start_value = @@global.slow_query_log_file;
+LET $start_value = `SELECT @@global.slow_query_log_file`;
+--echo $start_value
 
 --echo '#---------------------FN_DYNVARS_004_01-------------------------#'
 ############################################### 
@@ -65,7 +67,9 @@ SELECT @@global.slow_query_log_file = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='slow_query_log_file';
 
-SET @@global.slow_query_log_file= @start_value;
+#SET @@global.slow_query_log_file= @start_value;
+eval SET @@global.slow_query_log_file= '$start_value';
+#SELECT @start_value;
 #####################################################
 #       END OF slow_query_log_file TESTS            #
 #####################################################

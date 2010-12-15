@@ -79,6 +79,7 @@ INSERT into t1(name) values('Record_4');
 --chmod 0777 $MYSQLD_LOGFILE.orig
 
 --echo ## There should be a difference ##
+SET @start_value= @@global.max_allowed_packet;
 SET @@global.max_allowed_packet= 1024*1024*1024;
 --replace_result $MYSQLD_LOGFILE MYSQLD_LOGFILE
 eval SET @orig_file= load_file('$MYSQLD_LOGFILE.orig');
@@ -91,3 +92,4 @@ eval SELECT STRCMP(@orig_file, @copy_file);
 --echo ## Dropping tables ##
 DROP TABLE t1;
 
+SET @@global.max_allowed_packet= @start_value;

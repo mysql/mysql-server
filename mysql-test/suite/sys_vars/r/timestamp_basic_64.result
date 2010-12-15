@@ -8,14 +8,6 @@ ERROR HY000: Variable 'timestamp' is a SESSION variable and can't be used with S
 '#--------------------FN_DYNVARS_001_03------------------------#'
 SET @@timestamp = 0;
 'Setting 0 resets timestamp to session default timestamp'
-SET @@timestamp = 123456789123456;
-SELECT @@timestamp;
-@@timestamp
-123456789123456
-SET @@timestamp = 60*60*60*60*365;
-SELECT @@timestamp;
-@@timestamp
-4730400000
 SET @@timestamp = -1000000000;
 SELECT @@timestamp;
 @@timestamp
@@ -66,3 +58,11 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT timestamp = @@session.timestamp;
 ERROR 42S22: Unknown column 'timestamp' in 'field list'
 SET @@timestamp = @session_start_value;
+SET @@timestamp = 123456789123456;
+SELECT @@timestamp;
+@@timestamp
+123456789123456
+SET @@timestamp = 60*60*60*60*365;
+SELECT @@timestamp;
+@@timestamp
+4730400000

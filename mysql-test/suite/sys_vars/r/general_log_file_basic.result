@@ -1,7 +1,6 @@
-SET @start_value = @@global.general_log_file;
 SELECT @start_value;
 @start_value
-test.log
+NULL
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.general_log_file = DEFAULT;
 SELECT RIGHT(@@global.general_log_file,10) AS log_file;
@@ -17,4 +16,4 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='general_log_file';
 @@global.general_log_file = VARIABLE_VALUE
 1
-SET @@global.general_log_file= @start_value;
+SET @@global.general_log_file= 'test.log';
