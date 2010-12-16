@@ -1537,6 +1537,18 @@ DROP TABLE t1, t2;
 SET NAMES utf8;
 --source include/ctype_numconv.inc
 
+--echo #
+--echo # Bug#57687 crash when reporting duplicate group_key error and utf8
+--echo # Make sure to modify this when Bug#58081 is fixed.
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
+--error ER_DUP_ENTRY
+SELECT COUNT(*) FROM t1, t1 t2 
+GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
+DROP TABLE t1;
+
 
 --echo #
 --echo # End of 5.5 tests
