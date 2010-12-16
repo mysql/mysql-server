@@ -414,8 +414,6 @@ void Mrr_ordered_index_reader::resume_read()
 int Mrr_ordered_index_reader::refill_buffer(bool initial)
 {
   KEY_MULTI_RANGE cur_range;
-  uchar **range_info_ptr= (uchar**)&cur_range.ptr;
-  uchar *key_ptr;
   DBUG_ENTER("Mrr_ordered_index_reader::refill_buffer");
 
   DBUG_ASSERT(key_buffer->is_empty());
@@ -425,9 +423,8 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
 
   buf_manager->reset_buffer_sizes(buf_manager->arg);
   key_buffer->reset();
-  key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
-                            is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
-                            is_mrr_assoc? sizeof(uchar*):0);
+  key_buffer->setup_writing(keypar.key_size_in_keybuf,
+                            is_mrr_assoc? sizeof(char*) : 0);
 
   while (key_buffer->can_write() && 
          !(source_exhausted= mrr_funcs.next(mrr_iter, &cur_range)))
@@ -435,9 +432,10 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
     DBUG_ASSERT(cur_range.range_flag & EQ_RANGE);
 
     /* Put key, or {key, range_id} pair into the buffer */
-    key_ptr= (keypar.use_key_pointers)? (uchar*)&cur_range.start_key.key : 
-                                        (uchar*)cur_range.start_key.key;
-
+    key_buffer->write_ptr1= keypar.use_key_pointers ?
+                              (uchar*)&cur_range.start_key.key : 
+                              (uchar*)cur_range.start_key.key;
+    key_buffer->write_ptr2= (uchar*)&cur_range.ptr;
     key_buffer->write();
   }
   
@@ -591,16 +589,14 @@ void Mrr_index_reader::position()
 int Mrr_ordered_rndpos_reader::refill_from_index_reader()
 {
   char *range_info;
-  uchar **range_info_ptr= (uchar**)&range_info;
   int res;
   DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_from_index_reader");
 
   DBUG_ASSERT(rowid_buffer->is_empty());
   index_rowid= index_reader->get_rowid_ptr();
   rowid_buffer->reset();
-  rowid_buffer->setup_writing(&index_rowid, file->ref_length,
-                              is_mrr_assoc? (uchar**)&range_info_ptr: NULL,
-                              is_mrr_assoc? sizeof(char*):0);
+  rowid_buffer->setup_writing(file->ref_length,
+                              is_mrr_assoc? sizeof(char*) : 0);
 
   last_identical_rowid= NULL;
 
@@ -620,6 +616,8 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
     index_reader->position();
 
     /* Put rowid, or {rowid, range_id} pair into the buffer */
+    rowid_buffer->write_ptr1= index_rowid;
+    rowid_buffer->write_ptr2= (uchar*)&range_info;
     rowid_buffer->write();
   }
    

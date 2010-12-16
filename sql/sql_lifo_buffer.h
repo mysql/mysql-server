@@ -28,18 +28,18 @@ class Backward_lifo_buffer;
 class Lifo_buffer 
 {
 protected:
-  /**
-    Pointers to data to be written. write() call will assume that 
-    (*write_ptr1) points to size1 bytes of data to be written.
-    If write_ptr2 != NULL then the buffer stores pairs, and (*write_ptr2) 
-    points to size2 bytes of data that form the second component.
-  */
-  uchar **write_ptr1;
   size_t size1;
-  uchar **write_ptr2;
   size_t size2;
 
 public:
+  /**
+    write() will put into buffer size1 bytes pointed by write_ptr1. If
+    size2!=0, then they will be accompanied by size2 bytes pointed by
+    write_ptr2.
+  */
+  uchar *write_ptr1;
+  uchar *write_ptr2;
+
   /**
     read() will do reading by storing pointers to read data into read_ptr1 or
     into (read_ptr1, read_ptr2), depending on whether the buffer was set to
@@ -75,11 +75,9 @@ public:
     Specify where write() should get the source data from, as well as source
     data size.
   */
-  void setup_writing(uchar **data1, size_t len1, uchar **data2, size_t len2)
+  void setup_writing(size_t len1, size_t len2)
   {
-    write_ptr1= data1;
     size1= len1;
-    write_ptr2= data2;
     size2= len2;
   }
 
@@ -95,7 +93,7 @@ public:
   
   bool can_write()
   {
-    return have_space_for(size1 + (write_ptr2 ? size2 : 0));
+    return have_space_for(size1 + size2);
   }
   virtual void write() = 0;
 
@@ -104,7 +102,7 @@ public:
   
   void sort(qsort2_cmp cmp_func, void *cmp_func_arg)
   {
-    uint elem_size= size1 + (write_ptr2 ? size2 : 0);
+    uint elem_size= size1 + size2;
     uint n_elements= used_size() / elem_size;
     my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
   }
@@ -164,9 +162,9 @@ public:
 
   void write()
   {
-    write_bytes(*write_ptr1, size1);
-    if (write_ptr2)
-      write_bytes(*write_ptr2, size2);
+    write_bytes(write_ptr1, size1);
+    if (size2)
+      write_bytes(write_ptr2, size2);
   }
   void write_bytes(const uchar *data, size_t bytes)
   {
@@ -257,8 +255,8 @@ public:
   void write()
   {
     if (write_ptr2)
-      write_bytes(*write_ptr2, size2);
-    write_bytes(*write_ptr1, size1);
+      write_bytes(write_ptr2, size2);
+    write_bytes(write_ptr1, size1);
   }
   void write_bytes(const uchar *data, size_t bytes)
   {
