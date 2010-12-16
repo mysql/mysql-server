@@ -600,7 +600,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));
 INSERT INTO t1 VALUES ('test');
-
+--disable_warnings
 SELECT 1 FROM t1 WHERE 1 >
  ALL((SELECT 1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) against (""))
@@ -627,6 +627,7 @@ EXECUTE stmt;
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
+--enable_warnings
 
 DROP TABLE t1;
 
