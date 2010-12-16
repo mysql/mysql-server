@@ -1,0 +1,16 @@
+#
+# Bug #56947 valgrind reports a memory leak in innodb-plugin.innodb-index
+#
+-- source include/have_innodb.inc
+
+SET @old_innodb_file_per_table=@@innodb_file_per_table;
+# avoid a message about filed *.ibd file creation in the error log
+SET GLOBAL innodb_file_per_table=0;
+create table bug56947(a int not null) engine = innodb;
+CREATE TABLE `bug56947#1`(a int) ENGINE=InnoDB;
+--error 156
+alter table bug56947 add unique index (a);
+drop table `bug56947#1`;
+drop table bug56947;
+--disable_query_log
+SET GLOBAL innodb_file_per_table=@old_innodb_file_per_table;

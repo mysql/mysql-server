@@ -328,7 +328,7 @@ int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
 
 
 inline
-int my_decimal2double(uint mask, const my_decimal *d, double *result)
+int my_decimal2double(uint, const my_decimal *d, double *result)
 {
   /* No need to call check_result as this will always succeed */
   return decimal2double((decimal_t*) d, result);

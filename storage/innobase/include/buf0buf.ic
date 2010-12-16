@@ -46,6 +46,48 @@ buf_pool_get_curr_size(void)
 	return(srv_buf_pool_curr_size);
 }
 
+/********************************************************************//**
+Calculates the index of a buffer pool to the buf_pool[] array.
+@return	the position of the buffer pool in buf_pool[] */
+UNIV_INLINE
+ulint
+buf_pool_index(
+/*===========*/
+	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
+{
+	ulint	i = buf_pool - buf_pool_ptr;
+	ut_ad(i < MAX_BUFFER_POOLS);
+	ut_ad(i < srv_buf_pool_instances);
+	return(i);
+}
+
+/******************************************************************//**
+Returns the buffer pool instance given a page instance
+@return buf_pool */
+UNIV_INLINE
+buf_pool_t*
+buf_pool_from_bpage(
+/*================*/
+	const buf_page_t*	bpage) /*!< in: buffer pool page */
+{
+	ulint	i;
+	i = bpage->buf_pool_index;
+	ut_ad(i < srv_buf_pool_instances);
+	return(&buf_pool_ptr[i]);
+}
+
+/******************************************************************//**
+Returns the buffer pool instance given a block instance
+@return buf_pool */
+UNIV_INLINE
+buf_pool_t*
+buf_pool_from_block(
+/*================*/
+	const buf_block_t*	block) /*!< in: block */
+{
+	return(buf_pool_from_bpage(&block->page));
+}
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in pages.
 @return size in pages*/
@@ -886,33 +928,6 @@ buf_block_buf_fix_dec(
 }
 
 /******************************************************************//**
-Returns the buffer pool instance given a page instance
-@return buf_pool */
-UNIV_INLINE
-buf_pool_t*
-buf_pool_from_bpage(
-/*================*/
-	const buf_page_t*	bpage) /*!< in: buffer pool page */
-{
-	/* Every page must be in some buffer pool. */
-	ut_ad(bpage->buf_pool != NULL);
-
-	return(bpage->buf_pool);
-}
-
-/******************************************************************//**
-Returns the buffer pool instance given a block instance
-@return buf_pool */
-UNIV_INLINE
-buf_pool_t*
-buf_pool_from_block(
-/*================*/
-	const buf_block_t*	block) /*!< in: block */
-{
-	return(buf_pool_from_bpage(&block->page));
-}
-
-/******************************************************************//**
 Returns the buffer pool instance given space and offset of page
 @return buffer pool */
 UNIV_INLINE
@@ -929,7 +944,7 @@ buf_pool_get(
 	ignored_offset = offset >> 6; /* 2log of BUF_READ_AHEAD_AREA (64)*/
 	fold = buf_page_address_fold(space, ignored_offset);
 	index = fold % srv_buf_pool_instances;
-	return buf_pool_ptr[index];
+	return(&buf_pool_ptr[index]);
 }
 
 /******************************************************************//**
@@ -939,10 +954,12 @@ UNIV_INLINE
 buf_pool_t*
 buf_pool_from_array(
 /*================*/
-	ulint	index) 		/*!< in: array index to get
+	ulint	index)		/*!< in: array index to get
 				buffer pool instance from */
 {
-	return buf_pool_ptr[index];
+	ut_ad(index < MAX_BUFFER_POOLS);
+	ut_ad(index < srv_buf_pool_instances);
+	return(&buf_pool_ptr[index]);
 }
 
 /******************************************************************//**

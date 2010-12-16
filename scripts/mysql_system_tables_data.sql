@@ -30,8 +30,8 @@ INSERT INTO tmp_user (host,user) SELECT @current_hostname,'' FROM dual WHERE LOW
 INSERT INTO user SELECT * FROM tmp_user WHERE @had_user_table=0;
 DROP TABLE tmp_user;
 
-CREATE TEMPORARY TABLE tmp_proxy_priv LIKE proxy_priv;
-INSERT INTO tmp_proxy_priv VALUES ('localhost', 'root', '', '', TRUE);
-REPLACE INTO tmp_proxy_priv SELECT @current_hostname, 'root', '', '', TRUE FROM DUAL WHERE LOWER (@current_hostname) != 'localhost';
-INSERT INTO  proxy_priv SELECT * FROM tmp_proxy_priv WHERE @had_proxy_priv_table=0;
-DROP TABLE tmp_proxy_priv;
+CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
+INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
+REPLACE INTO tmp_proxies_priv SELECT @current_hostname, 'root', '', '', TRUE, '', now() FROM DUAL WHERE LOWER (@current_hostname) != 'localhost';
+INSERT INTO  proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
+DROP TABLE tmp_proxies_priv;

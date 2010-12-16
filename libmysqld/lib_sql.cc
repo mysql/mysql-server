@@ -506,7 +506,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   orig_argc= *argcp;
   orig_argv= *argvp;
-  load_defaults("my", (const char **)groups, argcp, argvp);
+  if (load_defaults("my", (const char **)groups, argcp, argvp))
+    return 1;
   defaults_argc= *argcp;
   defaults_argv= *argvp;
   remaining_argc= argc;

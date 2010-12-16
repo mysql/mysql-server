@@ -472,6 +472,13 @@ bool Truncate_statement::truncate_table(THD *thd, TABLE_LIST *table_ref)
       binlog_stmt= !error || error != HA_ERR_WRONG_COMMAND;
     }
 
+    /*
+      If we tried to open a MERGE table and failed due to problems with the
+      children tables, the table will have been closed and table_ref->table
+      will be invalid. Reset the pointer here in any case as
+      query_cache_invalidate does not need a valid TABLE object.
+    */
+    table_ref->table= NULL;
     query_cache_invalidate3(thd, table_ref, FALSE);
   }
 

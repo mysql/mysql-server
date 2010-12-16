@@ -1,23 +1,23 @@
-select * from performance_schema.FILE_INSTANCES limit 1;
+select * from performance_schema.file_instances limit 1;
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 #	#	#
-select * from performance_schema.FILE_INSTANCES
+select * from performance_schema.file_instances
 where file_name='FOO';
 FILE_NAME	EVENT_NAME	OPEN_COUNT
-insert into performance_schema.FILE_INSTANCES
+insert into performance_schema.file_instances
 set file_name='FOO', event_name='BAR', open_count=12;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
-update performance_schema.FILE_INSTANCES
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'file_instances'
+update performance_schema.file_instances
 set file_name='FOO';
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
-delete from performance_schema.FILE_INSTANCES
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'file_instances'
+delete from performance_schema.file_instances
 where event_name like "wait/%";
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
-delete from performance_schema.FILE_INSTANCES;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
-LOCK TABLES performance_schema.FILE_INSTANCES READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'file_instances'
+delete from performance_schema.file_instances;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'file_instances'
+LOCK TABLES performance_schema.file_instances READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'file_instances'
 UNLOCK TABLES;
-LOCK TABLES performance_schema.FILE_INSTANCES WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+LOCK TABLES performance_schema.file_instances WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'file_instances'
 UNLOCK TABLES;

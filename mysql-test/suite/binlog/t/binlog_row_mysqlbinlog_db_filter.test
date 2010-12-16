@@ -83,17 +83,17 @@ while($i)
   -- let $flags=--database=b42941
 
   # construct CLI for mysqlbinlog
-  if(`SELECT $i=3`)
+  if($i==3)
   {
     -- let $flags= $flags --verbose --hexdump
   }
 
-  if(`SELECT $i=2`)
+  if($i==2)
   {
     -- let $flags= $flags --verbose
   }
 
-#  if(`SELECT $i=1`)
+#  if($i==1)
 #  {
     # do nothing $flags is already set as it should be
 #  }

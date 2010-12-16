@@ -5005,3 +5005,15 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 DROP TABLE t1,t2;
 End of 5.1 tests
+#
+# Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
+#             Assertion `file' failed.
+#
+CREATE TABLE t1 (a INT);
+SELECT 1 FROM 
+(SELECT ROW(
+(SELECT 1 FROM t1 RIGHT JOIN 
+(SELECT 1 FROM t1, t1 t2) AS d ON 1),
+1) FROM t1) AS e;
+ERROR 21000: Operand should contain 1 column(s)
+DROP TABLE t1;

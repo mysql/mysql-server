@@ -5,35 +5,35 @@ mtr
 mysql
 performance_schema
 test
-select count(*) from performance_schema.PERFORMANCE_TIMERS;
+select count(*) from performance_schema.performance_timers;
 count(*)
 5
-select count(*) from performance_schema.SETUP_CONSUMERS;
+select count(*) from performance_schema.setup_consumers;
 count(*)
 8
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
+select count(*) > 0 from performance_schema.setup_instruments;
 count(*) > 0
 1
-select count(*) from performance_schema.SETUP_TIMERS;
+select count(*) from performance_schema.setup_timers;
 count(*)
 1
-select * from performance_schema.COND_INSTANCES;
-select * from performance_schema.EVENTS_WAITS_CURRENT;
-select * from performance_schema.EVENTS_WAITS_HISTORY;
-select * from performance_schema.EVENTS_WAITS_HISTORY_LONG;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
-select * from performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
-select * from performance_schema.FILE_INSTANCES;
-select * from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
-select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
-select * from performance_schema.MUTEX_INSTANCES;
-select * from performance_schema.PERFORMANCE_TIMERS;
-select * from performance_schema.RWLOCK_INSTANCES;
-select * from performance_schema.SETUP_CONSUMERS;
-select * from performance_schema.SETUP_INSTRUMENTS;
-select * from performance_schema.SETUP_TIMERS;
-select * from performance_schema.THREADS;
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_timers;
+select * from performance_schema.threads;
 show variables like "performance_schema%";
 Variable_name	Value
 performance_schema	ON
@@ -57,7 +57,7 @@ show status like "performance_schema%";
 show variables like "performance_schema_max_mutex_classes";
 Variable_name	Value
 performance_schema_max_mutex_classes	0
-select count(*) from performance_schema.SETUP_INSTRUMENTS
+select count(*) from performance_schema.setup_instruments
 where name like "wait/synch/mutex/%";
 count(*)
 0
@@ -65,7 +65,7 @@ select variable_value > 0 from information_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_MUTEX_CLASSES_LOST';
 variable_value > 0
 1
-select count(*) from performance_schema.MUTEX_INSTANCES;
+select count(*) from performance_schema.mutex_instances;
 count(*)
 0
 show status like "performance_schema_mutex_instances_lost";
