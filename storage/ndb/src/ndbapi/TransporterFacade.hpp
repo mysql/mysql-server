@@ -82,14 +82,14 @@ public:
 
   // Only sends to nodes which are alive
 private:
-  int sendSignal(NdbApiSignal * signal, NodeId nodeId);
-  int sendSignal(NdbApiSignal*, NodeId,
+  int sendSignal(const NdbApiSignal * signal, NodeId nodeId);
+  int sendSignal(const NdbApiSignal*, NodeId,
                  const LinearSectionPtr ptr[3], Uint32 secs);
-  int sendSignal(NdbApiSignal*, NodeId,
+  int sendSignal(const NdbApiSignal*, NodeId,
                  const GenericSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
                            const LinearSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
 public:
 
@@ -211,7 +211,7 @@ private:
   friend class NdbImpl;
   friend class NdbTransaction;
 
-  int sendSignalUnCond(NdbApiSignal *, NodeId nodeId, Uint32 prio = 0);
+  int sendSignalUnCond(const NdbApiSignal *, NodeId nodeId, Uint32 prio = 0);
 
   bool isConnected(NodeId aNodeId);
   void doStop();

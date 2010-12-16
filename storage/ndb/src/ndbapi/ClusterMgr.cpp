@@ -609,8 +609,9 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->minDbVersion= 0;
   conf->nodeState= node.m_state;
 
-  if (theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
-    node.set_confirmed(true);
+  node.set_confirmed(true);
+  if (!theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
+    node.set_confirmed(false);
 }
 
 void
