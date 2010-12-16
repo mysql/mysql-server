@@ -8230,8 +8230,6 @@ ha_innobase::info_low(
 
 	if (flag & HA_STATUS_VARIABLE) {
 
-		dict_table_stats_lock(ib_table, RW_S_LATCH);
-
 		n_rows = ib_table->stat_n_rows;
 
 		/* Because we do not protect stat_n_rows by any mutex in a
@@ -8280,8 +8278,6 @@ ha_innobase::info_low(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-
-		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
@@ -8354,8 +8350,6 @@ ha_innobase::info_low(
 					table->s->keys);
 		}
 
-		dict_table_stats_lock(ib_table, RW_S_LATCH);
-
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
 			/* We could get index quickly through internal
@@ -8417,8 +8411,6 @@ ha_innobase::info_low(
 				  (ulong) rec_per_key;
 			}
 		}
-
-		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
