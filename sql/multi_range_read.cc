@@ -351,7 +351,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
       scanning_key_val_iter= TRUE;
     }
 
-    if ((res= kv_it.get_next()))
+    if ((res= kv_it.get_next(range_info)))
     {
       scanning_key_val_iter= FALSE;
       if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
@@ -359,17 +359,14 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
       kv_it.move_to_next_key_value();
       continue;
     }
-    char *range_info;
-    memcpy(&range_info, cur_range_info, sizeof(char*));
-    if (!skip_index_tuple(range_info) &&
-        !skip_record(range_info, NULL))
+    if (!skip_index_tuple(*range_info) &&
+        !skip_record(*range_info, NULL))
     {
       break;
     }
     /* Go get another (record, range_id) combination */
   } /* while */
 
-  memcpy(range_info, cur_range_info, sizeof(void*));
   DBUG_RETURN(0);
 }
 
@@ -430,7 +427,7 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   key_buffer->reset();
   key_buffer->setup_writing(&key_ptr, keypar.key_size_in_keybuf,
                             is_mrr_assoc? (uchar**)&range_info_ptr : NULL,
-                            sizeof(uchar*));
+                            is_mrr_assoc? sizeof(uchar*):0);
 
   while (key_buffer->can_write() && 
          !(source_exhausted= mrr_funcs.next(mrr_iter, &cur_range)))
@@ -603,7 +600,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   rowid_buffer->reset();
   rowid_buffer->setup_writing(&index_rowid, file->ref_length,
                               is_mrr_assoc? (uchar**)&range_info_ptr: NULL,
-                              sizeof(void*));
+                              is_mrr_assoc? sizeof(char*):0);
 
   last_identical_rowid= NULL;
 
@@ -630,9 +627,8 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   /* Sort the buffer contents by rowid */
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)file);
 
-  rowid_buffer->setup_reading(&rowid, file->ref_length,
-                              is_mrr_assoc? (uchar**)&rowids_range_id: NULL,
-                              sizeof(void*));
+  rowid_buffer->setup_reading(file->ref_length,
+                              is_mrr_assoc ? sizeof(char*) : 0);
   DBUG_RETURN(rowid_buffer->is_empty()? HA_ERR_END_OF_FILE : 0);
 }
 
@@ -662,14 +658,14 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
     */
     (void)rowid_buffer->read();
 
-    if (rowid == last_identical_rowid)
+    if (rowid_buffer->read_ptr1 == last_identical_rowid)
       last_identical_rowid= NULL; /* reached the last of identical rowids */
 
     if (!is_mrr_assoc)
       return 0;
 
-    memcpy(range_info, rowids_range_id, sizeof(uchar*));
-    if (!index_reader->skip_record((char*)*range_info, rowid))
+    memcpy(range_info, rowid_buffer->read_ptr2, sizeof(uchar*));
+    if (!index_reader->skip_record((char*)*range_info, rowid_buffer->read_ptr1))
       return 0;
   }
   
@@ -685,13 +681,13 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 
     if (is_mrr_assoc)
     {
-      memcpy(range_info, rowids_range_id, sizeof(uchar*));
-
-      if (index_reader->skip_record(*range_info, rowid))
+      memcpy(range_info, rowid_buffer->read_ptr2, sizeof(uchar*));
+      if (index_reader->skip_record(*range_info, rowid_buffer->read_ptr1))
         continue;
     }
 
-    res= file->ha_rnd_pos(file->get_table()->record[0], rowid);
+    res= file->ha_rnd_pos(file->get_table()->record[0], 
+                          rowid_buffer->read_ptr1);
 
     if (res == HA_ERR_RECORD_DELETED)
     {
@@ -709,19 +705,17 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
     Check if subsequent buffer elements have the same rowid value as this
     one. If yes, remember this fact so that we don't make any more rnd_pos()
     calls with this value.
-  */
-  uchar *cur_rowid= rowid;
-  /* 
+
     Note: this implies that SQL layer doesn't touch table->record[0]
     between calls.
   */
   Lifo_buffer_iterator it;
   it.init(rowid_buffer);
-  while (!it.read()) // reads to (rowid, ...)
+  while (!it.read())
   {
-    if (file->cmp_ref(rowid, cur_rowid))
+    if (file->cmp_ref(it.read_ptr1, rowid_buffer->read_ptr1))
       break;
-    last_identical_rowid= rowid;
+    last_identical_rowid= it.read_ptr1;
   }
   return 0;
 }
@@ -1202,38 +1196,32 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   owner= owner_arg;
 
   identical_key_it.init(owner->key_buffer);
-  /* Get the first pair into (cur_index_tuple, cur_range_info) */ 
-  owner->key_buffer->setup_reading(&cur_index_tuple, 
-                                   owner->keypar.key_size_in_keybuf,
-                                   owner->is_mrr_assoc? 
-                                     (uchar**)&owner->cur_range_info: NULL,
-                                   sizeof(void*));
+  owner->key_buffer->setup_reading(owner->keypar.key_size_in_keybuf,
+                                   owner->is_mrr_assoc ? sizeof(void*) : 0);
 
   if (identical_key_it.read())
     return HA_ERR_END_OF_FILE;
 
-  uchar *key_in_buf= cur_index_tuple;
+  uchar *key_in_buf= last_identical_key_ptr= identical_key_it.read_ptr1;
 
-  last_identical_key_ptr= cur_index_tuple;
+  uchar *index_tuple= key_in_buf;
   if (owner->keypar.use_key_pointers)
-    memcpy(&cur_index_tuple, key_in_buf, sizeof(char*));
+    memcpy(&index_tuple, key_in_buf, sizeof(char*));
   
   /* Check out how many more identical keys are following */
-  uchar *save_cur_index_tuple= cur_index_tuple;
   while (!identical_key_it.read())
   {
     if (owner->disallow_identical_key_handling ||
         Mrr_ordered_index_reader::compare_keys(owner, key_in_buf, 
-                                               cur_index_tuple))
+                                               identical_key_it.read_ptr1))
       break;
-    last_identical_key_ptr= cur_index_tuple;
+    last_identical_key_ptr= identical_key_it.read_ptr1;
   }
   identical_key_it.init(owner->key_buffer);
-  cur_index_tuple= save_cur_index_tuple;
   res= owner->file->ha_index_read_map(owner->file->get_table()->record[0], 
-                                   cur_index_tuple, 
-                                   owner->keypar.key_tuple_map, 
-                                   HA_READ_KEY_EXACT);
+                                      index_tuple, 
+                                      owner->keypar.key_tuple_map, 
+                                      HA_READ_KEY_EXACT);
 
   if (res)
   {
@@ -1247,7 +1235,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 }
 
 
-int Key_value_records_iterator::get_next()
+int Key_value_records_iterator::get_next(char **range_info)
 {
   int res;
 
@@ -1261,7 +1249,7 @@ int Key_value_records_iterator::get_next()
     
     handler *h= owner->file;
     if ((res= h->ha_index_next_same(h->get_table()->record[0], 
-                                    cur_index_tuple, 
+                                    identical_key_it.read_ptr1, 
                                     owner->keypar.key_tuple_length)))
     {
       /* It's either HA_ERR_END_OF_FILE or some other error */
@@ -1273,7 +1261,10 @@ int Key_value_records_iterator::get_next()
   }
 
   identical_key_it.read(); /* This gets us next range_id */
-  if (!last_identical_key_ptr || (cur_index_tuple == last_identical_key_ptr))
+  memcpy(range_info, identical_key_it.read_ptr2, sizeof(char*));
+
+  if (!last_identical_key_ptr || 
+      (identical_key_it.read_ptr1 == last_identical_key_ptr))
   {
     /* 
       We've reached the last of the identical keys that current record is a
@@ -1289,7 +1280,7 @@ int Key_value_records_iterator::get_next()
 void Key_value_records_iterator::move_to_next_key_value()
 {
   while (!owner->key_buffer->read() && 
-         (cur_index_tuple != last_identical_key_ptr)) {}
+         (owner->key_buffer->read_ptr1 != last_identical_key_ptr)) {}
 }
 
 

@@ -39,14 +39,16 @@ protected:
   uchar **write_ptr2;
   size_t size2;
 
+public:
   /**
-    read() will do reading by storing pointer to read data into *read_ptr1 (if
-    the buffer stores atomic elements), or into {*read_ptr1, *read_ptr2} (if
-    the buffer stores pairs).
+    read() will do reading by storing pointers to read data into read_ptr1 or
+    into (read_ptr1, read_ptr2), depending on whether the buffer was set to
+    store single objects or pairs.
   */
-  uchar **read_ptr1;
-  uchar **read_ptr2;
+  uchar *read_ptr1;
+  uchar *read_ptr2;
 
+protected:
   uchar *start; /**< points to start of buffer space */
   uchar *end;   /**< points to just beyond the end of buffer space */
 public:
@@ -85,11 +87,9 @@ public:
     Specify where read() should store pointers to read data, as well as read
     data size. The sizes must match those passed to setup_writing().
   */
-  void setup_reading(uchar **data1, size_t len1, uchar **data2, size_t len2)
+  void setup_reading(size_t len1, size_t len2)
   {
-    read_ptr1= data1;
     DBUG_ASSERT(len1 == size1);
-    read_ptr2= data2;
     DBUG_ASSERT(len2 == size2);
   }
   
@@ -116,7 +116,7 @@ protected:
   
   /* To be used only by iterator class: */
   virtual uchar *get_pos()= 0;
-  virtual bool read(uchar **position)= 0;
+  virtual bool read(uchar **position, uchar **ptr1, uchar **ptr2)= 0;
   friend class Lifo_buffer_iterator;
 public:
   virtual bool have_space_for(size_t bytes) = 0;
@@ -184,14 +184,14 @@ public:
     *position= (*position) - bytes;
     return *position;
   }
-  bool read() { return read(&pos); }
-  bool read(uchar **position)
+  bool read() { return read(&pos, &read_ptr1, &read_ptr2); }
+  bool read(uchar **position, uchar **ptr1, uchar **ptr2)
   {
-    if (!have_data(*position, size1 + (read_ptr2 ? size2 : 0)))
+    if (!have_data(*position, size1 + size2))
       return TRUE;
-    if (read_ptr2)
-      *read_ptr2= read_bytes(position, size2);
-    *read_ptr1= read_bytes(position, size1);
+    if (size2)
+      *ptr2= read_bytes(position, size2);
+    *ptr1= read_bytes(position, size1);
     return FALSE;
   }
   void remove_unused_space(uchar **unused_start, uchar **unused_end)
@@ -268,15 +268,15 @@ public:
   }
   bool read()
   {
-    return read(&pos);
+    return read(&pos, &read_ptr1, &read_ptr2);
   }
-  bool read(uchar **position)
+  bool read(uchar **position, uchar **ptr1, uchar **ptr2)
   {
-    if (!have_data(*position, size1 + (read_ptr2 ? size2 : 0)))
+    if (!have_data(*position, size1 + size2))
       return TRUE;
-    *read_ptr1= read_bytes(position, size1);
-    if (read_ptr2)
-      *read_ptr2= read_bytes(position, size2);
+    *ptr1= read_bytes(position, size1);
+    if (size2)
+      *ptr2= read_bytes(position, size2);
     return FALSE;
   }
   bool have_data(uchar *position, size_t bytes)
@@ -312,13 +312,17 @@ public:
 };
 
 
-
-/** Iterator to walk over contents of the buffer without reading it. */
+/** Iterator to walk over contents of the buffer without reading from it */
 class Lifo_buffer_iterator
 {
   uchar *pos;
   Lifo_buffer *buf;
+  
 public:
+  /* The data is read to here */
+  uchar *read_ptr1;
+  uchar *read_ptr2;
+
   void init(Lifo_buffer *buf_arg)
   {
     buf= buf_arg;
@@ -333,7 +337,7 @@ public:
   */
   bool read() 
   {
-    return buf->read(&pos);
+    return buf->read(&pos, &read_ptr1, &read_ptr2);
   }
 };
 

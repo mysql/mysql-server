@@ -133,10 +133,10 @@ class Key_value_records_iterator
   */
   bool get_next_row;
   
-  uchar *cur_index_tuple; /* key_buffer.read() reads to here */
+  //uchar *cur_index_tuple; /* key_buffer.read() reads to here */
 public:
   int init(Mrr_ordered_index_reader *owner_arg);
-  int get_next();
+  int get_next(char **range_info);
   void move_to_next_key_value();
 };
 
@@ -281,9 +281,6 @@ private:
 
   bool scanning_key_val_iter;
   
-  /* Key_value_records_iterator::read() will place range_info here */
-  char *cur_range_info;
-
   /* Buffer to store (key, range_id) pairs */
   Lifo_buffer *key_buffer;
   
@@ -367,8 +364,8 @@ private:
   Lifo_buffer *rowid_buffer;
   
   /* rowid_buffer.read() will set the following:  */
-  uchar *rowid;
-  uchar *rowids_range_id;
+  //uchar *rowid;
+  //uchar *rowids_range_id;
 
   int refill_from_index_reader();
 };
