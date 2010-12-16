@@ -1254,7 +1254,8 @@ static int find_uniq_filename(char *name)
   *end='.';
   length= (size_t) (end - start + 1);
 
-  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
+  if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
+      !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
     DBUG_RETURN(1);
@@ -1281,7 +1282,11 @@ updating the index files.", max_found);
   }
 
   next= max_found + 1;
-  sprintf(ext_buf, "%06lu", next);
+  if (sprintf(ext_buf, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
   *end++='.';
 
   /* 
@@ -1298,7 +1303,11 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     goto end;
   }
 
-  sprintf(end, "%06lu", next);
+  if (sprintf(end, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
 
   /* print warning if reaching the end of available extensions. */
   if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
@@ -1531,13 +1540,8 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        /* 
-          This should be treated as error once propagation of error further
-          up in the stack gets proper handling.
-        */
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                            log_name);
+        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -2607,7 +2611,7 @@ int TC_LOG_MMAP::sync()
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
+int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
   my_xid *x=(my_xid *)(data+cookie);
@@ -2625,6 +2629,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);
+  return 0;
 }
 
 void TC_LOG_MMAP::close()
