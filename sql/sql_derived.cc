@@ -307,13 +307,21 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       */
       if (derived_result->flush())
         res= TRUE;
-
-      if (!lex->describe)
-        unit->cleanup();
     }
-    else
-      unit->cleanup();
     lex->current_select= save_current_select;
   }
   return res;
+}
+
+
+/**
+   Cleans up the SELECT_LEX_UNIT for the derived table (if any).
+*/
+
+bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
+{
+  SELECT_LEX_UNIT *unit= derived->derived;
+  if (unit)
+    unit->cleanup();
+  return false;
 }
