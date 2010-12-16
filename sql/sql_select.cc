@@ -243,6 +243,9 @@ static uint make_join_orderinfo(JOIN *join);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 
+JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables);
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
+
 /**
   This handles SELECT with and without UNION.
 */
@@ -1582,9 +1585,12 @@ bool JOIN::setup_subquery_caches()
     if (conds)
       conds= conds->transform(&Item::expr_cache_insert_transformer,
                               (uchar*) thd);
-    for (JOIN_TAB *tab= join_tab + const_tables;
-         tab < join_tab + tables ;
-         tab++)
+    for (JOIN_TAB *tab= first_linear_tab(this, TRUE); 
+         tab; 
+         tab= next_linear_tab(this, tab, TRUE))
+    //for (JOIN_TAB *tab= join_tab + const_tables;
+    //     tab < join_tab + tables ;
+    //     tab++)
     {
       if (tab->select_cond)
         tab->select_cond=
