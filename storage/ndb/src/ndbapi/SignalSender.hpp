@@ -22,6 +22,7 @@
 #include <ndb_global.h>
 #include "TransporterFacade.hpp"
 #include "trp_client.hpp"
+#include "NdbApiSignal.hpp"
 #include <Vector.hpp>
 
 #include <signaldata/TestOrd.hpp>
@@ -45,42 +46,21 @@ public:
   void set(class SignalSender&,
 	   Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len);
   
-  struct SignalHeader header;
-  union {
-    Uint32 theData[25];
-    ResumeReq _ResumeReq;
-    TestOrd _TestOrd;
-    DumpStateOrd _DumpStateOrd;
-    StartOrd _StartOrd;
-    ApiVersionReq _ApiVersionReq;
-    StopReq _StopReq;
-    EventSubscribeReq _EventSubscribeReq;
-    SetLogLevelOrd _SetLogLevelOrd;
-    TamperOrd _TamperOrd;
-    AllocNodeIdReq _AllocNodeIdReq;
-    BackupReq _BackupReq;
-    AbortBackupOrd _AbortBackupOrd;
-  };
+  NdbApiSignal header;
   LinearSectionPtr ptr[3];
 
-  int readSignalNumber() const {return header.theVerId_signalNumber; }
-  Uint32 *getDataPtrSend() { return theData; }
-  const Uint32 *getDataPtr() const { return theData; }
-  Uint32 getLength() const { return header.theLength; }
+  int readSignalNumber() const { return header.readSignalNumber(); };
+  Uint32 *getDataPtrSend() { return header.getDataPtrSend(); }
+  const Uint32 *getDataPtr() const { return header.getDataPtr(); }
+  Uint32 getLength() const { return header.getLength(); }
 
   /**
    * Fragmentation
    */
-  bool isFragmented() const { return header.m_fragmentInfo != 0;}
-  bool isFirstFragment() const { return header.m_fragmentInfo <= 1;}
-  bool isLastFragment() const { 
-    return header.m_fragmentInfo == 0 || header.m_fragmentInfo == 3; 
-  }
-
-
-  Uint32 getFragmentId() const {
-    return (header.m_fragmentInfo == 0 ? 0 : getDataPtr()[header.theLength - 1]);
-  }
+  bool isFragmented() const { return header.isFragmented(); }
+  bool isFirstFragment() const { return header.isFirstFragment(); }
+  bool isLastFragment() const { return header.isLastFragment(); };
+  Uint32 getFragmentId() const { return header.getFragmentId(); };
 
   void print(FILE * out = stdout) const;
   SimpleSignal& operator=(const SimpleSignal&);
