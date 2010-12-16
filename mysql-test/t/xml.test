@@ -617,6 +617,20 @@ FROM t1 ORDER BY t1.id;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
+--echo #
+SET NAMES utf8;
+SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
+
+
+--echo #
+--echo # Bug #57820 extractvalue crashes
+--echo #
+SELECT AVG(DISTINCT EXTRACTVALUE((''),('$@k')));
+
+
 --echo #
 --echo # Bug#57279 updatexml dies with: Assertion failed: str_arg[length] == 0
 --echo #

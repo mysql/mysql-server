@@ -26,7 +26,7 @@
 #    Build as per default RPM layout, with prefix=/usr
 #
 #  DEB
-#    Build as per STANDALONE, prefix=/opt/mysql-$major.$minor
+#    Build as per STANDALONE, prefix=/opt/mysql/server-$major.$minor
 #
 #  SVR4
 #    Solaris package layout suitable for pkg* tools, prefix=/opt/mysql/mysql
@@ -74,7 +74,7 @@ IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM")
     SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
-    SET(default_prefix "/opt/${MYSQL_BASE_VERSION}")
+    SET(default_prefix "/opt/mysql/server-${MYSQL_BASE_VERSION}")
     # This is required to avoid "cpack -GDEB" default of prefix=/usr
     SET(CPACK_SET_DESTDIR ON)
   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")

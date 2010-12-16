@@ -398,6 +398,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
+export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -425,7 +426,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 # Build full release
 mkdir release
@@ -440,7 +441,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make VERBOSE=1
+  make ${MAKE_JFLAG} VERBOSE=1
 )
 
 # Use the build root for temporary storage of the shared libraries.
@@ -1084,6 +1085,16 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- EXCEPTIONS-CLIENT has been deleted, remove it from here too
+- Support MYSQL_BUILD_MAKE_JFLAG environment variable for passing
+  a '-j' argument to make.
+
+* Mon Nov 1 2010 Georgi Kodinov <georgi.godinov@oracle.com>
+
+- Added test authentication (WL#1054) plugin binaries
+
 * Wed Oct 6 2010 Georgi Kodinov <georgi.godinov@oracle.com>
 
 - Added example external authentication (WL#1054) plugin binaries
@@ -1094,10 +1105,6 @@ echo "====="                                     >> $STATUS_HISTORY
   Reflect that in the "Obsoletes" specifications.
 - Add a "triggerpostun" to handle the uninstall of the "-community" server RPM.
 - This fixes bug#55015 "MySQL server is not restarted properly after RPM upgrade".
-
-* Wed Nov 24 2010 Alexander Nozdrin <alexander.nozdrin@oracle.com>
-
-- EXCEPTIONS-CLIENT has been deleted, remove it from here too.
 
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 

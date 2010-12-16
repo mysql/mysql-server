@@ -29,6 +29,8 @@
 #include "repl_failsafe.h"
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
+#include "sql_derived.h"           // mysql_derived_prepare,
+                                   // mysql_handle_derived,
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
 #include "sql_time.h"   // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
@@ -677,11 +679,18 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
 
   {
+    /*
+      Use open_tables() directly rather than open_normal_and_derived_tables().
+      This ensures that close_thread_tables() is not called if open tables fails
+      and the error is ignored. This allows us to handle broken views nicely.
+    */
+    uint counter;
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
     bool open_error=
-      open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
+      open_tables(thd, &table_list, &counter,
+                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL) ||
+                  mysql_handle_derived(thd->lex, &mysql_derived_prepare);
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
