@@ -511,6 +511,19 @@ SELECT DISTINCT GREATEST(a, (SELECT b FROM t1 LIMIT 1)) FROM t1 UNION SELECT 1;
 
 DROP TABLE t1;
 
+
+#
+# Bug #57283: inet_ntoa() crashes
+#
+SELECT INET_NTOA(0);
+SELECT '1' IN ('1', INET_NTOA(0));
+
+
+--echo #
+--echo # End of 5.1 tests
+--echo #
+
+
 --echo #
 --echo # Bug #58199: name_const in the having clause crashes
 --echo #
@@ -523,4 +536,10 @@ SELECT 1 from t1 HAVING NAME_CONST('', a);
 
 DROP TABLE t1;
 
---echo End of tests
+--echo #
+--echo # End of 5.5 tests
+--echo #
+
+--echo #
+--echo # End of tests
+--echo #

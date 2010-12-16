@@ -7250,9 +7250,6 @@ bool parse_sql(THD *thd,
 
   Object_creation_ctx *backup_ctx= NULL;
 
-  if (check_stack_overrun(thd, 2 * STACK_MIN_SIZE, (uchar*)&backup_ctx))
-    return TRUE;
-
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);
 
