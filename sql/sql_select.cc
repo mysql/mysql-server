@@ -9653,10 +9653,12 @@ static bool make_join_select(JOIN *join, Item *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
-	      && tab->type != JT_FT && (tab->type != JT_REF ||
-               (uint) tab->ref.key == tab->quick->index))
-	  {
+          if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF &&
+              tab->type != JT_FT &&
+              ((tab->type != JT_CONST && tab->type != JT_REF) ||
+               (uint)tab->ref.key == tab->quick->index))
+          {
+            DBUG_ASSERT(tab->quick->index != MAX_KEY);
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
@@ -20051,7 +20053,7 @@ use_filesort:
   SYNOPSIS
    create_sort_index()
      thd		Thread handler
-     tab		Table to sort (in join structure)
+     join		Join with table to sort
      order		How table should be sorted
      filesort_limit	Max number of rows that needs to be sorted
      select_limit	Max number of rows in final output
@@ -20061,8 +20063,8 @@ use_filesort:
 
 
   IMPLEMENTATION
-   - If there is an index that can be used, 'tab' is modified to use
-     this index.
+   - If there is an index that can be used, the first non-const join_tab in
+     'join' is modified to use this index.
    - If no index, create with filesort() an index file that can be used to
      retrieve rows in order (should be done with 'read_record').
      The sorted data is stored in tab->table and will be freed when calling
