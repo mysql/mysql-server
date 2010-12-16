@@ -25,7 +25,7 @@ source include/kill_query.inc;
 connection master;
 disable_query_log;
 disable_result_log;
-if (`SELECT '$debug_lock' != ''`)
+if ($debug_lock)
 {
   eval SELECT RELEASE_LOCK($debug_lock);
 }
@@ -36,8 +36,8 @@ source include/diff_master_slave.inc;
 
 # Acquire the debug lock again if used
 connection master;
-disable_query_log; disable_result_log; if (`SELECT '$debug_lock' !=
-''`) { eval SELECT GET_LOCK($debug_lock, 10); } enable_result_log;
-enable_query_log;
+disable_query_log; disable_result_log;
+if ($debug_lock) { eval SELECT GET_LOCK($debug_lock, 10); }
+enable_result_log; enable_query_log;
 
 connection $connection_name;

@@ -905,6 +905,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
+  tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
 }
 
@@ -2370,7 +2371,7 @@ static void DbugFlush(CODE_STATE *cs)
 
 void _db_flush_()
 {
-  CODE_STATE *cs;
+  CODE_STATE *cs= NULL;
   get_code_state_or_return;
   (void) fflush(cs->stack->out_file);
 }

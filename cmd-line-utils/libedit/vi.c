@@ -145,7 +145,7 @@ vi_paste_prev(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_prev_big_word(EditLine *el, int c)
+vi_prev_big_word(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	if (el->el_line.cursor == el->el_line.buffer)
@@ -195,7 +195,7 @@ vi_prev_word(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_next_big_word(EditLine *el, int c)
+vi_next_big_word(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	if (el->el_line.cursor >= el->el_line.lastchar - 1)
@@ -462,7 +462,7 @@ vi_delete_meta(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_end_big_word(EditLine *el, int c)
+vi_end_big_word(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	if (el->el_line.cursor == el->el_line.lastchar)
@@ -797,7 +797,7 @@ vi_repeat_prev_char(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_match(EditLine *el, int c)
+vi_match(EditLine *el, int c __attribute__((__unused__)))
 {
 	const char match_chars[] = "()[]{}";
 	char *cp;
@@ -844,7 +844,7 @@ vi_match(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_undo_line(EditLine *el, int c)
+vi_undo_line(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	cv_undo(el);
@@ -858,7 +858,7 @@ vi_undo_line(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_to_column(EditLine *el, int c)
+vi_to_column(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	el->el_line.cursor = el->el_line.buffer;
@@ -872,7 +872,7 @@ vi_to_column(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_yank_end(EditLine *el, int c)
+vi_yank_end(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	cv_yank(el, el->el_line.cursor,
@@ -886,7 +886,7 @@ vi_yank_end(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_yank(EditLine *el, int c)
+vi_yank(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	return cv_action(el, YANK);
@@ -898,7 +898,7 @@ vi_yank(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_comment_out(EditLine *el, int c)
+vi_comment_out(EditLine *el, int c __attribute__((__unused__)))
 {
 
 	el->el_line.cursor = el->el_line.buffer;
@@ -919,7 +919,8 @@ extern char *get_alias_text(const char *) __weak_reference(get_alias_text);
 #endif
 protected el_action_t
 /*ARGSUSED*/
-vi_alias(EditLine *el, int c)
+vi_alias(EditLine *el __attribute__((__unused__)),
+	 int c __attribute__((__unused__)))
 {
 #if defined(__weak_reference) && !defined(__FreeBSD__)
 	char alias_name[3];
@@ -949,7 +950,7 @@ vi_alias(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_to_history_line(EditLine *el, int c)
+vi_to_history_line(EditLine *el, int c __attribute__((__unused__)))
 {
 	int sv_event_no = el->el_history.eventno;
 	el_action_t rval;
@@ -994,7 +995,7 @@ vi_to_history_line(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_histedit(EditLine *el, int c)
+vi_histedit(EditLine *el, int c __attribute__((__unused__)))
 {
 	int fd;
 	pid_t pid;
@@ -1050,7 +1051,7 @@ vi_histedit(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_history_word(EditLine *el, int c)
+vi_history_word(EditLine *el, int c __attribute__((__unused__)))
 {
 	const char *wp = HIST_FIRST(el);
 	const char *wep, *wsp;
@@ -1099,7 +1100,7 @@ vi_history_word(EditLine *el, int c)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_redo(EditLine *el, int c)
+vi_redo(EditLine *el, int c __attribute__((__unused__)))
 {
 	c_redo_t *r = &el->el_chared.c_redo;
 

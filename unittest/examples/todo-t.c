@@ -21,15 +21,15 @@
 int main()
 {
   plan(4);
-  ok(1, NULL);
-  ok(1, NULL);
+  ok1(1);
+  ok1(1);
   /*
     Tests in the todo region is expected to fail. If they don't,
     something is strange.
   */
   todo_start("Need to fix these");
-  ok(0, NULL);
-  ok(0, NULL);
+  ok1(0);
+  ok1(0);
   todo_end();
   return exit_status();
 }

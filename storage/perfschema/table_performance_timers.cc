@@ -58,7 +58,7 @@ table_performance_timers::m_field_def=
 PFS_engine_table_share
 table_performance_timers::m_share=
 {
-  { C_STRING_WITH_LEN("PERFORMANCE_TIMERS") },
+  { C_STRING_WITH_LEN("performance_timers") },
   &pfs_readonly_acl,
   &table_performance_timers::create,
   NULL, /* write_row */

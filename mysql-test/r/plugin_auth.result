@@ -11,6 +11,26 @@ test_plugin_server	plug_dest
 ## test plugin auth
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug;
+test proxies_priv columns
+SELECT * FROM mysql.proxies_priv;
+Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
+xx	root			1		xx
+xx	root			1		xx
+xx	plug	%	plug_dest	0	root@localhost	xx
+test mysql.proxies_priv;
+SHOW CREATE TABLE mysql.proxies_priv;
+Table	Create Table
+proxies_priv	CREATE TABLE `proxies_priv` (
+  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Proxied_host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Proxied_user` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `With_grant` tinyint(1) NOT NULL DEFAULT '0',
+  `Grantor` char(77) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Host`,`User`,`Proxied_host`,`Proxied_user`),
+  KEY `Grantor` (`Grantor`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='User proxy privileges'
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
@@ -146,8 +166,8 @@ Grants for test_drop@localhost
 GRANT USAGE ON *.* TO 'test_drop'@'localhost'
 GRANT PROXY ON 'future_user'@'%' TO 'test_drop'@'localhost'
 DROP USER test_drop@localhost;
-SELECT * FROM mysql.proxy_priv WHERE Host = 'test_drop' AND User = 'localhost';
-Host	User	Proxied_Host	Proxied_User	With_Grant
+SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
+Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
 DROP USER proxy_admin;
 DROP USER grant_plug,grant_plug_dest,grant_plug_dest2;
 ## END GRANT PROXY tests
@@ -235,3 +255,67 @@ GRANT PROXY ON standard_user TO ''@'';
 DROP USER ''@'';
 DROP USER standard_user;
 DROP DATABASE shared;
+#
+# Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
+#
+CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
+DROP TABLE mysql.proxies_priv;
+# Must come back with mysql.proxies_priv absent.
+SELECT * FROM mysql.proxies_priv;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+CREATE USER u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+CREATE USER u2@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
+# access denied because of no privileges to root
+GRANT PROXY ON u2@localhost TO u1@localhost;
+ERROR 28000: Access denied for user 'root'@'localhost'
+# access denied because of no privileges to root
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+ERROR 28000: Access denied for user 'root'@'localhost'
+# go try graning proxy on itself, so that it will need the table
+GRANT PROXY ON u2@localhost TO u1@localhost;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+ERROR 42S02: Table 'mysql.proxies_priv' doesn't exist
+# test if REVOKE works without the proxies_priv table
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
+# test if DROP USER work without the proxies_priv table
+DROP USER u1@localhost,u2@localhost;
+# test if FLUSH PRIVILEGES works without the proxies_priv table
+FLUSH PRIVILEGES;
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.host                                         OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.servers                                      OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
+Host	localhost
+User	root
+Proxied_host	
+Proxied_user	
+With_grant	1
+FLUSH PRIVILEGES;
+End of 5.5 tests

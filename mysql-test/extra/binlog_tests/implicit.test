@@ -6,7 +6,7 @@ INSERT INTO t1 VALUES (1);
 source include/show_binlog_events.inc;
 eval $statement;
 source include/show_binlog_events.inc;
-if (`select '$cleanup' != ''`) {
+if ($cleanup) {
   eval $cleanup;
 }
 
@@ -22,7 +22,7 @@ INSERT INTO t1 VALUES (3);
 source include/show_binlog_events.inc;
 COMMIT;
 source include/show_binlog_events.inc;
-if (`select '$cleanup' != ''`) {
+if ($cleanup) {
   eval $cleanup;
 }
 

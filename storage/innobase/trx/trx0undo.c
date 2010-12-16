@@ -1798,8 +1798,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx __attribute__((unused)), /*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1808,10 +1806,8 @@ trx_undo_set_state_at_finish(
 	page_t*		undo_page;
 	ulint		state;
 
-	ut_ad(trx);
 	ut_ad(undo);
 	ut_ad(mtr);
-	ut_ad(mutex_own(&rseg->mutex));
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
@@ -1830,19 +1826,7 @@ trx_undo_set_state_at_finish(
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
 	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
 
-		/* This is a heuristic to avoid the problem of all UNDO
-		slots ending up in one of the UNDO lists. Previously if
-		the server crashed with all the slots in one of the lists,
-		transactions that required the slots of a different type
-		would fail for lack of slots. */
-
-		if (UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-		    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
-
-			state = TRX_UNDO_CACHED;
-		} else {
-			state = TRX_UNDO_TO_FREE;
-		}
+		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
 
