@@ -58,7 +58,8 @@ EOF
 # Assertion
 ###########
 
-# assertion: should throw warning
+# assertion: should raise error
+-- error ER_NO_UNIQUE_LOGFILE
 FLUSH LOGS;
 
 ##############
