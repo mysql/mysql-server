@@ -2186,6 +2186,16 @@ sub environment_setup {
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
+  
+  if (IS_WINDOWS)
+  {
+    $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
+  }
+  else
+  {
+    $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
+  }
+    
 
   # ----------------------------------------------------
   # Setup env for NDB
