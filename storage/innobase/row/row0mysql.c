@@ -3460,23 +3460,34 @@ check_next_foreign:
 		mem_heap_free(heap);
 		break;
 
-	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* Cannot even find a free slot for the
-		the undo log. We can directly exit here
-		and return the DB_TOO_MANY_CONCURRENT_TRXS
-		error. */
-		break;
-
 	case DB_OUT_OF_FILE_SPACE:
 		err = DB_MUST_GET_MORE_FILE_SPACE;
 
 		row_mysql_handle_errors(&err, trx, NULL, NULL);
 
-		/* Fall through to raise error */
+		/* raise error */
+		ut_error;
+		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* Cannot even find a free slot for the
+		the undo log. We can directly exit here
+		and return the DB_TOO_MANY_CONCURRENT_TRXS
+		error. */
 
 	default:
-		/* No other possible error returns */
-		ut_error;
+		/* This is some error we do not expect. Print
+		the error number and rollback transaction */
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr, "InnoDB: unknown error code %lu"
+			" while dropping table:", (ulong) err);
+		ut_print_name(stderr, trx, TRUE, name);
+		fprintf(stderr, ".\n");
+
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, NULL);
+		trx->error_state = DB_SUCCESS;
 	}
 
 funct_exit:
