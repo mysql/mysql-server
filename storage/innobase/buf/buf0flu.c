@@ -2408,8 +2408,7 @@ buf_flush_page_cleaner_thread(
 	the buffer pool but can't be sure that no new pages are being
 	dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase. */
 
-	while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP) {
-
+	do {
 		n_flushed = page_cleaner_do_flush_batch(PCT_IO(100),
 							IB_ULONGLONG_MAX);
 
@@ -2417,7 +2416,7 @@ buf_flush_page_cleaner_thread(
 		if (n_flushed == 0) {
 			os_thread_sleep(100000);
 		}
-	}
+	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
 
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */
