@@ -243,7 +243,8 @@ typedef struct st_join_table {
     E(#records) is in found_records.
   */
   double        read_time;
-
+  
+  /* psergey-todo: make the below have type double, like POSITION::records_read? */
   ha_rows       records_read;
   
   /* Startup cost for execution */

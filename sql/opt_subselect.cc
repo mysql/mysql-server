@@ -831,7 +831,7 @@ void get_delayed_table_estimates(TABLE *table,
     rows      *= join->best_positions[i].records_read;
     read_time += join->best_positions[i].read_time;
   }
-  *out_rows= rows;
+  *out_rows= (ha_rows)rows;
   *startup_cost= read_time;
   /* Calculate cost of scanning the temptable */
   double data_size= rows * hash_sj_engine->tmp_table->s->reclength;

@@ -6253,7 +6253,7 @@ get_best_combination(JOIN *join)
            sub-order
       */
       SJ_MATERIALIZATION_INFO *sjm= cur_pos->table->emb_sj_nest->sj_mat_info;
-      j->records= j->records_read= sjm->is_sj_scan? sjm->rows : 1;
+      j->records= j->records_read= (ha_rows)(sjm->is_sj_scan? sjm->rows : 1);
       JOIN_TAB *jt= (JOIN_TAB*)join->thd->alloc(sizeof(JOIN_TAB) * sjm->tables);
       JOIN_TAB_RANGE *jt_range= new JOIN_TAB_RANGE;
       jt_range->start= jt;
@@ -6303,7 +6303,7 @@ get_best_combination(JOIN *join)
     else if (create_ref_for_key(join, j, keyuse, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
   loop_end:
-    j->records_read= join->best_positions[tablenr].records_read;
+    j->records_read= (ha_rows)join->best_positions[tablenr].records_read;
     join->map2table[j->table->tablenr]= j;
 
     // If we've reached the end of sjm nest, switch back to main sequence
