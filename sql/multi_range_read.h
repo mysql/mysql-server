@@ -305,9 +305,15 @@ private:
   /* TRUE == reached eof when enumerating ranges */
   bool source_exhausted;
   
-  /* TODO */
-  /*uchar *saved_key_tuple;*/
+  /* 
+    Space where we save the rowid of the last record we've returned. This is
+    needed for the cases where index scan is interrupted by some other activity
+    that destroys contents in file->record[0] (which some storage engines use
+    to store the last rowid value)
+  */
   uchar *saved_rowid;
+
+  /* TRUE <=> saved_rowid has the last saved rowid */
   bool have_saved_rowid;
 
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
@@ -363,10 +369,6 @@ private:
   /* Buffer to store (rowid, range_id) pairs */
   Lifo_buffer *rowid_buffer;
   
-  /* rowid_buffer.read() will set the following:  */
-  //uchar *rowid;
-  //uchar *rowids_range_id;
-
   int refill_from_index_reader();
 };
 
