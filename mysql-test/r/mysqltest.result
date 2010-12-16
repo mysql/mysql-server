@@ -838,7 +838,7 @@ drop table t1;
 mysqltest: At line 1: change user failed: Unknown database 'inexistent'
 mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
 mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
-file1.txt
+REPLACED_FILE1.txt
 file1.txt
 file2.txt
 file11.txt

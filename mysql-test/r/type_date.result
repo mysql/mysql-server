@@ -318,4 +318,12 @@ f1	date	YES		NULL
 f2	date	YES		NULL	
 DROP TABLE t1;
 #
+#
+# Bug#57278: Crash on min/max + with date out of range.
+#
+set @a=(select min(makedate('111','1'))) ;
+select @a;
+@a
+0111-01-01
+#
 End of 6.0 tests

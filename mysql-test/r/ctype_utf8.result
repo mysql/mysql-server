@@ -4918,5 +4918,16 @@ maketime(`a`,`a`,`a`)
 DROP TABLE t1;
 SET sql_mode=default;
 #
+# Bug#57687 crash when reporting duplicate group_key error and utf8
+# Make sure to modify this when Bug#58081 is fixed.
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
+SELECT COUNT(*) FROM t1, t1 t2 
+GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
+ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #
