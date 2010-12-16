@@ -1381,7 +1381,7 @@ sub command_line_setup {
       # Add the location for libmysqld.dll to the path.
       my $separator= ";";
       my $lib_mysqld=
-        mtr_path_exists(vs_config_dirs('libmysqld',''));
+        mtr_path_exists("$bindir/lib", vs_config_dirs('libmysqld',''));
       if ( IS_CYGWIN )
       {
 	$lib_mysqld= posix_path($lib_mysqld);

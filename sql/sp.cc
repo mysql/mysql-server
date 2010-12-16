@@ -779,9 +779,6 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
   int ret= 0;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&ret))
-    return TRUE;
-
   thd->lex= &newlex;
   newlex.current_select= NULL;
 
@@ -1610,9 +1607,6 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
                        (int) name->m_db.length, name->m_db.str,
                        (int) name->m_name.length, name->m_name.str,
                        type, cache_only));
-
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&depth))
-    return NULL;
 
   if ((sp= sp_cache_lookup(cp, name)))
   {
