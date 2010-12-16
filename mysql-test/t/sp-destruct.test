@@ -252,3 +252,30 @@ drop table mysql.proc;
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.frm
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.MYD
 --remove_file $MYSQLTEST_VARDIR/tmp/proc.MYI
+
+
+--echo #
+--echo # Bug#58414 mysql_upgrade fails on dump upgrade between 5.1.53 -> 5.5.8
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS proc_backup;
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+
+--echo # Backup the proc table
+RENAME TABLE mysql.proc TO proc_backup;
+CREATE TABLE mysql.proc LIKE proc_backup;
+
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() SET @foo = 10;
+
+--echo # Modify a field of the table.
+ALTER TABLE mysql.proc MODIFY comment CHAR (32);
+
+# This should not fail even if mysql.proc is invalid.
+DROP DATABASE db1;
+
+--echo # Restore mysql.proc
+DROP TABLE mysql.proc;
+RENAME TABLE proc_backup TO mysql.proc;

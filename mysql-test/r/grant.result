@@ -1448,8 +1448,6 @@ CREATE USER 'userbug33464'@'localhost';
 GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 	
 userbug33464@localhost	dbbug33464
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from dbbug33464.t6 where t6.f2= 'xyz';
@@ -1577,6 +1575,17 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+#
+# Bug #36742
+#
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+host	user
+localhost	myuser
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;
 #########################################################################
 #
 # Bug#38347: ALTER ROUTINE privilege allows SHOW CREATE TABLE.

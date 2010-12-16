@@ -1419,11 +1419,6 @@ GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 connect (connbug33464, localhost, userbug33464, , dbbug33464);
 --source suite/funcs_1/include/show_connection.inc
 
---disable_warnings
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
 delimiter //;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
@@ -1577,6 +1572,16 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+
+--echo #
+--echo # Bug #36742
+--echo #
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

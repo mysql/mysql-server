@@ -120,11 +120,6 @@ UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
-/** Mutex protecting the ios count */
-static mutex_t		ios_mutex;
-/** Count of I/O operations in io_handler_thread() */
-static ulint		ios;
-
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers */
@@ -151,11 +146,6 @@ UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register ios_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -477,7 +467,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -490,15 +479,9 @@ io_handler_thread(
 	pfs_register_thread(io_handler_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
-
-		mutex_enter(&ios_mutex);
-		ios++;
-		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
@@ -1000,10 +983,6 @@ skip_size_check:
 		fil_node_create(name, srv_data_file_sizes[i], 0,
 				srv_data_file_is_raw_partition[i] != 0);
 	}
-
-	ios = 0;
-
-	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }

@@ -18,12 +18,14 @@ if ($is_relay_log)
   --let $_statement=show relaylog events
 }
 
-if (`SELECT '$binlog_file' <> ''`)
+if ($binlog_file)
 {
   --let $_statement= $_statement in '$binlog_file'
 }
 
 --let $_statement= $_statement from $binlog_start
+
+# Cannot use if($binlog_limit) since the variable may begin with a 0
 
 if (`SELECT '$binlog_limit' <> ''`)
 {
