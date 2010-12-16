@@ -34,7 +34,11 @@
   @param thd Thread handler (can be NULL!)
   @param options What should be reset/reloaded (tables, privileges, slave...)
   @param tables Tables to flush (if any)
-  @param write_to_binlog True if we can write to the binlog.
+  @param write_to_binlog < 0 if there was an error while interacting with the binary log inside
+                         reload_acl_and_cache,
+                         0 if we should not write to the binary log,
+                         > 0 if we can write to the binlog.
+
                
   @note Depending on 'options', it may be very bad to write the
     query to the binlog (e.g. FLUSH SLAVE); this is a
@@ -48,11 +52,11 @@
 */
 
 bool reload_acl_and_cache(THD *thd, unsigned long options,
-                          TABLE_LIST *tables, bool *write_to_binlog)
+                          TABLE_LIST *tables, int *write_to_binlog)
 {
   bool result=0;
   select_errors=0;				/* Write if more errors */
-  bool tmp_write_to_binlog= 1;
+  int tmp_write_to_binlog= *write_to_binlog= 1;
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
@@ -137,13 +141,17 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     */
     tmp_write_to_binlog= 0;
     if (mysql_bin_log.is_open())
-      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    {
+      if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        *write_to_binlog= -1;
+    }
   }
   if (options & REFRESH_RELAY_LOG)
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
-    rotate_relay_log(active_mi);
+    if (rotate_relay_log(active_mi))
+      *write_to_binlog= -1;
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }
@@ -275,7 +283,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
- *write_to_binlog= tmp_write_to_binlog;
+ if (*write_to_binlog != -1)
+   *write_to_binlog= tmp_write_to_binlog;
  /*
    If the query was killed then this function must fail.
  */
