@@ -9658,7 +9658,6 @@ static bool make_join_select(JOIN *join, Item *cond)
               ((tab->type != JT_CONST && tab->type != JT_REF) ||
                (uint)tab->ref.key == tab->quick->index))
           {
-            DBUG_ASSERT(tab->quick->index != MAX_KEY);
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
