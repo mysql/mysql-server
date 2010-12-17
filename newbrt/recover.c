@@ -238,7 +238,7 @@ static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
 
 // Open the file if it is not already open.  If it is already open, then do nothing.
 static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create, int mode, BYTESTRING *bs_iname, FILENUM filenum, u_int32_t treeflags, 
-                                              u_int32_t descriptor_version, BYTESTRING* descriptor, TOKUTXN txn) {
+                                              u_int32_t descriptor_version, BYTESTRING* descriptor, TOKUTXN txn, uint32_t nodesize) {
     int r;
     char *iname = fixup_fname(bs_iname);
 
@@ -247,12 +247,17 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     assert(r == 0);
 
     r = toku_brt_set_flags(brt, treeflags);
-    assert(r==0);
+    assert(r == 0);
+
+    if (nodesize != 0) {
+        r = toku_brt_set_nodesize(brt, nodesize);
+        assert(r == 0);
+    }
 
     // set the key compare functions
     if (!(treeflags & TOKU_DB_KEYCMP_BUILTIN) && renv->bt_compare) {
         r = toku_brt_set_bt_compare(brt, renv->bt_compare);
-	assert(r==0);
+	assert(r == 0);
     }
 
     // TODO mode (FUTURE FEATURE)
@@ -264,7 +269,7 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
         DBT descriptor_dbt;
         toku_fill_dbt(&descriptor_dbt, descriptor->data, descriptor->len);
         r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt);
-        if (r!=0) goto close_brt;
+        if (r != 0) goto close_brt;
     }
     r = toku_brt_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, fake_db, filenum);
     if (r != 0) {
@@ -275,7 +280,7 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
         int rr = toku_close_brt(brt, NULL); assert(rr == 0);
         toku_free(iname);
         toku_free(fake_db); //Free memory allocated for the fake db.
-        if (r==ENOENT) //Not an error to simply be missing.
+        if (r == ENOENT) //Not an error to simply be missing.
             r = 0;
         return r;
     }
@@ -404,7 +409,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
 	renv->ss.checkpoint_num_fassociate++;
         assert(r==DB_NOTFOUND); //Not open
         // open it if it exists
-        r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, 0, NULL, NULL);
+        r = internal_recover_fopen_or_fcreate(renv, FALSE, 0, &l->iname, l->filenum, l->treeflags, 0, NULL, NULL, 0);
         if (r==0 && !strcmp(fname, ROLLBACK_CACHEFILE_NAME)) {
             //Load rollback cachefile
             r = file_map_find(&renv->fmap, l->filenum, &tuple);
@@ -632,11 +637,46 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     toku_free(iname);
 
     BOOL must_create = TRUE;
-    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn);
+    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, 0);
     return r;
 }
 
 static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
+static int toku_recover_fcreate2 (struct logtype_fcreate2 *l, RECOVER_ENV renv) {
+    int r;
+
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+
+    // assert that filenum is closed
+    struct file_map_tuple *tuple = NULL;
+    r = file_map_find(&renv->fmap, l->filenum, &tuple);
+    assert(r==DB_NOTFOUND);
+
+    assert(txn!=NULL);
+
+    //unlink if it exists (recreate from scratch).
+    char *iname = fixup_fname(&l->iname);
+    r = unlink(iname);
+    if (r != 0 && errno != ENOENT) {
+        fprintf(stderr, "Tokudb recovery %s:%d unlink %s %d\n", __FUNCTION__, __LINE__, iname, errno);
+        toku_free(iname);
+        return r;
+    }
+    assert(strcmp(iname, ROLLBACK_CACHEFILE_NAME)); //Creation of rollback cachefile never gets logged.
+    toku_free(iname);
+
+    BOOL must_create = TRUE;
+    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, l->nodesize);
+    return r;
+}
+
+static int toku_recover_backward_fcreate2 (struct logtype_fcreate2 *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }
@@ -657,7 +697,7 @@ static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
 
     if (strcmp(fname, ROLLBACK_CACHEFILE_NAME)) {
         //Rollback cachefile can only be opened via fassociate.
-        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, descriptor_version, descriptor, txn);
+        r = internal_recover_fopen_or_fcreate(renv, must_create, 0, &l->iname, l->filenum, l->treeflags, descriptor_version, descriptor, txn, 0);
     }
     toku_free(fname);
     return r;

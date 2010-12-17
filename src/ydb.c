@@ -5222,6 +5222,13 @@ toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 }
 
 static int 
+toku_db_get_pagesize(DB *db, u_int32_t *pagesize_ptr) {
+    HANDLE_PANICKED_DB(db);
+    int r = toku_brt_get_nodesize(db->i->brt, pagesize_ptr);
+    return r;
+}
+
+static int 
 toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
@@ -5634,6 +5641,11 @@ locked_db_set_pagesize(DB *db, u_int32_t pagesize) {
     toku_ydb_lock(); int r = toku_db_set_pagesize(db, pagesize); toku_ydb_unlock(); return r;
 }
 
+static int 
+locked_db_get_pagesize(DB *db, u_int32_t *pagesize_ptr) {
+    toku_ydb_lock(); int r = toku_db_get_pagesize(db, pagesize_ptr); toku_ydb_unlock(); return r;
+}
+
 // TODO 2216 delete this
 static int 
 locked_db_fd(DB * UU(db), int * UU(fdp)) {
@@ -5786,6 +5798,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(set_descriptor);
     SDB(set_errfile);
     SDB(set_pagesize);
+    SDB(get_pagesize);
     SDB(set_flags);
     SDB(get_flags);
     SDB(stat64);
