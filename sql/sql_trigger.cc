@@ -1989,6 +1989,7 @@ bool Table_triggers_list::process_triggers(THD *thd,
   bool err_status;
   Sub_statement_state statement_state;
   sp_head *sp_trigger= bodies[event][time_type];
+  SELECT_LEX *save_current_select;
 
   if (sp_trigger == NULL)
     return FALSE;
@@ -2012,11 +2013,19 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
 
+  /*
+    Reset current_select before call execute_trigger() and
+    restore it after return from one. This way error is set
+    in case of failure during trigger execution.
+  */
+  save_current_select= thd->lex->current_select;
+  thd->lex->current_select= NULL;
   err_status=
     sp_trigger->execute_trigger(thd,
                                 &trigger_table->s->db,
                                 &trigger_table->s->table_name,
                                 &subject_table_grants[event][time_type]);
+  thd->lex->current_select= save_current_select;
 
   thd->restore_sub_statement_state(&statement_state);
 

@@ -262,7 +262,8 @@ sub testcase_timeout ($) {
 
 our $opt_warnings= 1;
 
-our $opt_skip_ndbcluster= 0;
+our $opt_include_ndbcluster= 0;
+our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
 my $exe_ndb_mgmd;
@@ -888,6 +889,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
+             'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -2419,6 +2421,11 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  if ($opt_include_ndbcluster)
+  {
+    $opt_skip_ndbcluster= 0;
+  }
 
   if ($opt_skip_ndbcluster)
   {
@@ -5488,7 +5495,8 @@ Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster
+  skip-ndb[cluster]     Skip all tests that need cluster. Default.
+  include-ndb[cluster]  Enable all tests that need cluster
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX

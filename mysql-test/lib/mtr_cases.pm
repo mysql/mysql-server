@@ -914,7 +914,7 @@ sub collect_one_test_case {
     {
       # Ndb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support";
+      $tinfo->{'comment'}= "No ndbcluster support or ndb tests not enabled";
       return $tinfo;
     }
     elsif ( $::opt_skip_ndbcluster )

@@ -6970,14 +6970,16 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
     enum_field_types field_type= field->type();
 
-    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME)
+    if (field_type == MYSQL_TYPE_DATE || field_type == MYSQL_TYPE_DATETIME ||
+        field_type == MYSQL_TYPE_TIMESTAMP)
     {
       enum_mysql_timestamp_type type= MYSQL_TIMESTAMP_ERROR;
 
       if (field_type == MYSQL_TYPE_DATE)
         type= MYSQL_TIMESTAMP_DATE;
 
-      if (field_type == MYSQL_TYPE_DATETIME)
+      if (field_type == MYSQL_TYPE_DATETIME ||
+          field_type == MYSQL_TYPE_TIMESTAMP)
         type= MYSQL_TIMESTAMP_DATETIME;
         
       const char *field_name= field->field_name;
@@ -7404,9 +7406,12 @@ bool Item_cache_row::null_inside()
 
 void Item_cache_row::bring_value()
 {
+  if (!example)
+    return;
+  example->bring_value();
+  null_value= example->null_value;
   for (uint i= 0; i < item_count; i++)
     values[i]->bring_value();
-  return;
 }
 
 
