@@ -1154,13 +1154,13 @@ bool check_if_pq_applicable(Sort_param *param,
   if (param->max_rows == HA_POS_ERROR)
   {
     DBUG_PRINT("info", ("No LIMIT"));
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(false);
   }
 
   if (param->max_rows + 2 >= UINT_MAX)
   {
     DBUG_PRINT("info", ("Too large LIMIT"));
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(false);
   }
 
   ulong num_available_keys=
