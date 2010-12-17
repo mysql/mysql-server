@@ -346,7 +346,8 @@ dict_process_sys_tables_rec(
 
 		/* Update statistics if DICT_TABLE_UPDATE_STATS
 		is set */
-		dict_update_statistics_low(*table, TRUE);
+		dict_update_statistics(*table, FALSE /* update even if
+				       initialized */);
 	}
 
 	return(NULL);
@@ -1733,13 +1734,13 @@ err_exit:
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
 			table = NULL;
+		} else {
+			table->fk_max_recusive_level = 0;
 		}
 	} else if (!srv_force_recovery) {
 		dict_table_remove_from_cache(table);
 		table = NULL;
 	}
-
-	table->fk_max_recusive_level = 0;
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
 

@@ -15,7 +15,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
@@ -44,7 +44,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
@@ -73,7 +73,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
@@ -104,7 +104,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
@@ -139,7 +139,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
@@ -177,7 +177,7 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
-mysql.proxy_priv                                   OK
+mysql.proxies_priv                                 OK
 mysql.servers                                      OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK

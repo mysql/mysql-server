@@ -1010,10 +1010,11 @@ static struct my_option my_long_options[] =
    "row-based events; 'decode-rows' decodes row events into commented SQL "
    "statements if the --verbose option is also given; 'auto' prints base64 "
    "only when necessary (i.e., for row-based events and format description "
-   "events); 'always' prints base64 whenever possible. 'always' is for "
-   "debugging only and should not be used in a production system. If this "
-   "argument is not given, the default is 'auto'; if it is given with no "
-   "argument, 'always' is used.",
+   "events); 'always' prints base64 whenever possible. 'always' is "
+   "deprecated, will be removed in a future version, and should not be used "
+   "in a production system.  --base64-output with no 'name' argument is "
+   "equivalent to --base64-output=always and is also deprecated.  If no "
+   "--base64-output[=name] option is given at all, the default is 'auto'.",
    &opt_base64_output_mode_str, &opt_base64_output_mode_str,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   /*
@@ -2024,6 +2025,13 @@ int main(int argc, char** argv)
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
+  if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
+    warning("The --base64-output=always flag and the --base64-output flag "
+            "(with '=MODE' omitted), are deprecated. "
+            "The output generated when these flags are used cannot be "
+            "parsed by mysql 5.6.0 and later. "
+            "The flags will be removed in a future version. "
+            "Please use --base64-output=auto instead.");
 
   my_set_max_open_files(open_files_limit);
 

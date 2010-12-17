@@ -1,0 +1,11 @@
+CREATE DATABASE test_user_db;
+CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_server AS 'qa_test_11_dest';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
+exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+current_user()	user()	@@local.proxy_user	@@local.external_user
+qa_test_11_dest@%	qa_test_11_user@localhost	'qa_test_11_user'@'%'	'qa_test_11_user'@'%'
+exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_2_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+ERROR 1045 (28000): Access denied for user 'qa_test_2_user'@'localhost' (using password: NO)
+DROP USER qa_test_11_user, qa_test_11_dest;
+DROP DATABASE test_user_db;
