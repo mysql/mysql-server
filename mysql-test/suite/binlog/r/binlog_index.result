@@ -132,7 +132,7 @@ master-bin.000011
 # fault_injection_registering_index
 SET SESSION debug="+d,fault_injection_registering_index";
 flush logs;
-ERROR HY000: Can't open file: './master-bin.000012' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.000012' (errno: 1)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
 SELECT @index;
 @index
@@ -157,7 +157,7 @@ master-bin.000012
 # fault_injection_updating_index
 SET SESSION debug="+d,fault_injection_updating_index";
 flush logs;
-ERROR HY000: Can't open file: './master-bin.000013' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.000013' (errno: 1)
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
 SELECT @index;
 @index

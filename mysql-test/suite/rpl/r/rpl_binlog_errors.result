@@ -35,9 +35,9 @@ master-bin.000001	#
 SET GLOBAL debug="";
 RESET MASTER;
 ###################### TEST #3
-CREATE TABLE t1 (a int);
-CREATE TABLE t2 (a TEXT) Engine=InnoDB;
-CREATE TABLE t4 (a TEXT);
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16384));
 INSERT INTO t1 VALUES (1);
 RESET MASTER;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data' INTO TABLE t2;
@@ -181,7 +181,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SET GLOBAL debug="+d,fault_injection_registering_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: './master-bin.000002' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.000002' (errno: 1)
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
@@ -194,7 +194,7 @@ DROP TABLE t5;
 ###################### TEST #11
 SET GLOBAL debug="+d,fault_injection_openning_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: './master-bin.index' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.index' (errno: 1)
 SET GLOBAL debug="-d,fault_injection_openning_index";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER
@@ -207,7 +207,7 @@ DROP TABLE t5;
 ###################### TEST #12
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin' (errno: 0)
+ERROR HY000: Can't open file: 'master-bin' (errno: 2)
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER
