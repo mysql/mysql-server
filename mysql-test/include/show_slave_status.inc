@@ -10,7 +10,7 @@ if (`SELECT "XX$status_items" = "XX"`)
 --disable_query_log
 --vertical_results
 
-while (`SELECT "XX$_items" <> "XX"`) 
+while ($_items) 
 {
   --let $_name= `SELECT SUBSTRING_INDEX('$_items', ',', 1)`
   --let $_items= `SELECT LTRIM(SUBSTRING('$_items', LENGTH('$_name') + 2))`
