@@ -1169,8 +1169,8 @@ void handle_command_error(struct st_command *command, uint error)
     int i;
 
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with error %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
 
     i= match_expected_error(command, error, NULL);
 
@@ -1181,8 +1181,8 @@ void handle_command_error(struct st_command *command, uint error)
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -2073,9 +2073,11 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     name_len = strlen(name);
   if (!val_len && val)
     val_len = strlen(val) ;
+  if (!val)
+    val_len= 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
-                                                  + name_len+1, MYF(MY_WME))))
+                                                  + name_len+2, MYF(MY_WME))))
     die("Out of memory");
 
   if (name != NULL)
@@ -2093,10 +2095,9 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     die("Out of memory");
 
   if (val)
-  {
     memcpy(tmp_var->str_val, val, val_len);
-    tmp_var->str_val[val_len]= 0;
-  }
+  tmp_var->str_val[val_len]= 0;
+
   var_check_int(tmp_var);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
@@ -5053,6 +5054,7 @@ void do_close_connection(struct st_command *command)
     dynstr_append_mem(ds, ";\n", 2);
   }
 
+  dynstr_free(&ds_connection);
   DBUG_VOID_RETURN;
 }
 
@@ -5487,6 +5489,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+  dynstr_free(&ds_default_auth);
 #ifdef HAVE_SMEM
   dynstr_free(&ds_shm);
 #endif
@@ -5683,7 +5686,20 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     }
     while (my_isspace(charset_info, *curr_ptr))
       curr_ptr++;
+    if (curr_ptr == expr_end)
+      die("Missing right operand in comparison");
 
+    /* Strip off trailing white space */
+    while (my_isspace(charset_info, expr_end[-1]))
+      expr_end--;
+    /* strip off ' or " around the string */
+    if (*curr_ptr == '\'' || *curr_ptr == '"')
+    {
+      if (expr_end[-1] != *curr_ptr)
+        die("Unterminated string value");
+      curr_ptr++;
+      expr_end--;
+    }
     VAR v2;
     var_init(&v2,0,0,0,0);
     eval_expr(&v2, curr_ptr, &expr_end);
@@ -5726,6 +5742,7 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     }
 
     v.is_int= TRUE;
+    var_free(&v2);
   } else
   {
     if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
@@ -7819,7 +7836,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 		     ds, &ds_warnings);
 
   dynstr_free(&ds_warnings);
-  if (command->type == Q_EVAL)
+  if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
     dynstr_free(&eval_query);
 
   if (display_result_sorted)
@@ -7925,6 +7942,16 @@ void init_re(void)
 
 int match_re(my_regex_t *re, char *str)
 {
+  while (my_isspace(charset_info, *str))
+    str++;
+  if (str[0] == '/' && str[1] == '*')
+  {
+    char *comm_end= strstr (str, "*/");
+    if (! comm_end)
+      die("Statement is unterminated comment");
+    str= comm_end + 2;
+  }
+  
   int err= my_regexec(re, str, (size_t)0, NULL, 0);
 
   if (err == 0)
@@ -8063,13 +8090,16 @@ static void dump_backtrace(void)
 {
   struct st_connection *conn= cur_con;
 
-  my_safe_print_str("read_command_buf", read_command_buf,
-                    sizeof(read_command_buf));
+  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
+  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+
   if (conn)
   {
-    my_safe_print_str("conn->name", conn->name, conn->name_len);
+    fprintf(stderr, "conn->name (%p): ", conn->name);
+    my_safe_print_str(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
-    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+    fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
+    my_safe_print_str(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);

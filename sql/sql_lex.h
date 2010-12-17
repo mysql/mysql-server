@@ -2286,19 +2286,12 @@ struct LEX: public Query_tables_list
   uint8 derived_tables;
   uint8 create_view_algorithm;
   uint8 create_view_check;
+  uint8 context_analysis_only;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool autocommit;
   bool verbose, no_write_to_binlog;
 
   enum enum_yes_no_unknown tx_chain, tx_release;
-  /*
-    Special JOIN::prepare mode: changing of query is prohibited.
-    When creating a view, we need to just check its syntax omitting
-    any optimizations: afterwards definition of the view will be
-    reconstructed by means of ::print() methods and written to
-    to an .frm file. We need this definition to stay untouched.
-  */
-  bool view_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
   st_parsing_options parsing_options;
@@ -2401,6 +2394,13 @@ struct LEX: public Query_tables_list
     destroy_query_tables_list();
     plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
     delete_dynamic(&plugins);
+  }
+
+  inline bool is_ps_or_view_context_analysis()
+  {
+    return (context_analysis_only &
+            (CONTEXT_ANALYSIS_ONLY_PREPARE |
+             CONTEXT_ANALYSIS_ONLY_VIEW));
   }
 
   inline void uncacheable(uint8 cause)
