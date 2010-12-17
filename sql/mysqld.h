@@ -64,7 +64,7 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
                                            some places */
 /* Function prototypes */
 void kill_mysql(void);
-void close_connection(THD *thd, uint errcode, bool lock);
+void close_connection(THD *thd, uint sql_errno= 0);
 void handle_connection_in_main_thread(THD *thd);
 void create_thread_to_handle_connection(THD *thd);
 void unlink_thd(THD *thd);
@@ -107,7 +107,8 @@ extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern ulong slave_exec_mode_options;
 extern ulonglong slave_type_conversions_options;
-extern my_bool opt_readonly, lower_case_file_system;
+extern my_bool read_only, opt_readonly;
+extern my_bool lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
@@ -157,6 +158,7 @@ extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;
 extern ulong thread_id;
 extern ulong binlog_cache_use, binlog_cache_disk_use;
+extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads,aborted_connects;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
@@ -176,10 +178,15 @@ extern uint  slave_net_timeout;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
-extern ulong binlog_cache_size, open_files_limit;
-extern ulonglong max_binlog_cache_size;
+extern ulong open_files_limit;
+extern ulong binlog_cache_size, binlog_stmt_cache_size;
+extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
+extern ulong binlog_checksum_options;
+extern const char *binlog_checksum_type_names[];
+extern my_bool opt_master_verify_checksum;
+extern my_bool opt_slave_sql_verify_checksum;
 extern ulong thread_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
@@ -355,6 +362,7 @@ enum options_mysqld
 {
   OPT_to_set_the_start_number=256,
   OPT_BIND_ADDRESS,
+  OPT_BINLOG_CHECKSUM,
   OPT_BINLOG_DO_DB,
   OPT_BINLOG_FORMAT,
   OPT_BINLOG_IGNORE_DB,
@@ -371,6 +379,7 @@ enum options_mysqld
   OPT_LC_MESSAGES_DIRECTORY,
   OPT_LOWER_CASE_TABLE_NAMES,
   OPT_MASTER_RETRY_COUNT,
+  OPT_MASTER_VERIFY_CHECKSUM,
   OPT_POOL_OF_THREADS,
   OPT_REPLICATE_DO_DB,
   OPT_REPLICATE_DO_TABLE,
@@ -387,6 +396,7 @@ enum options_mysqld
   OPT_SKIP_RESOLVE,
   OPT_SKIP_STACK_TRACE,
   OPT_SKIP_SYMLINKS,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
   OPT_SSL_CA,
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,

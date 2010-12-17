@@ -38,12 +38,14 @@ SELECT t4.a,t4.b
 SELECT t3.a,t3.b,t4.a,t4.b
   FROM t3,t4;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
        (t3, t4)
        ON t2.b=t4.b;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
@@ -58,6 +60,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t2.b=t4.b
     WHERE t3.a=1 OR t3.c IS NULL;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
@@ -65,6 +68,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t2.b=t4.b
     WHERE t3.a=1 OR t3.c IS NULL;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
@@ -78,6 +82,7 @@ SELECT t5.a,t5.b
 SELECT t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t3,t4,t5;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t2
        LEFT JOIN              
@@ -92,6 +97,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
        ON t2.b=t4.b
     WHERE t3.a>1 OR t3.c IS NULL;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t2
        LEFT JOIN              
@@ -108,6 +114,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
     WHERE (t3.a>1 OR t3.c IS NULL) AND 
           (t5.a<3 OR t5.c IS NULL);
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t2
        LEFT JOIN              
@@ -135,6 +142,7 @@ SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        t8
        ON t7.b=t8.b AND t6.b < 10;
 
+--sorted_result
 SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM (t6, t7)
        LEFT JOIN 
@@ -144,6 +152,7 @@ SELECT t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
 SELECT t5.a,t5.b
   FROM t5;
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 
        LEFT JOIN 
@@ -155,6 +164,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        )
        ON t6.b >= 2 AND t5.b=t7.b;
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 
        LEFT JOIN 
@@ -167,12 +177,14 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        ON t6.b >= 2 AND t5.b=t7.b AND
           (t8.a < 1 OR t8.c IS NULL);
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2
        LEFT JOIN              
        (t3, t4)
        ON t3.a=1 AND t2.b=t4.b;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t2
@@ -189,6 +201,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        )
        ON t6.b >= 2 AND t5.b=t7.b; 
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t2
@@ -210,6 +223,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 SELECT t1.a,t1.b
   FROM t1;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t1
@@ -233,6 +247,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
           (t1.b=t5.b OR t3.c IS NULL OR t6.c IS NULL or t8.c IS NULL) AND
           (t1.a != 2);
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t1
@@ -287,6 +302,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
           t0.b=t1.b AND          
           (t2.a >= 4 OR t2.c IS NULL); 
 
+--sorted_result
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t0,t1
@@ -352,6 +368,7 @@ SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
 SELECT t9.a,t9.b
   FROM t9;
 
+--sorted_result
 SELECT t0.a,t0.b,t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b,
        t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b,t9.a,t9.b
   FROM t0,t1
@@ -396,12 +413,14 @@ SELECT t2.a,t2.b
 SELECT t3.a,t3.b
   FROM t3;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b
   FROM t2 
        LEFT JOIN              
        t3
        ON t2.b=t3.b;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
   FROM t1, t2 
        LEFT JOIN              
@@ -409,6 +428,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
        ON t2.b=t3.b
     WHERE t1.a <= 2;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
   FROM t1, t3 
        RIGHT JOIN              
@@ -419,12 +439,14 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
 SELECT t3.a,t3.b,t4.a,t4.b
   FROM t3,t4;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t2 
        LEFT JOIN              
        (t3, t4)
        ON t3.a=1 AND t2.b=t4.b;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t1, t2 
        LEFT JOIN              
@@ -432,6 +454,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t1, (t3, t4) 
        RIGHT JOIN              
@@ -439,6 +462,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t2.b=t4.b
     WHERE t1.a <= 2;
 
+--sorted_result
 SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM t1, (t3, t4)
        RIGHT JOIN              
@@ -695,10 +719,12 @@ INSERT INTO t1 VALUES (2);
 
 #check proper syntax for nested outer joins
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t3.a;
 
 #must be equivalent to:
 
+--sorted_result
 SELECT * FROM t1 LEFT JOIN t2 LEFT JOIN t3 ON t2.a=t3.a ON t1.a=t3.a;
 
 #check that everything is al right when all tables contain not more than 1 row
@@ -770,6 +796,7 @@ INSERT INTO t3 VALUES (3,23), (6,26);
 CREATE TABLE t4 (groupid int(12));
 INSERT INTO t4 VALUES (1), (2), (3), (4), (5), (6);
 
+--sorted_result
 SELECT * FROM
 (SELECT DISTINCT gl.groupid, gp.price
   FROM t4 gl 
@@ -791,8 +818,10 @@ SELECT DISTINCT g.groupid, fr.price
        LEFT JOIN
        v1 fr on g.groupid = fr.groupid and fr.shop = 'fr';
 
+--sorted_result
 SELECT * FROM v2;
 
+--sorted_result
 SELECT * FROM 
 (SELECT DISTINCT g.groupid, fr.price
   FROM t4 g

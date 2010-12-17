@@ -165,7 +165,7 @@ fn_expand(const char *filename, char *result_buf)
   if (my_getwd(dir, sizeof(dir), MYF(0)))
     DBUG_RETURN(3);
   DBUG_PRINT("debug", ("dir: %s", dir));
-  if (fn_format(result_buf, filename, dir, NULL, flags) == NULL)
+  if (fn_format(result_buf, filename, dir, "", flags) == NULL)
     DBUG_RETURN(2);
   DBUG_PRINT("return", ("result: %s", result_buf));
   DBUG_RETURN(0);
@@ -368,7 +368,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, (uchar*) &tmp))
+    if (insert_dynamic(ctx->args, &tmp))
       return 1;
     strmov(tmp, option);
   }

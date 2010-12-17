@@ -1,4 +1,4 @@
-#
+
 # This test calls CHANGE MASTER in order to check if replication can
 # restart from where SQL thread left, not from where I/O thread left.
 #  

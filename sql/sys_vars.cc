@@ -206,6 +206,14 @@ static Sys_var_ulong Sys_pfs_setup_actors_size(
        DEFAULT(PFS_MAX_SETUP_ACTOR),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_setup_objects_size(
+       "performance_schema_setup_objects_size",
+       "Maximum number of rows in SETUP_OBJECTS.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_setup_object_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_MAX_SETUP_OBJECT),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -255,16 +263,33 @@ static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
+static bool fix_binlog_stmt_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  check_binlog_stmt_cache_size(thd);
+  return false;
+}
+
 static Sys_var_ulong Sys_binlog_cache_size(
-       "binlog_cache_size", "The size of the cache to "
-       "hold the SQL statements for the binary log during a "
-       "transaction. If you often use big, multi-statement "
-       "transactions you can increase this to get more performance",
+       "binlog_cache_size", "The size of the transactional cache for "
+       "updates to transactional engines for the binary log. "
+       "If you often use transactions containing many statements, "
+       "you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_cache_size));
+
+static Sys_var_ulong Sys_binlog_stmt_cache_size(
+       "binlog_stmt_cache_size", "The size of the statement cache for "
+       "updates to non-transactional engines for the binary log. "
+       "If you often use statements updating a great number of rows, "
+       "you can increase this to get more performance",
+       GLOBAL_VAR(binlog_stmt_cache_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_stmt_cache_size));
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -455,16 +480,19 @@ static bool check_charset(sys_var *self, THD *thd, set_var *var)
   if (var->value->result_type() == STRING_RESULT)
   {
     String str(buff, sizeof(buff), system_charset_info), *res;
-    if (!(res=var->value->val_str(&str)))
+    if (!(res= var->value->val_str(&str)))
       var->save_result.ptr= NULL;
-    else if (!(var->save_result.ptr= get_charset_by_csname(res->c_ptr(),
-                                                           MY_CS_PRIMARY,
-                                                           MYF(0))) &&
-             !(var->save_result.ptr= get_old_charset_by_name(res->c_ptr())))
+    else
     {
-      ErrConvString err(res);
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
-      return true;
+      ErrConvString err(res); /* Get utf8 '\0' terminated string */
+      if (!(var->save_result.ptr= get_charset_by_csname(err.ptr(),
+                                                         MY_CS_PRIMARY,
+                                                         MYF(0))) &&
+          !(var->save_result.ptr= get_old_charset_by_name(err.ptr())))
+      {
+        my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
+        return true;
+      }
     }
   }
   else // INT_RESULT
@@ -575,11 +603,14 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res= var->value->val_str(&str)))
       var->save_result.ptr= NULL;
-    else if (!(var->save_result.ptr= get_charset_by_name(res->c_ptr(), MYF(0))))
+    else
     {
-      ErrConvString err(res);
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
-      return true;
+      ErrConvString err(res); /* Get utf8 '\0'-terminated string */
+      if (!(var->save_result.ptr= get_charset_by_name(err.ptr(), MYF(0))))
+      {
+        my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
+        return true;
+      }
     }
   }
   else // INT_RESULT
@@ -897,9 +928,9 @@ static Sys_var_ulong Sys_optimizer_join_cache_level(
 #ifdef OPTIMIZER_SWITCH_ALL
        VALID_RANGE(0, 8),
 #else
-       VALID_RANGE(0, 1),
+       VALID_RANGE(0, 4),
 #endif
-       DEFAULT(1), BLOCK_SIZE(1));
+       DEFAULT(4), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -1099,14 +1130,23 @@ static Sys_var_ulong Sys_max_allowed_packet(
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
-       "Can be used to restrict the total size used to cache a "
-       "multi-transaction query",
+       "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_cache_size));
+
+static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
+       "max_binlog_stmt_cache_size",
+       "Sets the total size of the statement cache",
+       GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       BLOCK_SIZE(IO_SIZE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_binlog_stmt_cache_size));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1412,9 +1452,9 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
+  "index_condition_pushdown" , "mrr", "mrr_cost_based",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
-  "mrr", "mrr_cost_based", "index_condition_pushdown",
 #endif
   "default", NullS
 };
@@ -1431,11 +1471,11 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
-       "index_merge_intersection, engine_condition_pushdown"
+       "index_merge_intersection, engine_condition_pushdown, "
+       "index_condition_pushdown, mrr, mrr_cost_based"
 #ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, "
-       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
-       "index_condition_pushdown"
+       "semijoin, loosescan, firstmatch"
 #endif
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
@@ -1493,7 +1533,6 @@ static Sys_var_ulong Sys_read_buff_size(
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
-static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
@@ -1577,6 +1616,16 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   DBUG_RETURN(result);
 }
+
+
+/**
+  The read_only boolean is always equal to the opt_readonly boolean except
+  during fix_read_only(); when that function is entered, opt_readonly is
+  the pre-update value and read_only is the post-update value.
+  fix_read_only() compares them and runs needed operations for the
+  transition (especially when transitioning from false to true) and
+  synchronizes both booleans in the end.
+*/
 static Sys_var_mybool Sys_readonly(
        "read_only",
        "Make all non-temporary tables read-only, with the exception for "
@@ -1877,8 +1926,52 @@ static Sys_var_set Slave_type_conversions(
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
        slave_type_conversions_name,
        DEFAULT(0));
+
+static Sys_var_mybool Sys_slave_sql_verify_checksum(
+       "slave_sql_verify_checksum",
+       "Force checksum verification of replication events after reading them "
+       "from relay log. Note: Events are always checksum-verified by slave on "
+       "receiving them from the network before writing them to the relay "
+       "log. Enabled by default.",
+       GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 #endif
 
+bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  if(mysql_bin_log.is_open())
+  {
+    uint flags= RP_FORCE_ROTATE | RP_LOCK_LOG_IS_ALREADY_LOCKED |
+      (binlog_checksum_options != (uint) var->save_result.ulonglong_value?
+       RP_BINLOG_CHECKSUM_ALG_CHANGE : 0);
+    if (flags & RP_BINLOG_CHECKSUM_ALG_CHANGE)
+      mysql_bin_log.checksum_alg_reset= (uint8) var->save_result.ulonglong_value;
+    mysql_bin_log.rotate_and_purge(flags);
+  }
+  else
+  {
+    binlog_checksum_options= var->save_result.ulonglong_value;
+  }
+  DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
+  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset == BINLOG_CHECKSUM_ALG_UNDEF);
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+  return 0;
+}
+
+static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
+       "binlog_checksum", "Type of BINLOG_CHECKSUM_ALG. Include checksum for "
+       "log events in the binary log. Possible values are NONE and CRC32; "
+       "default is NONE.",
+       GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
+       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_OFF),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_mybool Sys_master_verify_checksum(
+       "master_verify_checksum",
+       "Force checksum verification of logged events in binary log before "
+       "sending them to slaves or printing them in output of SHOW BINLOG EVENTS. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_master_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_slow_launch_time(
        "slow_launch_time",
@@ -1894,7 +1987,7 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(MAX_SORT_MEMORY),
        BLOCK_SIZE(1));
 
-export ulong expand_sql_mode(ulonglong sql_mode)
+export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
   if (sql_mode & MODE_ANSI)
   {
@@ -1980,7 +2073,7 @@ static const char *sql_mode_names[]=
   "PAD_CHAR_TO_FULL_LENGTH",
   0
 };
-export bool sql_mode_string_representation(THD *thd, ulong sql_mode,
+export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
   set_to_string(thd, ls, sql_mode, sql_mode_names);

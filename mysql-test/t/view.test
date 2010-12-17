@@ -155,8 +155,11 @@ insert into t1 values (1), (2), (3);
 create view v1 (a) as select a+1 from t1;
 create view v2 (a) as select a-1 from t1;
 
+--sorted_result
 select * from t1 natural left join v1;
+--sorted_result
 select * from v2 natural left join t1;
+--sorted_result
 select * from v2 natural left join v1;
 
 drop view v1, v2;
@@ -983,7 +986,9 @@ insert into t1 values (0), (1), (2), (3);
 create table t2 (a int);
 insert into t2 select a from t1 where a > 1;
 create view v1 as select a from t1 where a > 1;
+--sorted_result
 select * from t1 left join (t2 as t, v1) on v1.a=t1.a;
+--sorted_result
 select * from t1 left join (t2 as t, t2) on t2.a=t1.a;
 drop view v1;
 drop table t1, t2;
@@ -1512,11 +1517,13 @@ INSERT INTO t2 VALUES (8,1,'y');
 
 CREATE VIEW v1 AS SELECT * FROM t1;
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM t1 a LEFT JOIN t2 b ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
           b.col2=(SELECT MAX(col2) FROM t2 b WHERE b.col1=a.col1);
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM v1 a LEFT JOIN t2 b ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
@@ -1524,6 +1531,7 @@ SELECT a.col1,a.col2,b.col2,b.col3
 
 CREATE VIEW v2 AS SELECT * FROM t2;
 
+--sorted_result
 SELECT a.col1,a.col2,b.col2,b.col3
   FROM v2 b RIGHT JOIN v1 a ON a.col1=b.col1
     WHERE b.col2 IS NULL OR
@@ -3964,6 +3972,22 @@ CREATE VIEW v1 AS SELECT 1 from t1
 WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#57703 create view cause Assertion failed: 0, file .\item_subselect.cc, line 846
+--echo #
+
+CREATE TABLE t1(a int);
+CREATE VIEW v1 AS SELECT 1 FROM t1 GROUP BY
+SUBSTRING(1 FROM (SELECT 3 FROM t1 WHERE a >= ANY(SELECT 1)));
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57352 valgrind warnings when creating view
+--echo #
+CREATE VIEW v1 AS SELECT 1 IN (1 LIKE 2,0) AS f;
+DROP VIEW v1;
 
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.

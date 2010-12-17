@@ -1,0 +1,517 @@
+set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=on';
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=79;
+select @@read_rnd_buffer_size;
+@@read_rnd_buffer_size
+79
+create table t1(a int);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a int);
+insert into t2 select A.a + 10*(B.a + 10*C.a) from t1 A, t1 B, t1 C;
+create table t3 (
+a char(8) not null, b char(8) not null, filler char(200),
+key(a)
+);
+insert into t3 select @a:=concat('c-', 1000+ A.a, '=w'), @a, 'filler' from t2 A;
+insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 2000+A.a, '=w'), 
+'filler-1' from t2 A;
+insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 3000+A.a, '=w'), 
+'filler-2' from t2 A;
+select a,filler from t3 where a >= 'c-9011=w';
+a	filler
+select a,filler from t3 where a >= 'c-1011=w' and a <= 'c-1015=w';
+a	filler
+c-1011=w	filler
+c-1011=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
+c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
+c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
+c-1015=w	filler-2
+select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
+(a>='c-1014=w' and a <= 'c-1015=w');
+a	filler
+c-1011=w	filler
+c-1011=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
+c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
+c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
+c-1015=w	filler-2
+insert into t3 values ('c-1013=z', 'c-1013=z', 'err');
+insert into t3 values ('a-1014=w', 'a-1014=w', 'err');
+select a,filler from t3 where (a>='c-1011=w' and a <= 'c-1013=w') or
+(a>='c-1014=w' and a <= 'c-1015=w');
+a	filler
+c-1011=w	filler
+c-1011=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
+c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
+c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
+c-1015=w	filler-2
+delete from t3 where b in ('c-1013=z', 'a-1014=w');
+select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
+a='c-1014=w' or a='c-1015=w';
+a	filler
+c-1011=w	filler
+c-1011=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
+c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
+c-1013=w	filler-2
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
+c-1015=w	filler-2
+insert into t3 values ('c-1013=w', 'del-me', 'inserted');
+select a,filler from t3 where a='c-1011=w' or a='c-1012=w' or a='c-1013=w' or
+a='c-1014=w' or a='c-1015=w';
+a	filler
+c-1011=w	filler
+c-1011=w	filler-1
+c-1011=w	filler-2
+c-1012=w	filler
+c-1012=w	filler-1
+c-1012=w	filler-2
+c-1013=w	filler
+c-1013=w	filler-1
+c-1013=w	filler-2
+c-1013=w	inserted
+c-1014=w	filler
+c-1014=w	filler-1
+c-1014=w	filler-2
+c-1015=w	filler
+c-1015=w	filler-1
+c-1015=w	filler-2
+delete from t3 where b='del-me';
+alter table t3 add primary key(b);
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
+b IN ('c-1019=w', 'c-1020=w', 'c-1021=w', 
+'c-1022=w', 'c-1023=w', 'c-1024=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+c-1024=w	filler
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1020=w') or 
+b IN ('c-1021=w', 'c-1022=w', 'c-1023=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+select b,filler from t3 where (b>='c-1011=w' and b<= 'c-1018=w') or 
+b IN ('c-1019=w', 'c-1020=w') or 
+(b>='c-1021=w' and b<= 'c-1023=w');
+b	filler
+c-1011=w	filler
+c-1012=w	filler
+c-1013=w	filler
+c-1014=w	filler
+c-1015=w	filler
+c-1016=w	filler
+c-1017=w	filler
+c-1018=w	filler
+c-1019=w	filler
+c-1020=w	filler
+c-1021=w	filler
+c-1022=w	filler
+c-1023=w	filler
+create table t4 (a varchar(10), b int, c char(10), filler char(200),
+key idx1 (a, b, c));
+insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'b-1',NULL,'c-1', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'b-1',NULL,'c-222', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'bb-1',NULL,'cc-2', concat('NULL-', 15-a) from t2 order by a limit 15;
+insert into t4 (a,b,c,filler) 
+select 'zz-1',NULL,'cc-2', 'filler-data' from t2 order by a limit 500;
+explain 
+select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
+                                                      or c='no-such-row2');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition
+select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
+                                                    or c='no-such-row2');
+a	b	c	filler
+NULL	NULL	NULL	NULL-15
+NULL	NULL	NULL	NULL-14
+NULL	NULL	NULL	NULL-13
+NULL	NULL	NULL	NULL-12
+NULL	NULL	NULL	NULL-11
+NULL	NULL	NULL	NULL-10
+NULL	NULL	NULL	NULL-9
+NULL	NULL	NULL	NULL-8
+NULL	NULL	NULL	NULL-7
+NULL	NULL	NULL	NULL-6
+NULL	NULL	NULL	NULL-5
+NULL	NULL	NULL	NULL-4
+NULL	NULL	NULL	NULL-3
+NULL	NULL	NULL	NULL-2
+NULL	NULL	NULL	NULL-1
+explain 
+select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition
+select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+a	b	c	filler
+b-1	NULL	c-1	NULL-15
+b-1	NULL	c-1	NULL-14
+b-1	NULL	c-1	NULL-13
+b-1	NULL	c-1	NULL-12
+b-1	NULL	c-1	NULL-11
+b-1	NULL	c-1	NULL-10
+b-1	NULL	c-1	NULL-9
+b-1	NULL	c-1	NULL-8
+b-1	NULL	c-1	NULL-7
+b-1	NULL	c-1	NULL-6
+b-1	NULL	c-1	NULL-5
+b-1	NULL	c-1	NULL-4
+b-1	NULL	c-1	NULL-3
+b-1	NULL	c-1	NULL-2
+b-1	NULL	c-1	NULL-1
+bb-1	NULL	cc-2	NULL-15
+bb-1	NULL	cc-2	NULL-14
+bb-1	NULL	cc-2	NULL-13
+bb-1	NULL	cc-2	NULL-12
+bb-1	NULL	cc-2	NULL-11
+bb-1	NULL	cc-2	NULL-10
+bb-1	NULL	cc-2	NULL-9
+bb-1	NULL	cc-2	NULL-8
+bb-1	NULL	cc-2	NULL-7
+bb-1	NULL	cc-2	NULL-6
+bb-1	NULL	cc-2	NULL-5
+bb-1	NULL	cc-2	NULL-4
+bb-1	NULL	cc-2	NULL-3
+bb-1	NULL	cc-2	NULL-2
+bb-1	NULL	cc-2	NULL-1
+select * from t4 ignore index(idx1) where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+a	b	c	filler
+b-1	NULL	c-1	NULL-15
+b-1	NULL	c-1	NULL-14
+b-1	NULL	c-1	NULL-13
+b-1	NULL	c-1	NULL-12
+b-1	NULL	c-1	NULL-11
+b-1	NULL	c-1	NULL-10
+b-1	NULL	c-1	NULL-9
+b-1	NULL	c-1	NULL-8
+b-1	NULL	c-1	NULL-7
+b-1	NULL	c-1	NULL-6
+b-1	NULL	c-1	NULL-5
+b-1	NULL	c-1	NULL-4
+b-1	NULL	c-1	NULL-3
+b-1	NULL	c-1	NULL-2
+b-1	NULL	c-1	NULL-1
+bb-1	NULL	cc-2	NULL-15
+bb-1	NULL	cc-2	NULL-14
+bb-1	NULL	cc-2	NULL-13
+bb-1	NULL	cc-2	NULL-12
+bb-1	NULL	cc-2	NULL-11
+bb-1	NULL	cc-2	NULL-10
+bb-1	NULL	cc-2	NULL-9
+bb-1	NULL	cc-2	NULL-8
+bb-1	NULL	cc-2	NULL-7
+bb-1	NULL	cc-2	NULL-6
+bb-1	NULL	cc-2	NULL-5
+bb-1	NULL	cc-2	NULL-4
+bb-1	NULL	cc-2	NULL-3
+bb-1	NULL	cc-2	NULL-2
+bb-1	NULL	cc-2	NULL-1
+drop table t1, t2, t3, t4;
+create table t1 (a int, b int not null,unique key (a,b),index(b));
+insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
+create table t2 like t1;
+insert into t2 select * from t1;
+alter table t1 modify b blob not null, add c int not null, drop key a, add unique key (a,b(20),c), drop key b, add key (b(10));
+select * from t1 where a is null;
+a	b	c
+NULL	7	0
+NULL	9	0
+NULL	9	0
+select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+a	b	c
+NULL	9	0
+NULL	9	0
+select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+a	b	c
+NULL	7	0
+NULL	9	0
+NULL	9	0
+drop table t1, t2;
+CREATE TABLE t1 (
+ID int(10) unsigned NOT NULL AUTO_INCREMENT,
+col1 int(10) unsigned DEFAULT NULL,
+key1 int(10) unsigned NOT NULL DEFAULT '0',
+key2 int(10) unsigned DEFAULT NULL,
+text1 text,
+text2 text,
+col2 smallint(6) DEFAULT '100',
+col3 enum('headers','bodyandsubject') NOT NULL DEFAULT 'bodyandsubject',
+col4 tinyint(3) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (ID),
+KEY (key1),
+KEY (key2)
+) AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES
+(1,NULL,1130,NULL,'Hello',NULL,100,'bodyandsubject',0),
+(2,NULL,1130,NULL,'bye',NULL,100,'bodyandsubject',0),
+(3,NULL,1130,NULL,'red',NULL,100,'bodyandsubject',0),
+(4,NULL,1130,NULL,'yellow',NULL,100,'bodyandsubject',0),
+(5,NULL,1130,NULL,'blue',NULL,100,'bodyandsubject',0);
+select * FROM t1 WHERE key1=1130 AND col1 IS NULL ORDER BY text1;
+ID	col1	key1	key2	text1	text2	col2	col3	col4
+5	NULL	1130	NULL	blue	NULL	100	bodyandsubject	0
+2	NULL	1130	NULL	bye	NULL	100	bodyandsubject	0
+1	NULL	1130	NULL	Hello	NULL	100	bodyandsubject	0
+3	NULL	1130	NULL	red	NULL	100	bodyandsubject	0
+4	NULL	1130	NULL	yellow	NULL	100	bodyandsubject	0
+drop table t1;
+
+BUG#37851: Crash in test_if_skip_sort_order tab->select is zero
+
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_key int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY int_key (int_key)
+);
+INSERT INTO t2 VALUES (1,1),(2,6),(3,0);
+EXPLAIN EXTENDED
+SELECT MIN(t1.pk)
+FROM t1 WHERE EXISTS (
+SELECT t2.pk
+FROM t2
+WHERE t2.int_key IS NULL
+GROUP BY t2.pk
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	ref	int_key	int_key	5	const	1	100.00	Using index condition
+Warnings:
+Note	1003	select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` where 0
+DROP TABLE t1, t2;
+#
+# BUG#42048 Discrepancy between MyISAM and Maria's ICP implementation
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b char(20), filler char(200), key(a,b(10)));
+insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t0 C;
+update t1 set b=repeat(char(65+a), 20) where a < 25;
+This must show range + using index condition:
+explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	x	Using index condition; Using where
+select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+a	b	filler
+0	AAAAAAAAAAAAAAAAAAAA	filler
+1	BBBBBBBBBBBBBBBBBBBB	filler
+2	CCCCCCCCCCCCCCCCCCCC	filler
+3	DDDDDDDDDDDDDDDDDDDD	filler
+4	EEEEEEEEEEEEEEEEEEEE	filler
+5	FFFFFFFFFFFFFFFFFFFF	filler
+6	GGGGGGGGGGGGGGGGGGGG	filler
+7	HHHHHHHHHHHHHHHHHHHH	filler
+8	IIIIIIIIIIIIIIIIIIII	filler
+9	JJJJJJJJJJJJJJJJJJJJ	filler
+drop table t0,t1;
+#
+# BUG#41136: ORDER BY + range access: EXPLAIN shows "Using MRR" while MRR is actually not used
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, key(a));
+insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0 A, t0 B, t0 C;
+This mustn't show "Using MRR":
+explain select * from t1 where a < 20  order by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition
+drop table t0, t1;
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=64;
+create table t1(a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a char(8), b char(8), c char(8), filler char(100), key(a,b,c) );
+insert into t2 select 
+concat('a-', 1000 + A.a, '-a'),
+concat('b-', 1000 + B.a, '-b'),
+concat('c-', 1000 + C.a, '-c'),
+'filler'
+from t1 A, t1 B, t1 C;
+explain
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	a	a	9	NULL	92	Using index condition
+select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
+count(length(a) + length(filler))
+100
+drop table t2;
+create table t2 (a char(100), b char(100), c char(100), d int, 
+filler char(10), key(d), primary key (a,b,c));
+insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
+drop table t2;
+drop table t1;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+create table t1 (f1 int not null, f2 int not null,f3 int not null, f4 char(1), primary key (f1,f2), key ix(f3));
+select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
+f1	f2	f3	f4
+1	1	1	A
+10	10	10	A
+2	2	2	A
+3	3	3	A
+4	4	4	A
+5	5	5	A
+6	6	6	A
+7	7	7	A
+8	8	8	A
+9	9	9	A
+drop table t1;
+
+BUG#37977: Wrong result returned on GROUP BY + OR + Innodb
+
+CREATE TABLE t1 (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`int_nokey` int(11) NOT NULL,
+`int_key` int(11) NOT NULL,
+`date_key` date NOT NULL,
+`date_nokey` date NOT NULL,
+`time_key` time NOT NULL,
+`time_nokey` time NOT NULL,
+`datetime_key` datetime NOT NULL,
+`datetime_nokey` datetime NOT NULL,
+`varchar_key` varchar(5) DEFAULT NULL,
+`varchar_nokey` varchar(5) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `int_key` (`int_key`),
+KEY `date_key` (`date_key`),
+KEY `time_key` (`time_key`),
+KEY `datetime_key` (`datetime_key`),
+KEY `varchar_key` (`varchar_key`)
+);
+INSERT INTO t1 VALUES 
+(1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
+(2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
+(3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
+(4,0,0,'2001-09-18','2001-09-18','00:00:00','00:00:00','2004-03-23 13:23:35','2004-03-23 13:23:35',NULL,NULL),
+(5,6,6,'2007-08-16','2007-08-16','22:13:38','22:13:38','2004-08-19 11:01:28','2004-08-19 11:01:28','qu','qu');
+select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
+pk
+1
+5
+select pk from t1 WHERE `int_nokey` IS NULL OR  `varchar_key` > 'kr' group by pk;
+pk
+1
+5
+drop table t1;
+#
+# BUG#39447: Error with NOT NULL condition and LIMIT 1
+#
+CREATE TABLE t1 (                 
+id int(11) NOT NULL,                
+parent_id int(11) DEFAULT NULL,     
+name varchar(10) DEFAULT NULL,      
+PRIMARY KEY (id),                   
+KEY ind_parent_id (parent_id)     
+);
+insert into t1 (id, parent_id, name) values
+(10,NULL,'A'),
+(20,10,'B'),
+(30,10,'C'),
+(40,NULL,'D'),
+(50,40,'E'),
+(60,40,'F'),
+(70,NULL,'J');
+SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+id
+60
+This must show type=index, extra=Using where
+explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	ind_parent_id	PRIMARY	4	NULL	1	Using where
+SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+id	parent_id	name
+60	40	F
+drop table t1;
+#
+# Bug#50381 "Assertion failing in handler.h:1283: 
+#            void COST_VECT::add_io(double, double)"
+#
+CREATE TABLE t1 (
+c1 INT NOT NULL,
+c2 VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY (c1)
+);
+CREATE TABLE t2 (
+c1 INT NOT NULL,
+c2 VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t2 VALUES (10,'v');
+INSERT INTO t2 VALUES (11,'r');
+SELECT t1.c2  
+FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1;
+c2
+DROP TABLE t1, t2;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+set optimizer_switch=default;

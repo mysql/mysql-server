@@ -131,10 +131,10 @@
                   Impersonate="no"
                   Return="check" />
     <InstallExecuteSequence>
-      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
-      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
-      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And UILevel&gt;4</Custom>
-      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And UILevel&lt;=4</Custom>
+      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
+      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
+      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
+      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
     </InstallExecuteSequence>
 
     <!-- Installation root-->

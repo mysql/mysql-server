@@ -223,10 +223,10 @@ max(t2.a1)	max(t1.a1)
 NULL	NULL
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 a1	a2	a1	a2
-10	aaa	AAA	10
-10	aaa	BBB	20
 10	NULL	AAA	10
 10	NULL	BBB	20
+10	aaa	AAA	10
+10	aaa	BBB	20
 10	bbb	AAA	10
 10	bbb	BBB	20
 20	zzz	NULL	NULL
@@ -614,7 +614,7 @@ explain
 select max(t1.a3), min(t2.a2) from t1, t2 where t1.a2 = 2 and t1.a3 < 'MIN' and t2.a3 > 'CA';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	k1	k1	7	NULL	1	Using where; Using index
-1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t2	range	k1	k1	3	NULL	4	Using where; Using index; Using join buffer (BNL, incremental buffers)
 explain
 select min(a4 - 0.01) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -651,7 +651,7 @@ explain
 select concat(min(t1.a1),min(t2.a4)) from t1, t2 where t2.a4 <> 'AME';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	k2	k2	4	NULL	6	Using where; Using index
-1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	index	NULL	PRIMARY	3	NULL	15	Using index; Using join buffer (BNL, incremental buffers)
 drop table t1, t2;
 create table t1 (a char(10));
 insert into t1 values ('a'),('b'),('c');
@@ -1756,3 +1756,18 @@ MAX(c1)	MIN(c1)
 -00:00:01	-00:00:01
 DROP TABLE t1;
 # End of the bug#56120
+#
+# Bug#57932 "query with AVG(DISTINCT) returns NULL if last
+# aggregated value was NULL"
+#
+CREATE TABLE t1 (col_int_nokey int(11));
+INSERT INTO t1 VALUES (7),(8),(NULL);
+SELECT AVG(DISTINCT col_int_nokey) FROM t1;
+AVG(DISTINCT col_int_nokey)
+7.5000
+SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
+outr.col_int_nokey = outr2.col_int_nokey;
+AVG(DISTINCT outr.col_int_nokey)
+7.5000
+DROP TABLE t1;
+# End of the bug#57932

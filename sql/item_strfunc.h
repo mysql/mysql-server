@@ -91,6 +91,27 @@ public:
   const char *func_name() const { return "sha2"; }
 };
 
+class Item_func_to_base64 :public Item_str_ascii_func
+{
+  String tmp_value;
+public:
+  Item_func_to_base64(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "to_base64"; }
+};
+
+class Item_func_from_base64 :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_from_base64(Item *a) :Item_str_func(a) {}
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "from_base64"; }
+};
+
+
 class Item_func_aes_encrypt :public Item_str_func
 {
 public:
@@ -655,6 +676,46 @@ public:
     max_length=(1+args[0]->max_length)/2;
   }
 };
+
+
+#ifndef DBUG_OFF
+class Item_func_like_range :public Item_str_func
+{
+protected:
+  String min_str;
+  String max_str;
+  const bool is_min;
+public:
+  Item_func_like_range(Item *a, Item *b, bool is_min_arg)
+    :Item_str_func(a, b), is_min(is_min_arg)
+  { maybe_null= 1; }
+  String *val_str(String *);
+  void fix_length_and_dec()
+  {
+    collation.set(args[0]->collation);
+    decimals=0;
+    max_length= MAX_BLOB_WIDTH;
+  }
+};
+
+
+class Item_func_like_range_min :public Item_func_like_range
+{
+public:
+  Item_func_like_range_min(Item *a, Item *b) 
+    :Item_func_like_range(a, b, true) { }
+  const char *func_name() const { return "like_range_min"; }
+};
+
+
+class Item_func_like_range_max :public Item_func_like_range
+{
+public:
+  Item_func_like_range_max(Item *a, Item *b)
+    :Item_func_like_range(a, b, false) { }
+  const char *func_name() const { return "like_range_max"; }
+};
+#endif
 
 
 class Item_func_binary :public Item_str_func

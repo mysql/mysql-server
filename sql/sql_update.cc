@@ -296,10 +296,16 @@ int mysql_update(THD *thd,
   if (lock_tables(thd, table_list, table_count, 0))
     DBUG_RETURN(1);
 
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(1);
+
+  if (thd->fill_derived_tables() &&
+      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+    DBUG_RETURN(1);
+  }
+  mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   thd_proc_info(thd, "init");
   table= table_list->table;
@@ -473,13 +479,15 @@ int mysql_update(THD *thd,
       uint         length= 0;
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
+      ha_rows found_rows;
 
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
           (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, limit, 1,
-                                               &examined_rows))
+                                               select, limit,
+                                               true,
+                                               &examined_rows, &found_rows))
           == HA_POS_ERROR)
       {
 	goto err;
@@ -1193,7 +1201,11 @@ int mysql_multi_update_prepare(THD *thd)
  
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(lex, &mysql_derived_cleanup);
     DBUG_RETURN(TRUE);
+  }
+  mysql_handle_derived(lex, &mysql_derived_cleanup);
 
   DBUG_RETURN (FALSE);
 }

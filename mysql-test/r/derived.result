@@ -58,7 +58,7 @@ a	b	a	b
 explain select * from t1 as x1, (select * from t1) as x2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	x1	ALL	NULL	NULL	NULL	NULL	4	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (BNL, regular buffers)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (BNL, incremental buffers)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table if exists  t2,t3;
 select * from (select 1) as a;
@@ -189,13 +189,13 @@ pla_id	test
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (BNL, incremental buffers)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (BNL, incremental buffers)
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	
 drop table t1,t2;
@@ -246,7 +246,7 @@ a	a
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, incremental buffers)
 4	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 5	UNION	t1	ALL	NULL	NULL	NULL	NULL	2	
 NULL	UNION RESULT	<union4,5>	ALL	NULL	NULL	NULL	NULL	NULL	
@@ -313,7 +313,7 @@ explain SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
 2	DERIVED	x	ALL	NULL	NULL	NULL	NULL	17	Using temporary; Using filesort
-2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer (BNL, regular buffers)
+2	DERIVED	y	ALL	NULL	NULL	NULL	NULL	17	Using where; Using join buffer (BNL, incremental buffers)
 drop table t1;
 create table t2 (a int, b int, primary key (a));
 insert into t2 values (1,7),(2,7);
@@ -400,4 +400,30 @@ SELECT 0 FROM
 (SELECT 0) t61;
 0
 0
+#
+#  A nested materialized derived table is used before being populated.
+#  (addon for bug#19077)
+#
+CREATE TABLE t1 (i INT, j BIGINT);
+INSERT INTO t1 VALUES (1, 2), (2, 2), (3, 2);
+SELECT * FROM (SELECT MIN(i) FROM t1
+WHERE j = SUBSTRING('12', (SELECT * FROM (SELECT MIN(j) FROM t1) t2))) t3;
+MIN(i)
+1
+DROP TABLE t1;
 # End of 5.0 tests
+#
+# Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
+#           temptable views
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, KEY (b));
+INSERT INTO t1 VALUES (1),(1);
+INSERT INTO t2 VALUES (1),(1);
+CREATE algorithm=temptable VIEW v1 AS
+SELECT 1 FROM t1 LEFT JOIN t1 t3 ON 1 > (SELECT 1 FROM t1);
+CREATE algorithm=temptable VIEW v2 AS SELECT 1 FROM t2;
+EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;

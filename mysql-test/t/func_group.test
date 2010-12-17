@@ -140,6 +140,7 @@ select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
 select max(t2.a1), max(t1.a1) from t1, t2 where t2.a2=9;
+--sorted_result
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1 left outer join t2 on t1.a1=10;
 select max(t1.a2) from t1 left outer join t2 on t1.a1=10;
 select max(t2.a1) from t2 left outer join t1 on t2.a2=10 where t2.a2=20;
@@ -1129,3 +1130,14 @@ SELECT MAX(c1),MIN(c1) FROM t1;
 DROP TABLE t1;
 --echo # End of the bug#56120
 
+--echo #
+--echo # Bug#57932 "query with AVG(DISTINCT) returns NULL if last
+--echo # aggregated value was NULL"
+--echo #
+CREATE TABLE t1 (col_int_nokey int(11));
+INSERT INTO t1 VALUES (7),(8),(NULL);
+SELECT AVG(DISTINCT col_int_nokey) FROM t1;
+SELECT AVG(DISTINCT outr.col_int_nokey) FROM t1 AS outr LEFT JOIN t1 AS outr2 ON
+outr.col_int_nokey = outr2.col_int_nokey;
+DROP TABLE t1;
+--echo # End of the bug#57932

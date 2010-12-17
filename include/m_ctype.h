@@ -427,6 +427,8 @@ extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf16_bin;
 extern CHARSET_INFO my_charset_utf16_general_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf16le_bin;
+extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
@@ -517,6 +519,7 @@ ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs,
 
 void my_fill_8bit(CHARSET_INFO *cs, char* to, size_t l, int fill);
 
+/* For 8-bit character set */
 my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      const char *ptr, size_t ptr_length,
 			      pbool escape, pbool w_one, pbool w_many,
@@ -524,6 +527,7 @@ my_bool  my_like_range_simple(CHARSET_INFO *cs,
 			      char *min_str, char *max_str,
 			      size_t *min_length, size_t *max_length);
 
+/* For ASCII-based multi-byte character sets with mbminlen=1 */
 my_bool  my_like_range_mb(CHARSET_INFO *cs,
 			  const char *ptr, size_t ptr_length,
 			  pbool escape, pbool w_one, pbool w_many,
@@ -531,26 +535,13 @@ my_bool  my_like_range_mb(CHARSET_INFO *cs,
 			  char *min_str, char *max_str,
 			  size_t *min_length, size_t *max_length);
 
-my_bool  my_like_range_ucs2(CHARSET_INFO *cs,
-			    const char *ptr, size_t ptr_length,
-			    pbool escape, pbool w_one, pbool w_many,
-			    size_t res_length,
-			    char *min_str, char *max_str,
-			    size_t *min_length, size_t *max_length);
-
-my_bool  my_like_range_utf16(CHARSET_INFO *cs,
-			     const char *ptr, size_t ptr_length,
-			     pbool escape, pbool w_one, pbool w_many,
-			     size_t res_length,
-			     char *min_str, char *max_str,
-			     size_t *min_length, size_t *max_length);
-
-my_bool  my_like_range_utf32(CHARSET_INFO *cs,
-			     const char *ptr, size_t ptr_length,
-			     pbool escape, pbool w_one, pbool w_many,
-			     size_t res_length,
-			     char *min_str, char *max_str,
-			     size_t *min_length, size_t *max_length);
+/* For other character sets, with arbitrary mbminlen and mbmaxlen numbers */
+my_bool  my_like_range_generic(CHARSET_INFO *cs,
+                               const char *ptr, size_t ptr_length,
+                               pbool escape, pbool w_one, pbool w_many,
+                               size_t res_length,
+                               char *min_str, char *max_str,
+                               size_t *min_length, size_t *max_length);
 
 int my_wildcmp_8bit(CHARSET_INFO *,
 		    const char *str,const char *str_end,
@@ -646,6 +637,8 @@ extern my_bool my_parse_charset_xml(const char *bug, size_t len,
                                     char *error, size_t errsize);
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
+extern size_t my_strcspn(CHARSET_INFO *cs, const char *str, const char *end,
+                         const char *accept);
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, size_t len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, size_t len);
