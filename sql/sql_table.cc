@@ -3325,6 +3325,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->length=(uint16) length;
       /* Use packed keys for long strings on the first column */
       if (!((*db_options) & HA_OPTION_NO_PACK_KEYS) &&
+          !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
 	  (length >= KEY_DEFAULT_PACK_LENGTH &&
 	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
 	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -4414,9 +4415,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     table= &tmp_table;
     pthread_mutex_unlock(&LOCK_open);
   }
-
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->child_l);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
