@@ -35,6 +35,23 @@ Created 3/26/1996 Heikki Tuuri
 the terminating NUL character. */
 #define TRX_ID_MAX_LEN		17
 
+/** Transaction execution states when trx->state == TRX_STATE_ACTIVE */
+enum trx_que_enum {
+	TRX_QUE_RUNNING,		/*!< transaction is running */
+	TRX_QUE_LOCK_WAIT,		/*!< transaction is waiting for
+				       	a lock */
+	TRX_QUE_ROLLING_BACK, 		/*!< transaction is rolling back */
+	TRX_QUE_COMMITTING		/*!< transaction is committing */
+};
+
+/** Transaction states (trx_t::state) */
+enum trx_state_enum {
+	TRX_STATE_NOT_STARTED,
+	TRX_STATE_ACTIVE,
+	TRX_STATE_PREPARED,			/* Support for 2PC/XA */
+	TRX_STATE_COMMITTED_IN_MEMORY
+};
+
 /** Memory objects */
 /* @{ */
 /** Transaction */
@@ -61,6 +78,10 @@ typedef struct roll_node_struct	roll_node_t;
 typedef struct commit_node_struct commit_node_t;
 /** SAVEPOINT command node in a query graph */
 typedef struct trx_named_savept_struct trx_named_savept_t;
+/** Transaction concurrency state */
+typedef enum trx_state_enum trx_state_t;
+/** Transaction query thread state */
+typedef enum trx_que_enum trx_que_t;
 /* @} */
 
 /** Rollback contexts */

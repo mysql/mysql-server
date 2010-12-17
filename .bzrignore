@@ -11,6 +11,7 @@
 *.d
 *.da
 *.dll
+*.dylib
 *.exe
 *.exp
 *.gcda
@@ -612,6 +613,7 @@ include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
 include/openssl
+include/probes_mysql_dtrace.h
 include/readline
 include/readline/*.h
 include/readline/readline.h
@@ -3138,3 +3140,5 @@ mysys/thr_lock
 libmysqld/binlog.cc
 libmysqld/sql_alter.cc
 libmysqld/sql_partition_admin.cc
+generated
+doxyerror.log

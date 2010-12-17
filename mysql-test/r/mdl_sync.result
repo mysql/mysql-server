@@ -2322,6 +2322,8 @@ select table_name, table_type, auto_increment, table_comment
 from information_schema.tables where table_schema='test' and table_name='t2';
 table_name	table_type	auto_increment	table_comment
 t2	BASE TABLE	NULL	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+Warnings:
+Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
 # Switching to connection 'default'.
 unlock tables;
 # Switching to connection 'con46044'.
@@ -2471,7 +2473,7 @@ CREATE PROCEDURE p1() SELECT 1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
 # Connection 2
@@ -2486,10 +2488,17 @@ DROP PROCEDURE p1;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 # Check that FLUSH must wait to get the GRL
 # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 FLUSH TABLES WITH READ LOCK;
 # Connection 1
+# Once FLUSH TABLES WITH READ LOCK starts waiting
+# DROP PROCEDURE will be waked up and will drop
+# procedure. Global read lock will be granted after
+# this statement ends.
+#
+# Reaping DROP PROCEDURE.
 # Connection 2
+# Reaping FTWRL.
 UNLOCK TABLES;
 # Connection 1
 SET DEBUG_SYNC= 'RESET';

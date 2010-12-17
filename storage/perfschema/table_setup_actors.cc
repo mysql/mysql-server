@@ -249,7 +249,6 @@ int table_setup_actors::update_row_values(TABLE *table,
       case 0: /* HOST */
       case 1: /* USER */
       case 2: /* ROLE */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
         break;
       default:

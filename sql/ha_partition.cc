@@ -3094,7 +3094,9 @@ int ha_partition::write_row(uchar * buf)
   bool have_auto_increment= table->next_number_field && buf == table->record[0];
   my_bitmap_map *old_map;
   THD *thd= ha_thd();
-  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
+  timestamp_auto_set_type saved_timestamp_type= table->timestamp_field_type;
+  sql_mode_t saved_sql_mode= thd->variables.sql_mode;
+  bool saved_auto_inc_field_not_null= table->auto_increment_field_not_null;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -3130,6 +3132,22 @@ int ha_partition::write_row(uchar * buf)
     */
     if (error)
       goto exit;
+
+    /*
+      Don't allow generation of auto_increment value the partitions handler.
+      If a partitions handler would change the value, then it might not
+      match the partition any longer.
+      This can occur if 'SET INSERT_ID = 0; INSERT (NULL)',
+      So allow this by adding 'MODE_NO_AUTO_VALUE_ON_ZERO' to sql_mode.
+      The partitions handler::next_insert_id must always be 0. Otherwise
+      we need to forward release_auto_increment, or reset it for all
+      partitions.
+    */
+    if (table->next_number_field->val_int() == 0)
+    {
+      table->auto_increment_field_not_null= TRUE;
+      thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
+    }
   }
 
   old_map= dbug_tmp_use_all_columns(table, table->read_set);
@@ -3163,7 +3181,9 @@ int ha_partition::write_row(uchar * buf)
     set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
 exit:
-  table->timestamp_field_type= orig_timestamp_type;
+  thd->variables.sql_mode= saved_sql_mode;
+  table->auto_increment_field_not_null= saved_auto_inc_field_not_null;
+  table->timestamp_field_type= saved_timestamp_type;
   DBUG_RETURN(error);
 }
 
@@ -3230,11 +3250,24 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
   else
   {
+    Field *saved_next_number_field= table->next_number_field;
+    /*
+      Don't allow generation of auto_increment value for update.
+      table->next_number_field is never set on UPDATE.
+      But is set for INSERT ... ON DUPLICATE KEY UPDATE,
+      and since update_row() does not generate or update an auto_inc value,
+      we cannot have next_number_field set when moving a row
+      to another partition with write_row(), since that could
+      generate/update the auto_inc value.
+      This gives the same behavior for partitioned vs non partitioned tables.
+    */
+    table->next_number_field= NULL;
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
     error= m_file[new_part_id]->ha_write_row(new_data);
     reenable_binlog(thd);
+    table->next_number_field= saved_next_number_field;
     if (error)
       goto exit;
 
@@ -3396,7 +3429,7 @@ int ha_partition::truncate()
   ALTER TABLE t TRUNCATE PARTITION ...
 */
 
-int ha_partition::truncate_partition(Alter_info *alter_info)
+int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
 {
   int error= 0;
   List_iterator<partition_element> part_it(m_part_info->partitions);
@@ -3407,6 +3440,9 @@ int ha_partition::truncate_partition(Alter_info *alter_info)
   uint num_parts_found= set_part_state(alter_info, m_part_info,
                                         PART_ADMIN);
   DBUG_ENTER("ha_partition::truncate_partition");
+
+  /* Only binlog when it starts any call to the partitions handlers */
+  *binlog_stmt= false;
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
@@ -3420,6 +3456,8 @@ int ha_partition::truncate_partition(Alter_info *alter_info)
   if (num_parts_set != num_parts_found &&
       (!(alter_info->flags & ALTER_ALL_PARTITION)))
     DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
+
+  *binlog_stmt= true;
 
   do
   {
@@ -4393,8 +4431,12 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
 
     get_partition_set(table, buf, index, &m_start_key, &m_part_spec);
 
-    /* How can it be more than one partition with the current use? */
-    DBUG_ASSERT(m_part_spec.start_part == m_part_spec.end_part);
+    /* 
+      We have either found exactly 1 partition
+      (in which case start_part == end_part)
+      or no matching partitions (start_part > end_part)
+    */
+    DBUG_ASSERT(m_part_spec.start_part >= m_part_spec.end_part);
 
     for (part= m_part_spec.start_part; part <= m_part_spec.end_part; part++)
     {
@@ -4629,6 +4671,7 @@ int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
       key not found.
     */
     DBUG_PRINT("info", ("scan with no partition to scan"));
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   if (m_part_spec.start_part == m_part_spec.end_part)
@@ -4653,6 +4696,7 @@ int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
     if (start_part == MY_BIT_NONE)
     {
       DBUG_PRINT("info", ("scan with no partition to scan"));
+      table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
     if (start_part > m_part_spec.start_part)
@@ -6376,9 +6420,42 @@ bool ha_partition::get_error_message(int error, String *buf)
 */
 uint ha_partition::alter_table_flags(uint flags)
 {
+  uint flags_to_return, flags_to_check;
   DBUG_ENTER("ha_partition::alter_table_flags");
-  DBUG_RETURN(ht->alter_table_flags(flags) |
-              m_file[0]->alter_table_flags(flags)); 
+
+  flags_to_return= ht->alter_table_flags(flags);
+  flags_to_return|= m_file[0]->alter_table_flags(flags); 
+
+  /*
+    If one partition fails we must be able to revert the change for the other,
+    already altered, partitions. So both ADD and DROP can only be supported in
+    pairs.
+  */
+  flags_to_check= HA_ONLINE_ADD_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+  flags_to_check|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  flags_to_check= HA_ONLINE_ADD_PK_INDEX;
+  flags_to_check|= HA_ONLINE_DROP_PK_INDEX;
+  if ((flags_to_return & flags_to_check) != flags_to_check)
+    flags_to_return&= ~flags_to_check;
+  DBUG_RETURN(flags_to_return);
 }
 
 
@@ -6413,6 +6490,7 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   handler **file;
   int ret= 0;
 
+  DBUG_ENTER("ha_partition::add_index");
   /*
     There has already been a check in fix_partition_func in mysql_alter_table
     before this call, which checks for unique/primary key violations of the
@@ -6420,8 +6498,28 @@ int ha_partition::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys)
   */
   for (file= m_file; *file; file++)
     if ((ret=  (*file)->add_index(table_arg, key_info, num_of_keys)))
-      break;
-  return ret;
+      goto err;
+  DBUG_RETURN(ret);
+err:
+  if (file > m_file)
+  {
+    uint *key_numbers= (uint*) ha_thd()->alloc(sizeof(uint) * num_of_keys);
+    uint old_num_of_keys= table_arg->s->keys;
+    uint i;
+    /* The newly created keys have the last id's */
+    for (i= 0; i < num_of_keys; i++)
+      key_numbers[i]= i + old_num_of_keys;
+    if (!table_arg->key_info)
+      table_arg->key_info= key_info;
+    while (--file >= m_file)
+    {
+      (void) (*file)->prepare_drop_index(table_arg, key_numbers, num_of_keys);
+      (void) (*file)->final_drop_index(table_arg);
+    }
+    if (table_arg->key_info == key_info)
+      table_arg->key_info= NULL;
+  }
+  DBUG_RETURN(ret);
 }
 
 

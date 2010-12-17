@@ -5,6 +5,7 @@
 #
 
 source include/master-slave.inc;
+source include/not_relay_log_info_table.inc;
 
 let $SERVER_VERSION=`select version()`;
 
@@ -15,6 +16,7 @@ create table t3 (a int) engine=merge union(t1);
 create table t4 (a int);
 # We force the slave to open t3 (because we want to try confusing him) with this :
 insert into t4 select * from t3;
+--let $rename_event_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 rename table t1 to t5, t2 to t1;
 # RENAME may have confused the master (this is a known bug): so FLUSH tables,
 # first don't write it to the binlog, to test the NO_WRITE_TO_BINLOG keyword.

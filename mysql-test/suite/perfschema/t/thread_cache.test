@@ -18,7 +18,15 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
+#
+# Important note:
+# this test is extremely sensitive to how threads are running inside the server,
+# so it has it's own -master.opt file, to enforce it runs alone in mysqld
+#
+
 # Setup
+
+flush status;
 
 SET @saved_thread_cache_size = @@global.thread_cache_size;
 
@@ -40,7 +48,7 @@ let $con2_ID=`select connection_id()`;
 let $con2_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
-connection default;
+--connection default
 
 --disable_query_log
 eval select ($con2_ID - $con1_ID) into @id_increment;
@@ -52,7 +60,19 @@ select @id_increment;
 # Expect 1, THREAD_ID is incremented for each new connection
 select @thread_id_increment;
 
-disconnect con2;
+--disconnect con2
+
+--connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
+# Wait for the disconnect con2 to complete
+let $wait_condition=
+  select count(*) = 2 from performance_schema.threads
+  where name like "thread/sql/one_connection";
+--source include/wait_condition.inc
 
 connect (con3, localhost, root, , );
 
@@ -61,10 +81,20 @@ let $con3_ID=`select connection_id()`;
 let $con3_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
-disconnect con3;
-disconnect con1;
+--disconnect con3
+--disconnect con1
 
-connection default;
+--connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
+# Wait for the disconnect con1 and con3 to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where name like "thread/sql/one_connection";
+--source include/wait_condition.inc
 
 --disable_query_log
 eval select ($con3_ID - $con2_ID) into @id_increment;
@@ -92,7 +122,7 @@ let $con2_ID=`select connection_id()`;
 let $con2_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
-connection default;
+--connection default
 
 --disable_query_log
 eval select ($con2_ID - $con1_ID) into @id_increment;
@@ -102,7 +132,19 @@ eval select ($con2_THREAD_ID - $con1_THREAD_ID) into @thread_id_increment;
 select @id_increment;
 select @thread_id_increment;
 
-disconnect con2;
+--disconnect con2
+
+--connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
+# Wait for the disconnect con2 to complete
+let $wait_condition=
+  select count(*) = 2 from performance_schema.threads
+  where name like "thread/sql/one_connection";
+--source include/wait_condition.inc
 
 connect (con3, localhost, root, , );
 
@@ -111,10 +153,20 @@ let $con3_ID=`select connection_id()`;
 let $con3_THREAD_ID=`select thread_id from performance_schema.threads
   where PROCESSLIST_ID = connection_id()`;
 
-disconnect con3;
-disconnect con1;
+--disconnect con3
+--disconnect con1
 
-connection default;
+--connection default
+
+# Debug
+# select * from performance_schema.threads
+#   where name like "thread/sql/one_connection";
+
+# Wait for the disconnect con1 and con3 to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where name like "thread/sql/one_connection";
+--source include/wait_condition.inc
 
 --disable_query_log
 eval select ($con3_ID - $con2_ID) into @id_increment;
@@ -131,4 +183,6 @@ select @id_increment;
 select @thread_id_increment;
 
 set global thread_cache_size = @saved_thread_cache_size;
+
+show status like "performance_schema_thread%";
 

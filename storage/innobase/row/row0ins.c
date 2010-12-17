@@ -631,11 +631,16 @@ row_ins_foreign_report_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -685,11 +690,17 @@ row_ins_foreign_report_add_err(
 
 	row_ins_set_detailed(trx, foreign);
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	mutex_enter(&dict_foreign_err_mutex);
 	rewind(ef);
 	ut_print_timestamp(ef);
 	fputs(" Transaction:\n", ef);
+
 	trx_print(ef, trx, 600);
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
 	fputs(":\n", ef);
@@ -795,8 +806,8 @@ row_ins_foreign_check_on_constraint(
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table. A deadlock of threads is not possible
 	here because the caller of this function does not hold any latches with
-	the sync0sync.h rank above the kernel mutex. The query cache mutex has
-	a rank just above the kernel mutex. */
+	the sync0sync.h rank above the lock_sys_t::mutex. The query cache mutex
+       	has a rank just above the lock_sys_t::mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name);
 
@@ -1274,11 +1285,17 @@ run_again:
 
 			row_ins_set_detailed(trx, foreign);
 
+			rw_lock_s_lock(&trx_sys->lock);
+
 			mutex_enter(&dict_foreign_err_mutex);
 			rewind(ef);
 			ut_print_timestamp(ef);
 			fputs(" Transaction:\n", ef);
+
 			trx_print(ef, trx, 600);
+
+			rw_lock_s_unlock(&trx_sys->lock);
+
 			fputs("Foreign key constraint fails for table ", ef);
 			ut_print_name(ef, trx, TRUE,
 				      foreign->foreign_table_name);
@@ -1479,7 +1496,7 @@ do_possible_lock_wait:
 
 		que_thr_stop_for_mysql(thr);
 
-		srv_suspend_mysql_thread(thr);
+		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state == DB_SUCCESS) {
 
@@ -1767,7 +1784,7 @@ ulint
 row_ins_duplicate_error_in_clust(
 /*=============================*/
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
-	dtuple_t*	entry,	/*!< in: entry to insert */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1963,7 +1980,7 @@ row_ins_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -2149,9 +2166,10 @@ ulint
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints
+				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;
@@ -2422,7 +2440,7 @@ row_ins_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started_xa(trx);
 
 	node = thr->run_node;
 

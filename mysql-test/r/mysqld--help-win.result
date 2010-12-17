@@ -36,6 +36,10 @@ The following options may be given as the first argument:
  binary log during a transaction. If you often use big,
  multi-statement transactions you can increase this to get
  more performance
+ --binlog-checksum=name 
+ Type of BINLOG_CHECKSUM_ALG. Include checksum for log
+ events in the binary log. Possible values are NONE and
+ CRC32; default is NONE.
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -223,7 +227,7 @@ The following options may be given as the first argument:
  server's hostname changes) argument should be the chosen
  location for the binary log files.
  --log-bin-index=name 
- File that holds the names for last binary log files.
+ File that holds the names for binary log files.
  --log-bin-trust-function-creators 
  If set to FALSE (the default), then when --log-bin is
  used, creation of a stored function (or trigger) is
@@ -277,6 +281,10 @@ The following options may be given as the first argument:
  The number of tries the slave will make to connect to the
  master before giving up. Deprecated option, use 'CHANGE
  MASTER TO master_retry_count = <num>' instead.
+ --master-verify-checksum 
+ Force checksum verification of logged events in binary
+ log before sending them to slaves or printing them in
+ output of SHOW BINLOG EVENTS. Disabled by default.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
@@ -407,8 +415,8 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown} and val is one of {on, off,
- default}
+ engine_condition_pushdown, index_condition_pushdown} and
+ val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -443,6 +451,8 @@ The following options may be given as the first argument:
  Maximum number of instrumented threads.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
+ --performance-schema-setup-objects-size=# 
+ Maximum number of rows in SETUP_OBJECTS.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -492,8 +502,7 @@ The following options may be given as the first argument:
  are read through this buffer to avoid a disk seeks
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
- The location and name to use for the file that keeps a
- list of the last relay logs
+ File that holds the names for relay log files.
  --relay-log-info-file=name 
  The location and name of the file that remembers where
  the SQL replication thread is in the relay logs
@@ -631,6 +640,13 @@ The following options may be given as the first argument:
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
+ --slave-sql-verify-checksum 
+ Force checksum verification of replication events after
+ reading them from relay log. Note: Events are always
+ checksum-verified by slave on receiving them from the
+ network before writing them to the relay log. Enabled by
+ default.
+ (Defaults to on; use --skip-slave-sql-verify-checksum to disable.)
  --slave-transaction-retries=# 
  Number of times the slave SQL thread will retry a
  transaction in case it failed with a deadlock or elapsed
@@ -736,6 +752,7 @@ back-log 50
 big-tables FALSE
 bind-address (No default value)
 binlog-cache-size 32768
+binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
@@ -814,6 +831,7 @@ lower-case-table-names 1
 master-info-file master.info
 master-info-repository FILE
 master-retry-count 86400
+master-verify-checksum FALSE
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
@@ -855,10 +873,10 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
-optimizer-join-cache-level 1
+optimizer-join-cache-level 4
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -876,6 +894,7 @@ performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
 performance-schema-setup-actors-size 100
+performance-schema-setup-objects-size 100
 plugin-load (No default value)
 port 3306
 port-open-timeout 0
@@ -920,6 +939,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-skip-errors (No default value)
+slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2

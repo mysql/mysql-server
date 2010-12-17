@@ -1,26 +1,15 @@
 select * from performance_schema.events_waits_summary_by_instance
 where event_name like 'Wait/Synch/%' limit 1;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-#	#	#	#	#	#	#
 select * from performance_schema.events_waits_summary_by_instance
 where event_name='FOO';
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
 select * from performance_schema.events_waits_summary_by_instance
 order by count_star limit 1;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-#	#	#	#	#	#	#
 select * from performance_schema.events_waits_summary_by_instance
 order by count_star desc limit 1;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-#	#	#	#	#	#	#
 select * from performance_schema.events_waits_summary_by_instance
 where min_timer_wait > 0 order by count_star limit 1;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-#	#	#	#	#	#	#
 select * from performance_schema.events_waits_summary_by_instance
 where min_timer_wait > 0 order by count_star desc limit 1;
-EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-#	#	#	#	#	#	#
 insert into performance_schema.events_waits_summary_by_instance
 set event_name='FOO', object_instance_begin=0,
 count_star=1, sum_timer_wait=2, min_timer_wait=3,
