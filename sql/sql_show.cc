@@ -29,6 +29,8 @@
 #include "repl_failsafe.h"
 #include "sql_parse.h"             // check_access, check_table_access
 #include "sql_partition.h"         // partition_element
+#include "sql_derived.h"           // mysql_derived_prepare,
+                                   // mysql_handle_derived,
 #include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
 #include "sql_time.h"   // interval_type_to_name
 #include "tztime.h"                             // struct Time_zone
@@ -98,11 +100,13 @@ static TYPELIB grant_types = { sizeof(grant_names)/sizeof(char **),
 static void store_key_options(THD *thd, String *packet, TABLE *table,
                               KEY *key_info);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
                                           CHARSET_INFO *cs,
                                           bool use_hex);
+#endif
 
 static void
 append_algorithm(TABLE_LIST *table, String *buff);
@@ -478,12 +482,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	else if (wild_compare(uname, wild, 0))
 	  continue;
       }
-      if (!(file_name= 
-            thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
-      {
-        my_dirend(dirp);
-        DBUG_RETURN(FIND_FILES_OOM);
-      }
     }
     else
     {
@@ -600,11 +598,11 @@ public:
     return m_view_access_denied_message_ptr;
   }
 
-  bool handle_condition(THD *thd, uint sql_errno, const char */* sqlstate */,
+  bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
                         MYSQL_ERROR::enum_warning_level level,
-                        const char *message, MYSQL_ERROR **/* cond_hdl */)
+                        const char *message, MYSQL_ERROR ** /* cond_hdl */)
   {
-    /* 
+    /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
     */
@@ -614,7 +612,7 @@ public:
     m_handling= TRUE;
 
     bool is_handled;
-    
+
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
@@ -675,17 +673,24 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     Metadata locks taken during SHOW CREATE should be released when
     the statmement completes as it is an information statement.
   */
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* We want to preserve the tree for views. */
   thd->lex->view_prepare_mode= TRUE;
 
   {
+    /*
+      Use open_tables() directly rather than open_normal_and_derived_tables().
+      This ensures that close_thread_tables() is not called if open tables fails
+      and the error is ignored. This allows us to handle broken views nicely.
+    */
+    uint counter;
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
     bool open_error=
-      open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
+      open_tables(thd, &table_list, &counter,
+                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL) ||
+                  mysql_handle_derived(thd->lex, &mysql_derived_prepare);
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
@@ -1731,7 +1736,7 @@ public:
   time_t start_time;
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
-  char *query;
+  CSET_STRING query_string;
 };
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
@@ -1828,12 +1833,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if (mysys_var)
           mysql_mutex_unlock(&mysys_var->mutex);
 
-        thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
         if (tmp->query())
         {
           uint length= min(max_query_length, tmp->query_length());
-          thd_info->query= (char*) thd->strmake(tmp->query(),length);
+          char *q= thd->strmake(tmp->query(),length);
+          /* Safety: in case strmake failed, we set length to 0. */
+          thd_info->query_string=
+            CSET_STRING(q, q ? length : 0, tmp->query_charset());
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thd_info->start_time= tmp->start_time;
@@ -1861,7 +1868,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
-    protocol->store(thd_info->query, system_charset_info);
+    protocol->store(thd_info->query_string.str(),
+                    thd_info->query_string.charset());
     if (protocol->write())
       break; /* purecov: inspected */
   }
@@ -3190,7 +3198,7 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
 {
   bool error;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          MDL_SHARED_HIGH_PRIO);
+                          MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
 
   if (can_deadlock)
   {
@@ -4934,18 +4942,29 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
     else
       table->field[4]->store(STRING_WITH_LEN("NONE"), cs);
 
-    if (table->pos_in_table_list->table_open_method &
-        OPEN_FULL_TABLE)
+    /*
+      Only try to fill in the information about view updatability
+      if it is requested as part of the top-level query (i.e.
+      it's select * from i_s.views, as opposed to, say, select
+      security_type from i_s.views).  Do not try to access the
+      underlying tables if there was an error when opening the
+      view: all underlying tables are released back to the table
+      definition cache on error inside open_normal_and_derived_tables().
+      If a field is not assigned explicitly, it defaults to NULL.
+    */
+    if (res == FALSE &&
+        table->pos_in_table_list->table_open_method & OPEN_FULL_TABLE)
     {
       updatable_view= 0;
       if (tables->algorithm != VIEW_ALGORITHM_TMPTABLE)
       {
         /*
-          We should use tables->view->select_lex.item_list here and
-          can not use Field_iterator_view because the view always uses
-          temporary algorithm during opening for I_S and
-          TABLE_LIST fields 'field_translation' & 'field_translation_end'
-          are uninitialized is this case.
+          We should use tables->view->select_lex.item_list here
+          and can not use Field_iterator_view because the view
+          always uses temporary algorithm during opening for I_S
+          and TABLE_LIST fields 'field_translation'
+          & 'field_translation_end' are uninitialized is this
+          case.
         */
         List<Item> *fields= &tables->view->select_lex.item_list;
         List_iterator<Item> it(*fields);
@@ -7738,7 +7757,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
     Metadata locks taken during SHOW CREATE TRIGGER should be released when
     the statement completes as it is an information statement.
   */
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /*
     Open the table by name in order to load Table_triggers_list object.
@@ -7839,6 +7858,7 @@ void initialize_information_schema_acl()
                                                 &is_internal_schema_access);
 }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
   Convert a string in character set in column character set format
   to utf8 character set if possible, the utf8 character set string
@@ -7930,3 +7950,4 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+#endif

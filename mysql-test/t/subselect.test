@@ -3946,3 +3946,21 @@ DROP TABLE t1,t2;
 --enable_result_log
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug #57704: Cleanup code dies with void TABLE::set_keyread(bool): 
+--echo #             Assertion `file' failed.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+--error ER_OPERAND_COLUMNS
+SELECT 1 FROM 
+  (SELECT ROW(
+    (SELECT 1 FROM t1 RIGHT JOIN 
+      (SELECT 1 FROM t1, t1 t2) AS d ON 1),
+    1) FROM t1) AS e;
+
+DROP TABLE t1;
+
+

@@ -527,7 +527,7 @@ private:
   HASH m_sptabs;
 
   bool
-  execute(THD *thd);
+  execute(THD *thd, bool merge_da_on_success);
 
   /**
     Perform a forward flow analysis in the generated code.

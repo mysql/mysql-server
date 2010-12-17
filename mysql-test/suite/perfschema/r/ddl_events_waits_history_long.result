@@ -1,7 +1,7 @@
-alter table performance_schema.EVENTS_WAITS_HISTORY_LONG add column foo integer;
+alter table performance_schema.events_waits_history_long add column foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
-ALTER TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG ADD INDEX test_index(EVENT_ID);
+truncate table performance_schema.events_waits_history_long;
+ALTER TABLE performance_schema.events_waits_history_long ADD INDEX test_index(EVENT_ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-CREATE UNIQUE INDEX test_index ON performance_schema.EVENTS_WAITS_HISTORY_LONG(EVENT_ID);
+CREATE UNIQUE INDEX test_index ON performance_schema.events_waits_history_long(EVENT_ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

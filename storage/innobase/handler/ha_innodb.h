@@ -109,6 +109,7 @@ class ha_innobase: public handler
 	ulint innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
+	int info_low(uint flag, bool called_from_analyze);
 
 	/* Init values for the class: */
  public:
@@ -275,14 +276,13 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
-#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
-#endif /* MYSQL_VERSION_ID > 50140 */
+
 /**
   Check if the query may generate row changes which
   may end up in the binary.

@@ -52,7 +52,7 @@
 
 /**
   first byte of the question string is the question "type".
-  It can be a "ordinary" or a "password" question.
+  It can be an "ordinary" or a "password" question.
   The last bit set marks a last question in the authentication exchange.
 */
 #define ORDINARY_QUESTION       "\2"
@@ -176,7 +176,7 @@ mysql_declare_plugin_end;
   This plugin performs a dialog with the user, asking questions and
   reading answers. Depending on the client it may be desirable to do it
   using GUI, or console, with or without curses, or read answers
-  from a smardcard, for example.
+  from a smartcard, for example.
 
   To support all this variety, the dialog plugin has a callback function
   "authentication_dialog_ask". If the client has a function of this name
@@ -256,7 +256,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
 
-        We send the "password", assuming the client knows what its doing.
+        We send the "password", assuming the client knows what it's doing.
         (in other words, the dialog plugin should be only set as a default
         authentication plugin on the client if the first question
         asks for a password - which will be sent in clear text, by the way)

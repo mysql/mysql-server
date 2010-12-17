@@ -4189,7 +4189,7 @@ String *Field_float::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
+  DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4512,7 +4512,7 @@ String *Field_double::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(field_length <= MAX_FIELD_CHARLENGTH);
+  DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -6327,10 +6327,13 @@ int Field_str::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint local_char_length= field_length / charset()->mbmaxlen;
-  size_t length;
-  my_bool error;
+  size_t length= 0;
+  my_bool error= (local_char_length == 0);
 
-  length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+  // my_gcvt() requires width > 0, and we may have a CHAR(0) column.
+  if (!error)
+    length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+
   if (error)
   {
     if (table->in_use->abort_on_warning)
@@ -7725,12 +7728,6 @@ void Field_blob::sql_type(String &res) const
 uchar *Field_blob::pack(uchar *to, const uchar *from,
                         uint max_length, bool low_byte_first)
 {
-  DBUG_ENTER("Field_blob::pack");
-  DBUG_PRINT("enter", ("to: 0x%lx; from: 0x%lx;"
-                       " max_length: %u; low_byte_first: %d",
-                       (ulong) to, (ulong) from,
-                       max_length, low_byte_first));
-  DBUG_DUMP("record", from, table->s->reclength);
   uchar *save= ptr;
   ptr= (uchar*) from;
   uint32 length=get_length();			// Length of from string
@@ -7751,8 +7748,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
     memcpy(to+packlength, from,length);
   }
   ptr=save;					// Restore org row pointer
-  DBUG_DUMP("packed", to, packlength + length);
-  DBUG_RETURN(to+packlength+length);
+  return to+packlength+length;
 }
 
 
@@ -8393,6 +8389,54 @@ uint Field_enum::is_equal(Create_field *new_field)
     return IS_EQUAL_NO;
 
   return IS_EQUAL_YES;
+}
+
+
+uchar *Field_enum::pack(uchar *to, const uchar *from,
+                        uint max_length, bool low_byte_first)
+{
+  DBUG_ENTER("Field_enum::pack");
+  DBUG_PRINT("debug", ("packlength: %d", packlength));
+  DBUG_DUMP("from", from, packlength);
+
+  switch (packlength)
+  {
+  case 1:
+    *to = *from;
+    DBUG_RETURN(to + 1);
+  case 2: DBUG_RETURN(pack_int16(to, from, low_byte_first));
+  case 3: DBUG_RETURN(pack_int24(to, from, low_byte_first));
+  case 4: DBUG_RETURN(pack_int32(to, from, low_byte_first));
+  case 8: DBUG_RETURN(pack_int64(to, from, low_byte_first));
+  default:
+    DBUG_ASSERT(0);
+  }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
+}
+
+const uchar *Field_enum::unpack(uchar *to, const uchar *from,
+                                uint param_data, bool low_byte_first)
+{
+  DBUG_ENTER("Field_enum::unpack");
+  DBUG_PRINT("debug", ("packlength: %d", packlength));
+  DBUG_DUMP("from", from, packlength);
+
+  switch (packlength)
+  {
+  case 1:
+    *to = *from;
+    DBUG_RETURN(from + 1);
+
+  case 2: DBUG_RETURN(unpack_int16(to, from, low_byte_first));
+  case 3: DBUG_RETURN(unpack_int24(to, from, low_byte_first));
+  case 4: DBUG_RETURN(unpack_int32(to, from, low_byte_first));
+  case 8: DBUG_RETURN(unpack_int64(to, from, low_byte_first));
+  default:
+    DBUG_ASSERT(0);
+  }
+  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(NULL);
 }
 
 

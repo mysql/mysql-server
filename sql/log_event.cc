@@ -1244,7 +1244,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
 #ifdef HAVE_REPLICATION
     case SLAVE_EVENT: /* can never happen (unused event) */
-      ev = new Slave_log_event(buf, event_len);
+      ev = new Slave_log_event(buf, event_len, description_event);
       break;
 #endif /* HAVE_REPLICATION */
     case CREATE_FILE_EVENT:
@@ -1332,8 +1332,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     (because constructor is "void") ; so instead we leave the pointer we
     wanted to allocate (e.g. 'query') to 0 and we test it in is_valid().
     Same for Format_description_log_event, member 'post_header_len'.
+
+    SLAVE_EVENT is never used, so it should not be read ever.
   */
-  if (!ev || !ev->is_valid())
+  if (!ev || !ev->is_valid() || (event_type == SLAVE_EVENT))
   {
     DBUG_PRINT("error",("Found invalid event in binary log"));
 
@@ -2330,7 +2332,7 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
-  if (thd && thd->is_current_user_used())
+  if (thd && thd->need_binlog_invoker())
   {
     LEX_STRING user;
     LEX_STRING host;
@@ -3239,7 +3241,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   if (is_trans_keyword() || rpl_filter->db_ok(thd->db))
   {
     thd->set_time((time_t)when);
-    thd->set_query_and_id((char*)query_arg, q_len_arg, next_query_id());
+    thd->set_query_and_id((char*)query_arg, q_len_arg,
+                          thd->charset(), next_query_id());
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     DBUG_PRINT("query",("%s", thd->query()));
 
@@ -3291,6 +3294,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             goto compare_errors;
           }
           thd->update_charset(); // for the charset change to take effect
+          /*
+            Reset thd->query_string.cs to the newly set value.
+            Note, there is a small flaw here. For a very short time frame
+            if the new charset is different from the old charset and
+            if another thread executes "SHOW PROCESSLIST" after
+            the above thd->set_query_and_id() and before this thd->set_query(),
+            and if the current query has some non-ASCII characters,
+            the another thread may see some '?' marks in the PROCESSLIST
+            result. This should be acceptable now. This is a reminder
+            to fix this if any refactoring happens here sometime.
+          */
+          thd->set_query((char*) query_arg, q_len_arg, thd->charset());
         }
       }
       if (time_zone_len)
@@ -3351,6 +3366,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (!parser_state.init(thd, thd->query(), thd->query_length()))
       {
         mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
         log_slow_statement(thd);
       }
 
@@ -3511,7 +3528,7 @@ end:
   */
   thd->catalog= 0;
   thd->set_db(NULL, 0);                 /* will free the current database */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   DBUG_PRINT("info", ("end: query= 0"));
   /*
     As a disk space optimization, future masters will not log an event for
@@ -4748,7 +4765,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
   DBUG_ASSERT(thd->query() == 0);
-  thd->set_query_inner(NULL, 0);               // Should not be needed
+  thd->reset_query_inner();                    // Should not be needed
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -4942,7 +4959,7 @@ error:
   const char *remember_db= thd->db;
   thd->catalog= 0;
   thd->set_db(NULL, 0);                   /* will free the current database */
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->stmt_da->can_overwrite_status= TRUE;
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->stmt_da->can_overwrite_status= FALSE;
@@ -4959,6 +4976,8 @@ error:
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
 
   DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
                   thd->is_slave_error= 0; thd->is_fatal_error= 1;);
@@ -6117,8 +6136,12 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 
 
 /** This code is not used, so has not been updated to be format-tolerant. */
-Slave_log_event::Slave_log_event(const char* buf, uint event_len)
-  :Log_event(buf,0) /*unused event*/ ,mem_pool(0),master_host(0)
+/* We are using description_event so that slave does not crash on Log_event
+  constructor */
+Slave_log_event::Slave_log_event(const char* buf, 
+                                 uint event_len,
+                                 const Format_description_log_event* description_event)
+  :Log_event(buf,description_event),mem_pool(0),master_host(0)
 {
   if (event_len < LOG_EVENT_HEADER_LEN)
     return;
@@ -8399,6 +8422,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                 m_field_metadata, m_field_metadata_size,
                 m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
+    table_list->open_type= OT_BASE_ONLY;
 
     /*
       We record in the slave's information that the table should be
@@ -8503,7 +8527,7 @@ void Table_map_log_event::pack_info(Protocol *protocol)
 
 
 #ifdef MYSQL_CLIENT
-void Table_map_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
+void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
 {
   if (!print_event_info->short_form)
   {

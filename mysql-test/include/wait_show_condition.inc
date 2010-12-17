@@ -107,7 +107,7 @@ if ($wait_for_all == 1)
 
 if (!$found)
 {
-  echo # Timeout in include/wait_show_condition.inc for $wait_condition;
+  echo # Timeout in include/wait_show_condition.inc for $condition;
   echo #         show_statement : $show_statement;
   echo #         field          : $field;
   echo #         condition      : $condition;

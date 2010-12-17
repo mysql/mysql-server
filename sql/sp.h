@@ -84,6 +84,18 @@ enum
 int
 sp_drop_db_routines(THD *thd, char *db);
 
+/**
+   Acquires exclusive metadata lock on all stored routines in the
+   given database.
+
+   @param  thd  Thread handler
+   @param  db   Database name
+
+   @retval  false  Success
+   @retval  true   Failure
+ */
+bool lock_db_routines(THD *thd, char *db);
+
 sp_head *
 sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
@@ -99,9 +111,6 @@ sp_cache_routine(THD *thd, int type, sp_name *name,
 
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
-
-int
-sp_routine_exists_in_table(THD *thd, int type, sp_name *name);
 
 bool
 sp_show_create_routine(THD *thd, int type, sp_name *name);

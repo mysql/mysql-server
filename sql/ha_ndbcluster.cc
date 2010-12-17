@@ -6435,8 +6435,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
   for (;;)
   {
     Ndb_tuple_id_range_guard g(m_share);
-    if (m_skip_auto_increment &&
-        ndb->readAutoIncrementValue(m_table, g.range, auto_value) ||
+    if ((m_skip_auto_increment &&
+        ndb->readAutoIncrementValue(m_table, g.range, auto_value)) ||
         ndb->getAutoIncrementValue(m_table, g.range, auto_value, cache_size, increment, offset))
     {
       if (--retries &&
@@ -7382,38 +7382,35 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   }
 
   /*
+    Delete old files.
+
     ndbcluster_find_files() may be called from I_S code and ndbcluster_binlog
     thread in situations when some tables are already open. This means that
     code below will try to obtain exclusive metadata lock on some table
-    while holding shared meta-data lock on other tables. This might lead to
-    a deadlock, and therefore is disallowed by assertions of the metadata
-    locking subsystem. This is violation of metadata
-    locking protocol which has to be closed ASAP.
+    while holding shared meta-data lock on other tables. This might lead to a
+    deadlock but such a deadlock should be detected by MDL deadlock detector.
+
     XXX: the scenario described above is not covered with any test.
   */
-  if (!global_read_lock)
+  List_iterator_fast<char> it3(delete_list);
+  while ((file_name_str= it3++))
   {
-    // Delete old files
-    List_iterator_fast<char> it3(delete_list);
-    while ((file_name_str= it3++))
-    {
-      DBUG_PRINT("info", ("Remove table %s/%s", db, file_name_str));
-      // Delete the table and all related files
-      TABLE_LIST table_list;
-      table_list.init_one_table(db, strlen(db), file_name_str,
-                                strlen(file_name_str), file_name_str,
-                                TL_WRITE);
-      table_list.mdl_request.set_type(MDL_EXCLUSIVE);
-      (void)mysql_rm_table_part2(thd, &table_list,
-                                 FALSE,   /* if_exists */
-                                 FALSE,   /* drop_temporary */ 
-                                 FALSE,   /* drop_view */
-                                 TRUE     /* dont_log_query*/);
-      trans_commit_implicit(thd); /* Safety, should be unnecessary. */
-      thd->mdl_context.release_transactional_locks();
-      /* Clear error message that is returned when table is deleted */
-      thd->clear_error();
-    }
+    DBUG_PRINT("info", ("Remove table %s/%s", db, file_name_str));
+    /* Delete the table and all related files. */
+    TABLE_LIST table_list;
+    table_list.init_one_table(db, strlen(db), file_name_str,
+                              strlen(file_name_str), file_name_str,
+                              TL_WRITE);
+    table_list.mdl_request.set_type(MDL_EXCLUSIVE);
+    (void)mysql_rm_table_part2(thd, &table_list,
+                               FALSE,   /* if_exists */
+                               FALSE,   /* drop_temporary */
+                               FALSE,   /* drop_view */
+                               TRUE     /* dont_log_query*/);
+    trans_commit_implicit(thd); /* Safety, should be unnecessary. */
+    thd->mdl_context.release_transactional_locks();
+    /* Clear error message that is returned when table is deleted */
+    thd->clear_error();
   }
 
   /* Lock mutex before creating .FRM files. */
@@ -10271,8 +10268,8 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *create_info,
   {
     Field *field= table->field[i];
     const NDBCOL *col= tab->getColumn(i);
-    if (col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY ||
-        col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK)
+    if ((col->getStorageType() == NDB_STORAGETYPE_MEMORY && create_info->storage_media != HA_SM_MEMORY) ||
+        (col->getStorageType() == NDB_STORAGETYPE_DISK && create_info->storage_media != HA_SM_DISK))
     {
       DBUG_PRINT("info", ("Column storage media is changed"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
