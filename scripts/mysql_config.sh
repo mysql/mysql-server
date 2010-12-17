@@ -92,7 +92,11 @@ plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
 fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
 
 pkgincludedir='@pkgincludedir@'
-fix_path pkgincludedir include/mysql include
+if [ -f $basedir/include/mysql/mysql.h ]; then
+  pkgincludedir="$basedir/include/mysql"
+elif [ -f $basedir/include/mysql.h ]; then
+  pkgincludedir="$basedir/include"
+fi
 
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
