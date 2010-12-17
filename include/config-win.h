@@ -332,6 +332,7 @@ inline ulonglong double2ulonglong(double d)
 /* File name handling */
 
 #define FN_LIBCHAR	'\\'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
