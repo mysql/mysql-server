@@ -1072,6 +1072,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
+%token  MASTER_BIND_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
@@ -1893,6 +1894,10 @@ master_def:
           MASTER_HOST_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.host = $3.str;
+          }
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.bind_addr = $3.str;
           }
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
@@ -9529,7 +9534,7 @@ table_factor:
         ;
 
 select_derived_union:
-          select_derived opt_order_clause opt_limit_clause
+          select_derived opt_union_order_or_limit
         | select_derived_union
           UNION_SYM
           union_option
@@ -9545,7 +9550,7 @@ select_derived_union:
              */
             Lex->pop_context();
           }
-          opt_order_clause opt_limit_clause
+          opt_union_order_or_limit
         ;
 
 /* The equivalent of select_init2 for nested queries. */
@@ -14012,6 +14017,11 @@ union_opt:
         | union_list { $$= 1; }
         | union_order_or_limit { $$= 1; }
         ;
+
+opt_union_order_or_limit:
+	  /* Empty */
+	| union_order_or_limit
+	;
 
 union_order_or_limit:
           {

@@ -48,6 +48,7 @@
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
 #include <m_ctype.h>
+#include <base64.h>
 #include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
@@ -461,6 +462,102 @@ void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
    maybe_null= 1;
+}
+
+
+void Item_func_to_base64::fix_length_and_dec()
+{
+  maybe_null= args[0]->maybe_null;
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+  if (args[0]->max_length > (uint) base64_encode_max_arg_length())
+  {
+    maybe_null= 1;
+    fix_char_length_ulonglong((ulonglong) base64_encode_max_arg_length());
+  }
+  else
+  {
+    int length= base64_needed_encoded_length((int) args[0]->max_length);
+    DBUG_ASSERT(length > 0);
+    fix_char_length_ulonglong((ulonglong) length - 1);
+  }
+}
+
+
+String *Item_func_to_base64::val_str_ascii(String *str)
+{
+  String *res= args[0]->val_str(str);
+  bool too_long= false;
+  int length;
+  if (!res ||
+      res->length() > (uint) base64_encode_max_arg_length() ||
+      (too_long=
+       ((uint) (length= base64_needed_encoded_length((int) res->length())) >
+        current_thd->variables.max_allowed_packet)) ||
+      tmp_value.alloc((uint) length))
+  {
+    null_value= 1; // NULL input, too long input, or OOM.
+    if (too_long)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          current_thd->variables.max_allowed_packet);
+    }
+    return 0;
+  }
+  base64_encode(res->ptr(), (int) res->length(), (char*) tmp_value.ptr());
+  DBUG_ASSERT(length > 0);
+  tmp_value.length((uint) length - 1); // Without trailing '\0'
+  null_value= 0;
+  return &tmp_value;
+}
+
+
+void Item_func_from_base64::fix_length_and_dec()
+{
+  if (args[0]->max_length > (uint) base64_decode_max_arg_length())
+  {
+    fix_char_length_ulonglong((ulonglong) base64_decode_max_arg_length());
+  }
+  else
+  {
+    int length= base64_needed_decoded_length((int) args[0]->max_length);
+    fix_char_length_ulonglong((ulonglong) length);
+  }
+  maybe_null= 1; // Can be NULL, e.g. in case of badly formed input string
+}
+
+
+String *Item_func_from_base64::val_str(String *str)
+{
+  String *res= args[0]->val_str_ascii(str);
+  bool too_long= false;
+  int length;
+  const char *end_ptr;
+
+  if (!res ||
+      res->length() > (uint) base64_decode_max_arg_length() ||
+      (too_long=
+       ((uint) (length= base64_needed_decoded_length((int) res->length())) >
+        current_thd->variables.max_allowed_packet)) ||
+      tmp_value.alloc((uint) length) ||
+      (length= base64_decode(res->ptr(), (int) res->length(),
+                             (char *) tmp_value.ptr(), &end_ptr, 0)) < 0 ||
+      end_ptr < res->ptr() + res->length())
+  {
+    null_value= 1; // NULL input, too long input, OOM, or badly formed input
+    if (too_long)
+    {
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          current_thd->variables.max_allowed_packet);
+    }
+    return 0;
+  }
+  tmp_value.length((uint) length);
+  null_value= 0;
+  return &tmp_value;
 }
 
 
@@ -3229,6 +3326,41 @@ String *Item_func_unhex::val_str(String *str)
   }
   return &tmp_value;
 }
+
+
+#ifndef DBUG_OFF
+String *Item_func_like_range::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  longlong nbytes= args[1]->val_int();
+  String *res= args[0]->val_str(str);
+  size_t min_len, max_len;
+  CHARSET_INFO *cs= collation.collation;
+
+  if (!res || args[0]->null_value || args[1]->null_value ||
+      nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
+      min_str.alloc(nbytes) || max_str.alloc(nbytes))
+    goto err;
+  null_value=0;
+
+  if (cs->coll->like_range(cs, res->ptr(), res->length(),
+                           '\\', '_', '%', nbytes,
+                           (char*) min_str.ptr(), (char*) max_str.ptr(),
+                           &min_len, &max_len))
+    goto err;
+
+  min_str.set_charset(collation.collation);
+  max_str.set_charset(collation.collation);
+  min_str.length(min_len);
+  max_str.length(max_len);
+
+  return is_min ? &min_str : &max_str;
+
+err:
+  null_value= 1;
+  return 0;
+}
+#endif
 
 
 void Item_func_binary::print(String *str, enum_query_type query_type)

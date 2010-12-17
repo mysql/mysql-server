@@ -80,7 +80,7 @@ source include/show_binlog_events.inc;
 --echo # MYSQL_BINLOG output base on master-bin.000001
 let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /TIMESTAMP=[0-9]*/TIMESTAMP=t/ /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /exec_time=[0-9]*/exec_time=#/ /error_code=[0-9]*/error_code=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /Start: binlog v [0-9]*/Start: binlog v#/ /created [0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* at startup/created # #:#:# at startup/
+--replace_regex /TIMESTAMP=[0-9]*/TIMESTAMP=t/ /#[0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* server id [0-9]*/#server id #/ /exec_time=[0-9]*/exec_time=#/ /error_code=[0-9]*/error_code=#/ /end_log_pos [0-9]*/end_log_pos #/ /# at [0-9]*/# at #/ /Xid = [0-9]*/Xid = #/ /thread_id=[0-9]*/thread_id=#/ /table id [0-9]*/table id #/ /mapped to number [0-9]*/mapped to number #/ /server v [^ ]*/server v #.##.##/ /Start: binlog v [0-9]*/Start: binlog v#/ /created [0-9]*[ ]*[0-9]*:[0-9]*:[0-9]* at startup/created # #:#:# at startup/ /[	 ]CRC32 0x[abcdef0-9]+//
 --exec $MYSQL_BINLOG --base64-output=decode-rows -v -v $MYSQLD_DATADIR/$master_binlog
 
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);

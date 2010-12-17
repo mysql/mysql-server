@@ -456,7 +456,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_close;
   /*
     Counts the number of times, when we were forced to use disk. We use it to
-    increase the binlog_cache_disk_use status variable.
+    increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
+    variables.
   */
   ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
@@ -778,10 +779,11 @@ extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
 /* init_dynamic_array() function is deprecated */
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
                                   uint init_alloc, uint alloc_increment);
-extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
+extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
-extern my_bool set_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
+extern my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element,
+                           uint array_index);
 extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
 extern void get_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);

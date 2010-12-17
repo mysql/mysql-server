@@ -3140,3 +3140,6 @@ mysys/thr_lock
 libmysqld/binlog.cc
 libmysqld/sql_alter.cc
 libmysqld/sql_partition_admin.cc
+generated
+doxyerror.log
+VERSION.dep

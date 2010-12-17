@@ -403,10 +403,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if (!(*item)->with_subselect && (*item)->const_item())
+  if ((*item)->const_item())
   {
     TABLE *table= field->table;
-    ulonglong orig_sql_mode= thd->variables.sql_mode;
+    sql_mode_t orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
     ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
@@ -499,7 +499,7 @@ void Item_bool_func2::fix_length_and_dec()
   }
 
   thd= current_thd;
-  if (!thd->is_context_analysis_only())
+  if (!thd->lex->is_ps_or_view_context_analysis())
   {
     if (args[0]->real_item()->type() == FIELD_ITEM)
     {
@@ -803,7 +803,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       confuse storage engines since in context analysis mode tables 
       aren't locked.
     */
-    if (!thd->is_context_analysis_only() &&
+    if (!thd->lex->is_ps_or_view_context_analysis() &&
         cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
@@ -1036,7 +1036,7 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd_arg->is_context_analysis_only() &&
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -4840,7 +4840,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
+  if (escape_item->const_item())
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&cmp.value1);

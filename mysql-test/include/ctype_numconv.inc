@@ -1721,6 +1721,18 @@ DROP TABLE t1;
 --echo # End of Bug#54916
 --echo #
 
+--echo #
+--echo # WL#5510 Functions to_base64 and from_base64
+--echo #
+CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
+SHOW CREATE TABLE t1;
+SELECT to_base64, LENGTH(to_base64), HEX(to_base64) FROM t1;
+CREATE TABLE t2 AS SELECT FROM_BASE64(to_base64) AS from_base64 FROM t1;
+SHOW CREATE TABLE t2;
+SELECT CAST(from_base64 AS CHAR), LENGTH(from_base64), HEX(from_base64) FROM t2;
+DROP TABLE t2;
+DROP TABLE t1;
+
 
 --echo #
 --echo # Bug#58190 BETWEEN no longer uses indexes for date or datetime fields

@@ -32,10 +32,14 @@ The following options may be given as the first argument:
  file (Solves most 'table full' errors)
  --bind-address=name IP address to bind to.
  --binlog-cache-size=# 
- The size of the cache to hold the SQL statements for the
- binary log during a transaction. If you often use big,
- multi-statement transactions you can increase this to get
- more performance
+ The size of the transactional cache for updates to
+ transactional engines for the binary log. If you often
+ use transactions containing many statements, you can
+ increase this to get more performance
+ --binlog-checksum=name 
+ Type of BINLOG_CHECKSUM_ALG. Include checksum for log
+ events in the binary log. Possible values are NONE and
+ CRC32; default is NONE.
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -79,6 +83,11 @@ The following options may be given as the first argument:
  FULL).
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
+ --binlog-stmt-cache-size=# 
+ The size of the statement cache for updates to
+ non-transactional engines for the binary log. If you
+ often use statements updating a great number of rows, you
+ can increase this to get more performance
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -278,17 +287,22 @@ The following options may be given as the first argument:
  The number of tries the slave will make to connect to the
  master before giving up. Deprecated option, use 'CHANGE
  MASTER TO master_retry_count = <num>' instead.
+ --master-verify-checksum 
+ Force checksum verification of logged events in binary
+ log before sending them to slaves or printing them in
+ output of SHOW BINLOG EVENTS. Disabled by default.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
- Can be used to restrict the total size used to cache a
- multi-transaction query
+ Sets the total size of the transactional cache
  --max-binlog-dump-events=# 
  Option used by mysql-test for debugging and testing of
  replication.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
+ --max-binlog-stmt-cache-size=# 
+ Sets the total size of the statement cache
  --max-connect-errors=# 
  If there is more than this number of interrupted
  connections from a host this host will be blocked from
@@ -407,8 +421,8 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown} and val is one of {on, off,
- default}
+ engine_condition_pushdown, index_condition_pushdown, mrr,
+ mrr_cost_based} and val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -443,6 +457,8 @@ The following options may be given as the first argument:
  Maximum number of instrumented threads.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
+ --performance-schema-setup-objects-size=# 
+ Maximum number of rows in SETUP_OBJECTS.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -627,6 +643,13 @@ The following options may be given as the first argument:
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
+ --slave-sql-verify-checksum 
+ Force checksum verification of replication events after
+ reading them from relay log. Note: Events are always
+ checksum-verified by slave on receiving them from the
+ network before writing them to the relay log. Enabled by
+ default.
+ (Defaults to on; use --skip-slave-sql-verify-checksum to disable.)
  --slave-transaction-retries=# 
  Number of times the slave SQL thread will retry a
  transaction in case it failed with a deadlock or elapsed
@@ -731,11 +754,13 @@ back-log 50
 big-tables FALSE
 bind-address (No default value)
 binlog-cache-size 32768
+binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
+binlog-stmt-cache-size 32768
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
@@ -810,10 +835,12 @@ lower-case-table-names 1
 master-info-file master.info
 master-info-repository FILE
 master-retry-count 86400
+master-verify-checksum FALSE
 max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
+max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 10
 max-connections 151
 max-delayed-threads 20
@@ -850,10 +877,10 @@ old FALSE
 old-alter-table FALSE
 old-passwords FALSE
 old-style-user-limits FALSE
-optimizer-join-cache-level 1
+optimizer-join-cache-level 4
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
@@ -871,6 +898,7 @@ performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
 performance-schema-setup-actors-size 100
+performance-schema-setup-objects-size 100
 plugin-load (No default value)
 port 3306
 port-open-timeout 0
@@ -913,6 +941,7 @@ slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-skip-errors (No default value)
+slave-sql-verify-checksum TRUE
 slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2

@@ -481,6 +481,7 @@ drop table t1;
 #
 create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
 insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
+--sorted_result
 select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
 drop  table t1;
 
@@ -1117,3 +1118,57 @@ DROP TABLE t1,t2;
 
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#57986 ORDER BY clause is not used after a UNION, 
+--echo #           if embedded in a SELECT
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(10) NOT NULL, c2 INT NOT NULL);
+CREATE TABLE t2 (c1 VARCHAR(10) NOT NULL, c2 INT NOT NULL);
+
+
+INSERT INTO t1 (c1, c2) VALUES ('t1a', 1), ('t1a', 2), ('t1a', 3), ('t1b', 2), ('t1b', 1);
+INSERT INTO t2 (c1, c2) VALUES ('t2a', 1), ('t2a', 2), ('t2a', 3), ('t2b', 2), ('t2b', 1);
+
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY c2, c1;
+SELECT * FROM t1 UNION (SELECT * FROM t2) ORDER BY c2, c1;
+SELECT * FROM t1 UNION (SELECT * FROM t2 ORDER BY c2, c1);
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2)
+  ORDER BY c2, c1
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2)
+  ORDER BY c2 DESC, c1 LIMIT 1
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2 ORDER BY c2 DESC, c1 LIMIT 1)
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  SELECT c1, c2 FROM t2 
+  ORDER BY c2 DESC, c1 DESC LIMIT 1
+) AS res;
+
+SELECT c1, c2 FROM (
+  (
+   (SELECT c1, c2 FROM t1)
+   UNION
+   (SELECT c1, c2 FROM t2)
+  )
+  ORDER BY c2 DESC, c1 ASC LIMIT 1
+) AS res;
+
+DROP TABLE t1, t2;

@@ -569,7 +569,7 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-
+#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Stuff that always need to be defined (compile breaks without it)

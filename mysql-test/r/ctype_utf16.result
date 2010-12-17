@@ -30,13 +30,13 @@ binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
 select hex(_utf16 0x44);
 hex(_utf16 0x44)
-00000044
+0044
 select hex(_utf16 0x3344);
 hex(_utf16 0x3344)
 3344
 select hex(_utf16 0x113344);
 hex(_utf16 0x113344)
-000000113344
+00113344
 CREATE TABLE t1 (word VARCHAR(64), word2 CHAR(64)) CHARACTER SET utf16;
 INSERT INTO t1 VALUES (_koi8r 0xF2, _koi8r 0xF2), (X'2004',X'2004');
 SELECT hex(word) FROM t1 ORDER BY word;
@@ -434,10 +434,10 @@ aardvarz
 DROP TABLE t1;
 SELECT hex(cast(0xAA as char character set utf16));
 hex(cast(0xAA as char character set utf16))
-000000AA
+00AA
 SELECT hex(convert(0xAA using utf16));
 hex(convert(0xAA using utf16))
-000000AA
+00AA
 CREATE TABLE t1 (a char(10) character set utf16);
 INSERT INTO t1 VALUES (0x1),(0x11),(0x111),(0x1111),(0x11111);
 SELECT HEX(a) FROM t1;
@@ -923,7 +923,7 @@ select 1.1 + '1.2xxx';
 1.1 + '1.2xxx'
 2.3
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '1.2xxx'
 select left('aaa','1');
 left('aaa','1')
 a

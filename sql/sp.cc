@@ -42,11 +42,11 @@ create_string(THD *thd, String *buf,
 	      st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode);
+              sql_mode_t sql_mode);
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                sql_mode_t sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx);
@@ -539,7 +539,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
-  ulong sql_mode, saved_mode= thd->variables.sql_mode;
+  sql_mode_t sql_mode, saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
 
@@ -636,7 +636,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   modified= table->field[MYSQL_PROC_FIELD_MODIFIED]->val_int();
   created= table->field[MYSQL_PROC_FIELD_CREATED]->val_int();
 
-  sql_mode= (ulong) table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
+  sql_mode= (sql_mode_t) table->field[MYSQL_PROC_FIELD_SQL_MODE]->val_int();
 
   table->field[MYSQL_PROC_FIELD_COMMENT]->val_str(&str, &str);
 
@@ -713,11 +713,11 @@ Silence_deprecated_warning::handle_condition(
     @retval   0                     error
 */
 
-static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
+static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
                            Stored_program_creation_ctx *creation_ctx)
 {
   sp_head *sp;
-  ulong old_sql_mode= thd->variables.sql_mode;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   Silence_deprecated_warning warning_handler;
@@ -758,7 +758,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, ulong sql_mode,
 
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
-                ulong sql_mode, const char *params, const char *returns,
+                sql_mode_t sql_mode, const char *params, const char *returns,
                 const char *body, st_sp_chistics &chistics,
                 const char *definer, longlong created, longlong modified,
                 Stored_program_creation_ctx *creation_ctx)
@@ -921,7 +921,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
   MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
@@ -1372,6 +1372,8 @@ public:
                         MYSQL_ERROR ** cond_hdl)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
+        sql_errno == ER_CANNOT_LOAD_FROM_TABLE_V2 ||
+        sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
       return true;
     return false;
@@ -2087,9 +2089,9 @@ create_string(THD *thd, String *buf,
               st_sp_chistics *chistics,
               const LEX_STRING *definer_user,
               const LEX_STRING *definer_host,
-              ulong sql_mode)
+              sql_mode_t sql_mode)
 {
-  ulong old_sql_mode= thd->variables.sql_mode;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   /* Make some room to begin with */
   if (buf->alloc(100 + dblen + 1 + namelen + paramslen + returnslen + bodylen +
 		 chistics->comment.length + 10 /* length of " DEFINER= "*/ +
@@ -2171,7 +2173,7 @@ create_string(THD *thd, String *buf,
 
 sp_head *
 sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, ulong sql_mode, int type,
+                               String *name, sql_mode_t sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head)
 {
