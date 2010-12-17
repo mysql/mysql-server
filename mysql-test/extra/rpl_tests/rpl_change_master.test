@@ -244,7 +244,7 @@ CHANGE MASTER TO master_retry_count=-1;
 
 ## assert that the test has cleaned itself up
 -- let $retry_count6= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
-if (`SELECT $retry_count6 <> $retry_count0`)
+if ($retry_count6 != $retry_count0)
 {
   -- echo Unexpected retry count value! Got: $retry_count6, expected: $retry_count0
   -- die

@@ -104,7 +104,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
   sync_slave_with_master;
   --let $slave_after= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
   connection master;
-  if (`SELECT $slave_after != $master_after`)
+  if ($slave_after != $master_after)
   {
     --echo Slave is out of sync.
     --echo MASTER_BEFORE $master_before MASTER_AFTER $master_after SLAVE_BEFORE $slave_before SLAVE_AFTER $slave_after
