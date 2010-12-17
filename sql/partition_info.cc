@@ -101,8 +101,8 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   DBUG_ENTER("partition_info::prune_partition_bitmaps");
 
   DBUG_ASSERT(table && table->s && table->s->ha_part_data);
-  DBUG_ASSERT(part_name_hash->records);
   part_name_hash= &table->s->ha_part_data->partition_name_hash;
+  DBUG_ASSERT(part_name_hash->records);
   if (num_names < 1)
     DBUG_RETURN(true);
 
@@ -645,12 +645,13 @@ char *partition_info::has_unique_names()
   partition_element *el;  
 
   DBUG_ENTER("partition_info::has_unique_names");
-  /*
-    Only called before the table is created.
-    If table->s exists one could use the partition_name_hash there instead.
-  */
-  DBUG_ASSERT(!table || !table->s);
   
+  /*
+    TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
+    then we could just return NULL, but that has not been verified.
+    And this only happens when in ALTER TABLE with full table copy.
+  */
+
   max_names= num_parts;
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
