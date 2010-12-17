@@ -17125,7 +17125,7 @@ static void test_bug20023()
 
   /* Set MAX_JOIN_SIZE to the default value (-1). */
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 18446744073709551615"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -17156,7 +17156,7 @@ static void test_bug20023()
 
   DIE_IF(mysql_query(&con, query_buffer));
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 18446744073709551615"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
