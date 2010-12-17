@@ -1,7 +1,7 @@
 # the first statement is a drop table for the test table
 drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
-select id from t_basic;
+select id from t_basic where id = 9999;
 # the following statements are delimited by semicolon
 DROP TABLE IF EXISTS subscriber ;
 
