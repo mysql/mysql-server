@@ -92,9 +92,9 @@ plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
 fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
 
 pkgincludedir='@pkgincludedir@'
-if [ -f $basedir/include/mysql/mysql.h ]; then
+if [ -f "$basedir/include/mysql/mysql.h" ]; then
   pkgincludedir="$basedir/include/mysql"
-elif [ -f $basedir/include/mysql.h ]; then
+elif [ -f "$basedir/include/mysql.h" ]; then
   pkgincludedir="$basedir/include"
 fi
 
