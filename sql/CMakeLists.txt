@@ -40,6 +40,7 @@ ENDIF()
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
+               filesort_utils.cc
                filesort.cc gstream.cc sha2.cc
                handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
@@ -110,7 +111,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_table_access.cc server_ids.h)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+ADD_LIBRARY(sqlgunitlib
+  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
