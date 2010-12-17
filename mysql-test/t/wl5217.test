@@ -1,24 +1,14 @@
 --source include/have_innodb.inc
 --source include/have_partition.inc
 
+--echo # Must have InnoDB as engine to get the same statistics results.
+--echo # embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+SET @old_default_storage_engine = @@default_storage_engine;
+SET @@default_storage_engine = 'InnoDB';
+
 --echo # Original tests for WL#5217
 --echo # TODO: benchmark what value to use for MAX_PARTITIONS_BEFORE_HASH
 
-#let $get_handler_write_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
-#WHERE (VARIABLE_NAME = 'HANDLER_EXTERNAL_LOCK' OR
-#VARIABLE_NAME = 'HANDLER_WRITE') AND
-#VARIABLE_VALUE > 0;
-#let $get_handler_read_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
-#WHERE (VARIABLE_NAME = 'HANDLER_EXTERNAL_LOCK' OR
-#VARIABLE_NAME LIKE 'HANDLER_READ_%') AND
-#VARIABLE_VALUE > 0;
-#let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
-#WHERE (VARIABLE_NAME = 'HANDLER_EXTERNAL_LOCK' OR
-#VARIABLE_NAME = 'HANDLER_UPDATE' OR
-#VARIABLE_NAME = 'HANDLER_DELETE' OR
-#VARIABLE_NAME = 'HANDLER_WRITE' OR
-#VARIABLE_NAME LIKE 'HANDLER_READ_%') AND
-#VARIABLE_VALUE > 0;
 let $get_handler_status_counts= SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 
@@ -504,3 +494,4 @@ eval $get_handler_status_counts;
 SELECT * FROM t3 PARTITION (pNeg);
 
 DROP TABLE t1, t2, t3;
+SET @@default_storage_engine = @old_default_storage_engine;

@@ -1,3 +1,7 @@
+# Must have InnoDB as engine to get the same statistics results.
+# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+SET @old_default_storage_engine = @@default_storage_engine;
+SET @@default_storage_engine = 'InnoDB';
 # Original tests for WL#5217
 # TODO: benchmark what value to use for MAX_PARTITIONS_BEFORE_HASH
 # Test to show if I_S affects HANDLER_ counts
@@ -1095,3 +1099,4 @@ HANDLER_WRITE	17
 SELECT * FROM t3 PARTITION (pNeg);
 ERROR HY000: PARTITION () clause on non partitioned table
 DROP TABLE t1, t2, t3;
+SET @@default_storage_engine = @old_default_storage_engine;
