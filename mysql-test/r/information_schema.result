@@ -1053,6 +1053,8 @@ select table_type from information_schema.tables
 where table_name="v1";
 table_type
 VIEW
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 drop view v1;
 create temporary table t1(f1 int, index(f1));
 show columns from t1;
