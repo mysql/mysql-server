@@ -663,9 +663,6 @@ ON (MATCH(t1.f1) against (""))
 WHERE t1.f1 GROUP BY t1.f1)) xor f1;
 1
 1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'test'
-Warning	1292	Truncated incorrect INTEGER value: 'test'
 PREPARE stmt FROM
 'SELECT 1 FROM t1 WHERE 1 >
  ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
@@ -674,15 +671,9 @@ PREPARE stmt FROM
 EXECUTE stmt;
 1
 1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'test'
-Warning	1292	Truncated incorrect INTEGER value: 'test'
 EXECUTE stmt;
 1
 1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'test'
-Warning	1292	Truncated incorrect INTEGER value: 'test'
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
 'SELECT 1 FROM t1 WHERE 1 >
