@@ -195,6 +195,7 @@ void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     
     for (uint i = 0; i < MAX_KEY+1; i++) {
         my_free(kc_info->cp_info[i], MYF(MY_ALLOW_ZERO_PTR));
+        kc_info->cp_info[i] = NULL; // 3144
     }
     
     my_free(kc_info->field_lengths, MYF(MY_ALLOW_ZERO_PTR));
@@ -1417,6 +1418,14 @@ int initialize_col_pack_info(KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share
     }
 exit:
     return error;
+}
+
+// reset the kc_info state at keynr
+static void reset_key_and_col_info(KEY_AND_COL_INFO *kc_info, uint keynr) {
+    bitmap_clear_all(&kc_info->key_filters[keynr]);
+    my_free(kc_info->cp_info[keynr], MYF(MY_ALLOW_ZERO_PTR));
+    kc_info->cp_info[keynr] = NULL;
+    kc_info->mcp_info[keynr] = (MULTI_COL_PACK_INFO) { 0, 0 };
 }
 
 int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
@@ -6804,6 +6813,11 @@ cleanup:
         sprintf(status_msg, "aborting creation of indexes.");
         thd_proc_info(thd, status_msg);
         indexer->abort(indexer);
+    }
+    if (error) { // 3144
+        curr_index = curr_num_DBs;
+        for (uint i = 0; i < num_of_keys; i++, curr_index++)
+            reset_key_and_col_info(&share->kc_info, curr_index);
     }
     if (txn) {
         if (error) {
