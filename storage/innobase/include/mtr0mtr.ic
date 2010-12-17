@@ -160,7 +160,7 @@ mtr_memo_contains(
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 
-		slot = dyn_array_get_element(memo, offset);
+		slot = (mtr_memo_slot_t*) dyn_array_get_element(memo, offset);
 
 		if ((object == slot->object) && (type == slot->type)) {
 
