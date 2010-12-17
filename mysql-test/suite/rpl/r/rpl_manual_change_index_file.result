@@ -23,3 +23,49 @@ t2
 t3
 t4
 DROP TABLE t1, t2, t3, t4;
+
+# BUG#21437 server_errno=29 error message flood mysqld error log
+# --------------------------------------------------------------------------
+# This test verifies if the ER_MASTER_FATAL_ERROR_READING_BINLOG which
+# insteads of EE_FILENOTFOUND error is sent to slave, so that the slave
+# I/O thread stops immediately.
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+[ on master ]
+call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
+CREATE TABLE t1(c1 int);
+DROP TABLE t1;
+FLUSH LOGS;
+FLUSH LOGS;
+CREATE TABLE t2(c1 int);
+DROP TABLE t2;
+[ on slave ]
+include/stop_slave.inc
+[ on master ]
+# Remove master-bin.000001 and master-bin.000002 from index file.
+PURGE MASTER LOGS TO 'master-bin.000003';
+# Re-insert master-bin.000002 into index file manually.
+# PURGE is used to update IO_CACHE of index file.  After this statement,
+# master knows that master-bin.000002 is in index file.
+PURGE MASTER LOGS TO 'master-bin.000002';
+[ on slave ]
+CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
+START SLAVE IO_THREAD;
+# Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG and the
+# specific information are sent to slave.
+Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'Could not open log file'
+CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000003';
+include/start_slave.inc
+[ on master ]
+# Restore the correct index file.
+FLUSH LOGS;
+PURGE MASTER LOGS TO 'master-bin.000004';
+CREATE TABLE t1(c1 INT);
+[ on slave ]
+SELECT * FROM t1;
+c1
+DROP TABLE t1;
