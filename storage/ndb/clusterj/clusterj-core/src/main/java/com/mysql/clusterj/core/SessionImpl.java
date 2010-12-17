@@ -1054,16 +1054,17 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     }
 
     public void flush() {
-        if (logger.isDetailEnabled()) logger.detail("flush changes with changeList: " + changeList);
-        if (changeList.isEmpty()) {
-            return;
-        }
-        for (StateManager sm: changeList) {
-            sm.flush(this);
+        if (logger.isDetailEnabled()) logger.detail("flush changes with changeList size: " + changeList.size());
+        if (!changeList.isEmpty()) {
+            for (StateManager sm: changeList) {
+                sm.flush(this);
+            }
+            changeList.clear();
         }
         // now flush changes to the back end
-        clusterTransaction.executeNoCommit();
-        changeList.clear();
+        if (clusterTransaction != null) {
+            clusterTransaction.executeNoCommit();
+        }
     }
 
     public List getChangeList() {
