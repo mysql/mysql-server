@@ -37,10 +37,8 @@ drop table t2;
 
 # Bug 30577: FLOOR() and CEILING() not usable as partition functions
 # Partition functions are required to return INT_RESULT; FLOOR() and
-# CEILING() do not, unless they have an INT argument.  Disable this
-# portion of the test until bug 30577 is fixed.
+# CEILING() do not, unless they have an INT or DECIMAL argument.
 
---disable_parsing
 
 eval create table t3 (a decimal(18,9) not null, primary key(a)) engine=$engine 
 partition by range (floor(a)) subpartition by key (a) subpartitions 2 (
@@ -65,7 +63,7 @@ select count(*) from t3;
 drop table t3;
 
 eval create table t4 (a decimal(18,9) not null, primary key(a)) engine=$engine 
-partition by list (floor(a)) subpartition by key (a) subpartitions 2 (
+partition by list (ceiling(a)) subpartition by key (a) subpartitions 2 (
 partition pa2 values in (1,2),
 partition pa4 values in (3,4),
 partition pa6 values in (5,6),
@@ -85,6 +83,3 @@ dec $count;
 --enable_query_log
 select count(*) from t4;
 drop table t4;
-
-# Disabled due to Bug 30577
---enable_parsing

@@ -153,15 +153,11 @@ SET @@global.slave_net_timeout=50;
 --enable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=30;
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --echo Reload slave
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
@@ -456,15 +452,11 @@ let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 --echo Heartbeat event received
 --connection master
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-wait
-EOF
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --echo Reload master
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
-EOF
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --connection slave

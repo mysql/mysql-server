@@ -150,7 +150,7 @@ sub collect_test_cases ($$$$) {
       {
 	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
-	if ( $test->{name} =~ /.*\.$tname/ )
+	if ( $test->{name} =~ /^$sname.*\.$tname$/ )
 	{
 	  $found= 1;
 	  last;

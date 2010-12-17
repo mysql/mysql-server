@@ -676,7 +676,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* We want to preserve the tree for views. */
-  thd->lex->view_prepare_mode= TRUE;
+  thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
 
   {
     /*
@@ -3444,7 +3444,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_backup open_tables_state_backup;
-  bool save_view_prepare_mode= lex->view_prepare_mode;
+  uint8 save_context_analysis_only= lex->context_analysis_only;
   Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
@@ -3464,7 +3464,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   */
   can_deadlock= thd->mdl_context.has_locks();
 
-  lex->view_prepare_mode= TRUE;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   /*
     Restore Query_tables_list::sql_command value, which was reset
@@ -3694,7 +3694,7 @@ err:
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
-  lex->view_prepare_mode= save_view_prepare_mode;
+  lex->context_analysis_only= save_context_analysis_only;
   DBUG_RETURN(error);
 }
 
@@ -3790,6 +3790,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 {
   const char *tmp_buff;
   MYSQL_TIME time;
+  int info_error= 0;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
@@ -3797,22 +3798,21 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
   table->field[1]->store(db_name->str, db_name->length, cs);
   table->field[2]->store(table_name->str, table_name->length, cs);
+
   if (res)
   {
-    /*
-      there was errors during opening tables
-    */
-    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
+    /* There was a table open error, so set the table type and return */
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else
       table->field[3]->store(STRING_WITH_LEN("BASE TABLE"), cs);
-    table->field[20]->store(error, strlen(error), cs);
-    thd->clear_error();
+
+    goto err;
   }
-  else if (tables->view)
+
+  if (tables->view)
   {
     table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     table->field[20]->store(STRING_WITH_LEN("VIEW"), cs);
@@ -3827,6 +3827,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     bool is_partitioned= FALSE;
 #endif
+
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else if (share->tmp_table)
@@ -3840,6 +3841,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         continue;
       table->field[i]->set_notnull();
     }
+
+    /* Collect table info from the table share */
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
         share->partition_info_str_len)
@@ -3848,62 +3852,82 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       is_partitioned= TRUE;
     }
 #endif
+
     tmp_buff= (char *) ha_resolve_storage_engine_name(tmp_db_type);
     table->field[4]->store(tmp_buff, strlen(tmp_buff), cs);
     table->field[5]->store((longlong) share->frm_version, TRUE);
 
     ptr=option_buff;
+
     if (share->min_rows)
     {
       ptr=strmov(ptr," min_rows=");
       ptr=longlong10_to_str(share->min_rows,ptr,10);
     }
+
     if (share->max_rows)
     {
       ptr=strmov(ptr," max_rows=");
       ptr=longlong10_to_str(share->max_rows,ptr,10);
     }
+
     if (share->avg_row_length)
     {
       ptr=strmov(ptr," avg_row_length=");
       ptr=longlong10_to_str(share->avg_row_length,ptr,10);
     }
+
     if (share->db_create_options & HA_OPTION_PACK_KEYS)
       ptr=strmov(ptr," pack_keys=1");
+
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
       ptr=strmov(ptr," pack_keys=0");
+
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
+
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       ptr=strmov(ptr," delay_key_write=1");
+
     if (share->row_type != ROW_TYPE_DEFAULT)
       ptr=strxmov(ptr, " row_format=", 
                   ha_row_type[(uint) share->row_type],
                   NullS);
+
     if (share->key_block_size)
     {
       ptr= strmov(ptr, " KEY_BLOCK_SIZE=");
       ptr= longlong10_to_str(share->key_block_size, ptr, 10);
     }
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (is_partitioned)
       ptr= strmov(ptr, " partitioned");
 #endif
+
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
                              (uint) (ptr-option_buff)-1), cs);
 
     tmp_buff= (share->table_charset ?
                share->table_charset->name : "default");
+
     table->field[17]->store(tmp_buff, strlen(tmp_buff), cs);
 
     if (share->comment.str)
       table->field[20]->store(share->comment.str, share->comment.length, cs);
 
+    /* Collect table info from the storage engine  */
+
     if(file)
     {
-      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO);
+      /* If info() fails, then there's nothing else to do */
+      if ((info_error= file->info(HA_STATUS_VARIABLE |
+                                  HA_STATUS_TIME |
+                                  HA_STATUS_AUTO)) != 0)
+        goto err;
+
       enum row_type row_type = file->get_row_type();
       switch (row_type) {
       case ROW_TYPE_NOT_USED:
@@ -3932,7 +3956,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
         tmp_buff= "Paged";
         break;
       }
+
       table->field[6]->store(tmp_buff, strlen(tmp_buff), cs);
+
       if (!tables->schema_table)
       {
         table->field[7]->store((longlong) file->stats.records, TRUE);
@@ -3981,6 +4007,26 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
+
+err:
+  if (res || info_error)
+  {
+    /*
+      If an error was encountered, push a warning, set the TABLE COMMENT
+      column with the error text, and clear the error so that the operation
+      can continue.
+    */
+    const char *error= thd->is_error() ? thd->stmt_da->message() : "";
+    table->field[20]->store(error, strlen(error), cs);
+
+    if (thd->is_error())
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->stmt_da->sql_errno(), thd->stmt_da->message());
+      thd->clear_error();
+    }
+  }
+
   DBUG_RETURN(schema_table_store_record(thd, table));
 }
 

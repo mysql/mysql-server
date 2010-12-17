@@ -26,4 +26,16 @@ bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
 
+/**
+   Cleans up the SELECT_LEX_UNIT for the derived table (if any).
+
+   @param  thd         Thread handler
+   @param  lex         LEX for this thread
+   @param  derived     TABLE_LIST for the derived table
+
+   @retval  false  Success
+   @retval  true   Failure
+*/
+bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived);
+
 #endif /* SQL_DERIVED_INCLUDED */

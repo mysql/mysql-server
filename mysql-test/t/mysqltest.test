@@ -1276,11 +1276,23 @@ if ($ifvar != goodbye)
 {
   echo hello != goodbye;
 }
-
+let $ifvar= 'quoted';
+if ($ifvar == ''quoted'')
+{
+  echo 'quoted' == ''quoted'';
+}
 let $ifvar= two words;
 if ($ifvar == two words)
 {
   echo two words;
+}
+if ($ifvar == 'two words')
+{
+  echo 'two words';
+}
+if ($ifvar == "two words")
+{
+  echo "two words";
 }
 if ($ifvar == `SELECT 'two words'`)
 {
@@ -1341,6 +1353,11 @@ EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
 remove_file $MYSQL_TMP_DIR/mysqltest.sql;
+
+--error 1
+--exec echo "if (\$var ==) {" | $MYSQL_TEST  2>&1
+--error 1
+--exec echo "if (\$var > ) {" | $MYSQL_TEST  2>&1
 
 # ----------------------------------------------------------------------------
 # Test while with compare conditions
@@ -2113,6 +2130,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+--replace_regex /my_errno=[0-9]*/(my_errno)/
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
 

@@ -5408,11 +5408,19 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   if (lock_tables(thd, tables, counter, flags))
     goto err;
 
-  if (derived &&
-      (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-       (thd->fill_derived_tables() &&
-        mysql_handle_derived(thd->lex, &mysql_derived_filling))))
-    goto err;
+  if (derived)
+  {
+    if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
+      goto err;
+    if (thd->fill_derived_tables() &&
+        mysql_handle_derived(thd->lex, &mysql_derived_filling))
+    {
+      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+      goto err;
+    }
+    if (!thd->lex->describe)
+      mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+  }
 
   DBUG_RETURN(FALSE);
 err:

@@ -39,29 +39,6 @@ let $val3 = 17 ;
 let $val4 = 15 ;
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 
-
-let $sqlfunc = ceiling(col1);
-let $valsqlfunc = ceiling(15);
-let $coltype = float(7,4);
-let $infile = part_supported_sql_funcs_int_float.inc;
-let $val1 =  5.1230;
-let $val2 = 13.345;
-let $val3 = 17.987;
-let $val4 = 15.654 ;
-# DISABLED due to bug 30577
-#--source suite/parts/inc/partition_supported_sql_funcs.inc
-
-let $sqlfunc = floor(col1);
-let $valsqlfunc = floor(15.123);
-let $coltype = float(7,4);
-let $infile = part_supported_sql_funcs_int_float.inc;
-let $val1 =  5.1230;
-let $val2 = 13.345;
-let $val3 = 17.987;
-let $val4 = 15.654 ;
-# DISABLED due to bug 30577
-#--source suite/parts/inc/partition_supported_sql_funcs.inc
-
 let $sqlfunc = mod(col1,10);
 let $valsqlfunc = mod(15,10);
 let $coltype = int;

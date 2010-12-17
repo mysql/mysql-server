@@ -423,7 +423,10 @@ while with string, only once
 hello == hello
 hello   ==   hello
 hello != goodbye
+'quoted' == ''quoted''
 two words
+'two words'
+"two words"
 two words are two words
 right answer
 anything goes
@@ -431,6 +434,8 @@ anything goes
 mysqltest: At line 2: Only == and != are supported for string values
 mysqltest: At line 2: Found junk '~= 6' after $variable in condition
 mysqltest: At line 2: Expression in if/while must beging with $, ` or a number
+mysqltest: At line 1: Missing right operand in comparison
+mysqltest: At line 1: Missing right operand in comparison
 counter is 2
 counter is 3
 counter is 4
@@ -620,7 +625,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: command "cat_file" failed with error 1
+mysqltest: At line 1: command "cat_file" failed with error 1. (my_errno)
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'

@@ -6492,7 +6492,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view
