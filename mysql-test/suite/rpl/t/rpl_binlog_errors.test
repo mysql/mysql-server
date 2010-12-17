@@ -82,9 +82,9 @@ RESET MASTER;
 
 ### ACTION: create some tables (t1, t2, t4) and insert some values in
 ###         table t1
-CREATE TABLE t1 (a int);
-CREATE TABLE t2 (a TEXT) Engine=InnoDB;
-CREATE TABLE t4 (a TEXT);
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a VARCHAR(16384)) Engine=InnoDB;
+CREATE TABLE t4 (a VARCHAR(16384));
 INSERT INTO t1 VALUES (1);
 RESET MASTER;
 
@@ -272,6 +272,7 @@ SHOW WARNINGS;
 
 # +d,fault_injection_registering_index => injects fault on MYSQL_BIN_LOG::open
 SET GLOBAL debug="+d,fault_injection_registering_index";
+-- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_registering_index";
@@ -298,6 +299,7 @@ DROP TABLE t5;
 
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 SET GLOBAL debug="+d,fault_injection_openning_index";
+-- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 SET GLOBAL debug="-d,fault_injection_openning_index";
