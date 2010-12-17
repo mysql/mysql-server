@@ -69,7 +69,6 @@ static MYSQL_THDVAR_ULONGLONG(write_lock_wait,
   ULONGLONG_MAX, // max
   1 // blocksize
   );
-
 static MYSQL_THDVAR_ULONGLONG(read_lock_wait,
   0,
   "time waiting for read lock",
@@ -90,7 +89,6 @@ static MYSQL_THDVAR_UINT(pk_insert_mode,
   2, // max
   1 // blocksize
   );
-
 static MYSQL_THDVAR_BOOL(load_save_space,
   0,
   "if on, intial loads are slower but take less space",
@@ -111,6 +109,16 @@ static MYSQL_THDVAR_BOOL(prelock_empty,
   NULL, 
   NULL, 
   TRUE
+  );
+static MYSQL_THDVAR_UINT(block_size,
+  0,
+  "fractal tree block size",
+  NULL, 
+  NULL, 
+  4<<20, // default
+  4096,  // min
+  ~0L,   // max
+  1      // blocksize???
   );
 
 void tokudb_checkpoint_lock(THD * thd);
@@ -557,6 +565,10 @@ bool get_create_index_online(THD* thd) {
 
 bool get_prelock_empty(THD* thd) {
     return (THDVAR(thd, prelock_empty) != 0);
+}
+
+uint get_tokudb_block_size(THD* thd) {
+    return THDVAR(thd, block_size);
 }
 
 typedef struct txn_progress_info {
@@ -1414,35 +1426,6 @@ static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0,
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 
-#if 0
-
-static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
-
-// this is really a u_int32_t
-// ? use MYSQL_SYSVAR_SET
-static MYSQL_SYSVAR_UINT(env_flags, tokudb_env_flags, PLUGIN_VAR_READONLY, "Sets TokuDB env_flags", NULL, NULL, DB_LOG_AUTOREMOVE, 0, ~0, 0);
-
-static MYSQL_SYSVAR_STR(home, tokudb_home, PLUGIN_VAR_READONLY, "Sets TokuDB env->open home", NULL, NULL, NULL);
-
-// this is really a u_int32_t
-//? use MYSQL_SYSVAR_SET
-
-// this looks to be unused
-static MYSQL_SYSVAR_LONG(lock_scan_time, tokudb_lock_scan_time, PLUGIN_VAR_READONLY, "Tokudb Lock Scan Time (UNUSED)", NULL, NULL, 0, 0, ~0L, 0);
-
-// this is really a u_int32_t
-//? use MYSQL_SYSVAR_ENUM
-static MYSQL_SYSVAR_UINT(lock_type, tokudb_lock_type, PLUGIN_VAR_READONLY, "Sets set_lk_detect", NULL, NULL, DB_LOCK_DEFAULT, 0, ~0, 0);
-
-static MYSQL_SYSVAR_ULONG(log_buffer_size, tokudb_log_buffer_size, PLUGIN_VAR_READONLY, "Tokudb Log Buffer Size", NULL, NULL, 0, 0, ~0L, 0);
-
-static MYSQL_SYSVAR_ULONG(region_size, tokudb_region_size, PLUGIN_VAR_READONLY, "Tokudb Region Size", NULL, NULL, 128 * 1024, 0, ~0L, 0);
-
-static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "Tokudb Shared Data", NULL, NULL, FALSE);
-
-
-#endif
-
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock_memory),
@@ -1464,16 +1447,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_status_frequency),
     MYSQL_SYSVAR(fs_reserve_percent),
     MYSQL_SYSVAR(tmp_dir),
-#if 0
-    MYSQL_SYSVAR(cache_parts),
-    MYSQL_SYSVAR(env_flags),
-    MYSQL_SYSVAR(home),
-    MYSQL_SYSVAR(lock_scan_time),
-    MYSQL_SYSVAR(lock_type),
-    MYSQL_SYSVAR(log_buffer_size),
-    MYSQL_SYSVAR(region_size),
-    MYSQL_SYSVAR(shared_data),
-#endif
+    MYSQL_SYSVAR(block_size),
     NULL
 };
 
