@@ -252,7 +252,14 @@ int handler::multi_range_read_next(char **range_info)
     else
     {
       if (was_semi_consistent_read())
+      {
+        /*
+          The following assignment is redundant, but for extra safety and to
+          remove the compiler warning:
+        */
+        range_res= FALSE;
         goto scan_it_again;
+      }
       /*
         We need to set this for the last range only, but checking this
         condition is more expensive than just setting the result code.
