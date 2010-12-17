@@ -4662,7 +4662,7 @@ void Item_func_get_user_var::fix_length_and_dec()
       decimals=0;
       break;
     case STRING_RESULT:
-      max_length= MAX_BLOB_WIDTH;
+      max_length= MAX_BLOB_WIDTH - 1;
       break;
     case DECIMAL_RESULT:
       max_length= DECIMAL_MAX_STR_LENGTH;

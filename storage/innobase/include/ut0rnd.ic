@@ -67,9 +67,6 @@ ut_rnd_gen_ulint(void)
 			/* out: the 'random' number */
 {
 	ulint	rnd;
-	ulint	n_bits;
-
-	n_bits = 8 * sizeof(ulint);
 
 	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
 
