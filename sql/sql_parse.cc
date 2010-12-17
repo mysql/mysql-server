@@ -18,12 +18,9 @@
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
-#include "lock.h"             // wait_if_global_read_lock,
-                              // unlock_global_read_lock,
-                              // try_transactional_lock,
+#include "lock.h"             // try_transactional_lock,
                               // check_transactional_lock,
                               // set_handler_table_locks,
-                              // start_waiting_global_read_lock,
                               // lock_global_read_lock,
                               // make_global_read_lock_block_commit
 #include "sql_base.h"         // find_temporary_tablesx
@@ -297,21 +294,21 @@ void init_update_queries(void)
     the code, in particular in the Query_log_event's constructor.
   */
   sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL |
+                                            CF_AUTO_COMMIT_TRANS |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_WRITE_RPL_INFO_COMMAND;
   sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA | CF_WRITE_LOGS_COMMAND |
-                                            CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+                                            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
-  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
@@ -322,26 +319,18 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
-                                            CF_PROTECT_AGAINST_GRL |
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS;
@@ -403,20 +392,19 @@ void init_update_queries(void)
                                                 CF_REEXECUTION_FRAGILE);
 
 
-  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_PROTECT_AGAINST_GRL;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
-  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_PROTECT_AGAINST_GRL | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
@@ -434,10 +422,14 @@ void init_update_queries(void)
     The following admin table operations are allowed
     on log tables.
   */
-  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REPAIR]=    CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
+                                       CF_WRITE_RPL_INFO_COMMAND;
+  sql_command_flags[SQLCOM_OPTIMIZE]|= CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
+                                       CF_WRITE_RPL_INFO_COMMAND;
+  sql_command_flags[SQLCOM_ANALYZE]=   CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
+                                       CF_WRITE_RPL_INFO_COMMAND;
+  sql_command_flags[SQLCOM_CHECK]=     CF_WRITE_LOGS_COMMAND | CF_AUTO_COMMIT_TRANS |
+                                       CF_WRITE_RPL_INFO_COMMAND;
 
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
@@ -477,6 +469,17 @@ bool is_log_table_write_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
+}
+
+/**
+  Check if a sql command is allowed to write to rpl info tables.
+  @param command The SQL command
+  @return true if writing is allowed
+*/
+bool is_rpl_info_table_write_query(enum enum_sql_command command)
+{
+  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  return (sql_command_flags[command] & CF_WRITE_RPL_INFO_COMMAND) != 0;
 }
 
 void execute_init_command(THD *thd, LEX_STRING *init_command,
@@ -577,7 +580,7 @@ static void handle_bootstrap_impl(THD *thd)
     query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
-    thd->set_query_and_id(query, length, next_query_id());
+    thd->set_query_and_id(query, length, thd->charset(), next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -738,6 +741,22 @@ bool do_command(THD *thd)
   thd->stmt_da->reset_diagnostics_area();
 
   net_new_transaction(net);
+
+  /*
+    Synchronization point for testing of KILL_CONNECTION.
+    This sync point can wait here, to simulate slow code execution
+    between the last test of thd->killed and blocking in read().
+
+    The goal of this test is to verify that a connection does not
+    hang, if it is killed at this point of execution.
+    (Bug#37780 - main.kill fails randomly)
+
+    Note that the sync point wait itself will be terminated by a
+    kill. In this case it consumes a condition broadcast, but does
+    not change anything else. The consumed broadcast should not
+    matter here, because the read/recv() below doesn't use it.
+  */
+  DEBUG_SYNC(thd, "before_do_command_net_read");
 
   if ((packet_length= my_net_read(net)) == packet_error)
   {
@@ -1058,11 +1077,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
            ! thd->is_error())
     {
-      char *beginning_of_next_stmt= (char*)
-        parser_state.m_lip.found_semicolon;
       /*
         Multiple queries exits, execute them individually
       */
+      char *beginning_of_next_stmt= (char*) parser_state.m_lip.found_semicolon;
+
+      /* Finalize server status flags after executing a statement. */
+      thd->update_server_status();
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
@@ -1092,7 +1113,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         thd->security_ctx->priv_user,
                         (char *) thd->security_ctx->host_or_ip);
 
-      thd->set_query_and_id(beginning_of_next_stmt, length, next_query_id());
+      thd->set_query_and_id(beginning_of_next_stmt, length,
+                            thd->charset(), next_query_id());
       /*
         Count each statement from the client.
       */
@@ -1122,7 +1144,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       SHOW statements should not add the used tables to the list of tables
       used in a transaction.
     */
-    MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+    MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]);
     if (thd->copy_db_to(&db.str, &db.length))
@@ -1408,6 +1430,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
 
+  /* Finalize server status flags after executing a command. */
+  thd->update_server_status();
   thd->protocol->end_statement();
   query_cache_end_of_result(thd);
 
@@ -1417,7 +1441,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->set_command(COM_SLEEP);
   dec_thread_running();
   thd_proc_info(thd, 0);
@@ -1462,8 +1486,7 @@ void log_slow_statement(THD *thd)
     ulonglong end_utime_of_query= thd->current_utime();
     thd_proc_info(thd, "logging slow query");
 
-    if (((end_utime_of_query - thd->utime_after_lock) >
-         thd->variables.long_query_time ||
+    if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
            (SERVER_QUERY_NO_INDEX_USED | SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
           opt_log_queries_not_using_indexes &&
@@ -1765,16 +1788,6 @@ bool sp_process_definer(THD *thd)
 /**
   Execute command saved in thd and lex->sql_command.
 
-    Before every operation that can request a write lock for a table
-    wait if a global read lock exists. However do not wait if this
-    thread has locked tables already. No new locks can be requested
-    until the other locks are released. The thread that requests the
-    global read lock waits for write locked tables to become unlocked.
-
-    Note that wait_if_global_read_lock() sets a protection against a new
-    global read lock when it succeeds. This needs to be released by
-    start_waiting_global_read_lock() after the operation.
-
   @param thd                       Thread handle
 
   @todo
@@ -1808,7 +1821,6 @@ mysql_execute_command(THD *thd)
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
 #endif
-  /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
@@ -2000,17 +2012,6 @@ mysql_execute_command(THD *thd)
     thd->mdl_context.release_transactional_locks();
   }
 
-  /*
-    Check if this command needs protection against the global read lock
-    to avoid deadlock. See CF_PROTECT_AGAINST_GRL.
-    start_waiting_global_read_lock() is called at the end of
-    mysql_execute_command().
-  */
-  if (((sql_command_flags[lex->sql_command] & CF_PROTECT_AGAINST_GRL) != 0) &&
-      !thd->locked_tables_mode)
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      goto error;
-
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)
     DEBUG_SYNC(thd,"before_execute_sql_command");
@@ -2083,10 +2084,6 @@ mysql_execute_command(THD *thd)
       res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
 
     if (res)
-      break;
-
-    if (!thd->locked_tables_mode && lex->protect_against_global_read_lock &&
-        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -2348,20 +2345,6 @@ case SQLCOM_PREPARE:
       create_info.default_table_charset= create_info.table_charset;
       create_info.table_charset= 0;
     }
-    /*
-      The create-select command will open and read-lock the select table
-      and then create, open and write-lock the new table. If a global
-      read lock steps in, we get a deadlock. The write lock waits for
-      the global read lock, while the global read lock waits for the
-      select table to be closed. So we wait until the global readlock is
-      gone before starting both steps. Note that
-      wait_if_global_read_lock() sets a protection against a new global
-      read lock when it succeeds. This needs to be released by
-      start_waiting_global_read_lock(). We protect the normal CREATE
-      TABLE in the same way. That way we avoid that a new table is
-      created during a global read lock.
-      Protection against grl is covered by the CF_PROTECT_AGAINST_GRL flag.
-    */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
@@ -3155,9 +3138,6 @@ end_with_restore_list:
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                            FALSE, UINT_MAX, FALSE))
       goto error;
-    if (lex->protect_against_global_read_lock &&
-        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-      goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
     thd->in_lock_tables=1;
@@ -3805,13 +3785,22 @@ end_with_restore_list:
       Security_context *backup= NULL;
       LEX_USER *definer= thd->lex->definer;
       /*
-        We're going to issue an implicit GRANT statement.
-        It takes metadata locks and updates system tables.
-        Make sure that sp_create_routine() did not leave any
-        locks in the MDL context, so there is no risk to
-        deadlock.
+        We're going to issue an implicit GRANT statement so we close all
+        open tables. We have to keep metadata locks as this ensures that
+        this statement is atomic against concurent FLUSH TABLES WITH READ
+        LOCK. Deadlocks which can arise due to fact that this implicit
+        statement takes metadata locks should be detected by a deadlock
+        detector in MDL subsystem and reported as errors.
+
+        No need to commit/rollback statement transaction, it's not started.
+
+        TODO: Long-term we should either ensure that implicit GRANT statement
+              is written into binary log as a separate statement or make both
+              creation of routine and implicit GRANT parts of one fully atomic
+              statement.
       */
-      close_mysql_tables(thd);
+      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      close_thread_tables(thd);
       /*
         Check if the definer exists on slave, 
         then use definer privilege to insert routine privileges to mysql.procs_priv.
@@ -4071,13 +4060,22 @@ create_sp_error:
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
-        We're going to issue an implicit REVOKE statement.
-        It takes metadata locks and updates system tables.
-        Make sure that sp_create_routine() did not leave any
-        locks in the MDL context, so there is no risk to
-        deadlock.
+        We're going to issue an implicit REVOKE statement so we close all
+        open tables. We have to keep metadata locks as this ensures that
+        this statement is atomic against concurent FLUSH TABLES WITH READ
+        LOCK. Deadlocks which can arise due to fact that this implicit
+        statement takes metadata locks should be detected by a deadlock
+        detector in MDL subsystem and reported as errors.
+
+        No need to commit/rollback statement transaction, it's not started.
+
+        TODO: Long-term we should either ensure that implicit REVOKE statement
+              is written into binary log as a separate statement or make both
+              dropping of routine and implicit REVOKE parts of one fully atomic
+              statement.
       */
-      close_mysql_tables(thd);
+      DBUG_ASSERT(thd->transaction.stmt.is_empty());
+      close_thread_tables(thd);
 
       if (sp_result != SP_KEY_NOT_FOUND &&
           sp_automatic_privileges && !opt_noacl &&
@@ -4366,14 +4364,6 @@ error:
   res= TRUE;
 
 finish:
-  if (thd->global_read_lock.has_protection())
-  {
-    /*
-      Release the protection against the global read lock and wake
-      everyone, who might want to set a global read lock.
-    */
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
-  }
 
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
@@ -4409,6 +4399,11 @@ finish:
   close_thread_tables(thd);
   thd_proc_info(thd, 0);
 
+#ifndef DBUG_OFF
+  if (lex->sql_command != SQLCOM_SET_OPTION && ! thd->in_sub_stmt)
+    DEBUG_SYNC(thd, "execute_command_after_close_tables");
+#endif
+
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
   {
     /* No transaction control allowed in sub-statements. */
@@ -4433,6 +4428,10 @@ finish:
       automatically release metadata locks of the current statement.
     */
     thd->mdl_context.release_transactional_locks();
+  }
+  else if (! thd->in_sub_stmt)
+  {
+    thd->mdl_context.release_statement_locks();
   }
 
   DBUG_RETURN(res || thd->is_error());
@@ -5519,7 +5518,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           if (found_semicolon && (ulong) (found_semicolon - thd->query()))
             thd->set_query_inner(thd->query(),
                                  (uint32) (found_semicolon -
-                                           thd->query() - 1));
+                                           thd->query() - 1),
+                                 thd->charset());
           /* Actually execute the query */
           if (found_semicolon)
           {
@@ -5908,7 +5908,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type);
+  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                        MDL_TRANSACTION);
   DBUG_RETURN(ptr);
 }
 
@@ -7248,9 +7249,6 @@ bool parse_sql(THD *thd,
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
-
-  if (check_stack_overrun(thd, 2 * STACK_MIN_SIZE, (uchar*)&backup_ctx))
-    return TRUE;
 
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);

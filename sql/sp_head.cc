@@ -1204,7 +1204,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   sp_rcontext *ctx= thd->spcont;
   bool err_status= FALSE;
   uint ip= 0;
-  ulong save_sql_mode;
+  sql_mode_t save_sql_mode;
   bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
@@ -1240,8 +1240,11 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     The same with db_load_routine() required circa 7k bytes and
     14k bytes accordingly. Hence, here we book the stack with some
     reasonable margin.
+
+    Reverting back to 8 * STACK_MIN_SIZE until further fix.
+    8 * STACK_MIN_SIZE is required on some exotic platforms.
   */
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&old_packet))
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
@@ -2140,6 +2143,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
 
     thd->rollback_item_tree_changes();
 
@@ -2477,7 +2482,7 @@ sp_head::do_cont_backpatch()
 
 void
 sp_head::set_info(longlong created, longlong modified,
-                  st_sp_chistics *chistics, ulong sql_mode)
+                  st_sp_chistics *chistics, sql_mode_t sql_mode)
 {
   m_created= created;
   m_modified= modified;
@@ -2703,7 +2708,7 @@ int sp_head::add_instr(sp_instr *instr)
     entire stored procedure, as their life span is equal.
   */
   instr->mem_root= &main_mem_root;
-  return insert_dynamic(&m_instr, (uchar*)&instr);
+  return insert_dynamic(&m_instr, &instr);
 }
 
 
@@ -2913,9 +2918,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's merged with the saved parent's value at the exit of this func.
   */
   bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&parent_modified_non_trans_table))
-    DBUG_RETURN(TRUE);
-
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
@@ -2978,6 +2980,8 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     if (! thd->in_sub_stmt && ! thd->in_multi_stmt_transaction_mode())
       thd->mdl_context.release_transactional_locks();
+    else if (! thd->in_sub_stmt)
+      thd->mdl_context.release_statement_locks();
   }
 
   if (m_lex->query_tables_own_last)
@@ -3065,17 +3069,11 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
-  char *query;
-  uint32 query_length;
   int res;
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
-    DBUG_RETURN(TRUE);
-
-  query= thd->query();
-  query_length= thd->query_length();
+  const CSET_STRING query_backup= thd->query_string;
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -3096,7 +3094,12 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
       if (thd->stmt_da->is_eof())
+      {
+        /* Finalize server status flags after executing a statement. */
+        thd->update_server_status();
+
         thd->protocol->end_statement();
+      }
 
       query_cache_end_of_result(thd);
 
@@ -3105,7 +3108,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
     else
       *nextp= m_ip+1;
-    thd->set_query(query, query_length);
+    thd->set_query(query_backup);
     thd->query_name_consts= 0;
 
     if (!thd->is_error())
@@ -4176,7 +4179,8 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       */
       table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
                               table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                              MDL_SHARED_WRITE : MDL_SHARED_READ);
+                              MDL_SHARED_WRITE : MDL_SHARED_READ,
+                              MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 
@@ -4220,7 +4224,7 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
   table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
-                          mdl_type);
+                          mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
   return table;

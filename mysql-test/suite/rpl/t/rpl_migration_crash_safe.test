@@ -1,0 +1,138 @@
+########################################################################################
+# This test verifies if the server migrates correctly from a file repository to a
+# table repository and vice-versa. In particular, it checks if the information in the
+# relay log info is correctly migrated between the different types (i.e. FILE or TABLE)
+# of repositories. The algorithm and the function used to migrate the master info is
+# the same and for that reason, we do not test its migration.
+# 
+# If a FILE repository is used, the following assertions are valid:
+#   AF1. SELECT COUNT(*) FROM mysql.slave_relay_log_info == 0
+#   AF2. file_exists $MYSQLD_DATADIR/relay-log.info == 1
+#
+# If a TABLE repository is used, the following assertions are valid:
+#   AT1. SELECT COUNT(*) FROM mysql.slave_relay_log_info == 1
+#   AT2. file_exists $MYSQLD_DATADIR/relay-log.info == 0
+#
+# The test case is organized as follows:
+#
+# 1. Preparation:
+#   1.1. The slave is started with a FILE repository enabled and the replication
+#   stopped.
+#   1.2. A table is created and populated in order to check at the end of the test
+#   if data is replicated correctly.
+#   1.3. Assertions AF1 and AF2 are verified.
+#
+# 2. Migration from FILE to TABLE
+#   2.1. The slave is stopped and restarted with --relay-log-info-repository=TABLE
+#   2.2. Assertions AT1 and AT2 are verified.
+#
+# 3. Migration from TABLE to FILE with success
+#   4.1. The slave is stopped and restarted with --relay-log-info-repository=FILE
+#   4.2. Assertions AF1 and AF2 are verified.
+#
+# 4. Check consistency
+#   4.1. The replication is started and the master is compared to the slave.
+########################################################################################
+########################################################################################
+# 1. Preparation
+########################################################################################
+--source include/master-slave.inc
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/not_relay_log_info_table.inc
+
+--connection slave
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+let $exp_slave= 0;
+let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
+if (`SELECT $got_slave <> $exp_slave`)
+{
+  --echo "The mysql.slave_relay_log_info has information and this is not expected."
+  --die
+}
+file_exists $MYSQLD_DATADIR/relay-log.info;
+
+--source include/stop_slave.inc
+
+--connection master
+
+CREATE TABLE test(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO test VALUES (1), (2), (3);
+
+########################################################################################
+# 2. Migration from FILE to TABLE
+########################################################################################
+--connection slave
+
+--echo ### stop slave server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--echo ### start slave server with --relay-log-info-repository=TABLE
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+restart:--relay-log-info-repository=TABLE --skip-slave-start
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--connection slave
+
+let $exp_slave= 1;
+let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
+if (`SELECT $got_slave <> $exp_slave`)
+{
+  --echo "The mysql.slave_relay_log_info has information and this is not expected."
+  --die
+}
+--error 1
+file_exists $MYSQLD_DATADIR/relay-log.info;
+
+########################################################################################
+# 3. Migration from TABLE to FILE
+########################################################################################
+--connection slave
+
+--echo ### stop slave server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--echo ### start slave server with --relay-log-info-repository=FILE
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+restart:--relay-log-info-repository=FILE --skip-slave-start
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--connection slave
+
+let $exp_slave= 0;
+let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
+if (`SELECT $got_slave <> $exp_slave`)
+{
+  --echo "The mysql.slave_relay_log_info has information and this is not expected."
+  --die
+}
+file_exists $MYSQLD_DATADIR/relay-log.info;
+
+########################################################################################
+# 4. Check consistency
+########################################################################################
+--connection slave
+
+--source include/start_slave.inc
+
+--connection master
+
+sync_slave_with_master;
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-migration-slave.sql
+--diff_files $MYSQLD_DATADIR/test-migration-master.sql $MYSQLD_DATADIR/test-migration-slave.sql
+
+--connection master
+
+DROP TABLE test;
+sync_slave_with_master;

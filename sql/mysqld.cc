@@ -323,7 +323,8 @@ static PSI_rwlock_key key_rwlock_openssl;
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
-static bool volatile ready_to_exit;
+/* See Bug#56666 and Bug#56760 */;
+volatile bool ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
@@ -408,7 +409,8 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
-my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
+my_bool read_only= 0, opt_readonly= 0;
+my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
@@ -434,6 +436,10 @@ my_bool opt_noacl;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
+const char *binlog_checksum_default= "NONE";
+ulong binlog_checksum_options;
+my_bool opt_master_verify_checksum= 0;
+my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
@@ -604,8 +610,7 @@ pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t
-  LOCK_status, LOCK_global_read_lock,
-  LOCK_error_log, LOCK_uuid_generator,
+  LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
   LOCK_crypt,
   LOCK_global_system_variables,
@@ -625,7 +630,6 @@ mysql_mutex_t LOCK_des_key_file;
 mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 mysql_cond_t COND_thread_count;
-mysql_cond_t COND_global_read_lock;
 pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
@@ -649,7 +653,8 @@ static bool kill_in_progress, segfaulted;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
-static char *opt_update_logname, *opt_binlog_index_name;
+static char *opt_update_logname;
+char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 /** Initial command line arguments (count), after load_defaults().*/
 static int defaults_argc;
@@ -1542,7 +1547,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_crypt);
   mysql_mutex_destroy(&LOCK_user_conn);
   mysql_mutex_destroy(&LOCK_connection_count);
-  Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -1556,12 +1560,10 @@ static void clean_up_mutexes()
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
   mysql_rwlock_destroy(&LOCK_system_variables_hash);
-  mysql_mutex_destroy(&LOCK_global_read_lock);
   mysql_mutex_destroy(&LOCK_uuid_generator);
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
-  mysql_cond_destroy(&COND_global_read_lock);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
@@ -2427,7 +2429,7 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
-    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
     fprintf(stderr, "Attempting backtrace. You can use the following "
                     "information to find out\nwhere mysqld died. If "
                     "you see no messages after this, something went\n"
@@ -2455,11 +2457,13 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
       kreason= "KILLED_NO_VALUE";
       break;
     }
-    fprintf(stderr, "Trying to get some variables.\n\
-Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query(), 1024);
-    fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "thd->killed=%s\n", kreason);
+    fprintf(stderr, "\nTrying to get some variables.\n"
+                    "Some pointers may be invalid and cause the dump to abort.\n");
+    fprintf(stderr, "Query (%p): ", thd->query());
+    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "Status: %s\n", kreason);
+    fputc('\n', stderr);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
@@ -3074,6 +3078,34 @@ static inline char *make_default_log_name(char *buff,const char* log_ext)
   return make_log_name(buff, default_logfile_name, log_ext);
 }
 
+/**
+  Create a replication file name or base for file names.
+
+  @param[in] opt Value of option, or NULL
+  @param[in] def Default value if option value is not set.
+  @param[in] ext Extension to use for the path
+
+  @returns Pointer to string containing the full file path, or NULL if
+  it was not possible to create the path.
+ */
+static inline const char *
+rpl_make_log_name(const char *opt,
+                  const char *def,
+                  const char *ext)
+{
+  DBUG_ENTER("rpl_make_log_name");
+  DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
+  char buff[FN_REFLEN];
+  const char *base= opt ? opt : def;
+  unsigned int options=
+    MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
+  if (fn_format(buff, base, mysql_real_data_home_ptr, ext, options))
+    DBUG_RETURN(strdup(buff));
+  else
+    DBUG_RETURN(NULL);
+}
+
+
 static int init_common_variables()
 {
   char buff[FN_REFLEN];
@@ -3141,6 +3173,7 @@ static int init_common_variables()
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
+  
   /*
     The default-storage-engine entry in my_long_options should have a
     non-null default value. It was earlier intialized as
@@ -3532,8 +3565,6 @@ static int init_thread_environment()
                    &LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
                     &LOCK_system_variables_hash);
-  mysql_mutex_init(key_LOCK_global_read_lock,
-                   &LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_prepared_stmt_count,
                    &LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages,
@@ -3561,7 +3592,6 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
   mysql_cond_init(key_COND_thread_count, &COND_thread_count, NULL);
-  mysql_cond_init(key_COND_global_read_lock, &COND_global_read_lock, NULL);
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
   mysql_cond_init(key_COND_manager, &COND_manager, NULL);
@@ -4027,6 +4057,45 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       unireg_abort(1);
     }
   }
+
+  if (opt_bin_log)
+  {
+    log_bin_basename=
+      rpl_make_log_name(opt_bin_logname, pidfile_name,
+                        opt_bin_logname ? "" : "-bin");
+    log_bin_index=
+      rpl_make_log_name(opt_binlog_index_name, log_bin_basename, ".index");
+    if (log_bin_basename == NULL || log_bin_index == NULL)
+    {
+      sql_print_error("Unable to create replication path names:"
+                      " out of memory or path names too long"
+                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+      unireg_abort(1);
+    }
+  }
+
+#ifndef EMBEDDED_LIBRARY
+  DBUG_PRINT("debug",
+             ("opt_bin_logname: %s, opt_relay_logname: %s, pidfile_name: %s",
+              opt_bin_logname, opt_relay_logname, pidfile_name));
+  if (opt_relay_logname)
+  {
+    relay_log_basename=
+      rpl_make_log_name(opt_relay_logname, pidfile_name,
+                        opt_relay_logname ? "" : "-relay-bin");
+    relay_log_index=
+      rpl_make_log_name(opt_relaylog_index_name, relay_log_basename, ".index");
+    if (relay_log_basename == NULL || relay_log_index == NULL)
+    {
+      sql_print_error("Unable to create replication path names:"
+                      " out of memory or path names too long"
+                      " (path name exceeds " STRINGIFY_ARG(FN_REFLEN)
+                      " or file name exceeds " STRINGIFY_ARG(FN_LEN) ").");
+      unireg_abort(1);
+    }
+  }
+#endif /* !EMBEDDED_LIBRARY */
 
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
@@ -4564,6 +4633,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
+  srand(time(NULL)); 
 #endif
 
   /*
@@ -5941,8 +6011,12 @@ struct my_option my_long_options[]=
    &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", 0,
-   "File that holds the names for last binary log files.",
+   "File that holds the names for binary log files.",
    &opt_binlog_index_name, &opt_binlog_index_name, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"relay-log-index", 0,
+   "File that holds the names for relay log files.",
+   &opt_relaylog_index_name, &opt_relaylog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
    &myisam_log_filename, &myisam_log_filename, 0, GET_STR,
@@ -6231,6 +6305,24 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
     mysql_mutex_lock(&active_mi->rli->data_lock);
     *((longlong *)buff)= active_mi->received_heartbeats;
     mysql_mutex_unlock(&active_mi->rli->data_lock);
+  }
+  else
+    var->type= SHOW_UNDEF;
+  mysql_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
+{
+  MYSQL_TIME received_heartbeat_time;
+  mysql_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_CHAR;
+    var->value= buff;
+    thd->variables.time_zone->gmt_sec_to_TIME(&received_heartbeat_time, 
+      active_mi->last_heartbeat);
+    my_datetime_to_str(&received_heartbeat_time, buff);
   }
   else
     var->type= SHOW_UNDEF;
@@ -6619,6 +6711,7 @@ SHOW_VAR status_vars[]= {
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
   {"Slave_heartbeat_period",   (char*) &show_heartbeat_period, SHOW_FUNC},
   {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats, SHOW_FUNC},
+  {"Slave_last_heartbeat",     (char*) &show_slave_last_heartbeat, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},
@@ -6675,7 +6768,7 @@ SHOW_VAR status_vars[]= {
 bool add_terminator(DYNAMIC_ARRAY *options)
 {
   my_option empty_element= {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
-  return insert_dynamic(options, (uchar *)&empty_element);
+  return insert_dynamic(options, &empty_element);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7336,7 +7429,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
-    insert_dynamic(&all_options, (uchar*) opt);
+    insert_dynamic(&all_options, opt);
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
@@ -7474,6 +7567,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.engine_condition_pushdown=
     test(global_system_variables.optimizer_switch &
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
+
+  opt_readonly= read_only;
 
   return 0;
 }
@@ -7795,7 +7890,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
-  key_LOCK_gdl, key_LOCK_global_read_lock, key_LOCK_global_system_variables,
+  key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
   key_LOCK_server_started, key_LOCK_status,
@@ -7833,7 +7928,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_delayed_status, "LOCK_delayed_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},
-  { &key_LOCK_global_read_lock, "LOCK_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_LOCK_global_system_variables, "LOCK_global_system_variables", PSI_FLAG_GLOBAL},
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_GLOBAL},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_GLOBAL},
@@ -7881,7 +7975,7 @@ PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 #endif /* HAVE_MMAP */
 
 PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
-  key_COND_cache_status_changed, key_COND_global_read_lock, key_COND_manager,
+  key_COND_cache_status_changed, key_COND_manager,
   key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
   key_item_func_sleep_cond, key_master_info_data_cond,
@@ -7904,7 +7998,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
-  { &key_COND_global_read_lock, "COND_global_read_lock", PSI_FLAG_GLOBAL},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
   { &key_delayed_insert_cond, "Delayed_insert::cond", 0},
@@ -7962,9 +8055,10 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_MYSQL_LOG, key_file_partition,
+  key_file_master_info, key_file_misc, key_file_partition,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
+PSI_file_key key_file_query_log, key_file_slow_log;
 
 static PSI_file_info all_server_files[]=
 {
@@ -7987,11 +8081,12 @@ static PSI_file_info all_server_files[]=
   { &key_file_log_event_info, "log_event_info", 0},
   { &key_file_master_info, "master_info", 0},
   { &key_file_misc, "misc", 0},
-  { &key_file_MYSQL_LOG, "MYSQL_LOG", 0},
   { &key_file_partition, "partition", 0},
   { &key_file_pid, "pid", 0},
+  { &key_file_query_log, "query_log", 0},
   { &key_file_relay_log_info, "relay_log_info", 0},
   { &key_file_send_file, "send_file", 0},
+  { &key_file_slow_log, "slow_log", 0},
   { &key_file_tclog, "tclog", 0},
   { &key_file_trg, "trigger_name", 0},
   { &key_file_trn, "trigger", 0},

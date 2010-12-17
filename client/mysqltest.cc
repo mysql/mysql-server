@@ -5742,6 +5742,8 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     case GE_OP:
       v.int_val= (v.int_val >= v2.int_val);
       break;
+    case ILLEG_OP:
+      die("Impossible operator, this cannot happen");
     }
 
     v.is_int= TRUE;
@@ -6229,7 +6231,7 @@ int read_command(struct st_command** command_ptr)
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
-      insert_dynamic(&q_lines, (uchar*) &command))
+      insert_dynamic(&q_lines, &command))
     die("Out of memory");
   command->type= Q_UNKNOWN;
 
@@ -6728,7 +6730,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, (uchar*) &p))
+    if (insert_dynamic(&patterns, &p))
       die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -8124,13 +8126,16 @@ static void dump_backtrace(void)
 {
   struct st_connection *conn= cur_con;
 
-  my_safe_print_str("read_command_buf", read_command_buf,
-                    sizeof(read_command_buf));
+  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
+  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+
   if (conn)
   {
-    my_safe_print_str("conn->name", conn->name, conn->name_len);
+    fprintf(stderr, "conn->name (%p): ", conn->name);
+    my_safe_print_str(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
-    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+    fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
+    my_safe_print_str(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);
@@ -9250,7 +9255,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr,(uchar*) &reg))
+    if (insert_dynamic(&res->regex_arr, &reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -10266,7 +10271,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, (uchar*) &start))
+    if (insert_dynamic(&lines, &start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;

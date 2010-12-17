@@ -191,6 +191,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   update_create_info_from_table(&table_create_info, table);
   /* get the current auto_increment value */
   table->file->update_create_info(&table_create_info);
+  /* mark all columns used, since they are used when preparing the new table */
+  part_table->use_all_columns();
+  table->use_all_columns();
   if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
                                 &part_alter_info))
   {
@@ -448,13 +451,13 @@ err_no_action_written:
   @brief Swap places between a partition and a table.
 
   @details Verify that the tables are compatible (same engine, definition etc),
-  if not IGNORE is given, verify that all rows in the table will fit in the
-  partition, if all OK, rename table to tmp name, rename partition to table
+  verify that all rows in the table will fit in the partition,
+  if all OK, rename table to tmp name, rename partition to table
   and finally rename tmp name to partition.
 
   1) Take upgradable mdl, open tables and then lock them (inited in parse)
   2) Verify that metadata matches
-  3) If not ignore, verify data
+  3) verify data
   4) Upgrade to exclusive mdl for both tables
   5) Rename table <-> partition
   6) Rely on close_thread_tables to release mdl and table locks
@@ -463,7 +466,6 @@ err_no_action_written:
   @param table_list     Table where the partition exists as first table,
                         Table to swap with the partition as second table
   @param alter_info     Contains partition name to swap
-  @param ignore         flag to skip verification of partition values
 
   @note This is a DDL operation so triggers will not be used.
 */
@@ -484,7 +486,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
-  bool error= TRUE, ignore= thd->lex->ignore;
+  bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 
@@ -574,11 +576,10 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   /* Table and partition has same structure/options, OK to exchange */
 
-  if (!ignore)
-  {
-    if (verify_data_with_partition(swap_table, part_table, swap_part_id))
-      DBUG_RETURN(TRUE);
-  }
+  thd_proc_info(thd, "verifying data with partition");
+
+  if (verify_data_with_partition(swap_table, part_table, swap_part_id))
+    DBUG_RETURN(TRUE);
 
   /*
     Get exclusive mdl lock on both tables, alway the non partitioned table
@@ -720,6 +721,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
@@ -771,16 +773,18 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   partition= (ha_partition *) first_table->table->file;
 
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= partition->truncate_partition(&thd->lex->alter_info)))
+  if ((error= partition->truncate_partition(&thd->lex->alter_info,
+                                            &binlog_stmt)))
     first_table->table->file->print_error(error, MYF(0));
 
   /*
     All effects of a truncate operation are committed even if the
     operation fails. Thus, the query must be written to the binary
-    log. The only exception is a unimplemented truncate method. Also,
-    it is logged in statement format, regardless of the binlog format.
+    log. The exception is a unimplemented truncate method or failure
+    before any call to handler::truncate() is done.
+    Also, it is logged in statement format, regardless of the binlog format.
   */
-  if (error != HA_ERR_WRONG_COMMAND)
+  if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
     error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
 
   /*

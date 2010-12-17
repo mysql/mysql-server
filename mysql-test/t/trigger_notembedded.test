@@ -896,7 +896,7 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for global metadata lock";
+  where state = "Waiting for global read lock";
 --source include/wait_condition.inc
 create trigger t1_bi before insert on t1 for each row begin end;
 unlock tables;

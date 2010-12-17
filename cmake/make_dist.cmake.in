@@ -14,19 +14,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 # Make source distribution
-# If bzr is present, run bzr export, add output of BUILD/autorun.sh
-# if autotools are present, also pack bison output into it.
+# If bzr is present, run bzr export.
 # Otherwise, just run cpack with source configuration.
 
 SET(CMAKE_SOURCE_DIR "@CMAKE_SOURCE_DIR@")
 SET(CMAKE_BINARY_DIR "@CMAKE_BINARY_DIR@")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "@CPACK_SOURCE_PACKAGE_FILE_NAME@")
-SET(GLIBTOOLIZE_EXECUTABLE "@GLIBTOOLIZE_EXECUTABLE@")
-SET(LIBTOOLIZE_EXECUTABLE "@LIBTOOLIZE_EXECUTABLE@")
-SET(ACLOCAL_EXECUTABLE "@ACLOCAL_EXECUTABLE@")
-SET(AUTOCONF_EXECUTABLE "@AUTOCONF_EXECUTABLE@")
-SET(AUTOHEADER_EXECUTABLE "@AUTOHEADER_EXECUTABLE@")
-SET(AUTOMAKE_EXECUTABLE "@AUTOMAKE_EXECUTABLE@")
 SET(CMAKE_CPACK_COMMAND  "@CMAKE_CPACK_COMMAND@")
 SET(CMAKE_COMMAND  "@CMAKE_COMMAND@")
 SET(BZR_EXECUTABLE "@BZR_EXECUTABLE@")
@@ -101,28 +94,6 @@ IF(NOT BZR_EXECUTABLE)
   )
 ENDIF()
 
-# Try to pack output of BUILD/autorun, if autotools are present
-IF(GLIBTOOLIZE_EXECUTABLE OR LIBTOOLIZE_EXECUTABLE)
-  IF(ACLOCAL_EXECUTABLE AND AUTOMAKE_EXECUTABLE AND AUTOCONF_EXECUTABLE 
-    AND AUTOHEADER_EXECUTABLE)
-    SET(HAVE_AUTOTOOLS 1)
-  ENDIF()
-ENDIF()
-
-IF(HAVE_AUTOTOOLS)
-  EXECUTE_PROCESS(COMMAND BUILD/autorun.sh
-  WORKING_DIRECTORY ${PACKAGE_DIR})
-ELSE()
-  MESSAGE( "Autotools not found, resulting source package can only be built"
-           " with cmake")
-  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/configure.pl 
-   ${PACKAGE_DIR}/configure
-  COPYONLY)
-  IF(UNIX)
-    EXECUTE_PROCESS(COMMAND chmod +x ${PACKAGE_DIR}/configure)
-  ENDIF()
-ENDIF()
-
 # Copy bison output
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
@@ -138,7 +109,6 @@ ENDIF()
 # In case we used CPack, it could have copied some
 # extra files that are not usable on different machines.
 FILE(REMOVE ${PACKAGE_DIR}/CMakeCache.txt)
-FILE(REMOVE_RECURSE ${PACKAGE_DIR}/autom4te.cache)
 
 # When packing source, prefer gnu tar  to "cmake -P tar"
 # cmake does not preserve timestamps.gnuwin32 tar is broken, cygwin is ok

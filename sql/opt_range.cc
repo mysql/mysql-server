@@ -5721,7 +5721,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulonglong orig_sql_mode;
+  sql_mode_t orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 
@@ -5767,6 +5767,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   */
   if (field->result_type() == STRING_RESULT &&
+      ((Field_str*) field)->match_collation_to_optimize_range() &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
@@ -8132,7 +8133,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
   set_if_bigger(quick->max_used_key_length, range->min_length);
   set_if_bigger(quick->max_used_key_length, range->max_length);
   set_if_bigger(quick->used_key_parts, (uint) key_tree->part+1);
-  if (insert_dynamic(&quick->ranges, (uchar*) &range))
+  if (insert_dynamic(&quick->ranges, &range))
     return 1;
 
  end:
@@ -8336,7 +8337,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     key_part->null_bit=     key_info->key_part[part].null_bit;
     key_part->flag=         (uint8) key_info->key_part[part].key_part_flag;
   }
-  if (insert_dynamic(&quick->ranges,(uchar*)&range))
+  if (insert_dynamic(&quick->ranges, &range))
     goto err;
 
   /*
@@ -8357,7 +8358,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                       make_prev_keypart_map(ref->key_parts), EQ_RANGE)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
-    if (insert_dynamic(&quick->ranges,(uchar*)&null_range))
+    if (insert_dynamic(&quick->ranges, &null_range))
       goto err;
   }
 
@@ -10846,7 +10847,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                          range_flag);
   if (!range)
     return TRUE;
-  if (insert_dynamic(&min_max_ranges, (uchar*)&range))
+  if (insert_dynamic(&min_max_ranges, &range))
     return TRUE;
   return FALSE;
 }

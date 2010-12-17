@@ -2,7 +2,8 @@
 
 #define SERVER_ID_H
 
-#include "my_sys.h"
+#include <my_sys.h>
+#include <sql_string.h>
 
 class Server_ids
 {
@@ -12,8 +13,8 @@ class Server_ids
     Server_ids();
     ~Server_ids();
 
-    bool pack_server_ids(char *buffer);
-    bool unpack_server_ids(const char *param_server_ids);
+    bool pack_server_ids(String *buffer);
+    bool unpack_server_ids(char *param_server_ids);
 };
 
 #endif
