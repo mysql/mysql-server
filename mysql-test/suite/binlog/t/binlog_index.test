@@ -218,6 +218,7 @@ SELECT @index;
 
 --echo # fault_injection_registering_index
 SET SESSION debug="+d,fault_injection_registering_index";
+-- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
 
@@ -237,6 +238,7 @@ SELECT @index;
 
 --echo # fault_injection_updating_index
 SET SESSION debug="+d,fault_injection_updating_index";
+-- replace_regex /\.[\\\/]master/master/
 -- error ER_CANT_OPEN_FILE
 flush logs;
 
