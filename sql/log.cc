@@ -2976,6 +2976,23 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       sync_purge_index_file() ||
       DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0))
   {
+    /**
+        TODO: although this was introduced to appease valgrind
+              when injecting emulated faults using fault_injection_registering_index
+              it may be good to consider what actually happens when
+              open_purge_index_file succeeds but register or sync fails.
+
+              Perhaps we might need the code below in MYSQL_LOG_BIN::cleanup
+              for "real life" purposes as well? 
+     */
+    DBUG_EXECUTE_IF("fault_injection_registering_index", {
+      if (my_b_inited(&purge_index_file))
+      {
+        end_io_cache(&purge_index_file);
+        my_close(purge_index_file.file, MYF(0));
+      }
+    });
+
     sql_print_error("MSYQL_BIN_LOG::open failed to sync the index file.");
     DBUG_RETURN(1);
   }
@@ -4219,6 +4236,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
       if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
          (error= r.write(&log_file)))
       {
+        DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
         close_on_error= TRUE;
         my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE), MYF(ME_FATALERROR), name, errno);
         goto end;
