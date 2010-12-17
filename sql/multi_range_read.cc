@@ -230,7 +230,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 int handler::multi_range_read_next(char **range_info)
 {
   int result= HA_ERR_END_OF_FILE;
-  int range_res;
+  bool range_res;
   DBUG_ENTER("handler::multi_range_read_next");
 
   if (!mrr_have_range)
@@ -1005,7 +1005,8 @@ int DsMrr_impl::setup_two_handlers()
       if (res)
         goto error;
     }
-    if ((primary_file->inited != handler::RND) && primary_file->ha_rnd_init(FALSE))
+    if ((primary_file->inited != handler::RND) && 
+        (res= primary_file->ha_rnd_init(FALSE)))
       goto error;
   }
   DBUG_RETURN(0);

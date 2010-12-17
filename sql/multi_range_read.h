@@ -133,7 +133,6 @@ class Key_value_records_iterator
   */
   bool get_next_row;
   
-  //uchar *cur_index_tuple; /* key_buffer.read() reads to here */
 public:
   int init(Mrr_ordered_index_reader *owner_arg);
   int get_next(char **range_info);
