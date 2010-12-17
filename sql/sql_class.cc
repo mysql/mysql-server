@@ -3012,7 +3012,7 @@ void Security_context::init()
 {
   host= user= ip= external_user= 0;
   host_or_ip= "connecting host";
-  priv_user[0]= priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
