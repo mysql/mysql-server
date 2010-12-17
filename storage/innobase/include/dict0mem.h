@@ -238,6 +238,26 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 
+/**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
+/**********************************************************************//**
+Sets the reference_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/
@@ -398,10 +418,14 @@ struct dict_foreign_struct{
 	unsigned	type:6;		/*!< 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/*!< foreign table name */
+	char*		foreign_table_name_lookup;
+				/*!< foreign table name used for dict lookup */
 	dict_table_t*	foreign_table;	/*!< table where the foreign key is */
 	const char**	foreign_col_names;/*!< names of the columns in the
 					foreign key */
 	char*		referenced_table_name;/*!< referenced table name */
+	char*		referenced_table_name_lookup;
+				/*!< referenced table name for dict lookup*/
 	dict_table_t*	referenced_table;/*!< table where the referenced key
 					is */
 	const char**	referenced_col_names;/*!< names of the referenced

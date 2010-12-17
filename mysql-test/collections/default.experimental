@@ -6,7 +6,6 @@ binlog.binlog_multi_engine               # joro : NDB tests marked as experiment
 funcs_1.charset_collation_1              # depends on compile-time decisions
 funcs_1.myisam_views @solaris            # Bug#50595 2010-03-05 alik funcs_1.myisam_views takes longer time on 6.0 branch than 5.1 branch
 
-innodb.innodb_bug56143                   # Bug#58432 2010-11-24 alik innodb.innodb_bug56143 fails under valgrind
 innodb.innodb_information_schema         # Bug#48883 2010-05-11 alik Test "innodb_information_schema" takes fewer locks than expected
 
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
