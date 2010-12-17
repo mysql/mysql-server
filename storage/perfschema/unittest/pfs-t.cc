@@ -25,6 +25,7 @@
 #include <memory.h>
 
 #include "stub_print_error.h"
+#include "stub_server_misc.h"
 
 /* test helpers, to simulate the setup */
 

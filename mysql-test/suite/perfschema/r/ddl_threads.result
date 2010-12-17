@@ -1,8 +1,8 @@
-alter table performance_schema.THREADS add column foo integer;
+alter table performance_schema.threads add column foo integer;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-truncate table performance_schema.THREADS;
+truncate table performance_schema.threads;
 ERROR HY000: Invalid performance_schema usage.
-ALTER TABLE performance_schema.THREADS ADD INDEX test_index(ID);
+ALTER TABLE performance_schema.threads ADD INDEX test_index(ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
-CREATE UNIQUE INDEX test_index ON performance_schema.THREADS(ID);
+CREATE UNIQUE INDEX test_index ON performance_schema.threads(ID);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

@@ -111,10 +111,10 @@ Ensure that root always has the GRANT CREATE ROUTINE privilege.
 --------------------------------------------------------------------------------
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
+DROP PROCEDURE IF EXISTS db_storedproc_1.sp3;
+DROP FUNCTION IF EXISTS db_storedproc_1.fn1;
 	
 user_1@localhost	db_storedproc_1
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';

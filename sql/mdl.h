@@ -150,6 +150,15 @@ enum enum_mdl_type {
   MDL_TYPE_END};
 
 
+/** Duration of metadata lock. */
+
+enum enum_mdl_duration { MDL_STATEMENT= 0,
+                         MDL_TRANSACTION,
+                         MDL_EXPLICIT,
+                         /* This should be the last ! */
+                         MDL_DURATION_END };
+
+
 /** Maximal length of key for metadata locking subsystem. */
 #define MAX_MDLKEY_LENGTH (1 + NAME_LEN + 1 + NAME_LEN + 1)
 
@@ -167,13 +176,16 @@ class MDL_key
 {
 public:
   /**
-    Object namespaces
+    Object namespaces.
+    Sic: when adding a new member to this enum make sure to
+    update m_namespace_to_wait_state_name array in mdl.cc!
 
     Different types of objects exist in different namespaces
      - TABLE is for tables and views.
      - FUNCTION is for stored functions.
      - PROCEDURE is for stored procedures.
      - TRIGGER is for triggers.
+     - EVENT is for event scheduler events
     Note that although there isn't metadata locking on triggers,
     it's necessary to have a separate namespace for them since
     MDL_key is also used outside of the MDL subsystem.
@@ -184,6 +196,8 @@ public:
                             FUNCTION,
                             PROCEDURE,
                             TRIGGER,
+                            EVENT,
+                            COMMIT,
                             /* This should be the last ! */
                             NAMESPACE_END };
 
@@ -238,7 +252,7 @@ public:
       character set is utf-8, we can safely assume that no
       character starts with a zero byte.
     */
-    return memcmp(m_ptr, rhs->m_ptr, min(m_length, rhs->m_length)+1);
+    return memcmp(m_ptr, rhs->m_ptr, min(m_length, rhs->m_length));
   }
 
   MDL_key(const MDL_key *rhs)
@@ -305,6 +319,8 @@ class MDL_request
 public:
   /** Type of metadata lock. */
   enum          enum_mdl_type type;
+  /** Duration for requested lock. */
+  enum enum_mdl_duration duration;
 
   /**
     Pointers for participating in the list of lock requests for this context.
@@ -327,17 +343,16 @@ public:
 
   void init(MDL_key::enum_mdl_namespace namespace_arg,
             const char *db_arg, const char *name_arg,
-            enum_mdl_type mdl_type_arg);
-  void init(const MDL_key *key_arg, enum_mdl_type mdl_type_arg);
+            enum_mdl_type mdl_type_arg,
+            enum_mdl_duration mdl_duration_arg);
+  void init(const MDL_key *key_arg, enum_mdl_type mdl_type_arg,
+            enum_mdl_duration mdl_duration_arg);
   /** Set type of lock request. Can be only applied to pending locks. */
   inline void set_type(enum_mdl_type type_arg)
   {
     DBUG_ASSERT(ticket == NULL);
     type= type_arg;
   }
-  static MDL_request *create(MDL_key::enum_mdl_namespace mdl_namespace,
-                             const char *db, const char *name,
-                             enum_mdl_type mdl_type, MEM_ROOT *root);
 
   /*
     This is to work around the ugliness of TABLE_LIST
@@ -363,6 +378,7 @@ public:
 
   MDL_request(const MDL_request *rhs)
     :type(rhs->type),
+    duration(rhs->duration),
     ticket(NULL),
     key(&rhs->key)
   {}
@@ -484,17 +500,35 @@ public:
 private:
   friend class MDL_context;
 
-  MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg)
+  MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg
+#ifndef DBUG_OFF
+             , enum_mdl_duration duration_arg
+#endif
+            )
    : m_type(type_arg),
+#ifndef DBUG_OFF
+     m_duration(duration_arg),
+#endif
      m_ctx(ctx_arg),
      m_lock(NULL)
   {}
 
-  static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg);
+  static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
+#ifndef DBUG_OFF
+                            , enum_mdl_duration duration_arg
+#endif
+                            );
   static void destroy(MDL_ticket *ticket);
 private:
   /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
+#ifndef DBUG_OFF
+  /**
+    Duration of lock represented by this ticket.
+    Context private. Debug-only.
+  */
+  enum_mdl_duration m_duration;
+#endif
   /**
     Context of the owner of the metadata lock ticket. Externally accessible.
   */
@@ -508,6 +542,39 @@ private:
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
+};
+
+
+/**
+  Savepoint for MDL context.
+
+  Doesn't include metadata locks with explicit duration as
+  they are not released during rollback to savepoint.
+*/
+
+class MDL_savepoint
+{
+public:
+  MDL_savepoint() {};
+
+private:
+  MDL_savepoint(MDL_ticket *stmt_ticket, MDL_ticket *trans_ticket)
+    : m_stmt_ticket(stmt_ticket), m_trans_ticket(trans_ticket)
+  {}
+
+  friend class MDL_context;
+
+private:
+  /**
+    Pointer to last lock with statement duration which was taken
+    before creation of savepoint.
+  */
+  MDL_ticket *m_stmt_ticket;
+  /**
+    Pointer to last lock with transaction duration which was taken
+    before creation of savepoint.
+  */
+  MDL_ticket *m_trans_ticket;
 };
 
 
@@ -559,9 +626,7 @@ public:
   typedef I_P_List<MDL_ticket,
                    I_P_List_adapter<MDL_ticket,
                                     &MDL_ticket::next_in_context,
-                                    &MDL_ticket::prev_in_context>,
-                   I_P_List_null_counter,
-                   I_P_List_fast_push_back<MDL_ticket> >
+                                    &MDL_ticket::prev_in_context> >
           Ticket_list;
 
   typedef Ticket_list::Iterator Ticket_iterator;
@@ -584,37 +649,28 @@ public:
                      const char *db, const char *name,
                      enum_mdl_type mdl_type);
 
-  bool has_lock(MDL_ticket *mdl_savepoint, MDL_ticket *mdl_ticket);
+  bool has_lock(const MDL_savepoint &mdl_savepoint, MDL_ticket *mdl_ticket);
 
   inline bool has_locks() const
   {
-    return !m_tickets.is_empty();
+    return !(m_tickets[MDL_STATEMENT].is_empty() &&
+             m_tickets[MDL_TRANSACTION].is_empty() &&
+             m_tickets[MDL_EXPLICIT].is_empty());
   }
 
-  MDL_ticket *mdl_savepoint()
+  MDL_savepoint mdl_savepoint()
   {
-    /*
-      NULL savepoint represents the start of the transaction.
-      Checking for m_trans_sentinel also makes sure we never
-      return a pointer to HANDLER ticket as a savepoint.
-    */
-    return m_tickets.front() == m_trans_sentinel ? NULL : m_tickets.front();
+    return MDL_savepoint(m_tickets[MDL_STATEMENT].front(),
+                         m_tickets[MDL_TRANSACTION].front());
   }
 
-  void set_trans_sentinel()
-  {
-    m_trans_sentinel= m_tickets.front();
-  }
-  MDL_ticket *trans_sentinel() const { return m_trans_sentinel; }
+  void set_explicit_duration_for_all_locks();
+  void set_transaction_duration_for_all_locks();
+  void set_lock_duration(MDL_ticket *mdl_ticket, enum_mdl_duration duration);
 
-  void reset_trans_sentinel(MDL_ticket *sentinel_arg)
-  {
-    m_trans_sentinel= sentinel_arg;
-  }
-  void move_ticket_after_trans_sentinel(MDL_ticket *mdl_ticket);
-
+  void release_statement_locks();
   void release_transactional_locks();
-  void rollback_to_savepoint(MDL_ticket *mdl_savepoint);
+  void rollback_to_savepoint(const MDL_savepoint &mdl_savepoint);
 
   inline THD *get_thd() const { return m_thd; }
 
@@ -655,46 +711,43 @@ public:
   MDL_wait m_wait;
 private:
   /**
-    All MDL tickets acquired by this connection.
+    Lists of all MDL tickets acquired by this connection.
 
-    The order of tickets in m_tickets list.
-    ---------------------------------------
-    The entire set of locks acquired by a connection
-    can be separated in two subsets: transactional and
-    non-transactional locks.
+    Lists of MDL tickets:
+    ---------------------
+    The entire set of locks acquired by a connection can be separated
+    in three subsets according to their: locks released at the end of
+    statement, at the end of transaction and locks are released
+    explicitly.
 
-    Transactional locks are locks with automatic scope. They
-    are accumulated in the course of a transaction, and
-    released only on COMMIT, ROLLBACK or ROLLBACK TO SAVEPOINT.
-    They must not be (and never are) released manually,
+    Statement and transactional locks are locks with automatic scope.
+    They are accumulated in the course of a transaction, and released
+    either at the end of uppermost statement (for statement locks) or
+    on COMMIT, ROLLBACK or ROLLBACK TO SAVEPOINT (for transactional
+    locks). They must not be (and never are) released manually,
     i.e. with release_lock() call.
 
-    Non-transactional locks are taken for locks that span
+    Locks with explicit duration are taken for locks that span
     multiple transactions or savepoints.
     These are: HANDLER SQL locks (HANDLER SQL is
     transaction-agnostic), LOCK TABLES locks (you can COMMIT/etc
     under LOCK TABLES, and the locked tables stay locked), and
-    SET GLOBAL READ_ONLY=1 global shared lock.
+    locks implementing "global read lock".
 
-    Transactional locks are always prepended to the beginning
-    of the list. In other words, they are stored in reverse
-    temporal order. Thus, when we rollback to a savepoint,
-    we start popping and releasing tickets from the front
-    until we reach the last ticket acquired after the
-    savepoint.
+    Statement/transactional locks are always prepended to the
+    beginning of the appropriate list. In other words, they are
+    stored in reverse temporal order. Thus, when we rollback to
+    a savepoint, we start popping and releasing tickets from the
+    front until we reach the last ticket acquired after the savepoint.
 
-    Non-transactional locks are always stored after
-    transactional ones, and among each other can be
-    split into three sets:
+    Locks with explicit duration stored are not stored in any
+    particular order, and among each other can be split into
+    three sets:
 
     [LOCK TABLES locks] [HANDLER locks] [GLOBAL READ LOCK locks]
 
     The following is known about these sets:
 
-    * we can never have both HANDLER and LOCK TABLES locks
-      together -- HANDLER statements are prohibited under LOCK
-      TABLES, entering LOCK TABLES implicitly closes all open
-      HANDLERs.
     * GLOBAL READ LOCK locks are always stored after LOCK TABLES
       locks and after HANDLER locks. This is because one can't say
       SET GLOBAL read_only=1 or FLUSH TABLES WITH READ LOCK
@@ -709,14 +762,9 @@ private:
       However, one can open a few HANDLERs after entering the
       read only mode.
     * LOCK TABLES locks include intention exclusive locks on
-      involved schemas.
+      involved schemas and global intention exclusive lock.
   */
-  Ticket_list m_tickets;
-  /**
-    Separates transactional and non-transactional locks
-    in m_tickets list, @sa m_tickets.
-  */
-  MDL_ticket *m_trans_sentinel;
+  Ticket_list m_tickets[MDL_DURATION_END];
   THD *m_thd;
   /**
     TRUE -  if for this context we will break protocol and try to
@@ -747,8 +795,9 @@ private:
   MDL_wait_for_subgraph *m_waiting_for;
 private:
   MDL_ticket *find_ticket(MDL_request *mdl_req,
-                          bool *is_transactional);
-  void release_locks_stored_before(MDL_ticket *sentinel);
+                          enum_mdl_duration *duration);
+  void release_locks_stored_before(enum_mdl_duration duration, MDL_ticket *sentinel);
+  void release_lock(enum_mdl_duration duration, MDL_ticket *ticket);
   bool try_acquire_lock_impl(MDL_request *mdl_request,
                              MDL_ticket **out_ticket);
 

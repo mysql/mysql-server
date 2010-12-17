@@ -1,36 +1,36 @@
-select * from performance_schema.EVENTS_WAITS_HISTORY
+select * from performance_schema.events_waits_history
 where event_name like 'Wait/Synch/%' limit 1;
 THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 #	#	#	#	#	#	#	#	NULL	NULL	NULL	#	NULL	#	NULL	0
-select * from performance_schema.EVENTS_WAITS_HISTORY
+select * from performance_schema.events_waits_history
 where event_name='FOO';
 THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
-select * from performance_schema.EVENTS_WAITS_HISTORY
+select * from performance_schema.events_waits_history
 where event_name like 'Wait/Synch/%' order by timer_wait limit 1;
 THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 #	#	#	#	#	#	#	#	NULL	NULL	NULL	#	NULL	#	NULL	0
-select * from performance_schema.EVENTS_WAITS_HISTORY
+select * from performance_schema.events_waits_history
 where event_name like 'Wait/Synch/%' order by timer_wait desc limit 1;
 THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 #	#	#	#	#	#	#	#	NULL	NULL	NULL	#	NULL	#	NULL	0
-insert into performance_schema.EVENTS_WAITS_HISTORY
+insert into performance_schema.events_waits_history
 set thread_id='1', event_id=1,
 event_name='FOO', timer_start=1, timer_end=2, timer_wait=3;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
-update performance_schema.EVENTS_WAITS_HISTORY
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'events_waits_history'
+update performance_schema.events_waits_history
 set timer_start=12;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
-update performance_schema.EVENTS_WAITS_HISTORY
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_waits_history'
+update performance_schema.events_waits_history
 set timer_start=12 where thread_id=0;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
-delete from performance_schema.EVENTS_WAITS_HISTORY
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'events_waits_history'
+delete from performance_schema.events_waits_history
 where thread_id=1;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
-delete from performance_schema.EVENTS_WAITS_HISTORY;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
-LOCK TABLES performance_schema.EVENTS_WAITS_HISTORY READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_waits_history'
+delete from performance_schema.events_waits_history;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'events_waits_history'
+LOCK TABLES performance_schema.events_waits_history READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'events_waits_history'
 UNLOCK TABLES;
-LOCK TABLES performance_schema.EVENTS_WAITS_HISTORY WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_HISTORY'
+LOCK TABLES performance_schema.events_waits_history WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'events_waits_history'
 UNLOCK TABLES;

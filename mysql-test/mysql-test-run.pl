@@ -131,6 +131,9 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+my $auth_interface_fn;          # the name of qa_auth_interface plugin
+my $auth_server_fn;             # the name of qa_auth_server plugin
+my $auth_client_fn;             # the name of qa_auth_client plugin
 my $auth_filename;              # the name of the authentication test plugin
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -1121,14 +1124,20 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
-  # Look for client test plugin 
+  # Look for auth test plugins 
   if (IS_WINDOWS)
   {
     $auth_filename = "auth_test_plugin.dll";
+    $auth_interface_fn = "qa_auth_interface.dll";
+    $auth_server_fn = "qa_auth_server.dll";
+    $auth_client_fn = "qa_auth_client.dll";
   }
   else
   {
     $auth_filename = "auth_test_plugin.so";
+    $auth_interface_fn = "qa_auth_interface.so";
+    $auth_server_fn = "qa_auth_server.so";
+    $auth_client_fn = "qa_auth_client.so";
   }
   $auth_plugin=
   mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
@@ -1375,7 +1384,7 @@ sub command_line_setup {
       # Add the location for libmysqld.dll to the path.
       my $separator= ";";
       my $lib_mysqld=
-        mtr_path_exists(vs_config_dirs('libmysqld',''));
+        mtr_path_exists("$bindir/lib", vs_config_dirs('libmysqld',''));
       if ( IS_CYGWIN )
       {
 	$lib_mysqld= posix_path($lib_mysqld);
@@ -2044,12 +2053,18 @@ sub environment_setup {
     $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
 
     $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="--plugin_load=qa_auth_interface=".$auth_interface_fn;
+    $ENV{'PLUGIN_AUTH_SERVER'}="--plugin_load=qa_auth_server=".$auth_server_fn;
+    $ENV{'PLUGIN_AUTH_CLIENT'}="--plugin_load=qa_auth_client=".$auth_client_fn;
   }
   else
   {
     $ENV{'PLUGIN_AUTH'}= "";
     $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
     $ENV{'PLUGIN_AUTH_LOAD'}="";
+    $ENV{'PLUGIN_AUTH_INTERFACE'}="";
+    $ENV{'PLUGIN_AUTH_SERVER'}="";
+    $ENV{'PLUGIN_AUTH_CLIENT'}="";
   }
   
 
@@ -4505,7 +4520,13 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  my @defaults = grep(/^--defaults-file=/, @$extra_opts);
+  if (@defaults > 0) {
+    mtr_add_arg($args, pop(@defaults))
+  }
+  else {
+    mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
+  }
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
@@ -4548,6 +4569,9 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   foreach my $arg ( @$extra_opts )
   {
+    # Skip --defaults-file option since it's handled above.
+    next if $arg =~ /^--defaults-file/;
+
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
     {
@@ -5355,8 +5379,7 @@ sub gdb_arguments {
 	       "break mysql_parse\n" .
 	       "commands 1\n" .
 	       "disable 1\n" .
-	       "end\n" .
-	       "run");
+	       "end\n");
   }
 
   if ( $opt_manual_gdb )

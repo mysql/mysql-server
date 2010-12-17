@@ -29,8 +29,6 @@
 #include "sql_cache.h"                   // query_cache, query_cache_*
 #include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
 #include "sql_table.h"                   // build_table_filename
-#include "lock.h"               // wait_if_global_read_lock,
-                                // start_waiting_global_read_lock
 #include "sql_parse.h"                          // check_stack_overrun
 #include "sql_acl.h"            // SUPER_ACL
 #include "sql_base.h"           // free_io_cache
@@ -41,6 +39,7 @@
 #include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
+#include "debug_sync.h"         // DEBUG_SYNC
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1155,8 +1154,9 @@ int ha_commit_trans(THD *thd, bool all)
   {
     uint rw_ha_count;
     bool rw_trans;
+    MDL_request mdl_request;
 
-    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1166,11 +1166,27 @@ int ha_commit_trans(THD *thd, bool all)
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
-    if (rw_trans &&
-        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
+    if (rw_trans)
     {
-      ha_rollback_trans(thd, all);
-      DBUG_RETURN(1);
+      /*
+        Acquire a metadata lock which will ensure that COMMIT is blocked
+        by an active FLUSH TABLES WITH READ LOCK (and vice versa:
+        COMMIT in progress blocks FTWRL).
+
+        We allow the owner of FTWRL to COMMIT; we assume that it knows
+        what it does.
+      */
+      mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_EXPLICIT);
+
+      if (thd->mdl_context.acquire_lock(&mdl_request,
+                                        thd->variables.lock_wait_timeout))
+      {
+        ha_rollback_trans(thd, all);
+        DBUG_RETURN(1);
+      }
+
+      DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
     if (rw_trans &&
@@ -1208,7 +1224,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1216,17 +1232,25 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     if (cookie)
       tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
-    if (rw_trans)
-      thd->global_read_lock.start_waiting_global_read_lock(thd);
+    if (rw_trans && mdl_request.ticket)
+    {
+      /*
+        We do not always immediately release transactional locks
+        after ha_commit_trans() (see uses of ha_enable_transaction()),
+        thus we release the commit blocker lock as soon as it's
+        not needed.
+      */
+      thd->mdl_context.release_lock(mdl_request.ticket);
+    }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
@@ -4160,7 +4184,7 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 */
 int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 {
-  int result;
+  int UNINIT_VAR(result);
   DBUG_ENTER("handler::read_multi_range_next");
 
   /* We should not be called after the last call returned EOF. */

@@ -19,15 +19,15 @@
 --source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+alter table performance_schema.events_waits_summary_by_thread_by_event_name
   add column foo integer;
 
-truncate table performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+truncate table performance_schema.events_waits_summary_by_thread_by_event_name;
 
 -- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME ADD INDEX test_index(THREAD_ID);
+ALTER TABLE performance_schema.events_waits_summary_by_thread_by_event_name ADD INDEX test_index(THREAD_ID);
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index
-  ON performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME(THREAD_ID);
+  ON performance_schema.events_waits_summary_by_thread_by_event_name(THREAD_ID);
 

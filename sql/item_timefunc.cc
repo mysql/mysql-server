@@ -2526,14 +2526,14 @@ String *Item_char_typecast::val_str(String *str)
   {
     // Convert character set if differ
     uint dummy_errors;
-    if (!(res= args[0]->val_str(&tmp_value)) ||
-        str->copy(res->ptr(), res->length(), from_cs,
-        cast_cs, &dummy_errors))
+    if (!(res= args[0]->val_str(str)) ||
+        tmp_value.copy(res->ptr(), res->length(), from_cs,
+                       cast_cs, &dummy_errors))
     {
       null_value= 1;
       return 0;
     }
-    res= str;
+    res= &tmp_value;
   }
 
   res->set_charset(cast_cs);
@@ -2568,9 +2568,9 @@ String *Item_char_typecast::val_str(String *str)
     {
       if (res->alloced_length() < (uint) cast_length)
       {
-        str->alloc(cast_length);
-        str->copy(*res);
-        res= str;
+        str_value.alloc(cast_length);
+        str_value.copy(*res);
+        res= &str_value;
       }
       bzero((char*) res->ptr() + res->length(),
             (uint) cast_length - res->length());
@@ -3465,7 +3465,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   return 0;
 
 null_date:
-  if (fuzzy_date & TIME_NO_ZERO_DATE)
+  if (val && (fuzzy_date & TIME_NO_ZERO_DATE))
   {
     char buff[128];
     strmake(buff, val->ptr(), min(val->length(), sizeof(buff)-1));
