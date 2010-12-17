@@ -1,4 +1,28 @@
 {
+   compress_is_still_not_valgrind_clean_in_ubuntu_3
+   Memcheck:Param
+   write(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_write
+   fun:write_nonleaf_node
+}
+{
+   compress_is_still_not_valgrind_clean_in_ubuntu_2
+   Memcheck:Param
+   write(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_write
+   fun:finish_leafnode
+}
+{
+   compress_is_still_not_valgrind_clean_in_ubuntu
+   Memcheck:Param
+   pwrite64(buf)
+   obj:/lib/libpthread-2.10.1.so
+   fun:toku_os_full_pwrite
+   fun:toku_serialize_brtnode_to
+}
+{
    compress_is_not_valgrind_clean
    Memcheck:Cond
    fun:longest_match

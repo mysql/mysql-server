@@ -107,7 +107,7 @@ check_results_nested(DB ** dbs, const uint num_rows) {
         }
         r = cursor->c_close(cursor);
         CKERR(r);
-        r = txn->commit(txn, 0);
+        r = txn->commit(txn, DB_TXN_NOSYNC);
         CKERR(r);
     }
     if ( verbose ) {printf("ok");fflush(stdout);}
@@ -177,7 +177,7 @@ nested_insert(DB ** dbs, uint depth,  DB_TXN *parent_txn, uint k, uint generated
 		printf("abort k = %d, v= %d, depth = %d\n", k, v, depth);
 	}
 	else {    
-	    r = txn->commit(txn, 0);
+	    r = txn->commit(txn, DB_TXN_NOSYNC);
 	    CKERR(r);
 	    if (verbose>=3)
 		printf("commit k = %d, v= %d, depth = %d\n", k, v, depth);

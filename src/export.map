@@ -17,6 +17,7 @@
    db_env_set_func_fopen;
    db_env_set_func_open;
    db_env_set_func_fclose;
+   db_env_set_func_pread;
    db_env_set_func_loader_fwrite;
    db_env_set_checkpoint_callback;
    db_env_set_checkpoint_callback2;

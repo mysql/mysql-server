@@ -75,6 +75,20 @@ static inline void rwlock_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex) 
     rwlock->reader++;
 }
 
+static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_pthread_mutex_t *mutex)
+// Effect: Has the effect of obtaining a read lock and then unlocking it.
+// Implementation note: This can be done faster than actually doing the lock/unlock
+// Usage note:  This is useful when we are waiting on someone who has the write lock, but then we are just going to try again from the top.  (E.g., when releasing the ydb lock).
+{
+    if (rwlock->writer || rwlock->want_write) {
+	rwlock->want_read++;
+        while (rwlock->writer || rwlock->want_write) {
+            int r = toku_pthread_cond_wait(&rwlock->wait_read, mutex); assert(r == 0);
+        }
+        rwlock->want_read--;
+    }
+    // Don't increment reader.
+}
 
 // preferentially obtain a read lock (ignore request for write lock)
 // expects: mutex is locked

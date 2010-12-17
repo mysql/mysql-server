@@ -174,6 +174,7 @@ int toku_os_open(const char *path, int oflag, int mode);
 int toku_os_close(int fd);
 int toku_os_fclose(FILE * stream);
 ssize_t toku_os_read(int fd, void *buf, size_t count);
+ssize_t toku_os_pread(int fd, void *buf, size_t count, off_t offset);
 
 // wrapper around fsync
 int toku_file_fsync_without_accounting(int fd);
@@ -202,7 +203,7 @@ int toku_set_func_fopen (FILE * (*)(const char *, const char *));
 int toku_set_func_open (int (*)(const char *, int, int));  // variadic form not implemented until needed
 int toku_set_func_fclose(int (*)(FILE*));
 int toku_set_func_read(ssize_t (*)(int, void *, size_t));
-
+int toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 int toku_portability_init    (void);
 int toku_portability_destroy (void);
 

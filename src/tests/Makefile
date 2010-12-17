@@ -676,10 +676,11 @@ recovery_fileops_unit.tdbrun: recovery_fileops_unit.tdb$(BINSUF) $(PTHREAD_LOCAL
 # helgrind1 is supposed to fail.
 helgrind1.tdbrun: TDBVGRIND=$(HGRIND) --log-file=helgrind1.tdb.deleteme
 helgrind1.tdbrun: MAYBEINVERTER=$(INVERTER)
-helgrind2.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind2.bdbrun: BDBVGRIND=$(HGRIND)
-helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
+helgrind2.tdbrun helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
+helgrind2.tdbrun helgrind3.tdbrun: HGRIND+=--suppressions=helgrind.suppressions
 helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
+
 
 test_groupcommit_count_hgrind.tdbrun: HGRIND+=--suppressions=helgrind.suppressions
 test_groupcommit_count_hgrind.tdbrun: test_groupcommit_count.tdb$(BINSUF)
@@ -706,6 +707,9 @@ dumpit: $(TDBBRTDUMP)
 test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
+
+preload-db-nested.tdbrun: VGRIND=
+upgrade-test-4.tdbrun: VGRIND=
 
 loader-stress-test.loader: $(patsubst %,loader-stress-test%.tdbrun, 0 1 2 3)
 	true
@@ -772,6 +776,9 @@ CHECK_HOTINDEXER_UNDO_TESTS = $(patsubst %.test,%.run,$(HOTINDEXER_UNDO_TESTS))
 
 hotindexer-undo-do-test.tdbrun: $(CHECK_HOTINDEXER_UNDO_TESTS)
 	true
+
+test3039.tdbrun: test3039.tdb
+	( ($(VGRIND) ./$< -v -n 1000 ) && ./$< -v ) $(SUMMARIZE_CMD)
 
 $(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test hotindexer-undo-do-test.tdb$(BINSUF)
 	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)

@@ -1074,7 +1074,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
     u_int8_t *XMALLOC_N(size, raw_block);
     {
         // read the (partially compressed) block
-        ssize_t rlen = pread(fd, raw_block, size, offset);
+        ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
         lazy_assert((DISKOFF)rlen == size);
     }
     // get the layout_version
@@ -1439,7 +1439,7 @@ deserialize_descriptor_from(int fd, struct brt_header *h, DESCRIPTOR desc) {
             unsigned char *XMALLOC_N(size, dbuf);
             {
                 lock_for_pwrite();
-                ssize_t r = pread(fd, dbuf, size, offset);
+                ssize_t r = toku_os_pread(fd, dbuf, size, offset);
                 lazy_assert(r==size);
                 unlock_for_pwrite();
             }
@@ -1525,7 +1525,7 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         unsigned char *XMALLOC_N(translation_size_on_disk, tbuf);
         {
             // This cast is messed up in 32-bits if the block translation table is ever more than 4GB.  But in that case, the translation table itself won't fit in main memory.
-            ssize_t r = pread(fd, tbuf, translation_size_on_disk, translation_address_on_disk);
+            ssize_t r = toku_os_pread(fd, tbuf, translation_size_on_disk, translation_address_on_disk);
             lazy_assert(r==translation_size_on_disk);
         }
         unlock_for_pwrite();
@@ -1614,7 +1614,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
                                 4;  // size
     unsigned char prefix[prefix_size];
     rb->buf = NULL;
-    int64_t n = pread(fd, prefix, prefix_size, offset_of_header);
+    int64_t n = toku_os_pread(fd, prefix, prefix_size, offset_of_header);
     if (n==0) r = TOKUDB_DICTIONARY_NO_HEADER;
     else if (n<0) {r = errno; lazy_assert(r!=0);}
     else if (n!=prefix_size) r = EINVAL;
@@ -1659,7 +1659,7 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
             rb->buf  = toku_xmalloc(rb->size);
         }
         if (r==0) {
-            n = pread(fd, rb->buf, rb->size, offset_of_header);
+            n = toku_os_pread(fd, rb->buf, rb->size, offset_of_header);
             if (n==-1) {
                 r = errno;
                 lazy_assert(r!=0);

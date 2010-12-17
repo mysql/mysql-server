@@ -107,6 +107,7 @@ static FILE *  (*t_fopen)(const char *, const char *) = 0;
 static int     (*t_open)(const char *, int, int) = 0;  // no implementation of variadic form until needed
 static int     (*t_fclose)(FILE *) = 0;
 static ssize_t (*t_read)(int, void *, size_t) = 0;
+static ssize_t (*t_pread)(int, void *, size_t, off_t) = 0;
 
 int 
 toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
@@ -161,6 +162,12 @@ toku_set_func_fclose(int (*fclose_fun)(FILE*)) {
 int 
 toku_set_func_read (ssize_t (*read_fun)(int, void *, size_t)) {
     t_read = read_fun;
+    return 0;
+}
+
+int
+toku_set_func_pread (ssize_t (*pread_fun)(int, void *, size_t, off_t)) {
+    t_pread = pread_fun;
     return 0;
 }
 
@@ -317,6 +324,17 @@ toku_os_read(int fd, void *buf, size_t count) {
         r = t_read(fd, buf, count);
     else
         r = read(fd, buf, count);
+    return r;
+}
+
+ssize_t
+toku_os_pread (int fd, void *buf, size_t count, off_t offset) {
+    ssize_t r;
+    if (t_pread) {
+	r = t_pread(fd, buf, count, offset);
+    } else {
+	r = pread(fd, buf, count, offset);
+    }
     return r;
 }
 

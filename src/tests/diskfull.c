@@ -31,6 +31,7 @@ do_db_work(void) {
 	DBT key,data;
 
 	r=db_env_create(&env, 0);                                                  assert(r==0);
+	r = env->set_redzone(env, 0);    CKERR(r);
 	env->set_errfile(env, error_file ? error_file : stderr);
 	// Don't set the lg bsize for the small experiment.
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
@@ -75,6 +76,7 @@ do_db_work(void) {
 
 	// Repeat with more put operations 
 	r=db_env_create(&env, 0);                                                  assert(r==0);
+	r = env->set_redzone(env, 0);    CKERR(r);
 	env->set_errfile(env, error_file ? error_file : stderr);
 	r=env->set_lg_bsize(env, 4096);                                            assert(r==0);
 	r=env->set_cachesize(env, 0, 1, 1);                                        assert(r==0);

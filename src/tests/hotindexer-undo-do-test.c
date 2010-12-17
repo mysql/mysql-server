@@ -389,6 +389,7 @@ run_test(char *envdir, char *testname) {
     int r;
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0); assert_zero(r);
+    r = env->set_redzone(env, 0); assert_zero(r);
 
     r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
 

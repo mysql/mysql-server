@@ -3,6 +3,7 @@
 #define YDB_INTERNAL_H
 
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 
 #include <db.h>
 #include "../newbrt/brttypes.h"
@@ -106,19 +107,13 @@ struct __toku_db_env_internal {
    ********************************************************* */
 
 typedef struct {
-    u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released */ 
-    u_int64_t        max_possible_sleep;      /* max possible sleep time for ydb lock scheduling (constant) */ 
-    u_int64_t        processor_freq_mhz;      /* clock frequency in MHz */ 
-    u_int64_t        max_requested_sleep;     /* max sleep time requested, can be larger than max possible */ 
-    u_int64_t        times_max_sleep_used;    /* number of times the max_possible_sleep was used to sleep */ 
-    u_int64_t        total_sleepers;          /* total number of times a client slept for ydb lock scheduling */ 
-    u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling */ 
-    u_int64_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock  */ 
-    u_int64_t        total_waiters;           /* total number of times a client thread waited for ydb lock  */ 
-    u_int64_t        total_clients;           /* total number of separate client threads that use ydb lock  */ 
-    u_int64_t        time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */
-    u_int64_t        max_time_ydb_lock_held;  /* max time a client thread held the ydb lock  */ 
-    u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
+    volatile u_int64_t        ydb_lock_ctr;            /* how many times has ydb lock been taken/released.  This is precise since it is updated only when the lock is held.                              */ 
+    volatile u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder).  This is precise since it is updated with a fetch-and-add. */
+    volatile u_int32_t        max_waiters;             /* max number of simultaneous client threads kept waiting for ydb lock.  This is precise (updated only when the lock is held) but may be running a little behind (while waiting for the lock it hasn't been updated).  */ 
+    volatile u_int64_t        total_sleep_time;        /* total time spent sleeping for ydb lock scheduling (useconds).   This adds up over many clients. This is precise since it is updated with an atomic fetch-and-add. */ 
+    volatile u_int64_t        max_time_ydb_lock_held;  /* max time the ydb lock was held (in microseconds).  This is precise since it is updated only when the lock is held.  */ 
+    volatile u_int64_t        total_time_ydb_lock_held;/* total time the ydb lock has been held (in microseconds).  */
+    volatile u_int64_t        total_time_since_start;  /* total time since the ydb lock was initialized (in microseconds) This is only updated when the lock is accessed (so if you don't acquire the lock this doesn't increase), and it is updated precisely (even though it isn't updated continuously). */
 } SCHEDULE_STATUS_S, *SCHEDULE_STATUS;
 
 

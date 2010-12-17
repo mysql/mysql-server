@@ -112,10 +112,13 @@ walk_tree(const char *fname, int n) {
 
     int i;
     for (i = 0; ; i++) {
-        error = le_cursor_next(cursor, &val);
+	error = TOKUDB_TRY_AGAIN;
+	while (error == TOKUDB_TRY_AGAIN) {
+	    error = le_cursor_next(cursor, &val);
+	}
         if (error != 0) 
             break;
-        
+
         LEAFENTRY le = (LEAFENTRY) val.data;
         assert(le->type == LE_MVCC);
         assert(le->keylen == sizeof (int));
