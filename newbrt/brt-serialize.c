@@ -43,6 +43,9 @@ toku_brt_serialize_destroy(void) {
     return 0;
 }
 
+// #define USE_PWRITE_LOCK
+
+#ifdef USE_PWRITE_LOCK
 // This mutex protects pwrite from running in parallel, and also protects modifications to the block allocator.
 static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
@@ -71,7 +74,23 @@ unlock_for_pwrite (void) {
     pwrite_is_locked = 0;
     int r = toku_pthread_mutex_unlock(&pwrite_mutex); resource_assert_zero(r);
 }
-
+#else
+static const int pwrite_is_locked = 1;
+int 
+toku_pwrite_lock_init(void) {
+    return 0;
+}
+int 
+toku_pwrite_lock_destroy(void) {
+    return 0;
+}
+static inline void
+lock_for_pwrite (void) {
+}
+static inline void
+unlock_for_pwrite (void) {
+}
+#endif
 
 enum {FILE_CHANGE_INCREMENT = (16<<20)};
 
