@@ -22,7 +22,7 @@
 #include "mysys_err.h"
 #include <my_list.h>
 
-#ifdef HAVE_MLOCK
+#if defined(HAVE_MLOCK) && 0
 #include <sys/mman.h>
 
 struct st_mem_list

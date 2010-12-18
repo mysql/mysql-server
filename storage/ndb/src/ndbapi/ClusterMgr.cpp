@@ -242,6 +242,7 @@ ClusterMgr::forceHB()
       }
     }
     waitForHBFromNodes.bitAND(ndb_nodes);
+    theFacade.unlock_mutex();
 
 #ifdef DEBUG_REG
     char buf[128];
@@ -259,18 +260,23 @@ ClusterMgr::forceHB()
     req->version = NDB_VERSION;
     req->mysql_version = NDB_MYSQL_VERSION_D;
 
-    int nodeId= 0;
-    for(int i=0;
-        (int) NodeBitmask::NotFound != (nodeId= waitForHBFromNodes.find(i));
-        i= nodeId+1)
     {
+      Guard g(clusterMgrThreadMutex);
+      lock();
+      int nodeId= 0;
+      for(int i=0;
+          (int) NodeBitmask::NotFound != (nodeId= waitForHBFromNodes.find(i));
+          i= nodeId+1)
+      {
 #ifdef DEBUG_REG
-      ndbout << "FORCE HB to " << nodeId << endl;
+        ndbout << "FORCE HB to " << nodeId << endl;
 #endif
-      theFacade.sendSignalUnCond(&signal, nodeId);
+        raw_sendSignal(&signal, nodeId);
+      }
+      unlock();
     }
-
     /* Wait for nodes to reply - if any heartbeats was sent */
+    theFacade.lock_mutex();
     if (!waitForHBFromNodes.isclear())
       NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
 
@@ -331,7 +337,7 @@ ClusterMgr::threadMain( ){
       m_cluster_state = CS_waiting_for_first_connect;
     }
 
-    theFacade.lock_mutex();
+    lock();
     for (int i = 1; i < MAX_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
@@ -376,14 +382,14 @@ ClusterMgr::threadMain( ){
 #ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
-	theFacade.sendSignalUnCond(&signal, nodeId);
+	raw_sendSignal(&signal, nodeId);
       }//if
       
       if (theNode.m_info.m_heartbeat_cnt == 4 && theNode.hbFrequency > 0){
 	reportNodeFailed(i);
       }//if
     }
-    theFacade.unlock_mutex();
+    unlock();
   }
 }
 
@@ -470,7 +476,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      theFacade.sendSignalUnCond(&tSignal, aNodeId);
+      safe_sendSignal(&tSignal, aNodeId);
     }
     break;
   }
@@ -609,8 +615,9 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->minDbVersion= 0;
   conf->nodeState= node.m_state;
 
-  if (theFacade.sendSignalUnCond(&signal, nodeId) == SEND_OK)
-    node.set_confirmed(true);
+  node.set_confirmed(true);
+  if (safe_sendSignal(&signal, nodeId) != 0)
+    node.set_confirmed(false);
 }
 
 void
