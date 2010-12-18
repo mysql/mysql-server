@@ -213,11 +213,20 @@ Ndbd_mem_manager::Ndbd_mem_manager()
 }
 
 /**
+ *
+ * resource 0 has following semantics:
+ *
+ * m_min  - remaining reserved for other resources
+ * m_curr - sum(m_curr) for other resources (i.e total in use)
+ * m_max  - totally allocated from OS
+ *
+ * resource N has following semantics:
+ *
  * m_min = reserved
- * m_curr = current
+ * m_curr = currently used
  * m_max = max alloc, 0 = no limit
+ *
  */
-
 void
 Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 {

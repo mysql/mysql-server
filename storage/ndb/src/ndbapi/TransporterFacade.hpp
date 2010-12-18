@@ -82,14 +82,14 @@ public:
 
   // Only sends to nodes which are alive
 private:
-  int sendSignal(NdbApiSignal * signal, NodeId nodeId);
-  int sendSignal(NdbApiSignal*, NodeId,
+  int sendSignal(const NdbApiSignal * signal, NodeId nodeId);
+  int sendSignal(const NdbApiSignal*, NodeId,
                  const LinearSectionPtr ptr[3], Uint32 secs);
-  int sendSignal(NdbApiSignal*, NodeId,
+  int sendSignal(const NdbApiSignal*, NodeId,
                  const GenericSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
                            const LinearSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, NodeId,
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
 public:
 
@@ -198,9 +198,6 @@ public:
 
 private:
 
-  /**
-   * Send a signal unconditional of node status (used by ClusterMgr)
-   */
   friend class trp_client;
   friend class ClusterMgr;
   friend class ArbitMgr;
@@ -209,9 +206,6 @@ private:
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
   friend class NdbImpl;
-  friend class NdbTransaction;
-
-  int sendSignalUnCond(NdbApiSignal *, NodeId nodeId, Uint32 prio = 0);
 
   bool isConnected(NodeId aNodeId);
   void doStop();
