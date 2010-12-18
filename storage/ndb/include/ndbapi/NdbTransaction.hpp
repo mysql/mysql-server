@@ -1139,7 +1139,7 @@ private:
   Uint8 thePendingBlobOps;
   inline bool hasBlobOperation() { return theBlobFlag; }
 
-  static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,
+  static void sendTC_COMMIT_ACK(class NdbImpl *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
 				Uint32 aBlockRef);
 
