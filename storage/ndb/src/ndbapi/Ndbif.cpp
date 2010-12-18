@@ -372,7 +372,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
         }//if
 
 	if(TcKeyConf::getMarkerFlag(keyConf->confInfo)){
-	  NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+	  NdbTransaction::sendTC_COMMIT_ACK(theImpl,
                                             theCommitAckSignal,
                                             keyConf->transId1, 
                                             keyConf->transId2,
@@ -452,7 +452,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 #endif
       }
       if(tFirstData & 1){
-	NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+	NdbTransaction::sendTC_COMMIT_ACK(theImpl,
                                           theCommitAckSignal,
                                           failConf->transId1, 
                                           failConf->transId2,
@@ -524,7 +524,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 	}//if
 
 	if(tFirstData & 1){
-	  NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+	  NdbTransaction::sendTC_COMMIT_ACK(theImpl,
                                             theCommitAckSignal,
                                             commitConf->transId1, 
                                             commitConf->transId2,
@@ -862,7 +862,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     }//if
     
     if(TcIndxConf::getMarkerFlag(indxConf->confInfo)){
-      NdbTransaction::sendTC_COMMIT_ACK(theImpl->m_transporter_facade,
+      NdbTransaction::sendTC_COMMIT_ACK(theImpl,
                                         theCommitAckSignal,
                                         indxConf->transId1, 
                                         indxConf->transId2,
@@ -1381,7 +1381,7 @@ Ndb::sendRecSignal(Uint16 node_id,
 }//Ndb::sendRecSignal()
 
 void
-NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
+NdbTransaction::sendTC_COMMIT_ACK(NdbImpl * impl,
                                   NdbApiSignal * aSignal,
                                   Uint32 transId1, Uint32 transId2, 
                                   Uint32 aTCRef){
@@ -1399,7 +1399,7 @@ NdbTransaction::sendTC_COMMIT_ACK(TransporterFacade *tp,
   Uint32 * dataPtr = aSignal->getDataPtrSend();
   dataPtr[0] = transId1;
   dataPtr[1] = transId2;
-  tp->sendSignalUnCond(aSignal, refToNode(aTCRef), 1);
+  impl->safe_sendSignal(aSignal, refToNode(aTCRef));
 }
 
 int
@@ -1407,13 +1407,11 @@ NdbImpl::send_event_report(bool has_lock,
                            Uint32 *data, Uint32 length)
 {
   NdbApiSignal aSignal(m_ndb.theMyRef);
-  TransporterFacade *tp = m_transporter_facade;
   aSignal.theTrace                = TestOrd::TraceAPI;
   aSignal.theReceiversBlockNumber = CMVMI;
   aSignal.theVerId_signalNumber   = GSN_EVENT_REP;
   aSignal.theLength               = length;
   memcpy((char *)aSignal.getDataPtrSend(), (char *)data, length*4);
-
 
   int ret = 0;
   if (!has_lock)
@@ -1427,7 +1425,10 @@ NdbImpl::send_event_report(bool has_lock,
   {
     if(get_node_alive(tNode))
     {
-      tp->sendSignal(&aSignal, tNode);
+      if (has_lock)
+        safe_sendSignal(&aSignal, tNode);
+      else
+        raw_sendSignal(&aSignal, tNode);
       goto done;
     }
   }

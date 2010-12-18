@@ -896,43 +896,6 @@ TransporterFacade::sendSignal(const NdbApiSignal * aSignal, NodeId aNode)
   return -1; // Node Dead
 }
 
-int
-TransporterFacade::sendSignalUnCond(const NdbApiSignal * aSignal,
-                                    NodeId aNode,
-                                    Uint32 prio)
-{
-  const Uint32* tDataPtr = aSignal->getConstDataPtrSend();
-  assert(prio <= 1);
-#ifdef API_TRACE
-  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber))
-  {
-    SignalHeader tmp = * aSignal;
-    tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
-    LinearSectionPtr ptr[3];
-    signalLogger.sendSignal(tmp,
-                            1,
-                            tDataPtr,
-                            aNode, ptr, 0);
-    signalLogger.flushSignalLog();
-  }
-#endif
-  assert((aSignal->theLength != 0) &&
-         (aSignal->theLength <= 25) &&
-         (aSignal->theReceiversBlockNumber != 0));
-  SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-						      prio, 
-						      tDataPtr,
-						      aNode, 
-						      (LinearSectionPtr*)0);
-  
-  if (ss == SEND_OK)
-  {
-    assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
-           aSignal->readSignalNumber() == GSN_API_REGREQ);
-  }
-  return (ss == SEND_OK ? 0 : -1);
-}
-
 /**
  * FragmentedSectionIterator
  * -------------------------
