@@ -2998,7 +2998,7 @@ class Unique :public Sql_alloc
   bool flush();
   uint size;
   uint full_size;
-  uint min_dupl_count;
+  uint min_dupl_count;   /* always 0 for unions, > 0 for intersections */
 
 public:
   ulong elements;
@@ -3022,6 +3022,7 @@ public:
 
   bool get(TABLE *table);
   
+  /* Cost of searching for an element in the tree */
   inline static double get_search_cost(uint tree_elems, uint compare_factor)
   {
     return log((double) tree_elems) / (compare_factor * M_LN2);

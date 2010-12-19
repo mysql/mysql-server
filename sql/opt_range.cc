@@ -1735,11 +1735,11 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
 }
 
 
-QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
-                                                   TABLE *table)
+QUICK_INDEX_SORT_SELECT::QUICK_INDEX_SORT_SELECT(THD *thd_param,
+                                                 TABLE *table)
   :unique(NULL), pk_quick_select(NULL), thd(thd_param)
 {
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
+  DBUG_ENTER("QUICK_INDEX_SORT_SELECT::QUICK_INDEX_SORT_SELECT");
   index= MAX_KEY;
   head= table;
   bzero(&read_record, sizeof(read_record));
@@ -1747,38 +1747,37 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_VOID_RETURN;
 }
 
-int QUICK_INDEX_MERGE_SELECT::init()
+int QUICK_INDEX_SORT_SELECT::init()
 {
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::init");
+  DBUG_ENTER("QUICK_INDEX_SORT_SELECT::init");
   DBUG_RETURN(0);
 }
 
-int QUICK_INDEX_MERGE_SELECT::reset()
+int QUICK_INDEX_SORT_SELECT::reset()
 {
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::reset");
-  DBUG_RETURN (read_keys_and_merge());
+  DBUG_ENTER("QUICK_INDEX_SORT_SELECT::reset");
+  DBUG_RETURN(read_keys_and_merge());
 }
 
 bool
-QUICK_INDEX_MERGE_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
+QUICK_INDEX_SORT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
 {
-  /*
-    Save quick_select that does scan on clustered primary key as it will be
-    processed separately.
-  */
+  DBUG_ENTER("QUICK_INDEX_SORT_SELECT::push_quick_back");
   if (head->file->primary_key_is_clustered() &&
       quick_sel_range->index == head->s->primary_key)
+  {
+   /* A quick_select over a clustered primary key is handled specifically */
     pk_quick_select= quick_sel_range;
-  else
-    return quick_selects.push_back(quick_sel_range);
-  return 0;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(quick_selects.push_back(quick_sel_range));
 }
 
-QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
+QUICK_INDEX_SORT_SELECT::~QUICK_INDEX_SORT_SELECT()
 {
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
-  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
+  DBUG_ENTER("QUICK_INDEX_SORT_SELECT::~QUICK_INDEX_SORT_SELECT");
   delete unique;
   quick_it.rewind();
   while ((quick= quick_it++))
@@ -1791,65 +1790,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT()
   free_root(&alloc,MYF(0));
   DBUG_VOID_RETURN;
 }
-
-QUICK_INDEX_INTERSECT_SELECT::QUICK_INDEX_INTERSECT_SELECT(THD *thd_param,
-                                                           TABLE *table)
-  :unique(NULL), pk_quick_select(NULL), thd(thd_param)
-{
-  DBUG_ENTER("QUICK_INDEX_INTERSECT_SELECT::QUICK_INDEX_INTERSECT_SELECT");
-  index= MAX_KEY;
-  head= table;
-  bzero(&read_record, sizeof(read_record));
-  init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
-  DBUG_VOID_RETURN;
-}
-
-int QUICK_INDEX_INTERSECT_SELECT::init()
-{
-  DBUG_ENTER("QUICK_INDEX_INTERSECT_SELECT::init");
-  DBUG_RETURN(0);
-}
-
-int QUICK_INDEX_INTERSECT_SELECT::reset()
-{
-  DBUG_ENTER("QUICK_INDEX_INTERSECT_SELECT::reset");
-  DBUG_RETURN (read_keys_and_merge());
-}
-
-bool
-QUICK_INDEX_INTERSECT_SELECT::push_quick_back(QUICK_RANGE_SELECT *quick_sel_range)
-{
-  /*
-    Save quick_select that does scan on clustered primary key as it will be
-    processed separately.
-  */
-  if (head->file->primary_key_is_clustered() &&
-      quick_sel_range->index == head->s->primary_key)
-    pk_quick_select= quick_sel_range;
-  else
-    return quick_selects.push_back(quick_sel_range);
-  return 0;
-}
-
-QUICK_INDEX_INTERSECT_SELECT::~QUICK_INDEX_INTERSECT_SELECT()
-{
-  List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
-  QUICK_RANGE_SELECT* quick;
-  DBUG_ENTER("QUICK_INDEX_INTERSECT_SELECT::~QUICK_INDEX_INTERSECT_SELECT");
-  delete unique;
-  quick_it.rewind();
-  while ((quick= quick_it++))
-    quick->file= NULL;
-  quick_selects.delete_elements();
-  delete pk_quick_select;
-  /* It's ok to call the next two even if they are already deinitialized */
-  end_read_record(&read_record);
-  free_io_cache(head);
-  free_root(&alloc,MYF(0));
-  DBUG_VOID_RETURN;
-}
-
-
 
 QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                                                        TABLE *table,
@@ -2655,6 +2595,8 @@ public:
                              MEM_ROOT *parent_alloc);
   TRP_RANGE **range_scans; /* array of ptrs to plans of intersected scans */
   TRP_RANGE **range_scans_end; /* end of the array */
+  /* keys whose scans are to be filtered by cpk conditions */
+  key_map filtered_scans;  
 };
 
 
@@ -2738,6 +2680,9 @@ typedef struct st_index_scan_info
   KEY *key_info;
   uint used_key_parts;
 
+  /* Estimate of # records filtered out by intersection with cpk */
+  ha_rows   filtered_out;
+  /* Bitmap of fields used in index intersection */ 
   MY_BITMAP used_fields;
 
   /* Fields used in the query and covered by ROR scan. */
@@ -3071,15 +3016,20 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
             best_trp= rori_trp;
         }
       }
-      if (optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE) &&
+      /*
+        Do not look for an index intersection  plan if there is a covering
+        index. The scan by this covering index will be always cheaper than
+        any index intersection.
+      */
+      if (param.table->covering_keys.is_clear_all() &&
+          optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE) &&
           optimizer_flag(thd, OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT))
       {
         if ((intersect_trp= get_best_index_intersect(&param, tree,
                                                     best_read_time)))
         {
           best_trp= intersect_trp;
-          best_read_time= best_trp->read_cost;
-          
+          best_read_time= best_trp->read_cost;         
         }
       }
 
@@ -4756,7 +4706,7 @@ TABLE_READ_PLAN *merge_same_index_scans(PARAM *param, SEL_IMERGE *imerge,
   intersection plan.
 */  
 
-typedef struct st_common_index_intersection_info
+typedef struct st_common_index_intersect_info
 {
   PARAM *param;           /* context info for range optimizations            */
   uint key_size;          /* size of a ROWID element stored in Unique object */
@@ -4767,10 +4717,6 @@ typedef struct st_common_index_intersection_info
   INDEX_SCAN_INFO *cpk_scan;  /* clustered primary key used in intersection  */
 
   bool in_memory;  /* unique object for intersection is completely in memory */
-  /* estimate of the number of records filtered out from the first scan by
-     ranges for the clustered primary key scan (cpk_scan)                    */
-  ha_rows filtered_out_records;
-  double filter_cost;  /* cost of checking the the cpk_scan rabhe conditions */
 
   INDEX_SCAN_INFO **search_scans;    /* scans possibly included in intersect */ 
   uint n_search_scans;               /* number of elements in search_scans   */
@@ -4781,10 +4727,12 @@ typedef struct st_common_index_intersection_info
   ha_rows best_records;
   uint best_length;    /* number of indexes in the current best intersection */
   INDEX_SCAN_INFO **best_intersect;  /* the current best index intersection  */
+  /* scans from the best intersect to be filtrered by cpk conditions         */
+  key_map filtered_scans; 
 
   uint *buff_elems;        /* buffer to calculate cost of index intersection */
   
-} COMMON_INDEX_INTERSECTION_INFO;
+} COMMON_INDEX_INTERSECT_INFO;
 
 
 /*
@@ -4793,25 +4741,28 @@ typedef struct st_common_index_intersection_info
    check_index_intersect_extension.
 */
 
-typedef struct st_partial_index_intersection_info
+typedef struct st_partial_index_intersect_info
 {
-  COMMON_INDEX_INTERSECTION_INFO *common_info; /* shared by index intersects */
+  COMMON_INDEX_INTERSECT_INFO *common_info;    /* shared by index intersects */
   uint length;         /* number of index scans in the partial intersection  */
   ha_rows records;     /* estimate of the number of records in intersection  */
   double cost;         /* cost of the partial index intersection             */
 
-  /* estimate of total number of records in all index scans of intersection  */
-  ha_rows records_in_scans;
+  /* estimate of total number of records of all scans of the partial index
+     intersect sent to the Unique object used for the intersection  */
+  ha_rows records_sent_to_unique;
 
   /* total cost of the scans of indexes from the partial index intersection  */
   double index_read_cost; 
 
-  bool with_cpk_filter;      /* cpk filter is to be used for the first scan  */
+  bool use_cpk_filter;      /* cpk filter is to be used for this       scan  */  
   bool in_memory;            /* uses unique object in memory                 */
   double in_memory_cost;     /* cost of using unique object in memory        */
+
+  key_map filtered_scans;    /* scans to be filtered by cpk conditions       */
          
   MY_BITMAP *intersect_fields;     /* bitmap of fields used in intersection  */
-} PARTIAL_INDEX_INTERSECTION_INFO;
+} PARTIAL_INDEX_INTERSECT_INFO;
 
 
 /* Check whether two indexes have the same first n components */
@@ -4856,6 +4807,20 @@ int cmp_intersect_index_scan(INDEX_SCAN_INFO **a, INDEX_SCAN_INFO **b)
 }
 
 
+static inline
+void set_field_bitmap_for_index_prefix(MY_BITMAP *field_bitmap,
+                                       KEY_PART_INFO *key_part,
+                                       uint used_key_parts)
+{
+  bitmap_clear_all(field_bitmap);
+  for (KEY_PART_INFO *key_part_end= key_part+used_key_parts;
+       key_part < key_part_end; key_part++)
+  {
+    bitmap_set_bit(field_bitmap, key_part->fieldnr-1);
+  }
+}
+
+
 /*
   Round up table cardinality read from statistics provided by engine.
   This function should go away when mysql test will allow to handle
@@ -4878,6 +4843,10 @@ ha_rows get_table_cardinality_for_index_intersect(TABLE *table)
 }
 
   
+static
+ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
+                                             INDEX_SCAN_INFO *ext_index_scan);
+
 /*
   Prepare to search for the best index intersection
 
@@ -4889,7 +4858,7 @@ ha_rows get_table_cardinality_for_index_intersect(TABLE *table)
       init      OUT info for an initial pseudo step of the intersection plans
       cutoff_cost   cut off cost of the interesting index intersection 
 
-  NOTES
+  DESCRIPTION
     The function initializes all fields of the structure 'common' to be used
     when searching for the best intersection plan. It also allocates
     memory to store the most cheap index intersection.
@@ -4902,11 +4871,12 @@ ha_rows get_table_cardinality_for_index_intersect(TABLE *table)
 static
 bool prepare_search_best_index_intersect(PARAM *param, 
                                          SEL_TREE *tree,
-                                         COMMON_INDEX_INTERSECTION_INFO *common,
-                                         PARTIAL_INDEX_INTERSECTION_INFO *init,
+                                         COMMON_INDEX_INTERSECT_INFO *common,
+                                         PARTIAL_INDEX_INTERSECT_INFO *init,
                                          double cutoff_cost)
 {
   uint i;
+  uint n_search_scans;
   double cost;
   INDEX_SCAN_INFO **index_scan;
   INDEX_SCAN_INFO **scan_ptr;
@@ -4917,9 +4887,9 @@ bool prepare_search_best_index_intersect(PARAM *param,
   if (!n_index_scans)
     return 1;
 
-  bzero(init, sizeof(PARTIAL_INDEX_INTERSECTION_INFO));
+  bzero(init, sizeof(*init));
   init->common_info= common;
-  init->cost= cutoff_cost+2*0.01;
+  init->cost= cutoff_cost;
 
   common->param= param;
   common->key_size= table->file->ref_length;
@@ -4927,20 +4897,24 @@ bool prepare_search_best_index_intersect(PARAM *param,
   common->max_memory_size= param->thd->variables.sortbuff_size;
   common->cutoff_cost= cutoff_cost;
   common->cpk_scan= NULL;
-  common->filtered_out_records= 0;
   common->table_cardinality= 
     get_table_cardinality_for_index_intersect(table);
 
   if (n_index_scans <= 1)
     return TRUE;
 
-  for (i=0, index_scan= tree->index_scans; i < n_index_scans; i++, index_scan++)
-  {  
-    if ((*index_scan)->keynr == table->s->primary_key &&
-        table->file->primary_key_is_clustered())
-    {
-      common->cpk_scan= cpk_scan= *index_scan;
-      break;
+  if (table->file->primary_key_is_clustered())
+  {
+    INDEX_SCAN_INFO **index_scan_end;
+    index_scan= tree->index_scans;
+    index_scan_end= index_scan+n_index_scans;
+    for ( ; index_scan < index_scan_end; index_scan++)
+    {  
+      if ((*index_scan)->keynr == table->s->primary_key)
+      {
+        common->cpk_scan= cpk_scan= *index_scan;
+          break;
+      }
     }
   }
 
@@ -4973,14 +4947,21 @@ bool prepare_search_best_index_intersect(PARAM *param,
    
     for (scan_ptr= selected_index_scans; *scan_ptr ; scan_ptr++)
     {
+      /*
+        When we have range conditions for two different indexes with the same
+        beginning it does not make sense to consider both of them for index 
+        intersection if the range conditions are covered by common initial
+        components of the indexes. Actually in this case the indexes are
+        guaranteed to have the same range conditions.
+      */
       if ((*scan_ptr)->used_key_parts == used_key_parts &&
           same_index_prefix((*scan_ptr)->key_info, key_info, used_key_parts))
         break;
     }
     if (!*scan_ptr || cost < (*scan_ptr)->index_read_cost)
     {
-      (*index_scan)->index_read_cost= cost;
       *scan_ptr= *index_scan;
+      (*scan_ptr)->index_read_cost= cost;
     }
   } 
 
@@ -4992,15 +4973,16 @@ bool prepare_search_best_index_intersect(PARAM *param,
       return TRUE;
     records_in_scans+= (*scan_ptr)->records;
   }
+  n_search_scans= i;
 
   if (cpk_scan && create_fields_bitmap(param, &cpk_scan->used_fields))
     return TRUE;
   
-  if (!(common->n_search_scans= i))
+  if (!(common->n_search_scans= n_search_scans))
     return TRUE;
     
   common->best_uses_cpk= FALSE;
-  common->best_cost= cutoff_cost + 0.01;
+  common->best_cost= cutoff_cost + COST_EPS;
   common->best_length= 0;
 
   if (!(common->best_intersect=
@@ -5009,7 +4991,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
                                          (i + test(cpk_scan != NULL)))))
     return TRUE;
 
-  uint calc_cost_buff_size=
+  size_t calc_cost_buff_size=
          Unique::get_cost_calc_buff_size(records_in_scans,
                                          common->key_size,
 				         common->max_memory_size);
@@ -5017,25 +4999,167 @@ bool prepare_search_best_index_intersect(PARAM *param,
                                                 calc_cost_buff_size)))
     return TRUE;
 
-  my_qsort(selected_index_scans, i, sizeof(INDEX_SCAN_INFO *),
+  my_qsort(selected_index_scans, n_search_scans, sizeof(INDEX_SCAN_INFO *),
            (qsort_cmp) cmp_intersect_index_scan);
+
+  if (cpk_scan)
+  {
+    PARTIAL_INDEX_INTERSECT_INFO curr;
+    set_field_bitmap_for_index_prefix(&cpk_scan->used_fields,
+                                      cpk_scan->key_info->key_part,
+                                      cpk_scan->used_key_parts);
+    curr.common_info= common;
+    curr.intersect_fields= &cpk_scan->used_fields;
+    curr.records= cpk_scan->records;
+    curr.length= 1;
+    for (scan_ptr=selected_index_scans, i= 0; *scan_ptr; scan_ptr++, i++)
+    {
+      ha_rows scan_records= (*scan_ptr)->records;
+      ha_rows records= records_in_index_intersect_extension(&curr, *scan_ptr);
+      (*scan_ptr)->filtered_out= records >= scan_records ?
+                                   0 : scan_records-records; 
+    }
+  } 
+  else
+  {
+    for (scan_ptr=selected_index_scans, i= 0; *scan_ptr; scan_ptr++, i++)
+      (*scan_ptr)->filtered_out= 0;
+  }
 
   return FALSE;
 }
 
 
-static inline
-void set_field_bitmap_for_index_prefix(MY_BITMAP *field_bitmap,
-                                       KEY_PART_INFO *key_part,
-                                       uint used_key_parts)
-{
-  bitmap_clear_all(field_bitmap);
-  for (KEY_PART_INFO *key_part_end= key_part+used_key_parts;
-       key_part < key_part_end; key_part++)
-  {
-    bitmap_set_bit(field_bitmap, key_part->fieldnr-1);
-  }
-}
+/*
+  On Estimation of the Number of Records in an Index Intersection 
+  ===============================================================
+
+  Consider query Q over table t. Let C be the WHERE condition of  this query,
+  and, idx1(a1_1,...,a1_k1) and idx2(a2_1,...,a2_k2) be some indexes defined
+  on table t.
+  Let rt1 and rt2 be the range trees extracted by the range optimizer from C
+  for idx1 and idx2 respectively.
+  Let #t be the estimate of the number of records in table t provided for the
+  optimizer. 
+  Let #r1 and #r2 be the estimates of the number of records in the range trees
+  rt1 and rt2, respectively, obtained by the range optimizer.
+
+  We need to get an estimate for the number of records in the index 
+  intersection of rt1 and rt2. In other words, we need to estimate the
+  cardinality of the set of records that are in both trees. Let's designate
+  this number by #r.
+
+  If we do not make any assumptions then we can only state that
+     #r<=min(#r1,#r2).
+  With this estimate we can't say that the index intersection scan will be 
+  cheaper than the cheapest index scan.
+
+  Let Rt1 and Rt2 be AND/OR conditions representing rt and rt2 respectively.
+  The probability that a record belongs to rt1 is sel(Rt1)=#r1/#t.
+  The probability that a record belongs to rt2 is sel(Rt2)=#r2/#t.
+
+  If we assume that the values in columns of idx1 and idx2 are independent
+  then #r/#t=sel(Rt1&Rt2)=sel(Rt1)*sel(Rt2)=(#r1/#t)*(#r2/#t).
+  So in this case we have: #r=#r1*#r2/#t.
+
+  The above assumption of independence of the columns in idx1 and idx2 means
+  that:
+  - all columns are different
+  - values from one column do not correlate with values from any other column.
+
+  We can't help with the case when column correlate with each other.
+  Yet, if they are assumed to be uncorrelated the value of #r theoretically can
+  be evaluated . Unfortunately this evaluation, in general, is rather complex.
+
+  Let's consider two indexes idx1:(dept, manager),  idx2:(dept, building)
+  over table 'employee' and two range conditions over these indexes:
+    Rt1: dept=10 AND manager LIKE 'S%'
+    Rt2: dept=10 AND building LIKE 'L%'.
+  We can state that:
+    sel(Rt1&Rt2)=sel(dept=10)*sel(manager LIKE 'S%')*sel(building LIKE 'L%')
+    =sel(Rt1)*sel(Rt2)/sel(dept=10).
+  sel(Rt1/2_0:dept=10) can be estimated if we know the cardinality #r1_0 of
+  the range for sub-index idx1_0 (dept) of the index idx1 or the cardinality
+  #rt2_0 of the same range for sub-index idx2_0(dept) of the index idx2.
+  The current code does not make an estimate either for #rt1_0, or for #rt2_0,
+  but it can be adjusted to provide those numbers.
+  Alternatively, min(rec_per_key) for (dept) could be used to get an upper 
+  bound for the value of sel(Rt1&Rt2). Yet this statistics is not provided
+  now.  
+ 
+  Let's consider two other indexes idx1:(dept, last_name), 
+  idx2:(first_name, last_name) and two range conditions over these indexes:
+    Rt1: dept=5 AND last_name='Sm%'
+    Rt2: first_name='Robert' AND last_name='Sm%'.
+
+  sel(Rt1&Rt2)=sel(dept=5)*sel(last_name='Sm5')*sel(first_name='Robert')
+  =sel(Rt2)*sel(dept=5)
+  Here max(rec_per_key) for (dept) could be used to get an upper bound for
+  the value of sel(Rt1&Rt2).
+  
+  When the intersected indexes have different major columns, but some
+  minor column are common the picture may be more complicated.
+
+  Let's consider the following range conditions for the same indexes as in
+  the previous example:
+    Rt1: (Rt11: dept=5 AND last_name='So%') 
+         OR 
+         (Rt12: dept=7 AND last_name='Saw%')
+    Rt2: (Rt21: first_name='Robert' AND last_name='Saw%')
+         OR
+         (Rt22: first_name='Bob' AND last_name='So%')
+  Here we have:
+  sel(Rt1&Rt2)= sel(Rt11)*sel(Rt21)+sel(Rt22)*sel(dept=5) +
+                sel(Rt21)*sel(dept=7)+sel(Rt12)*sel(Rt22)
+  Now consider the range condition:
+    Rt1_0: (dept=5 OR dept=7)
+  For this condition we can state that:
+  sel(Rt1_0&Rt2)=(sel(dept=5)+sel(dept=7))*(sel(Rt21)+sel(Rt22))=
+  sel(dept=5)*sel(Rt21)+sel(dept=7)*sel(Rt21)+
+  sel(dept=5)*sel(Rt22)+sel(dept=7)*sel(Rt22)=
+  sel(dept=5)*sel(Rt21)+sel(Rt21)*sel(dept=7)+
+  sel(Rt22)*sel(dept=5)+sel(dept=7)*sel(Rt22) >
+  sel(Rt11)*sel(Rt21)+sel(Rt22)*sel(dept=5)+
+  sel(Rt21)*sel(dept=7)+sel(Rt12)*sel(Rt22) >
+  sel(Rt1 & Rt2) 
+
+ We've just demonstrated for an example what is intuitively almost obvious
+ in general. We can  remove the ending parts fromrange trees getting less
+ selective range conditions for sub-indexes.
+ So if not a most major component with the number k of an index idx is
+ encountered in the index with which we intersect we can use the sub-index
+ idx_k-1 that includes the components of idx up to the i-th component and
+ the range tree for idx_k-1 to make an upper bound estimate for the number
+  of records in the index intersection.
+ The range tree for idx_k-1 we use here is the subtree of the original range
+  tree for idx that contains only parts from the first k-1 components.
+
+  As it was mentioned above the range optimizer currently does not provide
+  an estimate for the number of records in the ranges for sub-indexes.
+  However, some reasonable upper bound estimate can be obtained.
+
+  Let's consider the following range tree:
+    Rt: (first_name='Robert' AND last_name='Saw%')
+        OR
+        (first_name='Bob' AND last_name='So%')
+  Let #r be the number of records in Rt. Let f_1 be the fan-out of column
+  last_name:
+    f_1 = rec_per_key[first_name]/rec_per_key[last_name].
+  The the number of records in the range tree:
+    Rt_0:  (first_name='Robert' OR first_name='Bob')
+  for the sub-index (first_name) is not greater than max(#r*f_1, #t).
+  Strictly speaking, we can state only that it's not greater than 
+  max(#r*max_f_1, #t), where
+    max_f_1= max_rec_per_key[first_name]/min_rec_per_key[last_name].
+  Yet, if #r/#t is big enough (and this is the case of an index intersection,
+  because using this index range with a single index scan is cheaper than
+  the cost of the intersection when #r/#t is small) then almost safely we
+  can use here f_1 instead of max_f_1.
+
+  The above considerations can be used in future development. Now, they are
+  used partly in the function that provides a rough upper bound estimate for
+  the number of records in an index intersection that follow below.
+*/
 
 /*
   Estimate the number of records selected by an extension a partial intersection
@@ -5045,101 +5169,94 @@ void set_field_bitmap_for_index_prefix(MY_BITMAP *field_bitmap,
      curr            partial intersection plan to be extended
      ext_index_scan  the evaluated extension of this partial plan
 
-  NOTES
-    The function figures out how many records can be expected if the
-    index scans from curr is intersected with ext_index_scan
+  DESCRIPTION
+    The function provides an estimate for the number of records in the
+    intersection of the partial index intersection curr with the index
+    ext_index_scan. If all intersected indexes does not have common columns
+    then  the function returns an exact estimate (assuming there are no
+    correlations between values in the columns). If the intersected indexes
+    have common  columns the function returns an upper bound for the number
+    of records in the intersection provided that the intersection of curr
+    with ext_index_scan can is expected to have less records than the expected
+    number of records in the partial intersection curr. In this case the
+    function also assigns the bitmap of the columns in the extended 
+    intersection to ext_index_scan->used_fields.
+    If the function cannot expect that the number of records in the extended
+    intersection is less that the expected number of records #r in curr then
+    the function returns a number bigger than #r.
 
+  NOTES
+   See the comment before the desription of the function that explains the
+   reasoning used  by this function.
+    
   RETURN
     The expected number of rows in the extended index intersection
 */
 
 static
-ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
+ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
                                              INDEX_SCAN_INFO *ext_index_scan)
 {
   KEY *key_info= ext_index_scan->key_info;
   KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* key_part_end= key_part+ext_index_scan->used_key_parts;
-  uint key_parts= key_info->key_parts;
+  uint used_key_parts= ext_index_scan->used_key_parts;
   MY_BITMAP *used_fields= &ext_index_scan->used_fields;
   
   if (!curr->length)
   {
-    set_field_bitmap_for_index_prefix(used_fields, key_part,
-                                      ext_index_scan->used_key_parts);
+    /* 
+      If this the first index in the intersection just mark the
+      fields in the used_fields bitmap and return the expected
+      number of records in the range scan for the index provided
+      by the range optimizer.
+    */ 
+    set_field_bitmap_for_index_prefix(used_fields, key_part, used_key_parts);
     return ext_index_scan->records;
   }
-  else
+
+  uint i;
+  bool better_selectivity= FALSE;
+  ha_rows records= curr->records;
+  MY_BITMAP *curr_intersect_fields= curr->intersect_fields; 
+  for (i= 0; i < used_key_parts; i++, key_part++)
   {
-    bool better_selectivity= FALSE;
+    if (bitmap_is_set(curr_intersect_fields, key_part->fieldnr-1))
+      break;
+  }
+  if (i)
+  {
     ha_rows table_cardinality= curr->common_info->table_cardinality;
-    ha_rows records= curr->records;
-    bitmap_copy(used_fields, curr->intersect_fields);
-    records= (ha_rows) ((double) records / table_cardinality *
-                         ext_index_scan->records);
-    set_if_bigger(records, 1);
-    for (uint i= 0 ; key_part < key_part_end; i++, key_part++)
+    ha_rows ext_records= ext_index_scan->records;
+    if (i < used_key_parts)
     {
-      if (bitmap_is_set(used_fields, key_part->fieldnr-1))
-      {
-        ulong *rec_per_key= key_info->rec_per_key+i;
-        ulong f1= rec_per_key[0] ? rec_per_key[0] : 1;
-        ulong f2= i+1 < key_parts && rec_per_key[1] ? rec_per_key[1] : 1;
-	records= (ha_rows) ((double) records / f2 * f1);
-      }
-      else
-      { 
-        better_selectivity= TRUE;
-        bitmap_set_bit(used_fields, key_part->fieldnr-1);
-      }
+      ulong *rec_per_key= key_info->rec_per_key+i-1;
+      ulong f1= rec_per_key[0] ? rec_per_key[0] : 1;
+      ulong f2= rec_per_key[1] ? rec_per_key[1] : 1;
+      ext_records= (ha_rows) ((double) ext_records / f2 * f1);
     }
-    return !better_selectivity ? curr->records+1 :
-                                 !records ? 1 : records;
-  }  
+    if (ext_records < table_cardinality)
+    {
+      better_selectivity= TRUE;
+      records= (ha_rows) ((double) records / table_cardinality *
+			  ext_records);
+      bitmap_copy(used_fields, curr_intersect_fields);
+      key_part= key_info->key_part;
+      for (uint j= 0; j < used_key_parts; j++, key_part++)
+        bitmap_set_bit(used_fields, key_part->fieldnr-1);
+    }
+  }
+  return !better_selectivity ? records+1 :
+                               !records ? 1 : records;
 }
 
 
 static inline
-double get_unique_intersect_cost(COMMON_INDEX_INTERSECTION_INFO *common,
-                                 uint length, ha_rows records_in_scans,
-                                 ha_rows filtered_out_records,
-                                 ha_rows last_index_records,
-                                 bool *in_memory,
-                                 double *in_memory_cost)
-{
-  double cost;
-  if (length > 1 && *in_memory)
-  { 
-    ha_rows records_in_first_scan= common->search_scans[0]->records;
-    ha_rows elems_in_tree= records_in_first_scan-filtered_out_records;
-    *in_memory_cost+= Unique::get_search_cost(elems_in_tree,
-                                              common->compare_factor) * 
-                      last_index_records;
-    cost= *in_memory_cost;
-  }
-  else
-  {
-    ha_rows records_to_intersect= records_in_scans-filtered_out_records;
-    cost= Unique::get_use_cost(common->buff_elems,
-                               records_to_intersect,
-                               common->key_size,
-                               common->max_memory_size,
-                               common->compare_factor,
-                               TRUE, in_memory);
-    if (*in_memory)
-      *in_memory_cost= cost;
-  }
-  return cost;
-}
-
-
-static inline
-double get_cpk_filter_cost(INDEX_SCAN_INFO *index_scan, 
+double get_cpk_filter_cost(ha_rows filtered_records, 
                            INDEX_SCAN_INFO *cpk_scan,
                            double compare_factor)
 {
   return log((double) (cpk_scan->range_count+1)) / (compare_factor * M_LN2) *
-         index_scan->records;
+           filtered_records;
 }
 
 
@@ -5152,104 +5269,112 @@ double get_cpk_filter_cost(INDEX_SCAN_INFO *index_scan,
      ext_index_scan  a possible extension of this plan to be checked
      next       OUT  the structure to be filled for the extended plan 
 
-  NOTES
+  DESCRIPTION
     The function checks whether it makes sense to extend the index
     intersection plan adding the index ext_index_scan, and, if this
-    the case, the function fills in the structure fir the extended plan.
+    the case, the function fills in the structure for the extended plan.
 
   RETURN
-    TRUE      if the given plan makes to extend
+    TRUE      if it makes sense to extend the given plan 
     FALSE     otherwise
 */
 
 static
-bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
+bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
                                      INDEX_SCAN_INFO *ext_index_scan,
-                                     PARTIAL_INDEX_INTERSECTION_INFO *next)
+                                     PARTIAL_INDEX_INTERSECT_INFO *next)
 {
   ha_rows records;
-  ha_rows records_in_scans;
+  ha_rows records_sent_to_unique;
   double cost;
-  ha_rows records2= 0;
-  ha_rows filtered_out_records= 0;
-  ha_rows index_scan_records= ext_index_scan->records;
-  COMMON_INDEX_INTERSECTION_INFO *common_info= curr->common_info;
-  INDEX_SCAN_INFO *cpk_scan= common_info->cpk_scan;
+  ha_rows ext_index_scan_records= ext_index_scan->records;
+  ha_rows records_filtered_out_by_cpk= ext_index_scan->filtered_out;
+  COMMON_INDEX_INTERSECT_INFO *common_info= curr->common_info;
   double cutoff_cost= common_info->cutoff_cost;
-  uint compare_factor= common_info->compare_factor;
   uint idx= curr->length;
-  bool with_cpk_filter= curr->with_cpk_filter;
-
-  if (with_cpk_filter)
-    filtered_out_records= common_info->filtered_out_records; 
-
   next->index_read_cost= curr->index_read_cost+ext_index_scan->index_read_cost;
   if (next->index_read_cost > cutoff_cost)
     return FALSE; 
 
-  records_in_scans= curr->records_in_scans + index_scan_records;
   if ((next->in_memory= curr->in_memory))
     next->in_memory_cost= curr->in_memory_cost;
 
+  next->intersect_fields= &ext_index_scan->used_fields;
+  next->filtered_scans= curr->filtered_scans;
+
+  records_sent_to_unique= curr->records_sent_to_unique;
+
+  next->use_cpk_filter= FALSE;
+
+  /* Calculate the cost of using a Unique object for index intersection */
+  if (idx && next->in_memory)
+  { 
+    /* 
+      All rowids received from the first scan are expected in one unique tree
+    */
+    ha_rows elems_in_tree= common_info->search_scans[0]->records-
+                           common_info->search_scans[0]->filtered_out ;
+    next->in_memory_cost+= Unique::get_search_cost(elems_in_tree,
+                                                   common_info->compare_factor)* 
+                             ext_index_scan_records;
+    cost= next->in_memory_cost;
+  }
+  else
+  {
+    uint *buff_elems= common_info->buff_elems;
+    uint key_size= common_info->key_size;
+    uint compare_factor= common_info->compare_factor;         
+    ulonglong max_memory_size= common_info->max_memory_size; 
+    
+    records_sent_to_unique+= ext_index_scan_records;
+    cost= Unique::get_use_cost(buff_elems, records_sent_to_unique, key_size,
+                               max_memory_size, compare_factor, TRUE,
+                               &next->in_memory);
+    if (records_filtered_out_by_cpk)
+    {
+      /* Check whether using cpk filter for this scan is beneficial */
+
+      double cost2;
+      bool in_memory2;
+      ha_rows records2= records_sent_to_unique-records_filtered_out_by_cpk;
+      cost2=  Unique::get_use_cost(buff_elems, records2, key_size,
+                                   max_memory_size, compare_factor, TRUE,
+                                   &in_memory2);
+      cost2+= get_cpk_filter_cost(ext_index_scan_records, common_info->cpk_scan,
+                                  compare_factor);
+      if (cost > cost2 + COST_EPS)
+      {
+        cost= cost2;
+        next->in_memory= in_memory2;
+        next->use_cpk_filter= TRUE;
+        records_sent_to_unique= records2;
+      }
+
+    }   
+    if (next->in_memory)
+      next->in_memory_cost= cost;
+  }
+
+  if (next->use_cpk_filter)
+  {
+    next->filtered_scans.set_bit(ext_index_scan->keynr);
+    bitmap_union(&ext_index_scan->used_fields,
+                 &common_info->cpk_scan->used_fields);
+  }
+  next->records_sent_to_unique= records_sent_to_unique;
+       
   records= records_in_index_intersect_extension(curr, ext_index_scan);
   if (idx && records > curr->records)
     return FALSE;
-
+  if (next->use_cpk_filter && curr->filtered_scans.is_clear_all())
+    records-= records_filtered_out_by_cpk;
   next->records= records;
-  next->intersect_fields= &ext_index_scan->used_fields;
 
-  cost= get_unique_intersect_cost(common_info, idx+1, records_in_scans,
-                                  filtered_out_records, index_scan_records,
-                                  &next->in_memory, &next->in_memory_cost);
-                                               
-  if (idx == 0 && cpk_scan)
-  {
-    next->length= 1;
-    records2= records_in_index_intersect_extension(next, cpk_scan);
-    next->length= 0;
-    if (records2 < records)
-      filtered_out_records= records-records2;
-  
-    common_info->filter_cost= get_cpk_filter_cost(ext_index_scan, cpk_scan,
-                                                  compare_factor);
-    common_info->filtered_out_records= filtered_out_records;
-  }
-  
-  next->records_in_scans= records_in_scans;
-  next->with_cpk_filter= with_cpk_filter;
-     
-  if (!with_cpk_filter && common_info->filtered_out_records)
-  {
-    double cost2;
-    bool in_memory_save= next->in_memory;
-    if (idx)
-    {
-      next->length= curr->length+1;
-      records2= records_in_index_intersect_extension(next, cpk_scan);
-      next->length= curr->length;
-    }
-    cost2= get_unique_intersect_cost(common_info, idx+1, records_in_scans,
-                                     filtered_out_records, index_scan_records, 
-                                     &next->in_memory, &next->in_memory_cost);
-    cost2+= common_info->filter_cost;
-    if (cost2 < cost)
-    {
-      cost= cost2;
-      records= records2;
-      next->with_cpk_filter= TRUE;
-      *next->intersect_fields= cpk_scan->used_fields;
-    }
-    else
-      next->in_memory= in_memory_save;
-  }
-   
   cost+= next->index_read_cost;
   if (cost >= cutoff_cost)
     return FALSE;
 
-  next->records= records;
-
-  cost+=  get_sweep_read_cost(common_info->param, records);
+  cost+= get_sweep_read_cost(common_info->param, records);
 
   next->cost= cost;
   next->length= curr->length+1;
@@ -5265,28 +5390,29 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr,
     find_index_intersect_best_extension()
       curr        partial intersection to evaluate all possible extension for 
 
-  NOTES
+  DESCRIPTION
     The function tries to extend the partial plan curr in all possible ways
     to look for a cheapest index intersection whose cost less than the 
     cut off value set in curr->common_info.cutoff_cost. 
 */
 
 static 
-void find_index_intersect_best_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr)
+void find_index_intersect_best_extension(PARTIAL_INDEX_INTERSECT_INFO *curr)
 {
-  PARTIAL_INDEX_INTERSECTION_INFO next;
-  COMMON_INDEX_INTERSECTION_INFO *common_info= curr->common_info;
+  PARTIAL_INDEX_INTERSECT_INFO next;
+  COMMON_INDEX_INTERSECT_INFO *common_info= curr->common_info;
   INDEX_SCAN_INFO **index_scans= common_info->search_scans;
   uint idx= curr->length;
   INDEX_SCAN_INFO **rem_first_index_scan_ptr= &index_scans[idx];
   double cost= curr->cost;
 
-  if (cost < common_info->best_cost)
+  if (cost + COST_EPS < common_info->best_cost)
   {
     common_info->best_cost= cost;
     common_info->best_length= curr->length;
     common_info->best_records= curr->records;
-    common_info->best_uses_cpk= curr->with_cpk_filter;
+    common_info->filtered_scans= curr->filtered_scans;
+    common_info->best_uses_cpk= !curr->filtered_scans.is_clear_all();
     uint sz= sizeof(INDEX_SCAN_INFO *) * curr->length;
     memcpy(common_info->best_intersect, common_info->search_scans, sz);
     common_info->cutoff_cost= cost;
@@ -5320,7 +5446,7 @@ void find_index_intersect_best_extension(PARTIAL_INDEX_INTERSECTION_INFO *curr)
       tree          tree of ranges for indexes than can be intersected
       read_time     cut off value for the evaluated plans 
 
-  NOTES
+  DESCRIPTION
     The function looks for the cheapest index intersection of the range
     scans to access a table. The info about the ranges for all indexes
     is provided by the range optimizer and is passed through the
@@ -5343,8 +5469,8 @@ TRP_INDEX_INTERSECT *get_best_index_intersect(PARAM *param, SEL_TREE *tree,
   TRP_RANGE **cur_range;
   TRP_RANGE **range_scans;
   INDEX_SCAN_INFO *index_scan;
-  COMMON_INDEX_INTERSECTION_INFO common;
-  PARTIAL_INDEX_INTERSECTION_INFO init;
+  COMMON_INDEX_INTERSECT_INFO common;
+  PARTIAL_INDEX_INTERSECT_INFO init;
   TRP_INDEX_INTERSECT *intersect_trp= NULL;
   TABLE *table= param->table;
   
@@ -5383,7 +5509,7 @@ TRP_INDEX_INTERSECT *get_best_index_intersect(PARAM *param, SEL_TREE *tree,
     {  
       TRP_RANGE *trp= *cur_range;  
       trp->read_cost= index_scan->index_read_cost;  
-      trp->records= index_scan->records;
+      trp->records= index_scan->records;        
       trp->is_ror= FALSE;
       table->intersect_keys.set_bit(index_scan->keynr);
       cur_range++;
@@ -5415,6 +5541,7 @@ TRP_INDEX_INTERSECT *get_best_index_intersect(PARAM *param, SEL_TREE *tree,
     intersect_trp->records= common.best_records;
     intersect_trp->range_scans= range_scans;
     intersect_trp->range_scans_end= cur_range;
+    intersect_trp->filtered_scans= common.filtered_scans;
   }
   DBUG_RETURN(intersect_trp);
 }
@@ -6426,6 +6553,7 @@ QUICK_SELECT_I *TRP_INDEX_INTERSECT::make_quick(PARAM *param,
 
   quick_intersect->records= records;
   quick_intersect->read_time= read_cost;
+  quick_intersect->filtered_scans= filtered_scans;
   for (TRP_RANGE **range_scan= range_scans; range_scan != range_scans_end;
        range_scan++)
   {
@@ -9827,19 +9955,7 @@ bool QUICK_SELECT_I::is_keys_used(const MY_BITMAP *fields)
   return is_key_used(head, index, fields);
 }
 
-bool QUICK_INDEX_MERGE_SELECT::is_keys_used(const MY_BITMAP *fields)
-{
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick= it++))
-  {
-    if (is_key_used(head, quick->index, fields))
-      return 1;
-  }
-  return 0;
-}
-
-bool QUICK_INDEX_INTERSECT_SELECT::is_keys_used(const MY_BITMAP *fields)
+bool QUICK_INDEX_SORT_SELECT::is_keys_used(const MY_BITMAP *fields)
 {
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
@@ -10002,6 +10118,7 @@ int read_keys_and_merge_scans(THD *thd,
                               QUICK_RANGE_SELECT *pk_quick_select,
                               READ_RECORD *read_record,
                               bool intersection,
+                              key_map *filtered_scans,
                               Unique **unique_ptr)
 {
   List_iterator_fast<QUICK_RANGE_SELECT> cur_quick_it(quick_selects);
@@ -10009,6 +10126,8 @@ int read_keys_and_merge_scans(THD *thd,
   int result;
   Unique *unique= *unique_ptr;
   handler *file= head->file;
+  bool with_cpk_filter= pk_quick_select != NULL;
+
   DBUG_ENTER("read_keys_and_merge");
 
   /* We're going to just read rowids. */
@@ -10054,6 +10173,8 @@ int read_keys_and_merge_scans(THD *thd,
   {
     while ((result= cur_quick->get_next()) == HA_ERR_END_OF_FILE)
     {
+      if (intersection)
+        with_cpk_filter= filtered_scans->is_set(cur_quick->index);
       if (first_quick)
       {
         first_quick= FALSE;
@@ -10084,18 +10205,10 @@ int read_keys_and_merge_scans(THD *thd,
     if (thd->killed)
       goto err;
 
-    if (intersection)
-    {
-      if (first_quick && 
-          pk_quick_select && !pk_quick_select->row_in_ranges())
-        continue;
-    }
-    else
-    {
-       /* skip row if it will be retrieved by clustered PK scan */
-      if (pk_quick_select && pk_quick_select->row_in_ranges())
-        continue;
-    }
+    if (with_cpk_filter &&
+        pk_quick_select->row_in_ranges() != intersection )
+      continue;
+
     cur_quick->file->position(cur_quick->record);
     if (unique->unique_add((char*)cur_quick->file->ref))
       goto err;
@@ -10108,7 +10221,7 @@ int read_keys_and_merge_scans(THD *thd,
   */
   result= unique->get(head);
   /*
-    index_merge currently doesn't support "using index" at all
+    index merge currently doesn't support "using index" at all
   */
   head->disable_keyread();
   init_read_record(read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
@@ -10126,7 +10239,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   int result;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
   result= read_keys_and_merge_scans(thd, head, quick_selects, pk_quick_select,
-                                    &read_record, FALSE, &unique);
+                                    &read_record, FALSE, NULL, &unique);
   doing_pk_scan= FALSE;
   DBUG_RETURN(result);
 }
@@ -10173,8 +10286,8 @@ int QUICK_INDEX_INTERSECT_SELECT::read_keys_and_merge()
   int result;
   DBUG_ENTER("QUICK_INDEX_INTERSECT_SELECT::read_keys_and_merge");
   result= read_keys_and_merge_scans(thd, head, quick_selects, pk_quick_select,
-                                    &read_record, TRUE, &unique);
-  doing_pk_scan= FALSE;
+                                    &read_record, TRUE, &filtered_scans,
+                                    &unique);
   DBUG_RETURN(result);
 }
 
@@ -10188,7 +10301,6 @@ int QUICK_INDEX_INTERSECT_SELECT::get_next()
     result= HA_ERR_END_OF_FILE;
     end_read_record(&read_record);
     free_io_cache(head);
-    /* All rows from Unique have been retrieved, do a clustered PK scan */
   }
 
   DBUG_RETURN(result);
@@ -13391,27 +13503,11 @@ void QUICK_RANGE_SELECT::dbug_dump(int indent, bool verbose)
   /* purecov: end */    
 }
 
-void QUICK_INDEX_MERGE_SELECT::dbug_dump(int indent, bool verbose)
+void QUICK_INDEX_SORT_SELECT::dbug_dump(int indent, bool verbose)
 {
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   QUICK_RANGE_SELECT *quick;
   fprintf(DBUG_FILE, "%*squick index_merge select\n", indent, "");
-  fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
-  while ((quick= it++))
-    quick->dbug_dump(indent+2, verbose);
-  if (pk_quick_select)
-  {
-    fprintf(DBUG_FILE, "%*sclustered PK quick:\n", indent, "");
-    pk_quick_select->dbug_dump(indent+2, verbose);
-  }
-  fprintf(DBUG_FILE, "%*s}\n", indent, "");
-}
-
-void QUICK_INDEX_INTERSECT_SELECT::dbug_dump(int indent, bool verbose)
-{
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  QUICK_RANGE_SELECT *quick;
-  fprintf(DBUG_FILE, "%*squick index_intersect select\n", indent, "");
   fprintf(DBUG_FILE, "%*smerged scans {\n", indent, "");
   while ((quick= it++))
     quick->dbug_dump(indent+2, verbose);
