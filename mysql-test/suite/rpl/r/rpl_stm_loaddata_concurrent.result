@@ -14,13 +14,8 @@ master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`c1`) ;file_id=#
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-reset master;
+include/master-slave.inc
+[connection master]
 select last_insert_id();
 last_insert_id()
 0
@@ -48,32 +43,27 @@ drop table t3;
 create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
-set global sql_slave_skip_counter=1;
-start slave;
-Last_SQL_Errno=0
-Last_SQL_Error
-
+include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
+include/check_slave_no_error.inc
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
-stop slave;
+include/wait_for_slave_sql_error.inc [errno=1062]
+include/stop_slave_io.inc
 change master to master_user='test';
 change master to master_user='root';
-Last_SQL_Errno=0
-Last_SQL_Error
-
+include/check_slave_no_error.inc
 set global sql_slave_skip_counter=1;
 start slave;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
 load data CONCURRENT infile '../../std_data/rpl_loaddata.dat' into table t1;
+include/wait_for_slave_sql_error.inc [errno=1062]
 stop slave;
 reset slave;
-Last_SQL_Errno=0
-Last_SQL_Error
-
+include/check_slave_no_error.inc
 reset master;
 create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=MyISAM;
@@ -96,18 +86,14 @@ load data CONCURRENT infile '../../std_data/rpl_loaddata2.dat' into table t2 fie
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
+include/wait_for_slave_sql_error.inc [errno=0]
 drop table t1, t2;
 drop table t1, t2;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 LOAD DATA CONCURRENT INFILE "../../std_data/words.dat" INTO TABLE t1;
 ERROR 23000: Duplicate entry 'Aarhus' for key 'PRIMARY'
-DROP TABLE IF EXISTS t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+DROP TABLE t1;
+include/rpl_reset.inc
 drop database if exists b48297_db1;
 drop database if exists b42897_db2;
 create database b48297_db1;
@@ -128,15 +114,10 @@ LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO
 LOAD DATA CONCURRENT LOCAL INFILE 'MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE b48297_db1.t1;
 ### disconnect and switch back to master connection
 use b48297_db1;
-Comparing tables master:b48297_db1.t1 and slave:b48297_db1.t1
+include/diff_tables.inc [master:b48297_db1.t1, slave:b48297_db1.t1]
 DROP DATABASE b48297_db1;
 DROP DATABASE b42897_db2;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 use test;
 CREATE TABLE t1 (`key` TEXT, `text` TEXT);
 LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
@@ -148,3 +129,4 @@ Field 3	'Field 4'
 'Field 5' 	'Field 6'
 Field 6	 'Field 7'
 DROP TABLE t1;
+include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a INT) ENGINE=NDB;
 begin;
 insert into t1 values(1);
@@ -11,3 +7,4 @@ flush tables with read lock;
 commit;
 unlock tables;
 drop table t1;
+include/rpl_end.inc

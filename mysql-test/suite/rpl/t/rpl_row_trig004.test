@@ -16,3 +16,4 @@
 let $engine_type=INNODB;
 -- source extra/rpl_tests/rpl_trig004.test
 
+--source include/rpl_end.inc

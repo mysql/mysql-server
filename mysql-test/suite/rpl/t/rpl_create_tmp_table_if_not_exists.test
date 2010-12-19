@@ -38,4 +38,4 @@ CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 source include/show_binlog_events.inc;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

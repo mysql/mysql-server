@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set session sql_log_bin=0;
 delete from mysql.user where Host='fakehost';
 set session sql_log_bin=1;
@@ -43,3 +39,4 @@ master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofo
 master-bin.000001	#	Query	#	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'
+include/rpl_end.inc

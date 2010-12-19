@@ -260,3 +260,5 @@ UNINSTALL PLUGIN example;
 SET @@global.binlog_format = @old_binlog_format;
 SET @@session.binlog_format = @old_binlog_format;
 UNINSTALL PLUGIN example;
+
+--source include/rpl_end.inc

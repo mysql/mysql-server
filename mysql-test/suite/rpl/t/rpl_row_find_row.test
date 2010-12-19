@@ -50,7 +50,7 @@ DROP TABLE t;
 #          but it gets disabled sometime.
 #          Replication does not break anymore.
 # 
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE t (a int, b int, c int, key(b));
@@ -84,8 +84,7 @@ DROP TABLE t;
 # As a consquence, the wrong row would be updated.
 #
 
--- connection master
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, c3 INT, UNIQUE KEY(c1,c3), KEY(c2));
@@ -94,11 +93,11 @@ INSERT INTO t1(c1,c2) VALUES(1,2);
 UPDATE t1 SET c1=1000 WHERE c2=2;
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE t1;
 -- sync_slave_with_master
 
+--source include/rpl_end.inc
