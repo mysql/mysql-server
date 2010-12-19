@@ -1,6 +1,4 @@
 #############################################
-#Authors:    TU and Jeb
-#Date:       2007/04
 #Purpose:    Generic replication to cluster
 #            and ensuring that the ndb_apply_status
 #            table is updated.
@@ -34,3 +32,4 @@ let $off_set = 9;
 let $rpl_format = 'MIX';
 --source extra/rpl_tests/rpl_ndb_apply_status.test
 
+--source include/rpl_end.inc

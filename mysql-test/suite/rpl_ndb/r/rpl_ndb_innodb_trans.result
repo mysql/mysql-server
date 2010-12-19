@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (a int, unique(a)) engine=ndbcluster;
 create table t2 (a int, unique(a)) engine=innodb;
 begin;
@@ -101,3 +97,4 @@ select count(*) from t2;
 count(*)
 0
 drop table t1,t2;
+include/rpl_end.inc

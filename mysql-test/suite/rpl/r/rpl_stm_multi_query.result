@@ -1,10 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop database if exists mysqltest;
+include/master-slave.inc
+[connection master]
 create database mysqltest;
 create table mysqltest.t1 ( n int);
 insert into mysqltest.t1 values(1)/
@@ -21,7 +16,6 @@ n
 5
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	drop database if exists mysqltest
 master-bin.000001	#	Query	#	#	create database mysqltest
 master-bin.000001	#	Query	#	#	use `test`; create table mysqltest.t1 ( n int)
 master-bin.000001	#	Query	#	#	use `test`; insert into mysqltest.t1 values(1)
@@ -30,3 +24,4 @@ master-bin.000001	#	Query	#	#	use `test`; insert into mysqltest.t1 values(3)
 master-bin.000001	#	Query	#	#	use `test`; insert into mysqltest.t1 values(4)
 master-bin.000001	#	Query	#	#	use `test`; insert into mysqltest.t1 values(5)
 drop database mysqltest;
+include/rpl_end.inc

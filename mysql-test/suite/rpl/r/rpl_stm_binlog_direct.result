@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set @@session.binlog_direct_non_transactional_updates= TRUE;
 #########################################################################
 #                            CONFIGURATION
@@ -1358,3 +1354,4 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
+include/rpl_end.inc

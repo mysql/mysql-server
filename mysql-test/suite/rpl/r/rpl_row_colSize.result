@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t1;
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
@@ -18,7 +14,8 @@ CREATE TABLE t1 (a DECIMAL(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -34,7 +31,8 @@ CREATE TABLE t1 (a DECIMAL(27, 18));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 12, test.t1 on slave has size 12. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -50,7 +48,8 @@ CREATE TABLE t1 (a NUMERIC(20, 10));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 10, test.t1 on slave has size 3. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -67,7 +66,8 @@ CREATE TABLE t1 (a FLOAT(47));
 RESET MASTER;
 INSERT INTO t1 VALUES (901251.90125);
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 type mismatch - received type 5, test.t1 has type 4'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -84,7 +84,8 @@ CREATE TABLE t1 (a BIT(64));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 8, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -100,7 +101,8 @@ CREATE TABLE t1 (a BIT(12));
 RESET MASTER;
 INSERT INTO t1 VALUES (B'10101');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 2. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -117,7 +119,8 @@ CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
 RESET MASTER;
 INSERT INTO t1 VALUES ('4');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -134,7 +137,8 @@ CREATE TABLE t1 (a CHAR(20));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 20, test.t1 on slave has size 11. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -182,7 +186,8 @@ CREATE TABLE t1 (a ENUM(
 RESET MASTER;
 INSERT INTO t1 VALUES ('44');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 2, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -199,7 +204,8 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 100. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -215,7 +221,8 @@ CREATE TABLE t1 (a VARCHAR(200));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 200, test.t1 on slave has size 10. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -231,7 +238,8 @@ CREATE TABLE t1 (a VARCHAR(2000));
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 2000, test.t1 on slave has size 1000. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -248,7 +256,8 @@ CREATE TABLE t1 (a LONGBLOB);
 RESET MASTER;
 INSERT INTO t1 VALUES ('This is a test.');
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 size mismatch - master has size 4, test.t1 on slave has size 1. Master's column size should be <= the slave's column size.'
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -258,3 +267,4 @@ RESET MASTER;
 START SLAVE;
 *** Cleanup  ***
 DROP TABLE IF EXISTS t1;
+include/rpl_end.inc

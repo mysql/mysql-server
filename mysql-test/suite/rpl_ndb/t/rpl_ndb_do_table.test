@@ -43,3 +43,4 @@ INSERT INTO t1 VALUES (3, repeat('bad too',1));
 connection master;
 DROP TABLE IF EXISTS t1, t2;
 --sync_slave_with_master
+--source include/rpl_end.inc

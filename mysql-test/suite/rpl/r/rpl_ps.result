@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 create table t1(n char(30));
 prepare stmt1 from 'insert into t1 values (?)';
@@ -33,49 +29,22 @@ stop slave;
 # statement breaks binlog.
 #
 ########################################################################
-
 # Connection: slave
-
-
 START SLAVE;
-
 # Connection: master
-
-
 CREATE DATABASE mysqltest1;
 CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));
-
 PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(DATABASE(), @@collation_database)';
-
 EXECUTE stmt_d_1;
-
 use mysqltest1;
-
 EXECUTE stmt_d_1;
-
-
 # Connection: slave
-
-
 SELECT * FROM t1;
 db_name	db_col_name
 test	latin1_swedish_ci
 test	latin1_swedish_ci
-
 # Connection: master
-
-
 DROP DATABASE mysqltest1;
-
 use test;
 DROP TABLE t1;
-
-
-# Connection: slave
-
-
-STOP SLAVE;
-
-########################################################################
-reset master;
-reset slave;
+include/rpl_end.inc

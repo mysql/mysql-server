@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 #######################################################################
 ####################### PART 1: MASTER TESTS ##########################
 #######################################################################
@@ -192,6 +188,7 @@ DELETE FROM t4;
 DELETE FROM t2;
 DROP TABLE t5;
 ###################### TEST #11
+include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL debug="+d,fault_injection_openning_index";
 FLUSH LOGS;
 ERROR HY000: Can't open file: 'master-bin.index' (errno: 1)
@@ -204,6 +201,7 @@ INSERT INTO t2 VALUES ('aaaaa');
 DELETE FROM t4;
 DELETE FROM t2;
 DROP TABLE t5;
+include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 FLUSH LOGS;
@@ -217,6 +215,7 @@ INSERT INTO t2 VALUES ('aaaaa');
 DELETE FROM t4;
 DELETE FROM t2;
 DROP TABLE t5;
+include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL debug= @old_debug;
 DROP TABLE t1, t2, t4;
 RESET MASTER;
@@ -224,12 +223,7 @@ include/start_slave.inc
 #######################################################################
 ####################### PART 2: SLAVE TESTS ###########################
 #######################################################################
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
@@ -240,35 +234,45 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
 START SLAVE io_thread;
-Last_IO_Error = Relay log write failure: could not queue event from master
+include/wait_for_slave_io_error.inc [errno=1595]
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,error_unique_log_filename";
 SET GLOBAL debug=@old_debug;
+include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #14
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 START SLAVE io_thread;
-Last_IO_Error = Relay log write failure: could not queue event from master
+include/wait_for_slave_io_error.inc [errno=1595]
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 SET GLOBAL debug=@old_debug;
+include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #15
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
 START SLAVE io_thread;
-Last_IO_Error = Relay log write failure: could not queue event from master
+include/wait_for_slave_io_error.inc [errno=1595]
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SET GLOBAL debug=@old_debug;
+include/rpl_restart_server.inc [server_number=2]
 ###################### TEST #16
 SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";
 START SLAVE io_thread;
-Last_IO_Error = Relay log write failure: could not queue event from master
+include/wait_for_slave_io_error.inc [errno=1595]
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_openning_index";
 SET GLOBAL debug=@old_debug;
-include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+include/stop_slave_sql.inc
+Warnings:
+Note	1255	Slave already has been stopped
 SET GLOBAL debug=@old_debug;
 RESET SLAVE;
 RESET MASTER;
-include/start_slave.inc
+include/rpl_end.inc

@@ -38,3 +38,4 @@ connection master;
 USE test;
 DROP SCHEMA mysqlslap;
 sync_slave_with_master;
+--source include/rpl_end.inc

@@ -1,12 +1,8 @@
 # WL#5370 Keep forward-compatibility when changing 'CREATE TABLE IF NOT
 # EXISTS ... SELECT' behaviour
 #
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 
 CREATE TABLE t2(c1 INT, c2 char(10));
@@ -21,7 +17,7 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE  TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4 INT KEY)
 SELECT 'abc' AS c3, 1 AS c4
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # The statement should be binlogged as two events. one is 
 # 'CREATE  TABLE IF NOT EXISTS ..', another one is
@@ -44,7 +40,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 2
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Verify if it can be binlogged with right database name when the table
 # is not in the default database
@@ -68,7 +64,7 @@ master-bin.000001	#	Query	#	#	use `db1`; CREATE TABLE IF NOT EXISTS `test`.`t1` 
 )
 master-bin.000001	#	Query	#	#	use `db1`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 20
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:test.t1,slave:test.t1]
 USE test;
 DROP DATABASE db1;
 
@@ -91,7 +87,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; REPLACE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # It should be binlogged as 'INSERT IGNORE... SELECT'
 # if the original statement has option IGNORE 
@@ -112,7 +108,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 2
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Nothing should be binlogged if error happens and no any row is inserted
 
@@ -121,7 +117,7 @@ SELECT '123', 2;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Verify it can binlog well when there are some braces('(')
 
@@ -169,7 +165,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT IGNORE INTO `test`.`t1` (`c3`,`c4`) (SELECT '123', 3) UNION (SELECT '123', 4)
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Throw a warning that table already exists and don't insert anything
 
@@ -215,7 +211,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123',  NAME_CONST('a',600)
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 DROP PROCEDURE p1;
 
 # The statement can be binlogged correctly when it is in a prepared statement
@@ -251,7 +247,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT '123', 800
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # The statement can be binlogged correctly when it is in a conditional comment
 
@@ -362,7 +358,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE IF NOT EXISTS `t1` (
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SELECT 'abc', 905
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 DROP TABLE t2;
 DROP  TABLE t1;
 
@@ -702,3 +698,4 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`t1` (`c3`,`c4`) SE
 master-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE t2;
 DROP TEMPORARY TABLE t1;
+include/rpl_end.inc

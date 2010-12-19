@@ -308,3 +308,4 @@ DROP LOGFILE GROUP lg1 ENGINE=NDB;
 --sync_slave_with_master
 
 # End of 5.1 test case
+--source include/rpl_end.inc

@@ -228,3 +228,4 @@ sync_slave_with_master;
 --echo ###################################################################################
 SET @commands= 'clean';
 --source extra/rpl_tests/rpl_mixing_engines.inc
+--source include/rpl_end.inc

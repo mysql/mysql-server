@@ -1,21 +1,18 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 FLUSH LOGS;
 CREATE TABLE t1(c1 INT);
 FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
-Last_IO_Error
-Got fatal error 1236 from master when reading data from binary log: 'could not find next log'
+include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'could not find next log''
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t3(c1 INT);
 FLUSH LOGS;
 CREATE TABLE t4(c1 INT);
 START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_start.inc
 SHOW TABLES;
 Tables_in_test
 t1
@@ -23,3 +20,4 @@ t2
 t3
 t4
 DROP TABLE t1, t2, t3, t4;
+include/rpl_end.inc
