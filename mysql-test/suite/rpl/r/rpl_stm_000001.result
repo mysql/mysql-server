@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
@@ -52,8 +48,7 @@ select (@id := id) - id from t2;
 kill @id;
 drop table t2;
 Got one of the listed errors
-set global sql_slave_skip_counter=1;
-start slave;
+include/wait_for_slave_sql_error_and_skip.inc [errno=1053]
 select count(*) from t1;
 count(*)
 5000
@@ -81,3 +76,4 @@ select_priv	user
 Y	blafasel2
 drop table t1;
 delete from mysql.user where user="blafasel2";
+include/rpl_end.inc
