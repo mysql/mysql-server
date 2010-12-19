@@ -48,14 +48,7 @@ FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
 ENDFOREACH()
 
 IF(UNIX)
-  # XXX: again, used elsewhere (scripts/), should be standardised in
-  # XXX: install_layout.cmake
-  IF(INSTALL_LAYOUT MATCHES "STANDALONE")
-    SET(prefix ".")
-  ELSE()
-    SET(prefix ${CMAKE_INSTALL_PREFIX})
-  ENDIF()
- 
+  SET(prefix ${CMAKE_INSTALL_PREFIX})
   FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
     config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
