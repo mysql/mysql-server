@@ -7,3 +7,5 @@
 
 --let $engine=NDB
 --source extra/rpl_tests/rpl_implicit_commit_binlog.test
+
+--source include/rpl_end.inc

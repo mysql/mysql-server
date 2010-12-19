@@ -52,10 +52,12 @@ Variable_name	Slave_heartbeat_period
 Value	0.500
 start slave;
 create table t1 (f1 int);
+include/check_slave_param.inc [Relay_Log_File]
 show status like 'Slave_heartbeat_period';;
 Variable_name	Slave_heartbeat_period
 Value	0.500
 A heartbeat has been received by the slave
 drop table t1;
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
+include/stop_slave.inc
 End of tests
