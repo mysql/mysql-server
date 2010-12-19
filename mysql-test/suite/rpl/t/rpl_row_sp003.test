@@ -11,3 +11,4 @@
 -- source include/master-slave.inc
 let $engine_type=INNODB;
 -- source extra/rpl_tests/rpl_row_sp003.test
+--source include/rpl_end.inc
