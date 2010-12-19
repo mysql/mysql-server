@@ -1,9 +1,8 @@
 !include ../my.cnf
 
 [mysqld.3]
-server-id=3
-log-bin=slave-bin
+log-slave-updates
 
 [ENV]
-SLAVE_MYPORT1=		@mysqld.3.port
-SLAVE_MYSOCK1=		@mysqld.3.socket
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

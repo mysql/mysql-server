@@ -142,9 +142,10 @@ set @@global.debug="-d";
 # clean-up
 #
 
+# the sql thread has an error, so reset replication state
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
 connection master;
 drop table tm, ti;
-
-connection slave; # slave SQL thread is stopped
-source include/stop_slave.inc;
-drop table tm, ti;
+--sync_slave_with_master

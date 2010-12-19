@@ -1,60 +1,10 @@
-*** Set up circular ring by schema A->B->C->D->A *** 
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-STOP SLAVE;
-RESET SLAVE;
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-SET auto_increment_increment = 4;
-SET auto_increment_offset = 1;
-RESET MASTER;
-RESET SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
-SET auto_increment_increment = 4;
-SET auto_increment_offset = 2;
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
-SET auto_increment_increment = 4;
-SET auto_increment_offset = 3;
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_C_PORT,master_user='root',MASTER_LOG_FILE='MASTER_C_LOG_FILE';
-SET auto_increment_increment = 4;
-SET auto_increment_offset = 4;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_D_PORT,master_user='root',MASTER_LOG_FILE='MASTER_D_LOG_FILE';
-SHOW VARIABLES LIKE 'auto_increment_%';
-Variable_name	Value
-auto_increment_increment	4
-auto_increment_offset	1
-SHOW VARIABLES LIKE 'auto_increment_%';
-Variable_name	Value
-auto_increment_increment	4
-auto_increment_offset	2
-SHOW VARIABLES LIKE 'auto_increment_%';
-Variable_name	Value
-auto_increment_increment	4
-auto_increment_offset	3
-SHOW VARIABLES LIKE 'auto_increment_%';
-Variable_name	Value
-auto_increment_increment	4
-auto_increment_offset	4
-1
-START SLAVE;
-START SLAVE;
-START SLAVE;
-START SLAVE;
+*** Set up circular replication on four servers *** 
+include/rpl_init.inc [topology=1->2->3->4->1]
 
 *** Preparing data ***
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=MyISAM;
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
+include/rpl_sync.inc
 
 *** Testing schema A->B->C->D->A ***
 
@@ -62,6 +12,7 @@ INSERT INTO t1(b,c) VALUES('A',1);
 INSERT INTO t1(b,c) VALUES('B',1);
 INSERT INTO t1(b,c) VALUES('C',1);
 INSERT INTO t1(b,c) VALUES('D',1);
+include/rpl_sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 1 ORDER BY a,b;
 Master A	a	b
 Master A	1	A
@@ -95,6 +46,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(6,'C',2);
 INSERT INTO t1(b,c) VALUES('B',2);
+include/wait_for_slave_sql_error.inc [errno=1062]
 INSERT INTO t1(b,c) VALUES('A',2);
 INSERT INTO t1(b,c) VALUES('D',2);
 
@@ -116,9 +68,9 @@ Master D	a	b
 Master D	8	D
 
 * Reconfigure replication to schema A->B->D->A *
-STOP SLAVE;
-STOP SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;
+include/stop_slave_io.inc
+include/stop_slave.inc
+include/rpl_change_topology.inc [new topology=1->2->4->1,2->3]
 include/start_slave.inc
 
 * Check data inserted before failure *
@@ -145,6 +97,7 @@ Master D	8	D
 INSERT INTO t1(b,c) VALUES('A',3);
 INSERT INTO t1(b,c) VALUES('B',3);
 INSERT INTO t1(b,c) VALUES('D',3);
+include/rpl_sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 3 ORDER BY a,b;
 Master A	a	b
 Master A	9	A
@@ -171,8 +124,9 @@ DELETE FROM t1 WHERE a = 6;
 START SLAVE;
 RESET MASTER;
 RESET SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_C_PORT,master_user='root',master_log_file='LOG_FILE',master_log_pos=LOG_POS;
+include/rpl_change_topology.inc [new topology=1->2->3->4->1]
 START SLAVE;
+include/rpl_sync.inc
 
 * Check data inserted before restoring schema A->B->C->D->A *
 SELECT 'Master A',a,b FROM t1 WHERE c IN (2,3) ORDER BY a,b;
@@ -213,6 +167,7 @@ INSERT INTO t1(b,c) VALUES('A',4);
 INSERT INTO t1(b,c) VALUES('B',4);
 INSERT INTO t1(b,c) VALUES('C',4);
 INSERT INTO t1(b,c) VALUES('D',4);
+include/rpl_sync.inc
 SELECT 'Master A',a,b FROM t1 WHERE c = 4 ORDER BY a,b;
 Master A	a	b
 Master A	13	A
@@ -241,6 +196,7 @@ Master D	16	D
 * Transactions with commits *
 BEGIN;
 BEGIN;
+include/rpl_sync.inc
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
 Master A	b	COUNT(*)
 Master A	A	100
@@ -269,6 +225,7 @@ Master D	D	100
 * Transactions with rollbacks *
 BEGIN;
 BEGIN;
+include/rpl_sync.inc
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;
 Master A	b	COUNT(*)
 Master A	B	100
@@ -288,11 +245,4 @@ Master D	D	100
 
 *** Clean up ***
 DROP TABLE t1,t2;
-STOP SLAVE;
-RESET SLAVE;
-STOP SLAVE;
-RESET SLAVE;
-STOP SLAVE;
-RESET SLAVE;
-STOP SLAVE;
-RESET SLAVE;
+include/rpl_end.inc

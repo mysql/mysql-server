@@ -1,9 +1,14 @@
-
+# ==== Purpose ====
+#
 # This test calls CHANGE MASTER in order to check if replication can
 # restart from where SQL thread left, not from where I/O thread left.
 #  
-# File is used as repository.
+# This file tests the case when master_info is stored in a file.
 #
+# ==== See also ====
+#
+# rpl_change_master_crash_safe.test
 
 --source include/master-slave.inc
 --source extra/rpl_tests/rpl_change_master.test
+--source include/rpl_end.inc

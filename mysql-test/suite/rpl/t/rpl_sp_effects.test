@@ -261,3 +261,4 @@ SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creato
 sync_slave_with_master;
 
 --echo end of the tests
+--source include/rpl_end.inc

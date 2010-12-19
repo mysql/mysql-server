@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE DATABASE rewrite;
 CREATE DATABASE mydb;
 USE mydb;
@@ -38,3 +34,4 @@ slave-bin.000001	#	Query	#	#	use `rewrite`; INSERT INTO t2 VALUES (1)
 slave-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mydb;
 DROP DATABASE rewrite;
+include/rpl_end.inc

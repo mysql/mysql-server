@@ -2,12 +2,8 @@
 #
 # START SLAVE released the lock and returned before it cleared the error,
 # so there is a possibility that Slave_SQL_Error is not 0.
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 [on slave]
 CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
 # The statement makes SQL thread to fail.
@@ -15,12 +11,16 @@ CREATE TABLE t1(c1 INT);
 [on master]
 CREATE TABLE t1(c1 INT);
 [on slave]
+include/wait_for_slave_sql_error.inc [errno=1050]
 DROP TABLE t1;
 # Block SQL thread immediately after it starts.
 SET DEBUG_SYNC='after_start_slave WAIT_FOR signal.continue';
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 # Check Slave_SQL_Error, there should not be an error.
+include/check_slave_no_error.inc
 # Resume SQL thread
 SET DEBUG_SYNC="now SIGNAL signal.continue";
 [on master]
 DROP TABLE t1;
+include/rpl_end.inc
