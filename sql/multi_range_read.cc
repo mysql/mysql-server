@@ -377,20 +377,32 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
   DBUG_RETURN(0);
 }
 
-void Mrr_ordered_index_reader::set_temp_space(uchar *space)
+
+/*
+  Supply index reader with the O(1)space it needs for operation
+*/
+
+bool Mrr_ordered_index_reader::set_temp_space(uint rowid_length, uint key_len, 
+                                              uchar **space_start, uchar *space_end)
 {
-  //saved_key_tuple= space;
-  saved_rowid= space;
+  if (space_end - *space_start <= (ptrdiff_t)(rowid_length + key_len))
+    return TRUE;
+  saved_rowid= *space_start;
+  *space_start += rowid_length;
+  saved_key_tuple= *space_start;
+  *space_start += key_len;
+
   have_saved_rowid= FALSE;
+  return FALSE;
 }
 
 void Mrr_ordered_index_reader::interrupt_read()
 {
-  /*
+  /* Save the current key value */
   key_copy(saved_key_tuple, file->get_table()->record[0], 
            &file->get_table()->key_info[file->active_index],
            keypar.key_tuple_length);
-  */
+
   /* Save the last rowid */
   memcpy(saved_rowid, file->ref, file->ref_length);
   have_saved_rowid= TRUE;
@@ -406,11 +418,9 @@ void Mrr_ordered_index_reader::position()
 
 void Mrr_ordered_index_reader::resume_read()
 {
-  /*
   key_restore(file->get_table()->record[0], saved_key_tuple, 
               &file->get_table()->key_info[file->active_index],
               keypar.key_tuple_length);
-  */
 }
 
 
@@ -480,43 +490,7 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
   mrr_funcs= *seq_funcs;
   source_exhausted= FALSE;
-  /*
-    Short: don't do identical key handling when we have a pushed index
-    condition.
-
-    Long: In order to check pushed index condition, we need to have both 
-    index tuple table->record[0] and range_id.
-    
-    Key_value_records_iterator has special handling for case when we have
-    multiple (key_value, range_id) pairs with the same key_value. In that 
-    case it will make an index lookup only for the first such element, 
-    for subsequent elements it will only return the new range_id.
-
-    The problem here is that file->table->record[0] is shared with the part
-    that does full record retrieval with rnd_pos() calls, and if we have the
-    following scenario:
-
-     1. We scan ranges {(key_value, range_id1), (key_value, range_id2)}
-     2. Iterator makes a lookup with key_value, produces the (index_tuple,
-        range_id1) pair. Index tuple is read into table->record[0], which
-        allows us to check index condition.
-     3. At this point, we figure that key buffer is full, so we sort it,
-        and return control to Mrr_ordered_rndpos_reader.
-     3.1 Mrr_ordered_rndpos_reader gets rowids and makes rnd_pos() calls, which
-         puts some arbitrary data into table->record[0] in the process.
-     3.2 We ask the iterator for the next (rowid, range_id) pair. The iterator
-         puts in range_id2, and that shuld be sufficient (this is identical key
-         handling at work)
-         However, index tuple in table->record[0] has been destroyed and we 
-         can't check index conditon for (index_tuple, range_id2) now.
-
-    TODO: It is possible to support identical key handling and index condition
-    pushdown, working together (one possible solution is to save/restore the 
-    contents of table->record[0]). We will probably implement that.
-
-  */
-  disallow_identical_key_handling= test(mrr_funcs.skip_index_tuple);
-  /*bzero(saved_key_tuple, keypar.key_tuple_length);*/
+  bzero(saved_key_tuple, keypar.key_tuple_length);
   have_saved_rowid= FALSE;
   return 0;
 }
@@ -829,11 +803,11 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     /* Ordered index reader needs some space to store an index tuple */
     if (strategy != index_strategy)
     {
-      if (full_buf_end - full_buf <= (ptrdiff_t)primary_file->ref_length/*keypar.key_tuple_length*/)
+      if (reader_factory.ordered_index_reader.set_temp_space(primary_file->ref_length,
+                                                             keypar.key_tuple_length,
+                                                             &full_buf,
+                                                             full_buf_end))
         goto use_default_impl;
-      reader_factory.ordered_index_reader.set_temp_space(full_buf);
-      //full_buf += keypar.key_tuple_length;
-      full_buf += primary_file->ref_length;
     }
   }
 
@@ -1121,21 +1095,21 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
     (ulonglong2double(rowids_size) / 
      (ulonglong2double(rowids_size) + key_buff_elem_size));
 
-  size_t bytes_for_rowids= 
-    (size_t)round(fraction_for_rowids * (full_buf_end - full_buf));
+  ptrdiff_t bytes_for_rowids= 
+    (ptrdiff_t)round(fraction_for_rowids * (full_buf_end - full_buf));
   
-  long bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
+  ptrdiff_t bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
 
   if (bytes_for_keys < key_buff_elem_size + 1)
   {
-    long add= key_buff_elem_size + 1 - bytes_for_keys;
+    ptrdiff_t add= key_buff_elem_size + 1 - bytes_for_keys;
     bytes_for_keys= key_buff_elem_size + 1;
     bytes_for_rowids -= add;
   }
 
-  if (bytes_for_rowids < rowid_buf_elem_size + 1)
+  if (bytes_for_rowids < (ptrdiff_t)rowid_buf_elem_size + 1)
   {
-    long add= rowid_buf_elem_size + 1 - bytes_for_rowids;
+    ptrdiff_t add= rowid_buf_elem_size + 1 - bytes_for_rowids;
     bytes_for_rowids= rowid_buf_elem_size + 1;
     bytes_for_keys -= add;
   }
@@ -1217,8 +1191,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
   /* Check out how many more identical keys are following */
   while (!identical_key_it.read())
   {
-    if (owner->disallow_identical_key_handling ||
-        Mrr_ordered_index_reader::compare_keys(owner, key_in_buf, 
+    if (Mrr_ordered_index_reader::compare_keys(owner, key_in_buf, 
                                                identical_key_it.read_ptr1))
       break;
     last_identical_key_ptr= identical_key_it.read_ptr1;

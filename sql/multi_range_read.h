@@ -271,7 +271,8 @@ public:
             mrr_funcs.skip_index_tuple(mrr_iter, range_info));
   }
 
-  void set_temp_space(uchar *space);
+  bool set_temp_space(uint rowid_length, uint key_len,
+                      uchar **space_start, uchar *space_end);
   void interrupt_read();
   void resume_read();
   void position();
@@ -291,12 +292,6 @@ private:
   /* TRUE <=> need range association, buffers hold {rowid, range_id} pairs */
   bool is_mrr_assoc;
   
-  /*
-    TRUE <=> Don't do optimizations for identical key value (see comment in
-    Mrr_ordered_index_reader::init for details)
-  */
-  bool disallow_identical_key_handling;
-  
   /* Range sequence iteration members */
   RANGE_SEQ_IF mrr_funcs;
   range_seq_t mrr_iter;
@@ -314,6 +309,8 @@ private:
 
   /* TRUE <=> saved_rowid has the last saved rowid */
   bool have_saved_rowid;
+
+  uchar *saved_key_tuple;
 
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
   static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);
