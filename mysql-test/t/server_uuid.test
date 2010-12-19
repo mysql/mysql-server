@@ -37,7 +37,7 @@ SET GLOBAL SERVER_UUID= UUID();
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 if (`SELECT '$server_uuid' = '' OR '$server_uuid' = 'NULL'`)
 {
-  --echo server's UUID is null
+  --die server's UUID is null
 }
 
 --echo
@@ -55,7 +55,7 @@ EOF
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 if (`SELECT '$server_uuid' = '' OR '$server_uuid' = 'NULL'`)
 {
-  --echo server's UUID is null
+  --die server's UUID is null
 }
 
 --echo
@@ -71,4 +71,5 @@ if (`SELECT '$server_uuid' = '' OR '$server_uuid' = 'NULL'`)
 if ($server_uuid != $original_server_uuid)
 {
   --echo $server_uuid != $original_server_uuid
+  --die wrong server_uuid
 }

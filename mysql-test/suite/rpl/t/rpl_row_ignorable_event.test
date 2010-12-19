@@ -115,3 +115,4 @@ sync_slave_with_master;
 --echo # SHOW BINLOG EVENTS ON SLAVE
 source include/show_binlog_events.inc;
 
+--source include/rpl_end.inc

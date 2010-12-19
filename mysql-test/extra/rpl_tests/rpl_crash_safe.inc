@@ -87,9 +87,9 @@ if (`SELECT HEX(@commands) != HEX('')`)
     --error 0, 2013
     START SLAVE SQL_THREAD;
     --source include/wait_until_disconnected.inc
-    --enable_reconnect
     --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-    --source include/wait_until_connected_again.inc
+    --let $rpl_server_number= 2
+    --source include/rpl_reconnect.inc
     connection slave;
     --let $slave_before= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
     START SLAVE;

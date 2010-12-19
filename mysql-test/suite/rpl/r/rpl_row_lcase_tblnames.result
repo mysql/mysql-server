@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ******** [ MASTER ] ********
 CREATE DATABASE BUG_37656;
 use BUG_37656;
@@ -39,18 +35,14 @@ INSERT INTO BUG_37656.T1 VALUES (2);
 INSERT INTO BUG_37656.T2 VALUES (2);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE BUG_37656.T3;
 ******** [ SLAVE ] ********
-Comparing tables master:BUG_37656.T2 and slave:bug_37656.t2
-Comparing tables master:BUG_37656.T3 and slave:bug_37656.t3
+include/diff_tables.inc [master:BUG_37656.T2, slave:bug_37656.t2]
+include/diff_tables.inc [master:BUG_37656.T3, slave:bug_37656.t3]
 ******** [ MASTER ] ********
 DROP DATABASE BUG_37656;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE DATABASE B50653;
 USE B50653;
 CREATE PROCEDURE b50653_proc() BEGIN SELECT 1; END;
 DROP PROCEDURE b50653_proc;
 DROP DATABASE B50653;
+include/rpl_end.inc

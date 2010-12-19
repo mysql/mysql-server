@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 create table t1(n int);
 select * from t1;
@@ -11,6 +7,7 @@ n
 stop slave sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 include/stop_slave.inc
 change master to master_user='root';
 start slave;
@@ -19,29 +16,23 @@ n
 1
 2
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 create table t1 (a int);
 insert into t1 values (1);
 flush logs;
 insert into t1 values (2);
+include/diff_tables.inc [master:t1, slave:t1]
 include/stop_slave.inc
 delete from t1 where a=2;
 CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
 start slave sql_thread;
+include/wait_for_slave_sql_to_start.inc
+include/diff_tables.inc [master:t1, slave:t1]
 start slave io_thread;
+include/wait_for_slave_io_to_start.inc
 set global relay_log_purge=1;
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 Master_Retry_Count: 
 include/stop_slave.inc
 CHANGE MASTER TO master_retry_count=20;
@@ -62,8 +53,7 @@ current_retry_count
 RETRY_COUNT_EXPECTED
 CHANGE MASTER TO master_connect_retry= 2;
 CHANGE MASTER TO master_connect_retry= 1;
-### stop slave server
-### start slave server
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO master_retry_count=10;
@@ -74,41 +64,43 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 include/start_slave.inc
 include/stop_slave.inc
 CHANGE MASTER TO master_connect_retry= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500);
-### stop slave server
-### start slave server
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 Eexpected values: "100, 200, 300, 400, 500" == "100, 200, 300, 400, 500" or 200 == 200
+include/stop_slave.inc
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+include/start_slave.inc
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to master_host=<master_bind>, master_bind=<master_bind>;
 start slave;
+include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to  master_bind=<master_bind>;
 start slave;
+include/wait_for_slave_io_error.inc [errno=2003]
 got expected error 2003
 include/stop_slave.inc
 change master to master_bind='';
 start slave;
+include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to master_host=<master_bind>, master_bind=<master_bind>;
 start slave;
+include/wait_for_slave_to_start.inc
 drop table t1;
 include/stop_slave.inc
 create table t1(n int, b varchar(256));
 insert into t1 values(1, <master_bind>);
 change master to  master_bind=<master_bind>;
 start slave;
+include/wait_for_slave_to_start.inc
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_end.inc

@@ -1,17 +1,16 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 RESET SLAVE;
 CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_PORT,master_user='root';
 START SLAVE IO_THREAD;
+include/wait_for_slave_io_to_start.inc
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
 3	slave2	DEFAULT_PORT	1	SLAVE_UUID
 2		SLAVE_PORT	1	SLAVE_UUID
 STOP SLAVE IO_THREAD;
+include/wait_for_slave_io_to_stop.inc
 SHOW SLAVE HOSTS;
 Server_id	Host	Port	Master_id	Slave_UUID
 2		SLAVE_PORT	1	SLAVE_UUID
+include/rpl_end.inc

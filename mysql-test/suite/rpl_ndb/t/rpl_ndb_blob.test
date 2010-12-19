@@ -142,3 +142,4 @@ drop table t1;
 #let $VERSION=`select version()`;
 #--replace_result $VERSION VERSION
 #show binlog events;
+--source include/rpl_end.inc

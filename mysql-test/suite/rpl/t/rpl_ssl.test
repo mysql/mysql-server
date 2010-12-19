@@ -97,4 +97,14 @@ drop user replssl@localhost;
 drop table t1;
 sync_slave_with_master;
 
+--source include/stop_slave.inc
+CHANGE MASTER TO
+ master_user = 'root',
+ master_ssl = 0,
+ master_ssl_ca = '',
+ master_ssl_cert = '',
+ master_ssl_key = '';
+
 --echo End of 5.0 tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
