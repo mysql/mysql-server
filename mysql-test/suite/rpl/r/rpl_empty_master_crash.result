@@ -1,10 +1,7 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 load table t1 from master;
 ERROR 08S01: Error connecting to master: Master is not configured
 load table t1 from master;
 ERROR HY000: Error from master: 'Table 'test.t1' doesn't exist'
+include/rpl_end.inc

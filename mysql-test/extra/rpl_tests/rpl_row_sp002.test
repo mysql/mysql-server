@@ -1,9 +1,6 @@
 #############################################################################
 # This test is being created to test out the non deterministic items with   #
 # row based replication.                                                    #
-# Original Author: JBM                                                      #
-# Original Date: Aug/09/2005                                                #
-# Updated: Aug/29/2005                                                      #
 #############################################################################
 # Test: Contains two stored procedures test one that insert data into tables#
 #        and use the LAST_INSERTED_ID() on tables with FOREIGN KEY(a)       #
@@ -13,9 +10,6 @@
 #        the table depending on the CASE outcome. The test uses this SP in a#
 #        transaction first rolling back and then commiting,                 #
 #############################################################################
-# Mod Date: 08/22/2005                                                      #
-# TEST: Added test to include UPDATE CASCADE on table with FK per Trudy     #
-#############################################################################
 
 
 
@@ -23,18 +17,6 @@
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
-
-# Begin clean up test section
-connection master;
---disable_warnings
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP TABLE IF EXISTS test.t3;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
---enable_warnings
-# End of cleanup
 
 # Begin test section 1
 
@@ -71,9 +53,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select slave after p1 -- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -86,9 +66,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select slave after p2 -- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -136,9 +114,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 2 select Slave after p1 -- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -153,9 +129,7 @@ SELECT * FROM test.t2;
 
 let $message=< -- test 1 select Slave after p2 -- >;
 --source include/show_msg.inc
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t1;
 SELECT * FROM test.t2;
 
@@ -195,9 +169,7 @@ while ($n)
 
 ROLLBACK;
 select * from test.t3;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from test.t3;
 
 connection master;
@@ -216,9 +188,7 @@ while ($n)
 
 COMMIT;
 select * from test.t3;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from test.t3;
 
 connection master;
@@ -228,12 +198,12 @@ connection master;
 # First lets cleanup
 SET AUTOCOMMIT=1;
 SET FOREIGN_KEY_CHECKS=0;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-DROP TABLE IF EXISTS test.t3;
-sync_slave_with_master;
+DROP PROCEDURE test.p3;
+DROP PROCEDURE test.p1;
+DROP PROCEDURE test.p2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
 
 # End of 5.0 test case
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set @old_global_binlog_format = @@global.binlog_format;
 set @@global.binlog_format = row;
 CREATE SCHEMA IF NOT EXISTS mysqlslap;
@@ -60,3 +56,4 @@ a
 drop table t1;
 End of 5.0 tests
 set @@global.binlog_format = @old_global_binlog_format;
+include/rpl_end.inc

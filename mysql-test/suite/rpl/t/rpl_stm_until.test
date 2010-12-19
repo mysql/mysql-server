@@ -69,7 +69,7 @@ select * from t1;
 --let $slave_param_value= $master_log_pos_1
 --source include/check_slave_param.inc
 
-let $relay_log_file= slave-relay-bin.000004;
+let $relay_log_file= slave-relay-bin.000003;
 let $master_log_pos= $master_log_pos_2;
 source include/get_relay_log_pos.inc;
 # try replicate all up to and not including the second insert to t2;
@@ -192,10 +192,9 @@ sync_with_master;
 # to substitute the genuine one with a prepared on 4.1 server.
 #
 
---source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 
 connection master;
-drop table if exists t1; # there is create table t1 in bug47142_master-bin.000001
 flush logs;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/master-bin.000001
@@ -213,9 +212,7 @@ show tables /* t1 must exist */;
 
 drop table t1; # drop on slave only, master does not have t1. 
 stop slave;
-reset slave;
-
-connection master;
-reset master;
 
 # End of tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

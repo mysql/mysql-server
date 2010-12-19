@@ -42,8 +42,12 @@ connection master;
 
 drop table t1;
 
-connection slave;
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave_io.inc
+RESET SLAVE;
 
 drop table t1;
 
 call mtr.add_suppression("Slave: Error writing file 'UNKNOWN' .Errcode: 9. Error_code: 3");
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -66,3 +66,4 @@ drop database mysqltest_to;
 
 # End of 4.1 tests
 
+--source include/rpl_end.inc
