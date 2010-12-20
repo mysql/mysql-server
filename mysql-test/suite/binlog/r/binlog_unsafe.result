@@ -1,8 +1,8 @@
 ==== Setup tables ====
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE trigger_table (a CHAR(7));
+CREATE TABLE trigger_table (a TEXT);
 CREATE TABLE trigger_table2 (a INT);
 ==== Non-deterministic statements ====
 INSERT DELAYED INTO t1 VALUES (5);
@@ -28,7 +28,6 @@ Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 INSERT INTO t2 VALUES (@@hostname);
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from stored procedure ----
 CREATE PROCEDURE proc()
@@ -49,7 +48,6 @@ Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
-Warning	1265	Data truncated for column 'a' at row 6
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from stored function ----
 CREATE FUNCTION func()
@@ -74,7 +72,6 @@ Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
-Warning	1265	Data truncated for column 'a' at row 6
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from trigger ----
 CREATE TRIGGER trig
@@ -97,7 +94,6 @@ Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
-Warning	1265	Data truncated for column 'a' at row 6
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from prepared statement ----
@@ -128,7 +124,6 @@ Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 EXECUTE p7;
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
 Note	1592	Statement may not be safe to log in statement format.
 ---- Insert from nested call of triggers / functions / procedures ----
 CREATE PROCEDURE proc1()
@@ -165,7 +160,6 @@ Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
 Note	1592	Statement may not be safe to log in statement format.
-Warning	1265	Data truncated for column 'a' at row 6
 Note	1592	Statement may not be safe to log in statement format.
 ==== Variables that should *not* be unsafe ====
 INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
@@ -309,8 +303,6 @@ INSERT INTO t2 VALUES (@@global.init_slave);
 INSERT INTO t2 VALUES (@@hostname);
 END|
 INSERT INTO trigger_table VALUES ('bye.');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 6
 DROP FUNCTION fun_check_log_bin;
 DROP FUNCTION func6;
 DROP FUNCTION func7;
