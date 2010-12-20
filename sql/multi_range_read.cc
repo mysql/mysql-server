@@ -379,14 +379,19 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
 
 
 /*
-  Supply index reader with the O(1)space it needs for operation
+  Supply index reader with the O(1)space it needs for scan interrupt/restore
+  operation
 */
 
-bool Mrr_ordered_index_reader::set_temp_space(uint rowid_length, uint key_len, 
-                                              uchar **space_start, uchar *space_end)
+bool Mrr_ordered_index_reader::set_interruption_temp_buffer(uint rowid_length,
+                                                            uint key_len, 
+                                                            uchar **space_start,
+                                                            uchar *space_end)
 {
   if (space_end - *space_start <= (ptrdiff_t)(rowid_length + key_len))
     return TRUE;
+  support_scan_interruptions= TRUE; 
+  
   saved_rowid= *space_start;
   *space_start += rowid_length;
   saved_key_tuple= *space_start;
@@ -396,8 +401,16 @@ bool Mrr_ordered_index_reader::set_temp_space(uint rowid_length, uint key_len,
   return FALSE;
 }
 
+void Mrr_ordered_index_reader::set_no_interruption_temp_buffer()
+{
+  support_scan_interruptions= FALSE;
+  saved_key_tuple= saved_rowid= NULL; /* safety */
+  have_saved_rowid= FALSE;
+}
+
 void Mrr_ordered_index_reader::interrupt_read()
 {
+  DBUG_ASSERT(support_scan_interruptions);
   /* Save the current key value */
   key_copy(saved_key_tuple, file->get_table()->record[0], 
            &file->get_table()->key_info[file->active_index],
@@ -490,7 +503,8 @@ int Mrr_ordered_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc=    !test(mode & HA_MRR_NO_ASSOCIATION);
   mrr_funcs= *seq_funcs;
   source_exhausted= FALSE;
-  bzero(saved_key_tuple, keypar.key_tuple_length);
+  if (support_scan_interruptions)
+    bzero(saved_key_tuple, keypar.key_tuple_length);
   have_saved_rowid= FALSE;
   return 0;
 }
@@ -734,7 +748,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   Mrr_ordered_rndpos_reader *disk_strategy= NULL;
   bool do_sort_keys= FALSE;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-
+  LINT_INIT(key_buff_elem_size); /* set/used when do_sort_keys==TRUE */
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
@@ -803,12 +817,14 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     /* Ordered index reader needs some space to store an index tuple */
     if (strategy != index_strategy)
     {
-      if (reader_factory.ordered_index_reader.set_temp_space(primary_file->ref_length,
-                                                             keypar.key_tuple_length,
-                                                             &full_buf,
-                                                             full_buf_end))
+      if (reader_factory.ordered_index_reader.
+            set_interruption_temp_buffer(primary_file->ref_length,
+                                         keypar.key_tuple_length,
+                                         &full_buf, full_buf_end))
         goto use_default_impl;
     }
+    else
+      reader_factory.ordered_index_reader.set_no_interruption_temp_buffer();
   }
 
   if (strategy == index_strategy)

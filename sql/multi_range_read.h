@@ -270,9 +270,11 @@ public:
     return (mrr_funcs.skip_index_tuple &&
             mrr_funcs.skip_index_tuple(mrr_iter, range_info));
   }
+  
+  bool set_interruption_temp_buffer(uint rowid_length, uint key_len,
+                                    uchar **space_start, uchar *space_end);
+  void set_no_interruption_temp_buffer();
 
-  bool set_temp_space(uint rowid_length, uint key_len,
-                      uchar **space_start, uchar *space_end);
   void interrupt_read();
   void resume_read();
   void position();
@@ -299,6 +301,7 @@ private:
   /* TRUE == reached eof when enumerating ranges */
   bool source_exhausted;
   
+  bool support_scan_interruptions;
   /* 
     Space where we save the rowid of the last record we've returned. This is
     needed for the cases where index scan is interrupted by some other activity
