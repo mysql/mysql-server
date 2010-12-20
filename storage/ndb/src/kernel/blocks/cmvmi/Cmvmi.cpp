@@ -675,17 +675,6 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  Uint64 page_buffer = 64*1024*1024;
-  ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY, &page_buffer);
-  
-  Uint32 pages = 0;
-  pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
-  Uint32 restore_instances = 1;
-  if (isNdbMtLqh())
-    restore_instances = getLqhWorkers();
-  pages += LCP_RESTORE_BUFFER * restore_instances;
-  m_global_page_pool.setSize(pages + 64, true);
-
   {
     void* ptr = m_ctx.m_mm.get_memroot();
     m_shared_page_pool.set((GlobalPage*)ptr, ~0);
@@ -743,11 +732,42 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
     return;
   }
 
+  init_global_page_pool();
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
+}
+
+void
+Cmvmi::init_global_page_pool()
+{
+  /**
+   * This subroutine takes page from m_shared_page_pool and
+   *   moves them into m_global_page_pool
+   *   (that is currently used by pgman(dbtup) and restore
+   */
+  void* ptr = m_ctx.m_mm.get_memroot();
+  m_global_page_pool.set((GlobalPage*)ptr, ~0);
+
+  Resource_limit rl;
+  ndbrequire(m_ctx.m_mm.get_resource_limit(RG_DISK_PAGE_BUFFER, rl));
+  while (rl.m_max)
+  {
+    Uint32 ptrI;
+    Uint32 cnt = rl.m_max;
+    m_ctx.m_mm.alloc_pages(RG_DISK_PAGE_BUFFER, &ptrI, &cnt, 1);
+    ndbrequire(cnt);
+    for (Uint32 i = 0; i<cnt; i++)
+    {
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, ptrI + i);
+      m_global_page_pool.release(pagePtr);
+    }
+    rl.m_max -= cnt;
+  }
 }
 
 void Cmvmi::execSTTOR(Signal* signal)
@@ -1890,6 +1910,9 @@ Cmvmi::execALLOC_MEM_CONF(Signal* signal)
   if (conf->senderData == 0)
   {
     jam();
+
+    init_global_page_pool();
+
     ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = f_read_config_data;

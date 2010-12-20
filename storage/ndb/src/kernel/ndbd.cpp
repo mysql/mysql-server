@@ -145,7 +145,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     Uint32 accpages = compute_acc_32kpages(p);
     tupmem += accpages; // Add to RG_DATAMEM
   }
-  
+
+  Uint32 lqhInstances = 1;
+  if (globalData.isNdbMtLqh)
+  {
+    lqhInstances = globalData.ndbMtLqhWorkers;
+  }
+
   if (tupmem)
   {
     Resource_limit rl;
@@ -176,16 +182,10 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         redomem += (16 - tmp);
       }
 
-      Uint32 lqhInstances = 1;
-      if (globalData.isNdbMtLqh)
-      {
-        lqhInstances = globalData.ndbMtLqhWorkers;
-      }
-      
       filepages += lqhInstances * redomem; // Add to RG_FILE_BUFFERS
     }
   }
-  
+
   if (filepages)
   {
     Resource_limit rl;
@@ -217,7 +217,31 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages;
+  Uint32 pgman_pages = 0;
+  {
+    /**
+     * Disk page buffer memory
+     */
+    Uint64 page_buffer = 64*1024*1024;
+    ndb_mgm_get_int64_parameter(p, CFG_DB_DISK_PAGE_BUFFER_MEMORY,&page_buffer);
+
+    Uint32 pages = 0;
+    pages += Uint32(page_buffer / GLOBAL_PAGE_SIZE); // in pages
+    pages += LCP_RESTORE_BUFFER * lqhInstances;
+
+    pgman_pages += pages;
+    pgman_pages += 64;
+
+    Resource_limit rl;
+    rl.m_min = pgman_pages;
+    rl.m_max = pgman_pages;
+    rl.m_resource_id = RG_DISK_PAGE_BUFFER;  // Add to RG_DISK_PAGE_BUFFER
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
+    pgman_pages;
+
   if (sum)
   {
     Resource_limit rl;
