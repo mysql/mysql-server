@@ -1251,9 +1251,9 @@ Remark:   First send all prepared operations and then check if there are any
 void	
 Ndb::sendPreparedTransactions(int forceSend)
 {
-  theImpl->m_transporter_facade->lock_mutex();
+  theImpl->lock();
   sendPrepTrans(forceSend);
-  theImpl->m_transporter_facade->unlock_mutex();
+  theImpl->unlock();
   return;
 }//Ndb::sendPreparedTransactions()
 
