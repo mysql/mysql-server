@@ -465,6 +465,8 @@ ulonglong slave_type_conversions_options;
 ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
+ulong binlog_stmt_cache_size=0;
+ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -476,6 +478,7 @@ ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
 ulong delayed_insert_errors,flush_time;
 ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
+ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 /**
   Limit of the total number of prepared statements in the server.
@@ -1136,7 +1139,7 @@ static void close_connections(void)
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
                            tmp->main_security_ctx.user : ""));
-      close_connection(tmp,0,0);
+      close_connection(tmp);
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
@@ -1504,6 +1507,13 @@ void clean_up(bool print_message)
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
+
+  my_free(const_cast<char*>(log_bin_basename));
+  my_free(const_cast<char*>(log_bin_index));
+#ifndef EMBEDDED_LIBRARY
+  my_free(const_cast<char*>(relay_log_basename));
+  my_free(const_cast<char*>(relay_log_index));
+#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1958,38 +1968,28 @@ static void network_init(void)
 /**
   Close a connection.
 
-  @param thd		Thread handle
-  @param errcode	Error code to print to console
-  @param lock	        1 if we have have to lock LOCK_thread_count
+  @param thd        Thread handle.
+  @param sql_errno  The error code to send before disconnect.
 
   @note
     For the connection that is doing shutdown, this is called twice
 */
-void close_connection(THD *thd, uint errcode, bool lock)
+void close_connection(THD *thd, uint sql_errno)
 {
-  st_vio *vio;
   DBUG_ENTER("close_connection");
-  DBUG_PRINT("enter",("fd: %s  error: '%s'",
-		      thd->net.vio ? vio_description(thd->net.vio) :
-		      "(not connected)",
-		      errcode ? ER_DEFAULT(errcode) : ""));
-  if (lock)
-    mysql_mutex_lock(&LOCK_thread_count);
-  thd->killed= THD::KILL_CONNECTION;
-  if ((vio= thd->net.vio) != 0)
-  {
-    if (errcode)
-      net_send_error(thd, errcode,
-                     ER_DEFAULT(errcode), NULL); /* purecov: inspected */
-    vio_close(vio);			/* vio is freed in delete thd */
-  }
-  if (lock)
-    mysql_mutex_unlock(&LOCK_thread_count);
-  MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
+
+  if (sql_errno)
+    net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
+
+  thd->disconnect();
+
+  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
+
   if (MYSQL_CONNECTION_DONE_ENABLED())
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -2744,7 +2744,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
-        bool not_used;
+        int not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
@@ -4741,6 +4741,7 @@ int mysqld_main(int argc, char **argv)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
+  check_binlog_stmt_cache_size(NULL);
 
   binlog_unsafe_map_init();
   /*
@@ -5189,8 +5190,8 @@ void create_thread_to_handle_connection(THD *thd)
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
+      close_connection(thd);
       mysql_mutex_lock(&LOCK_thread_count);
-      close_connection(thd,0,0);
       delete thd;
       mysql_mutex_unlock(&LOCK_thread_count);
       return;
@@ -5231,7 +5232,7 @@ static void create_new_thread(THD *thd)
     mysql_mutex_unlock(&LOCK_connection_count);
 
     DBUG_PRINT("error",("Too many connections"));
-    close_connection(thd, ER_CON_COUNT_ERROR, 1);
+    close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
     DBUG_VOID_RETURN;
   }
@@ -5612,7 +5613,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+      close_connection(thd, ER_OUT_OF_RESOURCES);
       delete thd;
       continue;
     }
@@ -5807,7 +5808,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
                                                    event_conn_closed)) ||
                         my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+      close_connection(thd, ER_OUT_OF_RESOURCES);
       errmsg= 0;
       goto errorconn;
     }
@@ -6642,6 +6643,8 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &aborted_connects,       SHOW_LONG},
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,  SHOW_LONG},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,       SHOW_LONG},
+  {"Binlog_stmt_cache_disk_use",(char*) &binlog_stmt_cache_disk_use,  SHOW_LONG},
+  {"Binlog_stmt_cache_use",    (char*) &binlog_stmt_cache_use,       SHOW_LONG},
   {"Bytes_received",           (char*) offsetof(STATUS_VAR, bytes_received), SHOW_LONGLONG_STATUS},
   {"Bytes_sent",               (char*) offsetof(STATUS_VAR, bytes_sent), SHOW_LONGLONG_STATUS},
   {"Com",                      (char*) com_status_vars, SHOW_ARRAY},
