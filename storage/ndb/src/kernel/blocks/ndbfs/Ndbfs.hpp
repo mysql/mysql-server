@@ -61,14 +61,16 @@ protected:
   void execBUILD_INDX_IMPL_REQ(Signal* signal);
   void execFSSUSPENDORD(Signal*);
 
-  bool scanningInProgress;
   Uint16 newId();
 
 private:
   int forward(AsyncFile *file, Request* Request);
   void report(Request* request, Signal* signal);
+protected:
   bool scanIPC(Signal* signal);
+  bool scanningInProgress;
 
+private:
   // Declared but not defined
   Ndbfs(Ndbfs & );
   void operator = (Ndbfs &);
