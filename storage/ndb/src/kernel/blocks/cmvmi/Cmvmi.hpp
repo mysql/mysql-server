@@ -151,6 +151,8 @@ private:
   void execSYNC_REF(Signal*);
   void execSYNC_CONF(Signal*);
   void sendSYNC_REP(Signal * signal, Ptr<SyncRecord> ptr);
+
+  void init_global_page_pool();
 };
 
 #endif
