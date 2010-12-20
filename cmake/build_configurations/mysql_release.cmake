@@ -117,19 +117,26 @@ IF(UNIX)
 
   OPTION(WITH_PIC "" ON) # Why?
 
-  # Ensure aio is available on Linux (required by InnoDB)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
-    CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-    IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
-      MESSAGE(FATAL_ERROR "
-      aio is required on Linux, you need to install the required library:
+    IF(NOT IGNORE_AIO_CHECK)
+      # Ensure aio is available on Linux (required by InnoDB)
+      CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
+      CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
+      IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
+        MESSAGE(FATAL_ERROR "
+        aio is required on Linux, you need to install the required library:
 
-        Debian/Ubuntu:              apt-get install libaio-dev
-        RedHat/Fedora/Oracle Linux: yum install libaio-devel
-        SuSE:                       zypper install libaio-devel
-       ")
+          Debian/Ubuntu:              apt-get install libaio-dev
+          RedHat/Fedora/Oracle Linux: yum install libaio-devel
+          SuSE:                       zypper install libaio-devel
+
+        If you really do not want it, pass -DIGNORE_AIO_CHECK to cmake.
+        ")
+      ENDIF()
     ENDIF()
+
+    # Enable fast mutexes on Linux
+    OPTION(WITH_FAST_MUTEXES "" ON)
   ENDIF()
 
 ENDIF()

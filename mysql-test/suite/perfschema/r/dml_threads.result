@@ -1,10 +1,7 @@
 select * from performance_schema.threads
 where name like 'Thread/%' limit 1;
-THREAD_ID	PROCESSLIST_ID	NAME
-#	#	#
 select * from performance_schema.threads
 where name='FOO';
-THREAD_ID	PROCESSLIST_ID	NAME
 insert into performance_schema.threads
 set name='FOO', thread_id=1, processlist_id=2;
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'threads'

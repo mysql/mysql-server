@@ -2,7 +2,7 @@
 # that varies depending on where the test is executed.
 
 --let $_items=$status_items
-if (`SELECT "XX$status_items" = "XX"`)
+if (!$status_items)
 {
   --die 'Variable status_items is NULL' 
 }
