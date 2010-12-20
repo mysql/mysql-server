@@ -217,11 +217,12 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  if (shared_pages + tupmem + filepages + jbpages + sbpages)
+  Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages;
+  if (sum)
   {
     Resource_limit rl;
     rl.m_min = 0;
-    rl.m_max = shared_pages + tupmem + filepages + jbpages + sbpages;
+    rl.m_max = sum;
     rl.m_resource_id = 0;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -241,6 +242,26 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
                          Uint64(shared_mem + tupmem) * GLOBAL_PAGE_SIZE,
                          dm.m_name, sga.m_name);
     return -1;
+  }
+
+  Uint32 late_alloc = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_LATE_ALLOC,
+                            &late_alloc);
+
+  Uint32 memlock = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MEMLOCK, &memlock);
+
+  if (late_alloc)
+  {
+    /**
+     * Only map these groups that are required for ndb to even "start"
+     */
+    Uint32 rg[] = { RG_JOBBUFFER, RG_FILE_BUFFERS, RG_TRANSPORTER_BUFFERS, 0 };
+    ed.m_mem_manager->map(watchCounter, memlock, rg);
+  }
+  else
+  {
+    ed.m_mem_manager->map(watchCounter, memlock); // Map all
   }
 
   return 0;                     // Success

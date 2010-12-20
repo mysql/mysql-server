@@ -43,6 +43,8 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
+#include <signaldata/AllocMem.hpp>
+#include <signaldata/NodeStateSignalData.hpp>
 
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
@@ -119,6 +121,9 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_SYNC_REQ, &Cmvmi::execSYNC_REQ, true);
   addRecSignal(GSN_SYNC_REF, &Cmvmi::execSYNC_REF);
   addRecSignal(GSN_SYNC_CONF, &Cmvmi::execSYNC_CONF);
+
+  addRecSignal(GSN_ALLOC_MEM_REF, &Cmvmi::execALLOC_MEM_REF);
+  addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
 
   subscriberPool.setSize(5);
   c_syncReqPool.setSize(5);
@@ -653,6 +658,9 @@ void Cmvmi::sendSTTORRY(Signal* signal)
 static Uint32 f_accpages = 0;
 extern Uint32 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p);
 
+static Uint32 f_read_config_ref = 0;
+static Uint32 f_read_config_data = 0;
+
 void 
 Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -689,15 +697,57 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
   m_saved_event_buffer.init(eventlog);
 
+  c_memusage_report_frequency = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY,
+                            &c_memusage_report_frequency);
+
+  Uint32 late_alloc = 1;
+  ndb_mgm_get_int_parameter(p, CFG_DB_LATE_ALLOC,
+                            &late_alloc);
+  if (late_alloc)
+  {
+    jam();
+    f_read_config_ref = ref;
+    f_read_config_data = senderData;
+
+
+    AllocMemReq * req = CAST_PTR(AllocMemReq, signal->getDataPtrSend());
+    req->senderData = 0;
+    req->senderRef = reference();
+    req->requestInfo = AllocMemReq::RT_MAP;
+    if (m_ctx.m_config.lockPagesInMainMemory())
+    {
+      req->requestInfo |= AllocMemReq::RT_MEMLOCK;
+    }
+
+    req->bytes_hi = 0;
+    req->bytes_lo = 0;
+    sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
+               AllocMemReq::SignalLength, JBB);
+
+    /**
+     * Assume this takes time...
+     *   Set sp0 complete (even though it hasn't) but it makes
+     *   ndb_mgm -e "show" show starting instead of not-started
+     */
+    {
+      NodeStateRep * rep = CAST_PTR(NodeStateRep, signal->getDataPtrSend());
+      NodeState newState(NodeState::SL_STARTING, 0,
+                         NodeState::ST_ILLEGAL_TYPE);
+      rep->nodeState = newState;
+      rep->nodeState.masterNodeId = 0;
+      rep->nodeState.setNodeGroup(0);
+      sendSignal(QMGR_REF, GSN_NODE_STATE_REP, signal,
+                 NodeStateRep::SignalLength, JBB);
+    }
+    return;
+  }
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
   sendSignal(ref, GSN_READ_CONFIG_CONF, signal, 
 	     ReadConfigConf::SignalLength, JBB);
-
-  c_memusage_report_frequency = 0;
-  ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY, 
-                            &c_memusage_report_frequency);
 }
 
 void Cmvmi::execSTTOR(Signal* signal)
@@ -708,7 +758,7 @@ void Cmvmi::execSTTOR(Signal* signal)
   if (theStartPhase == 1){
     jam();
 
-    if(m_ctx.m_config.lockPagesInMainMemory() == 1)
+    if (m_ctx.m_config.lockPagesInMainMemory())
     {
       jam();
       /**
@@ -716,7 +766,7 @@ void Cmvmi::execSTTOR(Signal* signal)
        *   which can be equally "heavy" as allocating it
        */
       refresh_watch_dog(9);
-      int res = NdbMem_MemLockAll(0);
+      int res = NdbMem_MemLockAll(1);
       if (res != 0)
       {
         char buf[100];
@@ -725,6 +775,10 @@ void Cmvmi::execSTTOR(Signal* signal)
                              errno, strerror(errno));
         g_eventLogger->warning("%s", buf);
         warningEvent("%s", buf);
+      }
+      else
+      {
+        g_eventLogger->info("Using locked memory");
       }
     }
     
@@ -1183,24 +1237,6 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   if(globalData.theStartLevel == NodeState::SL_CMVMI)
   {
     jam();
-
-    if(m_ctx.m_config.lockPagesInMainMemory() == 2)
-    {
-      int res = NdbMem_MemLockAll(1);
-      if(res != 0)
-      {
-        char buf[100];
-        BaseString::snprintf(buf, sizeof(buf),
-                             "Failed to memlock pages, error: %d (%s)",
-                             errno, strerror(errno));
-        g_eventLogger->warning("%s", buf);
-        warningEvent("%s", buf);
-      }
-      else
-      {
-        g_eventLogger->info("Locked future allocations");
-      }
-    }
     
     globalData.theStartLevel  = NodeState::SL_STARTING;
     globalData.theRestartFlag = system_started;
@@ -1812,8 +1848,56 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       sendSignalWithDelay(reference(), GSN_NDB_TAMPER, signal, delay, 1);
     }
   }
+
+  if (signal->theData[0] == 666)
+  {
+    jam();
+    Uint32 mb = 100;
+    if (signal->getLength() > 1)
+      mb = signal->theData[1];
+
+    Uint64 bytes = Uint64(mb) * 1024 * 1024;
+    AllocMemReq * req = CAST_PTR(AllocMemReq, signal->getDataPtrSend());
+    req->senderData = 666;
+    req->senderRef = reference();
+    req->requestInfo = AllocMemReq::RT_EXTEND;
+    req->bytes_hi = Uint32(bytes >> 32);
+    req->bytes_lo = Uint32(bytes);
+    sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
+               AllocMemReq::SignalLength, JBB);
+  }
 }//Cmvmi::execDUMP_STATE_ORD()
 
+void
+Cmvmi::execALLOC_MEM_REF(Signal* signal)
+{
+  jamEntry();
+  const AllocMemRef * ref = CAST_CONSTPTR(AllocMemRef, signal->getDataPtr());
+
+  if (ref->senderData == 0)
+  {
+    jam();
+    ndbrequire(false);
+  }
+}
+
+void
+Cmvmi::execALLOC_MEM_CONF(Signal* signal)
+{
+  jamEntry();
+  const AllocMemConf * conf = CAST_CONSTPTR(AllocMemConf, signal->getDataPtr());
+
+  if (conf->senderData == 0)
+  {
+    jam();
+    ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = f_read_config_data;
+    sendSignal(f_read_config_ref, GSN_READ_CONFIG_CONF, signal,
+               ReadConfigConf::SignalLength, JBB);
+    return;
+  }
+}
 
 void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
 {

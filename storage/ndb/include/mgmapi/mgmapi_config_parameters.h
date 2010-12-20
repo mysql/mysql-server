@@ -178,6 +178,7 @@
 
 #define CFG_DB_EVENTLOG_BUFFER_SIZE   613
 #define CFG_DB_NUMA                   614
+#define CFG_DB_LATE_ALLOC             615
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
