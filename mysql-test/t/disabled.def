@@ -21,4 +21,3 @@ read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
 sum_distinct-big         : Bug#56927 2010-11-15 mattiasj was not tested
 alter_table-big          : Bug#37248 2010-11-15 mattiasj was not tested
 create-big               : Bug#37248 2010-11-15 mattiasj was not tested
-events_restart           : Bug#58258 2010-11-17 VasilDimov Valgrind: possibly lost from ib_bh_create()

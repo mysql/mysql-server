@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -155,6 +151,7 @@ SET @failures= 'd,crash_after_apply d,crash_before_update_pos d,crash_after_upda
 
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -173,12 +170,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -201,12 +201,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -235,12 +238,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -275,12 +281,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -319,12 +328,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-func C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -369,12 +381,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-proc C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -421,12 +436,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -465,12 +483,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-func T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -515,12 +536,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-proc T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_apply";;
 FAILURE d,crash_after_apply and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -567,12 +591,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -591,12 +618,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -619,12 +649,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -653,12 +686,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -693,12 +729,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -737,12 +776,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-func C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -787,12 +829,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-proc C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -839,12 +884,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -883,12 +931,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-func T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -933,12 +984,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-proc T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_before_update_pos";;
 FAILURE d,crash_before_update_pos and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -985,12 +1039,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1009,12 +1066,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-trig';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1037,12 +1097,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-func';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1071,12 +1134,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'T-proc';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1111,12 +1177,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-trig C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1155,12 +1224,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-trig C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-func C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1205,12 +1277,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-func C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T T-proc C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1257,12 +1332,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T T-proc C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-trig T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1301,12 +1379,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-trig T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-func T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1351,12 +1432,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-func T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'B T-proc T C';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_update_pos_before_apply";;
 FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1403,7 +1487,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> B T-proc T C << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 ###################################################################################
 #                      EXECUTE CASES CRASHING THE BEGIN/COMMIT
 ###################################################################################
@@ -1413,6 +1499,7 @@ SET @failures= 'd,crash_after_commit_and_update_pos';
 
 SET @commands= 'N';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1431,12 +1518,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'N-trig';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1459,12 +1549,15 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 
 
 
 SET @commands= 'N-func';
 STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL debug="d,crash_after_commit_and_update_pos";;
 FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
@@ -1493,7 +1586,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 
+include/rpl_reconnect.inc
 START SLAVE;
+include/wait_for_slave_to_start.inc
 ###################################################################################
 #                               CHECK CONSISTENCY
 ###################################################################################
@@ -1518,3 +1613,4 @@ DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
 SET @commands= '';
+include/rpl_end.inc

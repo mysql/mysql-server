@@ -2043,7 +2043,8 @@ Item_allany_subselect::select_transformer(JOIN *join)
   exec_method= EXEC_EXISTS;
   if (upper_item)
     upper_item->show= 1;
-  DBUG_RETURN(select_in_like_transformer(join, func));
+  trans_res retval= select_in_like_transformer(join, func);
+  DBUG_RETURN(retval);
 }
 
 

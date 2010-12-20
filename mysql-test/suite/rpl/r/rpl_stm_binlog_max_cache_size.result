@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
 SET GLOBAL max_binlog_cache_size = 4096;
@@ -24,14 +20,11 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 Got one of the listed errors
 *** Single statement on non-transactional table ***
 Got one of the listed errors
---source include/wait_for_slave_sql_error_and_skip.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
 *** Single statement on both transactional and non-transactional tables. ***
 Got one of the listed errors
---source include/wait_for_slave_sql_error_and_skip.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                             2 - BEGIN - IMPLICIT COMMIT by DDL
 ########################################################################################
@@ -48,7 +41,7 @@ Got one of the listed errors
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                     3 - BEGIN - COMMIT
 ########################################################################################
@@ -60,7 +53,7 @@ Got one of the listed errors
 Got one of the listed errors
 Got one of the listed errors
 COMMIT;
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                      4 - BEGIN - ROLLBACK
 ########################################################################################
@@ -74,7 +67,7 @@ Got one of the listed errors
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                         5 - PROCEDURE 
 ########################################################################################
@@ -98,7 +91,7 @@ TRUNCATE TABLE t1;
 BEGIN;
 Got one of the listed errors
 ROLLBACK;
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                           6 - XID
 ########################################################################################
@@ -113,7 +106,7 @@ ROLLBACK TO sv;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 COMMIT;
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################################
 #                                        7 - NON-TRANS TABLE
 ########################################################################################
@@ -128,7 +121,7 @@ COMMIT;
 BEGIN;
 Got one of the listed errors
 COMMIT;
-source include/diff_master_slave.inc;
+include/diff_tables.inc [master:t1,slave:t1]
 ########################################################################
 #      8 - Bug#55375(Regression Bug) Transaction bigger than
 #          max_binlog_cache_size crashes slave
@@ -155,6 +148,7 @@ SET GLOBAL binlog_stmt_cache_size= ORIGINAL_VALUE;
 BEGIN;
 Repeat statement 'INSERT INTO t1 VALUES($n, repeat("a", 32))' 128 times
 COMMIT;
+include/wait_for_slave_sql_error.inc [errno=1197]
 SELECT count(*) FROM t1;
 count(*)
 0
@@ -206,8 +200,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
-Warnings:
-Note	1051	Unknown table 'test.t6'
+DROP TABLE t5;
 DROP PROCEDURE p1;
+include/rpl_end.inc

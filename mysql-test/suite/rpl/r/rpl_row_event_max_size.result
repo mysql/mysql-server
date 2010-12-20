@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
 data2 LONGBLOB, PRIMARY KEY(a));
 INSERT INTO t1 (data1, data2) VALUES (repeat('a',1000000), repeat('a', 1000000));
@@ -65,4 +61,11 @@ drop table t1;
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 drop table t1;
-Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
+include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master''
+==== clean up ====
+include/stop_slave_sql.inc
+Warnings:
+Note	1255	Slave already has been stopped
+RESET SLAVE;
+include/rpl_end.inc

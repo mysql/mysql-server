@@ -107,3 +107,4 @@ DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
 sync_slave_with_master;
+--source include/rpl_end.inc

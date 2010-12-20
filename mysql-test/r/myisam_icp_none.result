@@ -586,4 +586,13 @@ FROM t3));
 i1
 2
 DROP TABLE t1,t2,t3;
+#
+# Bug#58015 "Assert in row_sel_field_store_in_mysql_format
+#            when running innodb_mrr_icp test"
+#
+create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
+insert into t1 values ('',1);
+select 1 from t1 where b <= 1 and a <> '';
+1
+drop table t1;
 set optimizer_switch=default;

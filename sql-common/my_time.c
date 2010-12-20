@@ -1127,7 +1127,12 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     nr= (nr+19000000L)*1000000L;                 /* YYMMDD, year: 1970-1999 */
     goto ok;
   }
-  if (nr < 10000101L)
+  /*
+    Though officially we support DATE values from 1000-01-01 only, one can
+    easily insert a value like 1-1-1. So, for consistency reasons such dates
+    are allowed when TIME_FUZZY_DATE is set.
+  */
+  if (nr < 10000101L && !(flags & TIME_FUZZY_DATE))
     goto err;
   if (nr <= 99991231L)
   {

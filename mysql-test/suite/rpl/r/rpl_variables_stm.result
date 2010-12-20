@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 ==== Initialization ====
 [on master]
@@ -488,15 +484,7 @@ id	num	text
 56	NULL	47124712
 57	NULL	1616
 58	NULL	1717
-Comparing tables master:test.tstmt and master:test.tproc
-Comparing tables master:test.tstmt and master:test.tfunc
-Comparing tables master:test.tstmt and master:test.ttrig
-Comparing tables master:test.tstmt and master:test.tprep
-Comparing tables master:test.tstmt and slave:test.tstmt
-Comparing tables master:test.tstmt and slave:test.tproc
-Comparing tables master:test.tstmt and slave:test.tfunc
-Comparing tables master:test.tstmt and slave:test.ttrig
-Comparing tables master:test.tstmt and slave:test.tprep
+include/diff_tables.inc [master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep, slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep]
 ==== Clean up ====
 [on master]
 DROP PROCEDURE proc;
@@ -520,3 +508,4 @@ SET @@global.collation_server=         @s_collation_server;
 SET @@global.time_zone=                @s_time_zone;
 SET @@global.lc_time_names=            @s_lc_time_names;
 SET @@global.collation_database=       @s_collation_database;
+include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET SQL_LOG_BIN=0;
 CREATE DATABASE B37656;
 SET SQL_LOG_BIN=1;
@@ -25,7 +21,7 @@ SHOW TABLES;
 Tables_in_bug37656
 t1
 ### assertion: master and slave tables do not differ
-Comparing tables master:B37656.T1 and slave:bug37656.t1
+include/diff_tables.inc [master:B37656.T1, slave:bug37656.t1]
 SET SQL_LOG_BIN=0;
 DROP DATABASE B37656;
 SET SQL_LOG_BIN=1;
@@ -34,3 +30,4 @@ Database (%37656)
 DROP DATABASE BUG37656;
 SHOW DATABASES LIKE '%37656';
 Database (%37656)
+include/rpl_end.inc

@@ -29,11 +29,15 @@
 # Creates a binlog file and a binlog index file, and sets
 # @@global.relay_log_purge=1. All this is restored when you call
 # cleanup_fake_relay_log.inc.
-#
-# Enables the query log.
 
 
---disable_query_log
+--let $include_filename= setup_fake_relay_log.inc
+--source include/begin_include_file.inc
+
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
 
 # Print message.
 let $_fake_relay_log_printable= `SELECT REPLACE('$fake_relay_log', '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`;
@@ -53,35 +57,26 @@ if ($running) {
   --echo Error: Slave was running when test case sourced
   --echo include/setup_fake_replication.inc
   --echo Slave_IO_Running = $_io_running; Slave_SQL_Running = $_sql_running
-  --echo Printing some debug info:
-  SHOW SLAVE STATUS;
-  SHOW MASTER STATUS;
-  SHOW BINLOG EVENTS;
-  SHOW PROCESSLIST;
+  --source include/show_rpl_debug_info.inc
+  --die
 }
 
 # Read server variables.
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $_fake_datadir= `SELECT @@datadir`;
 let $_fake_filename= query_get_value(SHOW VARIABLES LIKE 'relay_log', Value, 1);
 if (!$_fake_filename) {
-  --echo Badly written test case: relay_log variable is empty. Please use the
-  --echo server option --relay-log=FILE.
+  --die ERROR IN TEST: relay_log variable is empty. Please use the server option --relay-log=FILE.
 }
-let $_fake_relay_log= $MYSQLD_DATADIR/$_fake_filename-fake.000001;
-let $_fake_relay_index= $MYSQLD_DATADIR/$_fake_filename.index;
+let $_fake_relay_log= $_fake_datadir/$_fake_filename-fake.000001;
+let $_fake_relay_index= $_fake_datadir/$_fake_filename.index;
 # Need to restore relay_log_purge in cleanup_fake_relay_log.inc, since
 # CHANGE MASTER modifies it (see the manual for CHANGE MASTER).
 let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
-# Reset slave and remove relay log and index files if they exist
 RESET SLAVE;
-error 0,1;
-remove_file $MYSQLD_DATADIR/$_fake_filename.000001;
-error 0,1;
-remove_file $MYSQLD_DATADIR/$_fake_filename.index;
 
 # Create relay log file.
-copy_file $fake_relay_log $_fake_relay_log;
+--copy_file $fake_relay_log $_fake_relay_log
 
 # Create relay log index.
 
@@ -90,17 +85,23 @@ copy_file $fake_relay_log $_fake_relay_log;
 # relay log before comparison, thus we need to added the directory
 # part (./ on unix .\ on windows) when faking the relay-log-bin.index.
 
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 0`)
-{
-  eval select './$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
-}
+# mysqltest currently parses backslash escapes wrong, so any sequence
+# of N backslashes is collapsed to just one backslash. So we use the
+# SQL function CHAR() to generate a backslash character instead. Since
+# the string is interpreted in SQL context, we to escape it, so we use
+# two backslashes.
 
-if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") != 0`)
-{
-  eval select '.\\\\$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index';
-}
+--let $_fake_dir= `select IF(convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows"), CONCAT('.', CHAR(92), CHAR(92)), './')`
+--let $write_var= $_fake_dir$_fake_filename-fake.000001\n
+--let $write_to_file= $_fake_relay_index
+--source include/write_var_to_file.inc
+
+# Remember old settings.
+--let $_fake_old_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
 
 # Setup replication from existing relay log.
 eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;
 
---enable_query_log
+
+--let $include_filename= setup_fake_relay_log.inc
+--source include/end_include_file.inc
