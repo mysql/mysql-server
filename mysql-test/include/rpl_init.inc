@@ -116,24 +116,24 @@ if ($rpl_debug)
 }
 
 # Allow $MASTER_MYPORT as alias for $SERVER_MYPORT_1
-if (`SELECT '$SERVER_MYPORT_1' = ''`)
+if (!$SERVER_MYPORT_1)
 {
   --let SERVER_MYPORT_1= $MASTER_MYPORT
 }
 # Allow $SLAVE_MYPORT as alias for $SERVER_MYPORT_2
-if (`SELECT '$SERVER_MYPORT_2' = ''`)
+if (!$SERVER_MYPORT_2)
 {
   --let SERVER_MYPORT_2= $SLAVE_MYPORT
 }
 # Allow $MASTER_MYPORT1 as alias for $SERVER_MYPORT_3
 # (this alias is used by rpl_ndb tests)
-if (`SELECT '$SERVER_MYPORT_3' = ''`)
+if (!$SERVER_MYPORT_3)
 {
   --let SERVER_MYPORT_3= $MASTER_MYPORT1
 }
 # Allow $SLAVE_MYPORT1 as alias for $SERVER_MYPORT_4
 # (this alias is used by rpl_ndb tests)
-if (`SELECT '$SERVER_MYPORT_4' = ''`)
+if (!$SERVER_MYPORT_4)
 {
   --let SERVER_MYPORT_4= $SLAVE_MYPORT1
 }

@@ -25,7 +25,7 @@
 
 
 --let $_param_value= query_get_value(SHOW SLAVE STATUS, $slave_param, 1)
-if (`SELECT '$_param_value' != '$slave_param_value'`) {
+if ($_param_value != $slave_param_value) {
   --source include/show_rpl_debug_info.inc
   --echo Wrong value for $slave_param. Expected '$slave_param_value', got '$_param_value'
   --die Wrong value for slave parameter

@@ -58,13 +58,13 @@
 
 
 --let $_show_slave_status_items=$status_items
-if (`SELECT "XX$status_items" = "XX"`)
+if (!$status_items)
 {
   --die Bug in test case: The mysqltest variable $status_items is not set.
 }
 
 
-while (`SELECT "XX$_show_slave_status_items" <> "XX"`) 
+while ($_show_slave_status_items) 
 {
   --let $_show_slave_status_name= `SELECT SUBSTRING_INDEX('$_show_slave_status_items', ',', 1)`
   --let $_show_slave_status_items= `SELECT LTRIM(SUBSTRING('$_show_slave_status_items', LENGTH('$_show_slave_status_name') + 2))`
