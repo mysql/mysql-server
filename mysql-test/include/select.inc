@@ -4140,7 +4140,7 @@ DROP TABLE t1;
 --echo End of 5.1 tests
 
 --echo #
---echo # Bug#45277: Lost HAVING clause led to a wrong result.
+--echo # Bug#45227: Lost HAVING clause led to a wrong result.
 --echo #
 CREATE TABLE `CC` (
   `int_nokey` int(11) NOT NULL,
@@ -4162,7 +4162,7 @@ SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
 
 DROP TABLE CC;
---echo # End of test#45277
+--echo # End of test#45227
 
 --echo #
 --echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 

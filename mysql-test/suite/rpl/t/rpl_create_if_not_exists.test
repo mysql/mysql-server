@@ -125,7 +125,7 @@ DROP TABLE t3;
 --echo # After the worklog, it will insert nothing and the statement will not be
 --echo # binlogged if the table already exists.
 --echo # After the worklog, some bugs will disappear automotically.
-source include/master-slave-reset.inc;
+--source include/rpl_reset.inc
 
 --echo
 --echo # Case 1: BUG#47132
@@ -173,4 +173,4 @@ DROP VIEW v1;
 
 DROP TABLE t1, t2;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

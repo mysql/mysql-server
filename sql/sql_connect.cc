@@ -518,7 +518,7 @@ bool setup_connection_thread_globals(THD *thd)
 {
   if (thd->store_globals())
   {
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+    close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
@@ -693,7 +693,7 @@ void do_handle_one_connection(THD *thd_arg)
 
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+    close_connection(thd, ER_OUT_OF_RESOURCES);
     statistic_increment(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
@@ -751,7 +751,7 @@ void do_handle_one_connection(THD *thd_arg)
     end_connection(thd);
    
 end_thread:
-    close_connection(thd, 0, 1);
+    close_connection(thd);
     if (MYSQL_CALLBACK_ELSE(thread_scheduler, end_thread, (thd, 1), 0))
       return;                                 // Probably no-threads
 

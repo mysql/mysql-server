@@ -71,8 +71,8 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
-/* This is set to TRUE if the MySQL user has set it in MySQL */
-extern ibool	srv_lower_case_table_names;
+/* This is set to the MySQL server value for this variable. */
+extern uint	srv_lower_case_table_names;
 
 /* Mutex for locking srv_monitor_file */
 extern mutex_t	srv_monitor_file_mutex;
@@ -155,7 +155,7 @@ extern ibool	srv_use_sys_malloc;
 #endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 extern ulint    srv_buf_pool_instances; /*!< requested number of buffer pool instances */
-extern ulong	srv_n_page_hash_mutexes;/*!< number of mutexes to
+extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
@@ -322,6 +322,9 @@ extern ulint srv_buf_pool_flushed;
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
 
+/* print all user-level transactions deadlocks to mysqld stderr */
+extern my_bool srv_print_all_deadlocks;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 
@@ -336,6 +339,7 @@ extern export_struc export_vars;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+extern mysql_pfs_key_t	buf_page_cleaner_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
@@ -600,7 +604,22 @@ UNIV_INTERN
 void
 srv_export_innodb_status(void);
 /*==========================*/
-
+/*******************************************************************//**
+Get current server activity count. We don't hold srv_sys::mutex while
+reading this value as it is only used in heuristics.
+@return activity count. */
+UNIV_INTERN
+ulint
+srv_get_activity_count(void);
+/*========================*/
+/*******************************************************************//**
+Check if there has been any activity.
+@return FALSE if no change in activity counter. */
+UNIV_INTERN
+ibool
+srv_check_activity(
+/*===============*/
+	ulint		old_activity_count);	/*!< old activity count */
 /******************************************************************//**
 Increment the server activity counter. */
 UNIV_INTERN

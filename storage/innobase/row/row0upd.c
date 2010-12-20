@@ -242,7 +242,7 @@ row_upd_check_references_constraints(
 			if (foreign->foreign_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
-					foreign->foreign_table_name, FALSE);
+					foreign->foreign_table_name_lookup, FALSE);
 			}
 
 			if (foreign->foreign_table) {

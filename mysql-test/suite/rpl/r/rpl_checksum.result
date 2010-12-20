@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
@@ -64,6 +60,7 @@ set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
+include/wait_for_slave_io_to_stop.inc
 *** Got IO thread error code: 1236, text: Got fatal error 1236 from master when reading data from binary log: 'Slave can not handle replication events with the checksum that master is configured to log' ***
 select count(*) as zero from t1;
 zero
@@ -80,12 +77,15 @@ include/stop_slave.inc
 create table t2 (a int);
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
+include/wait_for_slave_io_to_stop.inc
 *** Got IO thread error code: 1595, text: Relay log write failure: could not queue event from master ***
 set @@global.debug='';
 start slave io_thread;
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
+include/wait_for_slave_sql_to_stop.inc
 *** Got SQL thread error code: 1593, text: Error initializing relay log position: I/O error reading event at position 4 ***
 set @@global.debug='';
 include/start_slave.inc
@@ -121,4 +121,4 @@ set @@global.binlog_checksum = @master_save_binlog_checksum;
 set @@global.master_verify_checksum = @save_master_verify_checksum;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
 set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
-End of tests
+include/rpl_end.inc
