@@ -1899,6 +1899,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
+  {
+    CFG_DB_LATE_ALLOC,
+    "LateAlloc",
+    DB_TOKEN,
+    "Allocate memory after connection to ndb_mgmd has been established",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1",
+    "0",                     /* Min */
+    "1"                      /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
