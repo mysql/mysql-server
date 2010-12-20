@@ -523,7 +523,8 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     if (flush_master_info(mi, TRUE, FALSE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
-    if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
+    if (mi->rli.relay_log.is_open() &&
+        my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->fd, MYF(MY_WME)))
@@ -3632,8 +3633,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  rotate_relay_log(mi); /* will take the right mutexes */
-  DBUG_RETURN(0);
+  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
 }
 
 /*
@@ -4870,12 +4870,13 @@ err:
   is void).
 */
 
-void rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
+  int error= 0;
 
-  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", abort(););
+  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", DBUG_SUICIDE(););
 
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -4888,7 +4889,8 @@ void rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  rli->relay_log.new_file();
+  if ((error= rli->relay_log.new_file()))
+    goto end;
 
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
@@ -4905,7 +4907,7 @@ void rotate_relay_log(Master_info* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 

@@ -32,10 +32,10 @@ The following options may be given as the first argument:
  file (Solves most 'table full' errors)
  --bind-address=name IP address to bind to.
  --binlog-cache-size=# 
- The size of the cache to hold the SQL statements for the
- binary log during a transaction. If you often use big,
- multi-statement transactions you can increase this to get
- more performance
+ The size of the transactional cache for updates to
+ transactional engines for the binary log. If you often
+ use transactions containing many statements, you can
+ increase this to get more performance
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -66,6 +66,11 @@ The following options may be given as the first argument:
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
  size if possible. The value has to be a multiple of 256.
+ --binlog-stmt-cache-size=# 
+ The size of the statement cache for updates to
+ non-transactional engines for the binary log. If you
+ often use statements updating a great number of rows, you
+ can increase this to get more performance
  --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
@@ -277,14 +282,15 @@ The following options may be given as the first argument:
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
  --max-binlog-cache-size=# 
- Can be used to restrict the total size used to cache a
- multi-transaction query
+ Sets the total size of the transactional cache
  --max-binlog-dump-events=# 
  Option used by mysql-test for debugging and testing of
  replication.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
+ --max-binlog-stmt-cache-size=# 
+ Sets the total size of the statement cache
  --max-connect-errors=# 
  If there is more than this number of interrupted
  connections from a host this host will be blocked from
@@ -738,6 +744,7 @@ binlog-cache-size 32768
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-row-event-max-size 1024
+binlog-stmt-cache-size 32768
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
 character-set-filesystem binary
@@ -816,6 +823,7 @@ max-allowed-packet 1048576
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
+max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 10
 max-connections 151
 max-delayed-threads 20
