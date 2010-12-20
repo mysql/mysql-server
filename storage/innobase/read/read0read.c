@@ -292,6 +292,41 @@ read_view_clone(
 }
 
 /*********************************************************************//**
+Insert the view in the proper order into the trx_sys->view_list. The
+read view list is ordered by read_view_t::low_limit_no in descending order. */
+static
+void
+read_view_add(
+/*==========*/
+	read_view_t*	view)		/*!< in: view to add to */
+{
+	read_view_t*	elem;
+	read_view_t*	prev_elem;
+
+	ut_ad(read_view_validate(view));
+
+	mutex_enter(&trx_sys->read_view_mutex);
+
+	/* Find the correct slot for insertion. */
+	for (elem = UT_LIST_GET_FIRST(trx_sys->view_list), prev_elem = NULL;
+	     elem != NULL && view->low_limit_no < elem->low_limit_no;
+	     prev_elem = elem, elem = UT_LIST_GET_NEXT(view_list, elem)) {
+		/* No op */
+	}
+
+	if (prev_elem == NULL) {
+		UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
+	} else {
+		UT_LIST_INSERT_AFTER(
+			view_list, trx_sys->view_list, prev_elem, view);
+	}
+
+	mutex_exit(&trx_sys->read_view_mutex);
+
+	ut_ad(read_view_list_validate());
+}
+
+/*********************************************************************//**
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @return	own: read view struct */
@@ -364,15 +399,7 @@ read_view_open_now_low(
 		view->up_limit_id = view->low_limit_id;
 	}
 
-	ut_ad(read_view_validate(view));
-
-	mutex_enter(&trx_sys->read_view_mutex);
-
-	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
-
-	mutex_exit(&trx_sys->read_view_mutex);
-
-	ut_ad(read_view_list_validate());
+	read_view_add(view);
 
 	return(view);
 }
@@ -488,13 +515,7 @@ read_view_purge_open(
 		view->up_limit_id = oldest_view->up_limit_id;
 	}
 
-	mutex_enter(&trx_sys->read_view_mutex);
-
-	UT_LIST_ADD_LAST(view_list, trx_sys->view_list, view);
-
-	mutex_exit(&trx_sys->read_view_mutex);
-
-	ut_ad(read_view_list_validate());
+	read_view_add(view);
 
 	rw_lock_s_unlock(&trx_sys->lock);
 
@@ -674,15 +695,7 @@ read_cursor_view_create_for_mysql(
 		view->up_limit_id = view->low_limit_id;
 	}
 
-	ut_ad(read_view_validate(view));
-
-	mutex_enter(&trx_sys->read_view_mutex);
-
-	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
-
-	mutex_exit(&trx_sys->read_view_mutex);
-
-	ut_ad(read_view_list_validate());
+	read_view_add(view);
 
 	rw_lock_s_unlock(&trx_sys->lock);
 

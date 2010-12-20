@@ -11,3 +11,4 @@ let $engine_type = 'NDB';
 -- source extra/rpl_tests/rpl_extraSlave_Col.test
 
 
+--source include/rpl_end.inc

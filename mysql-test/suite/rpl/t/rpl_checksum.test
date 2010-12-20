@@ -263,4 +263,4 @@ sync_slave_with_master;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
 set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
 
---echo End of tests
+--source include/rpl_end.inc

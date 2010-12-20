@@ -100,5 +100,3 @@ DROP PROCEDURE test.proc_norm;
 DROP PROCEDURE test.proc_byrange;
 DROP TABLE test.regular_tbl;
 DROP TABLE test.byrange_tbl;
-
---source include/master-slave-end.inc

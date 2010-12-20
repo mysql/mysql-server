@@ -1647,7 +1647,9 @@ public:
   table_map outer_join;
   /* Number of records produced after join + group operation */
   ha_rows  send_records;
-  ha_rows found_records,examined_rows,row_limit, select_limit;
+  ha_rows found_records,examined_rows,row_limit;
+  // m_select_limit is used to decide if we are likely to scan the whole table.
+  ha_rows m_select_limit;
   /**
     Used to fetch no more than given amount of rows per one
     fetch operation of server side cursor.

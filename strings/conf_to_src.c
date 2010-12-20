@@ -144,12 +144,35 @@ static int add_collation(CHARSET_INFO *cs)
 }
 
 
+static void
+default_reporter(enum loglevel level  __attribute__ ((unused)),
+                 const char *format  __attribute__ ((unused)),
+                 ...)
+{
+}
+
+
+static void
+my_charset_loader_init(MY_CHARSET_LOADER *loader)
+{
+  loader->error[0]= '\0';
+  loader->once_alloc= malloc;
+  loader->malloc= malloc;
+  loader->realloc= realloc;
+  loader->free= free;
+  loader->reporter= default_reporter;
+  loader->add_collation= add_collation;
+}
+
+
 static int my_read_charset_file(const char *filename)
 {
-  char buf[MAX_BUF], error[128];
+  char buf[MAX_BUF];
   int  fd;
   uint len;
+  MY_CHARSET_LOADER loader;
   
+  my_charset_loader_init(&loader);
   if ((fd=open(filename,O_RDONLY)) < 0)
   {
     fprintf(stderr,"Can't open '%s'\n",filename);
@@ -160,9 +183,9 @@ static int my_read_charset_file(const char *filename)
   DBUG_ASSERT(len < MAX_BUF);
   close(fd);
   
-  if (my_parse_charset_xml(buf, len, add_collation, error, sizeof(error)))
+  if (my_parse_charset_xml(&loader, buf, len))
   {
-    fprintf(stderr, "Error while parsing '%s': %s\n", filename, error);
+    fprintf(stderr, "Error while parsing '%s': %s\n", filename, loader.error);
     exit(1);
   }
   

@@ -1131,9 +1131,32 @@ trx_purge_wait_for_workers_to_complete(
 {
 	/* Ensure that the work queue empties out. Note, we are doing
 	a dirty read of purge_sys->n_completed and purge_sys->n_executing. */
-	while ((purge_sys->n_submitted > purge_sys->n_completed
-	       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP)
+	while (purge_sys->n_submitted > purge_sys->n_completed
 	       || purge_sys->n_executing > 0) {
+
+		if (srv_get_task_queue_length() == 0
+		    && purge_sys->n_executing == 0) {
+
+			ut_a(purge_sys->n_submitted == purge_sys->n_completed);
+			break;
+
+		} else if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+			/* This is problematic because the worker threads can
+			simply exit via os_event_wait(). We could end up
+			looping here forever waiting for the task queue to
+			drain. Another problem is that a worker thread can
+			be active but it hasn't incrementd the n_executing
+			field yet. Our only hope is to poll here for a fixed
+			time interval.  Given that the server is shutting down,
+			a few microseconds waiting to check the worker threads
+			should be acceptable. */
+
+			os_thread_sleep(500000);
+
+			if (srv_get_task_queue_length() > 0) {
+				break;
+			}
+		}
 
 		srv_release_threads(SRV_WORKER, 1);
 
@@ -1144,9 +1167,9 @@ trx_purge_wait_for_workers_to_complete(
 	/* If shutdown is signalled then the worker threads can
 	simply exit via os_event_wait(). The thread initiating the
 	purge should be prepared to handle this case. */
-	if (srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP) {
+	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
-		/* None of the worker threads can be executing work. */
+		/* None of the worker threads should be doing any work. */
 		ut_a(purge_sys->n_executing == 0);
 
 		/* There should be no outstanding tasks as long
@@ -1162,7 +1185,7 @@ void
 trx_purge_truncate(void)
 /*====================*/
 {
-	mutex_enter(&purge_sys->mutex);
+	ut_ad(mutex_own(&purge_sys->mutex));
 
 	ut_ad(trx_purge_check_limit());
 
@@ -1171,8 +1194,6 @@ trx_purge_truncate(void)
 	} else {
 		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
-
-	mutex_exit(&purge_sys->mutex);
 }
 
 /*******************************************************************//**
@@ -1267,7 +1288,17 @@ run_synchronously:
 		}
 	}
 
-	trx_purge_truncate();
+	/* When shutdown is triggered it is possible for the worker threads
+        to have already exited via os_event_wait(). We only truncate the UNDO
+	log when we are 100% sure that all submitted tasks have been completed. */
+
+	mutex_enter(&purge_sys->mutex);
+
+	if (purge_sys->n_submitted == purge_sys->n_completed) {
+		trx_purge_truncate();
+	}
+
+	mutex_exit(&purge_sys->mutex);
 
 	return(purge_sys->n_pages_handled - n_pages_handled_start);
 }

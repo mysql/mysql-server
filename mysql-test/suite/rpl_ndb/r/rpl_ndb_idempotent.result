@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
@@ -32,11 +28,12 @@ SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row3	C	3
 row4	D	4
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 STOP SLAVE;
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
+include/check_slave_no_error.inc
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -62,5 +59,6 @@ COMMIT;
 SELECT * FROM t1;
 c1	c2	c3
 row2	new on slave	2
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 DROP TABLE IF EXISTS t1;
+include/rpl_end.inc

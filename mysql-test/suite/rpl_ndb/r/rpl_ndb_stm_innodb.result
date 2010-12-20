@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET binlog_format = STATEMENT;
 
 *** Test 1 ***
@@ -121,12 +117,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 
 ** Test 4 **
 
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 
 select @log_name:=log_name, @start_pos:=start_pos, @end_pos:=end_pos
 from mysql.ndb_apply_status;
@@ -139,3 +130,4 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 *** DUMP MASTER & SLAVE FOR COMPARE ********
 DROP DATABASE tpcb;
 ****** Do dumps compare ************
+include/rpl_end.inc

@@ -6,3 +6,4 @@ source include/have_innodb.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
 
 source extra/rpl_tests/rpl_innodb.test;
+--source include/rpl_end.inc
