@@ -27,12 +27,12 @@
 # @@secure_file_priv. That makes this more complex than you might
 # expect.
 
-if (`SELECT '$write_to_file' = ''`)
+if (!$write_to_file)
 {
   --die You must set the mysqltest variable \$write_to_file before you source include/write_var_to_file.inc
 }
 
-if (`SELECT '$write_to_file' = 'GENERATE'`)
+if ($write_to_file == 'GENERATE')
 {
   --let $_wvtf_suffix= `SELECT UUID()`
   --let $write_to_file= $MYSQLTEST_VARDIR/tmp/_var_file_$_wvtf_suffix.inc

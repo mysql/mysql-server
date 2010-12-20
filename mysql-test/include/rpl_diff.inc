@@ -46,7 +46,7 @@ if (!$rpl_diff_statement)
 
 # Get database name.
 --let $_rpl_diff_database= $rpl_diff_database
-if (`SELECT '$_rpl_diff_database' = ''`)
+if (!$_rpl_diff_database)
 {
   --let $_rpl_diff_database= test
 }
