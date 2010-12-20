@@ -81,7 +81,7 @@ if (`SELECT LOCATE(',', '$diff_tables') = 0`)
 # Iterate over all tables
 --let $_dt_outfile=
 --let $_dt_prev_outfile=
-while (`SELECT '$_dt_tables' != ''`)
+while ($_dt_tables)
 {
   --let $_dt_table= `SELECT SUBSTRING_INDEX('$_dt_tables', ',', 1)`
   --let $_dt_tables= `SELECT SUBSTRING('$_dt_tables', LENGTH('$_dt_table') + 2)`
