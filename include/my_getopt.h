@@ -86,7 +86,6 @@ struct my_option
 
 
 typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
 /**
   Used to retrieve a reference to the object (variable) that holds the value
   for the given option. For example, if var_type is GET_UINT, the function

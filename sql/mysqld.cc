@@ -3409,6 +3409,8 @@ static int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
+      buffered_logs.print();
+      buffered_logs.cleanup();
       sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION), default_collation_name);
       return 1;
     }
@@ -4474,6 +4476,7 @@ int mysqld_main(int argc, char **argv)
   */
   buffered_logs.init();
   my_getopt_error_reporter= buffered_option_error_reporter;
+  my_charset_error_reporter= buffered_option_error_reporter;
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
                            (my_option*)(all_early_options.buffer), NULL);
