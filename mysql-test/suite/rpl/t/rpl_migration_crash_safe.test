@@ -47,7 +47,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 let $exp_slave= 0;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
@@ -72,7 +72,7 @@ INSERT INTO test VALUES (1), (2), (3);
 
 let $exp_slave= 1;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
@@ -90,7 +90,7 @@ file_exists $MYSQLD_DATADIR/relay-log.info;
 
 let $exp_slave= 0;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
