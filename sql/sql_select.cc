@@ -15773,6 +15773,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
+      key_part_info->key_part_flag= 0;
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
